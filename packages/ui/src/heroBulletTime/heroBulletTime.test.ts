@@ -74,15 +74,22 @@ describe('the plan: stopped time', () => {
     expect(p.hits).toEqual([]);
   });
 
-  it('II: three darts hang in a ring all the way round the target, then all hit together (one blow)', () => {
+  it('II: three darts hang in a fan round the target (out toward the board, never off screen), then all hit together (one blow)', () => {
     const p = plan(8);
     expect(p.darts).toHaveLength(3);
     expect(new Set(p.darts.map((d) => d.hitAt)).size).toBe(1);
     expect(p.hits).toEqual([]);
-    const g = dartGeos(p, A, D, R, R, C);
-    const angles = g.map((x) => Math.atan2(x.hang.y - D.y, x.hang.x - D.x)).sort((a, b) => a - b);
-    expect(angles[1]! - angles[0]!).toBeCloseTo((Math.PI * 2) / 3, 5);
-    for (const x of g) expect(Math.hypot(x.hang.x - D.x, x.hang.y - D.y)).toBeGreaterThan(R);
+    const screen = { x: 0, y: 0, w: 1920, h: 1080 };
+    const g = dartGeos(p, A, { x: 1750, y: 120 }, R, R, C, screen); // a target tucked in the top-right corner
+    const ang = g.map((x) => Math.atan2(x.hang.y - 120, x.hang.x - 1750));
+    const sep = (a: number, b: number): number => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+    expect(sep(ang[0]!, ang[1]!)).toBeCloseTo(0.85, 2);
+    expect(sep(ang[1]!, ang[2]!)).toBeCloseTo(0.85, 2);
+    for (const x of g) {
+      expect(Math.hypot(x.hang.x - 1750, x.hang.y - 120)).toBeGreaterThan(R);
+      expect(x.hang.x).toBeLessThanOrEqual(1920); expect(x.hang.y).toBeGreaterThanOrEqual(0);
+      expect(x.aim).toBeCloseTo(Math.atan2(120 - x.hang.y, 1750 - x.hang.x), 6);
+    }
   });
 
   it('III: the volley stops mid-flight at ONE instant in a spiral; after the snap it lands in a run (ticks, then the blow)', () => {

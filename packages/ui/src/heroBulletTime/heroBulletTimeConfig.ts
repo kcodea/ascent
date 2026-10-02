@@ -117,11 +117,11 @@ const TIER_DEFAULTS: Record<BulletTierSuffix, [number, number, number, number]> 
   FlyMs: [260, 250, 300, 220],
   HangMs: [360, 420, 440, 0],
   ResumeMs: [70, 80, 80, 150],
-  Size: [1, 1, 0.85, 0.95],
-  Shake: [8, 11, 14, 30],
+  Size: [1, 0.95, 0.8, 0.72],
+  Shake: [10, 13, 16, 34],
   Zoom: [0.02, 0.025, 0.03, 0.04],
   Push: [0.03, 0.04, 0.05, 0.08],
-  Punch: [0.03, 0.04, 0.05, 0.09],
+  Punch: [0.035, 0.045, 0.06, 0.12],
   SettleMs: [360, 380, 440, 620],
   Dim: [0.1, 0.14, 0.2, 0.3],
 };
@@ -152,15 +152,15 @@ export const HERO_BULLET_DEFAULTS: HeroBulletTimeConfig = {
   domeRings: 3,
   domeBlades: 12,
   domeSize: 1,
-  slowMo: 0.3,
+  slowMo: 0.22,
   slowMoMs: 420,
   hangR: 1.15,
-  dartPx: 64,
-  trailMs: 90,
-  trailWidth: 14,
-  tremblePx: 1.5,
+  dartPx: 170,
+  trailMs: 24,
+  trailWidth: 30,
+  tremblePx: 1.8,
   turn: 0.05,
-  desat: 0.8,
+  desat: 0.85,
   desatInMs: 140,
   rippleMs: 260,
   motes: 18,
@@ -446,33 +446,55 @@ export function bulletSlowExtraMs(p: BulletPlan, c: HeroBulletTimeConfig): numbe
 /** A dart's whole path: from the hand bowing into its hang point (arriving pointed at the target), then into the hit. */
 export interface DartGeo { hand: Pt; ctrl: Pt; hang: Pt; hit: Pt; aim: number }
 
-/** Where each dart hangs, by tier: an inch off the target (I), a ring of three (II), a spiral (III), a dome (IV). */
+/**
+ * Which way is "into the screen" from the target: toward the middle of the stage (a target tucked in a corner gets its
+ * blades fanned out over the board, never clipped off the edge), or toward the striker when there is no stage box.
+ */
+export function inwardAngle(a: Pt, d: Pt, bounds?: { x: number; y: number; w: number; h: number }): number {
+  const back = Math.atan2(a.y - d.y, a.x - d.x);
+  if (!bounds) return back;
+  const cx = bounds.x + bounds.w / 2 - d.x, cy = bounds.y + bounds.h / 2 - d.y;
+  if (Math.hypot(cx, cy) < 1) return back;
+  const inA = Math.atan2(cy, cx);
+  // Lean a little toward the striker so the shots read as coming FROM it.
+  const diff = Math.atan2(Math.sin(back - inA), Math.cos(back - inA));
+  return inA + diff * 0.25;
+}
+
+/**
+ * Where each dart hangs, by tier, all fanned out from the target toward the middle of the board and all aimed at it:
+ * I an inch off it; II a fan of three; III a spiral sweeping round it; IV a half-shell DOME of blades, ring on ring.
+ */
 export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroBulletTimeConfig, bounds?: { x: number; y: number; w: number; h: number }): Pt[] {
   const back = Math.atan2(a.y - d.y, a.x - d.x);
+  const inward = inwardAngle(a, d, bounds);
   const R = radius;
   const pts: Pt[] = [];
   const n = p.darts.length;
   if (p.kind === 'dart') pts.push(polar(d, back, R * c.hangR));
   else if (p.kind === 'ring') {
-    // A ring all the way round the target (the far ones curve round it to get there).
-    for (let i = 0; i < n; i++) pts.push(polar(d, back + (i - (n - 1) / 2) * ((Math.PI * 2) / n), R * (c.hangR + 0.2)));
+    for (let i = 0; i < n; i++) pts.push(polar(d, inward + (i - (n - 1) / 2) * 0.85, R * (c.hangR + 0.35)));
   } else if (p.kind === 'spiral') {
-    for (let i = 0; i < n; i++) pts.push(polar(d, back + i * 2.39996, R * (c.hangR + 0.1 + 0.11 * i)));
+    for (let i = 0; i < n; i++) pts.push(polar(d, inward - 1.5 + (3 * i) / Math.max(1, n - 1), R * (c.hangR + 0.25 + 0.17 * i)));
   } else {
-    p.darts.forEach((dt, i) => {
-      const ringIdx = dt.ring;
-      const inRing = p.darts.filter((x) => x.ring === ringIdx);
+    p.darts.forEach((dt) => {
+      const inRing = p.darts.filter((x) => x.ring === dt.ring);
       const j = inRing.indexOf(dt);
-      const a0 = (j / inRing.length) * Math.PI * 2 + ringIdx * 0.37;
-      const r = R * c.domeSize * (1.45 + 0.55 * ringIdx);
-      // A dome: rings squashed toward the viewer and lifted as they widen.
-      pts.push({ x: d.x + Math.cos(a0) * r, y: d.y + Math.sin(a0) * r * 0.62 - ringIdx * R * 0.25 * c.domeSize });
-      void i;
+      const span = 1.25 + 0.12 * dt.ring;
+      const a0 = inward - span + (2 * span * (j + (dt.ring % 2) * 0.5)) / Math.max(1, inRing.length - 0.5);
+      pts.push(polar(d, a0, R * c.domeSize * (1.6 + 0.75 * dt.ring)));
     });
   }
   if (!bounds) return pts;
   const m = R * 0.4;
   return pts.map((q) => ({ x: clamp(q.x, bounds.x + m, bounds.x + bounds.w - m), y: clamp(q.y, bounds.y + m, bounds.y + bounds.h - m) }));
+}
+
+/** The clock's centre: out from the target toward the board (IV's giant face sits behind the dome). */
+export function clockCentre(p: BulletPlan, a: Pt, d: Pt, radius: number, bounds?: { x: number; y: number; w: number; h: number }): Pt {
+  const inward = inwardAngle(a, d, bounds);
+  const out = p.kind === 'dome' ? 2.2 : p.kind === 'spiral' ? 1.4 : 0;
+  return polar(d, inward, radius * out);
 }
 
 function polar(o: Pt, a: number, r: number): Pt { return { x: o.x + Math.cos(a) * r, y: o.y + Math.sin(a) * r }; }

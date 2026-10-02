@@ -53,6 +53,9 @@ export const MAX_DARTS = 64;
 const GLOW_PX = 128;
 const RING_PX = 160;
 const STAR_PX = 48;
+/** The chromatic burst on the restart: the Ancient prismatic pair (cyan, magenta). */
+const CHROMA_A = 0x8af5ff;
+const CHROMA_B = 0xff7ae0;
 
 interface Dart { body: Sprite; glow: Sprite; trail: RibbonTrail; on: boolean; phase: DartPhase; seed: number; tint: number; x: number; y: number; angle: number; k: number }
 
@@ -90,7 +93,7 @@ export class HeroBulletTimeScene extends FxPool {
    * Dart `i` this frame: `sample(ms)` is its position on the clock, `te` the motion time to draw (while it hangs, the
    * time it stopped, so its streak hangs with it), `phase` where it is in its life, `angle` its heading, `size` its scale.
    */
-  setDart(i: number, sample: (ms: number) => Pt, te: number, phase: DartPhase, angle: number, size: number, tint: number): void {
+  setDart(i: number, sample: (ms: number) => Pt, te: number, phase: DartPhase, angle: number, size: number, tint: number, tension = 0): void {
     const d = this.darts[i] ?? (phase === 'fly' || phase === 'hang' || phase === 'strike' ? this.dartAt(i, tint) : null);
     if (!d) return;
     const on = phase === 'fly' || phase === 'hang' || phase === 'strike';
@@ -102,20 +105,23 @@ export class HeroBulletTimeScene extends FxPool {
     let x = p.x, y = p.y, a = angle;
     if (phase === 'hang') {
       // Stopped, but alive: a tremble and a hair of turn, never a still frame.
-      const w = this.age * 0.02 + d.seed;
-      x += Math.sin(w * 3.1) * this.look.tremblePx * S;
-      y += Math.cos(w * 2.3) * this.look.tremblePx * S;
-      a += Math.sin(w * 1.7) * this.look.turn;
+      // ...and straining harder as the restart nears (the anticipation).
+      const w = this.age * (0.02 + 0.03 * tension) + d.seed;
+      const tr = this.look.tremblePx * (1 + 3 * tension) * S;
+      x += Math.sin(w * 3.1) * tr;
+      y += Math.cos(w * 2.3) * tr;
+      a += Math.sin(w * 1.7) * this.look.turn * (1 + tension);
     }
     d.x = x; d.y = y; d.angle = a;
     const k = (this.look.dartPx * size * S) / DART_W;
     d.k = k;
-    d.body.position.set(x, y); d.body.rotation = a; d.body.scale.set(k); d.body.alpha = 1; d.body.tint = tint;
-    d.glow.position.set(x, y); d.glow.scale.set((this.look.dartPx * size * S * 0.9) / GLOW_PX); d.glow.alpha = phase === 'hang' ? 0.35 + 0.15 * Math.sin(this.age * 0.012 + d.seed) : 0.55;
+    d.body.position.set(x, y); d.body.rotation = a; d.body.scale.set(k, k * 1.4); d.body.alpha = 1; d.body.tint = tint;
+    d.glow.position.set(x, y); d.glow.scale.set((this.look.dartPx * size * S * 1.1) / GLOW_PX);
+    d.glow.alpha = phase === 'hang' ? 0.55 + 0.2 * Math.sin(this.age * 0.012 + d.seed) + 0.25 * tension : 0.7;
     d.glow.tint = tint;
     if (this.look.trailMs > 0) {
       d.trail.mesh.tint = whiten(tint, 0.3);
-      d.trail.draw(sample, te, this.look.trailMs, this.look.trailWidth * size * S, phase === 'hang' ? 0.45 : 0.85);
+      d.trail.draw(sample, te, this.look.trailMs, this.look.trailWidth * size * S, phase === 'hang' ? 0.7 : 0.9);
     }
   }
 
@@ -130,6 +136,10 @@ export class HeroBulletTimeScene extends FxPool {
   stop(at: Pt, radius: number, area: { x: number; y: number; w: number; h: number }, motes: number, big: boolean): void {
     const c = this.colors;
     this.ripple(at, radius * (big ? 1.6 : 1));
+    // The gold time ripple SWEEPS the whole screen as time stops.
+    const far = Math.hypot(area.w, area.h);
+    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 620, from: (radius * 0.8) / RING_PX, to: (far * 1.1) / RING_PX / this.scale, a0: 0.75, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 700, from: (radius * 0.5) / RING_PX, to: (far * 0.9) / RING_PX / this.scale, a0: 0.5, ease: 'cubic', delay: 70 });
     this.spawn('glow', this.tex.glow, c.violet, at.x, at.y, { dur: 260, from: (radius * 1.2) / GLOW_PX, to: (radius * 3) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.15 });
     this.motes(area, motes);
   }
@@ -214,8 +224,13 @@ export class HeroBulletTimeScene extends FxPool {
   snap(at: Pt, radius: number, area: { x: number; y: number; w: number; h: number }, k = 1): void {
     const c = this.colors;
     this.spawn('glow', this.tex.wash, 0xffffff, area.x + area.w / 2, area.y + area.h / 2, {
-      dur: 140, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.35 * k, mode: 'punch', peakAt: 0.1, ease: 'linear',
+      dur: 150, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.55 * Math.min(1.2, k), mode: 'punch', peakAt: 0.08, ease: 'linear',
     });
+    // A CHROMATIC burst: a cyan and a magenta ring split either side of the light one, and streaks flung outward.
+    const o = radius * 0.12;
+    this.spawn('glow', this.tex.ring, CHROMA_A, at.x - o, at.y, { dur: 300, from: (radius * 0.5) / RING_PX, to: (radius * 4.4 * k) / RING_PX, a0: 0.85, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, CHROMA_B, at.x + o, at.y, { dur: 300, from: (radius * 0.5) / RING_PX, to: (radius * 4.4 * k) / RING_PX, a0: 0.85, ease: 'cubic' });
+    this.burst('glow', this.tex.streak, [c.light, CHROMA_A, CHROMA_B], at.x, at.y, Math.round(14 * k), { speed: 1500 * k, life: 260, size: 1.6 * k, drag: 0.2, align: true, to: 0.6 });
     this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 260, from: (radius * 0.6) / RING_PX, to: (radius * 4 * k) / RING_PX, a0: 1, ease: 'cubic' });
     this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: 340, from: (radius * 0.4) / RING_PX, to: (radius * 3 * k) / RING_PX, a0: 0.7, ease: 'cubic', delay: 40 });
   }
@@ -228,6 +243,7 @@ export class HeroBulletTimeScene extends FxPool {
     this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 180, from: (40 * T) / STAR_PX, to: (120 * T) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.15, rot: 0.3 });
     this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 280, from: (20 * T) / RING_PX, to: (170 * T) / RING_PX, a0: 0.9, ease: 'cubic' });
     this.burst('core', this.tex.spark, [c.light, c.gold, 0xffffff], at.x, at.y, sparks, { speed: 520 * T, dir: Math.atan2(-dir.y, -dir.x), spread: 2.6, life: 380, size: 0.6 * T, drag: 0.3, to: 0.3 });
+    this.burst('glow', this.tex.streak, [c.light, c.gold], at.x, at.y, Math.round(6 + 2 * T), { speed: 1100 * T, life: 200, size: 1.1 * T, drag: 0.2, align: true, to: 0.5 });
   }
 
   /**
@@ -249,6 +265,9 @@ export class HeroBulletTimeScene extends FxPool {
     [c.light, c.gold, c.violet, 0xffffff].forEach((tint, i) => this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 560 + i * 140, from: (40 * X) / RING_PX, to: ((420 + i * 160) * X) / RING_PX, a0: 0.95, ease: 'cubic', delay: i * 60 }));
     this.spawn('glow', this.tex.clockFace, c.gold, at.x, at.y, { dur: 700, from: (radius * 2.6) / FACE_PX, to: (radius * 7 * X) / FACE_PX, a0: 0.85, spin: 0.004, ease: 'cubic' });
     this.burst('core', this.tex.spark, [c.light, c.gold, c.violet, 0xffffff], at.x, at.y, 70, { speed: 1000 * X, life: 700, size: 0.9 * X, drag: 0.35, to: 0.3 });
+    this.burst('glow', this.tex.streak, [c.light, c.gold, c.violet, CHROMA_A, CHROMA_B], at.x, at.y, 26, { speed: 2000 * X, life: 380, size: 2.4 * X, drag: 0.2, align: true, to: 0.6 });
+    this.spawn('glow', this.tex.ring, CHROMA_A, at.x - radius * 0.15, at.y, { dur: 480, from: (60 * X) / RING_PX, to: (700 * X) / RING_PX, a0: 0.7, ease: 'cubic', delay: 30 });
+    this.spawn('glow', this.tex.ring, CHROMA_B, at.x + radius * 0.15, at.y, { dur: 480, from: (60 * X) / RING_PX, to: (700 * X) / RING_PX, a0: 0.7, ease: 'cubic', delay: 30 });
     this.burst('core', this.tex.star, [c.light, c.violet], at.x, at.y, 14, { speed: 640 * X, life: 600, size: (22 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
     this.burst('body', this.tex.dart, [c.gold, c.light, c.violet], at.x, at.y, 18, { speed: 900 * X, life: 600, size: 0.5 * X, grav: 600, drag: 0.5, spin: 0.03, to: 0.6, lift: 120 });
   }

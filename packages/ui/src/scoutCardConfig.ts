@@ -26,9 +26,7 @@ export interface ScoutCardConfig {
   histFace: number;   // × the foe portrait in the fight log
   socketSize: number; // × the rune sockets
   // Colours — one per component (owner ask 2026-08-31), tuned toward the lobby rail's palette.
-  bg1: string;        // card gradient, top
-  bg2: string;        // card gradient, bottom
-  border: string;     // frame outline
+  // (The card's background + frame are the shared tooltip panel since 2026-10-02: tooltips.css.)
   divider: string;    // the thin rules between sections
   nameCol: string;    // opponent name ink
   heroCol: string;    // the "Hero: …" line
@@ -45,7 +43,7 @@ const DEFAULTS: ScoutCardConfig = {
   // Text doubled all round (owner ask 2026-08-31: "increase the size of the text by 200%").
   nameSize: 2, heroSize: 2, statSize: 2, statLabelSize: 2, histText: 2,
   histFace: 1, socketSize: 1,
-  bg1: '#47311f', bg2: '#110c08', border: '#ffb685', divider: '#c17a45',
+  divider: '#c17a45',
   nameCol: '#ffffff', heroCol: '#d9c7a8', statCol: '#f4d58a', labelCol: '#b7a98f',
   winCol: '#4be081', loseCol: '#ff5555', drawCol: '#c9bca3', socketCol: '#d4941c',
 };
@@ -99,9 +97,6 @@ export function applyScoutCardVars(): void {
   s.setProperty('--sc-histtext', String(cfg.histText));
   s.setProperty('--sc-histface', String(cfg.histFace));
   s.setProperty('--sc-socket', String(cfg.socketSize));
-  s.setProperty('--sc-bg1', cfg.bg1);
-  s.setProperty('--sc-bg2', cfg.bg2);
-  s.setProperty('--sc-border', cfg.border);
   s.setProperty('--sc-divider', cfg.divider);
   s.setProperty('--sc-name-col', cfg.nameCol);
   s.setProperty('--sc-hero-col', cfg.heroCol);
@@ -147,9 +142,6 @@ const controls: TunerControl<Extract<keyof ScoutCardConfig, string>>[] = [
   r('histFace', 'History portrait size', 'Portraits & runes', 'The foe portrait shown in each fight-log row.'),
   r('socketSize', 'Rune socket size', 'Portraits & runes', 'The three rune sockets at the foot of the card.'),
 
-  col('bg1', 'Background top', 'Colours', 'Top of the card’s background gradient.'),
-  col('bg2', 'Background bottom', 'Colours', 'Bottom of the card’s background gradient.'),
-  col('border', 'Frame', 'Colours', 'The card’s outer frame hue.'),
   col('divider', 'Divider lines', 'Colours', 'The thin rules between sections (painted subtly).'),
   col('nameCol', 'Name ink', 'Colours', 'Opponent name colour.'),
   col('heroCol', 'Hero line ink', 'Colours', 'The "Hero: …" line.'),

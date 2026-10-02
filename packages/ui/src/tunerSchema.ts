@@ -51,6 +51,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   opponentsbackplate: '🖼️',
   titleaccount: '👤',
   portraitframes: '⭕',
+  tooltips: '💬',
   loadscreen: '⏳',
   heroduel: '⚔️',
   heroblast: '💥',

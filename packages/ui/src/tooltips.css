@@ -1,0 +1,203 @@
+/* ══ ONE TOOLTIP STYLE (owner ask 2026-10-02: "can we unify our tooltips everywhere stylistically so that they all
+   match? let's use the Aegis version for tooltips") ══════════════════════════════════════════════════════════════
+
+   Every hover tip in the game wears the HERO-POWER ("Aegis") panel: an opaque slate-blue panel, a light hairline
+   with a warm-gold top edge, a gold bold TITLE over a thin divider, light body text whose keywords and numbers read
+   in gold, and small outlined PILL tags. A one-line tip ("Upgrade Shop to tier 2") is the same panel with just its
+   text.
+
+   HOW IT IS SHARED
+   - The LOOK lives here and only here: the `--atip-*` tokens below, painted by the skin groups below. Each tip's own
+     rule in styles.css keeps only its GEOMETRY and behaviour (where it opens, its width, its delay, its show/hide)
+     and never sets its own background, border, shadow or text colour. `tooltipStyle.test.ts` fails a tip rule that
+     paints itself, and a new tip class that is not registered in `tooltipRegistry.ts`.
+   - New tips should use the shared classes directly (`.atip` + `.atip-title` / `.atip-body` / `.atip-pill` ...), or
+     the `<TipPanel>` component (TipPanel.tsx) that renders them. Legacy tip classes are listed in the skin groups so
+     their markup did not have to change.
+   - The text sizes, line height, max width and padding are live DEV dials (💬 Tooltips tuner, tooltipConfig.ts),
+     pushed onto :root as these same tokens. Production plays the baked defaults, which MUST mirror the values here.
+
+   PERFORMANCE: static paint only. Tips show and hide with their existing one-shot opacity/transform transitions;
+   nothing here animates, and nothing reads layout. Opaque on purpose: no `backdrop-filter` (the old glass rune tip
+   blurred whatever sat behind it and read low-contrast over bright art). ══ */
+:root {
+  /* Panel */
+  --atip-bg-top: #283244;
+  --atip-bg-bot: #121721;
+  --atip-bg: linear-gradient(180deg, var(--atip-bg-top), var(--atip-bg-bot));
+  --atip-line: #4b596c;          /* the light hairline (opaque: the old 26% ice blue, pre-mixed on the panel) */
+  --atip-line-top: #caa157;      /* the warm-gold top edge */
+  --atip-radius: 12px;
+  --atip-radius-simple: 10px;
+  --atip-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  /* Text */
+  --atip-font: var(--font-body);
+  --atip-title-font: var(--font-title);
+  --atip-title: #ffd98a;         /* gold title */
+  --atip-text: #e6ebf2;          /* body */
+  --atip-muted: #a3aebd;         /* secondary labels */
+  --atip-hl: #ffb561;            /* keywords + numbers inside the body */
+  --atip-divider: rgba(255, 255, 255, 0.12);
+  /* Pill tags ("once per turn", "Rune · active") */
+  --atip-pill-bg: #0d1119;
+  --atip-pill-line: #3d4a5c;
+  --atip-pill-text: #f4ecdb;
+  /* The tuner's dials (tooltipConfig.ts), in ON-SCREEN px. Keep in sync with its DEFAULTS (the owner's dialled
+     values, baked 2026-10-02). */
+  --atip-title-size: 17px;
+  --atip-body-size: 17px;
+  --atip-pill-size: 16px;
+  --atip-simple-size: 14px;
+  --atip-lh: 1.42;
+  --atip-maxw: 320px;
+  --atip-pad: 12px;
+}
+
+/* ── 0. ONE SIZE SYSTEM. Many tips live inside a SCALED control (the Gold pill is drawn at x1.69, Refresh x1.54,
+   the hero power x0.87, the keyword column is zoomed x1.52 with the card reveal ...), and a scaled parent scales its
+   tip with it. So each tip states its parent's scale as `--atip-k`, and every size below is the dial divided by it:
+   the dials are true on-screen px on every tip, and one dial moves every tip the same amount. The `--atip-z-*`
+   values are re-derived on EVERY tip element (a custom property resolves where it is declared), and the tip's
+   children inherit them. `em` inside a tip is relative to those sizes, so it scales along. ── */
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip,
+.sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs,
+.gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
+  --atip-z-title: calc(var(--atip-title-size) / var(--atip-k, 1));
+  --atip-z-body: calc(var(--atip-body-size) / var(--atip-k, 1));
+  --atip-z-pill: calc(var(--atip-pill-size) / var(--atip-k, 1));
+  --atip-z-simple: calc(var(--atip-simple-size) / var(--atip-k, 1));
+  --atip-z-pad: calc(var(--atip-pad) / var(--atip-k, 1));
+  --atip-z-maxw: calc(var(--atip-maxw) / var(--atip-k, 1));
+}
+/* The scaled parents (read from their own tuner vars, so a re-tuned control keeps its tip true to size). */
+.statusbar .heropanel .herotip { --atip-k: var(--hpb-s, 0.87); }
+.statusbar .heropanel.heropanel2 .herotip { --atip-k: var(--hp2-scale, 0.9); }
+.statusbar .heropanel.equipslot .herotip { --atip-k: var(--eqs-scale, 0.99); }
+.questbadges .questbadge-tip { --atip-k: var(--qb-s, 1.09); }
+.oppframe .questbadge-tip { --atip-k: 1.265; }
+.goldpill .sbtip { --atip-k: var(--gold-s, 1.69); }
+.frzwrap .sbtip { --atip-k: var(--frz-s, 1.36); }
+.tvbwrap .tvb-tip { --atip-k: var(--tvb-s, 1.24); }
+.rfbwrap .rfb-tip { --atip-k: var(--rfb-s, 1.54); }
+.cardref .kwbox { --atip-k: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
+.inspect-card .kwbox, .inspect-card .inspect-buffs { --atip-k: 1.9; }
+
+/* ── 1. THE PANEL: every tip, rich or simple ── */
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip,
+.sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs, .lobbyscout, .anc-pv,
+.gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
+  background: var(--atip-bg);
+  border: 1px solid var(--atip-line);
+  border-top: 2px solid var(--atip-line-top);
+  border-radius: var(--atip-radius);
+  box-shadow: var(--atip-shadow);
+  color: var(--atip-text);
+  font-family: var(--atip-font);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 2. RICH TIPS: a title, a divider, body text ── */
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip, .sbtip.goldtip {
+  font-size: var(--atip-z-body); line-height: var(--atip-lh); font-weight: 600;
+  text-align: left; letter-spacing: normal; text-transform: none; overflow-wrap: break-word;
+  padding: var(--atip-z-pad) calc(var(--atip-z-pad) * 1.35) calc(var(--atip-z-pad) * 1.1);
+}
+/* Content-sized up to the max width (tips whose JS places them by a fixed width keep that width in styles.css). */
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .tagtip {
+  box-sizing: border-box; width: max-content; max-width: min(var(--atip-z-maxw), calc(var(--lvw, 100vw) - 24px));
+}
+.atip { display: flex; flex-direction: column; gap: 0.45em; }
+
+/* The title. */
+.atip-title, .herotip > b, .herotip-head > b, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child,
+.riftbtn-tip > b:first-child, .runtrophy-tip > b:first-child, .cv2-rune-tip-name, .cv2-herotip-name, .goldtip .gt-now {
+  font-family: var(--atip-title-font); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15;
+  color: var(--atip-title); letter-spacing: normal; text-transform: none;
+}
+/* The divider under it (the hero tip's head and the Gold readout's first line carry their own). */
+.atip-title, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child, .riftbtn-tip > b:first-child,
+.runtrophy-tip > b:first-child, .cv2-rune-tip-name, .cv2-herotip-name {
+  padding-bottom: 0.45em; border-bottom: 1px solid var(--atip-divider);
+}
+.atip-title, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child, .riftbtn-tip > b:first-child,
+.runtrophy-tip > b:first-child { display: block; }
+.atip-title.atip-has-ico { display: flex; align-items: center; gap: 0.4em; }
+.atip-ico { flex: none; width: 1.05em; height: 1.05em; display: inline-flex; }
+.atip-ico img, .atip-ico svg { width: 100%; height: 100%; object-fit: contain; display: block; }
+.atip-div { height: 0; border-top: 1px solid var(--atip-divider); }
+
+/* Body text + gold highlights (keywords and numbers come through mdBold as <b>). */
+.atip-body, .herotip-rule, .questbadge-tip-reward, .riftpill-tip-body, .riftbtn-tip-body, .runtrophy-tip-body,
+.cv2-rune-tip-body { color: var(--atip-text); font-weight: 600; }
+.atip-hl, .atip b:not(.atip-title), .herotip b:not(.herotip-head > b):not(.herotip > b), .questbadge-tip b:not(.questbadge-tip > b:first-child),
+.riftpill-tip b:not(.riftpill-tip > b:first-child), .riftbtn-tip b:not(.riftbtn-tip > b:first-child), .runtrophy-tip b:not(.runtrophy-tip > b:first-child), .cv2-rune-tip-body b,
+.goldtip .gt-now b, .goldtip .gt-row b { color: var(--atip-hl); font-weight: 800; }
+.atip-muted { color: var(--atip-muted); }
+
+/* Pill tags. */
+.atip-pills { display: flex; flex-wrap: wrap; gap: 0.45em; }
+.atip-pill, .herotip-live, .questbadge-tip-state, .runtrophy-tip-kind {
+  display: inline-block; align-self: flex-start; padding: 0.15em 0.85em; border-radius: 999px;
+  background: var(--atip-pill-bg); border: 1px solid var(--atip-pill-line); color: var(--atip-pill-text);
+  font-family: var(--font-ui); font-size: var(--atip-z-pill); font-weight: 800; line-height: 1.4;
+  letter-spacing: normal; text-transform: none; font-variant-numeric: tabular-nums;
+}
+/* A live value line (rune reward naming the spell you get): highlighted body, not a pill. */
+.questbadge-tip .questbadge-tip-live { color: var(--atip-title); font-size: var(--atip-z-body); font-weight: 700; }
+/* Small uppercase kind labels that sit beside a title. */
+.herotip-tag, .cv2-rune-tip-kind { color: var(--atip-muted); font-family: var(--font-ui); font-size: var(--atip-z-pill); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ── 3. SIMPLE TIPS: one line, the same panel ── */
+.atip-simple, .sbtip, .tvb-tip, .etb-tip, .rfb-tip,
+.gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
+  font-size: var(--atip-z-simple); font-weight: 700; line-height: 1.3; letter-spacing: normal; text-transform: none;
+  border-radius: var(--atip-radius-simple);
+  padding: calc(var(--atip-z-pad) * 0.5) calc(var(--atip-z-pad) * 1.1);
+}
+.atip.atip-simple { display: block; width: max-content; }
+
+/* ── 4. POINTER ARROWS: a rotated square sharing the panel's fill + hairline. `.atip-arrow-up` sits on the
+   panel's TOP edge (the tip opens below its control), `.atip-arrow-down` on its BOTTOM edge. ── */
+.atip-arrow { position: relative; }
+.atip-arrow::before {
+  content: ''; position: absolute; left: var(--atip-arrow-x, 50%); width: 10px; height: 10px; box-sizing: border-box;
+  transform: translateX(-50%) rotate(45deg); pointer-events: none;
+}
+.atip-arrow-up::before { top: -6px; background: var(--atip-bg-top); border-left: 1px solid var(--atip-line-top); border-top: 2px solid var(--atip-line-top); }
+.atip-arrow-down::before { bottom: -6px; background: var(--atip-bg-bot); border-right: 1px solid var(--atip-line); border-bottom: 1px solid var(--atip-line); }
+/* Legacy arrows: the menu bubbles' rotated square (the shop pill's and build tag's carets take the tokens in
+   styles.css). */
+.titlescreen [data-tip]:not(.menubtn)::before, .lbpage [data-tip]:not(.menubtn)::before, .balpage [data-tip]::before {
+  background: var(--atip-bg-top); border-left: 1px solid var(--atip-line-top); border-top: 2px solid var(--atip-line-top);
+}
+/* The sidebar's bubble opens to the RIGHT, so its square shows its LEFT vertex: left + bottom edges. */
+.msb .msb-item[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before {
+  background: var(--atip-bg-top); border-top: none; border-left: 1px solid var(--atip-line); border-bottom: 1px solid var(--atip-line);
+}
+
+/* ── 5. KEYWORD GLOSSARY PILLS (KeywordDefs) and the Inspect buff list: the same panel and the same dials; the
+   card reveal's zoom (x1.52) and Inspect's scale (x1.9) are divided out above, so they read at the same on-screen
+   size as every other tip. The icon beside the keyword's title stays. ── */
+.kwbox, .inspect-buffs { font-size: var(--atip-z-body); border-radius: calc(var(--atip-radius) / var(--atip-k, 1)); padding: calc(var(--atip-z-pad) * 0.6) calc(var(--atip-z-pad) * 0.9); }
+.kwbox-name { color: var(--atip-title); font-family: var(--atip-title-font); font-size: var(--atip-z-title); line-height: 1.2; letter-spacing: normal; }
+.kwbox-ico { width: 1.15em; height: 1.15em; }
+.kwbox-def { color: var(--atip-text); font-family: var(--atip-font); font-weight: 600; font-size: var(--atip-z-body); line-height: var(--atip-lh); }
+.kwbox-def b { color: var(--atip-hl); }
+.ib-title { color: var(--atip-muted); font-size: var(--atip-z-pill); }
+.ib-row { font-size: var(--atip-z-body); }
+.ib-src { color: var(--atip-text); }
+.ib-src em { color: var(--atip-muted); font-size: 0.85em; }
+
+/* ── 6. HOVER CARDS built on the panel (the lobby scout report, the Ancients preview): the panel only. Their
+   insides are laid out by their own tuners (Scout Card text dials, the Ancients page sizer), so the type dials
+   above do not reach them. ── */
+.lobbyscout { border-width: 1px; border-top-width: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .atip, .atip-simple { transition: none; }
+}
+
+/* The 💬 Tooltips tuner's pinned samples (TooltipTuner.tsx): always shown, stacked, in normal flow. */
+.tipsamples { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 10px 4px 14px; }
+.tipsamples .atip { position: relative; }

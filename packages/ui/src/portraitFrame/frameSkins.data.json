@@ -161,6 +161,12 @@
     "holeCx": 0.4952,
     "holeCy": 0.4874
   },
+  "frame_simple_ring": {
+    "aspect": 1,
+    "holeD": 0.5957,
+    "holeCx": 0.4997,
+    "holeCy": 0.5634
+  },
   "frame_stained_glass": {
     "aspect": 1,
     "holeD": 0.7058,
@@ -190,6 +196,12 @@
     "holeD": 0.7687,
     "holeCx": 0.5117,
     "holeCy": 0.4737
+  },
+  "frame_void": {
+    "aspect": 1,
+    "holeD": 0.7289,
+    "holeCx": 0.5022,
+    "holeCy": 0.4702
   },
   "frame_water": {
     "aspect": 1,

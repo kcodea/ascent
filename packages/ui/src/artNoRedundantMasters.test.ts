@@ -165,6 +165,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // +10 frame webps in `art/frames/skins/`, carried as above: Ale, Ruby, Steel, Wood, Magic, then Dark Scale, Gilt
     // Scale, Dark Cloud, Venom, Wedding; owner-named: "i added a bunch of art/portrait arts etc, can you make sure all
     // get added", then "added more portrait skins etc").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1396);
+    // → 1398: portrait frames batch 5 2026-10-02 (+2 frame webps in `art/frames/skins/`, carried as above: Simple Ring,
+    // Void; owner-named: "added more skins"). Batch 4's five frame webps (2026-10-01) were not carried; the walk
+    // measured 1364 top-level files here, well under the cap.
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1398);
   });
 });

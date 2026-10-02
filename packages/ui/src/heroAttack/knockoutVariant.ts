@@ -20,7 +20,7 @@ export const KNOCKOUT_VARIANT_RARITY: CosmeticRarity = 'ancient';
  * The styles whose runner HAS a Knockout variant (their plan reads `isKnockoutVariant`). Adding an Ancient attack's
  * variant = its style here + the plan/runner change (see docs/devlog/2026-10-02-ancient-knockout-tier.md).
  */
-export const KNOCKOUT_VARIANT_STYLES: ReadonlySet<string> = new Set(['arcana', 'holy', 'stitch']);
+export const KNOCKOUT_VARIANT_STYLES: ReadonlySet<string> = new Set(['arcana', 'holy', 'stitch', 'bullettime']);
 
 /**
  * The rarity of the attack that plays: the attacker's equipped cosmetic when it is the one playing `style`, else the

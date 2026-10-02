@@ -26,6 +26,7 @@ import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
 import { stageScale } from '../stage';
 import { AttackVoices, type CueOpts } from '../heroAttack/attackSound';
+import { KO_CYAN, KO_MAGENTA, playKoSting } from '../heroAttack/knockout';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
@@ -80,7 +81,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = bulletPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = bulletPlan({ total: o.total, knockout: o.knockout, knockoutVariant: o.knockoutVariant, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, bulletCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
@@ -110,7 +111,8 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const giant = Math.min(screen.w, screen.h);
   const clockR = c.clockSize * (plan.kind === 'dome' ? giant * 0.4 : plan.kind === 'spiral' ? giant * 0.3 : radius * 1.35);
   const gold = hexToNum(c.colorGold), light = hexToNum(c.colorLight), violet = hexToNum(c.colorViolet);
-  const tintOf = (i: number): number => (plan.kind === 'dome' ? [gold, light, gold][plan.darts[i]!.ring % 3]! : gold);
+  // The dome's rings alternate gold and light gold; the Knockout's rings go prismatic (cyan, magenta) between them.
+  const tintOf = (i: number): number => (plan.kind !== 'dome' ? gold : (plan.ko ? [gold, KO_CYAN, light, KO_MAGENTA] : [gold, light, gold])[plan.darts[i]!.ring % (plan.ko ? 4 : 3)]!);
 
   const textures = o.textures !== undefined ? o.textures : heroBulletTimeTextures();
   const scene = textures && !reduced
@@ -216,6 +218,8 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
           if (plan.tier >= 3) cue(c.sfxBellClip, c.sfxBellGain * 0.5, c.sfxBellRate * 1.4, { tail: c.sfxTailMix, lenMs: 1200, fadeMs: 500 });
         }
         scene?.impact(o.defender, toFoe, radius, plan.tier, screen);
+        // THE KNOCKOUT: the prismatic collapse and the sting.
+        if (plan.ko) { scene?.koFlourish(o.defender, radius); playKoSting(voices, sound, (ms) => ms / speed); }
         seq.land();
         break;
       default:

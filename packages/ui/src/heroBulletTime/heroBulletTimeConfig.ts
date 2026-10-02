@@ -11,7 +11,9 @@
  *  - II: three darts freeze in a ring round the target (tick tick tick), then all resume and hit together.
  *  - III: the hero fires a volley; a gold clock face flashes and the volley freezes mid-flight in a SPIRAL round the
  *    target; the hero SNAPS (a finger snap): all of it lands, in a rapid run (the last is the blow).
- *  - IV (Huge, every knockout): time stops for the whole board. Dozens of blades hang in a DOME round the target while
+ *  - KNOCKOUT ("Tier V", an Ancient knockout; owner rule 2026-10-02): IV remixed: one EXTRA ring of blades in the dome
+ *    (cyan and magenta), a PRISMATIC collapse, a 1.3x shake, a deeper and longer slow-mo dip and the KO sting.
+ *  - IV (Huge, every knockout of a non-variant): time stops for the whole board. Dozens of blades hang in a DOME round the target while
  *    a clock counts down 3-2-1; time restarts and the whole dome collapses inward in one massive gold and violet impact,
  *    on a slow-mo dip.
  *
@@ -26,8 +28,9 @@
 import { configStore } from '../heroAttack/configStore';
 import { clamp, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, isKnockoutVariant, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
+import { KO_SHAKE, koDipExtraMs, koTimeScale, type KoDip } from '../heroAttack/knockout';
 
 export type { TierNum };
 
@@ -117,7 +120,7 @@ const TIER_DEFAULTS: Record<BulletTierSuffix, [number, number, number, number]> 
   FlyMs: [260, 250, 300, 220],
   HangMs: [360, 420, 440, 0],
   ResumeMs: [70, 80, 80, 150],
-  Size: [1.25, 1.1, 0.8, 0.72],
+  Size: [1.6, 1.25, 0.85, 0.72],
   Shake: [10, 13, 16, 34],
   Zoom: [0.02, 0.025, 0.03, 0.04],
   Push: [0.03, 0.04, 0.05, 0.08],
@@ -313,6 +316,10 @@ export interface BulletPlan {
   /** Hits BEFORE the impact (ticks). */
   hits: number[];
   impactAt: number;
+  /** The Knockout variant ("Tier V"): IV remixed (an extra ring, the prism, a bigger shake, a deeper dip). */
+  ko: boolean;
+  /** IV's slow-mo dip on the collapse (null below IV): the one clock eases down and back, never 0. */
+  dip: KoDip | null;
   endAt: number;
   size: number;
   shakePx: number;
@@ -329,18 +336,19 @@ export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = sto
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
   const kind = bulletKind(tier);
+  const ko = tier === 4 && isKnockoutVariant(input);
   const L = bulletTierDials(tier, c);
   const k = (tier - 1) / 3;
   const base = {
-    tier, kind, k, total, size: L.Size, shakePx: clamp(L.Shake, 0, BULLET_CAPS.shakePx), zoom: clamp(L.Zoom, 0, BULLET_CAPS.zoom),
-    push: L.Push, punch: L.Punch, dim: L.Dim,
+    tier, kind, k, total, ko, size: L.Size, shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, BULLET_CAPS.shakePx), zoom: clamp(L.Zoom, 0, BULLET_CAPS.zoom),
+    push: L.Push, punch: L.Punch * (ko ? 1.2 : 1), dim: L.Dim,
   };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
       ...base, reduced: true, chargeAt: at, absorbEnd: at, fireAt: at, darts: [], stopAt: at, resumeAt: at, counts: [], hits: [], impactAt: at,
-      endAt: r.endAt, size: 0, shakePx: 0, zoom: 0, push: 0, punch: 0, dim: 0,
+      dip: null, endAt: r.endAt, size: 0, shakePx: 0, zoom: 0, push: 0, punch: 0, dim: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
@@ -353,7 +361,8 @@ export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = sto
   let stopAt: number, resumeAt: number;
   const counts: number[] = [];
   if (kind === 'dome') {
-    const rings = Math.round(clamp(c.domeRings + Math.max(0, input.extraRings ?? 0), 1, 6));
+    // The Knockout variant adds one ring (the bolt-on point `extraRings` takes more).
+    const rings = Math.round(clamp(c.domeRings + Math.max(0, input.extraRings ?? 0) + (ko ? 1 : 0), 1, 6));
     const per = Math.round(clamp(c.domeBlades, 4, 20));
     const n = Math.min(BULLET_CAPS.darts, rings * per);
     // Time stops for the whole board the instant the first blade leaves; the blades keep streaming out and hang in the
@@ -388,7 +397,11 @@ export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = sto
   const impactAt = Math.max(...hitTimes);
   const hits = [...new Set(hitTimes.filter((t) => t < impactAt))].sort((a, b) => a - b);
   const endAt = impactAt + Math.max(c.zoomOutMs * 0.8, L.SettleMs);
-  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, darts, stopAt, resumeAt, counts, hits, impactAt, endAt };
+  // IV's dip on the collapse; the Knockout's is deeper and longer.
+  const dip: KoDip | null = tier === 4 && c.slowMoMs > 0
+    ? { at: impactAt, lo: ko ? Math.max(0.1, c.slowMo * 0.8) : c.slowMo, ms: c.slowMoMs + (ko ? 60 : 0) }
+    : null;
+  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, darts, stopAt, resumeAt, counts, hits, impactAt, dip, endAt };
 }
 
 export type BulletCueKind = 'charge' | 'launch' | 'freeze' | 'stop' | 'count' | 'tick' | 'snap' | 'hit' | 'impact' | 'end';
@@ -428,17 +441,13 @@ export function timeStopped(p: BulletPlan, t: number): boolean { return !p.reduc
  * one clock drops to `slowMo` the instant the dome hits and eases back over `slowMoMs`, a smooth ramp never reaching 0.
  */
 export function bulletTimeScale(p: BulletPlan, c: HeroBulletTimeConfig, t: number): number {
-  if (p.tier < 4 || p.reduced || c.slowMoMs <= 0 || t < p.impactAt || t >= p.impactAt + c.slowMoMs) return 1;
-  const u = (t - p.impactAt) / c.slowMoMs;
-  const lo = Math.min(1, Math.max(0.1, c.slowMo));
-  return lo + (1 - lo) * u * u * (3 - 2 * u);
+  void c;
+  return p.reduced ? 1 : koTimeScale(p.dip, t);
 }
 
 export function bulletSlowExtraMs(p: BulletPlan, c: HeroBulletTimeConfig): number {
-  if (p.tier < 4 || p.reduced || c.slowMoMs <= 0) return 0;
-  let extra = 0;
-  for (let t = p.impactAt; t < p.impactAt + c.slowMoMs; t += 5) extra += 5 / bulletTimeScale(p, c, t) - 5;
-  return extra;
+  void c;
+  return p.reduced ? 0 : koDipExtraMs(p.dip);
 }
 
 // ─── the geometry (pure) ───────────────────────────────────────────────────────────────────────────────────────
@@ -471,7 +480,7 @@ export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroB
   const R = radius;
   const pts: Pt[] = [];
   const n = p.darts.length;
-  if (p.kind === 'dart') pts.push(polar(d, back, R * c.hangR));
+  if (p.kind === 'dart') pts.push(polar(d, back, R * (c.hangR + 0.3)));
   else if (p.kind === 'ring') {
     for (let i = 0; i < n; i++) pts.push(polar(d, inward + (i - (n - 1) / 2) * 0.62, R * (c.hangR + 0.6)));
   } else if (p.kind === 'spiral') {

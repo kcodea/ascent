@@ -19,6 +19,7 @@ import type { Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { mixColor, whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
+import { KO_CYAN, KO_LILAC, KO_MAGENTA } from '../heroAttack/knockout';
 import { RibbonTrail } from '../heroAttack/ribbonTrail';
 import { DART_W, DIGIT_PX, FACE_PX, HAND_PX, WASH_PX } from './heroBulletTimeTextures';
 
@@ -257,7 +258,7 @@ export class HeroBulletTimeScene extends FxPool {
     this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: 420, from: (30 * X) / RING_PX, to: (260 * X) / RING_PX, a0: 0.8, ease: 'cubic', delay: 40 });
     if (tier < 4) return;
     this.spawn('glow', this.tex.wash, mixColor(c.gold, 0xffffff, 0.5), area.x + area.w / 2, area.y + area.h / 2, {
-      dur: 260, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.5, mode: 'punch', peakAt: 0.08, ease: 'linear',
+      dur: 180, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.3, mode: 'punch', peakAt: 0.08, ease: 'linear',
     });
     this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 360, from: (140 * X) / GLOW_PX, to: (520 * X) / GLOW_PX, a0: 1, mode: 'punch', peakAt: 0.06 });
     this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 700, from: (200 * X) / GLOW_PX, to: (640 * X) / GLOW_PX, a0: 0.7, mode: 'punch', peakAt: 0.1 });
@@ -270,6 +271,19 @@ export class HeroBulletTimeScene extends FxPool {
     this.spawn('glow', this.tex.ring, CHROMA_B, at.x + radius * 0.15, at.y, { dur: 480, from: (60 * X) / RING_PX, to: (700 * X) / RING_PX, a0: 0.7, ease: 'cubic', delay: 30 });
     this.burst('core', this.tex.star, [c.light, c.violet], at.x, at.y, 14, { speed: 640 * X, life: 600, size: (22 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
     this.burst('body', this.tex.dart, [c.gold, c.light, c.violet], at.x, at.y, 18, { speed: 900 * X, life: 600, size: 0.5 * X, grav: 600, drag: 0.5, spin: 0.03, to: 0.6, lift: 120 });
+  }
+
+  /**
+   * THE KNOCKOUT's PRISMATIC collapse (on top of IV's impact): cyan, lilac and magenta shockwaves, a prism clock face
+   * blown outward, prism streaks and glints.
+   */
+  koFlourish(at: Pt, radius: number): void {
+    const X = this.look.impactSize * 1.5;
+    [KO_CYAN, KO_LILAC, KO_MAGENTA].forEach((tint, i) => this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 700 + i * 120, from: (60 * X) / RING_PX, to: ((520 + i * 180) * X) / RING_PX, a0: 0.9, ease: 'cubic', delay: 40 + i * 70 }));
+    this.spawn('glow', this.tex.clockFace, KO_MAGENTA, at.x, at.y, { dur: 760, from: (radius * 3) / FACE_PX, to: (radius * 9 * X) / FACE_PX, a0: 0.75, spin: -0.006, ease: 'cubic' });
+    this.spawn('glow', this.tex.glow, KO_CYAN, at.x, at.y, { dur: 820, from: (200 * X) / GLOW_PX, to: (640 * X) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.15 });
+    this.burst('glow', this.tex.streak, [KO_CYAN, KO_LILAC, KO_MAGENTA], at.x, at.y, 22, { speed: 2200 * X, life: 420, size: 2.4 * X, drag: 0.2, align: true, to: 0.6 });
+    this.burst('core', this.tex.star, [KO_CYAN, KO_MAGENTA, 0xffffff], at.x, at.y, 12, { speed: 700 * X, life: 700, size: (24 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
   }
 
   protected override tick(dt: number): boolean {

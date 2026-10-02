@@ -126,6 +126,7 @@ const built = rareTunerSpec({
     'a volley freezes mid-flight in a spiral as a clock face flashes; the hero snaps and it all lands.',
     'time stops for the whole board: dozens of blades hang in a dome while a clock counts 3-2-1; time restarts and the dome collapses into one massive impact.',
   ],
+  knockoutHint: 'Huge remixed: one extra ring of cyan and magenta blades in the dome, a prismatic collapse, a bigger shake, a deeper slow-mo dip and the KO sting.',
 });
 
 export const SPEC = built.spec;

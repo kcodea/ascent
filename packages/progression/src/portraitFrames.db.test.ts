@@ -8,7 +8,7 @@ import { parseProgressionProfile } from './rules';
 /**
  * THE PORTRAIT FRAME SQL, EXECUTED (owner 2026-10-01: "we're adding portrait skins ... we want this to replace the
  * default portrait png when a skin is applied"). PGlite runs the MVP, crates, skins, achievements, hero attack and
- * portrait frame migrations in order, syncs the code catalog (which adds the category and the 38 frames), and drives
+ * portrait frame migrations in order, syncs the code catalog (which adds the category and the 45 frames), and drives
  * `equip_cosmetic` on the account-wide `portrait_frame` slot: an owned frame equips with target '' and shows in the
  * loadout; null goes back to the default ring; a named target, an unowned frame, a frame in another slot or another
  * item in the frame slot is refused; the kill switch drops it; the hero attack and skin slots still work; re-running
@@ -22,6 +22,9 @@ const SKINS = read('2026-09-28-progression-skins.sql');
 const ACH = read('2026-09-28-achievements.sql');
 const ATTACK = read('2026-09-28-progression-hero-attack.sql');
 const FRAMES = read('2026-10-01-portrait-frames.sql');
+/** The Ancient rarity file's rarity check only (2026-10-02): the code catalog now holds Ancient items, which the crates
+ *  file's four-rarity check would reject. Its pick + open_crate are crateOdds.db.test.ts's business. */
+const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8'));
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -79,17 +82,17 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, FRAMES]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, FRAMES, ANCIENT_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 
 describe('the portrait frame slot', () => {
-  it('the sync switches the category on (global) and adds the 38 frames as targetless crate items at their rarity', async () => {
+  it('the sync switches the category on (global) and adds the 45 frames as targetless crate items at their rarity', async () => {
     const cat = await one<{ enabled: boolean; target: string }>("select enabled, target from public.cosmetic_categories where category = 'portrait_frame'");
     expect(cat).toEqual({ enabled: true, target: 'global' });
     const rows = (await db.query<{ rarity: string; n: number }>("select rarity, count(*)::int as n from public.cosmetic_catalog where category = 'portrait_frame' and active and acquisition_source = 'crate' and target_type is null group by rarity order by rarity")).rows;
-    expect(rows).toEqual([{ rarity: 'common', n: 6 }, { rarity: 'epic', n: 14 }, { rarity: 'legendary', n: 8 }, { rarity: 'rare', n: 10 }]);
+    expect(rows).toEqual([{ rarity: 'ancient', n: 6 }, { rarity: 'common', n: 10 }, { rarity: 'epic', n: 13 }, { rarity: 'legendary', n: 8 }, { rarity: 'rare', n: 8 }]);
   });
 
   it('equips an owned frame with target \'\'; the profile loadout carries it; null goes back to the default ring', async () => {

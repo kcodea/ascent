@@ -23,11 +23,23 @@
     "holeCx": 0.4978,
     "holeCy": 0.4756
   },
+  "frame_bonds": {
+    "aspect": 1,
+    "holeD": 0.5941,
+    "holeCx": 0.4998,
+    "holeCy": 0.5075
+  },
   "frame_bronze": {
     "aspect": 1,
     "holeD": 0.8405,
     "holeCx": 0.4942,
     "holeCy": 0.4868
+  },
+  "frame_cherry_blossom": {
+    "aspect": 1,
+    "holeD": 0.7528,
+    "holeCx": 0.5105,
+    "holeCy": 0.4686
   },
   "frame_crackling_ruby": {
     "aspect": 1,
@@ -53,6 +65,12 @@
     "holeCx": 0.5011,
     "holeCy": 0.4771
   },
+  "frame_death": {
+    "aspect": 1,
+    "holeD": 0.5327,
+    "holeCx": 0.4974,
+    "holeCy": 0.4376
+  },
   "frame_diamond": {
     "aspect": 1,
     "holeD": 0.8293,
@@ -64,6 +82,18 @@
     "holeD": 0.7608,
     "holeCx": 0.4947,
     "holeCy": 0.4717
+  },
+  "frame_fortune": {
+    "aspect": 1,
+    "holeD": 0.7081,
+    "holeCx": 0.5032,
+    "holeCy": 0.4843
+  },
+  "frame_genesis": {
+    "aspect": 1,
+    "holeD": 0.701,
+    "holeCx": 0.6092,
+    "holeCy": 0.4799
   },
   "frame_glass_shard": {
     "aspect": 1,
@@ -179,6 +209,12 @@
     "holeCx": 0.4938,
     "holeCy": 0.4789
   },
+  "frame_time": {
+    "aspect": 1,
+    "holeD": 0.6459,
+    "holeCx": 0.4997,
+    "holeCy": 0.4667
+  },
   "frame_topaz": {
     "aspect": 1,
     "holeD": 0.7299,
@@ -202,6 +238,12 @@
     "holeD": 0.7289,
     "holeCx": 0.5022,
     "holeCy": 0.4702
+  },
+  "frame_war": {
+    "aspect": 1,
+    "holeD": 0.673,
+    "holeCx": 0.5098,
+    "holeCy": 0.4706
   },
   "frame_water": {
     "aspect": 1,

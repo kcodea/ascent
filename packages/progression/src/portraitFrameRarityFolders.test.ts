@@ -5,17 +5,17 @@ import { COSMETICS } from './cosmetics';
 
 /**
  * PORTRAIT FRAME RARITY COMES FROM THE ART FOLDER (owner 2026-10-01: the frames now sit in
- * `C:/Game Assets/Ascent Art/Skins/Portraits/<Common|Rare|Epic|Legendary>/`, and the folder is the rarity, which is how
+ * `C:/Game Assets/Ascent Art/Skins/Portraits/<Common|Rare|Epic|Legendary|Ancient>/`, and the folder is the rarity, which is how
  * the owner will sort them from now on; R-PROG-FRAME-04). Mirrors skinRarityFolders.test.ts.
  *
  * Two halves:
  *  - the catalog half runs EVERYWHERE (CI included): each frame's `assets.master` names its rarity folder, and that
  *    folder is the frame's catalog rarity;
  *  - the disk half only runs where the owner's art folder exists (it skips in CI): every master really sits in that
- *    folder and in no other, and every PNG in the four rarity folders is wired, so a newly added frame cannot be missed.
+ *    folder and in no other, and every PNG in the five rarity folders (Ancient joined 2026-10-02) is wired, so a newly added frame cannot be missed.
  */
 const PORTRAITS = 'C:/Game Assets/Ascent Art/Skins/Portraits';
-const RARITY_DIRS = { Common: 'common', Rare: 'rare', Epic: 'epic', Legendary: 'legendary' } as const;
+const RARITY_DIRS = { Common: 'common', Rare: 'rare', Epic: 'epic', Legendary: 'legendary', Ancient: 'ancient' } as const;
 const FRAMES = COSMETICS.filter((c) => c.category === 'portrait_frame');
 
 describe('portrait frame rarity = its master\'s rarity folder (catalog)', () => {

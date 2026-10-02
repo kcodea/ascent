@@ -20,6 +20,8 @@ const TIMELINE: Record<CrateRarity, number[]> = {
   rare: [680, 680, -1, 854, 2154],
   epic: [940, 1100, -1, 1316, 2816],
   legendary: [1400, 1700, 1985, 1985, 3785],
+  // Ancient (2026-10-02): a 650 ms time stop between the charge (1900) and the burst
+  ancient: [1640, 2550, 2865, 2865, 4915],
 };
 
 describe('the tuner values', () => {
@@ -79,15 +81,19 @@ describe('rarity -> preset', () => {
       expect(p[i]!.chargeMs).toBeGreaterThan(p[i - 1]!.chargeMs);
       expect(p[i]!.burstSparks).toBeGreaterThan(p[i - 1]!.burstSparks);
       expect(p[i]!.chargeParticles).toBeGreaterThan(p[i - 1]!.chargeParticles);
-      expect(p[i]!.flash).toBeGreaterThan(p[i - 1]!.flash);
+      expect(p[i]!.flash).toBeGreaterThanOrEqual(p[i - 1]!.flash); // capped at 1: Legendary and Ancient both flash full
       expect(p[i]!.screenShake).toBeGreaterThan(p[i - 1]!.screenShake);
       expect(p[i]!.push).toBeGreaterThan(p[i - 1]!.push);
       expect(p[i]!.pitch).toBeLessThan(p[i - 1]!.pitch); // bigger = lower
     }
-    expect(p.filter((x) => x.sting).map((x) => x.rarity)).toEqual(['legendary']);
-    expect(p.filter((x) => x.doubleBurst).map((x) => x.rarity)).toEqual(['legendary']);
-    expect(p.filter((x) => x.coins > 0).map((x) => x.rarity)).toEqual(['legendary']);
-    expect(p.filter((x) => x.hitchMs > 0).map((x) => x.rarity)).toEqual(['epic', 'legendary']);
+    expect(p.filter((x) => x.sting).map((x) => x.rarity)).toEqual(['legendary', 'ancient']);
+    expect(p.filter((x) => x.doubleBurst).map((x) => x.rarity)).toEqual(['legendary', 'ancient']);
+    expect(p.filter((x) => x.coins > 0).map((x) => x.rarity)).toEqual(['legendary']); // the gold shower stays Legendary's
+    expect(p.filter((x) => x.hitchMs > 0).map((x) => x.rarity)).toEqual(['epic', 'legendary', 'ancient']);
+    // Ancient's signature (owner pick 2026-10-02, "Time stops"): the only rarity that freezes
+    expect(p.filter((x) => x.freezeMs > 0).map((x) => [x.rarity, x.signature])).toEqual([['ancient', 'timestop']]);
+    expect(p.filter((x) => x.signature !== 'none').map((x) => x.rarity)).toEqual(['ancient']);
+    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0x8af5ff, colorCss: '#8af5ff', freezeMs: 650 });
   });
 
   it('the preset reads the tuned config', () => {
@@ -103,6 +109,8 @@ describe('the beats', () => {
       expect(b.chargeAt).toBe(0);
       expect(b.hitchAt).toBeGreaterThanOrEqual(b.chargeAt);
       expect(b.hitchAt).toBeLessThanOrEqual(b.burstAt);
+      // time stops only on a freezing signature, and the burst waits it out
+      if (b.freezeAt >= 0) { expect(b.freezeAt).toBeGreaterThanOrEqual(b.hitchAt); expect(b.burstAt).toBeGreaterThan(b.freezeAt); }
       if (b.burst2At >= 0) { expect(b.burst2At).toBeGreaterThan(b.burstAt); expect(b.revealAt).toBeGreaterThanOrEqual(b.burst2At); }
       expect(b.revealAt).toBeGreaterThan(b.burstAt);
       expect(b.gemAt).toBeGreaterThanOrEqual(b.revealAt);
@@ -252,6 +260,29 @@ describe('the crate scene (headless Pixi)', () => {
     run(scene, 400);
     expect(scene.cameraShake).toBe(0);
     scene.destroy();
+  });
+
+  it('Ancient "Time stops" (owner pick 2026-10-02): the end of the charge holds frozen for freezeMs, then the burst picks it up', () => {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const p = presetFor('ancient', CRATE_FX_DEFAULTS);
+    expect(p.freezeMs).toBeGreaterThan(0);
+    scene.anticipate(ant);
+    scene.charge(p);
+    run(scene, p.chargeMs + 60); // into the freeze
+    expect(scene.currentPhase).toBe('charge');
+    const held = scene.lidState;
+    const particles = scene.stats().particles;
+    run(scene, Math.min(300, p.freezeMs - 120));
+    expect(scene.lidState).toEqual(held); // nothing moves while time is stopped
+    expect(scene.stats().particles).toBe(particles);
+    scene.burst(p);
+    run(scene, 50);
+    expect(scene.currentPhase).toBe('burst');
+    expect(scene.stats().particles).toBeGreaterThan(particles);
+    scene.destroy();
+    expect(root.children.length).toBe(0);
   });
 
   it('a failure winds down to a sealed chest at rest; reset restores it', () => {

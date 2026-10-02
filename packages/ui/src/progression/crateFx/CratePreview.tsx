@@ -10,9 +10,11 @@ import { CRATE_FX_PLAY_EVENT, CRATE_FX_SPEEDS, CRATE_RARITIES, setCrateFxSpeed, 
  * nothing until a Play is pressed; mounted in DEV builds only (Game.tsx).
  */
 
-/** A crate title of that rarity from the catalog, for the practice reward. */
+/** A crate title of that rarity from the catalog, for the practice reward; a rarity with no title (Ancient, 2026-10-02)
+ *  takes its first crate item of any category. */
 export function previewRewardFor(rarity: CrateRarity): string {
-  const hit = COSMETICS.find((c) => c.category === 'title' && c.rarity === rarity && c.acquisition.type === 'crate');
+  const crate = COSMETICS.filter((c) => c.rarity === rarity && c.acquisition.type === 'crate');
+  const hit = crate.find((c) => c.category === 'title') ?? crate[0];
   return hit?.id ?? 'title_wanderer';
 }
 

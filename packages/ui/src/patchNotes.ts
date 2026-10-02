@@ -59,8 +59,26 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Balance',
+        text: 'Rayse is back. You can pick her again in Play and Practice.',
+      },
+      {
         category: 'Systems',
-        text: '2 more Rare portrait frames in crates: Simple Ring and Void.',
+        text: 'A new rarity, Ancient, above Legendary. Ancient rewards drop 3% of the time and get their own crate opening.',
+        details: [
+          'New crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%.',
+          '6 Ancient portrait frames: Bonds, Death, Fortune, Genesis, Time and War.',
+          'Now Ancient: Tee Time Sylus and Edward Colada Hands (minion skins), and the Consecration and Arcana attacks.',
+          'If you already own one of the four, it stays yours.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: '3 more portrait frames in crates: Simple Ring and Void (Rare), and Cherry Blossom (Epic).',
+        details: [
+          'Some frames changed rarity. Burnished, Sterling, Gilded and Seaglass are now Common. Shard and Prism are now Rare.',
+          'Frames you already own stay yours.',
+        ],
       },
     ],
   },

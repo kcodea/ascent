@@ -30,18 +30,19 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (owner rulings: Mimic / Power Shifter never offer an archived hero power)', quote: 'yes keep it that way' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-08-28 (Fi + Coran archive)', quote: 'coran and fi should be archived for now. they will be redesigned and should not show in our hero list for practice nor play' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (Runesmith + Guardian re-activated)', quote: 're-activate runesmith and guardian in the game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Rayse re-activated)', quote: 'unarchive rayse' },
       { kind: 'code', ref: 'packages/sim/src/heroes.ts HeroDef.wip / isArchivedHero / playableHeroes / practiceHeroes / powerDiscoverPool; packages/ui/src/SceneBuilder.tsx HERO_OPTIONS' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-10-01. Archived: Fi, Coran (2026-08-28), Void (2026-09-16) and 17 of the 2026-09-24 batch: '
+      'Conforms as of 2026-10-02. Archived: Fi, Coran (2026-08-28), Void (2026-09-16) and 16 of the 2026-09-24 batch: '
       + 'Aevor, Cindara, Devourer, Emissary (vale), Fibbsy, Harlan, Odelle, Tiff, Underdweller, '
-      + 'Foreman Flint (flint), Gorun, Jensen (jenkins), Membrance, Pete, Rayse, Sable, Yirin (rohan). Runesmith and '
-      + 'Guardian (runeguard) were re-activated on 2026-10-01. '
+      + 'Foreman Flint (flint), Gorun, Jensen (jenkins), Membrance, Pete, Sable, Yirin (rohan). Runesmith and '
+      + 'Guardian (runeguard) were re-activated on 2026-10-01, Rayse on 2026-10-02. '
       + 'Djinni, Chronos, Chaos and the tutorial-only Aster carry the same flag.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/heroArchive.test.ts', 'packages/ui/src/sceneBuilderPanel.test.tsx'],
-      lastVerifiedAt: '2026-10-01',
+      lastVerifiedAt: '2026-10-02',
     },
   },
   {

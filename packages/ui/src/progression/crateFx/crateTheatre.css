@@ -78,6 +78,7 @@
 .crth.r-common .crth-plate-gem img { filter: grayscale(1) brightness(1.35) contrast(1.1) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
 .crth.r-epic .crth-plate-gem img { filter: hue-rotate(55deg) saturate(1.3) brightness(1.1) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
 .crth.r-legendary .crth-plate-gem img { filter: hue-rotate(185deg) saturate(1.6) brightness(1.25) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
+.crth.r-ancient .crth-plate-gem img { filter: hue-rotate(-40deg) saturate(1.7) brightness(1.3) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.7)); }
 
 .crth .crate-reward-kind { font-size: 15px; font-weight: 900; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(236, 240, 255, 0.7);
   animation: crth-fade 0.35s ease-out calc(var(--cr-gem-delay, 180ms) + 60ms) both; }
@@ -169,3 +170,27 @@
   .crth .crate-reward.crth-plate { animation: crth-fade-c 0.24s ease-out both !important; }
   .crth-plate-gem, .crth .crate-reward-kind, .crth .crate-reward-name, .crth-ribbon, .crth-skin, .crth-plate-shine::after, .crth .crate-reward.crth-plate::before, .crth-rays, .crth .crate-name { animation: none !important; }
 }
+
+/* ── ANCIENT: "Time stops" (owner pick 2026-10-02, concept 3 "Prismatic Aurora"). Swappable: everything here hangs off
+   `.sig-timestop`, which the preset's `signature` sets (crateFxConfig RARITY_SIGNATURE).
+   1. FREEZE (`ph-freeze`, `--cr-freeze` long): the Pixi scene holds at time scale 0 and the whole view drains to grey.
+      The drain is a ONE-SHOT filter transition on the canvas host (paint, but one transition per Ancient opening, never
+      a loop), and it snaps straight back at the burst (no transition out), so the colour floods back with the hit.
+   2. THE CRACK (burst onward): a prismatic slash across the view that tears open (transform scaleX) and fades (opacity).
+      Its gradient is static on the element. One-shot; it never loops.
+   The Ancient ribbon carries the cyan to magenta gradient (static). */
+.crth.sig-timestop .crth-fx { transition: filter var(--cr-freeze, 650ms) cubic-bezier(0.2, 0.8, 0.3, 1); }
+.crth.sig-timestop.ph-freeze .crth-fx { filter: grayscale(1) brightness(0.72) contrast(1.15); }
+.crth.sig-timestop:not(.ph-freeze) .crth-fx { transition: none; }
+.crth-crack { position: absolute; left: 50%; top: 50%; width: 2600px; height: 26px; margin: -13px 0 0 -1300px; pointer-events: none; z-index: 2;
+  background: linear-gradient(90deg, transparent 0%, #8af5ff 18%, #ffffff 46%, #ff7ae0 72%, transparent 100%);
+  box-shadow: 0 0 40px 10px rgba(138, 245, 255, 0.55), 0 0 90px 30px rgba(255, 122, 224, 0.35);
+  clip-path: polygon(0 50%, 20% 30%, 38% 62%, 52% 18%, 66% 70%, 82% 34%, 100% 50%, 82% 58%, 66% 92%, 52% 46%, 38% 88%, 20% 62%);
+  transform: rotate(-14deg) scaleX(0); opacity: 0; will-change: transform, opacity;
+  animation: crth-crack 0.9s cubic-bezier(0.15, 0.9, 0.3, 1) both; }
+@keyframes crth-crack {
+  0% { transform: rotate(-14deg) scaleX(0) scaleY(0.4); opacity: 1; }
+  28% { transform: rotate(-14deg) scaleX(1) scaleY(1.4); opacity: 1; }
+  100% { transform: rotate(-14deg) scaleX(1.08) scaleY(0.2); opacity: 0; } }
+.crth.r-ancient .crth-ribbon > span { background: linear-gradient(90deg, #5fd8f0 0%, #8af5ff 30%, #e6b8ff 62%, #ff7ae0 100%); }
+@media (prefers-reduced-motion: reduce) { .crth-crack { display: none; } .crth.sig-timestop .crth-fx { transition: none; filter: none; } }

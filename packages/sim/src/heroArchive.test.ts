@@ -29,15 +29,14 @@ const ARCHIVED_2026_09_24: Record<string, string> = {
   jenkins: 'Jensen', // Dynamite Dig
   membrance: 'Membrance', // Memory
   pete: 'Pete', // Contrabanana (not Re-Pete, id `repete`)
-  rayse: 'Rayse', // Empowering Vines
   sable: 'Sable', // Soulbind
   rohan: 'Yirin', // Reflector
 };
 const IDS = Object.keys(ARCHIVED_2026_09_24);
 
 describe('the 2026-09-24 hero archive', () => {
-  it('Runesmith and Guardian are back in the game (owner 2026-10-01: "re-activate runesmith and guardian in the game")', () => {
-    for (const id of ['runesmith', 'runeguard']) {
+  it('Runesmith and Guardian (owner 2026-10-01: "re-activate runesmith and guardian in the game") and Rayse (owner 2026-10-02: "unarchive rayse") are back in the game', () => {
+    for (const id of ['runesmith', 'runeguard', 'rayse']) {
       expect(isArchivedHero(HERO_INDEX[id]!), `${id} active`).toBe(false);
       expect(playableHeroes().some((h) => h.id === id), `${id} in Play`).toBe(true);
       expect(practiceHeroes().some((h) => h.id === id), `${id} in Practice`).toBe(true);

@@ -12634,6 +12634,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .r-rare { --rc: #6fb0ff; --rc-a: rgba(111, 176, 255, 0.5); }
 .r-epic { --rc: #c98bff; --rc-a: rgba(201, 139, 255, 0.55); }
 .r-legendary { --rc: #ffbe5c; --rc-a: rgba(255, 190, 92, 0.6); }
+/* Ancient (owner 2026-10-02, concept 3 "Prismatic Aurora"): cyan shading to magenta. `--rc` is the cyan (a solid for
+   text and borders); `--rc2` the magenta and `--rc-grad` the gradient for the surfaces that can carry one (static). */
+.r-ancient { --rc: #8af5ff; --rc2: #ff7ae0; --rc-a: rgba(138, 245, 255, 0.6); --rc-grad: linear-gradient(100deg, #8af5ff 0%, #c9b8ff 50%, #ff7ae0 100%); }
 
 /* ── TITLE BADGE (owner ask 2026-09-28: titles "as a way of showing off their flair") ───────────────────────────
    One badge for every surface (`titles/TitleBadge.tsx`): rarity-coloured small caps on a dark pill, sized in EM
@@ -12650,6 +12653,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlebadge .tb-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .titlebadge.r-legendary { border-color: var(--rc); box-shadow: 0 0 0.7em -0.1em var(--rc-a); text-shadow: 0 0 0.6em var(--rc-a); }
 .titlebadge.r-epic { box-shadow: 0 0 0.5em -0.2em var(--rc-a); }
+/* Ancient: the aurora gradient in the letters and a two-tone static glow (no loop). */
+.titlebadge.r-ancient { border-color: var(--rc); box-shadow: 0 0 0.7em -0.1em var(--rc-a), 0 0 1.1em -0.3em rgba(255, 122, 224, 0.5); }
+.titlebadge.r-ancient:not(.tb-grad) .tb-text { background: var(--rc-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .titlebadge.tb-grad .tb-text { background: var(--tb-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .titlebadge.tb-shimmer::after { content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);

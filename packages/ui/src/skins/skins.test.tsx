@@ -80,7 +80,7 @@ describe('the catalog <-> the bundle', () => {
     ['skin_paragon_1', 'rare', 'n2_paragon', 'Paragon', 'ParagonSkinRare.png'],
     ['skin_stewardofspells_1', 'common', 'stewardofspells', 'Steward of Spells', 'SpellStewardSkinEpic.png'],
     ['skin_sylus_1', 'epic', 'sylus', 'Sylus', 'SylusSkinRare.png'],
-    ['skin_sylus_2', 'legendary', 'sylus', 'Sylus', 'SylusSkinLegendary.png'],
+    ['skin_sylus_2', 'ancient', 'sylus', 'Sylus', 'SylusSkinLegendary.png'],
     ['skin_venom_1', 'legendary', 'venom', 'Venom', 'VenomSkinEpic.png'],
     ['skin_zyff_1', 'common', 'zyff', 'Zyff, the Betrayer', 'ZyffSkinRare.png'],
   ];
@@ -131,7 +131,7 @@ describe('the catalog <-> the bundle', () => {
     ['skin_chimerus_1', 'rare', 'chimerus', 'Chimerus', 'ChimerusSkinRare.png'],
     ['skin_chronicler_1', 'legendary', 'd2_chronicler', 'Scalefeather', 'ChromeScalefeatherRare.png'],
     ['skin_chronicler_2', 'common', 'd2_chronicler', 'Scalefeather', 'MechaScalefeatherEpic.png'],
-    ['skin_edward_1', 'legendary', 'dw_edward', 'Edward Keg-hands', 'EdwardColadaHandsLegendary.png'],
+    ['skin_edward_1', 'ancient', 'dw_edward', 'Edward Keg-hands', 'EdwardColadaHandsLegendary.png'],
     ['skin_baal_1', 'rare', 'dw_baal', 'Baal', 'EpicBaalRare.png'],
     ['skin_pouchpincher_1', 'common', 'k_pouchpincher', 'Cheap Date', 'LavishDateEpic.png'],
     ['skin_buddy_2', 'legendary', 'buddy', 'Buddy Buddy', 'PortalBuddyLegendary.png'],

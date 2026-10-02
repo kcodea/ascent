@@ -28,7 +28,7 @@ export type ShowFilter = 'all' | 'owned' | 'missing';
 export type RarityFilter = 'all' | CosmeticRarity;
 
 /** Rarest first: the showcase row leads the album. */
-const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { legendary: 0, epic: 1, rare: 2, common: 3 };
+const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { ancient: 0, legendary: 1, epic: 2, rare: 3, common: 4 };
 const CATALOG_INDEX = new Map(COSMETICS.map((c, i) => [c.id, i]));
 
 /** Categories kept OUT of the Collection rail while they are switched off (owner 2026-09-29: "hide music and boards

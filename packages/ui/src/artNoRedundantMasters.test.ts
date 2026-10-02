@@ -170,6 +170,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // measured 1364 top-level files here, well under the cap.
     // → 1399: portrait frames batch 6 2026-10-02 (+1 frame webp in `art/frames/skins/`, carried as above: Cherry
     // Blossom; owner-named: "i added more frames").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1399);
+    // → 1405: the Ancient rarity 2026-10-02 (+6 frame webps in `art/frames/skins/`, carried as above: Bonds, Death,
+    // Fortune, Genesis, Time, War; owner-named: "i added a new rarity -> Ancient").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1405);
   });
 });

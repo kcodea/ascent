@@ -2087,19 +2087,20 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-CRATE-03',
-    title: 'Crates roll a rarity FIRST at fixed, published odds (Common 50 / Rare 30 / Epic 15 / Legendary 5), then an unowned item of it, each equally likely; an empty rarity falls to the nearest one with something left',
+    title: 'Crates roll a rarity FIRST at fixed, published odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3), then an unowned item of it, each equally likely; an empty rarity falls to the nearest one with something left',
     statement:
-      'Opening a crate makes ONE server-side draw. It first rolls a rarity at fixed odds: Common 50%, Rare 30%, Epic 15%, '
-      + 'Legendary 5%. The odds never change as items are added, and they are shown to players (the Collection crate bay '
+      'Opening a crate makes ONE server-side draw. It first rolls a rarity at fixed odds: Common 35%, Rare 31%, Epic 22%, '
+      + 'Legendary 9%, Ancient 3% (since 2026-10-02, when Ancient joined above Legendary, R-PROG-RARITY-01; 50/30/15/5 '
+      + 'before). The odds never change as items are added, and they are shown to players (the Collection crate bay '
       + 'prints them). It then picks an item of that rarity from the eligible ones (active, not admin_off, category enabled '
       + 'and not admin_off, crate-sourced, not owned), EVERY item of the rarity EQUALLY likely (owner: "yeah equal '
-      + 'chance"), so each Legendary is 5% divided by the number of eligible Legendaries, whatever its category. The '
+      + 'chance"), so each Legendary is 9% divided by the number of eligible Legendaries, whatever its category. The '
       + 'category weights stay in the catalog, kept for later, but the roll does not read them (roll_version 2, earlier '
       + 'the same day, split a rarity by category weight). If the rolled rarity has nothing eligible, the crate '
       + 'falls to the NEAREST rarity with something left, ties toward the MORE COMMON one (Epic empty goes to Rare before '
-      + 'Legendary). If nothing is eligible anywhere the answer is pool_exhausted and the crate stays sealed. Everything '
+      + 'Legendary; Ancient empty goes to Legendary). If nothing is eligible anywhere the answer is pool_exhausted and the crate stays sealed. Everything '
       + 'else is unchanged: no duplicates, the per-user lock, already_opened, the admin_off kill switch. Opened crates '
-      + 'record roll_version 3. The odds live once in TS (CRATE_RARITY_ODDS) and once in SQL (progression_crate_pick), '
+      + 'record roll_version 4 (3 before the Ancient rarity). The odds live once in TS (CRATE_RARITY_ODDS) and once in SQL (progression_crate_pick), '
       + 'and a parity test fails on any drift. The lower-rarity tie-break is the builder\x27s call (the owner did not '
       + 'specify it), flagged for review.',
     domain: 'foundation',
@@ -2108,10 +2109,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, option C chosen)', quote: 'go to C' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, the numbers)', quote: 'make it 50/30/15/5 though' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (crate odds, each item within a rarity equally likely?)', quote: 'yeah equal chance' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (CRATE_RARITY_ODDS, CRATE_ROLL_VERSION, rollCrateRarity, crateRarityFallback, pickCrateReward, crateChances, crateOddsLine); supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql (progression_crate_pool) and 2026-09-29-crate-uniform-within-rarity.sql (progression_crate_pick, open_crate); packages/ui/src/progression/CollectionScreen.tsx (CrateBay odds line)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'these will be a 3% drop rate' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (CRATE_RARITY_ODDS, CRATE_ROLL_VERSION, rollCrateRarity, crateRarityFallback, pickCrateReward, crateChances, crateOddsLine); supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql (progression_crate_pool) and 2026-10-02-ancient-rarity.sql (progression_crate_pick, open_crate; the 2026-09-29 equal-chance shape with five rarities); packages/ui/src/progression/CollectionScreen.tsx (CrateBay odds line)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs both 2026-09-29 migrations (fixed odds, then equal chance) and deploys progression-inventory.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+    currentBehaviour: 'Conforms, built 2026-09-29; five rarities at 35/31/22/9/3 since 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and deploys progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-10-02' },
   },
   {
     id: 'R-PROG-CATALOG-01',
@@ -2425,11 +2427,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'A skin\x27s rarity is the rarity FOLDER its master sits in, never a word in its filename',
     statement:
       'Skin masters live in C:/Game Assets/Ascent Art/Skins/Minion Skins/<Rarity>/ and Hero Skins/<Rarity>/ (Common, Rare, '
-      + 'Epic, Legendary). The folder is the skin\x27s rarity: every wired skin\x27s catalog rarity in '
+      + 'Epic, Legendary, and Ancient since 2026-10-02). The folder is the skin\x27s rarity: every wired skin\x27s catalog rarity in '
       + 'packages/progression/src/cosmetics.ts equals its folder, and a rarity word in the filename (SkinRare, Epic, ...) is '
       + 'stale and ignored. Every image in a Hero, Minion or Spell Skins rarity folder is wired as a catalog skin (owner '
       + '2026-10-01: make sure all get added); skinRarityFolders.test.ts fails while one sits there unwired. The '
-      + 'wire-art skins job reads the eight rarity sub-folders. On 2026-10-01 forty wired skins moved to their folder\x27s '
+      + 'wire-art skins job reads the ten rarity sub-folders (Ancient joined 2026-10-02: Tee Time Sylus and Edward Colada '
+      + 'Hands moved there from Legendary by the owner, R-PROG-RARITY-01). On 2026-10-01 forty wired skins moved to their folder\x27s '
       + 'rarity; a first crate then holds 24 Common, 27 Rare, 23 Epic and 29 Legendary items (each Common 2.083%, Rare '
       + '1.111%, Epic 0.652%, Legendary 0.172%). A player who owns a skin keeps it; only its shown rarity and future crate '
       + 'odds change, through the catalog sync (R-PROG-SKINS-05 updates rarity on existing rows).',
@@ -2438,10 +2441,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: "i also put all these skins into rarity folders which is how i'll do it from now on" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: 'correct their rarities as such' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS skin rarities); packages/tools/src/wire-art.ts (SKIN_RARITY_DIRS)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
+    currentBehaviour: 'Conforms, built 2026-10-01; the Ancient folder since 2026-10-02. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-02' },
   },
   {
     id: 'R-PROG-SKINS-12',
@@ -3927,14 +3931,14 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 39 frames (10 Common, 8 Rare, 13 Epic, 8 Legendary, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 45 frames (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 39 crate items, one per master in '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 45 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
       + 'Wood, Dark Scale, Burnished, Sterling, Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, '
       + 'Shard, Prism; Epic Aura, Amethyst, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, '
       + 'Crackling Ruby, Topaz, Jade, Cherry Blossom; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained '
-      + 'Glass, Wind (a frame\x27s display name '
+      + 'Glass, Wind; Ancient (2026-10-02) Bonds, Death, Fortune, Genesis, Time, War (a frame\x27s display name '
       + 'is the bare name, never "<name> Frame" or "<name> Portrait" (owner 2026-10-01); ids keep the master '
       + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
       + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
@@ -3947,6 +3951,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (portrait frames batch 4, Mike)', quote: 'lets remove portrait and or frame from all names in the title' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 5, Kevin)', quote: 'added more skins' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 6, Kevin)', quote: 'i added more frames, please put them in the game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
@@ -3994,11 +3999,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-FRAME-04',
     title: 'A portrait frame\x27s rarity is the rarity FOLDER its master sits in; every master in those folders is wired',
     statement:
-      'Portrait frame masters live in C:/Game Assets/Ascent Art/Skins/Portraits/<Rarity>/ (Common, Rare, Epic, Legendary). '
+      'Portrait frame masters live in C:/Game Assets/Ascent Art/Skins/Portraits/<Rarity>/ (Common, Rare, Epic, Legendary, '
+      + 'and Ancient since 2026-10-02). '
       + 'The folder is the frame\x27s rarity: every frame\x27s assets.master in packages/progression/src/cosmetics.ts names '
       + 'its folder, and its catalog rarity equals that folder. npm run art:frames reads the master at that path. Where the '
       + 'art folder exists (the owner\x27s machine; CI skips this half) each master must sit in exactly one rarity folder '
-      + 'and every PNG in the four folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
+      + 'and every PNG in the rarity folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
       + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity. Batch 3 '
       + '(the same day) added 10 more at their folder rarity: Ale, Ruby, Steel, Wood, Dark Scale and Gilt Scale (Common), '
       + 'Magic (Rare), and Dark Cloud, Venom and Wedding (Epic), 31 in all. Batch 4 (Mike, the same day; his masters are loose '
@@ -4016,7 +4022,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Legendary), his setting wins over the folder (owner 2026-10-02) and the master is moved to match: BlueEnergy.png '
       + 'went back from Rare/ to Epic/. A rarity change only moves crate odds; a player who owns the frame keeps it '
       + '(player_cosmetics is keyed by id, and the sync never deletes a catalog row). 39 in all (10 Common, 8 Rare, 13 '
-      + 'Epic, 8 Legendary).',
+      + 'Epic, 8 Legendary). The Ancient folder (2026-10-02, R-PROG-RARITY-01) added Bonds, Death, Fortune, Genesis, Time '
+      + 'and War at Ancient: 45 in all (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient). Bonds (a small hole, 0.594), '
+      + 'Genesis (an off-centre hole, x 0.609) and Death (small and high, 0.533 at y 0.438) are allowed by name in the '
+      + 'frame geometry test; Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired (md5 duplicates).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4028,5 +4037,34 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-PROG-RARITY-01',
+    title: 'Ancient is a fifth cosmetic rarity, ranked ABOVE Legendary, dropping 3% of the time (odds 35/31/22/9/3), with its own colour and its own crate reveal; moving an item to Ancient never takes it from an owner',
+    statement:
+      'The cosmetic rarities are Common, Rare, Epic, Legendary and Ancient, in that order (COSMETIC_RARITIES), and '
+      + 'everywhere a rarity is listed, sorted, coloured, labelled, filtered or rolled Ancient is the rarest: the Collection '
+      + 'sorts it first, shows its own rarity chip, and the crate odds line reads "Common 35%, Rare 31%, Epic 22%, '
+      + 'Legendary 9%, Ancient 3%" (R-PROG-CRATE-03; was 50/30/15/5). An empty Ancient falls to Legendary. The database '
+      + 'accepts it through cosmetic_catalog_rarity_check (2026-10-02-ancient-rarity.sql, which the owner runs BEFORE '
+      + 'deploying progression-inventory, whose catalog sync writes the Ancient rows). Its look is the owner\x27s pick, '
+      + 'concept 3 "Prismatic Aurora": cyan #8af5ff shading to magenta #ff7ae0 (the .r-ancient tokens; a static aurora '
+      + 'gradient on its gem, chip, title text and tile rim), and its crate reveal is "Time stops" (the rarity\x27s '
+      + 'signature, swappable): the chest freezes mid-shake and the view drains to grey for ancientFreezeMs (650), then a '
+      + 'prismatic crack splits the view at the burst and the colour floods back. The drain and the crack are one-shot; '
+      + 'every loop stays transform or opacity. Ancient items today: the six Ancient frames (Bonds, Death, Fortune, Genesis, '
+      + 'Time, War) and four moved up from Legendary by the owner: Tee Time Sylus and Edward Colada Hands (minion skins, '
+      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks). Ownership is per id '
+      + '(player_cosmetics has no rarity), so a player who owns a moved item keeps it; only its shown rarity and future '
+      + 'crate odds change.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient. can you wire that up so we can have skins that are of ancient rarity? these will be a 3% drop rate' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient look: concept 3 picked, relayed by the main session)', quote: 'concept 3, PRISMATIC AURORA' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETIC_RARITIES, CRATE_RARITY_ODDS, RARITY_LABELS, CRATE_ROLL_VERSION 4); supabase/migrations/2026-10-02-ancient-rarity.sql; packages/ui/src/progression/crateFx/crateFxConfig.ts (RARITY_SIGNATURE, the ancient dials); packages/ui/src/progression/crateFx/crateScene.ts (the freeze); packages/ui/src/progression/crateFx/crateTheatre.css (.sig-timestop); packages/ui/src/styles.css (.r-ancient); packages/ui/src/progression/collectionModel.ts (RARITY_RANK)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-02' },
   },
 ];

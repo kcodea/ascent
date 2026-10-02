@@ -40,10 +40,10 @@ const GEM_ART = `${import.meta.env.BASE_URL}frames/end_button_gem.webp`;
 /** `earnedLevel` null + `source` = a non-level crate (a Gauntlet crate, 2026-09-29); `crateLabel` names both. */
 export interface CrateQueueItem { crateId: string; earnedLevel: number | null; source?: string }
 
-type Phase = 'sealed' | 'anticipation' | 'charge' | 'burst' | 'reveal' | 'settled' | 'exhausted' | 'error';
+type Phase = 'sealed' | 'anticipation' | 'charge' | 'freeze' | 'burst' | 'reveal' | 'settled' | 'exhausted' | 'error';
 
 /** Phases a click or key skips out of. */
-const SKIPPABLE: readonly Phase[] = ['anticipation', 'charge', 'burst', 'reveal'];
+const SKIPPABLE: readonly Phase[] = ['anticipation', 'charge', 'freeze', 'burst', 'reveal'];
 
 /** The anticipation's dials from the config. */
 function anticipation(c: CrateFxConfig): { antMs: number; antShake: number; antGlow: number; pulseMs: number } {
@@ -239,13 +239,15 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     }
     if (flow.current.skip) { skipNow(g, p, speedK); return; }
     const b = crateBeats(p, c, { speed: crateFxSpeed() });
-    const big = p.rarity === 'epic' || p.rarity === 'legendary';
+    const big = p.rarity === 'epic' || p.rarity === 'legendary' || p.rarity === 'ancient';
     pitch.current = p.pitch;
     go('charge');
     fx.current?.charge(p);
     cue('charge');
     // The hum cuts at the hitch: a beat of near-silence before the hit.
     at(b.hitchAt, () => { if (g === gen.current) stopHum(); });
+    // Time stops (Ancient's signature): the chest freezes, the hum is already gone, the theatre drains to grey.
+    if (b.freezeAt >= 0) at(b.freezeAt, () => { if (g === gen.current) { stopHum(); go('freeze'); } });
     at(b.burstAt, () => {
       if (g !== gen.current) return;
       go('burst');
@@ -377,6 +379,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     '--cr-rays': String(preset ? Math.min(1, preset.rays) : 0),
     '--cr-blur': `${c.backdropBlur}px`,
     '--cr-fade': `${Math.round(c.reducedFadeMs)}ms`,
+    '--cr-freeze': `${Math.round((preset ? preset.freezeMs : 0) / crateFxSpeed())}ms`,
   } as CSSProperties;
   const domCrate = reduced || fxState === 'failed';
   const summary = openAll && phase === 'settled' && !next && found.length > 1;
@@ -388,7 +391,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
 
   const theatre = (
     <div
-      className={`crate crth ph-${phase}${reduced ? ' reduced' : ''}${skipped ? ' skipped' : ''}${domCrate ? ' domcrate' : ''}${preset ? ` r-${preset.rarity}` : ''}`}
+      className={`crate crth ph-${phase}${reduced ? ' reduced' : ''}${skipped ? ' skipped' : ''}${domCrate ? ' domcrate' : ''}${preset ? ` r-${preset.rarity}` : ''}${preset && preset.signature !== 'none' ? ` sig-${preset.signature}` : ''}`}
       style={vars}
       role="dialog"
       aria-modal="true"
@@ -412,6 +415,8 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
           {/* The slow god-ray backdrop behind the plate: DOM, turning on transform only, so the Pixi ticker can
               stop once the scene settles while the rays keep turning. */}
           {revealed && !reduced && <div className="crth-rays" aria-hidden />}
+          {/* Ancient's "Time stops": the prismatic crack that splits the frozen view at the burst (one-shot). */}
+          {(phase === 'burst' || revealed) && !reduced && !skipped && preset?.signature === 'timestop' && <div className="crth-crack" aria-hidden />}
           {revealed && reward && (
             <div className={`crate-reward crth-plate${reward.rarity ? ` r-${reward.rarity}` : ''}`} role="status">
               <span className="crth-plate-gem" aria-hidden><img src={GEM_ART} alt="" draggable={false} decoding="sync" /></span>
@@ -432,7 +437,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
             <button type="button" className="crate-btn pressable" onClick={() => { sfx.pulse(); start(shown); }}>Open</button>
           )}
           {phase === 'anticipation' && <div className="crate-note" role="status">{slow ? 'Still opening' : 'Opening'}</div>}
-          {(phase === 'charge' || phase === 'burst' || phase === 'reveal') && <div className="crth-skip">Click to skip</div>}
+          {(phase === 'charge' || phase === 'freeze' || phase === 'burst' || phase === 'reveal') && <div className="crth-skip">Click to skip</div>}
           {phase === 'exhausted' && (
             <div className="crate-note" role="status">You own every reward for now. This crate stays sealed until new rewards arrive.</div>
           )}

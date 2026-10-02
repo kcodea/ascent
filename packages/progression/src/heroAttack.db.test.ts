@@ -20,6 +20,9 @@ const CRATES = read('2026-09-28-progression-crates.sql');
 const SKINS = read('2026-09-28-progression-skins.sql');
 const ACH = read('2026-09-28-achievements.sql');
 const ATTACK = read('2026-09-28-progression-hero-attack.sql');
+/** The Ancient rarity file's rarity check only (2026-10-02): the code catalog now holds Ancient items, which the crates
+ *  file's four-rarity check would reject. Its pick + open_crate are crateOdds.db.test.ts's business. */
+const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8'));
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -77,7 +80,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, ANCIENT_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });

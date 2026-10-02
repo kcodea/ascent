@@ -42,12 +42,14 @@ const heroTitles = readFileSync(join(root, 'supabase/migrations/2026-09-29-hero-
 const gauntlet = readFileSync(join(root, 'supabase/migrations/2026-09-29-gauntlet-progress.sql'), 'utf8');
 // The portrait frames file (2026-10-01): the newest equip_cosmetic (the account-wide portrait_frame slot).
 const frames = readFileSync(join(root, 'supabase/migrations/2026-10-01-portrait-frames.sql'), 'utf8');
+// The Ancient rarity file (2026-10-02): the newest progression_crate_pick + open_crate (five rarities, roll version 4).
+const ancient = readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -178,7 +180,7 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet, ancient].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -220,15 +222,19 @@ describe('the crates migration (2026-09-28)', () => {
     for (const k of ['crateId', 'earnedLevel', 'state', 'rewardId', 'earnedAt', 'openedAt', 'source']) expect(crateJson, k).toContain(`'${k}'`);
   });
 
-  it('the published rarity odds and the roll version equal the TS rules (owner 2026-09-29: "make it 50/30/15/5 though")', () => {
+  it('the published rarity odds and the roll version equal the TS rules (owner 2026-10-02: Ancient at 3%, so 35/31/22/9/3)', () => {
     const pick = fnBody('progression_crate_pick');
     expect(COSMETIC_RARITIES.map((r) => n(pick, `c_odds_${r}`))).toEqual(COSMETIC_RARITIES.map((r) => CRATE_RARITY_ODDS[r]));
-    expect(CRATE_RARITY_ODDS).toEqual({ common: 50, rare: 30, epic: 15, legendary: 5 });
+    expect(CRATE_RARITY_ODDS).toEqual({ common: 35, rare: 31, epic: 22, legendary: 9, ancient: 3 });
     expect(Object.values(CRATE_RARITY_ODDS).reduce((a, b) => a + b, 0)).toBe(100);
     // the SQL walks the rarities in the TS order
     expect(/v_rarities text\[\] := array\[([^\]]*)\]/.exec(pick)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'))).toEqual([...COSMETIC_RARITIES]);
     expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
-    expect(CRATE_ROLL_VERSION).toBe(3);
+    expect(CRATE_ROLL_VERSION).toBe(4);
+    // the band walk and the fallback cover every rarity
+    expect(pick).toContain(`for v_i in 1..${COSMETIC_RARITIES.length} loop`);
+    expect(pick).toContain(`generate_series(1, ${COSMETIC_RARITIES.length})`);
+    expect(pick).toContain(`v_rolled   int := ${COSMETIC_RARITIES.length};`);
     // the pool (still the fixed-odds file's) carries the category weight only; the odds are not in it, and the
     // equal-chance pick never reads the weight (owner 2026-09-29: "yeah equal chance")
     expect(pick).not.toMatch(/pool_weight/);
@@ -284,12 +290,12 @@ describe('the crates migration (2026-09-28)', () => {
     // the SQL fallback: order by abs(g - rolled), g
     expect(pick).toMatch(/order by abs\(g - v_rolled\), g/);
     expect(pick).toContain('v_idx := least(v_n - 1, greatest(0, floor(v_frac * v_n)::bigint));');
-    const sqlOrder = (rolled: number): number[] => [0, 1, 2, 3].sort((a, b) => Math.abs(a - rolled) - Math.abs(b - rolled) || a - b);
-    for (let i = 0; i < 4; i++) expect(sqlOrder(i).map((j) => COSMETIC_RARITIES[j])).toEqual(crateRarityFallback(COSMETIC_RARITIES[i]!));
+    const sqlOrder = (rolled: number): number[] => COSMETIC_RARITIES.map((_r, i) => i).sort((a, b) => Math.abs(a - rolled) - Math.abs(b - rolled) || a - b);
+    for (let i = 0; i < COSMETIC_RARITIES.length; i++) expect(sqlOrder(i).map((j) => COSMETIC_RARITIES[j])).toEqual(crateRarityFallback(COSMETIC_RARITIES[i]!));
     const sqlPick = (eligible: ReturnType<typeof eligibleCrateCosmetics>, draw: number): string | null => {
       const x = Math.min(Math.max(draw, 0), 1) * 100;
-      let lo = 0; let rolled = 3; let frac = 1;
-      for (let i = 0; i < 4; i++) {
+      let lo = 0; let rolled = COSMETIC_RARITIES.length - 1; let frac = 1;
+      for (let i = 0; i < COSMETIC_RARITIES.length; i++) {
         if (x < lo + oddsOf[i]!) { rolled = i; frac = (x - lo) / oddsOf[i]!; break; }
         lo += oddsOf[i]!;
       }
@@ -453,5 +459,24 @@ describe('the achievements migration (2026-09-28)', () => {
     expect(ach).toMatch(/^-- update public\.progression_config set achievements_epoch = now\(\)/m);
     expect(ach).not.toMatch(/^update public\.progression_config set achievements_epoch/m);
     expect(ach).toMatch(/^update public\.progression_config set achievements_hash = null where id = 1;/m);
+  });
+});
+
+describe('the Ancient rarity migration (2026-10-02): "i added a new rarity -> Ancient ... these will be a 3% drop rate"', () => {
+  it('the rarity check accepts exactly the TS rarities, re-created under a fixed name after dropping any older one', () => {
+    const m = /add constraint cosmetic_catalog_rarity_check\s+check \(rarity in \(([^)]*)\)\)/.exec(ancient);
+    expect(m, 'the five-rarity check').toBeTruthy();
+    expect(m![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'))).toEqual([...COSMETIC_RARITIES]);
+    // idempotent: every rarity check on the table is dropped first, whatever Postgres named the inline one
+    expect(ancient).toMatch(/pg_get_constraintdef\(con\.oid\) ilike '%rarity%'/);
+    expect(ancient).toContain("execute format('alter table public.cosmetic_catalog drop constraint %I', v_name);");
+    // it never touches the pool tables (no table-lock needed)
+    expect(ancient).not.toMatch(/public\.(boards|pool_runs)\b/);
+  });
+
+  it('schema.sql ends with the same pick and open_crate as the newest file', () => {
+    for (const fn of ['progression_crate_pick', 'open_crate']) {
+      expect(fnBody(fn, schema.slice(schema.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
+    }
   });
 });

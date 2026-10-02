@@ -798,4 +798,91 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-ANCSOREN-01',
+    title: 'Soren × Ancient of Death: the Echo Reclaim triggers fires an extra time',
+    statement:
+      "With the Ancient of Death, the Echo that Reclaim's Start-of-Combat destroy triggers fires one more time. The extra fire goes through the shared Echo-multiplier fold (playerEchoExtras), scoped to the Reclaimed body only, so every Echo watcher and the Echo tally hear each fire. Any other death in the fight, including the returned copy's own later death, is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'death - Echoes triggered by Reclaim trigger an additional time.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimEchoExtra; packages/core/src/combat/simulate.ts ancientReclaim.echoExtra in playerEchoExtras (reclaimEchoUid)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-02',
+    title: 'Soren × Ancient of Fortune: Reclaim resolves in the Shop and gains 5 Gold; no room means an overflow and the copy is lost',
+    statement:
+      "With the Ancient of Fortune, Reclaim no longer marks a minion for Start of Combat. Using it destroys the minion in the Shop right away as a true death (no Rise or Rebirth return, as combat Reclaim forces; its Echo fires where it stood), then an exact copy of the body it had (Copy Machine's exact copy) returns to its slot, to the right of anything its Echo summoned there, as a summon (the on-summon watchers fire). If the board is full after the Echo, it is an overflow (the summon-overflow watchers fire) and the copy is lost: never sent to hand. Each use gains 5 Gold immediately. Still free and once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'fortune - Reclaim works in Recruit phase instead. Gain 5g when it is used.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: "it'd be an 'overflow' technically, but if no room then it is lost" },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientShopReclaim / ancientReclaimInShop; packages/sim/src/reducer.ts resummon branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-03',
+    title: 'Soren × Ancient of War: Reclaimed copies gain +X/+X for that fight; X starts at 10 and improves by 10 every Start of Turn',
+    statement:
+      'With the Ancient of War, each copy Reclaim returns in combat gains +X/+X the moment it lands, through the normal combat buff, so it lasts that fight only and Engraved (or anything else that keeps combat gains) carries it back. X is 10 at the pick and improves by +10/+10 every Start of Turn (the Improve-this convention: grow by the printed amount), stored on the run (AncientsState.sorenWarGain). The power prints the live X.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'war - Reclaimed minions gain +10/+10 on re-summon. Start of Turn: Improve this.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'fight only, but engraving etc would carry it back' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimGainImproves / ancientReclaimGain / sorenStartOfTurn; packages/core/src/combat/simulate.ts flushResummons reclaim.gain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-04',
+    title: 'Soren × Ancient of Genesis: Reclaim also gives a plain copy of its target to hand, locked for 3 turns',
+    statement:
+      'With the Ancient of Genesis, Reclaim still marks its target as normal and also puts a plain copy (the printed card, never Gilded) in your hand, locked for 3 turns through the hand-card wave lock (lockedUntilWave = this turn + 3): it cannot be played this turn or the next two, and the padlock shows the turns left. A full hand gets no copy, and it never goes to the board.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'genesis - Reclaim grants a plain copy of the minion you target, but it is locked for 3 turns.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimCopyLocked / ancientAfterReclaimMark; packages/ui/src/Recruit.tsx wave-lock label' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-05',
+    title: 'Soren × Ancient of Time: Reclaim resummons two copies',
+    statement:
+      "With the Ancient of Time, Reclaim's Start-of-Combat destroy queues two copies of the body instead of one. Each waits for room on its own, the native Reclaim rule, so a full board holds the second back until a friendly death frees a slot. Only the first copy is linked to the run card (sourceUid), so carry-backs never reach it twice.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'time - Reclaim summons twice.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimSummonsTwice; packages/core/src/combat/simulate.ts Reclaim Start-of-Combat loop (ancientReclaim.copies)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-06',
+    title: 'Soren × Ancient of Bonds: when a Reclaimed copy returns, the minions next to it gain its Attack for that fight',
+    statement:
+      'With the Ancient of Bonds, the moment a Reclaimed copy lands in combat, its living neighbours gain Attack equal to its Attack, through the normal combat buff: that fight only, kept by Engraved like every combat gain. No neighbour, no grant.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'bonds - When the reclaimed minion summons, grant its attack to adjacent minions.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'That fight only' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimBondsAdjacent; packages/core/src/combat/simulate.ts flushResummons reclaim.bonds' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

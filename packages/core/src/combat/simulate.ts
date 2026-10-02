@@ -714,6 +714,8 @@ export function simulate(
   // `firstEchoDone`/`firstRallyDone`/`firstSlaughterDone` gate the "first Echo/Rally/Slaughter each combat fires
   // extra" bonuses; `pitDone` gates Pit Without End's once-per-fight summon.
   const firstEchoDone: Record<Side, boolean> = { player: false, enemy: false };
+  // ANCIENT OF DEATH × Soren: the uid of the body Reclaim is destroying at this moment (read by `playerEchoExtras`).
+  let reclaimEchoUid: string | undefined;
   // Player Rally (on-attack) triggers this combat — the `rally` quest objective.
   const ralliesFired: Record<Side, number> = { player: 0, enemy: 0 };
   const firstRallyDone: Record<Side, boolean> = { player: false, enemy: false };
@@ -2621,7 +2623,10 @@ export function simulate(
     if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); firstEchoBonus = first; firstEchoDone[minion.side] = true; }
     // The SAME fold the recruit-side Echo path uses (`fireRecruitDeathrattles`) — one definition of the
     // Echo-multiplier set across both phases (owner principle 2026-08-20).
-    return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus });
+    // ANCIENT OF DEATH × Soren: the Echo Reclaim's Start-of-Combat destroy triggers fires `echoExtra` more times. Scoped to
+    // the one body Reclaim is destroying right now (`reclaimEchoUid`), so no other death is touched.
+    const reclaimExtra = reclaimEchoUid !== undefined && reclaimEchoUid === minion.uid ? mods.ancientReclaim?.echoExtra ?? 0 : 0;
+    return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus }) + reclaimExtra;
   }
 
   // How many EXTRA times a player minion's Rally (on-attack effects) fires beyond the base trigger — every
@@ -3431,12 +3436,12 @@ export function simulate(
   };
   const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 }; // Rune of the Undertow's 4-Ward budget
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
-  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
+  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side; reclaim?: { gain?: number; bonds?: boolean; label: string } }[] = [];
   function flushResummons(): void {
     // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the
     // enemy side, exactly like the player's Reclaimer). FIFO within a side; player-only queues behave as before.
     for (let i = 0; i < pendingResummons.length; ) {
-      const { anchor, board, side } = pendingResummons[i]!;
+      const { anchor, board, side, reclaim } = pendingResummons[i]!;
       if (occupied(side) >= 7) { i++; continue; }
       pendingResummons.splice(i, 1);
       nextStep(); // each reclaimed body re-entering is its own moment
@@ -3456,6 +3461,17 @@ export function simulate(
       emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
       applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too — AURAS FIRST (owner 2026-08-12)
       emitOnSummonOrdered(copy, side); // …then the augmenting watchers, board order left→right
+      // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
+      // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
+      if (reclaim && !copy.dead && copy.health > 0) {
+        // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
+        if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
+        // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
+        if (reclaim.bonds && copy.attack > 0) {
+          const near = livingNeighbours(ctx, copy);
+          if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
+        }
+      }
     }
   }
 
@@ -4284,8 +4300,17 @@ export function simulate(
       buffs: minion.buffs,
     };
     minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
-    killOrReborn(minion); // tokens summon now and may overflow the board
-    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side });
+    // ANCIENTS × Soren (player-only mods; absent = Reclaim exactly as before).
+    const rc = modsFor(minion.side).ancientReclaim;
+    reclaimEchoUid = rc?.echoExtra ? minion.uid : undefined; // DEATH: this destroy's Echo fires extra times
+    try { killOrReborn(minion); } finally { reclaimEchoUid = undefined; } // tokens summon now and may overflow the board
+    const reclaim = rc && (rc.gain || rc.bonds) ? { gain: rc.gain, bonds: rc.bonds, label: rc.label } : undefined;
+    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+    // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
+    // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
+    for (let k = 1; k < (rc?.copies ?? 1); k++) {
+      pendingResummons.push({ anchor: minion, board: { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined }, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+    }
   }
   flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
 

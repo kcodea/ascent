@@ -1961,6 +1961,21 @@ export interface QuestCombatMods {
    *  Every FRIENDLY summon (a token, a Rise, a resummon: the summon-entry chokepoint) gains it as a combat buff
    *  (Engraved keeps it, like every combat gain). Player-only; never snapshotted. */
   ancientSummonGain?: { attack: number; health: number; label: string };
+  /** ANCIENT OF DEATH × Re-Pete (owner 2026-10-02): "Get a copy of the last minion that died in combat" (owner: "Yours
+   *  only"). The avenge bus (one emission per friendly death) remembers the side's last dead body; as the fight ends, a
+   *  plain copy of it goes to hand through `grantToHand` (a live `toHand`, carried home in `handGrants`). No friendly
+   *  death: nothing. Player-only; never snapshotted. */
+  ancientLastDeathCopy?: { label: string };
+  /** ANCIENT OF DEATH × Gorr (owner 2026-10-02): "Avenge (6): Get a copy of a minion you bought last turn." A hero Avenge
+   *  on ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each
+   *  fire sends a plain copy of a random one of `ids` (the minions bought LAST turn) to hand through `grantToHand`; none
+   *  bought: nothing (the count still moves). Rune of Fury fires it again. Player-only; never snapshotted. */
+  ancientGorrAvenge?: { every: number; tick: number; ids: string[]; label: string };
+  /** ANCIENT OF WAR × Gorr (owner 2026-10-02): "pummel (200): get a copy of a minion in your warband." A HERO-level Pummel
+   *  on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's share),
+   *  but REPEATING: every multiple of `every` crossed sends a plain copy of a random LIVING friendly minion to hand
+   *  (`grantToHand`, a live `toHand`). The tally comes home as `CombatCarryBacks.ancientPummelDealt`. Player-only. */
+  ancientPummelCopy?: { every: number; dealt: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

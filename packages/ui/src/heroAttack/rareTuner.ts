@@ -47,12 +47,17 @@ export interface RareTunerDef<C extends object> {
    * I / II / III / IV. Overrides the Small / Big hints on those buttons.
    */
   tierHints?: readonly [string, string, string, string];
+  /**
+   * An ANCIENT attack with a Knockout variant ("Tier V", owner ask 2026-10-02): what it plays, for the hint. Adds the
+   * "Knockout (40)" and "Foe knockout (40)" buttons, which play the blow as a knockout with the variant.
+   */
+  knockoutHint?: string;
 }
 
 type Values<C> = C & { attackStyle: string };
 
 /** A preview's blow, and (the capture rig) a manual frame source so a still can be taken at any beat. */
-export interface DemoPlayOpts { damage?: number; parts?: number; frames?: HeroAttackOptions['frames']; sound?: boolean; safety?: boolean }
+export interface DemoPlayOpts { damage?: number; parts?: number; knockout?: boolean; frames?: HeroAttackOptions['frames']; sound?: boolean; safety?: boolean }
 
 function clipOptions(): string[] {
   let names: string[] = [];
@@ -100,7 +105,7 @@ export function rareTunerSpec<C extends object>(d: RareTunerDef<C>): { spec: Tun
     live?.cancel();
     const cfg = d.store.get() as unknown as { previewDamage: number; previewParts: number };
     return playAttackDemo(side, d.play, {
-      board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts), speed: 1, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+      board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts), speed: 1, knockout: opts.knockout, frames: opts.frames, sound: opts.sound, safety: opts.safety,
     }, () => { live = null; }).then((h) => { live = h; return h; });
   };
 
@@ -128,6 +133,10 @@ export function rareTunerSpec<C extends object>(d: RareTunerDef<C>): { spec: Tun
       { label: '▶ Foe tier II (8)', hint: 'The foe attacks your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
       { label: '▶ Foe medium (12)', hint: 'The foe attacks your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
       { label: '▶ Foe huge (40)', hint: 'The foe attacks your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+      ...(d.knockoutHint ? [
+        { label: '▶ Knockout (40)', hint: `Your hero KNOCKS THE FOE OUT with 40 (the Ancient Knockout variant, "Tier V"): ${d.knockoutHint}`, run: () => { void demo('player', { damage: 40, parts: 7, knockout: true }); } },
+        { label: '▶ Foe knockout (40)', hint: 'The foe knocks YOU out with 40 (the Knockout variant).', run: () => { void demo('opp', { damage: 40, parts: 7, knockout: true }); } },
+      ] : []),
     ],
   };
   return { spec, demo };

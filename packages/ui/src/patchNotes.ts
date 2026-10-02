@@ -59,8 +59,40 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Systems',
+        text: 'Ancient hero attacks now have a special finishing animation on knockouts.',
+        details: [
+          'When an Ancient hero attack knocks a player out, it plays a stronger version of its biggest hit.',
+          'Arcana: the vortex pulses once more before it explodes.',
+          'Consecration: a seventh giant sword is driven into the middle of the blades.',
+          'Soul Stitch: the heart knot cinches twice before it bursts.',
+          'Each one adds cyan and magenta colours, a bigger shake, a short slow motion moment and a knockout sound.',
+          'Every other hero attack still plays its biggest hit on a knockout.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'New Ancient hero attack: Soul Stitch. Crystal needles sew the loser to your hero with violet soul thread, then you pull until it snaps.',
+        details: [
+          'It can drop from crates at the Ancient rarity.',
+          'Small hits pierce the target with one needle and tug the thread.',
+          'Bigger hits cross-stitch an X into the target, or pin it with five needles and stretch it until they rip out.',
+          'The biggest hits, and every knockout, drag the loser into a golden heart knot that bursts.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Rayse is back. You can pick her again in Play and Practice.',
+      },
+      {
+        category: 'Systems',
+        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
+        details: [
+          'Small: one golden spell slows to a crawl just short of your foe, then hits.',
+          'Bigger hits bring three spells, then a whole volley in a spiral.',
+          'Huge: dozens of spells circle your foe while a magic clock counts 3, 2, 1. Then they all strike at once.',
+          'Equip it in the Collection, on the Attack Animations tab.',
+        ],
       },
       {
         category: 'Systems',

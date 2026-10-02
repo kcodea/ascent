@@ -422,6 +422,19 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop slammed into an explosion. Four tiers, so
   // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
   heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
+  // Owner 2026-10-02: an "ancient" attack for the ANCIENT OF BONDS style: "this ancient binds things together and using
+  // soulbindings". The owner picked the concept SOUL STITCH (stitching the target to you): crystal needles on violet soul
+  // thread. I a needle pierces, the thread hangs taut, a tug and the snap; II three needles cross-stitch an X and the
+  // threads snap through; III (the owner's pick "Pinned") five pins stab in at the points of a star and the target is
+  // stretched toward the hero until they rip out; IV (the owner's pick "Bound Together") the heroes laced together, the target dragged halfway
+  // across the board into a gold heart-knot that ties shut, a strike, the knot bursts and the target is flung home. The
+  // first attack BUILT at the ANCIENT rarity (Arcana and Consecration were moved up to it).
+  heroAttack('attack_soul_stitch', 'Soul Stitch', 'ancient', 'stitch'),
+  // Owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time". After three builds of a
+  // rewind concept (3.5, 4 and 5 out of 10; "i dont like using the art for the attack. try again") the owner picked
+  // BULLET TIME: stopped time, the shots hang in the air, then time restarts and they all land (IV: a dome of blades and
+  // a 3-2-1). Built at the Ancient rarity.
+  heroAttack('attack_bullet_time', 'Bullet Time', 'ancient', 'bullettime'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

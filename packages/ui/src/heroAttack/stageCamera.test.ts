@@ -37,6 +37,8 @@ import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
+import { playHeroStitch } from '../heroStitch/heroStitch';
+import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
 
 afterEach(() => { document.body.innerHTML = ''; });
 
@@ -146,6 +148,8 @@ const STYLES: [string, Runner][] = [
   ['coin', playHeroCoin as Runner], ['boomerang', playHeroBoomerang as Runner],
   ['bubble', playHeroBubble as Runner], ['backstab', playHeroBackstab as Runner],
   ['basketball', playHeroBasketball as Runner],
+  ['stitch', playHeroStitch as Runner],
+  ['bullettime', playHeroBulletTime as Runner],
 ];
 
 /** Styles whose camera only PUNCHES (a brief small zoom on each hit, no push-in): Backstab. */

@@ -6,7 +6,8 @@
  */
 import { duckSfxBuses, getFxClipBuffer, playTailedClip, type SfxHandle } from '../sfx';
 
-export interface CueOpts { tail?: number; lenMs?: number; fadeMs?: number; startMs?: number; delayMs?: number }
+/** `reverse`: play the clip BACKWARD (Bullet Time's reversed swell as time slows); a window is a window of the reversed clip. */
+export interface CueOpts { tail?: number; lenMs?: number; fadeMs?: number; startMs?: number; delayMs?: number; reverse?: boolean }
 
 export class AttackVoices {
   readonly voices: SfxHandle[] = [];
@@ -24,7 +25,7 @@ export class AttackVoices {
     if (!this.enabled || !clip || !(gain > 0)) return;
     const tail = opts.tail ?? 0;
     const h = playTailedClip(clip, 'attack', {
-      gain, rate, startMs: opts.startMs, lenMs: opts.lenMs, delayMs: opts.delayMs,
+      gain, rate, startMs: opts.startMs, lenMs: opts.lenMs, delayMs: opts.delayMs, reverse: opts.reverse,
       tail: { fadeOutMs: opts.fadeMs ?? 0, reverbMix: tail, reverbSec: tail > 0 ? 0.6 : 0 },
     });
     if (h) this.voices.push(h);
@@ -37,17 +38,17 @@ export class AttackVoices {
    * A riser placed so its climax lands exactly `windowMs` (real ms) from now: its tail when the clip is longer than
    * the window, a delayed start when shorter.
    */
-  riser(clip: string, gain: number, rate: number, windowMs: number): void {
+  riser(clip: string, gain: number, rate: number, windowMs: number, reverse = false): void {
     // Silent voices never touch the audio engine (a lookup here would start loading the clip, and on a page with no
     // audio context yet, create one mid-attack).
     if (!this.enabled) return;
     const buf = (() => { try { return getFxClipBuffer(clip); } catch { return null; } })();
     const r = rate > 0 ? rate : 1;
-    if (!buf) { this.cue(clip, gain, r); return; }
+    if (!buf) { this.cue(clip, gain, r, { reverse }); return; }
     const clipMs = buf.duration * 1000;
     const heard = windowMs * r; // clip-time consumed over the window
-    if (clipMs > heard) this.cue(clip, gain, r, { startMs: clipMs - heard });
-    else this.cue(clip, gain, r, { delayMs: windowMs - clipMs / r });
+    if (clipMs > heard) this.cue(clip, gain, r, { startMs: clipMs - heard, reverse });
+    else this.cue(clip, gain, r, { delayMs: windowMs - clipMs / r, reverse });
   }
 
   duck(factor: number): void {

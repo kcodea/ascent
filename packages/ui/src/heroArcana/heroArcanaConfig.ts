@@ -30,8 +30,9 @@
  */
 import { clamp, easeInOutSine, hexToNum, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, type TierNum, attackTier, type AttackTierContext, isKnockoutVariant,
 } from '../heroAttack/tiers';
+import { KO_DIP, KO_SHAKE, type KoDip } from '../heroAttack/knockout';
 
 export { TIERS, hexToNum, type TierNum };
 
@@ -417,6 +418,14 @@ export interface ArcanaPlan {
   impactAt: number;
   /** Aftershocks around the target (IV). */
   booms: number[];
+  /**
+   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the Huge vortex, remixed. One EXTRA PULSE of the vortex
+   * (a prismatic throb, `koPulseAt`) before it collapses (the collapse and the explosion move back by `ARCANA_KO.pulseMs`),
+   * the Ancient prism on the explosion, a bigger shake, a slow-mo dip (`dip`) and a KO sting. False / null otherwise.
+   */
+  ko: boolean;
+  koPulseAt: number | null;
+  dip: KoDip | null;
   endAt: number;
   width: number;
   shakePx: number;
@@ -440,7 +449,7 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
     return {
       reduced: true, tier, k, total,
       chargeAt: impactAt, absorbEnd: impactAt, fireAt: impactAt, ribbons: [], swirl: false, swirlAt: impactAt, convergeAt: impactAt,
-      hits: [], impactAt, booms: [], endAt: r.endAt, width: 0, shakePx: 0, zoom: 0, punch: 0, motes: 0, burst: 0, dim: 0,
+      hits: [], impactAt, booms: [], ko: false, koPulseAt: null, dip: null, endAt: r.endAt, width: 0, shakePx: 0, zoom: 0, punch: 0, motes: 0, burst: 0, dim: 0,
     };
   }
 
@@ -473,7 +482,10 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   const firstIn = Math.min(...ribbons.map((r) => r.arriveAt));
   const lastIn = Math.max(...ribbons.map((r) => r.arriveAt));
   const swirlAt = swirl ? firstIn : lastIn;
-  const convergeAt = swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) : lastIn;
+  const ko = isKnockoutVariant(input);
+  // Tier V: the vortex throbs once more where it would have collapsed; the collapse waits for the pulse.
+  const koPulseAt = ko && swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) : null;
+  const convergeAt = swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) + (koPulseAt !== null ? ARCANA_KO.pulseMs : 0) : lastIn;
   const impactAt = swirl ? convergeAt + c.convergeMs : lastIn;
   const hits = swirl ? [] : ribbons.map((r) => r.arriveAt).filter((at) => at < impactAt).sort((a, b) => a - b);
   const booms = swirl ? [impactAt + 140, impactAt + 270] : [];
@@ -488,8 +500,9 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   return {
     reduced: false, tier, k, total, chargeAt, absorbEnd, fireAt,
     ribbons, swirl, swirlAt, convergeAt, hits, impactAt, booms, endAt,
+    ko, koPulseAt, dip: ko ? { at: impactAt, lo: KO_DIP.lo, ms: KO_DIP.ms } : null,
     width: T.RibbonWidth,
-    shakePx: clamp(T.Shake, 0, ARCANA_CAPS.shakePx),
+    shakePx: clamp(T.Shake * (ko ? KO_SHAKE : 1), 0, ARCANA_CAPS.shakePx * (ko ? KO_SHAKE : 1)),
     zoom: clamp(T.Zoom, 0, ARCANA_CAPS.zoom),
     punch: T.Punch,
     motes: Math.round(clamp(T.Motes, 0, ARCANA_CAPS.motes)),
@@ -498,7 +511,10 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   };
 }
 
-export type ArcanaCueKind = 'charge' | 'fire' | 'hit' | 'orbit' | 'swirl' | 'converge' | 'impact' | 'boom' | 'end';
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+export const ARCANA_KO = { pulseMs: 300 } as const;
+
+export type ArcanaCueKind = 'charge' | 'fire' | 'hit' | 'orbit' | 'swirl' | 'koPulse' | 'converge' | 'impact' | 'boom' | 'end';
 export interface ArcanaCue { at: number; kind: ArcanaCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a hit precedes the impact). */
@@ -510,6 +526,7 @@ export function arcanaCues(p: ArcanaPlan): ArcanaCue[] {
     if (p.swirl) {
       p.ribbons.forEach((r, i) => out.push({ at: r.arriveAt, kind: 'orbit', i }));
       out.push({ at: p.swirlAt, kind: 'swirl', i: 0 });
+      if (p.koPulseAt !== null) out.push({ at: p.koPulseAt, kind: 'koPulse', i: 0 });
       out.push({ at: p.convergeAt, kind: 'converge', i: 0 });
     } else {
       // Every ribbon but the last lands as a tick; the last one IS the impact.
@@ -520,7 +537,7 @@ export function arcanaCues(p: ArcanaPlan): ArcanaCue[] {
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
   const order: Record<ArcanaCueKind, number> = {
-    charge: 4, fire: 5, hit: 6, orbit: 7, swirl: 8, converge: 9, impact: 10, boom: 11, end: 12,
+    charge: 4, fire: 5, hit: 6, orbit: 7, swirl: 8, koPulse: 8.5, converge: 9, impact: 10, boom: 11, end: 12,
   };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
@@ -706,6 +723,11 @@ export function arcanaCameraAt(p: ArcanaPlan, c: HeroArcanaConfig, t: number, di
       y += p.shakePx * env * Math.cos(age * 0.093);
     }
     p.booms.forEach((at, i) => kick(at, p.shakePx * 0.3, 45, 18, i % 2 ? perp : dir));
+    // Tier V: the extra pulse thumps the view (a short punch in and a kick up).
+    if (p.koPulseAt !== null) {
+      kick(p.koPulseAt, p.shakePx * 0.35, 50, 15, { x: 0, y: -1 });
+      if (t >= p.koPulseAt) z += p.punch * 0.5 * Math.exp(-(t - p.koPulseAt) / 90);
+    }
   } else {
     kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16, dir);
   }

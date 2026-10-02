@@ -899,6 +899,7 @@ export type EffectFactoryId =
   | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — High King Mykel // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'rallyGiveAttackToRight' // Rune of Aggressive Golems' graft (2026-09-25): Rally, the minion to the right gains this minion's Attack
+  | 'rallyGoldNextTurn' // Ancient of War × Tradesman's graft (2026-10-02): Rally, gain N Gold next turn (shop: bonusEmbersNextTurn; combat: the bonus-Gold carry-back)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
   | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
@@ -1939,6 +1940,14 @@ export interface QuestCombatMods {
    *  (guarded, no echo). The mirrored grant is a combat buff; a permanent gain carries back and is mirrored by the Shop
    *  half at settle, so the mirror never accrues Engraved `permaGain` itself (no double count). Player-only. */
   ancientXeroxBond?: { a: string; b: string; label: string };
+  /** ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
+   *  count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a
+   *  free Refresh through `grantFreeRolls` (the Gryphon carry-back) and emits a `questTrigger` with `flag` (the live
+   *  text). Rune of Fury fires it again. Settle advances the run's count by the fight's deaths. Player-only. */
+  ancientRefreshAvenge?: { every: number; tick: number; flag: string; label: string };
+  /** ANCIENT OF WAR × Tradesman (owner 2026-10-02): "Your minions gain Rally: Gain 1g next turn." The board's bodies
+   *  carry the graft from the Shop (`grantedEffects`); this grafts it onto bodies SUMMONED in the fight too. */
+  ancientRallyGold?: { gold: number };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

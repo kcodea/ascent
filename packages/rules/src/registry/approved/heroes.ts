@@ -709,4 +709,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-ANCTRADES-01',
+    title: 'Tradesman × Ancient of Death: Avenge (3) gains a free Refresh, one count across Shop and combat',
+    statement:
+      "With the Ancient of Death, Tradesman has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (AncientsState.tradesDeaths, the Xerox Death convention). Every Shop death path ticks it once (a sale never); combat carries the count in and settle adds the fight's deaths. Every 3rd death banks a free Refresh (RunState.freeRolls, spent by the next roll at 0 Gold) the moment it happens: in combat through grantFreeRolls, the free-roll carry-back, so it is usable from the next Shop. Rune of Fury fires the combat half again. The power prints the countdown (live through a fight) and the banked free Refreshes, and the countdown takes the shared centre disc.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Death - Avenge (3): Gain a free Refresh' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeFreeRefresh / ancientTradesShopDeath / ancientAfterCombat; packages/core/src/combat/simulate.ts ancientRefreshAvenge' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-02',
+    title: 'Tradesman × Ancient of Fortune: buying a minion gains a free Refresh',
+    statement:
+      'With the Ancient of Fortune, every minion BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought) banks one free Refresh (RunState.freeRolls) immediately. Spell buys, Discovers and generated cards do not count.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Fortune - When you buy a minion, gain a free Refresh' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts buyGivesFreeRefresh / ancientTradesBuy; packages/sim/src/reducer.ts buy branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-03',
+    title: 'Tradesman × Ancient of War: your minions have "Rally: gain 1 Gold next turn"',
+    statement:
+      'With the Ancient of War, every friendly minion (board and hand, every arrival path, swept at the applyRuneGrafts chokepoint) carries the Rally keyword and a grafted rallyGoldNextTurn (grantedEffects, so it rides into combat, snapshots and replays); bodies summoned in combat get it too (QuestCombatMods.ancientRallyGold). Every Rally trigger banks 1 Gold for next turn, uncapped: a swing, each Rally multiplier repeat, a free or Shop Rally. Combat banks through the bonus-Gold carry-back; the Shop through bonusEmbersNextTurn. A Gilded minion gives the same 1 Gold (a hero-granted graft, the rune-graft rule). The power prints the Gold banked for next turn, live through a fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'War - Your minions gain Rally: Gain 1g next turn' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts rallyGoldNextTurn; packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts rallyGoldNextTurn; packages/sim/src/recruit.ts applyRuneGrafts' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-04',
+    title: 'Tradesman × Ancient of Genesis: every 2 Refreshes casts Lasso',
+    statement:
+      "With the Ancient of Genesis, every Shop Refresh (paid, free, or a power's; never the turn-start roll) ticks a running count since the pick (AncientsState.tradesRefreshes, across turns). Every 2nd casts Lasso through castSpell, the real Shop cast pipeline (spell counters, spell watchers, Rune of Lassoing), right after the new row is rolled, so it steals from the fresh Shop. Its lasso beam leaves the hero power. The power prints the Refreshes still needed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Genesis - Every 2 Refreshes, cast Lasso.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts refreshesCastSpell / ancientAfterRefresh; packages/sim/src/reducer.ts refreshTavern' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-05',
+    title: 'Tradesman × Ancient of Time: End of Turn, the Shop upgrade costs 3 less',
+    statement:
+      "With the Ancient of Time, End of Turn (a virtual recurring entry, ancientTradesUpgrade, so End-of-Turn repeats and replays follow the one rule) knocks 3 off the running upgrade cost, floored at CONFIG.upgradeCostFloor (the Rune of Shopkeep mechanism). Frugal's +2 surcharge rides on top, so the price paid floors at 2. The power prints the live upgrade price.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Time - End of Turn: Reduce the cost of upgrading the Shop by 3.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotUpgradeDiscount / ancientRunTradesUpgrade; packages/sim/src/recruit.ts recurringEotEffects' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-06',
+    title: 'Tradesman × Ancient of Bonds: every Refresh makes the Shop upgrade cost 1 less',
+    statement:
+      "With the Ancient of Bonds, every Shop Refresh (paid, free, or a power's; never the turn-start roll) knocks 1 off the running upgrade cost, floored at CONFIG.upgradeCostFloor, the moment it happens. Frugal's +2 surcharge rides on top. The power prints the live upgrade price.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Bonds - Refreshing the shop reduces the cost of upgrading the Shop by 1.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts refreshUpgradeDiscount / ancientAfterRefresh; packages/sim/src/reducer.ts refreshTavern' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

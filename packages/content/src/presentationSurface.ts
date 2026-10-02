@@ -157,6 +157,8 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   { key: 'factory:rallyGiveAttackToRight:onAttack', users: ['rune_aggressive_golems'] },
   // Ancients × the Auctioneer (War, 2026-09-26): the Rally a Pulse grafts, "Rally: trigger this minion's Shout".
   { key: 'factory:rallyTriggerOwnShout:onAttack', users: ['ancient_war_myra'] },
+  // Ancients × Tradesman (War, 2026-10-02): the Rally every friendly minion carries, "Rally: gain 1 Gold next turn".
+  { key: 'factory:rallyGoldNextTurn:onAttack', users: ['ancient_war_hermithank'] },
   // EQUIPMENT (owner handoff 2026-08-28): the grant as a body enters play / re-equips, and one beat per
   // Equipment TRIGGER (repeats included, each carrying its index).
   { key: 'system:equipment:equip', users: ['e3_frank'] },

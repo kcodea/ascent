@@ -77,6 +77,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientSummonExtra: 1, // Risen x Genesis: extra copies per combat summon (a count, not a flag)
   ancientXeroxAvenge: { every: 1, tick: 0, label: 'Ancient of Death' }, // Xerox x Death: Avenge (1) so the staged deaths copy
   ancientXeroxBond: { a: 'pS1', b: 'pS2', label: 'Ancient of Bonds' }, // Xerox x Bonds: the Soulbind fixture pair (sourceUids)
+  ancientRefreshAvenge: { every: 1, tick: 0, flag: 'ancientRefreshAvenge', label: 'Ancient of Death' }, // Tradesman x Death: Avenge (1) so the staged deaths bank Refreshes
+  ancientRallyGold: { gold: 1 }, // Tradesman x War: the Rally graft for bodies summoned mid-fight
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }

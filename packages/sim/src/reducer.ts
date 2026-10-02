@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy } from './ancients';
+import { ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -914,7 +914,7 @@ export function reduce(state: RunState, action: Action): RunState {
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes) {
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next)) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
@@ -1569,6 +1569,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
         if (sfFree) s.freeBuyUsedThisTurn = true;
         ancientNoteMinionBuy(s); // ANCIENT OF TIME × Frank: the Starform is a minion bought (one of the first 3)
+        ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a minion bought gains a free Refresh
         buyStarform(s); // removes the offer, buffs the left-most Celestial, fires `starformRemoved('consume')`
         ciaBuyEnchanted(s, offer);
         if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence');
@@ -1595,6 +1596,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
+        ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a re-bought displaced minion is a minion bought
         // The held body comes back intact PLUS every buff the offer accrued in the Shop (Veinstorm Rubies,
         // Fortify, …) and a Golden Touch re-gild — `restoreHeldOffer`, the one fold shared with the swap-back
         // path (owner bug report 2026-09-21: Veinstorm on a displaced Chimerus "did not buff it").
@@ -1620,6 +1622,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // back to 2 Gold), TIME counts the buy, and a Clearance offer buys in as a Clearance minion.
       const clearanceBuy = ancientOnClearanceBuy(s, offer);
       ancientNoteMinionBuy(s);
+      ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a minion bought gains a free Refresh, right then
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
@@ -7822,6 +7825,13 @@ export function runeCombatModsFor(runeIds: readonly string[]): QuestCombatMods {
  * with "tavern refresh" hooks in one place.
  */
 function refreshTavern(s: RunState, hold = false): void {
+  rollTavern(s, hold);
+  // ANCIENTS × Tradesman (a no-op otherwise): a Shop REFRESH (never the turn-start roll) cuts the upgrade cost (Bonds)
+  // and ticks Genesis' count; its Lasso is cast HERE, after the new row is in, so it steals from the fresh Shop.
+  if (!hold) ancientAfterRefresh(s);
+}
+
+function rollTavern(s: RunState, hold: boolean): void {
   // ANCIENTS: every Shop REFRESH fills the meter (paid or free, no distinction). `hold` marks the turn-start
   // roll, which is the new Shop rather than a refresh. A no-op unless the run has Ancients.
   if (!hold) ancientsRefreshTick(s);

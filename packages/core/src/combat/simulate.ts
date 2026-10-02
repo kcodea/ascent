@@ -138,6 +138,13 @@ export function simulate(
       const n = 2 * flagCopiesOf(side, 'runeStellarEchoes');
       minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleBuffStarform', params: { attack: n, health: n, fixed: true } }];
     }
+    // ANCIENT OF WAR × Tradesman (owner 2026-10-02): "Your minions gain Rally: Gain 1g next turn" — a body summoned in
+    // the fight carries the graft too (the board's own bodies brought it from the Shop). Never on a spell / Ruby body.
+    const rg = m.ancientRallyGold;
+    if (rg && !card.spell && !card.ruby && !minion.effects.some((e) => e.do === 'rallyGoldNextTurn')) {
+      minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGoldNextTurn', params: { gold: rg.gold, fixed: true } }];
+      if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
+    }
     if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
@@ -5215,6 +5222,20 @@ export function simulate(
       nextStep();
       emit({ type: 'sc', source: victim?.uid ?? src.uid, text: `${xa.label}: a copy of ${src.name}`, side, heroPower: true });
       xeroxCopy(side, src);
+    }
+  });
+  // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
+  // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then
+  // (`grantFreeRolls`, the Gryphon carry-back) and pulses a `questTrigger` the replay counts for the live text. Rune of
+  // Fury fires it again, like every hero Avenge.
+  bus.on('avenge', (payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    const ra = modsFor(side).ancientRefreshAvenge;
+    if (!ra || (ra.tick + count) % Math.max(1, ra.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      ctx.grantFreeRolls(1, side);
+      fireTrigger(ra.flag, side);
     }
   });
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.

@@ -162,7 +162,10 @@ export function StatusBar() {
   // FRANK × WAR, LIVE (R-REALTIME-01): Clearance stacks gained so far this fight. Undefined outside a fight.
   const clearanceStacks = useGame((s) => s.combatQuestDelta?.clearanceStacks);
   const combatFriendlyDeaths = useGame((s) => s.combatQuestDelta?.friendlyDeaths);
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths]);
+  // TRADESMAN × DEATH / WAR, LIVE (R-REALTIME-01): free Refreshes and Rally Gold fires so far this fight.
+  const combatFreeRefreshes = useGame((s) => s.combatQuestDelta?.freeRefreshes);
+  const combatRallyFires = useGame((s) => s.combatQuestDelta?.rallyFires);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
@@ -610,7 +613,7 @@ export function StatusBar() {
   // THE HERO AVENGE COUNTDOWN (owner 2026-09-30): Frank × War's Avenge (3) or Hunch × Death's Avenge (4) owns the
   // centre readout, live through the fight on screen (its friendly deaths so far), back to full after each trigger. One
   // helper, one disc (`.hpb-avenge`) for both.
-  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
+  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
   const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive

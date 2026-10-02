@@ -70,6 +70,10 @@ export interface CombatQuestDelta {
   /** Friendly deaths so far this fight (the player's `death` events, a Rise's first death excluded: the Avenge count),
    *  for Frank × Ancient of War's centre Avenge countdown, live. */
   friendlyDeaths?: number;
+  /** Tradesman × Ancient of Death: free Refreshes its Avenge gained so far this fight (`questTrigger` flags), live. */
+  freeRefreshes?: number;
+  /** Tradesman × Ancient of War: its Rally graft's fires so far this fight (`questTrigger` flags), live. */
+  rallyFires?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';

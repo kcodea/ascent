@@ -5876,6 +5876,10 @@ export function Recruit() {
       fromUid = ev.origin.slice('board:'.length);
       const card = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${fromUid}"]`);
       from = centre(card?.querySelector('.cgem')) ?? centre(card);
+    } else if (ev.origin === 'hero') {
+      // TRADESMAN × ANCIENT OF GENESIS ("Every 2 Refreshes, cast Lasso"): out of the hero-power button.
+      from = centre(document.querySelector('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn'))
+        ?? centre(document.querySelector('.statusbar .heropowerbtn'));
     } else if (ev.origin === 'equipment') {
       // WHIPLASS-O: out of the Equipment slot beside the hero power (owner 2026-09-12: "equipment can always
       // be a starting point of an effect"). Whiplass-o has no `useFxId`, so this is the slot's only cue.

@@ -342,6 +342,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyGetRubies:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGiveAttackToOthers:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGiveAttackToRight:onAttack': { policy: 'ownBeat', family: 'rally' }, // Rune of Aggressive Golems' graft (2026-09-25)
+  'factory:rallyGoldNextTurn:onAttack': { policy: 'ownBeat', family: 'rally' }, // Ancient of War × Tradesman's graft (2026-10-02)
   'factory:rallyGiveHealthToDragons:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantMagnetic:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantSelfCopy:onAttack': { policy: 'ownBeat', family: 'rally' },

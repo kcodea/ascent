@@ -150,6 +150,17 @@
  *                                 Sable Soulbind hook); COMBAT through `ctx.buff` (`QuestCombatMods.ancientXeroxBond`,
  *                                 matched on `sourceUid`). One hop (guarded). The bond breaks for good when either end is
  *                                 consumed into a triple, sold, destroyed in the Shop, or otherwise leaves the run. (Bonds)
+ *  TRADESMAN (`hermithank`, Frugal, PASSIVE; owner pairings 2026-10-02). "A Refresh" = the reducer's `refreshTavern`
+ *  with `hold` off (paid, free, a power's), the same refresh the meter counts; never the turn-start roll.
+ *  · `avengeFreeRefresh`          a hero Avenge (N) on ONE running count across BOTH phases (`tradesDeaths`, the Xerox
+ *                                 Death shape): SHOP at `fireOnFriendDeath` (`ancientTradesShopDeath`); COMBAT through
+ *                                 `QuestCombatMods.ancientRefreshAvenge` (`grantFreeRolls`, the free-roll carry-back). (Death)
+ *  · `buyGivesFreeRefresh`        the reducer's minion-buy paths (`ancientTradesBuy`): +free Refreshes, real time. (Fortune)
+ *  · `minionsRallyGold`           a graft on every friendly minion (`applyRuneGrafts` in the Shop, `ancientRallyGold` for
+ *                                 combat summons): "Rally: gain N Gold next turn" (`rallyGoldNextTurn`). (War)
+ *  · `refreshesCastSpell`         `ancientAfterRefresh`: every Nth Refresh casts the spell through `castSpell`. (Genesis)
+ *  · `eotUpgradeDiscount`         a virtual recurring End-of-Turn entry (`ancientTradesUpgrade`): upgrade cost −N. (Time)
+ *  · `refreshUpgradeDiscount`     `ancientAfterRefresh`: every Refresh, upgrade cost −N. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -157,10 +168,10 @@ import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMo
 import { CARD_INDEX } from '@game/content';
 import { handCap, mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
-import type { HeroPower } from './heroes';
+import { hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
-import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
+import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
+import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -298,7 +309,20 @@ export type AncientEffect =
   /** Start of Turn: get a copy of a random minion you control. */
   | { do: 'sotCopyToHand' }
   /** Copy Machine's copy and its original are bound: a stat gain on one is gained by the other. A triple breaks it. */
-  | { do: 'copyMachineBonds' };
+  | { do: 'copyMachineBonds' }
+  // ── Tradesman (Frugal) ──
+  /** Avenge (`every`), Shop AND combat (one running count): gain a free Refresh. */
+  | { do: 'avengeFreeRefresh'; every: number }
+  /** Buying a minion from the Shop gains `count` free Refreshes. */
+  | { do: 'buyGivesFreeRefresh'; count: number }
+  /** Your minions have "Rally: gain `gold` Gold next turn." (a graft on every friendly minion, both phases). */
+  | { do: 'minionsRallyGold'; gold: number }
+  /** Every `every` Refreshes (free ones included), cast `spellId`. */
+  | { do: 'refreshesCastSpell'; every: number; spellId: string }
+  /** End of Turn: the Shop upgrade costs `amount` less (floored). */
+  | { do: 'eotUpgradeDiscount'; amount: number }
+  /** Every Refresh (free ones included): the Shop upgrade costs `amount` less (floored). */
+  | { do: 'refreshUpgradeDiscount'; amount: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -667,6 +691,47 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'copyMachineBonds' }],
     },
   },
+  // TRADESMAN (hero id `hermithank`; owner pairings 2026-10-02, quoted above each entry). Frugal is PASSIVE: "Shop
+  // minions cost 2 Gold. Shop upgrades cost 2 more, and rerolls cost 2 Gold." So every pairing adds to it. "A
+  // Refresh" is every Shop refresh the Ancients meter counts (paid, free, a power's), never the turn-start roll.
+  hermithank: {
+    death: {
+      // "Avenge (3): Gain a free Refresh"
+      offerText: '**Avenge (3):** gain a free Refresh.',
+      powerText: '{base} **Avenge (3):** gain a free Refresh (**{tDeathLeft}** more to go). Free Refreshes banked: **{freeRolls}**.',
+      effects: [{ do: 'avengeFreeRefresh', every: 3 }],
+    },
+    fortune: {
+      // "When you buy a minion, gain a free Refresh"
+      offerText: 'When you buy a minion, gain a free Refresh.',
+      powerText: '{base} When you buy a minion, gain a free Refresh. Free Refreshes banked: **{freeRolls}**.',
+      effects: [{ do: 'buyGivesFreeRefresh', count: 1 }],
+    },
+    war: {
+      // "Your minions gain Rally: Gain 1g next turn"
+      offerText: 'Your minions gain "**Rally:** gain **1 Gold** next turn."',
+      powerText: '{base} Your minions have "**Rally:** gain **1 Gold** next turn." **{rallyGold} Gold** banked for next turn.',
+      effects: [{ do: 'minionsRallyGold', gold: 1 }],
+    },
+    genesis: {
+      // "Every 2 Refreshes, cast Lasso."
+      offerText: 'Every **2** Refreshes, cast **Lasso**.',
+      powerText: '{base} Every **2** Refreshes, cast **Lasso** (**{lassoLeft}** more to go).',
+      effects: [{ do: 'refreshesCastSpell', every: 2, spellId: 'lasso' }],
+    },
+    time: {
+      // "End of Turn: Reduce the cost of upgrading the Shop by 3."
+      offerText: '**End of Turn:** reduce the cost of upgrading the Shop by **3**.',
+      powerText: '{base} **End of Turn:** reduce the cost of upgrading the Shop by **3**.{upgradeNow}',
+      effects: [{ do: 'eotUpgradeDiscount', amount: 3 }],
+    },
+    bonds: {
+      // "Refreshing the shop reduces the cost of upgrading the Shop by 1."
+      offerText: 'Refreshing the Shop reduces the cost of upgrading the Shop by **1**.',
+      powerText: '{base} Refreshing the Shop reduces the cost of upgrading the Shop by **1**.{upgradeNow}',
+      effects: [{ do: 'refreshUpgradeDiscount', amount: 1 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -763,6 +828,12 @@ export interface AncientsState {
    *  (`xeroxBondBroken` then stays true for the power text). */
   xeroxBond?: { a: string; b: string };
   xeroxBondBroken?: boolean;
+  /** TRADESMAN × DEATH: friendly deaths since the last free Refresh (Shop + combat), the running Avenge (3) count. */
+  tradesDeaths?: number;
+  /** TRADESMAN × GENESIS: Refreshes since the pick (free ones included), the running count toward the next Lasso. */
+  tradesRefreshes?: number;
+  /** TRADESMAN × WAR: Gold the Rally graft banked for next turn on `wave` (Shop rallies + that wave's fight, at settle). */
+  tradesRallyGold?: { wave: number; gold: number };
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -867,6 +938,12 @@ export interface AncientPowerLive {
   /** XEROX × DEATH: friendly deaths SO FAR in the fight on screen (the replay's tally), added to the carried-in running
    *  count so the Avenge (5) readout ticks with each death. */
   friendlyDeaths?: number;
+  /** TRADESMAN × DEATH: free Refreshes the fight on screen has gained SO FAR (the replay's `questTrigger` events for
+   *  `ANCIENT_REFRESH_AVENGE_FLAG`), added to the banked count so the readout ticks with each Avenge. */
+  freeRefreshes?: number;
+  /** TRADESMAN × WAR: the Rally graft's fires SO FAR in the fight on screen (the replay's `questTrigger` events for
+   *  `ANCIENT_RALLY_GOLD_FLAG`, one per fire); the text multiplies by the pairing's Gold. */
+  rallyFires?: number;
 }
 
 /** The resolved hero-power text, or undefined when no pairing is active (the caller keeps its base text). */
@@ -900,6 +977,12 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const pairGold = (effectOf(state, 'pairsGoldNextTurn')?.gold ?? 0) * pairs;
   text = text.replace('{xDeathLeft}', String(xDeathLeft)).replace('{pairs}', String(pairs)).replace('{pairGold}', String(pairGold))
     .replace('{charges}', String(ancientCopyUsesLeft(state))).replace('{bond}', xeroxBondText(state));
+  // TRADESMAN: Death's countdown (live through a fight) + the banked free Refreshes (plus the fight's so far),
+  // Genesis' Refreshes to the next Lasso, War's Gold banked for next turn, Time / Bonds' live upgrade price.
+  text = text.replace('{tDeathLeft}', String(ancientTradesAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .replace('{freeRolls}', String(Math.max(0, state.freeRolls ?? 0) + (combat.freeRefreshes ?? 0)))
+    .replace('{lassoLeft}', String(tradesLassoLeft(state))).replace('{rallyGold}', String(tradesRallyGoldNow(state) + (effectOf(state, 'minionsRallyGold')?.gold ?? 0) * (combat.rallyFires ?? 0)))
+    .replace('{upgradeNow}', tradesUpgradeText(state));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -955,7 +1038,8 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  * Null = no hero Avenge is live.
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
-  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths);
+  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths)
+    ?? ancientTradesAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1063,6 +1147,12 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (effectOf(state, 'socCopyTopHealth')) out.ancientXeroxSoc = { label: ANCIENTS.war.name };
   const bond = ancientXeroxBondOf(state);
   if (bond) out.ancientXeroxBond = { a: bond.a, b: bond.b, label: ANCIENTS.bonds.name };
+  // TRADESMAN: Death's running Avenge carried in (each fire a free Refresh, through the free-roll carry-back); War's
+  // Rally graft for bodies SUMMONED mid-fight (the board's bodies already carry it from the Shop sweep).
+  const td = effectOf(state, 'avengeFreeRefresh');
+  if (td) out.ancientRefreshAvenge = { every: td.every, tick: live(state)?.tradesDeaths ?? 0, flag: ANCIENT_REFRESH_AVENGE_FLAG, label: ANCIENTS.death.name };
+  const rally = ancientRallyGoldGraft(state);
+  if (rally) out.ancientRallyGold = rally;
   return out;
 }
 
@@ -1190,6 +1280,16 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // XEROX × DEATH: the fight's friendly deaths join the running Avenge count (its copies already landed mid-fight).
   const xd = effectOf(state, 'avengeCopyTopAttack');
   if (xd) a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, xd.every);
+  // TRADESMAN × DEATH: the fight's deaths join the running count (its free Refreshes already came home through
+  // `playerFreeRolls`, the Gryphon carry-back). WAR: the Gold the fight's Rallies banked (one flag per fire) is
+  // recorded for the live text; the Gold itself came home through `playerBonusGold`.
+  const td = effectOf(state, 'avengeFreeRefresh');
+  if (td) a.tradesDeaths = ((a.tradesDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, td.every);
+  const rg = effectOf(state, 'minionsRallyGold');
+  if (rg) {
+    const fires = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG).length;
+    if (fires > 0) noteTradesRallyGold(state, fires * rg.gold);
+  }
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -1697,4 +1797,123 @@ function xeroxBondText(state: RunState): string {
     return ` Bound now: **${name}** and its copy.`;
   }
   return a.xeroxBondBroken ? ' The bond is broken.' : '';
+}
+
+// ── Tradesman (Frugal) hooks ─────────────────────────────────────────────────────────────────────────────────
+/** The `questTrigger` flag Death's combat Avenge emits once per free Refresh (the replay counts them for the text). */
+export const ANCIENT_REFRESH_AVENGE_FLAG = 'ancientRefreshAvenge';
+/** The `questTrigger` flag War's Rally graft emits once per fire in combat (the replay + settle count them). */
+export const ANCIENT_RALLY_GOLD_FLAG = 'ancientRallyGold';
+
+/**
+ * TRADESMAN × DEATH: friendly deaths still needed for the next free Refresh. ONE running count across the Shop and
+ * combat (the carried `tradesDeaths` plus `deaths`, the deaths so far in the fight on screen), the Xerox Death shape.
+ * Null when Death is not the picked pairing.
+ */
+export function ancientTradesAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeFreeRefresh') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.tradesDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/** TRADESMAN × DEATH, Shop half: a friendly minion died in the Shop (`fireOnFriendDeath`, every Shop death path once;
+ *  a sale never). The running count ticks; every `every`th death banks a free Refresh, right then. */
+export function ancientTradesShopDeath(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'avengeFreeRefresh') : undefined;
+  if (!a || !e) return;
+  a.tradesDeaths = ((a.tradesDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.tradesDeaths === 0) state.freeRolls = (state.freeRolls ?? 0) + 1;
+}
+
+/** TRADESMAN × FORTUNE: a minion was BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought).
+ *  Banks `count` free Refreshes, right then. Spells, Discovers and generated cards never reach this. */
+export function ancientTradesBuy(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'buyGivesFreeRefresh') : undefined;
+  if (e) state.freeRolls = (state.freeRolls ?? 0) + e.count;
+}
+
+/** TRADESMAN × WAR: the graft every friendly minion carries ("Rally: gain N Gold next turn"), or undefined when War is
+ *  not the picked pairing. `fixed`: a Gilded minion gives the same Gold (a hero-granted Rally, the rune-graft rule). */
+export function ancientRallyGoldGraft(state: RunState): { gold: number } | undefined {
+  const e = live(state) ? effectOf(state, 'minionsRallyGold') : undefined;
+  return e ? { gold: e.gold } : undefined;
+}
+
+/** The effect War grafts (`grantedEffects`), shared by the Shop sweep and the combat summon graft. */
+export function rallyGoldGraftEffect(gold: number): EffectDef {
+  return { on: 'onAttack', do: 'rallyGoldNextTurn', params: { gold, fixed: true } };
+}
+
+/** TRADESMAN × WAR: record Gold the graft banked for next turn (the live text; the Gold itself is already banked). */
+export function noteTradesRallyGold(state: RunState, gold: number): void {
+  const a = live(state);
+  if (!a || gold <= 0) return;
+  const cur = a.tradesRallyGold?.wave === state.wave ? a.tradesRallyGold.gold : 0;
+  a.tradesRallyGold = { wave: state.wave, gold: cur + gold };
+}
+
+/** TRADESMAN × WAR: Gold banked for next turn by the graft this turn (0 once the next Shop has paid it out). */
+function tradesRallyGoldNow(state: RunState): number {
+  const g = live(state)?.tradesRallyGold;
+  return g && g.wave === state.wave ? g.gold : 0;
+}
+
+/** TRADESMAN × GENESIS: Refreshes still needed for the next Lasso. 0 when Genesis is not picked. */
+function tradesLassoLeft(state: RunState): number {
+  const e = effectOf(state, 'refreshesCastSpell');
+  if (!e) return 0;
+  const every = Math.max(1, e.every);
+  return every - ((live(state)?.tradesRefreshes ?? 0) % every);
+}
+
+/** The price an upgrade charges right now: the reducer's `upgradeCostOf` (running cost + Frugal's +2, less Ayse's
+ *  banked discount, floored at 0). Restated here because ancients.ts cannot import the reducer (a cycle); a test pins
+ *  the two equal. */
+export function tradesUpgradeCost(state: RunState): number {
+  const base = state.upgradeCost + (hasPower(state, 'cheapMinions') ? 2 : 0);
+  return Math.max(0, base - (state.aceTierDiscount ?? 0));
+}
+
+/** TIME / BONDS: the live upgrade line (the price right now, or nothing at the top tier). */
+function tradesUpgradeText(state: RunState): string {
+  const ceiling = hasTier7Access(state) ? 7 : maxTierFor(state.rift);
+  return state.tier >= ceiling ? '' : ` Upgrading costs **${tradesUpgradeCost(state)} Gold** now.`;
+}
+
+/** TIME / BONDS: knock `amount` off the running upgrade cost (the Rune of Shopkeep mechanism, floored at
+ *  `CONFIG.upgradeCostFloor`; Frugal's +2 rides on top of it, so the shown price floors at 2). */
+function cutUpgradeCost(state: RunState, amount: number): void {
+  state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - amount);
+}
+
+/** TRADESMAN × TIME: is the End-of-Turn upgrade cut live (the `ancientTradesUpgrade` recurring entry)? */
+export function ancientTradesUpgradeLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotUpgradeDiscount');
+}
+
+/** TRADESMAN × TIME: End of Turn, the upgrade costs `amount` less (the `ancientTradesUpgrade` recurring entry). */
+export function ancientRunTradesUpgrade(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'eotUpgradeDiscount') : undefined;
+  if (e) cutUpgradeCost(state, e.amount);
+}
+
+/**
+ * A Shop REFRESH just rolled (the reducer's `refreshTavern`, never the turn-start roll): the same "refresh" the meter
+ * counts, paid or free. BONDS: the upgrade costs `amount` less. GENESIS: the running count ticks, and every `every`th
+ * casts the spell through `castSpell`, the real Shop cast pipeline (spell watchers, cast counters, Rune of Lassoing),
+ * AFTER the new row is in, so Lasso steals from the fresh Shop. The beam leaves the hero power (`origin: 'hero'`).
+ */
+export function ancientAfterRefresh(state: RunState): void {
+  const a = live(state);
+  if (!a) return;
+  const bonds = effectOf(state, 'refreshUpgradeDiscount');
+  if (bonds) cutUpgradeCost(state, bonds.amount);
+  const gen = effectOf(state, 'refreshesCastSpell');
+  if (!gen) return;
+  a.tradesRefreshes = (a.tradesRefreshes ?? 0) + 1;
+  if (a.tradesRefreshes % Math.max(1, gen.every) !== 0) return;
+  const spell = CARD_INDEX[gen.spellId];
+  if (spell?.spell) castSpell(state, spell, undefined, 'hero');
 }

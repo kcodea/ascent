@@ -45,6 +45,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     gainRubyStats: () => {},
     neighboursOf: () => [],
     grantMaxGold: () => {},
+    grantGoldNextTurn: () => {},
     isCelestial: () => false,
     isImp: () => false,
     isFodder: () => false,

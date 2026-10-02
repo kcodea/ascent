@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -467,6 +467,13 @@ interface GameStore {
   /** Bridge from the combat arena's replay clock: true once the current fight's animation has finished, so the
    *  replay player knows when it's safe to advance past a combat frame. Meaningless outside `replaying`. */
   combatReplayDone: boolean;
+  /** REPLAY VIEWER (End of Turn, 2026-10-02) — the recorded End of Turn the replay player wants played NOW, over
+   *  the shop frame on screen: Recruit plays `eot.batch` through the same compiler + timeline player live End
+   *  Turn uses (no prepare, no commit), at `speed`, then stamps `replayEotDone = key`. `key` identifies the
+   *  request so a stale completion (a seek, an exit) can never advance a later one. Null when none is playing. */
+  replayEotCue: { key: number; eot: EotRecord; speed: number } | null;
+  /** The `key` of the last recorded End of Turn Recruit finished playing (see `replayEotCue`). 0 = none yet. */
+  replayEotDone: number;
   /** The live transport state of the running replay (frame index / count, playing, speed, current round) —
    *  read by the replay overlay + round rail; driven by `replay/replayPlayer.ts`. Null when not replaying. */
   replaySession: ReplaySession | null;
@@ -1162,6 +1169,10 @@ export function recordCursorSample(x: number, y: number): void {
   sampleCursor(x, y, replayClockTick());
 }
 const replayNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0);
+/** REPLAY V2 (End of Turn, 2026-10-02): the frames-clock time End Turn was pressed, stamped by
+ *  `preparePresentationAction` and consumed by the fight's frame at commit (`CombatFrame.eot.atMs`). Null when no
+ *  End of Turn is being prepared (a plain `faceOmen` dispatch records no beats to replay). */
+let pendingEotAtMs: number | null = null;
 function replayClockTick(): number {
   const now = replayNow();
   if (replayLastFrameAt != null) replayElapsedMs += Math.max(0, now - replayLastFrameAt);
@@ -1173,6 +1184,7 @@ function replayClockTick(): number {
 function seedReplayFrames(run: RunState): ReplayFrame[] {
   replayLastFrameAt = replayNow();
   replayElapsedMs = 0;
+  pendingEotAtMs = null;
   replayLastShopView = null;
   replayInspectTrail = [];
   resetCursorTrail();
@@ -1550,7 +1562,14 @@ function commitResolvedAction(
       if (action.type === 'faceOmen' && next.lastCombat) {
         // A fight resolved: record it verbatim (the full CombatResult, minus oddsInput), stamped with the
         // pairing the pre-action state used.
-        replayFrames = [...replayFrames, combatFrameOf(s.run, next, tMs)];
+        // …and the End of Turn that led into it, AS PLAYED (owner report 2026-10-02): the batch the Choreographer
+        // animated before this commit. Without it the replay jumps from the last shop action straight to the
+        // fight, and every End-of-Turn beat (Lasting Cadence's Rallies, rune payouts, minion procs) is gone.
+        const cf = combatFrameOf(s.run, next, tMs);
+        const eot = eotRecordOf(batch, Math.min(pendingEotAtMs ?? tMs, tMs), next);
+        pendingEotAtMs = null;
+        if (eot) cf.eot = eot;
+        replayFrames = [...replayFrames, cf];
       } else if (next.phase === 'recruit' && s.run.phase !== 'recruit') {
         // Combat → recruit flip: the new shop opening is its own `turnStart` KEYFRAME (a full view).
         const frame = shopFrameOf(next, 'turnStart', tMs);
@@ -2219,6 +2238,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   replayPartial: BOOT_SAVE != null,
   replaying: false,
   combatReplayDone: false,
+  replayEotCue: null,
+  replayEotDone: 0,
   replaySession: null,
   replayDragGhost: null,
   lastReplay: null,
@@ -2319,6 +2340,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (s.replaying) return null;
     if (s.presentationTx) return s.presentationTx; // already prepared — never resolve twice
     const prepared = prepareActionWithPresentation(s.run, action);
+    // The moment End Turn was pressed, on the replay frames' clock — where a replay starts this End of Turn's
+    // beats (the fight's own frame lands at the commit, after them). See `CombatFrame.eot`.
+    if (action.type === 'faceOmen') pendingEotAtMs = replayClockTick();
     set({ presentationTx: prepared });
     return prepared;
   },

@@ -10,10 +10,10 @@ import {
 /**
  * THE FIXED-ODDS CRATE ROLL, EXECUTED (owner 2026-09-29: "go to C", then "make it 50/30/15/5 though", then "yeah
  * equal chance" inside a rarity). PGlite runs every progression migration in order (MVP, crates, skins, achievements,
- * hero attack, fixed odds, equal chance), syncs the code
+ * hero attack, fixed odds, equal chance, Ancient), syncs the code
  * catalog, and checks that the SQL pick (`progression_crate_pick`) chooses EXACTLY what the TS `pickCrateReward`
  * chooses, draw by draw, across fresh, partial and nearly-empty collections (so the rarity bands, the nearest-rarity
- * fallback and the equal-chance index all agree on real Postgres); that `open_crate` stamps roll_version 3 and
+ * fallback and the equal-chance index all agree on real Postgres); that `open_crate` stamps roll_version 4 and
  * keeps every old guarantee (no duplicate, already_opened, pool_exhausted leaves the crate sealed); that the admin_off
  * kill switch keeps an item out of every draw; and that re-running the file changes nothing.
  */
@@ -26,6 +26,8 @@ const ACH = read('2026-09-28-achievements.sql');
 const ATTACK = read('2026-09-28-progression-hero-attack.sql');
 const ODDS = read('2026-09-29-crate-fixed-rarity-odds.sql');
 const UNIFORM = read('2026-09-29-crate-uniform-within-rarity.sql');
+// 2026-10-02: the Ancient rarity (five rarities at 35/31/22/9/3, roll version 4) supersedes UNIFORM's pick + open_crate.
+const ANCIENT = read('2026-10-02-ancient-rarity.sql');
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -89,7 +91,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, ODDS, UNIFORM]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, ODDS, UNIFORM, ANCIENT]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });
@@ -101,6 +103,8 @@ describe('the SQL pick equals the TS pick, draw for draw', () => {
     ['every Common owned (Common draws fall to Rare)', all.filter((c) => c.rarity === 'common').map((c) => c.id)],
     ['every Epic owned (Epic draws fall to Rare before Legendary)', all.filter((c) => c.rarity === 'epic').map((c) => c.id)],
     ['only Legendaries left', all.filter((c) => c.rarity !== 'legendary').map((c) => c.id)],
+    ['every Ancient owned (Ancient draws fall to Legendary)', all.filter((c) => c.rarity === 'ancient').map((c) => c.id)],
+    ['only Ancients left', all.filter((c) => c.rarity !== 'ancient').map((c) => c.id)],
     ['one item left', all.slice(1).map((c) => c.id)],
   ];
   for (const [label, owned] of ownedSets) {
@@ -112,13 +116,13 @@ describe('the SQL pick equals the TS pick, draw for draw', () => {
         expect(await sqlPick(u, draw), `draw ${draw}`).toBe(pickCrateReward(eligible, draw)?.id ?? null);
       }
       // the band edges exactly
-      for (const draw of [0, 0.5, 0.8, 0.95, 0.4999999, 0.7999999, 0.9499999, 0.9999999]) {
+      for (const draw of [0, 0.35, 0.66, 0.88, 0.97, 0.3499999, 0.6599999, 0.8799999, 0.9699999, 0.9999999]) {
         expect(await sqlPick(u, draw), `edge ${draw}`).toBe(pickCrateReward(eligible, draw)?.id ?? null);
       }
     }, 60_000);
   }
 
-  it('every rarity band of a fresh player gives its own rarity (the 50 / 30 / 15 / 5 split, on Postgres)', async () => {
+  it('every rarity band of a fresh player gives its own rarity (the 35 / 31 / 22 / 9 / 3 split, on Postgres)', async () => {
     const u = await playerOwning([]);
     const rarity = Object.fromEntries(COSMETICS.map((c) => [c.id, c.rarity]));
     const counts: Record<string, number> = {};
@@ -126,7 +130,7 @@ describe('the SQL pick equals the TS pick, draw for draw', () => {
       const id = (await sqlPick(u, (k + 0.5) / 200))!;
       counts[rarity[id]!] = (counts[rarity[id]!] ?? 0) + 1;
     }
-    expect(COSMETIC_RARITIES.map((r) => counts[r])).toEqual([100, 60, 30, 10]);
+    expect(COSMETIC_RARITIES.map((r) => counts[r])).toEqual([70, 62, 44, 18, 6]);
   }, 60_000);
 
   it('inside a rarity every item is equally likely on Postgres too ("yeah equal chance"): an even sweep of the Legendary band hits each Legendary the same number of times', async () => {
@@ -136,7 +140,7 @@ describe('the SQL pick equals the TS pick, draw for draw', () => {
     const per = 4;
     const n = legendaries.length * per;
     for (let k = 0; k < n; k++) {
-      const id = (await sqlPick(u, 0.95 + (0.05 * (k + 0.5)) / n))!;
+      const id = (await sqlPick(u, 0.88 + (0.09 * (k + 0.5)) / n))!;
       hits[id] = (hits[id] ?? 0) + 1;
     }
     expect(Object.keys(hits).sort()).toEqual(legendaries.map((c) => c.id).sort());
@@ -145,7 +149,7 @@ describe('the SQL pick equals the TS pick, draw for draw', () => {
 });
 
 describe('open_crate under the fixed odds', () => {
-  it('opens into an eligible item, stamps roll_version 3, and a second open is already_opened', async () => {
+  it('opens into an eligible item, stamps roll_version 4, and a second open is already_opened', async () => {
     const u = await playerOwning([]);
     const c = await sealedCrate(u);
     const first = await open(u, c);
@@ -153,7 +157,7 @@ describe('open_crate under the fixed odds', () => {
     expect(crateIds).toContain(first.rewardId);
     const row = await one<{ roll_version: number; reward_cosmetic_id: string }>('select roll_version, reward_cosmetic_id from public.loot_crates where crate_id = $1', [c]);
     expect(row).toEqual({ roll_version: CRATE_ROLL_VERSION, reward_cosmetic_id: first.rewardId });
-    expect(CRATE_ROLL_VERSION).toBe(3);
+    expect(CRATE_ROLL_VERSION).toBe(4);
     const second = await open(u, c);
     expect(second).toMatchObject({ status: 'already_opened', rewardId: first.rewardId });
   });
@@ -190,8 +194,8 @@ describe('open_crate under the fixed odds', () => {
   }, 60_000);
 
   it('keeps the per-user lock and the crate row lock; one random() per opening', () => {
-    const at = UNIFORM.indexOf('create or replace function public.open_crate(');
-    const body = UNIFORM.slice(at, UNIFORM.indexOf('$$;', UNIFORM.indexOf('begin', at)));
+    const at = ANCIENT.indexOf('create or replace function public.open_crate(');
+    const body = ANCIENT.slice(at, ANCIENT.indexOf('$$;', ANCIENT.indexOf('begin', at)));
     const lock = "pg_advisory_xact_lock(hashtextextended('progression:' || p_user::text, 0))";
     expect(body.indexOf(lock)).toBeGreaterThan(0);
     expect(body.indexOf(lock)).toBeLessThan(body.indexOf('from public.loot_crates where crate_id = p_crate_id'));
@@ -209,8 +213,8 @@ describe('open_crate under the fixed odds', () => {
     ];
     const before = await snap();
     const picks = await Promise.all([0.1, 0.6, 0.9, 0.97].map((d) => sqlPick(u, d)));
-    await db.exec(UNIFORM);
-    await db.exec(UNIFORM);
+    await db.exec(ANCIENT);
+    await db.exec(ANCIENT);
     expect(await snap()).toEqual(before);
     expect(await Promise.all([0.1, 0.6, 0.9, 0.97].map((d) => sqlPick(u, d)))).toEqual(picks);
     expect(await sync()).toBe('unchanged');

@@ -127,17 +127,86 @@
  *                                 turn at `price` (`ancientTimePrice`, counted by `ancientNoteMinionBuy`). (Time)
  *  · `clearanceSaleGivesStats`    `settleMinionSale` (`ancientOnSale`): a sold Clearance minion's current stats go to
  *                                 a random friendly board minion, real time. (Bonds)
+ *  XEROX (Copy Machine, `copyMachine`; owner pairings 2026-10-02). Copy Machine = "Summon an exact copy of a friendly
+ *  minion. Needs a free board slot. Once per game." "A copy" means Copy Machine's EXACT copy everywhere (`exactBoardCopy`
+ *  in the Shop: current stats, buffs, keywords, gilding, counters; combat: the body's current stats + Ward / Rise, the
+ *  Mirror March `copyStats` path), never a pool body.
+ *  · `avengeCopyTopAttack`        a hero Avenge (N) on ONE running count of friendly deaths across BOTH phases
+ *                                 (`AncientsState.xeroxDeaths`, the Rune of Body Counting meter shape): SHOP deaths tick it
+ *                                 at `fireOnFriendDeath` (`ancientXeroxShopDeath`); COMBAT carries it in
+ *                                 (`QuestCombatMods.ancientXeroxAvenge`) and settle adds the fight's deaths. Each Nth death
+ *                                 summons a copy of your highest-Attack living minion (ties: left-most). Full board: nothing.
+ *                                 Rune of Fury fires the combat half again (every hero Avenge's rule). (Death)
+ *  · `pairsGoldNextTurn`          a virtual recurring End-of-Turn entry (`ancientXeroxPairs`): +gold next turn per PAIR on
+ *                                 the board (two minions of the same card, Gilded or not; floor(n / 2) per card). (Fortune)
+ *  · `socCopyTopHealth`           COMBAT: `QuestCombatMods.ancientXeroxSoc`, Start of Combat: summon a copy of your
+ *                                 highest-Health living minion (ties: left-most), room permitting. (War)
+ *  · `copyMachineExtraCharge`     the pick banks `charges` more Copy Machine uses (`AncientsState.xeroxCharges`); the
+ *                                 reducer's `chargeUse` spends one once the once-per-game use is gone. (Genesis)
+ *  · `sotCopyToHand`              `ancientStartOfTurn`: a copy of a random board minion to hand (seeded), its own Start
+ *                                 of Turn beat. Empty board / full hand: nothing. (Time)
+ *  · `copyMachineBonds`           Copy Machine binds the copy and its original (`AncientsState.xeroxBond`). A stat GAIN on
+ *                                 either is gained by the other, real time: SHOP through `addBuff` (`stampXeroxBond`, the
+ *                                 Sable Soulbind hook); COMBAT through `ctx.buff` (`QuestCombatMods.ancientXeroxBond`,
+ *                                 matched on `sourceUid`). One hop (guarded). The bond breaks for good when either end is
+ *                                 consumed into a triple, sold, destroyed in the Shop, or otherwise leaves the run. (Bonds)
+ *  TRADESMAN (`hermithank`, Frugal, PASSIVE; owner pairings 2026-10-02). "A Refresh" = the reducer's `refreshTavern`
+ *  with `hold` off (paid, free, a power's), the same refresh the meter counts; never the turn-start roll.
+ *  · `avengeFreeRefresh`          a hero Avenge (N) on ONE running count across BOTH phases (`tradesDeaths`, the Xerox
+ *                                 Death shape): SHOP at `fireOnFriendDeath` (`ancientTradesShopDeath`); COMBAT through
+ *                                 `QuestCombatMods.ancientRefreshAvenge` (`grantFreeRolls`, the free-roll carry-back). (Death)
+ *  · `buyNextRefreshFree`         the reducer's minion-buy paths (`ancientTradesBuy`) set ONE pending "next Refresh costs 0"
+ *                                 (`tradesNextRefreshFree`, never stacks); the `roll` branch spends it first. (Fortune)
+ *  · `minionsRallyGold`           a graft on every friendly minion (`applyRuneGrafts` in the Shop, `ancientRallyGold` for
+ *                                 combat summons): "Rally: gain N Gold next turn" (`rallyGoldNextTurn`). (War)
+ *  · `refreshesCastSpell`         `ancientAfterRefresh`: every Nth Refresh casts the spell through `castSpell`. (Genesis)
+ *  · `eotUpgradeDiscount`         a virtual recurring End-of-Turn entry (`ancientTradesUpgrade`): the FINAL upgrade price −N,
+ *                                 Frugal's +2 included, down to 0 (`cutUpgradeCost` + `tradesSurchargeOff`). (Time)
+ *  · `refreshUpgradeDiscount`     `ancientAfterRefresh`: every Refresh, the same −N on the final price. (Bonds)
+ *  SOREN (Reclaim, `resummon`; owner pairings 2026-10-02). Reclaim = "Choose a friendly minion. At the start of combat,
+ *  destroy it and resummon a copy when there is room." (free, once per turn). The Shop half MARKS the minion
+ *  (`BoardCard.resummon`); combat's Start-of-Combat loop destroys it as a true death (its Echo fires) and queues an
+ *  exact copy that returns the moment its side has room. The combat halves ride `QuestCombatMods.ancientReclaim`.
+ *  · `reclaimEchoExtra`           COMBAT: the Echo Reclaim's destroy triggers fires `extra` more times, through
+ *                                 `playerEchoExtras` (the shared Echo-multiplier fold), so Echo watchers hear each. (Death)
+ *  · `reclaimInShop`              the reducer's `resummon` branch: no mark; the minion is destroyed in the Shop right away
+ *                                 (`destroyMinionInShop`, a true death: no Rise / Rebirth, its Echo fires), an exact copy
+ *                                 returns to its slot (a summon: `fireSummonBuffs`), and the use gains `gold`. No room
+ *                                 after the Echo: an overflow (`fireSummonOverflow`), and the copy is lost. (Fortune)
+ *  · `reclaimGainImproves`        COMBAT: each returned copy gains +X/+X, a combat buff (Engraved keeps it); X starts at
+ *                                 `amount` and `ancientStartOfTurn` improves it by `amount` (`AncientsState.sorenWarGain`). (War)
+ *  · `reclaimCopyLocked`          the `resummon` branch, after the mark: a plain copy of the target to hand, locked for
+ *                                 `turns` turns (`lockedUntilWave`, Hourglass Reserve's lock). Hand full: none. (Genesis)
+ *  · `reclaimSummonsTwice`        COMBAT: the Reclaimed body is resummoned `copies` times, each waiting for room. (Time)
+ *  · `reclaimBondsAdjacent`       COMBAT: when a returned copy lands, its living neighbours gain its Attack, a combat buff. (Bonds)
+ *  ROBIN (Spoils, `sellGold`, PASSIVE; owner pairings 2026-10-02). Spoils = "For each minion you sell, gain 1 Gold next
+ *  turn." A Spoils count is ONE sale: every sale banks it, the manual sale and the spell sales alike (`settleMinionSale`,
+ *  Fodder Treatment, Feed the Alpha), and all three call `ancientOnRobinSale` (via recruit's `bankSpoils`), so the
+ *  sale-keyed pairings below hear every sale exactly once. Sales only happen in the Shop.
+ *  · `summonGainPerSpoils`        SHOP: the `onSummon` fire chokepoint (`ancientOnShopSummon`: a play from hand, a token
+ *                                 summon), a permanent gain; COMBAT: `QuestCombatMods.ancientSummonGain` at the summon-
+ *                                 entry chokepoint, a combat buff. The amount is +a/+h x this turn's Spoils count
+ *                                 (`AncientsState.robinSpoils`, keyed on the wave so a new turn reads 0). (Death)
+ *  · `sellsGrantFreeRefresh`      every `every`th sale (one running count since the pick, `robinSales`) banks a free
+ *                                 Refresh (`RunState.freeRolls`) right then. (Fortune)
+ *  · `saleBuffsLeftmost`          every sale: the left-most board minion (after the sale) gains +a/+h, permanently. (War)
+ *  · `sellsGetCopy`               every `every`th sale (`robinWindow`, the sold cardIds since the last payout): a plain copy
+ *                                 of a random one of them (seeded), hand first, the board when the hand is full. (Genesis)
+ *  · `eotMaxGold`                 a virtual recurring End-of-Turn entry (`ancientRobinMaxGold`): +gold max Gold,
+ *                                 permanently (`maxGoldBonus`, the Gold Font / Shop License channel; no cap). (Time)
+ *  · `saleDiscountsTribe`         every sale marks the sold minion's type(s) (`robinBonds`); the next minion of a marked
+ *                                 type you buy costs at most `price` (`offerBuyPrice`), and the buy spends that mark. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
+import { handCap, mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
-import type { HeroPower } from './heroes';
+import { hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
-import { INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
+import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold } from './recruit';
+import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -262,7 +331,59 @@ export type AncientEffect =
   /** Clearance is passive; the first `count` minions you buy each turn cost `price` Gold. */
   | { do: 'firstBuysCost'; count: number; price: number }
   /** Selling a minion bought from a Clearance Shop gives its current stats to a random friendly minion. */
-  | { do: 'clearanceSaleGivesStats' };
+  | { do: 'clearanceSaleGivesStats' }
+  // ── Xerox (Copy Machine) ──
+  /** Avenge (`every`), Shop AND combat (one running count): summon a copy of your highest-Attack minion. */
+  | { do: 'avengeCopyTopAttack'; every: number }
+  /** End of Turn: gain `gold` next turn for every pair of minions (same card) on your board. */
+  | { do: 'pairsGoldNextTurn'; gold: number }
+  /** Start of Combat: summon a copy of your highest-Health minion. */
+  | { do: 'socCopyTopHealth' }
+  /** Copy Machine gains `charges` more uses (banked at the pick). */
+  | { do: 'copyMachineExtraCharge'; charges: number }
+  /** Start of Turn: get a copy of a random minion you control. */
+  | { do: 'sotCopyToHand' }
+  /** Copy Machine's copy and its original are bound: a stat gain on one is gained by the other. A triple breaks it. */
+  | { do: 'copyMachineBonds' }
+  // ── Tradesman (Frugal) ──
+  /** Avenge (`every`), Shop AND combat (one running count): gain a free Refresh. */
+  | { do: 'avengeFreeRefresh'; every: number }
+  /** Buying a minion from the Shop gains `count` free Refreshes. */
+  | { do: 'buyNextRefreshFree' }
+  /** Your minions have "Rally: gain `gold` Gold next turn." (a graft on every friendly minion, both phases). */
+  | { do: 'minionsRallyGold'; gold: number }
+  /** Every `every` Refreshes (free ones included), cast `spellId`. */
+  | { do: 'refreshesCastSpell'; every: number; spellId: string }
+  /** End of Turn: the Shop upgrade costs `amount` less (floored). */
+  | { do: 'eotUpgradeDiscount'; amount: number }
+  /** Every Refresh (free ones included): the Shop upgrade costs `amount` less (floored). */
+  | { do: 'refreshUpgradeDiscount'; amount: number }
+  // ── Soren (Reclaim) ──
+  /** The Echo Reclaim's Start-of-Combat destroy triggers fires `extra` more times. */
+  | { do: 'reclaimEchoExtra'; extra: number }
+  /** Reclaim resolves in the Shop instead (destroy + resummon right away), and each use gains `gold`. */
+  | { do: 'reclaimInShop'; gold: number }
+  /** Reclaimed copies gain +X/+X on their return (combat); X starts at `amount` and improves by `amount` each Start of Turn. */
+  | { do: 'reclaimGainImproves'; amount: number }
+  /** Reclaim also gives a plain copy of its target to hand, locked for `turns` turns. */
+  | { do: 'reclaimCopyLocked'; turns: number }
+  /** Reclaim resummons `copies` copies in all. */
+  | { do: 'reclaimSummonsTwice'; copies: number }
+  /** When a Reclaimed copy returns, the minions next to it gain its Attack (combat). */
+  | { do: 'reclaimBondsAdjacent' }
+  // ── Robin (Spoils) ──
+  /** Every friendly minion summoned (Shop AND combat) gains +a/+h for every Spoils count (sale) this turn. */
+  | { do: 'summonGainPerSpoils'; attack: number; health: number }
+  /** Every `every` minions sold (a running count): bank a free Refresh. */
+  | { do: 'sellsGrantFreeRefresh'; every: number }
+  /** Every minion sold: your left-most minion gains +a/+h, permanently. */
+  | { do: 'saleBuffsLeftmost'; attack: number; health: number }
+  /** Every `every` minions sold: get a plain copy of one of them (random, seeded). */
+  | { do: 'sellsGetCopy'; every: number }
+  /** End of Turn: +`gold` max Gold, permanently. */
+  | { do: 'eotMaxGold'; gold: number }
+  /** Selling a minion marks its type; the next minion of that type you buy costs `price` Gold. */
+  | { do: 'saleDiscountsTribe'; price: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -277,7 +398,12 @@ export interface AncientPairing {
    *  `{pummelEvery}` = War's live Pummel progress (toward the next payout, the badge rule) and its X. Frank:
    *  `{deathFree}` = " Free buy ready." while a Death free Clearance offer waits; `{stacks}` = War's banked Clearance stacks
    *  (plus those gained so far in the fight on screen); `{genesisTribe}` = the type Genesis would refresh into right now;
-   *  `{timeLeft}` = Time's discounted buys left this turn. */
+   *  `{timeLeft}` = Time's discounted buys left this turn. Xerox: `{xDeathLeft}` = friendly deaths still needed for
+   *  Death's next copy (live through a fight); `{pairs}` / `{pairGold}` = the pairs on the board right now and the Gold
+   *  they would bank; `{charges}` = Genesis' Copy Machine uses left; `{bond}` = Bonds' live bond state. Soren: `{reclaimGain}` = War's
+   *  live +X/+X. Robin: `{spoils}` / `{spoilA}` / `{spoilH}` = this turn's Spoils count and the summon gain it gives right
+   *  now; `{refreshLeft}` / `{copyLeft}` = sales still needed for Fortune's next free Refresh / Genesis' next copy;
+   *  `{maxGold}` = Time's max Gold so far; `{bondsTypes}` = Bonds' marked types. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -589,6 +715,170 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'clearanceSaleGivesStats' }],
     },
   },
+  // XEROX (owner pairings 2026-10-02, quoted above each entry). Copy Machine = "Summon an exact copy of a friendly
+  // minion. Needs a free board slot. Once per game." Every "copy" below is Copy Machine's exact copy.
+  xerox: {
+    death: {
+      // "Avenge (5): Summon a copy of your highest attack minion"
+      offerText: '**Avenge (5):** summon a copy of your highest Attack minion.',
+      powerText: '{base} **Avenge (5):** summon a copy of your highest Attack minion (**{xDeathLeft}** more to go).',
+      effects: [{ do: 'avengeCopyTopAttack', every: 5 }],
+    },
+    fortune: {
+      // "Gain 4g next turn for every pair you have on board"
+      offerText: '**End of Turn:** gain **4 Gold** next turn for every pair of minions on your board.',
+      powerText: '{base} **End of Turn:** gain **4 Gold** next turn for every pair of minions on your board (**{pairs}** now: **{pairGold} Gold**).',
+      effects: [{ do: 'pairsGoldNextTurn', gold: 4 }],
+    },
+    war: {
+      // "Start of Combat: Summon a copy of your highest health minion"
+      offerText: '**Start of Combat:** summon a copy of your highest Health minion.',
+      powerText: '{base} **Start of Combat:** summon a copy of your highest Health minion.',
+      effects: [{ do: 'socCopyTopHealth' }],
+    },
+    genesis: {
+      // "Gain another charge of Copy Machine"
+      offerText: 'Copy Machine gains another use.',
+      powerText: 'Summon an exact copy of a friendly minion. Needs a free board slot. **{charges}** uses left.',
+      effects: [{ do: 'copyMachineExtraCharge', charges: 1 }],
+    },
+    time: {
+      // "Start of Turn: Get a copy of a minion you control."
+      offerText: '**Start of Turn:** get a copy of a random minion you control.',
+      powerText: '{base} **Start of Turn:** get a copy of a random minion you control.',
+      effects: [{ do: 'sotCopyToHand' }],
+    },
+    bonds: {
+      // "The copy and the original are bound. Stats one gains, the other gains too. * if this triples, the effect breaks"
+      offerText: 'The copy and the original are bound: when one gains stats, the other gains them too. A triple breaks the bond.',
+      powerText: '{base} The copy and the original are bound: when one gains stats, the other gains them too. A triple breaks the bond.{bond}',
+      effects: [{ do: 'copyMachineBonds' }],
+    },
+  },
+  // TRADESMAN (hero id `hermithank`; owner pairings 2026-10-02, quoted above each entry). Frugal is PASSIVE: "Shop
+  // minions cost 2 Gold. Shop upgrades cost 2 more, and rerolls cost 2 Gold." So every pairing adds to it. "A
+  // Refresh" is every Shop refresh the Ancients meter counts (paid, free, a power's), never the turn-start roll.
+  hermithank: {
+    death: {
+      // "Avenge (3): Gain a free Refresh"
+      offerText: '**Avenge (3):** gain a free Refresh.',
+      powerText: '{base} **Avenge (3):** gain a free Refresh (**{tDeathLeft}** more to go). Free Refreshes banked: **{freeRolls}**.',
+      effects: [{ do: 'avengeFreeRefresh', every: 3 }],
+    },
+    fortune: {
+      // "when you buy a minion, your next refresh costs 0" (owner 2026-10-02, replacing "gain a free Refresh": "this
+      // way it doesn't stack up multiple free refreshes")
+      offerText: 'When you buy a minion, your next Refresh costs 0.',
+      powerText: '{base} When you buy a minion, your next Refresh costs 0. Next Refresh free: **{tNextFree}**.',
+      effects: [{ do: 'buyNextRefreshFree' }],
+    },
+    war: {
+      // "Your minions gain Rally: Gain 1g next turn"
+      offerText: 'Your minions gain "**Rally:** gain **1 Gold** next turn."',
+      powerText: '{base} Your minions have "**Rally:** gain **1 Gold** next turn." **{rallyGold} Gold** banked for next turn.',
+      effects: [{ do: 'minionsRallyGold', gold: 1 }],
+    },
+    genesis: {
+      // "Every 2 Refreshes, cast Lasso."
+      offerText: 'Every **2** Refreshes, cast **Lasso**.',
+      powerText: '{base} Every **2** Refreshes, cast **Lasso** (**{lassoLeft}** more to go).',
+      effects: [{ do: 'refreshesCastSpell', every: 2, spellId: 'lasso' }],
+    },
+    time: {
+      // "End of Turn: Reduce the cost of upgrading the Shop by 3."
+      offerText: '**End of Turn:** reduce the cost of upgrading the Shop by **3**.',
+      powerText: '{base} **End of Turn:** reduce the cost of upgrading the Shop by **3**.{upgradeNow}',
+      effects: [{ do: 'eotUpgradeDiscount', amount: 3 }],
+    },
+    bonds: {
+      // "Refreshing the shop reduces the cost of upgrading the Shop by 1."
+      offerText: 'Refreshing the Shop reduces the cost of upgrading the Shop by **1**.',
+      powerText: '{base} Refreshing the Shop reduces the cost of upgrading the Shop by **1**.{upgradeNow}',
+      effects: [{ do: 'refreshUpgradeDiscount', amount: 1 }],
+    },
+  },
+  // SOREN (owner pairings 2026-10-02, quoted above each entry). Reclaim = "Choose a friendly minion. At the start of
+  // combat, destroy it and resummon a copy when there is room." (free, once per turn).
+  soren: {
+    death: {
+      // "Echoes triggered by Reclaim trigger an additional time."
+      offerText: 'The **Echo** Reclaim triggers fires an extra time.',
+      powerText: '{base} Its **Echo** triggers an extra time.',
+      effects: [{ do: 'reclaimEchoExtra', extra: 1 }],
+    },
+    fortune: {
+      // "Reclaim works in Recruit phase instead. Gain 5g when it is used." Owner 2026-10-02 on a full board: "it'd be an
+      // 'overflow' technically, but if no room then it is lost".
+      offerText: 'Reclaim works in the Shop instead. Gain **5 Gold** when you use it.',
+      powerText: 'Choose a friendly minion. Destroy it and resummon a copy right away, if there is room. Gain **5 Gold**.',
+      effects: [{ do: 'reclaimInShop', gold: 5 }],
+    },
+    war: {
+      // "Reclaimed minions gain +10/+10 on re-summon. Start of Turn: Improve this." Owner 2026-10-02: "fight only, but
+      // engraving etc would carry it back".
+      offerText: 'Reclaimed minions gain **+10/+10** when they return. **Start of Turn:** improve this by **+10/+10**.',
+      powerText: '{base} The copy gains **+{reclaimGain}/+{reclaimGain}** for that combat. **Start of Turn:** improve this by **+10/+10**.',
+      effects: [{ do: 'reclaimGainImproves', amount: 10 }],
+    },
+    genesis: {
+      // "Reclaim grants a plain copy of the minion you target, but it is locked for 3 turns."
+      offerText: 'Reclaim also gets you a plain copy of the minion you choose. It is locked for **3** turns.',
+      powerText: '{base} You also get a plain copy of it in your hand, locked for **3** turns.',
+      effects: [{ do: 'reclaimCopyLocked', turns: 3 }],
+    },
+    time: {
+      // "Reclaim summons twice."
+      offerText: 'Reclaim resummons **2** copies.',
+      powerText: 'Choose a friendly minion. At the start of combat, destroy it and resummon **2** copies when there is room.',
+      effects: [{ do: 'reclaimSummonsTwice', copies: 2 }],
+    },
+    bonds: {
+      // "When the reclaimed minion summons, grant its attack to adjacent minions." Owner 2026-10-02: "That fight only".
+      offerText: 'When a Reclaimed minion returns, the minions next to it gain its Attack.',
+      powerText: '{base} When it returns, the minions next to it gain its Attack for that combat.',
+      effects: [{ do: 'reclaimBondsAdjacent' }],
+    },
+  },
+  // ROBIN (owner pairings 2026-10-02, quoted above each entry). Spoils (passive) = "For each minion you sell, gain 1 Gold
+  // next turn." A Spoils count is one sale.
+  robin: {
+    death: {
+      // "Summoned minions gain +3/+2 for every count of Spoils this turn."
+      offerText: 'Minions you summon gain **+3/+2** for every minion you sold this turn.',
+      powerText: '{base} Minions you summon gain **+3/+2** for every minion you sold this turn (**{spoils}** sold: **+{spoilA}/+{spoilH}**).',
+      effects: [{ do: 'summonGainPerSpoils', attack: 3, health: 2 }],
+    },
+    fortune: {
+      // "Every 2 minions sold also grants a free refresh."
+      offerText: 'Every **2** minions you sell also give you a free Refresh.',
+      powerText: '{base} Every **2** minions you sell also give you a free Refresh (**{refreshLeft}** more to go).',
+      effects: [{ do: 'sellsGrantFreeRefresh', every: 2 }],
+    },
+    war: {
+      // "Give your left-most minion +2/+3 every time you sell a minion."
+      offerText: 'Whenever you sell a minion, give your left-most minion **+2/+3**.',
+      powerText: '{base} Whenever you sell a minion, give your left-most minion **+2/+3**.',
+      effects: [{ do: 'saleBuffsLeftmost', attack: 2, health: 3 }],
+    },
+    genesis: {
+      // "When you sell 7 minions, get a copy of one of them."
+      offerText: 'Every **7** minions you sell, get a plain copy of one of them.',
+      powerText: '{base} Every **7** minions you sell, get a plain copy of one of them (**{copyLeft}** more to go).',
+      effects: [{ do: 'sellsGetCopy', every: 7 }],
+    },
+    time: {
+      // "End of Turn: Increase your max gold by 1"
+      offerText: '**End of Turn:** gain **+1 max Gold**.',
+      powerText: '{base} **End of Turn:** gain **+1 max Gold**. **+{maxGold}** so far.',
+      effects: [{ do: 'eotMaxGold', gold: 1 }],
+    },
+    bonds: {
+      // "Selling a minion makes the next of its tribe cost 2g."
+      offerText: 'Selling a minion makes the next minion of its type you buy cost **2 Gold**.',
+      powerText: '{base} Selling a minion makes the next minion of its type you buy cost **2 Gold**.{bondsTypes}',
+      effects: [{ do: 'saleDiscountsTribe', price: 2 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -675,6 +965,43 @@ export interface AncientsState {
   /** FRANK × GENESIS: the type Clearance's refresh is narrowed to, set ONLY while that refresh rolls (read by
    *  `rollShopRow`). Transient: cleared the moment the roll is done. */
   rollTribe?: Tribe;
+  /** XEROX × DEATH: friendly deaths since the last copy (Shop + combat), the running Avenge (5) count. */
+  xeroxDeaths?: number;
+  /** XEROX × FORTUNE: Gold the board's pairs banked at End of Turn on `wave`. */
+  xeroxPairGold?: { wave: number; gold: number };
+  /** XEROX × GENESIS: banked extra Copy Machine uses (spent once the once-per-game use is gone). */
+  xeroxCharges?: number;
+  /** XEROX × BONDS: the bound pair (run uids of the original and Copy Machine's copy). Cleared for good when it breaks
+   *  (`xeroxBondBroken` then stays true for the power text). */
+  xeroxBond?: { a: string; b: string };
+  xeroxBondBroken?: boolean;
+  /** TRADESMAN × DEATH: friendly deaths since the last free Refresh (Shop + combat), the running Avenge (3) count. */
+  tradesDeaths?: number;
+  /** TRADESMAN × GENESIS: Refreshes since the pick (free ones included), the running count toward the next Lasso. */
+  tradesRefreshes?: number;
+  /** TRADESMAN × WAR: Gold the Rally graft banked for next turn on `wave` (Shop rallies + that wave's fight, at settle). */
+  tradesRallyGold?: { wave: number; gold: number };
+  /** TRADESMAN × TIME / BONDS: the share of Frugal's upgrade surcharge the discounts have eaten at `tier` (owner ruling
+   *  2026-10-02: "Yes, down to 0"). Banked once the running cost is already at its floor; ignored at any other tier, so
+   *  every tier-up path clears it by construction. */
+  tradesSurchargeOff?: { tier: number; gold: number };
+  /** SOREN × WAR: the live +X/+X a Reclaimed copy gains on its return (set at the pick, improved each Start of Turn). */
+  sorenWarGain?: number;
+  /** ROBIN × DEATH: Spoils counts (sales) on `wave`. Ticked by every Spoils sale while Ancients are on (whatever is
+   *  picked), so sales made before the pick count this turn. A new wave reads 0. */
+  robinSpoils?: { wave: number; n: number };
+  /** ROBIN × FORTUNE: sales since the last free Refresh (the running count, since the pick). */
+  robinSales?: number;
+  /** ROBIN × GENESIS: the cardIds sold since the last copy (the window the copy is drawn from). */
+  robinWindow?: string[];
+  /** ROBIN × TIME: max Gold the End-of-Turn grant has given this run (printed live). */
+  robinMaxGold?: number;
+  /** ROBIN × BONDS: the marked types, in the order they were marked (one each; `'all'` = an All-types sale, which
+   *  matches any typed minion). A buy of a matching minion spends the first match. Kept until used, across turns. */
+  robinBonds?: (Tribe | 'all')[];
+  /** TRADESMAN × FORTUNE: a minion was bought, so the next Refresh costs 0 (owner 2026-10-02). One pending flag, never a
+   *  count: more buys while it is set add nothing. Carries across turns until a Refresh spends it. */
+  tradesNextRefreshFree?: boolean;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -745,6 +1072,10 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.pickSeq = (a.pickSeq ?? 0) + 1;
   const shape = activeAncientPairing(state)?.power;
   if (shape) a.powerOverride = { ...shape };
+  const extra = effectOf(state, 'copyMachineExtraCharge');
+  if (extra) a.xeroxCharges = (a.xeroxCharges ?? 0) + extra.charges; // XEROX × GENESIS: banked at the pick
+  const war = effectOf(state, 'reclaimGainImproves');
+  if (war) a.sorenWarGain = war.amount; // SOREN × WAR: starts at the printed amount
   return true;
 }
 
@@ -774,6 +1105,15 @@ export interface AncientPowerLive {
   /** FRANK × WAR: Clearance stacks gained SO FAR in the fight on screen (the replay's `questTrigger` events for
    *  `ANCIENT_CLEARANCE_STACK_FLAG`), added to the banked count so the readout ticks with each Avenge. */
   clearanceStacks?: number;
+  /** XEROX × DEATH: friendly deaths SO FAR in the fight on screen (the replay's tally), added to the carried-in running
+   *  count so the Avenge (5) readout ticks with each death. */
+  friendlyDeaths?: number;
+  /** TRADESMAN × DEATH: free Refreshes the fight on screen has gained SO FAR (the replay's `questTrigger` events for
+   *  `ANCIENT_REFRESH_AVENGE_FLAG`), added to the banked count so the readout ticks with each Avenge. */
+  freeRefreshes?: number;
+  /** TRADESMAN × WAR: the Rally graft's fires SO FAR in the fight on screen (the replay's `questTrigger` events for
+   *  `ANCIENT_RALLY_GOLD_FLAG`, one per fire); the text multiplies by the pairing's Gold. */
+  rallyFires?: number;
 }
 
 /** The resolved hero-power text, or undefined when no pairing is active (the caller keeps its base text). */
@@ -783,7 +1123,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const per = effectOf(state, 'powerBuffPerGild');
   const a = live(state);
   const gilds = a?.gilds ?? 0;
-  const text = p.powerText;
+  let text = p.powerText;
   const g = aegisGrantOf(state);
   const aegis = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
   const copy = effectOf(state, 'wardBreaksGetCopy');
@@ -801,6 +1141,29 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const deathFree = effectOf(state, 'clearanceDestroyFirstFree') && state.shop.some((o) => o.clearanceFree) ? ' Free buy ready.' : '';
   const top = effectOf(state, 'clearanceTopTribe') ? dominantBoardTribe(state) : null;
   const genesisTribe = top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '';
+  // XEROX: Death's countdown (live through a fight), Fortune's pairs + Gold, Genesis' uses, Bonds' bond.
+  const xDeathLeft = ancientXeroxAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0;
+  const pairs = boardPairs(state);
+  const pairGold = (effectOf(state, 'pairsGoldNextTurn')?.gold ?? 0) * pairs;
+  text = text.replace('{xDeathLeft}', String(xDeathLeft)).replace('{pairs}', String(pairs)).replace('{pairGold}', String(pairGold))
+    .replace('{charges}', String(ancientCopyUsesLeft(state))).replace('{bond}', xeroxBondText(state));
+  // TRADESMAN: Death's countdown (live through a fight) + the banked free Refreshes (plus the fight's so far),
+  // Genesis' Refreshes to the next Lasso, War's Gold banked for next turn, Time / Bonds' live upgrade price.
+  text = text.replace('{tDeathLeft}', String(ancientTradesAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .replace('{freeRolls}', String(Math.max(0, state.freeRolls ?? 0) + (combat.freeRefreshes ?? 0)))
+    .replace('{lassoLeft}', String(tradesLassoLeft(state))).replace('{rallyGold}', String(tradesRallyGoldNow(state) + (effectOf(state, 'minionsRallyGold')?.gold ?? 0) * (combat.rallyFires ?? 0)))
+    .replace('{upgradeNow}', tradesUpgradeText(state)).replace('{tNextFree}', ancientTradesRefreshFree(state) ? 'Yes' : 'No');
+  // SOREN × WAR: the live +X/+X (it improves every Start of Turn). Printed twice, so every occurrence.
+  text = text.split('{reclaimGain}').join(String(ancientReclaimGain(state)));
+  // ROBIN: Death's live per-summon gain, Fortune / Genesis countdowns, Time's total, Bonds' marked types.
+  const spoils = robinSpoilsThisTurn(state);
+  const sg = effectOf(state, 'summonGainPerSpoils');
+  const fr = effectOf(state, 'sellsGrantFreeRefresh');
+  const gc = effectOf(state, 'sellsGetCopy');
+  text = text.replace('{spoils}', String(spoils)).replace('{spoilA}', String((sg?.attack ?? 0) * spoils)).replace('{spoilH}', String((sg?.health ?? 0) * spoils))
+    .replace('{refreshLeft}', String(fr ? Math.max(1, fr.every) - ((a?.robinSales ?? 0) % Math.max(1, fr.every)) : 0))
+    .replace('{copyLeft}', String(gc ? Math.max(1, gc.every) - ((a?.robinWindow?.length ?? 0) % Math.max(1, gc.every)) : 0))
+    .replace('{maxGold}', String(a?.robinMaxGold ?? 0)).replace('{bondsTypes}', robinBondsText(state));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -856,7 +1219,8 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  * Null = no hero Avenge is live.
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
-  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths);
+  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths)
+    ?? ancientTradesAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -896,6 +1260,7 @@ export function ancientAfterPowerGild(state: RunState, card: BoardCard): void {
  *  stats go to a random friendly minion). */
 export function ancientOnSale(state: RunState, sold: BoardCard): void {
   ancientClearanceSale(state, sold);
+  xeroxBreakIfEnd(state, sold.uid); // XEROX × BONDS: selling either end breaks the bond
   const e = effectOf(state, 'sellGildedGetsPlainCopy');
   if (!e || !sold.golden) return;
   const def = CARD_INDEX[sold.cardId];
@@ -957,6 +1322,37 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (edges) out.ancientSpellEdges = { attack: edges.attack, health: edges.health, label: HUNCH_BONDS_COMBAT_LABEL };
   const stack = effectOf(state, 'avengeClearanceStack');
   if (stack) out.ancientClearanceStacks = { every: stack.every, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: ANCIENTS.war.name };
+  // XEROX: Death's running Avenge carried in; War's Start-of-Combat copy; the Bonds pair (matched on `sourceUid`).
+  const xd = effectOf(state, 'avengeCopyTopAttack');
+  if (xd) out.ancientXeroxAvenge = { every: xd.every, tick: live(state)?.xeroxDeaths ?? 0, label: ANCIENTS.death.name };
+  if (effectOf(state, 'socCopyTopHealth')) out.ancientXeroxSoc = { label: ANCIENTS.war.name };
+  const bond = ancientXeroxBondOf(state);
+  if (bond) out.ancientXeroxBond = { a: bond.a, b: bond.b, label: ANCIENTS.bonds.name };
+  // TRADESMAN: Death's running Avenge carried in (each fire a free Refresh, through the free-roll carry-back); War's
+  // Rally graft for bodies SUMMONED mid-fight (the board's bodies already carry it from the Shop sweep).
+  const td = effectOf(state, 'avengeFreeRefresh');
+  if (td) out.ancientRefreshAvenge = { every: td.every, tick: live(state)?.tradesDeaths ?? 0, flag: ANCIENT_REFRESH_AVENGE_FLAG, label: ANCIENTS.death.name };
+  const rally = ancientRallyGoldGraft(state);
+  if (rally) out.ancientRallyGold = rally;
+  // SOREN: Reclaim's Start-of-Combat destroy + return, reshaped (Death / War / Time / Bonds). One field, one label.
+  const rEcho = effectOf(state, 'reclaimEchoExtra');
+  const rTime = effectOf(state, 'reclaimSummonsTwice');
+  const rWar = effectOf(state, 'reclaimGainImproves');
+  const rBonds = effectOf(state, 'reclaimBondsAdjacent');
+  if (rEcho || rTime || rWar || rBonds) {
+    const id: AncientId = rEcho ? 'death' : rTime ? 'time' : rWar ? 'war' : 'bonds';
+    out.ancientReclaim = {
+      label: ANCIENTS[id].name,
+      ...(rEcho ? { echoExtra: rEcho.extra } : {}),
+      ...(rTime ? { copies: rTime.copies } : {}),
+      ...(rWar ? { gain: ancientReclaimGain(state) } : {}),
+      ...(rBonds ? { bonds: true } : {}),
+    };
+  }
+  // ROBIN × DEATH: this turn's Spoils count, frozen for the fight (nothing is sold mid-combat).
+  const sg = effectOf(state, 'summonGainPerSpoils');
+  const spoils = robinSpoilsThisTurn(state);
+  if (sg && spoils > 0) out.ancientSummonGain = { attack: sg.attack * spoils, health: sg.health * spoils, label: ANCIENTS.death.name };
   return out;
 }
 
@@ -1081,6 +1477,19 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (effectOf(state, 'avengeClearanceStack') && (result.playerAncientClearanceStacks ?? 0) > 0) {
     a.clearanceStacks = (a.clearanceStacks ?? 0) + result.playerAncientClearanceStacks!;
   }
+  // XEROX × DEATH: the fight's friendly deaths join the running Avenge count (its copies already landed mid-fight).
+  const xd = effectOf(state, 'avengeCopyTopAttack');
+  if (xd) a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, xd.every);
+  // TRADESMAN × DEATH: the fight's deaths join the running count (its free Refreshes already came home through
+  // `playerFreeRolls`, the Gryphon carry-back). WAR: the Gold the fight's Rallies banked (one flag per fire) is
+  // recorded for the live text; the Gold itself came home through `playerBonusGold`.
+  const td = effectOf(state, 'avengeFreeRefresh');
+  if (td) a.tradesDeaths = ((a.tradesDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, td.every);
+  const rg = effectOf(state, 'minionsRallyGold');
+  if (rg) {
+    const fires = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG).length;
+    if (fires > 0) noteTradesRallyGold(state, fires * rg.gold);
+  }
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -1155,6 +1564,8 @@ export function ancientRiseTint(state: RunState, card: BoardCard): RiseTint | un
  *  permanently (owner 2026-09-26: the previous combat only). */
 export function ancientStartOfTurn(state: RunState): void {
   albusStartOfTurn(state);
+  xeroxStartOfTurn(state);
+  sorenStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -1432,4 +1843,476 @@ function ancientClearanceSale(state: RunState, sold: BoardCard): void {
   // A `deathrattle`-kind capture keeps the sold body as its source: the UI streams the buff tendril from the slot it
   // just left (its last-known position) to the recipient, with the recipient's stat pop.
   captureBuffFx(state, sold, 'deathrattle', () => addBuff(pick, ANCIENTS.bonds.name, Math.max(0, sold.attack), Math.max(0, sold.health)));
+}
+
+// ── Xerox (Copy Machine) hooks ───────────────────────────────────────────────────────────────────────────────
+/** The friendly minion a Xerox copy is made of: the highest `stat` among `board` (ties: the left-most). */
+function topBy(board: readonly BoardCard[], stat: 'attack' | 'health'): BoardCard | undefined {
+  let best: BoardCard | undefined;
+  for (const c of board) if (!best || c[stat] > best[stat]) best = c;
+  return best;
+}
+
+/**
+ * XEROX × FORTUNE: the PAIRS on the board right now: minions sharing a card (a Gilded and a plain copy of one card are
+ * the same card), floor(n / 2) per card.
+ */
+export function boardPairs(state: Pick<RunState, 'board'>): number {
+  const n = new Map<string, number>();
+  for (const c of state.board) n.set(c.cardId, (n.get(c.cardId) ?? 0) + 1);
+  let pairs = 0;
+  for (const k of n.values()) pairs += Math.floor(k / 2);
+  return pairs;
+}
+
+/** XEROX × FORTUNE: is the End-of-Turn pair payout live (the `ancientXeroxPairs` recurring entry)? */
+export function ancientXeroxPairsLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'pairsGoldNextTurn');
+}
+
+/** XEROX × FORTUNE: End of Turn, bank `gold` per pair for next turn (the `ancientXeroxPairs` recurring entry). */
+export function ancientRunXeroxPairs(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'pairsGoldNextTurn');
+  if (!a || !e) return;
+  const gold = e.gold * boardPairs(state);
+  if (gold <= 0) return;
+  state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold;
+  const cur = a.xeroxPairGold?.wave === state.wave ? a.xeroxPairGold.gold : 0;
+  a.xeroxPairGold = { wave: state.wave, gold: cur + gold };
+}
+
+/**
+ * XEROX × DEATH: friendly deaths still needed for the next copy. ONE running count across the Shop and combat (the
+ * carried `xeroxDeaths` plus `deaths`, the deaths so far in the fight on screen). Null when Death is not picked.
+ */
+export function ancientXeroxAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeCopyTopAttack') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.xeroxDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/**
+ * A friendly minion died in the Shop (`fireOnFriendDeath`: every Shop death path, once; a sale never). BONDS: a bound
+ * end dying breaks the bond. DEATH: the running Avenge count ticks; each `every`th death summons a copy of your
+ * highest-Attack minion beside it (the dying body, still in its slot while it vacates, is never the source and never
+ * holds a slot). No minion to copy, or no room: nothing happens (the count still resets).
+ */
+export function ancientXeroxShopDeath(state: RunState, dead: BoardCard): void {
+  const a = live(state);
+  if (!a) return;
+  xeroxBreakIfEnd(state, dead.uid);
+  const e = effectOf(state, 'avengeCopyTopAttack');
+  if (!e) return;
+  a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.xeroxDeaths !== 0) return;
+  const others = state.board.filter((c) => c.uid !== dead.uid && c.uid !== state.vacatingUid);
+  const src = topBy(others, 'attack');
+  if (!src || others.length >= CONFIG.boardMax) return;
+  const copy = exactBoardCopy(state, src);
+  state.board.splice(state.board.indexOf(src) + 1, 0, copy);
+}
+
+/** TIME: Start of Turn, a copy of a random board minion to hand, as its own beat (R-SOT-BEAT-01). */
+function xeroxStartOfTurn(state: RunState): void {
+  if (!live(state) || !effectOf(state, 'sotCopyToHand')) return;
+  if (state.board.length === 0 || state.hand.length >= handCap(state)) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    const rng = makeRng(state.rngCursor);
+    const src = state.board[rng.int(state.board.length)]!;
+    state.rngCursor = rng.state();
+    state.hand.push(exactBoardCopy(state, src));
+  });
+}
+
+/** GENESIS: Copy Machine uses banked beyond the once-per-game one (0 unless the pairing is live). */
+export function ancientCopyCharges(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number {
+  const s = state as RunState;
+  return live(s) && effectOf(s, 'copyMachineExtraCharge') ? Math.max(0, live(s)?.xeroxCharges ?? 0) : 0;
+}
+
+/** GENESIS: Copy Machine uses left right now (the once-per-game use while unspent + the banked charges). */
+export function ancientCopyUsesLeft(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'heroPowerSpent'>): number {
+  return (state.heroPowerSpent ? 0 : 1) + ancientCopyCharges(state);
+}
+
+/** GENESIS: a use past the once-per-game one spends a banked charge. */
+export function ancientSpendCopyCharge(state: RunState): void {
+  const a = live(state);
+  if (a && (a.xeroxCharges ?? 0) > 0) a.xeroxCharges = a.xeroxCharges! - 1;
+}
+
+/** BONDS: Copy Machine just made `copy` of `original`: bind them (a later Copy Machine re-binds to its own pair). */
+export function ancientOnCopyMachine(state: RunState, original: BoardCard, copy: BoardCard): void {
+  const a = live(state);
+  if (!a || !effectOf(state, 'copyMachineBonds')) return;
+  a.xeroxBond = { a: original.uid, b: copy.uid };
+  a.xeroxBondBroken = undefined;
+  stampXeroxBond(state); // live for the rest of THIS dispatch too
+}
+
+/** BONDS: the live bond, or undefined (none, broken, or Bonds not picked). Pure read. */
+export function ancientXeroxBondOf(state: RunState): { a: string; b: string } | undefined {
+  const a = live(state);
+  return a?.xeroxBond && effectOf(state, 'copyMachineBonds') ? a.xeroxBond : undefined;
+}
+
+/** BONDS: the bond, after checking both ends still exist on the run (board or hand). An end that is gone (sold,
+ *  consumed, eaten, destroyed) breaks it for good. Called by `stampXeroxBond`, so every action re-checks it. */
+export function ancientXeroxBondValidate(state: RunState): { a: string; b: string } | undefined {
+  const bond = ancientXeroxBondOf(state);
+  if (!bond) return undefined;
+  const has = (uid: string): boolean => state.board.some((c) => c.uid === uid) || state.hand.some((c) => c.uid === uid);
+  if (has(bond.a) && has(bond.b)) return bond;
+  xeroxBreak(state, false);
+  return undefined;
+}
+
+/** BONDS: "if this triples, the effect breaks": either end consumed into a triple ends the bond for good. */
+export function ancientXeroxBondTripled(state: RunState, consumed: readonly BoardCard[]): void {
+  for (const c of consumed) xeroxBreakIfEnd(state, c.uid);
+}
+
+function xeroxBreakIfEnd(state: RunState, uid: string): void {
+  const bond = live(state)?.xeroxBond;
+  if (bond && (bond.a === uid || bond.b === uid)) xeroxBreak(state, true);
+}
+
+function xeroxBreak(state: RunState, restamp: boolean): void {
+  const a = live(state);
+  if (!a?.xeroxBond) return;
+  a.xeroxBond = undefined;
+  a.xeroxBondBroken = true;
+  if (restamp) stampXeroxBond(state); // stop mirroring for the rest of THIS dispatch
+}
+
+/** BONDS: the live bond line the power prints (who is bound right now, or that the bond is broken). */
+function xeroxBondText(state: RunState): string {
+  const a = live(state);
+  if (!a || !effectOf(state, 'copyMachineBonds')) return '';
+  const bond = a.xeroxBond;
+  if (bond) {
+    const c = state.board.find((x) => x.uid === bond.a) ?? state.hand.find((x) => x.uid === bond.a);
+    const name = c ? CARD_INDEX[c.cardId]?.name ?? c.cardId : 'a minion';
+    return ` Bound now: **${name}** and its copy.`;
+  }
+  return a.xeroxBondBroken ? ' The bond is broken.' : '';
+}
+
+// ── Tradesman (Frugal) hooks ─────────────────────────────────────────────────────────────────────────────────
+/** The `questTrigger` flag Death's combat Avenge emits once per free Refresh (the replay counts them for the text). */
+export const ANCIENT_REFRESH_AVENGE_FLAG = 'ancientRefreshAvenge';
+/** The `questTrigger` flag War's Rally graft emits once per fire in combat (the replay + settle count them). */
+export const ANCIENT_RALLY_GOLD_FLAG = 'ancientRallyGold';
+
+/**
+ * TRADESMAN × DEATH: friendly deaths still needed for the next free Refresh. ONE running count across the Shop and
+ * combat (the carried `tradesDeaths` plus `deaths`, the deaths so far in the fight on screen), the Xerox Death shape.
+ * Null when Death is not the picked pairing.
+ */
+export function ancientTradesAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeFreeRefresh') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.tradesDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/** TRADESMAN × DEATH, Shop half: a friendly minion died in the Shop (`fireOnFriendDeath`, every Shop death path once;
+ *  a sale never). The running count ticks; every `every`th death banks a free Refresh, right then. */
+export function ancientTradesShopDeath(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'avengeFreeRefresh') : undefined;
+  if (!a || !e) return;
+  a.tradesDeaths = ((a.tradesDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.tradesDeaths === 0) state.freeRolls = (state.freeRolls ?? 0) + 1;
+}
+
+/** TRADESMAN × FORTUNE: a minion was BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought).
+ *  "Your next Refresh costs 0" (owner 2026-10-02): sets ONE pending flag, right then. Already set = nothing more (it
+ *  never stacks). Separate from the `freeRolls` bank. Spells, Discovers and generated cards never reach this. */
+export function ancientTradesBuy(state: RunState): void {
+  const a = live(state);
+  if (a && effectOf(state, 'buyNextRefreshFree')) a.tradesNextRefreshFree = true;
+}
+
+/** TRADESMAN × FORTUNE: is the next Refresh's 0 cost pending (the price `refreshCostOf` shows, the power text)? */
+export function ancientTradesRefreshFree(state: RunState): boolean {
+  return !!live(state)?.tradesNextRefreshFree && !!effectOf(state, 'buyNextRefreshFree');
+}
+
+/** TRADESMAN × FORTUNE: the `roll` branch spends the pending 0-cost Refresh FIRST (before the `freeRolls` bank, so a
+ *  banked free Refresh is kept). Returns true when it paid for this Refresh. */
+export function ancientTradesSpendFreeRefresh(state: RunState): boolean {
+  if (!ancientTradesRefreshFree(state)) return false;
+  state.ancients!.tradesNextRefreshFree = false;
+  return true;
+}
+
+/** TRADESMAN × WAR: the graft every friendly minion carries ("Rally: gain N Gold next turn"), or undefined when War is
+ *  not the picked pairing. `fixed`: a Gilded minion gives the same Gold (a hero-granted Rally, the rune-graft rule). */
+export function ancientRallyGoldGraft(state: RunState): { gold: number } | undefined {
+  const e = live(state) ? effectOf(state, 'minionsRallyGold') : undefined;
+  return e ? { gold: e.gold } : undefined;
+}
+
+/** The effect War grafts (`grantedEffects`), shared by the Shop sweep and the combat summon graft. */
+export function rallyGoldGraftEffect(gold: number): EffectDef {
+  return { on: 'onAttack', do: 'rallyGoldNextTurn', params: { gold, fixed: true } };
+}
+
+/** TRADESMAN × WAR: record Gold the graft banked for next turn (the live text; the Gold itself is already banked). */
+export function noteTradesRallyGold(state: RunState, gold: number): void {
+  const a = live(state);
+  if (!a || gold <= 0) return;
+  const cur = a.tradesRallyGold?.wave === state.wave ? a.tradesRallyGold.gold : 0;
+  a.tradesRallyGold = { wave: state.wave, gold: cur + gold };
+}
+
+/** TRADESMAN × WAR: Gold banked for next turn by the graft this turn (0 once the next Shop has paid it out). */
+function tradesRallyGoldNow(state: RunState): number {
+  const g = live(state)?.tradesRallyGold;
+  return g && g.wave === state.wave ? g.gold : 0;
+}
+
+/** TRADESMAN × GENESIS: Refreshes still needed for the next Lasso. 0 when Genesis is not picked. */
+function tradesLassoLeft(state: RunState): number {
+  const e = effectOf(state, 'refreshesCastSpell');
+  if (!e) return 0;
+  const every = Math.max(1, e.every);
+  return every - ((live(state)?.tradesRefreshes ?? 0) % every);
+}
+
+/** Frugal's surcharge on a Shop upgrade ("Shop upgrades cost 2 more"). The reducer's `upgradeCostOf` reads it too. */
+export const FRUGAL_UPGRADE_SURCHARGE = 2;
+
+/** TRADESMAN × TIME / BONDS: Gold of Frugal's surcharge the discounts have eaten at the CURRENT tier (0 otherwise). */
+export function ancientUpgradeSurchargeOff(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'tier'>): number {
+  const off = (state.ancientsEnabled ? state.ancients : undefined)?.tradesSurchargeOff;
+  return off && off.tier === state.tier ? off.gold : 0;
+}
+
+/** The price an upgrade charges right now: the reducer's `upgradeCostOf` (running cost + Frugal's surcharge, less what
+ *  the Time / Bonds discounts ate of that surcharge and Ayse's banked discount, floored at 0). Restated here because
+ *  ancients.ts cannot import the reducer (a cycle); a test pins the two equal. */
+export function tradesUpgradeCost(state: RunState): number {
+  const base = state.upgradeCost + (hasPower(state, 'cheapMinions') ? FRUGAL_UPGRADE_SURCHARGE : 0);
+  return Math.max(0, base - ancientUpgradeSurchargeOff(state) - (state.aceTierDiscount ?? 0));
+}
+
+/** TIME / BONDS: the live upgrade line (the price right now, or nothing at the top tier). */
+function tradesUpgradeText(state: RunState): string {
+  const ceiling = hasTier7Access(state) ? 7 : maxTierFor(state.rift);
+  return state.tier >= ceiling ? '' : ` Upgrading costs **${tradesUpgradeCost(state)} Gold** now.`;
+}
+
+/**
+ * TIME / BONDS: knock `amount` off the upgrade price (owner ruling 2026-10-02: "Yes, down to 0"). The running cost goes
+ * first (the Rune of Shopkeep mechanism, floored at `CONFIG.upgradeCostFloor`); whatever is left over then eats into
+ * Frugal's surcharge, banked for this tier (`tradesSurchargeOff`, capped at the surcharge), so the FINAL price floors
+ * at 0, never at Frugal's 2.
+ */
+function cutUpgradeCost(state: RunState, amount: number): void {
+  const want = state.upgradeCost - amount;
+  state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, want);
+  const overflow = state.upgradeCost - want;
+  const a = live(state);
+  if (!a || overflow <= 0 || !hasPower(state, 'cheapMinions')) return;
+  const cur = ancientUpgradeSurchargeOff(state);
+  a.tradesSurchargeOff = { tier: state.tier, gold: Math.min(FRUGAL_UPGRADE_SURCHARGE, cur + overflow) };
+}
+
+/** TRADESMAN × TIME: is the End-of-Turn upgrade cut live (the `ancientTradesUpgrade` recurring entry)? */
+export function ancientTradesUpgradeLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotUpgradeDiscount');
+}
+
+/** TRADESMAN × TIME: End of Turn, the upgrade costs `amount` less (the `ancientTradesUpgrade` recurring entry). */
+export function ancientRunTradesUpgrade(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'eotUpgradeDiscount') : undefined;
+  if (e) cutUpgradeCost(state, e.amount);
+}
+
+/**
+ * A Shop REFRESH just rolled (the reducer's `refreshTavern`, never the turn-start roll): the same "refresh" the meter
+ * counts, paid or free. BONDS: the upgrade costs `amount` less. GENESIS: the running count ticks, and every `every`th
+ * casts the spell through `castSpell`, the real Shop cast pipeline (spell watchers, cast counters, Rune of Lassoing),
+ * AFTER the new row is in, so Lasso steals from the fresh Shop. The beam leaves the hero power (`origin: 'hero'`).
+ */
+export function ancientAfterRefresh(state: RunState): void {
+  const a = live(state);
+  if (!a) return;
+  const bonds = effectOf(state, 'refreshUpgradeDiscount');
+  if (bonds) cutUpgradeCost(state, bonds.amount);
+  const gen = effectOf(state, 'refreshesCastSpell');
+  if (!gen) return;
+  a.tradesRefreshes = (a.tradesRefreshes ?? 0) + 1;
+  if (a.tradesRefreshes % Math.max(1, gen.every) !== 0) return;
+  const spell = CARD_INDEX[gen.spellId];
+  if (spell?.spell) castSpell(state, spell, undefined, 'hero');
+}
+
+// ── Soren (Reclaim) hooks ────────────────────────────────────────────────────────────────────────────────────
+/** WAR: the +X/+X a Reclaimed copy gains on its return right now (0 unless the pairing is live). */
+export function ancientReclaimGain(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'reclaimGainImproves') : undefined;
+  return e ? live(state)?.sorenWarGain ?? e.amount : 0;
+}
+
+/** WAR: "Start of Turn: Improve this." The amount grows by its printed base each Start of Turn (the "Improve this"
+ *  convention: grow by the base amount). No board change, so no beat: the power text reads the new number. */
+function sorenStartOfTurn(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'reclaimGainImproves');
+  if (!a || !e) return;
+  a.sorenWarGain = (a.sorenWarGain ?? e.amount) + e.amount;
+}
+
+/** FORTUNE: Reclaim resolves in the Shop instead of marking the minion for Start of Combat. */
+export function ancientReclaimInShop(state: RunState): boolean {
+  return !!effectOf(state, 'reclaimInShop');
+}
+
+/**
+ * FORTUNE: Reclaim, in the Shop, right now. Combat's Reclaim exactly, moved to the Recruit phase: `card` is destroyed as
+ * a TRUE death (`rise: false`, so no Rise / Rebirth return, as combat forces), its Echo fires where it stood, and an
+ * exact copy of the body it had returns to its slot (to the right of anything its Echo summoned there), as a summon
+ * (`fireSummonBuffs`). No room left after the Echo: an overflow (`fireSummonOverflow`, the Rise-return rule), and the
+ * copy is lost (owner 2026-10-02). The use gains `gold` immediately.
+ */
+export function ancientShopReclaim(state: RunState, card: BoardCard): void {
+  const e = effectOf(state, 'reclaimInShop');
+  if (!e) return;
+  const slot = state.board.indexOf(card);
+  if (slot < 0) return;
+  const copy = exactBoardCopy(state, card); // the body as it is NOW (stats, buffs, keywords, counters)
+  const before = state.board.length;
+  destroyMinionInShop(makeContext(state), card, { rise: false });
+  if (state.board.length >= CONFIG.boardMax) fireSummonOverflow(state);
+  else {
+    const grew = state.board.length - (before - 1); // bodies the Echo added
+    state.board.splice(Math.min(state.board.length, slot + Math.max(0, grew)), 0, copy);
+    fireSummonBuffs(state, copy);
+  }
+  gainGold(state, e.gold);
+}
+
+/** GENESIS: after Reclaim marks `card`, a plain copy (the printed card, never gilded) goes to hand, locked for `turns`
+ *  turns (`lockedUntilWave`: unplayable this turn and the next `turns - 1`). Hand full: no copy (never onto the board). */
+export function ancientAfterReclaimMark(state: RunState, card: BoardCard): void {
+  const e = effectOf(state, 'reclaimCopyLocked');
+  if (!e) return;
+  const def = CARD_INDEX[card.cardId];
+  if (!def || def.spell || state.hand.length >= handCap(state)) return;
+  const copy = grantMinionToHandOrBoard(state, def, false);
+  if (state.hand.includes(copy)) copy.lockedUntilWave = state.wave + e.turns;
+}
+
+// ── Robin (Spoils) hooks ─────────────────────────────────────────────────────────────────────────────────────
+/** ROBIN × DEATH: Spoils counts (sales) this turn. */
+export function robinSpoilsThisTurn(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'wave'>): number {
+  const sp = state.ancientsEnabled ? state.ancients?.robinSpoils : undefined;
+  return sp && sp.wave === state.wave ? sp.n : 0;
+}
+
+/** ROBIN × DEATH, Shop half: a friendly minion was summoned (`fire`'s `onSummon`: a play from hand, a token summon). It
+ *  gains +a/+h for every Spoils count this turn, permanently. */
+export function ancientOnShopSummon(state: RunState, minion: BoardCard): void {
+  const e = live(state) ? effectOf(state, 'summonGainPerSpoils') : undefined;
+  const n = e ? robinSpoilsThisTurn(state) : 0;
+  if (!e || n <= 0 || !state.board.includes(minion)) return;
+  captureBuffFx(state, undefined, 'spell', () => addBuff(minion, ANCIENTS.death.name, e.attack * n, e.health * n));
+}
+
+/**
+ * ROBIN: a minion was sold (recruit's `bankSpoils`, called by EVERY sale path: the manual sale and the spell sales). The
+ * caller has already removed `sold`. `spoils`: the seller has the Spoils power (a Spoils count was banked). Ticks the
+ * per-turn Spoils count, then runs the picked sale pairing (Fortune / War / Genesis / Bonds), in real time.
+ */
+export function ancientOnRobinSale(state: RunState, sold: BoardCard, spoils: boolean): void {
+  const a = live(state);
+  if (!a) return;
+  if (spoils) a.robinSpoils = { wave: state.wave, n: robinSpoilsThisTurn(state) + 1 };
+  const fr = effectOf(state, 'sellsGrantFreeRefresh');
+  if (fr) {
+    a.robinSales = (a.robinSales ?? 0) + 1;
+    if (a.robinSales >= Math.max(1, fr.every)) { a.robinSales = 0; state.freeRolls += 1; }
+  }
+  const war = effectOf(state, 'saleBuffsLeftmost');
+  const left = state.board[0];
+  if (war && left) captureBuffFx(state, undefined, 'spell', () => addBuff(left, ANCIENTS.war.name, war.attack, war.health));
+  const gc = effectOf(state, 'sellsGetCopy');
+  if (gc) {
+    const win = [...(a.robinWindow ?? []), sold.cardId];
+    if (win.length >= Math.max(1, gc.every)) {
+      const rng = makeRng(state.rngCursor);
+      const pick = win[rng.int(win.length)]!;
+      state.rngCursor = rng.state();
+      a.robinWindow = [];
+      const def = CARD_INDEX[pick];
+      if (def && !def.spell) grantMinionToHandOrBoard(state, def, false);
+    } else a.robinWindow = win;
+  }
+  if (effectOf(state, 'saleDiscountsTribe')) {
+    const cur = a.robinBonds ?? [];
+    const add = robinTribesOf(CARD_INDEX[sold.cardId]).filter((m) => !cur.includes(m));
+    if (add.length > 0) a.robinBonds = [...cur, ...add];
+  }
+}
+
+/** ROBIN × BONDS: the marks a sold minion makes: `'all'` for an All-types minion, else its real type(s); a minion with
+ *  no type (neutral) marks nothing. */
+function robinTribesOf(def: CardDef | undefined): (Tribe | 'all')[] {
+  if (!def) return [];
+  if (def.universalTribe) return ['all'];
+  return [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+}
+
+/** ROBIN × BONDS: the index of the first mark a minion of `def` would spend (-1 = none). An All-types minion matches any
+ *  mark; an `'all'` mark matches any typed minion. A neutral minion matches nothing. */
+function robinBondsMatch(state: Pick<RunState, 'ancientsEnabled' | 'ancients'>, def: CardDef | undefined): number {
+  const marks = state.ancientsEnabled ? state.ancients?.robinBonds : undefined;
+  if (!marks?.length || !def || def.spell || def.ruby) return -1;
+  const typed = !!def.universalTribe || (!!def.tribe && def.tribe !== 'neutral') || (!!def.tribe2 && def.tribe2 !== 'neutral');
+  if (!typed) return -1;
+  return marks.findIndex((m) => m === 'all' || !!def.universalTribe || def.tribe === m || def.tribe2 === m);
+}
+
+/** ROBIN × BONDS: the set price a Shop minion buys at right now (undefined = no matching mark, or Bonds is not live). */
+export function ancientRobinBondsPrice(state: RunState, cardId: string): number | undefined {
+  const e = live(state) ? effectOf(state, 'saleDiscountsTribe') : undefined;
+  if (!e || robinBondsMatch(state, CARD_INDEX[cardId]) < 0) return undefined;
+  return e.price;
+}
+
+/** ROBIN × BONDS: a minion was bought; spend the mark it matched (nothing when none matched). */
+export function ancientSpendRobinBonds(state: RunState, cardId: string): void {
+  const a = live(state);
+  if (!a?.robinBonds || !effectOf(state, 'saleDiscountsTribe')) return;
+  const i = robinBondsMatch(state, CARD_INDEX[cardId]);
+  if (i < 0) return;
+  const next = [...a.robinBonds];
+  next.splice(i, 1);
+  a.robinBonds = next;
+}
+
+function robinBondsText(state: RunState): string {
+  const marks = live(state)?.robinBonds ?? [];
+  if (marks.length === 0) return '';
+  const name = (m: Tribe | 'all'): string => (m === 'all' ? 'Any type' : `${m.charAt(0).toUpperCase()}${m.slice(1)}`);
+  return ` Ready: **${marks.map(name).join(', ')}**.`;
+}
+
+/** ROBIN × TIME: is the End-of-Turn max Gold grant live (the `ancientRobinMaxGold` recurring entry)? */
+export function ancientRobinMaxGoldLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotMaxGold');
+}
+
+/** ROBIN × TIME: End of Turn, +gold max Gold, permanently (`maxGoldBonus`: above the natural cap, no ceiling). */
+export function ancientRunRobinMaxGold(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'eotMaxGold');
+  if (!a || !e || e.gold <= 0) return;
+  state.maxGoldBonus = (state.maxGoldBonus ?? 0) + e.gold;
+  a.robinMaxGold = (a.robinMaxGold ?? 0) + e.gold;
 }

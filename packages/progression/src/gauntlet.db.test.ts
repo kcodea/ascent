@@ -21,7 +21,7 @@ const root = join(__dirname, '../../..');
 const read = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
 const FILES = [
   '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql', '2026-09-28-progression-hero-attack.sql',
-  '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-09-29-hero-titles.sql',
+  '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-10-02-ancient-rarity.sql', '2026-09-29-hero-titles.sql',
 ].map(read);
 const MVP = read('2026-09-27-account-progression.sql');
 const ACH = read('2026-09-28-achievements.sql');

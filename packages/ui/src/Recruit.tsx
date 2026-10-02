@@ -45,7 +45,8 @@ import { UnitEditor } from './UnitEditor';
 import { Card, mdBold, type CardView } from './Card';
 import { heroPowerArt, equipmentBranchArtFor } from './art';
 import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
-import { PortraitFrame, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
@@ -3561,7 +3562,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [shopWithHolds, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, ftbBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, ftbBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
+    [shopWithHolds, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, ftbBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, ftbBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn, run.ancients /* offerBuyPrice's Ancient caps: Frank's Time, Robin's Bonds */],
   );
   const spellView = useMemo(
     () => {
@@ -5875,6 +5876,10 @@ export function Recruit() {
       fromUid = ev.origin.slice('board:'.length);
       const card = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${fromUid}"]`);
       from = centre(card?.querySelector('.cgem')) ?? centre(card);
+    } else if (ev.origin === 'hero') {
+      // TRADESMAN × ANCIENT OF GENESIS ("Every 2 Refreshes, cast Lasso"): out of the hero-power button.
+      from = centre(document.querySelector('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn'))
+        ?? centre(document.querySelector('.statusbar .heropowerbtn'));
     } else if (ev.origin === 'equipment') {
       // WHIPLASS-O: out of the Equipment slot beside the hero power (owner 2026-09-12: "equipment can always
       // be a starting point of an effect"). Whiplass-o has no `useFxId`, so this is the slot's only cue.
@@ -7382,10 +7387,12 @@ export function Recruit() {
                     ? <img decoding="sync" className="wipevs-face wipevs-cardart" src={gFace.art} alt="" draggable={false} />
                     : <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
                   : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
-                // With a tuner frame on, the face sits in a disc-sized host that carries the ring; without one
-                // the markup is exactly what it always was.
-                return foeFrame ? (
-                  <span className="wipevs-facewrap pf-on" style={foeFrame.hostStyle}>{face}<PortraitFrame frame={foeFrame} /></span>
+                // The foe's recorded portrait frame (through "Show opponent cosmetics", owner 2026-10-01) wins; else
+                // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
+                // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.
+                const ring = gFace ? foeFrame : resolvePortraitFrame('opp', frameIdOf(opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board))));
+                return ring ? (
+                  <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span>
                 ) : face;
               })()}
               <div className="wipevs-name">{foe.seat.label}</div>
@@ -8273,7 +8280,8 @@ const HandRow = memo(function HandRow({
               : goldLocked
                 ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
                 : waveLocked
-                  ? 'Next turn'
+                  // Turns left (Soren x Genesis locks a copy for 3 turns): the last locked turn reads "Next turn".
+                  ? m.lockedUntilWave! - wave > 1 ? `${m.lockedUntilWave! - wave} turns` : 'Next turn'
                   : undefined;
             return (
               <Card

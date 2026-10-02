@@ -29,17 +29,20 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (archive heroes)', quote: 'Archive these heroes. (remove them from all modes but keep them in the game. they should only show in scene builder)' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (owner rulings: Mimic / Power Shifter never offer an archived hero power)', quote: 'yes keep it that way' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-08-28 (Fi + Coran archive)', quote: 'coran and fi should be archived for now. they will be redesigned and should not show in our hero list for practice nor play' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (Runesmith + Guardian re-activated)', quote: 're-activate runesmith and guardian in the game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Rayse re-activated)', quote: 'unarchive rayse' },
       { kind: 'code', ref: 'packages/sim/src/heroes.ts HeroDef.wip / isArchivedHero / playableHeroes / practiceHeroes / powerDiscoverPool; packages/ui/src/SceneBuilder.tsx HERO_OPTIONS' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-24. Archived: Fi, Coran (2026-08-28), Void (2026-09-16) and the 2026-09-24 batch of 19: '
-      + 'Aevor, Cindara, Devourer, Emissary (vale), Fibbsy, Harlan, Odelle, Tiff, Underdweller, Runesmith, Guardian '
-      + '(runeguard), Foreman Flint (flint), Gorun, Jensen (jenkins), Membrance, Pete, Rayse, Sable, Yirin (rohan). '
+      'Conforms as of 2026-10-02. Archived: Fi, Coran (2026-08-28), Void (2026-09-16) and 16 of the 2026-09-24 batch: '
+      + 'Aevor, Cindara, Devourer, Emissary (vale), Fibbsy, Harlan, Odelle, Tiff, Underdweller, '
+      + 'Foreman Flint (flint), Gorun, Jensen (jenkins), Membrance, Pete, Sable, Yirin (rohan). Runesmith and '
+      + 'Guardian (runeguard) were re-activated on 2026-10-01, Rayse on 2026-10-02. '
       + 'Djinni, Chronos, Chaos and the tutorial-only Aster carry the same flag.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/heroArchive.test.ts', 'packages/ui/src/sceneBuilderPanel.test.tsx'],
-      lastVerifiedAt: '2026-09-24',
+      lastVerifiedAt: '2026-10-02',
     },
   },
   {
@@ -620,5 +623,351 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
+  },
+  {
+    id: 'R-ANCXEROX-01',
+    title: 'Xerox × Ancient of Death: Avenge (5) summons a copy of your highest Attack minion, Shop and combat',
+    statement:
+      "With the Ancient of Death, Xerox has a hero-level Avenge (5) on ONE running count of friendly deaths across the Shop and combat (the Rune of Body Counting meter shape: Shop deaths tick it at fireOnFriendDeath, combat carries it in and settle adds the fight's deaths). Every 5th death summons an exact copy (Copy Machine's meaning: current stats, keywords, gilding; in combat the body's current stats with its Ward and Rise state) of your highest-Attack living minion, ties to the left-most, beside it. A full board copies nothing. In combat it fires mid-fight on the death that completes the count, and Rune of Fury fires it again like every hero Avenge. The power prints the deaths still needed, live through a fight, and the countdown sits in the centre of the power.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'death - Avenge (5): Summon a copy of your highest attack minion' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeCopyTopAttack / ancientXeroxShopDeath / ancientXeroxAvengeLeft; packages/core/src/combat/simulate.ts ancientXeroxAvenge avenge listener' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-02',
+    title: 'Xerox × Ancient of Fortune: gain 4 Gold next turn for every pair on your board',
+    statement:
+      'With the Ancient of Fortune, at End of Turn Xerox banks 4 Gold for next turn for every PAIR on the board: two minions of the same card (a Gilded and a plain copy of one card are the same card), counted as floor(n / 2) per card. It is a virtual recurring End-of-Turn entry, so End of Turn repeats and replays fire it like every other recurrence. The power prints the pairs on the board right now and the Gold they would bank.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'fortune - Gain 4g next turn for every pair you have on board' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pairsGoldNextTurn / boardPairs / ancientRunXeroxPairs; packages/sim/src/recruit.ts recurringEotEffects (ancientXeroxPairs)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-03',
+    title: 'Xerox × Ancient of War: Start of Combat, summon a copy of your highest Health minion',
+    statement:
+      'With the Ancient of War, at Start of Combat Xerox summons an exact copy (current combat stats, keywords, Ward and Rise state, gilding) of the highest-Health living friendly minion, ties to the left-most, beside it. A full board copies nothing. The copy is a combat body only: the run board is unchanged after the fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'war - Start of Combat: Summon a copy of your highest health minion' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socCopyTopHealth; packages/core/src/combat/simulate.ts ancientXeroxSoc (Start of Combat)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-04',
+    title: 'Xerox × Ancient of Genesis: Copy Machine gains another use',
+    statement:
+      "With the Ancient of Genesis, the pick banks one more Copy Machine use. Copy Machine is once per game, so this makes two uses for the game: once the once-per-game use is spent, the banked charge lets it fire again (no turn gate), and spends the charge. Picked after Copy Machine was already used, it is usable once more. The power prints the uses left and the button is ready while a charge is banked.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'genesis - Gain another charge of Copy Machine' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts copyMachineExtraCharge / ancientCopyCharges; packages/sim/src/reducer.ts heroPower chargeUse; packages/ui/src/StatusBar.tsx canHero' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-05',
+    title: 'Xerox × Ancient of Time: Start of Turn, get a copy of a minion you control',
+    statement:
+      'With the Ancient of Time, at Start of Turn Xerox gets an exact copy of a random friendly board minion (the seeded run stream) in hand, on its own Start of Turn beat (R-SOT-BEAT-01). An empty board or a full hand gets nothing. The triple check that runs as the Shop opens sees the copy.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'time - Start of Turn: Get a copy of a minion you control.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sotCopyToHand / xeroxStartOfTurn' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-06',
+    title: 'Xerox × Ancient of Bonds: the copy and the original are bound; a triple breaks the bond',
+    statement:
+      "With the Ancient of Bonds, Copy Machine binds its copy and the original (run state, AncientsState.xeroxBond, so it survives save and restore). Whenever either gains stats, the other gains the same, the moment it happens (R-REALTIME-01): in the Shop through addBuff (the Sable Soulbind hook), in combat through ctx.buff matched on the run uid. Only gains mirror, one hop: the mirrored gain never mirrors back. A permanent combat gain mirrors once, at settle (the combat mirror never accrues Engraved carry-back). The bond breaks for good when either end is consumed into a triple, sold, destroyed in the Shop, or otherwise leaves the run; a combat death does not break it (the run board keeps both). The power prints who is bound, or that the bond is broken.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'bonds - The copy and the original are bound. Stats one gains, the other gains too.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'if this triples, the effect breaks' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts copyMachineBonds / ancientOnCopyMachine / ancientXeroxBondValidate; packages/sim/src/recruit.ts stampXeroxBond + addBuff; packages/core/src/combat/simulate.ts ancientXeroxBond' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-01',
+    title: 'Tradesman × Ancient of Death: Avenge (3) gains a free Refresh, one count across Shop and combat',
+    statement:
+      "With the Ancient of Death, Tradesman has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (AncientsState.tradesDeaths, the Xerox Death convention). Every Shop death path ticks it once (a sale never); combat carries the count in and settle adds the fight's deaths. Every 3rd death banks a free Refresh (RunState.freeRolls, spent by the next roll at 0 Gold) the moment it happens: in combat through grantFreeRolls, the free-roll carry-back, so it is usable from the next Shop. Rune of Fury fires the combat half again. The power prints the countdown (live through a fight) and the banked free Refreshes, and the countdown takes the shared centre disc.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Death - Avenge (3): Gain a free Refresh' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeFreeRefresh / ancientTradesShopDeath / ancientAfterCombat; packages/core/src/combat/simulate.ts ancientRefreshAvenge' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-02',
+    title: 'Tradesman × Ancient of Fortune: buying a minion makes your next Refresh cost 0 (never stacks)',
+    statement:
+      'With the Ancient of Fortune, every minion BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought) sets ONE pending "next Refresh costs 0" (AncientsState.tradesNextRefreshFree). It never stacks: more buys while it is set add nothing, and it never banks into RunState.freeRolls. The next Refresh (the roll action) spends it FIRST, before any banked free Refresh (which is kept) or Window Shopping. It carries across turns until used and survives save / restore. The Refresh button, nextRefreshCostOf and the bots read refreshCostOf, which prints 0 while it is pending; the power text says whether the next Refresh is free. Spell buys, Discovers and generated cards do not count.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Fortune - When you buy a minion, gain a free Refresh' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients, owner rulings on PR #1905)', quote: 'All minion buys (as built)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Fortune change)', quote: "change tradesman's fortune ancient to 'when you buy a minion, your next refresh costs 0' this way it doesn't stack up multiple free refreshes." },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts buyNextRefreshFree / ancientTradesBuy / ancientTradesSpendFreeRefresh; packages/sim/src/reducer.ts refreshCostOf + roll branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-03',
+    title: 'Tradesman × Ancient of War: your minions have "Rally: gain 1 Gold next turn"',
+    statement:
+      'With the Ancient of War, every friendly minion (board and hand, every arrival path, swept at the applyRuneGrafts chokepoint) carries the Rally keyword and a grafted rallyGoldNextTurn (grantedEffects, so it rides into combat, snapshots and replays); bodies summoned in combat get it too (QuestCombatMods.ancientRallyGold). Every Rally trigger banks 1 Gold for next turn, uncapped: a swing, each Rally multiplier repeat, a free or Shop Rally. Combat banks through the bonus-Gold carry-back; the Shop through bonusEmbersNextTurn. A Gilded minion gives the same 1 Gold (a hero-granted graft, the rune-graft rule; owner ruling: always 1). The power prints the Gold banked for next turn, live through a fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'War - Your minions gain Rally: Gain 1g next turn' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts rallyGoldNextTurn; packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts rallyGoldNextTurn; packages/sim/src/recruit.ts applyRuneGrafts' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients, owner rulings on PR #1905)', quote: 'Always 1 (as built)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-04',
+    title: 'Tradesman × Ancient of Genesis: every 2 Refreshes casts Lasso',
+    statement:
+      "With the Ancient of Genesis, every Shop Refresh (paid, free, or a power's; never the turn-start roll) ticks a running count since the pick (AncientsState.tradesRefreshes, across turns). Every 2nd casts Lasso through castSpell, the real Shop cast pipeline (spell counters, spell watchers, Rune of Lassoing), right after the new row is rolled, so it steals from the fresh Shop. Its lasso beam leaves the hero power. The power prints the Refreshes still needed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Genesis - Every 2 Refreshes, cast Lasso.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts refreshesCastSpell / ancientAfterRefresh; packages/sim/src/reducer.ts refreshTavern' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients, owner rulings on PR #1905)', quote: 'Yes, every refresh (as built)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-05',
+    title: 'Tradesman × Ancient of Time: End of Turn, the Shop upgrade costs 3 less',
+    statement:
+      "With the Ancient of Time, End of Turn (a virtual recurring entry, ancientTradesUpgrade, so End-of-Turn repeats and replays follow the one rule) knocks 3 off the FINAL upgrade price, Frugal's +2 surcharge included, down to 0: the running upgrade cost goes first (the Rune of Shopkeep mechanism, floored at CONFIG.upgradeCostFloor), and what is left over eats into the surcharge for the current tier (AncientsState.tradesSurchargeOff, capped at the surcharge, ignored once the tier changes, so the next tier pays the full +2 again). upgradeCostOf folds it in, so the button, the bots and the charge agree. The price never goes below 0. The power prints the live upgrade price.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Time - End of Turn: Reduce the cost of upgrading the Shop by 3.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotUpgradeDiscount / ancientRunTradesUpgrade; packages/sim/src/recruit.ts recurringEotEffects' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients, owner rulings on PR #1905)', quote: 'Yes, down to 0' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCTRADES-06',
+    title: 'Tradesman × Ancient of Bonds: every Refresh makes the Shop upgrade cost 1 less',
+    statement:
+      "With the Ancient of Bonds, every Shop Refresh (paid, free, or a power's; never the turn-start roll) knocks 1 off the FINAL upgrade price, Frugal's +2 surcharge included, down to 0, the moment it happens: the running cost first (floored at CONFIG.upgradeCostFloor), then the surcharge for the current tier (AncientsState.tradesSurchargeOff, the same channel as Time). The price never goes below 0. The power prints the live upgrade price.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients)', quote: 'Bonds - Refreshing the shop reduces the cost of upgrading the Shop by 1.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts refreshUpgradeDiscount / ancientAfterRefresh; packages/sim/src/reducer.ts refreshTavern' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Tradesman Ancients, owner rulings on PR #1905)', quote: 'Yes, down to 0' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsTradesman.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-01',
+    title: 'Soren × Ancient of Death: the Echo Reclaim triggers fires an extra time',
+    statement:
+      "With the Ancient of Death, the Echo that Reclaim's Start-of-Combat destroy triggers fires one more time. The extra fire goes through the shared Echo-multiplier fold (playerEchoExtras), scoped to the Reclaimed body only, so every Echo watcher and the Echo tally hear each fire. Any other death in the fight, including the returned copy's own later death, is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'death - Echoes triggered by Reclaim trigger an additional time.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimEchoExtra; packages/core/src/combat/simulate.ts ancientReclaim.echoExtra in playerEchoExtras (reclaimEchoUid)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-02',
+    title: 'Soren × Ancient of Fortune: Reclaim resolves in the Shop and gains 5 Gold; no room means an overflow and the copy is lost',
+    statement:
+      "With the Ancient of Fortune, Reclaim no longer marks a minion for Start of Combat. Using it destroys the minion in the Shop right away as a true death (no Rise or Rebirth return, as combat Reclaim forces; its Echo fires where it stood), then an exact copy of the body it had (Copy Machine's exact copy) returns to its slot, to the right of anything its Echo summoned there, as a summon (the on-summon watchers fire). If the board is full after the Echo, it is an overflow (the summon-overflow watchers fire) and the copy is lost: never sent to hand. Each use gains 5 Gold immediately. Still free and once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'fortune - Reclaim works in Recruit phase instead. Gain 5g when it is used.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: "it'd be an 'overflow' technically, but if no room then it is lost" },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts ancientShopReclaim / ancientReclaimInShop; packages/sim/src/reducer.ts resummon branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-03',
+    title: 'Soren × Ancient of War: Reclaimed copies gain +X/+X for that fight; X starts at 10 and improves by 10 every Start of Turn',
+    statement:
+      'With the Ancient of War, each copy Reclaim returns in combat gains +X/+X the moment it lands, through the normal combat buff, so it lasts that fight only and Engraved (or anything else that keeps combat gains) carries it back. X is 10 at the pick and improves by +10/+10 every Start of Turn (the Improve-this convention: grow by the printed amount), stored on the run (AncientsState.sorenWarGain). The power prints the live X.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'war - Reclaimed minions gain +10/+10 on re-summon. Start of Turn: Improve this.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'fight only, but engraving etc would carry it back' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimGainImproves / ancientReclaimGain / sorenStartOfTurn; packages/core/src/combat/simulate.ts flushResummons reclaim.gain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-04',
+    title: 'Soren × Ancient of Genesis: Reclaim also gives a plain copy of its target to hand, locked for 3 turns',
+    statement:
+      'With the Ancient of Genesis, Reclaim still marks its target as normal and also puts a plain copy (the printed card, never Gilded) in your hand, locked for 3 turns through the hand-card wave lock (lockedUntilWave = this turn + 3): it cannot be played this turn or the next two, and the padlock shows the turns left. A full hand gets no copy, and it never goes to the board.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'genesis - Reclaim grants a plain copy of the minion you target, but it is locked for 3 turns.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimCopyLocked / ancientAfterReclaimMark; packages/ui/src/Recruit.tsx wave-lock label' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-05',
+    title: 'Soren × Ancient of Time: Reclaim resummons two copies',
+    statement:
+      "With the Ancient of Time, Reclaim's Start-of-Combat destroy queues two copies of the body instead of one. Each waits for room on its own, the native Reclaim rule, so a full board holds the second back until a friendly death frees a slot. Only the first copy is linked to the run card (sourceUid), so carry-backs never reach it twice.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'time - Reclaim summons twice.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimSummonsTwice; packages/core/src/combat/simulate.ts Reclaim Start-of-Combat loop (ancientReclaim.copies)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCSOREN-06',
+    title: 'Soren × Ancient of Bonds: when a Reclaimed copy returns, the minions next to it gain its Attack for that fight',
+    statement:
+      'With the Ancient of Bonds, the moment a Reclaimed copy lands in combat, its living neighbours gain Attack equal to its Attack, through the normal combat buff: that fight only, kept by Engraved like every combat gain. No neighbour, no grant.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'bonds - When the reclaimed minion summons, grant its attack to adjacent minions.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Soren Ancients)', quote: 'That fight only' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts reclaimBondsAdjacent; packages/core/src/combat/simulate.ts flushResummons reclaim.bonds' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-01',
+    title: 'Robin × Ancient of Death: summoned minions gain +3/+2 for every Spoils count (sale) this turn, in the Shop and in combat',
+    statement:
+      "With the Ancient of Death, every friendly minion summoned gains +3/+2 for each minion sold this turn (a Spoils count is one sale). Shop: a play from hand or a token summon gains it permanently, after the card auras. Combat: every friendly summon (a token, a Rise, a resummon) gains the turn's amount as a combat buff. The count resets each turn; the power prints the live count and gain.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'death - Summoned minions gain +3/+2 for every count of Spoils this turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts summonGainPerSpoils / ancientOnShopSummon / robinSpoilsThisTurn; packages/core/src/combat/simulate.ts summonEntryEffects ancientSummonGain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-02',
+    title: 'Robin × Ancient of Fortune: every 2nd minion sold banks a free Refresh right then',
+    statement:
+      'With the Ancient of Fortune, one running count of sales (every sale path: the manual sale and the spells that sell) banks a free Refresh (the free-roll bank) on every 2nd sale, immediately. The power prints the sales left.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'fortune - Every 2 minions sold also grants a free refresh.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sellsGrantFreeRefresh / ancientOnRobinSale; packages/sim/src/recruit.ts bankSpoils' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-03',
+    title: 'Robin × Ancient of War: each sale gives the left-most minion +2/+3, permanently, right then',
+    statement:
+      'With the Ancient of War, every minion sold (board or hand) gives the left-most board minion, read after the sale, +2/+3 permanently. An empty board gets nothing.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'war - Give your left-most minion +2/+3 every time you sell a minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts saleBuffsLeftmost / ancientOnRobinSale' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-04',
+    title: 'Robin × Ancient of Genesis: every 7th sale gives a plain copy of one of the seven sold',
+    statement:
+      'With the Ancient of Genesis, every 7th sale (a running window since the last payout) gives a plain copy (base stats, never Gilded) of one of the minions sold in that window, picked with the seeded run RNG, hand first, the board when the hand is full. It repeats every 7 sales; the power prints the sales left.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'genesis - When you sell 7 minions, get a copy of one of them.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sellsGetCopy / ancientOnRobinSale' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-05',
+    title: 'Robin × Ancient of Time: End of Turn, +1 max Gold, permanently',
+    statement:
+      'With the Ancient of Time, every End of Turn raises max Gold by 1 through the permanent above-cap channel (maxGoldBonus), with no ceiling. It is a virtual recurring End-of-Turn entry, so it gets its own beat and follows End-of-Turn repeats. The power prints the total so far.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'time - End of Turn: Increase your max gold by 1' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotMaxGold / ancientRunRobinMaxGold; packages/sim/src/recruit.ts recurringEotEffects (ancientRobinMaxGold)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-06',
+    title: 'Robin × Ancient of Bonds: a sale marks its type; the next minion of that type bought costs 2 Gold',
+    statement:
+      'With the Ancient of Bonds, selling a minion marks its type (each of a dual-type minion\'s types; an All-types minion marks "any type"; a typeless minion marks nothing). One mark per type, kept across turns until used. The next minion bought of a marked type is priced at most 2 Gold (other discounts still apply on top), shown on the cost coin, and the buy spends that mark.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'bonds - Selling a minion makes the next of its tribe cost 2g.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts saleDiscountsTribe / ancientRobinBondsPrice / ancientSpendRobinBonds; packages/sim/src/reducer.ts offerBuyPrice' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
 ];

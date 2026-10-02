@@ -138,6 +138,13 @@ export function simulate(
       const n = 2 * flagCopiesOf(side, 'runeStellarEchoes');
       minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleBuffStarform', params: { attack: n, health: n, fixed: true } }];
     }
+    // ANCIENT OF WAR × Tradesman (owner 2026-10-02): "Your minions gain Rally: Gain 1g next turn" — a body summoned in
+    // the fight carries the graft too (the board's own bodies brought it from the Shop). Never on a spell / Ruby body.
+    const rg = m.ancientRallyGold;
+    if (rg && !card.spell && !card.ruby && !minion.effects.some((e) => e.do === 'rallyGoldNextTurn')) {
+      minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGoldNextTurn', params: { gold: rg.gold, fixed: true } }];
+      if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
+    }
     if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
@@ -707,6 +714,8 @@ export function simulate(
   // `firstEchoDone`/`firstRallyDone`/`firstSlaughterDone` gate the "first Echo/Rally/Slaughter each combat fires
   // extra" bonuses; `pitDone` gates Pit Without End's once-per-fight summon.
   const firstEchoDone: Record<Side, boolean> = { player: false, enemy: false };
+  // ANCIENT OF DEATH × Soren: the uid of the body Reclaim is destroying at this moment (read by `playerEchoExtras`).
+  let reclaimEchoUid: string | undefined;
   // Player Rally (on-attack) triggers this combat — the `rally` quest objective.
   const ralliesFired: Record<Side, number> = { player: 0, enemy: 0 };
   const firstRallyDone: Record<Side, boolean> = { player: false, enemy: false };
@@ -963,6 +972,7 @@ export function simulate(
   // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
   // calling itself. See the mirror block inside `buff`.
   let soulbindMirroring = false;
+  let xeroxBondMirroring = false; // Xerox × Ancient of Bonds: the one-hop guard (see ctx.buff)
   /** ANCIENT OF BONDS: set while its own +Attack lands, so that grant can never trigger Bonds again. */
   let ancientBondsFiring = false;
 
@@ -1127,7 +1137,8 @@ export function simulate(
       if (transcendant) target.auraEngraved = true; // so the carry-back entry attributes it correctly
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
-      if (target.keywords.includes('EG') || transcendant) {
+      // (A Xerox Bonds MIRROR never accrues here: the source's own permanent gain is mirrored by the Shop at settle.)
+      if ((target.keywords.includes('EG') || transcendant) && !xeroxBondMirroring) {
         target.permaGain = {
           attack: (target.permaGain?.attack ?? 0) + attack,
           health: (target.permaGain?.health ?? 0) + health,
@@ -1171,6 +1182,20 @@ export function simulate(
           const pick = rng.pick(others);
           ancientBondsFiring = true;
           try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; }
+        }
+      }
+      // ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other
+      // gains too." The Soulbind shape below, for a bond that lasts the run: matched on the run-board uid (`sourceUid`),
+      // gains only, one hop (`xeroxBondMirroring`).
+      const xb = modsFor('player').ancientXeroxBond;
+      if (xb && !xeroxBondMirroring && target.side === 'player' && (attack > 0 || health > 0)) {
+        const runUid = (m: Minion): string => m.sourceUid ?? m.uid;
+        const tid = runUid(target);
+        const otherUid = tid === xb.a ? xb.b : tid === xb.b ? xb.a : undefined;
+        const partner = otherUid ? boards.player.find((m) => runUid(m) === otherUid && !m.dead && m !== target) : undefined;
+        if (partner) {
+          xeroxBondMirroring = true;
+          try { ctx.buff(partner, Math.max(0, attack), Math.max(0, health), xb.label); } finally { xeroxBondMirroring = false; }
         }
       }
       const bond = modsFor('player').soulbind;
@@ -1799,6 +1824,23 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
+  /** XEROX × Ancients: the side's highest-`stat` living minion (ties: the left-most). */
+  function xeroxTop(side: Side, stat: 'attack' | 'health'): Minion | undefined {
+    let best: Minion | undefined;
+    for (const m of boards[side]) if (!m.dead && m.health > 0 && (!best || m[stat] > best[stat])) best = m;
+    return best;
+  }
+  /** XEROX × Ancients: an exact copy of `src` (current combat stats, its keywords, Ward / Rise), beside it. */
+  function xeroxCopy(side: Side, src: Minion): void {
+    const def = cards[src.cardId];
+    if (!def) return;
+    // Granted keywords ride along; the Ward / Rise STATE comes from the body (a popped Ward stays popped).
+    const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
+    summonMinion(side, def, src.uid, kws, src.golden, false, {
+      attack: src.attack, health: src.health, maxHealth: src.maxHealth,
+      divineShield: src.divineShield, rebornAvailable: src.rebornAvailable,
+    });
+  }
   function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
@@ -2187,6 +2229,13 @@ export function simulate(
     // …THEN the augmenting onSummon watchers, in CURRENT board order left→right (bus order was registration
     // order, which drifts from the visible board as bodies re-slot and summon).
     emitOnSummonOrdered(minion, side);
+    // ANCIENT OF DEATH × Robin: "Summoned minions gain +3/+2 for every count of Spoils this turn." Every friendly summon
+    // (this chokepoint: a token, a Rise, a resummon) gains the turn's live amount, after its own watchers (the Shop's
+    // Den Marker order), a combat buff.
+    const spoilsGain = modsFor(side).ancientSummonGain;
+    if (spoilsGain && minion.side === side && !minion.dead && (spoilsGain.attack > 0 || spoilsGain.health > 0)) {
+      ctx.buff(minion, spoilsGain.attack, spoilsGain.health, spoilsGain.label);
+    }
     // RUNE OF THE SECOND LITTER: the FIRST Beast summoned each combat summons another copy. `doubled: true`
     // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
     // Beast" and spawn a third. Fired after the triggers so the copy is made from the body as it landed.
@@ -2581,7 +2630,10 @@ export function simulate(
     if (first > 0 && !firstEchoDone[minion.side]) { fireTrigger('runeCatacomb', minion.side); firstEchoBonus = first; firstEchoDone[minion.side] = true; }
     // The SAME fold the recruit-side Echo path uses (`fireRecruitDeathrattles`) — one definition of the
     // Echo-multiplier set across both phases (owner principle 2026-08-20).
-    return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus });
+    // ANCIENT OF DEATH × Soren: the Echo Reclaim's Start-of-Combat destroy triggers fires `echoExtra` more times. Scoped to
+    // the one body Reclaim is destroying right now (`reclaimEchoUid`), so no other death is touched.
+    const reclaimExtra = reclaimEchoUid !== undefined && reclaimEchoUid === minion.uid ? mods.ancientReclaim?.echoExtra ?? 0 : 0;
+    return foldEchoExtraFires({ reaperExtras, beastRitualExtra, echoExtraAlways: mods.echoExtraAlways ?? 0, firstEchoBonus }) + reclaimExtra;
   }
 
   // How many EXTRA times a player minion's Rally (on-attack effects) fires beyond the base trigger — every
@@ -3391,12 +3443,12 @@ export function simulate(
   };
   const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 }; // Rune of the Undertow's 4-Ward budget
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
-  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side }[] = [];
+  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side; reclaim?: { gain?: number; bonds?: boolean; label: string } }[] = [];
   function flushResummons(): void {
     // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the
     // enemy side, exactly like the player's Reclaimer). FIFO within a side; player-only queues behave as before.
     for (let i = 0; i < pendingResummons.length; ) {
-      const { anchor, board, side } = pendingResummons[i]!;
+      const { anchor, board, side, reclaim } = pendingResummons[i]!;
       if (occupied(side) >= 7) { i++; continue; }
       pendingResummons.splice(i, 1);
       nextStep(); // each reclaimed body re-entering is its own moment
@@ -3416,6 +3468,17 @@ export function simulate(
       emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
       applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too — AURAS FIRST (owner 2026-08-12)
       emitOnSummonOrdered(copy, side); // …then the augmenting watchers, board order left→right
+      // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
+      // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
+      if (reclaim && !copy.dead && copy.health > 0) {
+        // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
+        if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
+        // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
+        if (reclaim.bonds && copy.attack > 0) {
+          const near = livingNeighbours(ctx, copy);
+          if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
+        }
+      }
     }
   }
 
@@ -4244,8 +4307,17 @@ export function simulate(
       buffs: minion.buffs,
     };
     minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
-    killOrReborn(minion); // tokens summon now and may overflow the board
-    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side });
+    // ANCIENTS × Soren (player-only mods; absent = Reclaim exactly as before).
+    const rc = modsFor(minion.side).ancientReclaim;
+    reclaimEchoUid = rc?.echoExtra ? minion.uid : undefined; // DEATH: this destroy's Echo fires extra times
+    try { killOrReborn(minion); } finally { reclaimEchoUid = undefined; } // tokens summon now and may overflow the board
+    const reclaim = rc && (rc.gain || rc.bonds) ? { gain: rc.gain, bonds: rc.bonds, label: rc.label } : undefined;
+    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+    // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
+    // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
+    for (let k = 1; k < (rc?.copies ?? 1); k++) {
+      pendingResummons.push({ anchor: minion, board: { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined }, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+    }
   }
   flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
 
@@ -4286,6 +4358,13 @@ export function simulate(
         emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
         if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
       }
+    }
+    // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
+    // copy (the Mirror March `copyStats` path + its keywords) of the highest-Health living minion (ties: the left-most),
+    // beside it. No room: nothing.
+    if (smods.ancientXeroxSoc && occupied(scSide) < 7) {
+      const src = xeroxTop(scSide, 'health');
+      if (src) { nextStep(); emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` }); xeroxCopy(scSide, src); }
     }
     // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
     // Shouts. If you have only one Shout, trigger it once." The two edges are read once, up front; each fires through
@@ -5157,6 +5236,38 @@ export function simulate(
     for (let k = 0; k < fires; k++) {
       clearanceStacksGained[side] += 1;
       fireTrigger(cs.flag, side);
+    }
+  });
+  // ANCIENT OF DEATH × Xerox (owner 2026-10-02): "Avenge (5): Summon a copy of your highest attack minion." A hero Avenge
+  // on ONE running count across Shop and combat (`tick` carried in: the Rune of Body Counting meter shape). Each fire
+  // summons an exact copy of the highest-Attack living minion (ties: the left-most) beside it, room permitting; Rune of
+  // Fury fires it again, like every hero Avenge.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const xa = modsFor(side).ancientXeroxAvenge;
+    if (!xa || (xa.tick + count) % Math.max(1, xa.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      if (occupied(side) >= 7) return;
+      const src = xeroxTop(side, 'attack');
+      if (!src) return;
+      nextStep();
+      emit({ type: 'sc', source: victim?.uid ?? src.uid, text: `${xa.label}: a copy of ${src.name}`, side, heroPower: true });
+      xeroxCopy(side, src);
+    }
+  });
+  // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
+  // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then
+  // (`grantFreeRolls`, the Gryphon carry-back) and pulses a `questTrigger` the replay counts for the live text. Rune of
+  // Fury fires it again, like every hero Avenge.
+  bus.on('avenge', (payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    const ra = modsFor(side).ancientRefreshAvenge;
+    if (!ra || (ra.tick + count) % Math.max(1, ra.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      ctx.grantFreeRolls(1, side);
+      fireTrigger(ra.flag, side);
     }
   });
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.

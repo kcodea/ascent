@@ -438,7 +438,8 @@ export class CrateScene {
     this.lidPop(1);
     this.opts.onPulse?.(0.6);
     this.zoomTarget = 1 + p.push;
-    this.setPhase('charge', Math.max(1, p.chargeMs));
+    // A freezing signature (Ancient's "Time stops") holds the end of the charge frozen for `freezeMs`.
+    this.setPhase('charge', Math.max(1, p.chargeMs + Math.max(0, p.freezeMs)));
   }
 
   burst(p: CratePreset): void {
@@ -662,8 +663,13 @@ export class CrateScene {
     const p = this.preset;
     const S = this.size;
     const tn = this.tune;
-    // the Legendary hitch: the last `hitchMs` of the charge run in slow motion
-    if (this.phase === 'charge' && p && p.hitchMs > 0 && this.age > this.dur - p.hitchMs) this.timeScale = p.hitchScale;
+    // Time stops (a freezing signature): the last `freezeMs` of the charge run at time scale 0. Nothing moves, the
+    // chest holds mid-shake and the camera holds; the burst picks it all up again.
+    const freezeMs = this.phase === 'charge' && p ? Math.max(0, p.freezeMs) : 0;
+    const frozen = freezeMs > 0 && this.age > this.dur - freezeMs;
+    // the Legendary hitch: the last `hitchMs` of the charge (before any freeze) run in slow motion
+    if (this.phase === 'charge' && p && p.hitchMs > 0 && this.age > this.dur - freezeMs - p.hitchMs) this.timeScale = p.hitchScale;
+    if (frozen) this.timeScale = 0;
     const dt = real * this.timeScale;
     const sec = dt / 1000;
     let crateShake = 0;
@@ -683,7 +689,7 @@ export class CrateScene {
       }
       case 'charge': {
         if (!p) break;
-        const ct = clamp01(this.age / Math.max(1, this.dur - p.hitchMs));
+        const ct = clamp01(this.age / Math.max(1, this.dur - freezeMs - p.hitchMs));
         this.color = lerpColor(NEUTRAL_GLOW, p.color, easeOutCubic(Math.min(1, ct / 0.3)));
         for (const s of [this.seamHalo, this.keyholeGlow, this.runeRing, this.floorGlow]) s.tint = this.color;
         for (const s of [this.seam, this.keyhole]) s.tint = lerpColor(this.color, 0xffffff, 0.55);
@@ -778,7 +784,9 @@ export class CrateScene {
     this.lidTilt *= Math.exp(-dt / 160);
 
     // the chest: squash from pulses, shake, the lid rattling on top
-    if (this.phase === 'anticipation' || this.phase === 'charge') {
+    if (frozen) {
+      // held exactly where the freeze caught it
+    } else if (this.phase === 'anticipation' || this.phase === 'charge') {
       const q = this.kick;
       const baseX = this.phase === 'charge' ? this.crate.scale.x : 1;
       const baseY = this.phase === 'charge' ? this.crate.scale.y : 1;
@@ -842,7 +850,7 @@ export class CrateScene {
       this.camShakeHold *= Math.exp(-real / 80);
       if (this.camShakeHold < 0.05) this.camShakeHold = 0;
     }
-    this.applyCamera(this.age);
+    if (!frozen) this.applyCamera(this.age);
 
     this.stepParticles(dt, sec);
     this.stepRings(dt);

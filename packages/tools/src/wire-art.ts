@@ -292,6 +292,8 @@ for (const c of COSMETICS) {
   SKIN_MASTERS[norm(master.replace(/\.(png|webp|jpe?g)$/i, ''))] = art;
 }
 
+const SKIN_RARITY_DIRS = ['Minion Skins', 'Hero Skins'].flatMap((c) => ['Common', 'Rare', 'Epic', 'Legendary', 'Ancient'].map((r) => `${c}/${r}`));
+
 const JOBS: Job[] = [
   {
     // SET-3 minions (2026-08-28). Scoped like the set-1 job and placed FIRST for the same reason: if a name
@@ -390,7 +392,8 @@ const JOBS: Job[] = [
   {
     // SKINS: hero and minion skins both land in art/skins/<cosmeticId>, keyed by the catalog (see SKIN_MASTERS).
     label: 'skins', src: 'C:/Game Assets/Ascent Art/Skins',
-    dirs: ['Minion Skins', 'Hero Skins'], dest: 'packages/ui/src/art/skins', index: new Map(), aliases: SKIN_MASTERS,
+    // The masters sit in one sub-folder per RARITY (owner 2026-10-01); the folder is the skin's rarity (R-PROG-SKINS-11).
+    dirs: SKIN_RARITY_DIRS, dest: 'packages/ui/src/art/skins', index: new Map(), aliases: SKIN_MASTERS,
   },
 ];
 

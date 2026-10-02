@@ -56,6 +56,71 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-02',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Rayse is back. You can pick her again in Play and Practice.',
+      },
+      {
+        category: 'Systems',
+        text: 'A new rarity, Ancient, above Legendary. Ancient rewards drop 3% of the time and get their own crate opening.',
+        details: [
+          'New crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%.',
+          '6 Ancient portrait frames: Bonds, Death, Fortune, Genesis, Time and War.',
+          'Now Ancient: Tee Time Sylus and Edward Colada Hands (minion skins), and the Consecration and Arcana attacks.',
+          'If you already own one of the four, it stays yours.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: '3 more portrait frames in crates: Simple Ring and Void (Rare), and Cherry Blossom (Epic).',
+        details: [
+          'Some frames changed rarity. Burnished, Sterling, Gilded and Seaglass are now Common. Shard and Prism are now Rare.',
+          'Frames you already own stay yours.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-01',
+    changes: [
+      {
+        category: 'Systems',
+        text: '5 more Epic portrait frames in crates (Multichrome Energy, Blue Energy, Crackling Ruby, Topaz and Jade), and Gilt Scale, Dark Cloud and Venom are now Legendary.',
+        details: [
+          'Frames now go by their name alone: "Fire" rather than "Fire Frame".',
+          'Frames you already own stay yours.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Portrait frames: 21 new rings for your hero portrait, found in crates. Equip one in the Collection and every player you meet sees it.',
+        details: [
+          'One Common, seven Rare, eight Epic and five Legendary frames, from Honey and Vine to Stained Glass and Wind.',
+          'A new Portrait Frames tab in the Collection. Use default frame puts the usual ring back.',
+          'Turn off Show opponent cosmetics to see every opponent in the usual ring.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Some skins changed rarity. Skins you already own stay yours.',
+      },
+      {
+        category: 'Systems',
+        text: '9 new minion skins in crates: three for Commander Warpath, two each for Deepvein Tender and Wayfinder, and one each for Wardkeeper and Coppercoat Spellsword.',
+      },
+      {
+        category: 'Systems',
+        text: 'More in crates: 3 new hero skins (Goth Merrin, Iron Guardian and Robin Hood) and 10 more portrait frames (Ale, Ruby, Steel, Wood, Dark Scale, Gilt Scale, Magic, Dark Cloud, Venom and Wedding).',
+      },
+      {
+        category: 'Balance',
+        text: 'Runesmith and Guardian are back. You can pick them again in Play and Practice.',
+      },
+    ],
+  },
+  {
     date: '2026-09-30',
     changes: [
       {

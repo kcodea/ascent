@@ -1,0 +1,272 @@
+{
+  "frame_ale": {
+    "aspect": 1,
+    "holeD": 0.8254,
+    "holeCx": 0.4992,
+    "holeCy": 0.48
+  },
+  "frame_ascendant": {
+    "aspect": 1,
+    "holeD": 0.7687,
+    "holeCx": 0.4997,
+    "holeCy": 0.4892
+  },
+  "frame_aura": {
+    "aspect": 1,
+    "holeD": 0.7744,
+    "holeCx": 0.5013,
+    "holeCy": 0.4933
+  },
+  "frame_blue_energy": {
+    "aspect": 1,
+    "holeD": 0.7873,
+    "holeCx": 0.4978,
+    "holeCy": 0.4756
+  },
+  "frame_bonds": {
+    "aspect": 1,
+    "holeD": 0.5941,
+    "holeCx": 0.4998,
+    "holeCy": 0.5075
+  },
+  "frame_bronze": {
+    "aspect": 1,
+    "holeD": 0.8405,
+    "holeCx": 0.4942,
+    "holeCy": 0.4868
+  },
+  "frame_cherry_blossom": {
+    "aspect": 1,
+    "holeD": 0.7528,
+    "holeCx": 0.5105,
+    "holeCy": 0.4686
+  },
+  "frame_crackling_ruby": {
+    "aspect": 1,
+    "holeD": 0.7912,
+    "holeCx": 0.499,
+    "holeCy": 0.473
+  },
+  "frame_dark_cloud": {
+    "aspect": 1,
+    "holeD": 0.6946,
+    "holeCx": 0.502,
+    "holeCy": 0.4837
+  },
+  "frame_dark_diamond": {
+    "aspect": 1.0234,
+    "holeD": 0.8782,
+    "holeCx": 0.495,
+    "holeCy": 0.49
+  },
+  "frame_dark_dragonscale": {
+    "aspect": 1,
+    "holeD": 0.748,
+    "holeCx": 0.5011,
+    "holeCy": 0.4771
+  },
+  "frame_death": {
+    "aspect": 1,
+    "holeD": 0.5327,
+    "holeCx": 0.4974,
+    "holeCy": 0.4376
+  },
+  "frame_diamond": {
+    "aspect": 1,
+    "holeD": 0.8293,
+    "holeCx": 0.4986,
+    "holeCy": 0.4872
+  },
+  "frame_fire": {
+    "aspect": 1,
+    "holeD": 0.7608,
+    "holeCx": 0.4947,
+    "holeCy": 0.4717
+  },
+  "frame_fortune": {
+    "aspect": 1,
+    "holeD": 0.7081,
+    "holeCx": 0.5032,
+    "holeCy": 0.4843
+  },
+  "frame_genesis": {
+    "aspect": 1,
+    "holeD": 0.701,
+    "holeCx": 0.6092,
+    "holeCy": 0.4799
+  },
+  "frame_glass_shard": {
+    "aspect": 1,
+    "holeD": 0.6539,
+    "holeCx": 0.5003,
+    "holeCy": 0.4715
+  },
+  "frame_gold": {
+    "aspect": 1,
+    "holeD": 0.8381,
+    "holeCx": 0.4948,
+    "holeCy": 0.4869
+  },
+  "frame_golden_dragonscale": {
+    "aspect": 1,
+    "holeD": 0.748,
+    "holeCx": 0.5013,
+    "holeCy": 0.4773
+  },
+  "frame_honey": {
+    "aspect": 1.0324,
+    "holeD": 0.859,
+    "holeCx": 0.5019,
+    "holeCy": 0.4783
+  },
+  "frame_ice": {
+    "aspect": 1,
+    "holeD": 0.8349,
+    "holeCx": 0.4981,
+    "holeCy": 0.4826
+  },
+  "frame_jade": {
+    "aspect": 1,
+    "holeD": 0.7795,
+    "holeCx": 0.5009,
+    "holeCy": 0.4725
+  },
+  "frame_magic": {
+    "aspect": 1,
+    "holeD": 0.7998,
+    "holeCx": 0.4999,
+    "holeCy": 0.4852
+  },
+  "frame_multichrome_energy": {
+    "aspect": 1,
+    "holeD": 0.7873,
+    "holeCx": 0.4978,
+    "holeCy": 0.4753
+  },
+  "frame_nimbus": {
+    "aspect": 1,
+    "holeD": 0.764,
+    "holeCx": 0.5017,
+    "holeCy": 0.5005
+  },
+  "frame_paragon": {
+    "aspect": 1,
+    "holeD": 0.732,
+    "holeCx": 0.4972,
+    "holeCy": 0.4539
+  },
+  "frame_pearlescent": {
+    "aspect": 1,
+    "holeD": 0.8381,
+    "holeCx": 0.4981,
+    "holeCy": 0.479
+  },
+  "frame_platinum": {
+    "aspect": 1,
+    "holeD": 0.8381,
+    "holeCx": 0.4953,
+    "holeCy": 0.4874
+  },
+  "frame_rank1": {
+    "aspect": 1,
+    "holeD": 0.807,
+    "holeCx": 0.4995,
+    "holeCy": 0.4814
+  },
+  "frame_reaper": {
+    "aspect": 1,
+    "holeD": 0.686,
+    "holeCx": 0.5005,
+    "holeCy": 0.4641
+  },
+  "frame_ruby": {
+    "aspect": 1,
+    "holeD": 0.7992,
+    "holeCx": 0.4965,
+    "holeCy": 0.4734
+  },
+  "frame_silver": {
+    "aspect": 1,
+    "holeD": 0.8397,
+    "holeCx": 0.4952,
+    "holeCy": 0.4874
+  },
+  "frame_simple_ring": {
+    "aspect": 1,
+    "holeD": 0.5957,
+    "holeCx": 0.4997,
+    "holeCy": 0.5634
+  },
+  "frame_stained_glass": {
+    "aspect": 1,
+    "holeD": 0.7058,
+    "holeCx": 0.4981,
+    "holeCy": 0.4709
+  },
+  "frame_steel": {
+    "aspect": 1,
+    "holeD": 0.8285,
+    "holeCx": 0.4938,
+    "holeCy": 0.4789
+  },
+  "frame_time": {
+    "aspect": 1,
+    "holeD": 0.6459,
+    "holeCx": 0.4997,
+    "holeCy": 0.4667
+  },
+  "frame_topaz": {
+    "aspect": 1,
+    "holeD": 0.7299,
+    "holeCx": 0.4993,
+    "holeCy": 0.4713
+  },
+  "frame_venom": {
+    "aspect": 1,
+    "holeD": 0.795,
+    "holeCx": 0.4989,
+    "holeCy": 0.4699
+  },
+  "frame_vines": {
+    "aspect": 1,
+    "holeD": 0.7687,
+    "holeCx": 0.5117,
+    "holeCy": 0.4737
+  },
+  "frame_void": {
+    "aspect": 1,
+    "holeD": 0.7289,
+    "holeCx": 0.5022,
+    "holeCy": 0.4702
+  },
+  "frame_war": {
+    "aspect": 1,
+    "holeD": 0.673,
+    "holeCx": 0.5098,
+    "holeCy": 0.4706
+  },
+  "frame_water": {
+    "aspect": 1,
+    "holeD": 0.7712,
+    "holeCx": 0.5007,
+    "holeCy": 0.4811
+  },
+  "frame_wedding": {
+    "aspect": 1,
+    "holeD": 0.6412,
+    "holeCx": 0.5028,
+    "holeCy": 0.5769
+  },
+  "frame_wind": {
+    "aspect": 1,
+    "holeD": 0.6818,
+    "holeCx": 0.5,
+    "holeCy": 0.4826
+  },
+  "frame_wood": {
+    "aspect": 1,
+    "holeD": 0.819,
+    "holeCx": 0.4963,
+    "holeCy": 0.4786
+  }
+}

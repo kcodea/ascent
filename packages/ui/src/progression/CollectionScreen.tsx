@@ -15,6 +15,9 @@ import {
 } from './collectionModel';
 import { defaultArtOf, skinArtOf } from '../skins/skinArt';
 import { HeroPortraitRing } from '../portraitFrame/HeroPortraitRing';
+import { frameSrc } from '../portraitFrame/portraitFrameConfig';
+import { avatarSrc, heroArt } from '../art';
+import { HEROES } from '@game/sim';
 import { rectToStage, type StageRect } from '../stage';
 import { SkinCardPreview } from './SkinCardPreview';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
@@ -52,6 +55,12 @@ import './collection.css';
  *               "Use default art" flips the preview to the target's DEFAULT art at once (and keeps that item
  *               selected); a hero skin previews in the in-game portrait ring (`HeroPortraitRing`); hovering a
  *               card skin's tile or art floats the real in-game `Card` wearing it (`SkinCardPreview`).
+ *
+ *   FRAMES      (2026-10-01, owner: "we're adding portrait skins ... we want this to replace the default portrait png
+ *               when a skin is applied") Portrait Frames is a live tab. A tile shows the ring (dimmed and blurred until
+ *               owned, like a skin); an OWNED frame previews around your current hero portrait (your avatar), an
+ *               unowned one only as the blurred ring ("do not allow preview if you do not own the art"). Equip wears
+ *               it account-wide; "Use default frame" puts the default ring back and previews it at once.
  *
  * A guest sees a slim save-progress row, and (owner 2026-09-29, a HARD gate) cannot open a crate: every Open goes
  * through `begin`, which shows the sign-in gate (`CrateSignInGate.tsx`) instead. Sealed crates stay in view.
@@ -163,17 +172,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     setError(null);
     const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
     const attack = item.category === 'hero_attack';
-    // Taking a skin off shows the DEFAULT art at once and keeps this item selected (it would otherwise jump to the
-    // next worn item); wearing one shows the skin again. A failed call puts the preview back.
-    if (skin) { setPicked(item.id); setDefaultShown(on ? null : item.id); }
-    const ok = attack
-      ? await equipCosmetic('hero_attack', '', on ? item.id : null)
+    const frame = item.category === 'portrait_frame';
+    // Taking a skin (or a frame) off shows the DEFAULT art at once and keeps this item selected (it would otherwise
+    // jump to the next worn item); wearing one shows the skin again. A failed call puts the preview back.
+    if (skin || frame) { setPicked(item.id); setDefaultShown(on ? null : item.id); }
+    const ok = attack || frame
+      ? await equipCosmetic(item.category as 'hero_attack' | 'portrait_frame', '', on ? item.id : null)
       : skin && item.target
       ? await equipCosmetic(item.category as 'hero_skin' | 'minion_skin', item.target.id, on ? item.id : null)
       : await equipTitle(on ? item.id : null);
     setBusy(false);
-    if (!ok && skin) setDefaultShown(on ? item.id : null);
-    if (!ok) setError(attack ? 'Could not change your hero attack. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
+    if (!ok && (skin || frame)) setDefaultShown(on ? item.id : null);
+    if (!ok) setError(attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
   /** EVERY player-facing crate open comes through here (the bay's Open / Open all, the New rewards pop-up). A guest
@@ -279,7 +289,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                     {shown.map((c) => (
                       <li key={c.id}>
                         <ItemTile
-                          id={c.id} name={c.name} rarity={c.rarity} art={skinArtOf(c)} target={skinTargetName(c) ?? undefined}
+                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : skinArtOf(c)} ring={c.category === 'portrait_frame'} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
                           onPick={onPick} onHover={c.target?.type === 'card' ? onHover : undefined}
                         />
@@ -349,16 +359,18 @@ interface TileProps {
   art?: string;
   /** A skin's hero / minion, by name. */
   target?: string;
+  /** A portrait frame: `art` is the ring, shown whole (contained) rather than cropped. */
+  ring?: boolean;
   /** A CARD skin: hovering the tile floats the in-game card wearing it (null clears it). */
   onHover?: (id: string | null, el?: HTMLElement) => void;
 }
 
-const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover }: TileProps): JSX.Element {
+const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover, ring }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
       type="button"
-      className={`colls-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' skin' : ''}`}
+      className={`colls-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' skin' : ''}${ring ? ' ring' : ''}`}
       aria-pressed={selected}
       aria-label={`${name}${target ? `, for ${target}` : ''}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
       onClick={() => onPick(id)}
@@ -394,9 +406,11 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   const target = skinTargetName(item);
   const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
   const attack = item.category === 'hero_attack';
+  const frame = item.category === 'portrait_frame';
   return (
-    <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin ? ' skin' : ''}`} aria-label="Details">
-      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+    <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin || frame ? ' skin' : ''}`} aria-label="Details">
+      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      {frame && <FramePreview item={item} owned={owned} showDefault={!!showDefault} />}
       {/* A hero attack plays in place (the Blast tuner's own runner, in a sandbox box): owned or not, so you can
           see what a crate might give. Keyed by item so switching items starts a fresh stage. */}
       {attack && <HeroAttackPreview key={item.id} style={typeof item.assets.style === 'string' ? item.assets.style : ''} reducedMotion={reducedMotion} />}
@@ -409,7 +423,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
           {showDefault && <span className="colls-default-tag">Default art</span>}
         </div>
       )}
-      {item.category !== 'hero_skin' && art && (
+      {item.category !== 'hero_skin' && !frame && art && (
         <div
           className="colls-skinart minion" aria-label={showDefault ? 'Preview, default art' : 'Preview'}
           onPointerEnter={cardSkin && onHover ? (e) => { if (e.pointerType !== 'touch') onHover(item.id, e.currentTarget, showDefault); } : undefined}
@@ -429,6 +443,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {target && <div className="colls-fact"><span>For</span><b>{target}</b></div>}
         {showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Default art</b></div>}
         {attack && <div className="colls-fact"><span>For</span><b>Your hero, seen by the players you hit</b></div>}
+        {frame && <div className="colls-fact"><span>For</span><b>Your hero portrait, seen by the players you meet</b></div>}
+        {frame && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Default frame</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
@@ -445,7 +461,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>
-            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : 'Take off'}</button>
+            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : frame ? 'Use the default portrait frame' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : 'Take off'}</button>
           </>
         ) : (
           <button type="button" className="cv2-btn pressable colls-equip" disabled={busy} onClick={onEquip} aria-label={`Equip ${item.name}`}>{busy ? 'Equipping' : 'Equip'}</button>
@@ -453,6 +469,27 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       </div>
       {error && <div className="coll-error" role="status">{error}</div>}
     </section>
+  );
+}
+
+/**
+ * A PORTRAIT FRAME's preview (owner 2026-10-01). OWNED: the frame around your current hero portrait (your avatar, else
+ * the first hero), the same `HeroPortraitRing` disc every Career portrait uses, so it reads exactly as in a game; after
+ * "Use default frame" it shows the default ring instead. NOT OWNED: only the ring itself, blurred, and never around a
+ * portrait (owner 2026-10-01: "do not allow preview if you do not own the art").
+ */
+function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: boolean; showDefault: boolean }): JSX.Element | null {
+  const avatar = useGame((s) => s.playerAvatar);
+  const portrait = avatarSrc(avatar) ?? heroArt(HEROES[0]!.id);
+  if (!owned) {
+    const ring = frameSrc(item.id);
+    return ring ? <div className="colls-skinart colls-framelocked" aria-label="Locked frame"><img src={ring} alt="" draggable={false} decoding="sync" /></div> : null;
+  }
+  return (
+    <div className="colls-heropreview" aria-label={showDefault ? 'Preview, default frame' : 'Preview'}>
+      <HeroPortraitRing art={portrait} alt="" className="colls-heroring colls-framering" frameId={showDefault ? null : item.id} />
+      {showDefault && <span className="colls-default-tag">Default frame</span>}
+    </div>
   );
 }
 
@@ -528,6 +565,7 @@ const CAT_PATHS: Readonly<Record<CosmeticCategory, string>> = {
   hero_attack: 'M14 3h7v7l-3.5-1L9 17l1 3-3 1-1-3 8-8.5L14 6z',
   board: 'M3 4h18v16H3V4zm2 2v5h6V6H5zm8 0v5h6V6h-6zm-8 7v5h6v-5H5zm8 0v5h6v-5h-6z',
   music: 'M9 4l11-2v13.5a3 3 0 1 1-2-2.8V6.3l-7 1.3v9.9a3 3 0 1 1-2-2.8V4z',
+  portrait_frame: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8z',
 };
 
 function CategoryIcon({ category }: { category: CosmeticCategory }): JSX.Element {

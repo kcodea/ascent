@@ -28,7 +28,7 @@ export type ShowFilter = 'all' | 'owned' | 'missing';
 export type RarityFilter = 'all' | CosmeticRarity;
 
 /** Rarest first: the showcase row leads the album. */
-const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { legendary: 0, epic: 1, rare: 2, common: 3 };
+const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { ancient: 0, legendary: 1, epic: 2, rare: 3, common: 4 };
 const CATALOG_INDEX = new Map(COSMETICS.map((c, i) => [c.id, i]));
 
 /** Categories kept OUT of the Collection rail while they are switched off (owner 2026-09-29: "hide music and boards
@@ -72,11 +72,12 @@ export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS, ow
 export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | null | undefined): readonly string[] => p?.cosmetics ?? p?.titles ?? [];
 
 /** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
- *  account-wide hero attack slot. */
+ *  account-wide hero attack / portrait frame slot. */
 export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
   if (!p) return false;
   if (item.category === 'title') return p.equippedTitleId === item.id;
   if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;
+  if (item.category === 'portrait_frame') return p.loadout?.portraitFrame === item.id;
   const target = item.target?.id;
   if (!target) return false;
   if (item.category === 'hero_skin') return p.loadout?.heroSkinByHeroId?.[target] === item.id;
@@ -145,6 +146,7 @@ export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
   hero_attack: 'New ways for your hero to strike.',
   board: 'New boards to fight on.',
   music: 'New music for your games.',
+  portrait_frame: 'New rings for your hero portrait.',
 };
 
 // ── NEW: the local "seen" list ────────────────────────────────────────────────────────────────────────────

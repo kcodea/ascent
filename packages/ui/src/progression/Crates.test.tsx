@@ -199,6 +199,52 @@ describe('the crate theatre: flow states', () => {
     noDashes();
   });
 
+  it('an Ancient opening (owner pick 2026-10-02, "Time stops"): charge -> FREEZE (drained, silent) -> burst with the prismatic crack', async () => {
+    vi.useFakeTimers();
+    liveCrates();
+    const anc = presetFor('ancient', CRATE_FX_DEFAULTS);
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'frame_bonds', 9), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} reducedMotion={false} onClose={() => {}} />);
+    await settle();
+    act(() => button('Open')!.click());
+    await settle();
+    advance(ant);
+    expect(phase()).toBe('charge');
+    expect($('.crth')!.className).toContain('r-ancient');
+    expect($('.crth')!.className).toContain('sig-timestop');
+    advance(anc.chargeMs);
+    expect(phase()).toBe('freeze');
+    expect(text('.crth-skip')).toBe('Click to skip');
+    expect($('.crth-crack')).toBeNull();
+    advance(anc.freezeMs);
+    expect(phase()).toBe('burst');
+    expect(fxCalls.at(-1)).toBe('burst:ancient');
+    expect($('.crth-crack')).not.toBeNull();
+    advance(5000);
+    expect(phase()).toBe('settled');
+    expect(text('.crate-reward-name')).toBe('Bonds');
+    expect(text('.crth-ribbon')).toBe('Ancient');
+    noDashes();
+  });
+
+  it('a click while time is stopped skips straight to the Ancient reward', async () => {
+    vi.useFakeTimers();
+    liveCrates();
+    const anc = presetFor('ancient', CRATE_FX_DEFAULTS);
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'frame_war', 9), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} reducedMotion={false} onClose={() => {}} />);
+    await settle();
+    act(() => button('Open')!.click());
+    await settle();
+    advance(ant + anc.chargeMs);
+    expect(phase()).toBe('freeze');
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' })); });
+    expect(phase()).toBe('settled');
+    expect($('.crth')!.className).toContain('skipped');
+    expect($('.crth-crack')).toBeNull();
+    expect(text('.crate-reward-name')).toBe('War');
+  });
+
   it('a slow server: the anticipation holds and says "Still opening"; the reveal lands when the answer does', async () => {
     vi.useFakeTimers();
     liveCrates();

@@ -5,7 +5,7 @@ import { playerOpponent, getHero } from '@game/sim';
 import { RUNE_INDEX } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
-import { usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { FoePortraitDisc } from './FoePortraitDisc';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
@@ -64,10 +64,11 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // snapshots yield none, and with no rows there is no arrow, no hover prompt, and the click is a no-op —
   // exactly the player portrait's gating. Fresh state per mount, so a new fight always opens closed.
   const [buffsOpen, setBuffsOpen] = useState(false);
-  // The portrait-frames tuner's opponent ring (null = today's gold CSS border). Read before the early return.
-  const frame = usePortraitFrame('opp');
-
   const shown = inCombat || preview ? live : cached.current;
+  // The foe's ring: its recorded portrait frame (through "Show opponent cosmetics"), else the portrait-frames tuner's
+  // opponent ring (null = today's gold CSS border). Read before the early return.
+  const frame = usePortraitFrame('opp', gauntletNo !== null ? null : frameIdOf(opponentSkins(showOppSkins, seatCosmetics(shown?.seat, shown?.board))));
+
   if (phase === 'hidden' || !shown?.seat) return null;
   const next = shown;
   const seat = shown.seat;

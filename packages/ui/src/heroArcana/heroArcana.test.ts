@@ -533,8 +533,8 @@ describe('the scene (headless Pixi)', () => {
 });
 
 describe('the cosmetic', () => {
-  it('Arcana (attack_arcana) is a Legendary crate hero attack that plays Arcana; the dev override can force it; Blast and Quake unchanged', () => {
-    expect(COSMETIC_INDEX.attack_arcana).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Arcana', assets: { style: 'arcana' }, active: true });
+  it('Arcana (attack_arcana) is an Ancient crate hero attack (Legendary until 2026-10-02) that plays Arcana; the dev override can force it; Blast and Quake unchanged', () => {
+    expect(COSMETIC_INDEX.attack_arcana).toMatchObject({ category: 'hero_attack', rarity: 'ancient', name: 'Arcana', assets: { style: 'arcana' }, active: true });
     expect(styleOfCosmetic('attack_arcana')).toBe('arcana');
     expect(styleOfCosmetic('attack_blast')).toBe('blast');
     expect(styleOfCosmetic('attack_quake')).toBe('quake');

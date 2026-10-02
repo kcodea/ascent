@@ -38,7 +38,7 @@ describe('the view model', () => {
     expect(v.total).toBe(ACHIEVEMENTS.length);
     expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2']);
     expect(v.categories.find((c) => c.id === 'set2')!.groups.map((g) => g.label)).toEqual(['Kobolds', 'Dwarves', 'Dragons', 'Beasts', 'Demons', 'Cross-tribe', 'Runes']);
-    expect(v.categories.find((c) => c.id === 'heroes')!.groups).toHaveLength(33);
+    expect(v.categories.find((c) => c.id === 'heroes')!.groups).toHaveLength(36);
     expect(v.done).toBe(1);
     expect(v.xpEarned).toBe(25);
   });

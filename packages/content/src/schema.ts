@@ -561,6 +561,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryGainGoldNextTurn', 'cardsPlayedPlayRubies', 'onTribeSummonedBuffTribe', 'onSpellCastBuffOnePerTribe', 'spellCastTriggerAdjacentShouts', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
   'rallyGetRubies',   // Rally: get N Rubies (carried back to hand after combat)
   'rallyGiveAttackToRight', // Rune of Aggressive Golems' graft (2026-09-25)
+  'rallyGoldNextTurn', // Ancient of War × Tradesman's graft (2026-10-02)
   'deathrattleGetRubies',   // Rune of Echoing Kobolds' graft (2026-09-25)
   'avengeRubyStatGain', // Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   'scPlayRubiesPerBuy', // Frenzied Excavator: SoC play N Rubies per M cards bought this turn

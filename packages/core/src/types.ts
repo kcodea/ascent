@@ -899,6 +899,7 @@ export type EffectFactoryId =
   | 'spellCastTriggerAdjacentShouts' // Set 2 Dwarves — High King Mykel // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
   | 'rallyGiveAttackToRight' // Rune of Aggressive Golems' graft (2026-09-25): Rally, the minion to the right gains this minion's Attack
+  | 'rallyGoldNextTurn' // Ancient of War × Tradesman's graft (2026-10-02): Rally, gain N Gold next turn (shop: bonusEmbersNextTurn; combat: the bonus-Gold carry-back)
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
   | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
@@ -1925,6 +1926,41 @@ export interface QuestCombatMods {
    *  live as a `questTrigger` with `flag`, and the fight's total comes home as `CombatCarryBacks.ancientClearanceStacks`.
    *  Player-only; never snapshotted. */
   ancientClearanceStacks?: { every: number; flag: string; label: string };
+  /** ANCIENT OF DEATH × Xerox (owner 2026-10-02): "Avenge (5): Summon a copy of your highest attack minion." A hero
+   *  Avenge on ONE running count of friendly deaths across the Shop and combat: `tick` = the deaths already counted
+   *  (carried in from the run); every `every`th death (tick + the fight's count) summons an exact copy (current combat
+   *  stats, keywords, Ward / Rise) of the side's highest-Attack living minion (ties: the left-most), room permitting.
+   *  Rune of Fury fires it again. Settle advances the run's count by the fight's deaths. Player-only; never snapshotted. */
+  ancientXeroxAvenge?: { every: number; tick: number; label: string };
+  /** ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
+   *  copy of the side's highest-Health living minion (ties: the left-most), room permitting. Player-only. */
+  ancientXeroxSoc?: { label: string };
+  /** ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other gains
+   *  too." Two run-board uids (matched on `sourceUid`): a stat GAIN on either living body is gained by the other, once
+   *  (guarded, no echo). The mirrored grant is a combat buff; a permanent gain carries back and is mirrored by the Shop
+   *  half at settle, so the mirror never accrues Engraved `permaGain` itself (no double count). Player-only. */
+  ancientXeroxBond?: { a: string; b: string; label: string };
+  /** ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
+   *  count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a
+   *  free Refresh through `grantFreeRolls` (the Gryphon carry-back) and emits a `questTrigger` with `flag` (the live
+   *  text). Rune of Fury fires it again. Settle advances the run's count by the fight's deaths. Player-only. */
+  ancientRefreshAvenge?: { every: number; tick: number; flag: string; label: string };
+  /** ANCIENT OF WAR × Tradesman (owner 2026-10-02): "Your minions gain Rally: Gain 1g next turn." The board's bodies
+   *  carry the graft from the Shop (`grantedEffects`); this grafts it onto bodies SUMMONED in the fight too. */
+  ancientRallyGold?: { gold: number };
+  /** ANCIENTS × Soren (owner pairings 2026-10-02). Reclaim's Start-of-Combat destroy + resummon, reshaped:
+   *  `echoExtra` (Death): the Echo the Reclaim destroy triggers fires this many more times (one more `playerEchoExtras`
+   *  fire for that body only, so every Echo watcher and the Echo tally hear each fire). `copies` (Time): the Reclaimed
+   *  body is resummoned this many times in all (each waits for room; only the first carries the run card's `sourceUid`).
+   *  `gain` (War): each returned copy gains +gain/+gain, a combat buff (Engraved keeps it, like every combat gain).
+   *  `bonds` (Bonds): when a returned copy lands, its living neighbours gain Attack equal to its Attack, a combat buff.
+   *  Player-only; never snapshotted. */
+  ancientReclaim?: { echoExtra?: number; copies?: number; gain?: number; bonds?: boolean; label: string };
+  /** ANCIENT OF DEATH × Robin (owner 2026-10-02): "Summoned minions gain +3/+2 for every count of Spoils this turn." The
+   *  per-summon gain, already multiplied by the turn's Spoils count (fixed for the fight: nothing is sold mid-combat).
+   *  Every FRIENDLY summon (a token, a Rise, a resummon: the summon-entry chokepoint) gains it as a combat buff
+   *  (Engraved keeps it, like every combat gain). Player-only; never snapshotted. */
+  ancientSummonGain?: { attack: number; health: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

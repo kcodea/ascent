@@ -8,7 +8,8 @@ import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeat, whenCurtainDown } from './lobbyDamageFx';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
-import { PortraitFrame, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
@@ -37,7 +38,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const runSkins = useRunSkins();
   const showOppSkins = useGame((st) => st.showOpponentSkins);
   // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
-  const selfFrame = usePortraitFrame('self');
+  const selfFrame = usePortraitFrame('self', frameIdOf(runSkins)); // your seat: the frame recorded on this run
   const oppFrame = usePortraitFrame('opp');
   const firedRound = useRef(0);
   const pendingFloatRef = useRef<(() => void) | null>(null);
@@ -163,7 +164,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             >
               {(() => {
                 const src = heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
-                const frame = isYou ? selfFrame : oppFrame;
+                // An opponent seat wears its recorded portrait frame (through "Show opponent cosmetics", owner
+                // 2026-10-01), else the tuner's opponent ring. `oppFrame` keeps the rail subscribed to tuner writes.
+                const seatFrameId = isYou ? null : frameIdOf(opponentSkins(showOppSkins, seat.cosmetics));
+                const frame = isYou ? selfFrame : seatFrameId ? resolvePortraitFrame('opp', seatFrameId) : oppFrame;
                 // With a tuner frame on, the face moves into a `.lobbyface` host (it keeps the grid seat + size)
                 // that carries the ring; without one the markup is exactly what it always was.
                 return frame ? (

@@ -340,25 +340,32 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Opening.** Optional and never forced (Continue is always available): from the New rewards pop-up or any time
   from the **Collection** (its own screen since 2026-09-28: the title's Collection plaque, the menu
   sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
-  server, from the items the player does not own yet. **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03):** one
-  server draw first rolls a rarity at **Common 50% / Rare 30% / Epic 15% / Legendary 5%**, then picks an unowned item
+  server, from the items the player does not own yet. **The rarities (2026-10-02, R-PROG-RARITY-01)** are Common,
+  Rare, Epic, Legendary and **Ancient**, rarest last: Ancient ranks above Legendary everywhere (sorting, colour, label,
+  filter, roll). **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03; re-set 2026-10-02 when Ancient joined):** one
+  server draw first rolls a rarity at **Common 35% / Rare 31% / Epic 22% / Legendary 9% / Ancient 3%** (was
+  50 / 30 / 15 / 5), then picks an unowned item
   of that rarity, **every item of the rarity equally likely** (owner 2026-09-29: "yeah equal chance"; category weights
   stay in the catalog but the roll no longer reads them). The odds never move as items are added, and the Collection's crate
   bay prints them. A rolled rarity with nothing left falls to the **nearest** rarity that has something, ties toward
-  the more common one (Epic empty goes to Rare before Legendary). Opened crates record roll version 3. **Never a
+  the more common one (Epic empty goes to Rare before Legendary; Ancient empty goes to Legendary). Opened crates
+  record roll version 4 (3 before Ancient). Moving an item to another rarity never takes it from a player who owns it
+  (ownership is per item id). **Never a
   duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
   it is never converted into anything. A new title is worn at once only when none is worn.
 - **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
   answers (anticipation), then plays the answer's rarity: a charge, a burst and the reward rising out of the light.
   It escalates with rarity (Common quick, Rare blue, Epic purple and longer, Legendary gold with god rays and a
-  sting). A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
+  sting, Ancient the biggest of all in cyan to magenta, "Prismatic Aurora"). **Ancient's own moment, "Time stops"
+  (owner pick 2026-10-02):** at the end of the charge the chest freezes mid-shake, the sound cuts and the scene drains
+  to grey for a beat, then a prismatic crack splits the view at the burst and the colour floods back. A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
   the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The crate is the owner's treasure chest in
   two layers (body + lid): the lid rattles, light leaks from the seam and the keyhole, the lid blasts off at the burst
   and the open body stays on the pedestal while the reward rises above it (oracle R-PROG-COLLECTION-03).
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
-  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music). Switched on:
+  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
@@ -400,7 +407,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   stomps. Tiers I-III hurl boulders (one, two, three hot ones) that burst a crown of stone spikes out round the struck hero;
   only Tier IV is an earthquake: a quick fracture races to the target and the ground erupts (a light burst, a shock ring, a
   spray of magma, a pillar, follow-up explosions). Same tiers as Blast. **Arcana** is the third, `attack_arcana` ("Arcana",
-  Legendary, from crates; R-PROG-ATTACK-06): the same damage formation, then magic ribbons are lobbed on high arcs from the hero (I one;
+  **Ancient** since 2026-10-02 (was Legendary), from crates; R-PROG-ATTACK-06): the same damage formation, then magic ribbons are lobbed on high arcs from the hero (I one;
   II two on different heights and sides; III a barrage of five that lands in rhythm, the blow landing once on the last; IV the
   ribbons swirl into a vortex over the struck hero, converge and explode outward, the blow landing on the explosion).
   **Phantom Blades** is the fourth, `attack_blades` ("Phantom Blades", a placeholder name; Legendary, from crates;
@@ -426,7 +433,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   landing once on the last; IV four icicles, then a frost nova rolls across the screen from the attacker to the target,
   encases the struck hero in ice and shatters it, the blow landing on the shatter). The ice holds still; the clock never
   stops. **Consecration** is the eighth, `attack_holy` ("Consecration", a placeholder name; Legendary, from crates;
-  R-PROG-ATTACK-14): a gold and white holy attack, drawn flat (no perspective rings or tilted ground). After the same
+  R-PROG-ATTACK-14; **Ancient** since 2026-10-02): a gold and white holy attack, drawn flat (no perspective rings or tilted ground). After the same
   damage formation the hero invokes (a halo ring, a sunburst, a beam of light rising off it), then: I a golden rune sigil
   flashes onto the struck hero and a pillar of light drops onto it; II a double smite; III a rain of six light spears
   plants glowing seeds round the struck hero, then the pillar drops and the seeds erupt with it (the blow landing once,
@@ -527,6 +534,22 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   account-wide in the Collection's Attack Animations tab ("Use Classic" takes it off). The STRIKER's attack plays:
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
+- **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..04).** A cosmetic ring that replaces the default ring
+  around a player's hero portrait. 45 frames, all from crates at the rarity of the folder their master sits in
+  (`Skins/Portraits/<Common|Rare|Epic|Legendary|Ancient>/`; the folder IS the rarity, except that a rarity Mike set in batch 4
+  wins over the folder, owner 2026-10-02): Common Honey, Ale, Ruby, Steel, Wood, Dark Scale, Burnished, Sterling,
+  Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, Shard, Prism; Epic Aura, Amethyst,
+  Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, Crackling Ruby, Topaz, Jade, Cherry
+  Blossom; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained Glass, Wind; Ancient (2026-10-02)
+  Bonds, Death, Fortune, Genesis, Time, War. A rarity
+  change only moves crate odds: an owned frame stays owned. A frame's name is just its name, with
+  no "Frame" or "Portrait" on it (owner 2026-10-01); the names avoid the ranked medal words so a crate frame never reads
+  as a Ranked reward.
+  Account-wide (any hero): equipped in the Collection's Portrait Frames tab ("Use default frame" takes it off; an
+  owned frame previews around your avatar, an unowned one never does). Your portrait wears it on every surface (in a
+  run, the frame recorded on that run, like a skin). Recorded per run, so opponents see it on your seat (combat
+  portrait, Now Facing, lobby rail, fight recap, Match details, the Hall, Career rows) while their **Show opponent
+  cosmetics** is on. No frame, an unknown or a retired one paints today's default ring. Presentation only.
 - **Show opponent cosmetics (Settings, on by default; was "Show opponent skins"; R-PROG-SKINS-02).** Off, every
   OPPONENT's skins render as default art (lobby, combat, the scouted board, replays, another player's Career) and an
   opponent who strikes you plays the Classic attack. Your own always show. Display only; stored locally like the

@@ -27,7 +27,7 @@
 import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import {
-  HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts,
+  COSMETICS, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -266,6 +266,7 @@ function mergeCrate(crate: CrateRow): void {
 
 /** Open one crate through the server. The reward (or `pool_exhausted`) comes back; the profile is adopted. */
 export async function openCrate(crateId: string): Promise<CrateOpenOutcome> {
+  if (import.meta.env.DEV && devUnlockAllOn()) return { status: 'error', reason: 'dev_unlock_all' };
   const userId = currentUserId();
   if (!userId) return { status: 'error', reason: 'no_session' };
   const out = await openCrateRemote(crateId).catch((e: unknown) => ({ status: 'error' as const, reason: String((e as Error)?.message ?? e) }));
@@ -277,6 +278,7 @@ export async function openCrate(crateId: string): Promise<CrateOpenOutcome> {
 
 /** Equip an owned title (null takes it off). Returns whether the server accepted it. */
 export async function equipTitle(titleId: string | null): Promise<boolean> {
+  if (import.meta.env.DEV && devUnlockAllOn()) { devUnlockEquipTitle(titleId); return true; }
   const userId = currentUserId();
   if (!userId) return false;
   const out = await equipTitleRemote(titleId).catch(() => null);
@@ -294,8 +296,11 @@ export async function refreshServerCatalog(): Promise<void> {
 /** Wear an owned skin on its hero / card, or an owned hero attack (target ''), or Default (null). Returns whether
  *  the server accepted it. */
 export async function equipCosmetic(slot: EquipSlot, targetId: string, cosmeticId: string | null): Promise<boolean> {
+  if (import.meta.env.DEV && devUnlockAllOn()) { devUnlockEquipCosmetic(slot, targetId, cosmeticId); return true; }
   const userId = currentUserId();
   if (!userId) return false;
+  // DEV ONLY: a frame granted by the dev test path equips locally, never on the server (see devGrantPortraitFrame).
+  if (import.meta.env.DEV && slot === 'portrait_frame' && devEquipPortraitFrame(cosmeticId)) return true;
   const out = await equipCosmeticRemote(slot, targetId, cosmeticId).catch(() => null);
   if (!out || out.status !== 'ok') return false;
   adoptProgressionProfile(userId, out.profile);
@@ -320,6 +325,84 @@ export function devPreviewHeroTitles(tier: 'titles' | 'masters' | 'clear', userI
       equippedTitleId: tier === 'masters' ? heroMasterTitleId('warden') : heroTitleId('warden'),
     },
   });
+}
+
+// ── DEV ONLY: a local test grant for portrait frames ─────────────────────────────────────────────────────────
+
+/**
+ * DEV ONLY (owner 2026-10-01: "put a test frame in the collections, and set it to the gold one, and let me test
+ * equipping it and see what it looks like in game"). The `portrait_frame` SQL is not live yet, so this grants a frame
+ * to THIS client only: the Crate opening tuner's "Dev: grant Gilded frame" adds it to the owned set, and the
+ * Collection's Equip / "Use default frame" then work LOCALLY (`equipCosmetic` short-circuits for a dev-granted id).
+ * Kept in localStorage (`ascent.dev.portraitFrames`) so it survives a reload; laid over the mirror IN MEMORY (the
+ * saved mirror and the server are never written), re-applied whenever the mirror changes. The frame then reaches
+ * every portrait through the NORMAL path: the mirror's loadout -> `usePortraitFrame('self')`, and a new run records it
+ * in `run.cosmetics` -> the in-run portrait. Production builds never install it (`import.meta.env.DEV`).
+ */
+const DEV_FRAMES_KEY = 'ascent.dev.portraitFrames';
+interface DevFrames { owned: string[]; equipped: string | null }
+function loadDevFrames(): DevFrames {
+  try {
+    const o = JSON.parse(localStorage.getItem(DEV_FRAMES_KEY) ?? 'null') as Partial<DevFrames> | null;
+    const owned = Array.isArray(o?.owned) ? o!.owned.filter((x): x is string => typeof x === 'string') : [];
+    return { owned, equipped: typeof o?.equipped === 'string' && owned.includes(o.equipped) ? o.equipped : null };
+  } catch {
+    return { owned: [], equipped: null };
+  }
+}
+function saveDevFrames(d: DevFrames): void {
+  try { if (d.owned.length) localStorage.setItem(DEV_FRAMES_KEY, JSON.stringify(d)); else localStorage.removeItem(DEV_FRAMES_KEY); } catch { /* ignore */ }
+}
+/** The mirror with the dev grant laid over it, or null when it already carries it (so the subscriber never loops). */
+function withDevFrames(m: ProgressionMirror | null, d: DevFrames, wasEquipped: string | null = null): ProgressionMirror | null {
+  if (!d.owned.length && !wasEquipped) return null;
+  const userId = currentUserId();
+  const base: ProgressionMirror | null = m ?? (userId ? { userId, accountXp: 0, accountLevel: 1, revision: 0, equippedTitleId: null, titles: [] } : null);
+  if (!base) return null;
+  const owned = base.cosmetics ?? base.titles;
+  const missing = d.owned.filter((id) => !owned.includes(id));
+  const worn = base.loadout?.portraitFrame ?? null;
+  // Wear the dev frame; on "Use default", take off only a frame the dev grant put on.
+  const want = d.equipped ?? (worn && (worn === wasEquipped || d.owned.includes(worn)) ? null : worn);
+  if (!missing.length && worn === want && m) return null;
+  const loadout = { ...(base.loadout ?? {}) };
+  if (want) loadout.portraitFrame = want; else delete loadout.portraitFrame;
+  return { ...base, cosmetics: [...owned, ...missing], loadout };
+}
+function applyDevFrames(wasEquipped: string | null = null): void {
+  const next = withDevFrames(useProgression.getState().mirror, loadDevFrames(), wasEquipped);
+  if (next) useProgression.setState({ mirror: next });
+}
+/** Equip (or, with null, take off) a dev-granted frame locally. False = not a dev frame: the server handles it. */
+function devEquipPortraitFrame(cosmeticId: string | null): boolean {
+  const d = loadDevFrames();
+  if (cosmeticId ? !d.owned.includes(cosmeticId) : !d.equipped) return false;
+  const was = d.equipped;
+  saveDevFrames({ ...d, equipped: cosmeticId });
+  applyDevFrames(was);
+  return true;
+}
+/** DEV: grant `id` (a portrait frame cosmetic) to this client; `clear` drops every dev grant. */
+export function devGrantPortraitFrame(id: string | 'clear'): void {
+  if (!import.meta.env.DEV) return;
+  const d = loadDevFrames();
+  if (id === 'clear') {
+    saveDevFrames({ owned: [], equipped: null });
+    useProgression.setState({ mirror: loadMirror() });
+    return;
+  }
+  if (!d.owned.includes(id)) saveDevFrames({ ...d, owned: [...d.owned, id] });
+  applyDevFrames();
+}
+if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
+  // Re-lay the grant over every new mirror (a server read, an adopt, a reload's saved copy).
+  let applying = false;
+  useProgression.subscribe((s, prev) => {
+    if (applying || s.mirror === prev.mirror) return;
+    applying = true;
+    try { applyDevFrames(); } finally { applying = false; }
+  });
+  applyDevFrames();
 }
 
 /** The equipped title's display name for a mirror/profile, or null. */
@@ -359,4 +442,150 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
   useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown' });
+}
+
+// ── DEV ONLY: "Unlock everything (dev)" (the Crate opening tuner's switch) ───────────────────────────────────
+
+/**
+ * DEV ONLY (owner 2026-10-01: "add a store override tuner in the dev tuner that unlocks everything in the store, but
+ * if i turn it off, it goes back to my real account unlocks"). While ON, every catalog item counts as owned on THIS
+ * client, so the Collection can equip and preview anything and a new run records it (`run.cosmetics`) like a real
+ * equip. It is an in-memory overlay on the mirror, the same shape as the portrait-frame dev grant:
+ *
+ *   real      the mirror as the server / the saved copy last set it. Captured whenever the mirror changes for any
+ *             reason other than this overlay (a server read, an adopt, a reload), so the real account keeps
+ *             updating underneath and is never written by the overlay (`saveMirror` runs only in an adopt).
+ *   overlay   the real mirror + every catalog id owned + the LOCAL equips (`equippedTitleId` + `loadout`, seeded from
+ *             the real ones when switched on). `equipTitle` / `equipCosmetic` change only the local equips while ON;
+ *             `openCrate` refuses (no inventory write). Nothing reaches the server.
+ *   OFF       puts the captured real mirror back, untouched: real ownership and the real loadout exactly as they
+ *             were, and every local equip (owned or not) is dropped.
+ *
+ * The switch + the local equips live in localStorage (`ascent.dev.unlockAll`), so they survive a reload. Every entry
+ * point checks `import.meta.env.DEV`: a production build compiles it out and a stored flag there is ignored.
+ */
+const DEV_UNLOCK_KEY = 'ascent.dev.unlockAll';
+interface DevUnlockAll { equippedTitleId: string | null; loadout: RunCosmeticSnapshot }
+const DEV_ALL_IDS: readonly string[] = COSMETICS.map((c) => c.id);
+const DEV_ALL_TITLE_IDS: readonly string[] = COSMETICS.filter((c) => c.category === 'title').map((c) => c.id);
+
+function loadDevUnlock(): DevUnlockAll | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(DEV_UNLOCK_KEY) ?? 'null') as Partial<DevUnlockAll> | null;
+    if (!o || typeof o !== 'object') return null;
+    return {
+      equippedTitleId: typeof o.equippedTitleId === 'string' ? o.equippedTitleId : null,
+      loadout: o.loadout && typeof o.loadout === 'object' && !Array.isArray(o.loadout) ? o.loadout : {},
+    };
+  } catch {
+    return null;
+  }
+}
+function saveDevUnlock(d: DevUnlockAll | null): void {
+  try { if (d) localStorage.setItem(DEV_UNLOCK_KEY, JSON.stringify(d)); else localStorage.removeItem(DEV_UNLOCK_KEY); } catch { /* ignore */ }
+}
+
+/** The real mirror under the overlay (undefined = not captured yet), and the last overlay this module set. */
+let devReal: ProgressionMirror | null | undefined;
+let devOverlay: ProgressionMirror | null = null;
+/** Set while this module writes its overlay, so another mirror subscriber that re-lays its own dev grant on top (the
+ *  portrait-frame grant) is not mistaken for the real account moving, which would ping-pong the two overlays. */
+let devApplying = false;
+
+/** Whether "Unlock everything (dev)" is on. Always false in a production build. */
+export function devUnlockAllOn(): boolean {
+  return import.meta.env.DEV && typeof localStorage !== 'undefined' && loadDevUnlock() !== null;
+}
+
+/** The real mirror with everything owned and the local equips worn. Null when there is no account to lay it on. */
+function withDevUnlock(real: ProgressionMirror | null, d: DevUnlockAll): ProgressionMirror | null {
+  const userId = currentUserId() ?? real?.userId ?? null;
+  if (!userId) return null;
+  const base: ProgressionMirror = real && real.userId === userId ? real : { userId, accountXp: 0, accountLevel: 1, revision: 0, equippedTitleId: null, titles: [] };
+  const union = (xs: readonly string[], add: readonly string[]): string[] => [...new Set([...xs, ...add])];
+  return {
+    ...base,
+    titles: union(base.titles, DEV_ALL_TITLE_IDS),
+    cosmetics: union(base.cosmetics ?? base.titles, DEV_ALL_IDS),
+    equippedTitleId: d.equippedTitleId,
+    loadout: d.loadout,
+  };
+}
+
+function applyDevUnlock(): void {
+  const d = loadDevUnlock();
+  if (!d) return;
+  if (devReal === undefined) devReal = useProgression.getState().mirror;
+  const next = withDevUnlock(devReal, d);
+  if (!next) return;
+  devOverlay = next;
+  devApplying = true;
+  try { useProgression.setState({ mirror: next }); } finally { devApplying = false; }
+}
+
+/** DEV: switch "Unlock everything (dev)" on or off. Off restores the real account exactly. No-op in production. */
+export function setDevUnlockAll(on: boolean): void {
+  if (!import.meta.env.DEV) return;
+  if (on) {
+    if (loadDevUnlock()) return;
+    const real = useProgression.getState().mirror;
+    devReal = real;
+    // Seed the local equips from what the real account wears, so switching on changes nothing you can see yet.
+    const mine = mirrorFor(currentUserId(), real);
+    saveDevUnlock({ equippedTitleId: mine?.equippedTitleId ?? null, loadout: mine?.loadout ?? {} });
+    applyDevUnlock();
+    return;
+  }
+  if (!loadDevUnlock()) return;
+  saveDevUnlock(null);
+  const real = devReal !== undefined ? devReal : loadMirror();
+  devReal = undefined;
+  devOverlay = null;
+  useProgression.setState({ mirror: real });
+}
+
+/** While ON: wear (or take off, null) a title locally. */
+function devUnlockEquipTitle(titleId: string | null): void {
+  const d = loadDevUnlock();
+  if (!d) return;
+  saveDevUnlock({ ...d, equippedTitleId: titleId });
+  applyDevUnlock();
+}
+
+/** While ON: wear (or take off, null) a skin / account-wide item locally. A per-target slot keys by its target; any
+ *  other slot is account-wide and named like its loadout field (`hero_attack` -> `heroAttack`). */
+function devUnlockEquipCosmetic(slot: EquipSlot, targetId: string, cosmeticId: string | null): void {
+  const d = loadDevUnlock();
+  if (!d) return;
+  const lo: Record<string, unknown> = { ...d.loadout };
+  if (slot === 'hero_skin' || slot === 'minion_skin') {
+    const field = slot === 'hero_skin' ? 'heroSkinByHeroId' : 'minionSkinByCardId';
+    const map: Record<string, string> = { ...((lo[field] as Record<string, string> | undefined) ?? {}) };
+    if (cosmeticId) map[targetId] = cosmeticId; else delete map[targetId];
+    if (Object.keys(map).length) lo[field] = map; else delete lo[field];
+  } else {
+    const field = (slot as string).replace(/_(\w)/g, (_m, c: string) => c.toUpperCase());
+    if (cosmeticId) lo[field] = cosmeticId; else delete lo[field];
+  }
+  saveDevUnlock({ ...d, loadout: lo as RunCosmeticSnapshot });
+  applyDevUnlock();
+}
+
+/** Tests: forget the switch and the captured real mirror. */
+export function resetDevUnlockAllForTests(): void {
+  saveDevUnlock(null);
+  devReal = undefined;
+  devOverlay = null;
+  devApplying = false;
+}
+
+if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
+  // Any mirror change that is not our own overlay is the REAL account moving (a server read, an adopt, a restore):
+  // capture it as the real mirror and lay the overlay back over it. Only runs on a mirror change, never per frame.
+  useProgression.subscribe((s, prev) => {
+    if (devApplying || s.mirror === prev.mirror || s.mirror === devOverlay || !loadDevUnlock()) return;
+    devReal = s.mirror;
+    applyDevUnlock();
+  });
+  applyDevUnlock();
 }

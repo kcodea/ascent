@@ -70,19 +70,19 @@ describe('the catalog <-> the bundle', () => {
   // Skins batch 2 (owner 2026-09-28: "i added some skins here: can you wire those up now?"). Each exists, targets its
   // card (checked by name too, so a wrong id cannot hide), is attributed to the owner's master, and ships its art.
   const BATCH2: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
-    ['skin_blackbelt_4', 'common', 'blackbelt', 'Black Belt Brian', 'BlackBeltBrianCommonSkin.png'],
-    ['skin_drummer_1', 'rare', 'drummer', 'Drakko', 'DrakkoSkinRare.png'],
-    ['skin_drummer_2', 'epic', 'drummer', 'Drakko', 'DrakkoSkinEpic.png'],
-    ['skin_drummer_3', 'epic', 'drummer', 'Drakko', 'DrakkoSkinEpic2.png'],
-    ['skin_jenkins_1', 'rare', 'jenkins', 'Jensen & Fi', 'JensenAndFiSkinRare.png'],
+    ['skin_blackbelt_4', 'rare', 'blackbelt', 'Black Belt Brian', 'BlackBeltBrianCommonSkin.png'],
+    ['skin_drummer_1', 'epic', 'drummer', 'Drakko', 'DrakkoSkinRare.png'],
+    ['skin_drummer_2', 'rare', 'drummer', 'Drakko', 'DrakkoSkinEpic.png'],
+    ['skin_drummer_3', 'legendary', 'drummer', 'Drakko', 'DrakkoSkinEpic2.png'],
+    ['skin_jenkins_1', 'common', 'jenkins', 'Jensen & Fi', 'JensenAndFiSkinRare.png'],
     ['skin_joker_1', 'rare', 'joker', 'Mysterious Joker', 'MysteriousJokerSkinRare.png'],
     ['skin_nimbus_1', 'rare', 'nimbus', 'Nimbus', 'NimbusSkinRare.png'],
     ['skin_paragon_1', 'rare', 'n2_paragon', 'Paragon', 'ParagonSkinRare.png'],
-    ['skin_stewardofspells_1', 'epic', 'stewardofspells', 'Steward of Spells', 'SpellStewardSkinEpic.png'],
-    ['skin_sylus_1', 'rare', 'sylus', 'Sylus', 'SylusSkinRare.png'],
-    ['skin_sylus_2', 'legendary', 'sylus', 'Sylus', 'SylusSkinLegendary.png'],
-    ['skin_venom_1', 'epic', 'venom', 'Venom', 'VenomSkinEpic.png'],
-    ['skin_zyff_1', 'rare', 'zyff', 'Zyff, the Betrayer', 'ZyffSkinRare.png'],
+    ['skin_stewardofspells_1', 'common', 'stewardofspells', 'Steward of Spells', 'SpellStewardSkinEpic.png'],
+    ['skin_sylus_1', 'epic', 'sylus', 'Sylus', 'SylusSkinRare.png'],
+    ['skin_sylus_2', 'ancient', 'sylus', 'Sylus', 'SylusSkinLegendary.png'],
+    ['skin_venom_1', 'legendary', 'venom', 'Venom', 'VenomSkinEpic.png'],
+    ['skin_zyff_1', 'common', 'zyff', 'Zyff, the Betrayer', 'ZyffSkinRare.png'],
   ];
   it.each(BATCH2)('batch 2: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
     const c = cosmeticOf(id)!;
@@ -98,8 +98,8 @@ describe('the catalog <-> the bundle', () => {
   const BATCH3: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
     ['skin_oona_1', 'epic', 'b2_oona', 'King Oona', 'RooksOona.png'],
     ['skin_sylus_3', 'rare', 'sylus', 'Sylus', 'StencilSylus.png'],
-    ['skin_seaurchin_1', 'rare', 'seaurchin', 'Sea Urchin', 'MaceUrchin.png'],
-    ['skin_buddy_1', 'epic', 'buddy', 'Buddy Buddy', 'MagicianBuddyBuddyEpic.png'],
+    ['skin_seaurchin_1', 'epic', 'seaurchin', 'Sea Urchin', 'MaceUrchin.png'],
+    ['skin_buddy_1', 'legendary', 'buddy', 'Buddy Buddy', 'MagicianBuddyBuddyEpic.png'],
   ];
   it.each(BATCH3)('batch 3: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
     const c = cosmeticOf(id)!;
@@ -123,20 +123,20 @@ describe('the catalog <-> the bundle', () => {
   // filename suffix; the ten masters with none took the owner's random draw between Common and Epic. Same checks.
   const BATCH4: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
     ['skin_arnold_1', 'common', 'dw_arnold', 'Arnold', 'BeefyArnoldCommon.png'],
-    ['skin_recaller_1', 'epic', 'd2_recaller', 'Recaller', 'BlownGlassRecallerEpic.png'],
-    ['skin_recaller_2', 'rare', 'd2_recaller', 'Recaller', 'MagmaRecallerRare.png'],
-    ['skin_recaller_3', 'rare', 'd2_recaller', 'Recaller', 'StarformRecallerRare.png'],
-    ['skin_pimm_1', 'rare', 'dw_pimm', 'Paymaster Pimm', 'BouncerPimmRare.png'],
-    ['skin_pimm_2', 'epic', 'dw_pimm', 'Paymaster Pimm', 'ProphetPimm.png'],
+    ['skin_recaller_1', 'rare', 'd2_recaller', 'Recaller', 'BlownGlassRecallerEpic.png'],
+    ['skin_recaller_2', 'epic', 'd2_recaller', 'Recaller', 'MagmaRecallerRare.png'],
+    ['skin_recaller_3', 'common', 'd2_recaller', 'Recaller', 'StarformRecallerRare.png'],
+    ['skin_pimm_1', 'common', 'dw_pimm', 'Paymaster Pimm', 'BouncerPimmRare.png'],
+    ['skin_pimm_2', 'legendary', 'dw_pimm', 'Paymaster Pimm', 'ProphetPimm.png'],
     ['skin_chimerus_1', 'rare', 'chimerus', 'Chimerus', 'ChimerusSkinRare.png'],
-    ['skin_chronicler_1', 'rare', 'd2_chronicler', 'Scalefeather', 'ChromeScalefeatherRare.png'],
-    ['skin_chronicler_2', 'epic', 'd2_chronicler', 'Scalefeather', 'MechaScalefeatherEpic.png'],
-    ['skin_edward_1', 'legendary', 'dw_edward', 'Edward Keg-hands', 'EdwardColadaHandsLegendary.png'],
+    ['skin_chronicler_1', 'legendary', 'd2_chronicler', 'Scalefeather', 'ChromeScalefeatherRare.png'],
+    ['skin_chronicler_2', 'common', 'd2_chronicler', 'Scalefeather', 'MechaScalefeatherEpic.png'],
+    ['skin_edward_1', 'ancient', 'dw_edward', 'Edward Keg-hands', 'EdwardColadaHandsLegendary.png'],
     ['skin_baal_1', 'rare', 'dw_baal', 'Baal', 'EpicBaalRare.png'],
-    ['skin_pouchpincher_1', 'epic', 'k_pouchpincher', 'Cheap Date', 'LavishDateEpic.png'],
+    ['skin_pouchpincher_1', 'common', 'k_pouchpincher', 'Cheap Date', 'LavishDateEpic.png'],
     ['skin_buddy_2', 'legendary', 'buddy', 'Buddy Buddy', 'PortalBuddyLegendary.png'],
-    ['skin_buddy_3', 'legendary', 'buddy', 'Buddy Buddy', 'SketchBuddyLegendary.png'],
-    ['skin_drummer_4', 'rare', 'drummer', 'Drakko', 'SketchDrakko.png'],
+    ['skin_buddy_3', 'epic', 'buddy', 'Buddy Buddy', 'SketchBuddyLegendary.png'],
+    ['skin_drummer_4', 'epic', 'drummer', 'Drakko', 'SketchDrakko.png'],
     ['skin_orin_1', 'epic', 'dw_orin', 'Oathshield Orin', 'ThorOrinEpic.png'],
   ];
   it.each(BATCH4)('batch 4: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
@@ -150,21 +150,21 @@ describe('the catalog <-> the bundle', () => {
   });
   const BATCH4_HEROES: [id: string, rarity: string, heroId: string, heroName: string, master: string][] = [
     ['skin_cia_1', 'common', 'cia', 'Ayse', 'AyseSkinCommon.png'],
-    ['skin_cia_2', 'rare', 'cia', 'Ayse', 'AyseSkinRare.png'],
+    ['skin_cia_2', 'common', 'cia', 'Ayse', 'AyseSkinRare.png'],
     ['skin_frank_2', 'epic', 'frank', 'Frantic Frank', 'BlackFridayFrank.jpg'],
-    ['skin_frank_3', 'rare', 'frank', 'Frantic Frank', 'CoasterFrank.png'],
+    ['skin_frank_3', 'common', 'frank', 'Frantic Frank', 'CoasterFrank.png'],
     ['skin_bram_1', 'rare', 'bram', 'Braum', 'BraumSkinRare.png'],
-    ['skin_darah_1', 'epic', 'darah', 'Darah', 'DarahSkinEpic.png'],
+    ['skin_darah_1', 'legendary', 'darah', 'Darah', 'DarahSkinEpic.png'],
     ['skin_darah_2', 'rare', 'darah', 'Darah', 'DarahSkinRare.png'],
-    ['skin_emeraldwarden_1', 'rare', 'emeraldwarden', 'Emerald Warden', 'EmeraldWardenSkinRare.png'],
-    ['skin_hunch_1', 'rare', 'hunch', 'Hunch', 'HunchSkinRare.png'],
-    ['skin_keshi_1', 'epic', 'keshi', 'Keshi the Protector', 'KeshiTheCityguard.png'],
+    ['skin_emeraldwarden_1', 'epic', 'emeraldwarden', 'Emerald Warden', 'EmeraldWardenSkinRare.png'],
+    ['skin_hunch_1', 'legendary', 'hunch', 'Hunch', 'HunchSkinRare.png'],
+    ['skin_keshi_1', 'common', 'keshi', 'Keshi the Protector', 'KeshiTheCityguard.png'],
     ['skin_keshi_2', 'epic', 'keshi', 'Keshi the Protector', 'PopStarKeshi.png'],
     ['skin_soren_1', 'epic', 'soren', 'Soren', 'KingSorenEpic.png'],
-    ['skin_soren_2', 'common', 'soren', 'Soren', 'MasteredSoren.png'],
-    ['skin_brackus_1', 'epic', 'brackus', 'Brackus', 'MasterBrakkus.png'],
+    ['skin_soren_2', 'legendary', 'soren', 'Soren', 'MasteredSoren.png'],
+    ['skin_brackus_1', 'legendary', 'brackus', 'Brackus', 'MasterBrakkus.png'],
     ['skin_brackus_2', 'common', 'brackus', 'Brackus', 'YoungBrakkus.png'],
-    ['skin_robin_1', 'common', 'robin', 'Robin', 'NinjaRobin.png'],
+    ['skin_robin_1', 'rare', 'robin', 'Robin', 'NinjaRobin.png'],
   ];
   it.each(BATCH4_HEROES)('batch 4: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
     const c = cosmeticOf(id)!;
@@ -179,17 +179,17 @@ describe('the catalog <-> the bundle', () => {
   // Skins batch 5 (owner 2026-09-30: "i added more skins"). Rarities are the owner's random draw between Common and
   // Epic; three names were shortened to fit the 20-character cap. Same checks as batch 4.
   const BATCH5: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
-    ['skin_nimbus_2', 'common', 'nimbus', 'Nimbus', 'CottonCandyNimbus.png'],
-    ['skin_nimbus_3', 'rare', 'nimbus', 'Nimbus', 'DarkNimbus.jpg'],
-    ['skin_nimbus_4', 'common', 'nimbus', 'Nimbus', 'SmogNimbus.png'],
+    ['skin_nimbus_2', 'legendary', 'nimbus', 'Nimbus', 'CottonCandyNimbus.png'],
+    ['skin_nimbus_3', 'epic', 'nimbus', 'Nimbus', 'DarkNimbus.jpg'],
+    ['skin_nimbus_4', 'rare', 'nimbus', 'Nimbus', 'SmogNimbus.png'],
     ['skin_spellsword_1', 'rare', 'n2_spellsword', 'Coppercoat Spellsword', 'LightbladeSpellsword.png'],
     ['skin_chronicler_3', 'rare', 'd2_chronicler', 'Scalefeather', 'MascotScalefeather.png'],
-    ['skin_joker_2', 'common', 'joker', 'Mysterious Joker', 'MimeJoker.png'],
-    ['skin_butcher_1', 'rare', 'dm_butcher', 'Contract Butcher', 'PastryChefButcher.png'],
+    ['skin_joker_2', 'rare', 'joker', 'Mysterious Joker', 'MimeJoker.png'],
+    ['skin_butcher_1', 'epic', 'dm_butcher', 'Contract Butcher', 'PastryChefButcher.png'],
     ['skin_chorus_1', 'rare', 'd2_chorus', 'Chorus Drake', 'QuartetChorusdrake.jpg'],
-    ['skin_wayfinder_1', 'rare', 'wayfinder', 'Wayfinder', 'SoulSurferWayfinder.png'],
-    ['skin_seaurchin_2', 'epic', 'seaurchin', 'Sea Urchin', 'StarUrchin.png'],
-    ['skin_wardkeeper_1', 'rare', 'dw_wardkeeper', 'Wardkeeper', 'WitchHunterWardkeeper.png'],
+    ['skin_wayfinder_1', 'common', 'wayfinder', 'Wayfinder', 'SoulSurferWayfinder.png'],
+    ['skin_seaurchin_2', 'rare', 'seaurchin', 'Sea Urchin', 'StarUrchin.png'],
+    ['skin_wardkeeper_1', 'common', 'dw_wardkeeper', 'Wardkeeper', 'WitchHunterWardkeeper.png'],
   ];
   it.each(BATCH5)('batch 5: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
     const c = cosmeticOf(id)!;
@@ -200,9 +200,48 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
   });
-  it('batch 5: Influencer Indy (Rare) exists, targets the hero indy, and ships its art', () => {
+  // Skins batch 6 (owner 2026-10-01: "i added a bunch of art/portrait arts etc, can you make sure all get added").
+  // Rarity is the art folder (R-PROG-SKINS-11). The three Commander masters are Commander Warpath (d2_blazingkeeper),
+  // never Commander Impala. Same checks as batch 5.
+  const BATCH6: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_deepvein_1', 'common', 'k_deepvein', 'Deepvein Tender', 'AmberDeepveinTender.png'],
+    ['skin_deepvein_2', 'common', 'k_deepvein', 'Deepvein Tender', 'StaticDeepveinTender.png'],
+    ['skin_wardkeeper_2', 'common', 'dw_wardkeeper', 'Wardkeeper', 'FrostWardkeeper.png'],
+    ['skin_wayfinder_2', 'common', 'wayfinder', 'Wayfinder', 'InfernalWayfinder.png'],
+    ['skin_wayfinder_3', 'rare', 'wayfinder', 'Wayfinder', 'WaterdragonWayfinder.png'],
+    ['skin_spellsword_2', 'rare', 'n2_spellsword', 'Coppercoat Spellsword', 'TimewornSpellsword.png'],
+    ['skin_blazingkeeper_1', 'rare', 'd2_blazingkeeper', 'Commander Warpath', 'FrostCommander.png'],
+    ['skin_blazingkeeper_2', 'epic', 'd2_blazingkeeper', 'Commander Warpath', 'NatureCommander.png'],
+    ['skin_blazingkeeper_3', 'legendary', 'd2_blazingkeeper', 'Commander Warpath', 'CyberneticWarpath.png'],
+  ];
+  it.each(BATCH6)('batch 6: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
+  // Skins batch 7 (owner 2026-10-01, same ask): three hero skins, rarity = the Hero Skins folder. IronGuardian is the
+  // Guardian hero (id runeguard, re-activated 2026-10-01). Same checks as the batch 4 heroes.
+  const BATCH7_HEROES: [id: string, rarity: string, heroId: string, heroName: string, master: string][] = [
+    ['skin_merrin_1', 'epic', 'merrin', 'Merrin', 'GothMerrin.png'],
+    ['skin_runeguard_1', 'epic', 'runeguard', 'Guardian', 'IronGuardian.png'],
+    ['skin_robin_2', 'rare', 'robin', 'Robin', 'RobinHood.png'],
+  ];
+  it.each(BATCH7_HEROES)('batch 7: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', rarity, { type: 'hero', id: heroId }, master, true]);
+    expect(HEROES.find((h) => h.id === heroId)!.name).toBe(heroName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
+  });
+  it('batch 5: Influencer Indy (Epic) exists, targets the hero indy, and ships its art', () => {
     const c = cosmeticOf('skin_indy_1')!;
-    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'rare', { type: 'hero', id: 'indy' }, 'InfluencerIndy.png', true]);
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'epic', { type: 'hero', id: 'indy' }, 'InfluencerIndy.png', true]);
     expect(HEROES.find((h) => h.id === 'indy')).toBeTruthy();
     expect(skinArtKeys()).toContain('skin_indy_1');
     expect(skinArtOf(c)).toBeTruthy();

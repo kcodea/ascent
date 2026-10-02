@@ -12,6 +12,7 @@ import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
 import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
+import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -118,10 +119,13 @@ function useCareerSkins(snapshot: RunCosmeticSnapshot | null | undefined): RunCo
  *  ring, disc and portrait rules are shared), scoped under `.cv2-heroframe` which only undoes the tray's
  *  transforms. `small` is the match-row portrait. `skins` = the skins to paint it with (see CareerSkinContext). */
 function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; skins?: RunCosmeticSnapshot | null }) {
-  const art = heroPortrait(heroId, useCareerSkins(skins));
+  const shown = useCareerSkins(skins);
+  const art = heroPortrait(heroId, shown);
   const name = heroId ? getHero(heroId).name : '';
-  // Your own Career wears YOUR frame; someone else's Career wears the opponents' frame.
-  return <HeroPortraitRing art={art} alt={name} small={small} side={useContext(CareerSkinContext).own ? 'self' : 'opp'} />;
+  // The portrait frame in the same snapshot (owner 2026-10-01: a match row the frame RECORDED on that run, the page
+  // portrait the owner's current one), through the page's own/opponent rule; none = the tuner's ring, where your own
+  // Career wears YOUR frame and someone else's Career wears the opponents' frame.
+  return <HeroPortraitRing art={art} alt={name} small={small} side={useContext(CareerSkinContext).own ? 'self' : 'opp'} frameId={frameIdOf(shown)} />;
 }
 
 /** The final team: the shared stored-board renderer, wearing the skins RECORDED on this board (an old board has

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { TunerControl, TunerSpec } from '../tunerSchema';
+import SKIN_FRAME_GEOMETRY from './frameSkins.data.json';
 
 /**
  * HERO PORTRAIT FRAMES (owner ask 2026-09-29: "put a tuner in so i can swap out the hero portrait frames ... this
@@ -21,9 +22,13 @@ import type { TunerControl, TunerSpec } from '../tunerSchema';
  * nudge it: frame scale (x), portrait scale (x, the art inside the disc), and x/y offset (% of the disc).
  * The fit can be global or overridden per frame.
  *
- * RANKED REWARDS LATER: the resolver already takes a per-player `frameId` override (the way titles and skins
- * ride a snapshot's `cosmetics`), so a future `frameForRank(division)` only has to produce an id and pass it in.
- * Nothing here earns or awards a frame yet.
+ * PORTRAIT FRAME COSMETICS (owner 2026-10-01: "we're adding portrait skins ... we want this to replace the default
+ * portrait png when a skin is applied"). A crate item of the `portrait_frame` category IS a frame: its cosmetic id
+ * (`frame_fire`, ...) is accepted as a `frameId` exactly like a tuner frame, its art lives in `art/frames/skins/` and
+ * its hole was measured by `npm run art:frames` (`frameSkins.data.json`). Who wears which is decided OUTSIDE this
+ * module (it never imports the store or the catalog): `usePortraitFrame` passes your equipped frame for `self`, and an
+ * opponent surface passes the seat's recorded frame through "Show opponent cosmetics". A frame cosmetic WINS over the
+ * tuner's choice; no frame (or an unknown id) falls back to the tuner, whose baked default is today's look.
  */
 
 /** Every frame the picker offers. `current` = today's look (no image frame). */
@@ -70,13 +75,23 @@ export const FRAME_ART: Record<ImageFrameId, FrameArt> = {
   rank1: { aspect: 1, holeD: 0.82, holeCx: 0.4996, holeCy: 0.4829 },
 };
 
+/** The PORTRAIT FRAME cosmetics' measured holes, keyed by cosmetic id (written by `npm run art:frames`). */
+export const SKIN_FRAME_ART: Readonly<Record<string, FrameArt>> = SKIN_FRAME_GEOMETRY;
+export const SKIN_FRAME_IDS: readonly string[] = Object.keys(SKIN_FRAME_ART);
+export const isSkinFrameId = (v: unknown): v is string => typeof v === 'string' && Object.prototype.hasOwnProperty.call(SKIN_FRAME_ART, v);
+
+/** Any frame the renderer can paint: a tuner frame or a portrait frame cosmetic. */
+export type AnyFrameId = ImageFrameId | string;
+const artOf = (id: AnyFrameId): FrameArt | undefined => (FRAME_ART as Record<string, FrameArt>)[id] ?? SKIN_FRAME_ART[id];
+
 /** The disc sits this much wider than the ring's hole, so its edge hides under the inner lip (0.9 / 0.86). */
 const LIP = 0.9 / 0.86;
 
-/** The art, keyed by id. Eager `?url` imports: eight small webps, resolved once at load. */
+/** The art, keyed by id. Eager `?url` imports: URLs only (no bytes), resolved once at load. */
 const FRAME_URLS = import.meta.glob('../art/frames/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-export function frameSrc(id: ImageFrameId): string | undefined {
-  return FRAME_URLS[`../art/frames/frame_${id}.webp`];
+const SKIN_FRAME_URLS = import.meta.glob('../art/frames/skins/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+export function frameSrc(id: AnyFrameId): string | undefined {
+  return isSkinFrameId(id) ? SKIN_FRAME_URLS[`../art/frames/skins/${id}.webp`] : FRAME_URLS[`../art/frames/frame_${id}.webp`];
 }
 
 /** The fit dials. `scale` multiplies the frame's measured size, `art` scales the portrait inside the disc, `dx` /
@@ -188,15 +203,16 @@ export function resetPortraitFrames(): void {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
 
-/** The fit a frame actually uses: its own override, else the global fit. */
-export function effectiveFit(id: ImageFrameId, s: PortraitFrameState = state): FrameFit {
-  return s.fits[id] ?? s.fits.all ?? NEUTRAL_FIT;
+/** The fit a frame actually uses: its own override, else the global fit (a frame cosmetic has no override). */
+export function effectiveFit(id: AnyFrameId, s: PortraitFrameState = state): FrameFit {
+  return (s.fits as Record<string, FrameFit | undefined>)[id] ?? s.fits.all ?? NEUTRAL_FIT;
 }
 
-/** The frame a surface paints. A valid per-player `frameId` (a future ranked reward riding the snapshot) wins;
- *  otherwise the side's tuner choice, where opponents follow yours while "same for everyone" is on. */
-export function resolveFrameChoice(side: PortraitSide, frameId?: string | null, s: PortraitFrameState = state): FrameChoice {
-  if (frameId && isChoice(frameId)) return frameId;
+/** The frame a surface paints. A valid per-player `frameId` (a portrait frame cosmetic riding the snapshot or your
+ *  loadout, or a tuner frame id) wins; otherwise the side's tuner choice, where opponents follow yours while "same
+ *  for everyone" is on. An unknown or retired id is ignored (the caller drops retired ones). */
+export function resolveFrameChoice(side: PortraitSide, frameId?: string | null, s: PortraitFrameState = state): FrameChoice | string {
+  if (frameId && (isChoice(frameId) || isSkinFrameId(frameId))) return frameId;
   return side === 'opp' && !s.same ? s.opp : s.self;
 }
 
@@ -210,8 +226,8 @@ export interface FrameGeometry {
   art: number;
 }
 
-export function frameGeometry(id: ImageFrameId, fit: FrameFit): FrameGeometry {
-  const a = FRAME_ART[id];
+export function frameGeometry(id: AnyFrameId, fit: FrameFit): FrameGeometry {
+  const a = artOf(id) ?? FRAME_ART.default;
   const w = (1 / (a.holeD * LIP)) * fit.scale; // frame width in disc diameters
   return {
     width: w * 100,
@@ -224,7 +240,7 @@ export function frameGeometry(id: ImageFrameId, fit: FrameFit): FrameGeometry {
 
 /** What `<PortraitFrame>` paints and what the disc host needs. Referentially stable per (version, frame). */
 export interface ResolvedFrame {
-  id: ImageFrameId;
+  id: AnyFrameId;
   src: string;
   /** Inline style for the frame `<img>` (static: set once, never animated). */
   imgStyle: CSSProperties;
@@ -233,16 +249,26 @@ export interface ResolvedFrame {
   geometry: FrameGeometry;
 }
 
-const cache = new Map<ImageFrameId, ResolvedFrame | null>();
+/** Where a frame is painted. `socket` = YOUR in-game portrait (StatusBar), which sits in a socket baked into the
+ *  board art and needs its own seat; `default` = every other surface (Career, ladder, lobby rail, match details, …). */
+export type FrameSurface = 'default' | 'socket';
+
+/** THE IN-GAME SOCKET FIT (owner-tuned 2026-10-01 on the Gilded frame): seats a frame over the board's baked socket.
+ *  Applied ONLY to your in-game portrait; owner: "using this in career and other places seems to mess with the art,
+ *  so can you only apply this fit to the in game portrait?". Other surfaces keep the tuner fit (neutral in prod). */
+export const SOCKET_FIT: FrameFit = { scale: 1.005, art: 1, dx: 1.25, dy: -3.6 };
+
+const cache = new Map<string, ResolvedFrame | null>();
 const r4 = (n: number): number => Math.round(n * 1e4) / 1e4;
 
-export function resolveImageFrame(id: ImageFrameId): ResolvedFrame | null {
-  const hit = cache.get(id);
+export function resolveImageFrame(id: AnyFrameId, surface: FrameSurface = 'default'): ResolvedFrame | null {
+  const key = `${surface}:${id}`;
+  const hit = cache.get(key);
   if (hit !== undefined) return hit;
-  const src = frameSrc(id);
+  const src = artOf(id) ? frameSrc(id) : undefined;
   let out: ResolvedFrame | null = null;
   if (src) {
-    const g = frameGeometry(id, effectiveFit(id));
+    const g = frameGeometry(id, surface === 'socket' ? SOCKET_FIT : effectiveFit(id));
     out = {
       id,
       src,
@@ -251,14 +277,14 @@ export function resolveImageFrame(id: ImageFrameId): ResolvedFrame | null {
       hostStyle: { '--pf-art': String(r4(g.art)) } as CSSProperties,
     };
   }
-  cache.set(id, out);
+  cache.set(key, out);
   return out;
 }
 
 /** The whole lookup: null = keep the surface's current look. */
-export function resolvePortraitFrame(side: PortraitSide, frameId?: string | null): ResolvedFrame | null {
+export function resolvePortraitFrame(side: PortraitSide, frameId?: string | null, surface: FrameSurface = 'default'): ResolvedFrame | null {
   const choice = resolveFrameChoice(side, frameId);
-  return choice === 'current' ? null : resolveImageFrame(choice);
+  return choice === 'current' ? null : resolveImageFrame(choice, surface);
 }
 
 /** For the hero-select ceremony, which draws its own ring at a tuned size around the default ring's geometry:

@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy } from './ancients';
+import { ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -22,7 +22,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
 import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -284,8 +284,11 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
   // source above, the Starform's live price included, is capped; the discounts below still apply on top).
   const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
-  const timeCap = ancientTimePrice(s);
-  const cost = freeBuy ? 0 : Math.max(0, (timeCap !== undefined ? Math.min(timeCap, priced) : priced) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
+  // ANCIENT OF BONDS × Robin: a minion of a type marked by a sale is set to the Bonds price (never raised above its own).
+  const bondsPrice = ancientRobinBondsPrice(s, offer.cardId);
+  const caps = [ancientTimePrice(s), bondsPrice].filter((c): c is number => c !== undefined);
+  const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
+  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
 }
 
@@ -304,14 +307,18 @@ export function minionCostOf(s: RunState): number {
 /** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
  *  minions are cheap, but climbing tiers costs more). The single source of truth for the reducer + UI. */
 export function upgradeCostOf(s: RunState): number {
-  const base = s.upgradeCost + (hasPower(s, 'cheapMinions') ? 2 : 0);
-  // Ayse's Ace: a banked tier-up discount, floored at 0 so it can never pay you to upgrade.
-  return Math.max(0, base - (s.aceTierDiscount ?? 0));
+  const base = s.upgradeCost + (hasPower(s, 'cheapMinions') ? FRUGAL_UPGRADE_SURCHARGE : 0);
+  // Ayse's Ace: a banked tier-up discount, and (Tradesman × Ancient of Time / Bonds, owner 2026-10-02) the share of the
+  // surcharge their discounts ate this tier. Floored at 0 so nothing can pay you to upgrade.
+  return Math.max(0, base - ancientUpgradeSurchargeOff(s) - (s.aceTierDiscount ?? 0));
 }
 
 /** The Gold a tavern refresh (reroll) costs right now: the config default, but Tradesman (cheapMinions) pays 2
  *  — cheap to shop, dear to churn. The single source of truth for the reducer's roll charge + the UI button. */
 export function refreshCostOf(s: RunState): number {
+  // Tradesman × Ancient of Fortune (owner 2026-10-02): a minion bought makes the next Refresh cost 0. Folded in here so
+  // the button, `nextRefreshCostOf` and both bot price reads agree; the `roll` branch spends it before anything else.
+  if (ancientTradesRefreshFree(s)) return 0;
   return hasPower(s, 'cheapMinions') ? 2 : CONFIG.refreshCost;
 }
 
@@ -914,7 +921,7 @@ export function reduce(state: RunState, action: Action): RunState {
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes) {
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next)) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
@@ -1470,6 +1477,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // every mirrored buff landed on a discarded object, so the bond silently did nothing (owner report 2026-08-16).
   stampSableBond(s);
   stampSharedSpoils(s); // Rune of Shared Spoils rides the same stateless addBuff hook, from the same draft
+  stampXeroxBond(s); // Xerox × Ancient of Bonds: the bound pair, from the same draft (validated: a gone end breaks it)
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.lastRallyFires = 0; // transient per-action SHOP-Rally-fire count (set by fireShopRally → read by the rally quest tick)
@@ -1567,7 +1575,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (sfCad) { procRuneId(s, 'rune_cadence'); s.cadenceMinionOff = undefined; }
         if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
         if (sfFree) s.freeBuyUsedThisTurn = true;
+        ancientSpendRobinBonds(s, offer.cardId); // ANCIENT OF BONDS × Robin: a matching buy spends its type's mark
         ancientNoteMinionBuy(s); // ANCIENT OF TIME × Frank: the Starform is a minion bought (one of the first 3)
+        ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a minion bought gains a free Refresh
         buyStarform(s); // removes the offer, buffs the left-most Celestial, fires `starformRemoved('consume')`
         ciaBuyEnchanted(s, offer);
         if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence');
@@ -1594,6 +1604,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
+        ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a re-bought displaced minion is a minion bought
         // The held body comes back intact PLUS every buff the offer accrued in the Shop (Veinstorm Rubies,
         // Fortify, …) and a Golden Touch re-gild — `restoreHeldOffer`, the one fold shared with the swap-back
         // path (owner bug report 2026-09-21: Veinstorm on a displaced Chimerus "did not buff it").
@@ -1619,6 +1630,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // back to 2 Gold), TIME counts the buy, and a Clearance offer buys in as a Clearance minion.
       const clearanceBuy = ancientOnClearanceBuy(s, offer);
       ancientNoteMinionBuy(s);
+      ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a minion bought gains a free Refresh, right then
+      ancientSpendRobinBonds(s, offer.cardId); // ANCIENT OF BONDS × Robin: a matching buy spends its type's mark
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
       spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
@@ -2578,8 +2591,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The UI pill reads `nextRefreshCostOf` (above) — keep this branch and that helper in lockstep.
       const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3 * runeStacksOf(s, 'rune_window_shopping');
       if (s.runeWindowShopping) s.windowShopRolls = (s.windowShopRolls ?? 0) + 1;
+      // Tradesman × Ancient of Fortune: a pending "next Refresh costs 0" pays FIRST, so the free-roll bank is kept.
       // Refreshing Texts bank free rerolls — spend one before charging Mana.
-      if (s.freeRolls > 0) {
+      if (ancientTradesSpendFreeRefresh(s)) {
+        // free — Fortune's next-Refresh discount covers it (and is spent)
+      } else if (s.freeRolls > 0) {
         s.freeRolls -= 1;
       } else if (wsFree) {
         procRuneId(s, 'rune_window_shopping');
@@ -3055,7 +3071,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           : slotReady;
       // ANCIENT OF WAR × Frantic Frank: once the turn's own Clearance is spent, a banked stack pays for one more use.
       const stackUse = !readyNow && slot === 0 && power.kind === 'clearance' && ancientClearanceStacks(s) > 0;
-      const available = readyNow || stackUse;
+      // ANCIENT OF GENESIS × Xerox: a spent (once-per-game) Copy Machine fires again on a banked charge.
+      const chargeUse = !readyNow && !stackUse && slot === 0 && power.kind === 'copyMachine' && ancientCopyCharges(s) > 0;
+      const available = readyNow || stackUse || chargeUse;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -3178,8 +3196,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
         // combat (the combat sim does the work). Mark exactly one (clear any previous mark).
         if (!card) return state;
-        for (const c of s.board) c.resummon = false;
-        card.resummon = true;
+        // ANCIENT OF FORTUNE x Soren: Reclaim works in the Shop instead (destroy + resummon now, +5 Gold); no mark.
+        if (ancientReclaimInShop(s)) ancientShopReclaim(s, card);
+        else {
+          for (const c of s.board) c.resummon = false;
+          card.resummon = true;
+          ancientAfterReclaimMark(s, card); // GENESIS: + a plain copy to hand, locked for 3 turns
+        }
       } else if (power.kind === 'displace') {
         // Darah: swap a friendly board minion with a random tavern minion. No-op (no charge spent) on a
         // missing target, a golden minion (can't trade away a triple — enforced in swapWithTavern), or an
@@ -3220,26 +3243,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // buff breakdown, granted keywords, golden, accrued counters (summonBonus / attachments / copiedEcho).
         // A full instance spread is the only faithful way to say "exact"; rebuilding from the CardDef would
         // hand back a base-stat body and silently drop everything the minion had earned.
-        const copy: BoardCard = {
-          ...card,
-          uid: `b${s.uidSeq++}`,
-          buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
-          keywords: [...card.keywords],
-          copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
-          resummon: false, // a Soren mark is a per-body choice, not part of the stat line
-        };
+        const copy = exactBoardCopy(s, card);
         s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, copy);
+        // ANCIENT OF BONDS (a no-op unless picked): the copy and the original are bound from here on.
+        ancientOnCopyMachine(s, card, copy);
         // Wishbone: a second copy, each needing its OWN free slot — a full board simply stops the extras
         // rather than overfilling (the same rule the first copy is gated on above).
         for (let r = 1; r < reps && s.board.length < CONFIG.boardMax; r++) {
-          const extra: BoardCard = {
-            ...card,
-            uid: `b${s.uidSeq++}`,
-            buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
-            keywords: [...card.keywords],
-            copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
-            resummon: false,
-          };
+          const extra = exactBoardCopy(s, card);
           s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, extra);
         }
       } else if (power.kind === 'roundedSpellbook') {
@@ -3544,6 +3555,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
 
       if (stackUse) ancientSpendClearanceStack(s); // WAR: the extra use takes a stack (the turn's charge is already spent)
+      else if (chargeUse) ancientSpendCopyCharge(s); // GENESIS × Xerox: the extra use takes the banked charge
       else if (power.usesPerTurn) {
         // Fibbsy: count this turn's use; heroReady stays TRUE until the last charge is spent, so the button is
         // still armed for the second press. On the final use it flips false, which is how every "used" UI cue
@@ -4151,6 +4163,8 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   if (s.hand.length < handCap(s)) s.hand.push(goldenCard);
   else s.board.push(goldenCard);
   carrySableBond(s, combined, goldenCard.uid);
+  ancientXeroxBondTripled(s, combined); // Xerox × Bonds: "if this triples, the effect breaks"
+  stampXeroxBond(s);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
   noteGilded(s); // a triple is a minion becoming Gilded (the Ancient of Bonds' count)
 }
@@ -7828,6 +7842,13 @@ export function runeCombatModsFor(runeIds: readonly string[]): QuestCombatMods {
  * with "tavern refresh" hooks in one place.
  */
 function refreshTavern(s: RunState, hold = false): void {
+  rollTavern(s, hold);
+  // ANCIENTS × Tradesman (a no-op otherwise): a Shop REFRESH (never the turn-start roll) cuts the upgrade cost (Bonds)
+  // and ticks Genesis' count; its Lasso is cast HERE, after the new row is in, so it steals from the fresh Shop.
+  if (!hold) ancientAfterRefresh(s);
+}
+
+function rollTavern(s: RunState, hold: boolean): void {
   // ANCIENTS: every Shop REFRESH fills the meter (paid or free, no distinction). `hold` marks the turn-start
   // roll, which is the new Shop rather than a refresh. A no-op unless the run has Ancients.
   if (!hold) ancientsRefreshTick(s);

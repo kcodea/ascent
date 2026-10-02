@@ -154,6 +154,24 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // all the new skins that i added to the folder").
     // → 1352: skins batch 5 2026-09-30 (+12 in `art/skins/`: 11 minion skins and Influencer Indy; owner-named: "i added
     // more skins").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1352);
+    // → 1366: portrait frames 2026-10-01 (+1 here: the new `art/frames/skins/` dir; its 13 frame webps sit one level
+    // down, which this top-level walk does not count, so the budget carries them too: 1352 + 1 + 13; owner-named:
+    // "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits").
+    // → 1374: portrait frames batch 2 2026-10-01 (+8 frame webps in `art/frames/skins/`, carried the same way: Honey, Aura,
+    // Nimbus, Stained Glass, Wind, Glass Shard, Paragon, Vine; owner-named: "i added a bunch of art/portrait arts etc,
+    // can you make sure all get added").
+    // → 1383: skins batch 6 2026-10-01 (+9 in `art/skins/`: 9 minion skins), merged with the frames.
+    // → 1396: skins + frames batch 3 2026-10-01 (+3 hero skins in `art/skins/`: Goth Merrin, Iron Guardian, Robin Hood;
+    // +10 frame webps in `art/frames/skins/`, carried as above: Ale, Ruby, Steel, Wood, Magic, then Dark Scale, Gilt
+    // Scale, Dark Cloud, Venom, Wedding; owner-named: "i added a bunch of art/portrait arts etc, can you make sure all
+    // get added", then "added more portrait skins etc").
+    // → 1398: portrait frames batch 5 2026-10-02 (+2 frame webps in `art/frames/skins/`, carried as above: Simple Ring,
+    // Void; owner-named: "added more skins"). Batch 4's five frame webps (2026-10-01) were not carried; the walk
+    // measured 1364 top-level files here, well under the cap.
+    // → 1399: portrait frames batch 6 2026-10-02 (+1 frame webp in `art/frames/skins/`, carried as above: Cherry
+    // Blossom; owner-named: "i added more frames").
+    // → 1405: the Ancient rarity 2026-10-02 (+6 frame webps in `art/frames/skins/`, carried as above: Bonds, Death,
+    // Fortune, Genesis, Time, War; owner-named: "i added a new rarity -> Ancient").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1405);
   });
 });

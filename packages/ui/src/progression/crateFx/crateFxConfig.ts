@@ -21,8 +21,11 @@ import { clipNames } from '../../sfx';
  *   answer ->  CHARGE (the gem ignites in the rarity colour, rarity light floods the seam then the cracks, the
  *              pulses accelerate, energy is pulled in, the camera pushes in; a big rarity ends in a slow-motion
  *              hitch)
+ *          ->  FREEZE (a rarity with a SIGNATURE only, today Ancient's "Time stops": the chest freezes mid-shake, the
+ *              hum cuts to silence and the scene drains to grey for `<rarity>FreezeMs`)
  *          ->  BURST  (white flash, rarity punch, rings, rays, the lid and shards fly, sparks and embers, a heavy
- *              decaying screen shake; Legendary bursts twice and throws gold coins)
+ *              decaying screen shake; Legendary bursts twice and throws gold coins; Ancient's prismatic crack splits
+ *              the view and the colour floods back)
  *          ->  REVEAL (the nameplate rises out of the light with an overshoot, its gem pops, the name stamps, the
  *              rarity ribbon stamps with a small shake, a shine sweeps it; god rays turn slowly behind)
  *          ->  SETTLE (the light dims to a lingering glow; the Pixi ticker stops)
@@ -34,10 +37,22 @@ import { clipNames } from '../../sfx';
 export type CrateRarity = CosmeticRarity;
 export const CRATE_RARITIES: readonly CrateRarity[] = COSMETIC_RARITIES;
 
-/** The per-rarity dials. Each one exists four times in the config, as `<rarity><Suffix>`. */
+/**
+ * A rarity's SIGNATURE reveal moment, on top of its dials. 'none' = the dials alone (Common to Legendary).
+ * 'timestop' (Ancient, owner pick 2026-10-02, concept 3 "Prismatic Aurora"): the chest freezes mid-shake and the scene
+ * drains to grey for `<rarity>FreezeMs`, then a prismatic crack splits the view and the colour floods back at the burst.
+ * SWAPPABLE: a new signature is one id here plus its CSS (`.crth.sig-<id>`) and, if it freezes, a FreezeMs dial.
+ */
+export const CRATE_SIGNATURES = ['none', 'timestop'] as const;
+export type CrateSignature = (typeof CRATE_SIGNATURES)[number];
+export const RARITY_SIGNATURE: Readonly<Record<CrateRarity, CrateSignature>> = {
+  common: 'none', rare: 'none', epic: 'none', legendary: 'none', ancient: 'timestop',
+};
+
+/** The per-rarity dials. Each one exists once per rarity in the config, as `<rarity><Suffix>`. */
 const RARITY_NUM_SUFFIXES = [
   'ChargeMs', 'HitchMs', 'BurstMs', 'RevealHoldMs', 'ChargeParticles', 'BurstSparks', 'Embers', 'Debris', 'Coins',
-  'Shake', 'ScreenShake', 'Push', 'Flash', 'Rings', 'Rays', 'DoubleBurst', 'Pitch',
+  'Shake', 'ScreenShake', 'Push', 'Flash', 'Rings', 'Rays', 'DoubleBurst', 'Pitch', 'FreezeMs',
 ] as const;
 type RaritySuffix = (typeof RARITY_NUM_SUFFIXES)[number];
 type RarityNumKey = `${CrateRarity}${RaritySuffix}`;
@@ -201,6 +216,7 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   commonRings: 2,
   commonRays: 0.35,
   commonDoubleBurst: 0,
+  commonFreezeMs: 0,
   commonPitch: 1.12,
 
   rareColor: '#5aa8ff',
@@ -220,6 +236,7 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   rareRings: 2,
   rareRays: 0.55,
   rareDoubleBurst: 0,
+  rareFreezeMs: 0,
   rarePitch: 1.04,
 
   epicColor: '#c07bff',
@@ -239,6 +256,7 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   epicRings: 3,
   epicRays: 0.75,
   epicDoubleBurst: 0,
+  epicFreezeMs: 0,
   epicPitch: 0.96,
 
   legendaryColor: '#ffb938',
@@ -259,6 +277,30 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   legendaryRays: 1,
   legendaryDoubleBurst: 1,
   legendaryPitch: 0.88,
+  legendaryFreezeMs: 0,
+
+  // ANCIENT (owner 2026-10-02, concept 3 "Prismatic Aurora", the "Time stops" signature): cyan #8af5ff shading to
+  // magenta #ff7ae0 (the Pixi light is the cyan; the DOM crack and ribbon carry the gradient). Bigger than Legendary
+  // in every dial, plus the freeze. No coins (the gold shower is Legendary's).
+  ancientColor: '#8af5ff',
+  ancientChargeMs: 1900,
+  ancientHitchMs: 260,
+  ancientBurstMs: 1050,
+  ancientRevealHoldMs: 1400,
+  ancientChargeParticles: 90,
+  ancientBurstSparks: 150,
+  ancientEmbers: 52,
+  ancientDebris: 26,
+  ancientCoins: 0,
+  ancientShake: 8,
+  ancientScreenShake: 18,
+  ancientPush: 0.12,
+  ancientFlash: 1,
+  ancientRings: 4,
+  ancientRays: 1,
+  ancientDoubleBurst: 1,
+  ancientPitch: 0.82,
+  ancientFreezeMs: 650,
 
   // Layers (all existing clips): the hum is the End Turn charge build; the pulse a soft trigger tick on every
   // heartbeat; the charge the rune implosion (energy pulled in); the burst the Reborn shatter (a crack, not a
@@ -315,6 +357,7 @@ const RARITY_RANGES: Record<RaritySuffix, [number, number, number]> = {
   Rays: [0, 1, 0.01],
   DoubleBurst: [0, 1, 1],
   Pitch: [0.5, 1.5, 0.01],
+  FreezeMs: [0, 2000, 10],
 };
 
 /** [min, max, step] for every numeric key. Values outside are clamped on write AND on load. */
@@ -477,8 +520,12 @@ export interface CratePreset {
   pitch: number;
   /** The heartbeat at the end of the charge (ms between pulses). */
   pulseEndMs: number;
-  /** The Legendary sting plays. */
+  /** The Legendary sting plays (Legendary and Ancient). */
   sting: boolean;
+  /** The rarity's signature moment ('none' for most). */
+  signature: CrateSignature;
+  /** Time stops: the chest holds, frozen, this long between the charge and the burst (0 = no freeze). */
+  freezeMs: number;
 }
 
 const hexNum = (hex: string, fallback: string): number => parseInt((HEX.test(hex) ? hex : fallback).slice(1), 16);
@@ -520,7 +567,9 @@ export function presetFor(rarity: string | null | undefined, c: CrateFxConfig = 
     doubleBurst: n('DoubleBurst') >= 0.5,
     pitch: n('Pitch'),
     pulseEndMs: Number.isFinite(c.pulseEndMs) ? c.pulseEndMs : CRATE_FX_DEFAULTS.pulseEndMs,
-    sting: r === 'legendary',
+    sting: r === 'legendary' || r === 'ancient',
+    signature: RARITY_SIGNATURE[r],
+    freezeMs: n('FreezeMs'),
   };
 }
 
@@ -544,8 +593,10 @@ export interface CrateBeats {
   /** The least anticipation before the branch (from the click). */
   anticipationMs: number;
   chargeAt: number;
-  /** The slow-motion hitch starts (== burstAt when there is none). The hum cuts here: silence before the hit. */
+  /** The slow-motion hitch starts (== the charge's end when there is none). The hum cuts here: silence before the hit. */
   hitchAt: number;
+  /** Time stops (a freezing signature), or -1. The burst follows `freezeMs` later. */
+  freezeAt: number;
   burstAt: number;
   /** The second burst (Legendary), or -1. */
   burst2At: number;
@@ -574,11 +625,13 @@ export function crateBeats(p: CratePreset, c: CrateFxConfig = cfg, opts: { reduc
   const pos = (v: number): number => Math.max(0, Number.isFinite(v) ? v : 0);
   if (opts.reduced) {
     const fade = pos(c.reducedFadeMs) * k;
-    return { anticipationMs: 0, chargeAt: 0, hitchAt: 0, burstAt: 0, burst2At: -1, revealAt: 0, gemAt: 0, stampAt: 0, ribbonAt: 0, shineAt: 0, settleAt: fade, endAt: fade, riseMs: fade, stampMs: 0, shineMs: 0 };
+    return { anticipationMs: 0, chargeAt: 0, hitchAt: 0, freezeAt: -1, burstAt: 0, burst2At: -1, revealAt: 0, gemAt: 0, stampAt: 0, ribbonAt: 0, shineAt: 0, settleAt: fade, endAt: fade, riseMs: fade, stampMs: 0, shineMs: 0 };
   }
   const chargeAt = 0;
-  const burstAt = chargeAt + pos(p.chargeMs);
-  const hitchAt = burstAt - pos(p.hitchMs);
+  const chargeEnd = chargeAt + pos(p.chargeMs);
+  const freeze = pos(p.freezeMs);
+  const burstAt = chargeEnd + freeze;
+  const hitchAt = chargeEnd - pos(p.hitchMs);
   // the second burst waits for the first's revealing flash; the plate waits for the second when there is one
   const burst2 = p.doubleBurst ? burstAt + Math.min(320, pos(p.burstMs) * SECOND_BURST_IN) : -1;
   const revealAt = Math.max(burstAt + pos(p.burstMs) * REVEAL_IN_BURST, burst2 >= 0 ? burst2 : 0);
@@ -590,6 +643,7 @@ export function crateBeats(p: CratePreset, c: CrateFxConfig = cfg, opts: { reduc
     anticipationMs: pos(c.anticipationMs) * k,
     chargeAt: chargeAt * k,
     hitchAt: hitchAt * k,
+    freezeAt: freeze > 0 ? chargeEnd * k : -1,
     burstAt: burstAt * k,
     burst2At: burst2 >= 0 ? burst2 * k : -1,
     revealAt: revealAt * k,
@@ -635,7 +689,7 @@ export function crateCue(c: CrateFxConfig, cue: CrateCue): CrateCueSetting {
 
 // ─── the tuner ────────────────────────────────────────────────────────────────────────────────────────────────
 
-const RARITY_LABEL: Record<CrateRarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+const RARITY_LABEL: Record<CrateRarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', ancient: 'Ancient' };
 
 /** [label, unit, hint] per rarity suffix. */
 const RARITY_SPECS: Record<RaritySuffix, [string, TunerUnit | undefined, string]> = {
@@ -656,6 +710,7 @@ const RARITY_SPECS: Record<RaritySuffix, [string, TunerUnit | undefined, string]
   Rays: ['God rays', 'opacity', 'The light rays: peeking in the charge, behind the reward after. 0 = none.'],
   DoubleBurst: ['Double burst', undefined, 'A second, smaller burst (with the coins) right after the first.'],
   Pitch: ['Sound pitch', '×', 'The pitch of this rarity’s cues. Lower = bigger.'],
+  FreezeMs: ['Time stop', 'ms', 'A freezing signature (Ancient): how long the chest holds frozen, drained to grey, before the burst. 0 = none.'],
 };
 
 /** [label, unit, hint, group] for the global numeric keys. Declaration order is render order. */
@@ -711,7 +766,7 @@ const SOUND_GROUPS: [string, StrKey | null, [NumKey, string, TunerUnit | undefin
   ]],
   ['Sound: stamp', 'sfxStampClip', [['sfxStampGain', 'stamp: gain', undefined, 'The shine as the rarity ribbon stamps.']]],
   ['Sound: coins', 'sfxCoinClip', [['sfxCoinGain', 'coins: gain', undefined, 'Clinks under the coin shower (a few, at random pitches).']]],
-  ['Sound: Legendary sting', 'sfxStingClip', [['sfxStingGain', 'sting: gain', undefined, 'The extra sting a Legendary reveal plays.']]],
+  ['Sound: Legendary sting', 'sfxStingClip', [['sfxStingGain', 'sting: gain', undefined, 'The extra sting a Legendary or Ancient reveal plays.']]],
   ['Sound: tail', null, [
     ['reverbMix', 'Reverb mix', undefined, 'A light reverb tail under the cues. 0 = dry.'],
     ['reverbSec', 'Reverb length', 's', 'How long that tail rings.'],
@@ -796,7 +851,7 @@ export const SPEC: TunerSpec<CrateFxConfig> = {
     { label: '↻ Replay', hint: 'Play the last rarity again.', run: () => play('replay') },
     { label: '▶ Slow server', hint: 'The anticipation holds for 3 seconds before a Rare lands, as on a slow connection.', run: () => play('slow') },
     { label: '▶ Failure', hint: 'The server fails: the anticipation holds, winds down, and says so.', run: () => play('fail') },
-    { label: '▶ Open all (4)', hint: 'Open four practice crates in a row (Common, Rare, Epic, Legendary), as Open all does.', run: () => play('all') },
+    { label: `▶ Open all (${CRATE_RARITIES.length})`, hint: `Open ${CRATE_RARITIES.length} practice crates in a row (${CRATE_RARITIES.map((r) => RARITY_LABEL[r]).join(', ')}), as Open all does.`, run: () => play('all') },
     ...CRATE_FX_SPEEDS.map((s) => ({
       label: `Speed ${s}x`,
       hint: 'Slow motion for the next plays (the tuner only; never saved, never in production).',

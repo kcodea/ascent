@@ -1925,6 +1925,20 @@ export interface QuestCombatMods {
    *  live as a `questTrigger` with `flag`, and the fight's total comes home as `CombatCarryBacks.ancientClearanceStacks`.
    *  Player-only; never snapshotted. */
   ancientClearanceStacks?: { every: number; flag: string; label: string };
+  /** ANCIENT OF DEATH × Xerox (owner 2026-10-02): "Avenge (5): Summon a copy of your highest attack minion." A hero
+   *  Avenge on ONE running count of friendly deaths across the Shop and combat: `tick` = the deaths already counted
+   *  (carried in from the run); every `every`th death (tick + the fight's count) summons an exact copy (current combat
+   *  stats, keywords, Ward / Rise) of the side's highest-Attack living minion (ties: the left-most), room permitting.
+   *  Rune of Fury fires it again. Settle advances the run's count by the fight's deaths. Player-only; never snapshotted. */
+  ancientXeroxAvenge?: { every: number; tick: number; label: string };
+  /** ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
+   *  copy of the side's highest-Health living minion (ties: the left-most), room permitting. Player-only. */
+  ancientXeroxSoc?: { label: string };
+  /** ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other gains
+   *  too." Two run-board uids (matched on `sourceUid`): a stat GAIN on either living body is gained by the other, once
+   *  (guarded, no echo). The mirrored grant is a combat buff; a permanent gain carries back and is mirrored by the Shop
+   *  half at settle, so the mirror never accrues Engraved `permaGain` itself (no double count). Player-only. */
+  ancientXeroxBond?: { a: string; b: string; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

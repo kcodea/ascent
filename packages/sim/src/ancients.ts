@@ -127,17 +127,40 @@
  *                                 turn at `price` (`ancientTimePrice`, counted by `ancientNoteMinionBuy`). (Time)
  *  · `clearanceSaleGivesStats`    `settleMinionSale` (`ancientOnSale`): a sold Clearance minion's current stats go to
  *                                 a random friendly board minion, real time. (Bonds)
+ *  XEROX (Copy Machine, `copyMachine`; owner pairings 2026-10-02). Copy Machine = "Summon an exact copy of a friendly
+ *  minion. Needs a free board slot. Once per game." "A copy" means Copy Machine's EXACT copy everywhere (`exactBoardCopy`
+ *  in the Shop: current stats, buffs, keywords, gilding, counters; combat: the body's current stats + Ward / Rise, the
+ *  Mirror March `copyStats` path), never a pool body.
+ *  · `avengeCopyTopAttack`        a hero Avenge (N) on ONE running count of friendly deaths across BOTH phases
+ *                                 (`AncientsState.xeroxDeaths`, the Rune of Body Counting meter shape): SHOP deaths tick it
+ *                                 at `fireOnFriendDeath` (`ancientXeroxShopDeath`); COMBAT carries it in
+ *                                 (`QuestCombatMods.ancientXeroxAvenge`) and settle adds the fight's deaths. Each Nth death
+ *                                 summons a copy of your highest-Attack living minion (ties: left-most). Full board: nothing.
+ *                                 Rune of Fury fires the combat half again (every hero Avenge's rule). (Death)
+ *  · `pairsGoldNextTurn`          a virtual recurring End-of-Turn entry (`ancientXeroxPairs`): +gold next turn per PAIR on
+ *                                 the board (two minions of the same card, Gilded or not; floor(n / 2) per card). (Fortune)
+ *  · `socCopyTopHealth`           COMBAT: `QuestCombatMods.ancientXeroxSoc`, Start of Combat: summon a copy of your
+ *                                 highest-Health living minion (ties: left-most), room permitting. (War)
+ *  · `copyMachineExtraCharge`     the pick banks `charges` more Copy Machine uses (`AncientsState.xeroxCharges`); the
+ *                                 reducer's `chargeUse` spends one once the once-per-game use is gone. (Genesis)
+ *  · `sotCopyToHand`              `ancientStartOfTurn`: a copy of a random board minion to hand (seeded), its own Start
+ *                                 of Turn beat. Empty board / full hand: nothing. (Time)
+ *  · `copyMachineBonds`           Copy Machine binds the copy and its original (`AncientsState.xeroxBond`). A stat GAIN on
+ *                                 either is gained by the other, real time: SHOP through `addBuff` (`stampXeroxBond`, the
+ *                                 Sable Soulbind hook); COMBAT through `ctx.buff` (`QuestCombatMods.ancientXeroxBond`,
+ *                                 matched on `sourceUid`). One hop (guarded). The bond breaks for good when either end is
+ *                                 consumed into a triple, sold, destroyed in the Shop, or otherwise leaves the run. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
+import { handCap, mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import type { HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
-import { INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
+import { exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
+import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -262,7 +285,20 @@ export type AncientEffect =
   /** Clearance is passive; the first `count` minions you buy each turn cost `price` Gold. */
   | { do: 'firstBuysCost'; count: number; price: number }
   /** Selling a minion bought from a Clearance Shop gives its current stats to a random friendly minion. */
-  | { do: 'clearanceSaleGivesStats' };
+  | { do: 'clearanceSaleGivesStats' }
+  // ── Xerox (Copy Machine) ──
+  /** Avenge (`every`), Shop AND combat (one running count): summon a copy of your highest-Attack minion. */
+  | { do: 'avengeCopyTopAttack'; every: number }
+  /** End of Turn: gain `gold` next turn for every pair of minions (same card) on your board. */
+  | { do: 'pairsGoldNextTurn'; gold: number }
+  /** Start of Combat: summon a copy of your highest-Health minion. */
+  | { do: 'socCopyTopHealth' }
+  /** Copy Machine gains `charges` more uses (banked at the pick). */
+  | { do: 'copyMachineExtraCharge'; charges: number }
+  /** Start of Turn: get a copy of a random minion you control. */
+  | { do: 'sotCopyToHand' }
+  /** Copy Machine's copy and its original are bound: a stat gain on one is gained by the other. A triple breaks it. */
+  | { do: 'copyMachineBonds' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -277,7 +313,9 @@ export interface AncientPairing {
    *  `{pummelEvery}` = War's live Pummel progress (toward the next payout, the badge rule) and its X. Frank:
    *  `{deathFree}` = " Free buy ready." while a Death free Clearance offer waits; `{stacks}` = War's banked Clearance stacks
    *  (plus those gained so far in the fight on screen); `{genesisTribe}` = the type Genesis would refresh into right now;
-   *  `{timeLeft}` = Time's discounted buys left this turn. */
+   *  `{timeLeft}` = Time's discounted buys left this turn. Xerox: `{xDeathLeft}` = friendly deaths still needed for
+   *  Death's next copy (live through a fight); `{pairs}` / `{pairGold}` = the pairs on the board right now and the Gold
+   *  they would bank; `{charges}` = Genesis' Copy Machine uses left; `{bond}` = Bonds' live bond state. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -589,6 +627,46 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'clearanceSaleGivesStats' }],
     },
   },
+  // XEROX (owner pairings 2026-10-02, quoted above each entry). Copy Machine = "Summon an exact copy of a friendly
+  // minion. Needs a free board slot. Once per game." Every "copy" below is Copy Machine's exact copy.
+  xerox: {
+    death: {
+      // "Avenge (5): Summon a copy of your highest attack minion"
+      offerText: '**Avenge (5):** summon a copy of your highest Attack minion.',
+      powerText: '{base} **Avenge (5):** summon a copy of your highest Attack minion (**{xDeathLeft}** more to go).',
+      effects: [{ do: 'avengeCopyTopAttack', every: 5 }],
+    },
+    fortune: {
+      // "Gain 4g next turn for every pair you have on board"
+      offerText: '**End of Turn:** gain **4 Gold** next turn for every pair of minions on your board.',
+      powerText: '{base} **End of Turn:** gain **4 Gold** next turn for every pair of minions on your board (**{pairs}** now: **{pairGold} Gold**).',
+      effects: [{ do: 'pairsGoldNextTurn', gold: 4 }],
+    },
+    war: {
+      // "Start of Combat: Summon a copy of your highest health minion"
+      offerText: '**Start of Combat:** summon a copy of your highest Health minion.',
+      powerText: '{base} **Start of Combat:** summon a copy of your highest Health minion.',
+      effects: [{ do: 'socCopyTopHealth' }],
+    },
+    genesis: {
+      // "Gain another charge of Copy Machine"
+      offerText: 'Copy Machine gains another use.',
+      powerText: 'Summon an exact copy of a friendly minion. Needs a free board slot. **{charges}** uses left.',
+      effects: [{ do: 'copyMachineExtraCharge', charges: 1 }],
+    },
+    time: {
+      // "Start of Turn: Get a copy of a minion you control."
+      offerText: '**Start of Turn:** get a copy of a random minion you control.',
+      powerText: '{base} **Start of Turn:** get a copy of a random minion you control.',
+      effects: [{ do: 'sotCopyToHand' }],
+    },
+    bonds: {
+      // "The copy and the original are bound. Stats one gains, the other gains too. * if this triples, the effect breaks"
+      offerText: 'The copy and the original are bound: when one gains stats, the other gains them too. A triple breaks the bond.',
+      powerText: '{base} The copy and the original are bound: when one gains stats, the other gains them too. A triple breaks the bond.{bond}',
+      effects: [{ do: 'copyMachineBonds' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -675,6 +753,16 @@ export interface AncientsState {
   /** FRANK × GENESIS: the type Clearance's refresh is narrowed to, set ONLY while that refresh rolls (read by
    *  `rollShopRow`). Transient: cleared the moment the roll is done. */
   rollTribe?: Tribe;
+  /** XEROX × DEATH: friendly deaths since the last copy (Shop + combat), the running Avenge (5) count. */
+  xeroxDeaths?: number;
+  /** XEROX × FORTUNE: Gold the board's pairs banked at End of Turn on `wave`. */
+  xeroxPairGold?: { wave: number; gold: number };
+  /** XEROX × GENESIS: banked extra Copy Machine uses (spent once the once-per-game use is gone). */
+  xeroxCharges?: number;
+  /** XEROX × BONDS: the bound pair (run uids of the original and Copy Machine's copy). Cleared for good when it breaks
+   *  (`xeroxBondBroken` then stays true for the power text). */
+  xeroxBond?: { a: string; b: string };
+  xeroxBondBroken?: boolean;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -745,6 +833,8 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.pickSeq = (a.pickSeq ?? 0) + 1;
   const shape = activeAncientPairing(state)?.power;
   if (shape) a.powerOverride = { ...shape };
+  const extra = effectOf(state, 'copyMachineExtraCharge');
+  if (extra) a.xeroxCharges = (a.xeroxCharges ?? 0) + extra.charges; // XEROX × GENESIS: banked at the pick
   return true;
 }
 
@@ -774,6 +864,9 @@ export interface AncientPowerLive {
   /** FRANK × WAR: Clearance stacks gained SO FAR in the fight on screen (the replay's `questTrigger` events for
    *  `ANCIENT_CLEARANCE_STACK_FLAG`), added to the banked count so the readout ticks with each Avenge. */
   clearanceStacks?: number;
+  /** XEROX × DEATH: friendly deaths SO FAR in the fight on screen (the replay's tally), added to the carried-in running
+   *  count so the Avenge (5) readout ticks with each death. */
+  friendlyDeaths?: number;
 }
 
 /** The resolved hero-power text, or undefined when no pairing is active (the caller keeps its base text). */
@@ -783,7 +876,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const per = effectOf(state, 'powerBuffPerGild');
   const a = live(state);
   const gilds = a?.gilds ?? 0;
-  const text = p.powerText;
+  let text = p.powerText;
   const g = aegisGrantOf(state);
   const aegis = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
   const copy = effectOf(state, 'wardBreaksGetCopy');
@@ -801,6 +894,12 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const deathFree = effectOf(state, 'clearanceDestroyFirstFree') && state.shop.some((o) => o.clearanceFree) ? ' Free buy ready.' : '';
   const top = effectOf(state, 'clearanceTopTribe') ? dominantBoardTribe(state) : null;
   const genesisTribe = top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '';
+  // XEROX: Death's countdown (live through a fight), Fortune's pairs + Gold, Genesis' uses, Bonds' bond.
+  const xDeathLeft = ancientXeroxAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0;
+  const pairs = boardPairs(state);
+  const pairGold = (effectOf(state, 'pairsGoldNextTurn')?.gold ?? 0) * pairs;
+  text = text.replace('{xDeathLeft}', String(xDeathLeft)).replace('{pairs}', String(pairs)).replace('{pairGold}', String(pairGold))
+    .replace('{charges}', String(ancientCopyUsesLeft(state))).replace('{bond}', xeroxBondText(state));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -856,7 +955,7 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  * Null = no hero Avenge is live.
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
-  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths);
+  return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -896,6 +995,7 @@ export function ancientAfterPowerGild(state: RunState, card: BoardCard): void {
  *  stats go to a random friendly minion). */
 export function ancientOnSale(state: RunState, sold: BoardCard): void {
   ancientClearanceSale(state, sold);
+  xeroxBreakIfEnd(state, sold.uid); // XEROX × BONDS: selling either end breaks the bond
   const e = effectOf(state, 'sellGildedGetsPlainCopy');
   if (!e || !sold.golden) return;
   const def = CARD_INDEX[sold.cardId];
@@ -957,6 +1057,12 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (edges) out.ancientSpellEdges = { attack: edges.attack, health: edges.health, label: HUNCH_BONDS_COMBAT_LABEL };
   const stack = effectOf(state, 'avengeClearanceStack');
   if (stack) out.ancientClearanceStacks = { every: stack.every, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: ANCIENTS.war.name };
+  // XEROX: Death's running Avenge carried in; War's Start-of-Combat copy; the Bonds pair (matched on `sourceUid`).
+  const xd = effectOf(state, 'avengeCopyTopAttack');
+  if (xd) out.ancientXeroxAvenge = { every: xd.every, tick: live(state)?.xeroxDeaths ?? 0, label: ANCIENTS.death.name };
+  if (effectOf(state, 'socCopyTopHealth')) out.ancientXeroxSoc = { label: ANCIENTS.war.name };
+  const bond = ancientXeroxBondOf(state);
+  if (bond) out.ancientXeroxBond = { a: bond.a, b: bond.b, label: ANCIENTS.bonds.name };
   return out;
 }
 
@@ -1081,6 +1187,9 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if (effectOf(state, 'avengeClearanceStack') && (result.playerAncientClearanceStacks ?? 0) > 0) {
     a.clearanceStacks = (a.clearanceStacks ?? 0) + result.playerAncientClearanceStacks!;
   }
+  // XEROX × DEATH: the fight's friendly deaths join the running Avenge count (its copies already landed mid-fight).
+  const xd = effectOf(state, 'avengeCopyTopAttack');
+  if (xd) a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, xd.every);
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -1155,6 +1264,7 @@ export function ancientRiseTint(state: RunState, card: BoardCard): RiseTint | un
  *  permanently (owner 2026-09-26: the previous combat only). */
 export function ancientStartOfTurn(state: RunState): void {
   albusStartOfTurn(state);
+  xeroxStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -1432,4 +1542,159 @@ function ancientClearanceSale(state: RunState, sold: BoardCard): void {
   // A `deathrattle`-kind capture keeps the sold body as its source: the UI streams the buff tendril from the slot it
   // just left (its last-known position) to the recipient, with the recipient's stat pop.
   captureBuffFx(state, sold, 'deathrattle', () => addBuff(pick, ANCIENTS.bonds.name, Math.max(0, sold.attack), Math.max(0, sold.health)));
+}
+
+// ── Xerox (Copy Machine) hooks ───────────────────────────────────────────────────────────────────────────────
+/** The friendly minion a Xerox copy is made of: the highest `stat` among `board` (ties: the left-most). */
+function topBy(board: readonly BoardCard[], stat: 'attack' | 'health'): BoardCard | undefined {
+  let best: BoardCard | undefined;
+  for (const c of board) if (!best || c[stat] > best[stat]) best = c;
+  return best;
+}
+
+/**
+ * XEROX × FORTUNE: the PAIRS on the board right now: minions sharing a card (a Gilded and a plain copy of one card are
+ * the same card), floor(n / 2) per card.
+ */
+export function boardPairs(state: Pick<RunState, 'board'>): number {
+  const n = new Map<string, number>();
+  for (const c of state.board) n.set(c.cardId, (n.get(c.cardId) ?? 0) + 1);
+  let pairs = 0;
+  for (const k of n.values()) pairs += Math.floor(k / 2);
+  return pairs;
+}
+
+/** XEROX × FORTUNE: is the End-of-Turn pair payout live (the `ancientXeroxPairs` recurring entry)? */
+export function ancientXeroxPairsLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'pairsGoldNextTurn');
+}
+
+/** XEROX × FORTUNE: End of Turn, bank `gold` per pair for next turn (the `ancientXeroxPairs` recurring entry). */
+export function ancientRunXeroxPairs(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'pairsGoldNextTurn');
+  if (!a || !e) return;
+  const gold = e.gold * boardPairs(state);
+  if (gold <= 0) return;
+  state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold;
+  const cur = a.xeroxPairGold?.wave === state.wave ? a.xeroxPairGold.gold : 0;
+  a.xeroxPairGold = { wave: state.wave, gold: cur + gold };
+}
+
+/**
+ * XEROX × DEATH: friendly deaths still needed for the next copy. ONE running count across the Shop and combat (the
+ * carried `xeroxDeaths` plus `deaths`, the deaths so far in the fight on screen). Null when Death is not picked.
+ */
+export function ancientXeroxAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeCopyTopAttack') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.xeroxDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/**
+ * A friendly minion died in the Shop (`fireOnFriendDeath`: every Shop death path, once; a sale never). BONDS: a bound
+ * end dying breaks the bond. DEATH: the running Avenge count ticks; each `every`th death summons a copy of your
+ * highest-Attack minion beside it (the dying body, still in its slot while it vacates, is never the source and never
+ * holds a slot). No minion to copy, or no room: nothing happens (the count still resets).
+ */
+export function ancientXeroxShopDeath(state: RunState, dead: BoardCard): void {
+  const a = live(state);
+  if (!a) return;
+  xeroxBreakIfEnd(state, dead.uid);
+  const e = effectOf(state, 'avengeCopyTopAttack');
+  if (!e) return;
+  a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.xeroxDeaths !== 0) return;
+  const others = state.board.filter((c) => c.uid !== dead.uid && c.uid !== state.vacatingUid);
+  const src = topBy(others, 'attack');
+  if (!src || others.length >= CONFIG.boardMax) return;
+  const copy = exactBoardCopy(state, src);
+  state.board.splice(state.board.indexOf(src) + 1, 0, copy);
+}
+
+/** TIME: Start of Turn, a copy of a random board minion to hand, as its own beat (R-SOT-BEAT-01). */
+function xeroxStartOfTurn(state: RunState): void {
+  if (!live(state) || !effectOf(state, 'sotCopyToHand')) return;
+  if (state.board.length === 0 || state.hand.length >= handCap(state)) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    const rng = makeRng(state.rngCursor);
+    const src = state.board[rng.int(state.board.length)]!;
+    state.rngCursor = rng.state();
+    state.hand.push(exactBoardCopy(state, src));
+  });
+}
+
+/** GENESIS: Copy Machine uses banked beyond the once-per-game one (0 unless the pairing is live). */
+export function ancientCopyCharges(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number {
+  const s = state as RunState;
+  return live(s) && effectOf(s, 'copyMachineExtraCharge') ? Math.max(0, live(s)?.xeroxCharges ?? 0) : 0;
+}
+
+/** GENESIS: Copy Machine uses left right now (the once-per-game use while unspent + the banked charges). */
+export function ancientCopyUsesLeft(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'heroPowerSpent'>): number {
+  return (state.heroPowerSpent ? 0 : 1) + ancientCopyCharges(state);
+}
+
+/** GENESIS: a use past the once-per-game one spends a banked charge. */
+export function ancientSpendCopyCharge(state: RunState): void {
+  const a = live(state);
+  if (a && (a.xeroxCharges ?? 0) > 0) a.xeroxCharges = a.xeroxCharges! - 1;
+}
+
+/** BONDS: Copy Machine just made `copy` of `original`: bind them (a later Copy Machine re-binds to its own pair). */
+export function ancientOnCopyMachine(state: RunState, original: BoardCard, copy: BoardCard): void {
+  const a = live(state);
+  if (!a || !effectOf(state, 'copyMachineBonds')) return;
+  a.xeroxBond = { a: original.uid, b: copy.uid };
+  a.xeroxBondBroken = undefined;
+  stampXeroxBond(state); // live for the rest of THIS dispatch too
+}
+
+/** BONDS: the live bond, or undefined (none, broken, or Bonds not picked). Pure read. */
+export function ancientXeroxBondOf(state: RunState): { a: string; b: string } | undefined {
+  const a = live(state);
+  return a?.xeroxBond && effectOf(state, 'copyMachineBonds') ? a.xeroxBond : undefined;
+}
+
+/** BONDS: the bond, after checking both ends still exist on the run (board or hand). An end that is gone (sold,
+ *  consumed, eaten, destroyed) breaks it for good. Called by `stampXeroxBond`, so every action re-checks it. */
+export function ancientXeroxBondValidate(state: RunState): { a: string; b: string } | undefined {
+  const bond = ancientXeroxBondOf(state);
+  if (!bond) return undefined;
+  const has = (uid: string): boolean => state.board.some((c) => c.uid === uid) || state.hand.some((c) => c.uid === uid);
+  if (has(bond.a) && has(bond.b)) return bond;
+  xeroxBreak(state, false);
+  return undefined;
+}
+
+/** BONDS: "if this triples, the effect breaks": either end consumed into a triple ends the bond for good. */
+export function ancientXeroxBondTripled(state: RunState, consumed: readonly BoardCard[]): void {
+  for (const c of consumed) xeroxBreakIfEnd(state, c.uid);
+}
+
+function xeroxBreakIfEnd(state: RunState, uid: string): void {
+  const bond = live(state)?.xeroxBond;
+  if (bond && (bond.a === uid || bond.b === uid)) xeroxBreak(state, true);
+}
+
+function xeroxBreak(state: RunState, restamp: boolean): void {
+  const a = live(state);
+  if (!a?.xeroxBond) return;
+  a.xeroxBond = undefined;
+  a.xeroxBondBroken = true;
+  if (restamp) stampXeroxBond(state); // stop mirroring for the rest of THIS dispatch
+}
+
+/** BONDS: the live bond line the power prints (who is bound right now, or that the bond is broken). */
+function xeroxBondText(state: RunState): string {
+  const a = live(state);
+  if (!a || !effectOf(state, 'copyMachineBonds')) return '';
+  const bond = a.xeroxBond;
+  if (bond) {
+    const c = state.board.find((x) => x.uid === bond.a) ?? state.hand.find((x) => x.uid === bond.a);
+    const name = c ? CARD_INDEX[c.cardId]?.name ?? c.cardId : 'a minion';
+    return ` Bound now: **${name}** and its copy.`;
+  }
+  return a.xeroxBondBroken ? ' The bond is broken.' : '';
 }

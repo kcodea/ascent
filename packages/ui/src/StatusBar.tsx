@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
+import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -162,7 +162,7 @@ export function StatusBar() {
   // FRANK × WAR, LIVE (R-REALTIME-01): Clearance stacks gained so far this fight. Undefined outside a fight.
   const clearanceStacks = useGame((s) => s.combatQuestDelta?.clearanceStacks);
   const combatFriendlyDeaths = useGame((s) => s.combatQuestDelta?.friendlyDeaths);
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks]);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
@@ -583,7 +583,8 @@ export function StatusBar() {
     !clockLocked &&
     withinUses &&
     // ANCIENT OF WAR × Frantic Frank: a banked Clearance stack re-arms a spent Clearance (the reducer's `stackUse`).
-    (power.oncePerGame ? !run.heroPowerSpent : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0)) &&
+    // ANCIENT OF GENESIS × Xerox: a banked Copy Machine charge re-arms the spent once-per-game use (the reducer's `chargeUse`).
+    (power.oncePerGame ? !run.heroPowerSpent || (power.kind === 'copyMachine' && ancientCopyCharges(run) > 0) : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0)) &&
     // ONE price, checked once. A shrinking power (Dragon Tamer / Dynamite Dig / Hunch / Buyout) used to be
     // gated by its DISCOUNTED cost *and* its printed base cost, so between the two you could see the real,
     // payable price on the coin while the button read as unaffordable — and the art dimmed to 10% (the
@@ -609,7 +610,7 @@ export function StatusBar() {
   // THE HERO AVENGE COUNTDOWN (owner 2026-09-30): Frank × War's Avenge (3) or Hunch × Death's Avenge (4) owns the
   // centre readout, live through the fight on screen (its friendly deaths so far), back to full after each trigger. One
   // helper, one disc (`.hpb-avenge`) for both.
-  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
+  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
   const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
@@ -650,7 +651,10 @@ export function StatusBar() {
                           ? `${power.name} · locked ${diceLock}t`
                           // A once-per-GAME power must never read "once per turn" (owner report 2026-08-14 — Xerox).
                           : power.oncePerGame
-                            ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
+                            // ANCIENT OF GENESIS × Xerox: banked Copy Machine charges read as uses left.
+                            ? power.kind === 'copyMachine' && ancientCopyCharges(run) > 0
+                              ? `${power.name} · ${(run.heroPowerSpent ? 0 : 1) + ancientCopyCharges(run)} uses left`
+                              : `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
                             // …and neither must a capped-USES power (Rascal: twice a game, not once a turn —
                             // owner report 2026-08-16). The cap is the headline; the once-per-turn gate is
                             // still enforced, it just isn't what the player needs told.

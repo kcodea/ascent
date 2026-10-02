@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
+import { ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -8821,8 +8821,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
     gainGold(state, sellValueOf(sold, state)); // the Gold the player gets from the sell (bartering-aware)
     // It COUNTS AS A SELL, so Robin's Spoils banks its +1 next-turn Gold too (parity with the reducer's
-    // sell case — this path used to skip it).
-    if (hasPower(state, 'sellGold')) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+    // sell case — this path used to skip it), and Robin's Ancients hear the sale.
+    bankSpoils(state, sold);
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const demon = state.board.find((c) => isTribe(c, 'demon')); // left-most Demon (board order)
     if (demon) {
@@ -8841,7 +8841,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
     gainGold(state, sellValueOf(sold, state)); // bartering-aware (parity with the reducer's sell)
-    if (hasPower(state, 'sellGold')) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+    bankSpoils(state, sold);
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)
     if (beast) addBuff(beast, 'Feed the Alpha', sold.attack, sold.health);
@@ -10631,6 +10631,8 @@ function fire(
   // Den Marker (run-wide quest aura): a Beast entering play gains the current buff, which then climbs every `per`.
   // Runs after the card auras so it stacks on top of a real Den Mother; only on summon (matches Den Mother).
   if (event === 'onSummon' && ctx.state.denMarker) applyDenMarker(ctx.state, payload.minion);
+  // ANCIENT OF DEATH × Robin: a summoned minion gains +3/+2 per Spoils count this turn (after the card auras, like Den Marker).
+  if (event === 'onSummon') ancientOnShopSummon(ctx.state, payload.minion);
   // Ancient Wanderer: an ARRIVING body catches up to the run's whole spend ("for every 3 Gold you HAVE spent"),
   // rather than starting from zero the way a witnessed-threshold card would.
   if (event === 'onSummon') syncGoldSpentScalers(ctx.state);
@@ -11089,6 +11091,18 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
  * runes), Robin's Spoils and the pool return. The caller has ALREADY removed `sold` from wherever it lived.
  * (Rune of Dismantling is deliberately NOT here: it fires BEFORE the body leaves and belongs to the manual sale.)
  */
+/**
+ * Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands on top of the
+ * cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel). The ONE sale hook every sale
+ * path calls (`settleMinionSale`, Fodder Treatment, Feed the Alpha), so Robin's Ancients (the per-turn Spoils count and
+ * the sale pairings, `ancientOnRobinSale`) hear each sale exactly once. The caller has already removed `sold`.
+ */
+function bankSpoils(state: RunState, sold: BoardCard): void {
+  const spoils = hasPower(state, 'sellGold');
+  if (spoils) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+  ancientOnRobinSale(state, sold, spoils);
+}
+
 export function settleMinionSale(state: RunState, sold: BoardCard): void {
   ancientOnSale(state, sold); // ANCIENT OF FORTUNE: a gilded sale gets a plain copy (a no-op unless the run has it)
   // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
@@ -11171,9 +11185,7 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   const t = CARD_INDEX[sold.cardId]?.tribe;
   if (t && t !== 'neutral') state.tradeInTribe = t;
   }
-  // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
-  // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
-  if (hasPower(state, 'sellGold')) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+  bankSpoils(state, sold);
   // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
   returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
 }
@@ -13466,6 +13478,7 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientTimeWard') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientXeroxPairs') return { source: beatSource('hero', state.heroId, ANCIENTS.fortune.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientTradesUpgrade') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientRobinMaxGold') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -14028,6 +14041,8 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...(ancientXeroxPairsLive(state) ? ['ancientXeroxPairs' as const] : []),
     // ANCIENT OF TIME × Tradesman: "End of Turn: Reduce the cost of upgrading the Shop by 3." The same virtual entry.
     ...(ancientTradesUpgradeLive(state) ? ['ancientTradesUpgrade' as const] : []),
+    // ANCIENT OF TIME × Robin: "End of Turn: Increase your max gold by 1". The same virtual recurring entry shape.
+    ...(ancientRobinMaxGoldLive(state) ? ['ancientRobinMaxGold' as const] : []),
   ];
 }
 
@@ -14073,6 +14088,8 @@ function runRecurringEndOfTurn(
     ancientRunXeroxPairs(state);
   } else if (effect === 'ancientTradesUpgrade') {
     ancientRunTradesUpgrade(state);
+  } else if (effect === 'ancientRobinMaxGold') {
+    ancientRunRobinMaxGold(state);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14664,6 +14681,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientTimeWard: 'Ancient of Time',
   ancientXeroxPairs: 'Ancient of Fortune',
   ancientTradesUpgrade: 'Ancient of Time',
+  ancientRobinMaxGold: 'Ancient of Time',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

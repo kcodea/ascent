@@ -886,4 +886,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSoren.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-ANCROBIN-01',
+    title: 'Robin × Ancient of Death: summoned minions gain +3/+2 for every Spoils count (sale) this turn, in the Shop and in combat',
+    statement:
+      "With the Ancient of Death, every friendly minion summoned gains +3/+2 for each minion sold this turn (a Spoils count is one sale). Shop: a play from hand or a token summon gains it permanently, after the card auras. Combat: every friendly summon (a token, a Rise, a resummon) gains the turn's amount as a combat buff. The count resets each turn; the power prints the live count and gain.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'death - Summoned minions gain +3/+2 for every count of Spoils this turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts summonGainPerSpoils / ancientOnShopSummon / robinSpoilsThisTurn; packages/core/src/combat/simulate.ts summonEntryEffects ancientSummonGain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-02',
+    title: 'Robin × Ancient of Fortune: every 2nd minion sold banks a free Refresh right then',
+    statement:
+      'With the Ancient of Fortune, one running count of sales (every sale path: the manual sale and the spells that sell) banks a free Refresh (the free-roll bank) on every 2nd sale, immediately. The power prints the sales left.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'fortune - Every 2 minions sold also grants a free refresh.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sellsGrantFreeRefresh / ancientOnRobinSale; packages/sim/src/recruit.ts bankSpoils' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-03',
+    title: 'Robin × Ancient of War: each sale gives the left-most minion +2/+3, permanently, right then',
+    statement:
+      'With the Ancient of War, every minion sold (board or hand) gives the left-most board minion, read after the sale, +2/+3 permanently. An empty board gets nothing.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'war - Give your left-most minion +2/+3 every time you sell a minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts saleBuffsLeftmost / ancientOnRobinSale' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-04',
+    title: 'Robin × Ancient of Genesis: every 7th sale gives a plain copy of one of the seven sold',
+    statement:
+      'With the Ancient of Genesis, every 7th sale (a running window since the last payout) gives a plain copy (base stats, never Gilded) of one of the minions sold in that window, picked with the seeded run RNG, hand first, the board when the hand is full. It repeats every 7 sales; the power prints the sales left.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'genesis - When you sell 7 minions, get a copy of one of them.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sellsGetCopy / ancientOnRobinSale' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-05',
+    title: 'Robin × Ancient of Time: End of Turn, +1 max Gold, permanently',
+    statement:
+      'With the Ancient of Time, every End of Turn raises max Gold by 1 through the permanent above-cap channel (maxGoldBonus), with no ceiling. It is a virtual recurring End-of-Turn entry, so it gets its own beat and follows End-of-Turn repeats. The power prints the total so far.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'time - End of Turn: Increase your max gold by 1' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotMaxGold / ancientRunRobinMaxGold; packages/sim/src/recruit.ts recurringEotEffects (ancientRobinMaxGold)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCROBIN-06',
+    title: 'Robin × Ancient of Bonds: a sale marks its type; the next minion of that type bought costs 2 Gold',
+    statement:
+      'With the Ancient of Bonds, selling a minion marks its type (each of a dual-type minion\'s types; an All-types minion marks "any type"; a typeless minion marks nothing). One mark per type, kept across turns until used. The next minion bought of a marked type is priced at most 2 Gold (other discounts still apply on top), shown on the cost coin, and the buy spends that mark.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'bonds - Selling a minion makes the next of its tribe cost 2g.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts saleDiscountsTribe / ancientRobinBondsPrice / ancientSpendRobinBonds; packages/sim/src/reducer.ts offerBuyPrice' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

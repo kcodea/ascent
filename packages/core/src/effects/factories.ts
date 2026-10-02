@@ -403,6 +403,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.grantMaxGold(amount, self.side);
       if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount });
     },
+    grantGoldNextTurn: (amount) => { ctx.grantBonusGold(amount, self.side); },
     isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
     isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
     isFodder: (t) => !!ctx.getCard(t.cardId)?.keywords.includes('FD'),
@@ -2863,6 +2864,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
     ARENA_EFFECTS.rallyGetRubies(combatArena(ctx, self), params);
+  },
+  /** Ancient of War × Tradesman's graft (2026-10-02) — Rally: gain N Gold next turn (the bonus-Gold carry-back). The
+   *  player's fire also logs a `questTrigger` (`ancientRallyGold`), which the replay's live text and settle count. */
+  rallyGoldNextTurn: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    ARENA_EFFECTS.rallyGoldNextTurn(combatArena(ctx, self), params);
+    if (self.side === 'player') ctx.log({ type: 'questTrigger', flag: 'ancientRallyGold', side: self.side });
   },
   /** Rune of Aggressive Golems' graft (2026-09-25) — Rally: the minion to the right gains this minion's Attack. */
   rallyGiveAttackToRight: (ctx, self, params, payload) => {

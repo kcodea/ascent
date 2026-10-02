@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientRunXeroxPairs, ancientXeroxPairsLive, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
+import { ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -260,6 +260,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       return [state.board[idx - 1], state.board[idx + 1]].filter((c): c is BoardCard => !!c);
     },
     grantMaxGold: (amount) => { state.maxEmbers += amount; },
+    grantGoldNextTurn: (amount) => { state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + amount; },
     isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
     isFodder: (t) => !!CARD_INDEX[t.cardId]?.keywords.includes('FD'),
@@ -1121,13 +1122,17 @@ export interface HeroPowerLive {
   /** Friendly deaths SO FAR in the fight being replayed; undefined outside a fight. Xerox × Ancient of Death prints its
    *  running Avenge (5) countdown live. */
   friendlyDeaths?: number;
+  /** Free Refreshes Tradesman × Ancient of Death's Avenge gained SO FAR in the fight; undefined outside a fight. */
+  freeRefreshes?: number;
+  /** Tradesman × Ancient of War's Rally graft fires SO FAR in the fight; undefined outside a fight. */
+  rallyFires?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -3748,6 +3753,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   rallyGetRubies: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyGetRubies(shopArena(ctx.state, self), params);
+  },
+  // Ancient of War × Tradesman's graft (2026-10-02): a Shop Rally (Lasting Cadence, the rally runes) banks the Gold
+  // too, real time; the power text's banked readout records it.
+  rallyGoldNextTurn: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    const before = ctx.state.bonusEmbersNextTurn ?? 0;
+    ARENA_EFFECTS.rallyGoldNextTurn(shopArena(ctx.state, self), params);
+    noteTradesRallyGold(ctx.state, (ctx.state.bonusEmbersNextTurn ?? 0) - before);
   },
   // Rune of Aggressive Golems' graft (2026-09-25): a Shop Rally replay (Lasting Cadence, the rally runes) fires it
   // too, and a Shop buff is permanent.
@@ -10669,6 +10682,7 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   }
   // ANCIENTS × Xerox (a no-op unless picked): Death's hero Avenge counts this Shop death; Bonds breaks on it.
   ancientXeroxShopDeath(state, dead);
+  ancientTradesShopDeath(state); // TRADESMAN × DEATH: the Shop half of the running Avenge (3)
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {
@@ -11848,7 +11862,8 @@ export function applySecondLife(state: RunState, card: BoardCard): void {
 export const ENDLESS_MARCH_TOKEN = 'knit';
 
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
-  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes) return;
+  const rallyGold = ancientRallyGoldGraft(state); // ANCIENT OF WAR × Tradesman
+  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
   const graft = (effect: EffectDef): void => {
@@ -11875,6 +11890,13 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   }
   if (state.questFlags?.runeAggressiveGolems && card.cardId === 'gemheart-shard') {
     graft({ on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} });
+    if (!card.keywords.includes('RL')) card.keywords = [...card.keywords, 'RL'];
+  }
+  // ANCIENT OF WAR × Tradesman (owner 2026-10-02): "Your minions gain Rally: Gain 1g next turn". Every friendly minion
+  // (board and hand, every arrival path through this sweep) carries the Rally keyword and the graft, so every Rally
+  // trigger fires it: a swing, a Rally multiplier, a free / Shop Rally (Lasting Cadence, the rally runes).
+  if (rallyGold) {
+    graft(rallyGoldGraftEffect(rallyGold.gold));
     if (!card.keywords.includes('RL')) card.keywords = [...card.keywords, 'RL'];
   }
 }
@@ -13443,6 +13465,7 @@ function applyEndOfTurnBody(state: RunState): void {
     // The Ancient of Time's grant is the HERO's, not a rune's (no content owner).
     if (effect === 'ancientTimeWard') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientXeroxPairs') return { source: beatSource('hero', state.heroId, ANCIENTS.fortune.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientTradesUpgrade') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -14003,6 +14026,8 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     // ANCIENT OF FORTUNE × Xerox: "Gain 4g next turn for every pair you have on board", counted at End of Turn. A
     // virtual recurring entry like Warden's Time, so its End of Turn repeats and replays follow the one rule.
     ...(ancientXeroxPairsLive(state) ? ['ancientXeroxPairs' as const] : []),
+    // ANCIENT OF TIME × Tradesman: "End of Turn: Reduce the cost of upgrading the Shop by 3." The same virtual entry.
+    ...(ancientTradesUpgradeLive(state) ? ['ancientTradesUpgrade' as const] : []),
   ];
 }
 
@@ -14046,6 +14071,8 @@ function runRecurringEndOfTurn(
     ancientRunEotWardBuff(state, step);
   } else if (effect === 'ancientXeroxPairs') {
     ancientRunXeroxPairs(state);
+  } else if (effect === 'ancientTradesUpgrade') {
+    ancientRunTradesUpgrade(state);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14636,6 +14663,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   runeFiveBanners: 'Rune of the Five Banners',
   ancientTimeWard: 'Ancient of Time',
   ancientXeroxPairs: 'Ancient of Fortune',
+  ancientTradesUpgrade: 'Ancient of Time',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

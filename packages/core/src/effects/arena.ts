@@ -109,6 +109,9 @@ export interface EffectArena {
   /** Raise the run's MAXIMUM Gold. Combat routes through its carry-back channel (and logs the maxGold
    *  event for the replay); the shop raises `maxEmbers` directly. */
   grantMaxGold(amount: number): void;
+  /** Bank `amount` Gold for the NEXT turn. Combat routes through the bonus-Gold carry-back (`grantBonusGold`); the
+   *  shop adds to `bonusEmbersNextTurn` directly. */
+  grantGoldNextTurn(amount: number): void;
   /** Is this body a Celestial? (A card-definition read; adapters own their card index access.) */
   isCelestial(t: ArenaBody): boolean;
   /** Is this body an Imp? */
@@ -1617,6 +1620,14 @@ export const ARENA_EFFECTS = {
   /** Rune of Aggressive Golems' graft (owner 2026-09-25) — Rally: the minion to the RIGHT of this one (the next
    *  living ally in board order) gains this minion's CURRENT Attack. Nothing to the right = nothing happens. A
    *  rune-granted ability, so it fires once whatever the body's gilding. */
+  /** Ancient of War × Tradesman's graft (owner 2026-10-02) — Rally: gain `gold` Gold next turn. `fixed` = a hero-granted
+   *  Rally: a Gilded body gives the same Gold (the rune-graft rule); without it, golden doubles. */
+  rallyGoldNextTurn(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = typeof params.gold === 'number' ? params.gold : 1;
+    const n = g * (params.fixed ? 1 : gold(arena));
+    if (n > 0) arena.grantGoldNextTurn(n);
+  },
+
   rallyGiveAttackToRight(arena: EffectArena, _params?: Record<string, unknown>): void {
     const amount = arena.self.attack;
     if (amount <= 0) return;

@@ -353,7 +353,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'rally' family · 47 cards",
     "statement": "All 47 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "51 effect factories across 47 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "52 effect factories across 47 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Beev: \"When a Beast attacks, give it and this +2/+2.\" · Members: Beev · Echohorn · Hawkus · Packstrider · Raven · Sunmane Herald · Neptus · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · … and 35 more",
     "example": "Beev follows the 'rally' convention — its trigger fires on onAttack. its printed numbers double when the card is gilded.",
     "contentIds": [

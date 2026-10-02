@@ -10,7 +10,7 @@ import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
-import type { ConsequenceEvent, Keyword } from '@game/core';
+import type { ConsequenceEvent, Keyword, PresentationBatch } from '@game/core';
 import { ALE_IDS } from '@game/core';
 
 /** Consequence types whose cosmetic cue a QUIET paced repeat tick skips (its stats still land). R-REPEAT-04. */
@@ -32,6 +32,15 @@ const CHOREO_EOT = (() => {
   // regression found in the wild, kept for one release and removed with the legacy path itself.
   try { return localStorage.getItem('ascent.choreo') !== '0'; } catch { return true; }
 })();
+/** A RECORDED End of Turn handed to `playEndOfTurnAuthoritative` by the replay viewer (`CombatFrame.eot`): the
+ *  batch as it played live, the Lasso records its presenter reads, the replay speed, and the completion hook that
+ *  replaces the commit. */
+type RecordedEot = {
+  batch: PresentationBatch;
+  lassoFx: NonNullable<RunState['lassoFx']>;
+  speed: number;
+  onDone: () => void;
+};
 // Dev-only breadcrumb so it is unambiguous WHICH End-of-Turn path a session is running.
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
@@ -6203,14 +6212,20 @@ export function Recruit() {
    *
    * Returns false if it cannot run (nothing emitted), so the caller falls back to legacy rather than
    * softlocking End Turn — the blueprint's hard failure rule (§5.6).
+   *
+   * REPLAY (owner report 2026-10-02: a replay showed "no animation or beats at all" at End of Turn): `recorded`
+   * plays a RECORDED batch (`CombatFrame.eot`) through this same path instead of preparing one. Nothing is
+   * resolved and nothing commits: completion calls `recorded.onDone`, and the replay player renders the fight.
    */
-  const playEndOfTurnAuthoritative = (): boolean => {
-    const prepared = preparePresentationAction({ type: 'faceOmen' });
-    if (!prepared) return false; // could not prepare at all — let the caller fall back rather than stall
-    if (!prepared.batch) {
+  const playEndOfTurnAuthoritative = (recorded?: RecordedEot): boolean => {
+    const prepared = recorded ? null : preparePresentationAction({ type: 'faceOmen' });
+    if (!recorded && !prepared) return false; // could not prepare at all — let the caller fall back rather than stall
+    const eotBatch = recorded ? recorded.batch : prepared!.batch;
+    const finishEot = recorded ? recorded.onDone : commitPresentationAction;
+    if (!eotBatch) {
       // Nothing emitted: an early turn with no End-of-Turn content. There is nothing to animate, so commit
       // straight through. The legacy path would reach the same place, having also found no beats to play.
-      commitPresentationAction();
+      finishEot();
       return true;
     }
     // CHOREOGRAPHER PR 10: compile with the COMMITTED config, so a beat tuned in the tool and committed to
@@ -6223,7 +6238,7 @@ export function Recruit() {
     const converted = liveDraft
       ? draftToEngine(liveDraft.timings as BeatTimingOverrides, liveDraft.policies as BeatPolicyOverrides)
       : null;
-    const timeline = compileTimeline(normalizePresentationBatch(prepared.batch), {
+    const timeline = compileTimeline(normalizePresentationBatch(eotBatch), {
       config: shippedBeatConfig(),
       ...(converted ? { draft: converted.draft, modeDraft: converted.modeDraft } : {}),
     });
@@ -6237,7 +6252,7 @@ export function Recruit() {
     }
     // Nothing emitted (an early turn with no End-of-Turn content) — commit straight through rather than
     // holding a lock for an empty animation.
-    if (timeline.beats.length === 0) { commitPresentationAction(); return true; }
+    if (timeline.beats.length === 0) { finishEot(); return true; }
 
     // Absolute stat floor the projection's deltas are applied to — the board as it looks right now.
     const baseStats: Record<string, { attack: number; health: number }> = {};
@@ -6257,7 +6272,7 @@ export function Recruit() {
        still showing `before`, so nothing has to hold it open) and leaves at contact, and the hand PREVIEW is
        filtered out of the projection's grant list until then. Without that the preview appeared as the rope
        left. The completion pad below waits out whatever cascade is still in the air. */
-    const lassoSteals = prepared.after.lassoFx ?? [];
+    const lassoSteals = (recorded ? recorded.lassoFx : prepared!.after.lassoFx) ?? [];
     const lassoByHandUid = new Map(lassoSteals.map((e) => [e.handUid, e]));
     const lassoPendingHandUids = new Set(lassoSteals.map((e) => e.handUid).filter(Boolean));
     let lassoNextLaunchAt = 0; // a `performance.now()` floor for the next rope
@@ -6656,6 +6671,7 @@ export function Recruit() {
         setEotTransforms(EMPTY_TRANSFORMS); // the real (transformed) cards are on run.board after commit
         eotCancelRef.current = null;
         eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
+        if (recorded) { setEotConsumedUids(new Set()); recorded.onDone(); return; }
         commitPresentationAction();
         // The shop-consume crumble + eater-gain hold already played on their beats (the `fodderEaten` presenter);
         // advance both legacy commit-time watchers' refs past the now-committed seq so they don't replay them.
@@ -6681,7 +6697,7 @@ export function Recruit() {
       },
     });
 
-    const cancel = runTimeline(player, { speed: 1 });
+    const cancel = runTimeline(player, { speed: recorded?.speed ?? 1 });
     // Unmount safety net (§5.6): cancel the loop and COMMIT — never leave End Turn locked with a prepared
     // action stranded. `finish()` delivers everything remaining, so a skip lands the same state as watching.
     eotCancelRef.current = () => { cancel(); player.finish(); };
@@ -7033,6 +7049,30 @@ export function Recruit() {
   const endTurnRef = useRef(endTurn);
   endTurnRef.current = endTurn;
   const endTurnStable = useCallback((): void => { endTurnRef.current(); }, []);
+  /* REPLAY VIEWER: play a RECORDED End of Turn when the replay player asks (owner report 2026-10-02: "when
+     watching this back, the end of turn with lasting cadence etc wasnt showing any animation or beats at all").
+     The cue carries the batch the live End Turn played (`CombatFrame.eot`); it runs through the SAME compiler,
+     timeline player and presenters as a live End Turn, over the shop frame on screen, and completion stamps
+     `replayEotDone` instead of committing. Keyed, so a cue is played once, and a completion that lands after a
+     seek or an exit (the cue has moved on) is ignored. */
+  const replayEotCue = useGame((st) => st.replayEotCue);
+  const replayEotPlayedRef = useRef(0);
+  useEffect(() => {
+    if (!replayEotCue || replayEotCue.key === replayEotPlayedRef.current) return;
+    replayEotPlayedRef.current = replayEotCue.key;
+    const key = replayEotCue.key;
+    const onDone = (): void => {
+      if (useGame.getState().replayEotCue?.key === key) useGame.setState({ replayEotDone: key });
+    };
+    const ok = !inCombat && !endTurnPendingRef.current && playEndOfTurnAuthoritative({
+      batch: replayEotCue.eot.batch,
+      lassoFx: replayEotCue.eot.lassoFx ?? [],
+      speed: replayEotCue.speed,
+      onDone,
+    });
+    if (!ok) onDone(); // nothing playable here: never hold the replay on a beat that cannot run
+    // Keyed on the cue alone: the End-of-Turn player closure is rebuilt every render and read fresh here.
+  }, [replayEotCue]);
   // Spark on a targeted minion's card centre (falls back to the drop point).
   const sparkAtUid = (uid: string, fx: number, fy: number): void => {
     const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);

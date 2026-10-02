@@ -4183,4 +4183,32 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-REPLAY-01',
+    title: 'A replay plays each round\x27s End of Turn, beat for beat, before the fight, from the batch recorded when it was played',
+    statement:
+      'Live, End of Turn resolves once into a presentation batch that the Choreographer plays on the Shop before the '
+      + 'fight. The replay records that batch on the fight\x27s frame (CombatFrame.eot: the batch, the moment End Turn '
+      + 'was pressed, and the Lasso records), deep-cloned at capture. Playback holds the last shop frame until that '
+      + 'moment, then plays the recorded batch through the SAME compiler, timeline player and presenters as a live '
+      + 'End Turn (one beat per source, so Rune of Lasting Cadence shows one beat per Rally), and renders the fight '
+      + 'only when the beats finish. Nothing is reduced or simulated at playback. A pause lets the beats finish and '
+      + 'resume renders the fight; a seek drops them. A recording made before this existed has no batch and goes '
+      + 'straight to its fight, as it always did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-02, relayed verbatim by the coordinator (Brackus victory, Rune of Lasting Cadence)',
+        quote: 'noticing a gap in the replay system - when watching this back, the end of turn with lasting cadence etc wasnt showing any animation or beats at all. can you triage this?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/replayV2.ts (CombatFrame.eot, EotRecord, eotRecordOf); packages/ui/src/store.ts (capture at the faceOmen commit, pendingEotAtMs, replayEotCue / replayEotDone); packages/ui/src/replay/replayPlayer.ts (startEot / awaitEot); packages/ui/src/Recruit.tsx (playEndOfTurnAuthoritative(recorded))' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-02. Before it the replay recorded only the fight, so every End-of-Turn effect (minion '
+      + 'End of Turn, rune and quest payouts, casts, lassos, eats) was missing from replays. Replays recorded before '
+      + 'the fix stay without End-of-Turn beats: playback may not re-resolve them.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/replayEot.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

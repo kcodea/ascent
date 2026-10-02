@@ -82,6 +82,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Replays now show the End of Turn. Every End of Turn effect plays out on the Shop before the fight, just as it did live.',
+        details: [
+          'Before, a replay jumped from the last Shop action straight to combat, so End of Turn effects showed nothing.',
+          'Each effect gets its own beat: minion End of Turn effects, rune and quest rewards, spells cast at End of Turn and more.',
+          'Rune of Lasting Cadence shows one beat for every Rally it triggers.',
+          'This works for games played from now on. Older replays still skip straight to the fight.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ancient hero attacks now have a special finishing animation on knockouts.',
         details: [
           'When an Ancient hero attack knocks a player out, it plays a stronger version of its biggest hit.',

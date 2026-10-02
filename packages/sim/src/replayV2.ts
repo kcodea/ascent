@@ -9,7 +9,7 @@
  * KEEP THIS MODULE OFF THE REDUCER PATH — it is capture/replay metadata, not run state. Nothing in
  * reducer.ts / recruit.ts may import it (it imports THEM, one-way).
  */
-import { combatSide, socTwilightExtraFires, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot } from '@game/core';
+import { combatSide, socTwilightExtraFires, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot, type PresentationBatch } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
@@ -124,6 +124,37 @@ export interface CombatFrame extends Omit<CombatResult, 'oddsInput'> {
    *  finishes (`stampReplayOdds`, 2026-09-19): the replay viewer's "Win %" column is then the EXACT number the
    *  player saw in the Combat Summary. Recordings from before the stamp existed carry none, and the viewer
    *  backfills an approximation from the recorded rosters (`oddsInputFromCombatFrame`). */
+  /** The END OF TURN that led into this fight, as it was PLAYED live (owner report 2026-10-02: "when watching
+   *  this back, the end of turn with lasting cadence etc wasnt showing any animation or beats at all"). Live,
+   *  End of Turn resolves once into a `PresentationBatch` that the Choreographer plays on the still-mounted
+   *  Shop before `faceOmen` commits; the fight's frame alone carries only the RESULT of it (the post-EoT stats
+   *  in `initial`). Playback replays this recorded batch through the same compiler + player, over the previous
+   *  shop frame's world, before the fight renders: still a pure renderer (no reduce, no simulate).
+   *  Optional and backward-compatible (the version stays 2): a recording from before 2026-10-02, or a turn
+   *  whose End of Turn emitted nothing, has none and goes straight to the fight as before. */
+  eot?: EotRecord;
+}
+
+/** See `CombatFrame.eot`. */
+export interface EotRecord {
+  /** The authoritative End-of-Turn batch, deep-cloned at capture (about 3 KB for a typical board). */
+  batch: PresentationBatch;
+  /** When the player pressed End Turn, on the frames' clock: where the beats START. The fight's own `tMs` is
+   *  the commit, after the beats played, so the gap between the two is the recorded animation. */
+  atMs: number;
+  /** The Lasso steals this End of Turn made (`RunState.lassoFx` of the resolved state), which the End-of-Turn
+   *  presenter reads to throw each rope on its grant's beat. Absent when nothing was stolen. */
+  lassoFx?: NonNullable<RunState['lassoFx']>;
+}
+
+/** Build the `eot` record for a fight's frame from the prepared End-of-Turn transaction. Null when the batch
+ *  is not an End-of-Turn batch or emitted nothing (nothing to replay). Deep-cloned: the batch's payloads can
+ *  share references with live run state. */
+export function eotRecordOf(batch: PresentationBatch | null | undefined, atMs: number, after: RunState): EotRecord | null {
+  if (!batch || batch.phase !== 'endOfTurn' || batch.events.length === 0) return null;
+  const rec: EotRecord = { batch: structuredClone(batch), atMs };
+  if (after.lassoFx?.length) rec.lassoFx = structuredClone(after.lassoFx);
+  return rec;
 }
 
 /**

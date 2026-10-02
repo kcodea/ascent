@@ -19,16 +19,23 @@
  * without stretching to the deepest gap.
  *
  * Without `--apply` it only prints what it would write.
+ *
+ * `--src <dir>` reads masters from another folder (owner 2026-10-01: "i dont have those folders. i just have each name").
+ * A master is looked up at `<dir>/<Rarity>/<file>` first, then loose in `<dir>` ignoring spaces and case (so
+ * `Epic/BlueEnergyFrame.png` finds `<dir>/Blue Energy Frame.png`), so a flat folder of PNGs works.
+ * A frame whose master is not found KEEPS its existing webp and measured geometry (the data file is merged, never
+ * rebuilt from scratch), so a batch can be wired from a machine that holds only the new masters.
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 // Relative, like progression-shared.ts: the catalog is dependency-free and @game/tools does not list the package.
 import { COSMETICS } from '../../progression/src/cosmetics';
 
 const APPLY = process.argv.includes('--apply');
-const SRC = 'C:/Game Assets/Ascent Art/Skins/Portraits';
+const srcFlag = process.argv.indexOf('--src');
+const SRC = srcFlag > 0 && process.argv[srcFlag + 1] ? process.argv[srcFlag + 1]! : 'C:/Game Assets/Ascent Art/Skins/Portraits';
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '../../..');
 const DEST = join(root, 'packages/ui/src/art/frames/skins');
 const DATA = join(root, 'packages/ui/src/portraitFrame/frameSkins.data.json');
@@ -68,18 +75,28 @@ export function measureHole(px: Uint8Array | Buffer, w: number, h: number): Meas
   return { aspect: r4(h / w), holeD: r4((2 * r75) / w), holeCx: r4(cx / w), holeCy: r4(cy / h) };
 }
 
+/** A loose file in SRC whose name matches ignoring spaces and case. */
+function loose(file: string): string | undefined {
+  const norm = (n: string): string => n.replace(/\s+/g, '').toLowerCase();
+  const hit = existsSync(SRC) ? readdirSync(SRC).find((n) => norm(n) === norm(file)) : undefined;
+  return hit ? join(SRC, hit) : undefined;
+}
+
 async function main(): Promise<void> {
   const frames = COSMETICS.filter((c) => c.category === 'portrait_frame');
-  const out: Record<string, MeasuredFrame> = {};
-  let missing = 0;
+  const out: Record<string, MeasuredFrame> = existsSync(DATA) ? JSON.parse(readFileSync(DATA, 'utf8')) as Record<string, MeasuredFrame> : {};
+  let missing = 0; let wired = 0;
   for (const c of frames) {
     const master = c.assets.master; const key = c.assets.art;
     if (!master || !key) { console.log(`${c.id}: no assets.master / assets.art; not wired`); missing++; continue; }
-    const src = join(SRC, master);
-    if (!existsSync(src)) { console.log(`${c.id}: master not found at ${src}; not wired`); missing++; continue; }
+    const src = existsSync(join(SRC, master)) ? join(SRC, master) : loose(basename(master));
+    if (!src) {
+      if (out[key]) { console.log(`${c.id}: master not in ${SRC}; keeping its existing art + geometry`); continue; }
+      console.log(`${c.id}: master not found in ${SRC}; not wired`); missing++; continue;
+    }
     const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const m = measureHole(data, info.width, info.height);
-    out[key] = m;
+    out[key] = m; wired++;
     console.log(`${c.id.padEnd(20)} ${master.padEnd(28)} ${info.width}x${info.height}  holeD ${m.holeD}  centre ${m.holeCx}, ${m.holeCy}`);
     if (APPLY) {
       mkdirSync(DEST, { recursive: true });
@@ -89,7 +106,7 @@ async function main(): Promise<void> {
   if (APPLY) {
     const sortedOut = Object.fromEntries(Object.keys(out).sort().map((k) => [k, out[k]!]));
     writeFileSync(DATA, `${JSON.stringify(sortedOut, null, 2)}\n`, 'utf8');
-    console.log(`wrote ${Object.keys(out).length} frames to ${DEST} and ${DATA}`);
+    console.log(`wired ${wired} frames into ${DEST}; ${DATA} now holds ${Object.keys(out).length}`);
   } else {
     console.log('dry run: pass --apply to write the webps and the geometry');
   }

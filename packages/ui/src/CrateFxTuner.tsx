@@ -15,7 +15,7 @@ const SPEC_WITH_TITLE_PREVIEW = {
     { label: 'Preview: clear titles', hint: 'Put back the saved account (undo the title previews).', run: () => devPreviewHeroTitles('clear') },
     // PORTRAIT FRAMES (owner 2026-10-01: "put a test frame in the collections, and set it to the gold one"): a local
     // grant, then equip it in Collection > Portrait Frames. Never sent; survives a reload until cleared.
-    { label: 'Dev: grant Gilded frame', hint: 'Own the Gilded Frame (the gold portrait frame) on this client only, then equip it in Collection > Portrait Frames. Equip and Use default frame work locally. Never sent to the server.', run: () => devGrantPortraitFrame('frame_gold') },
+    { label: 'Dev: grant Gilded frame', hint: 'Own the Gilded frame (the gold portrait frame) on this client only, then equip it in Collection > Portrait Frames. Equip and Use default frame work locally. Never sent to the server.', run: () => devGrantPortraitFrame('frame_gold') },
     { label: 'Dev: clear frame grants', hint: 'Drop every dev-granted portrait frame and put back the saved account.', run: () => devGrantPortraitFrame('clear') },
   ],
 };

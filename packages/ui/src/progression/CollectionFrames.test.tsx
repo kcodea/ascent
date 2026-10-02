@@ -65,26 +65,26 @@ describe('the Portrait Frames tab', () => {
     expect(tab('Portrait Frames')!.className).not.toMatch(/\blocked\b/);
     expect(tab('Portrait Frames')!.querySelector('.colls-tab-count')?.textContent).toBe(`2/${FRAMES.length}`);
     const tiles = $$('.colls-grid .colls-tile');
-    expect(tiles).toHaveLength(31);
+    expect(tiles).toHaveLength(36);
     expect(tiles.every((t) => t.className.includes('ring') && !!t.querySelector('img.colls-tile-art'))).toBe(true);
-    // rarest first: the five Legendary frames lead
-    expect(tiles.slice(0, 5).map((t) => t.querySelector('.colls-tile-name')?.textContent)).toEqual(['Fire Frame', 'Reaper Frame', 'Water Frame', 'Stained Glass Frame', 'Wind Frame']);
-    expect(tile('Reaper Frame').className).toMatch(/\bmissing\b/);
-    expect(tile('Reaper Frame').querySelector('.colls-tile-lock')).not.toBeNull();
-    expect(tile('Fire Frame').className).toMatch(/\bowned\b/);
+    // rarest first: the Legendary frames lead
+    expect(tiles.slice(0, 5).map((t) => t.querySelector('.colls-tile-name')?.textContent)).toEqual(['Gilt Scale', 'Dark Cloud', 'Venom', 'Fire', 'Reaper']);
+    expect(tile('Reaper').className).toMatch(/\bmissing\b/);
+    expect(tile('Reaper').querySelector('.colls-tile-lock')).not.toBeNull();
+    expect(tile('Fire').className).toMatch(/\bowned\b/);
     clean();
   });
 
   it('an OWNED frame previews around your hero portrait; an unowned one only as the blurred ring, never around a portrait', () => {
     open();
     act(() => tab('Portrait Frames')!.click());
-    act(() => tile('Fire Frame').click());
+    act(() => tile('Fire').click());
     expect(text('.colls-detail .colls-kicker')).toBe('Portrait frame');
     const ring = $('.colls-detail .colls-heroring');
     expect(ring).not.toBeNull();
     expect(ring!.className).toMatch(/\bpf-on\b/);
     expect(ring!.querySelector('.pframe-box')?.getAttribute('data-frame')).toBe('frame_fire');
-    act(() => tile('Reaper Frame').click());
+    act(() => tile('Reaper').click());
     expect($('.colls-detail')!.className).toMatch(/\bmissing\b/);
     expect($('.colls-detail .colls-heroring')).toBeNull();
     expect($('.colls-detail .pframe')).toBeNull();
@@ -96,18 +96,18 @@ describe('the Portrait Frames tab', () => {
   it('Equip sends portrait_frame with target \'\'; "Use default frame" sends null and previews the default ring at once', async () => {
     open();
     act(() => tab('Portrait Frames')!.click());
-    act(() => tile('Fire Frame').click());
+    act(() => tile('Fire').click());
     equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, revision: 10, loadout: { portraitFrame: 'frame_fire' } } });
     await act(async () => { button('Equip')!.click(); });
     await settle();
     expect(equipCosmeticRemote).toHaveBeenCalledWith('portrait_frame', '', 'frame_fire');
-    expect(tile('Fire Frame').className).toMatch(/\bworn\b/);
-    expect(tile('Gilded Frame').className).not.toMatch(/\bworn\b/);
+    expect(tile('Fire').className).toMatch(/\bworn\b/);
+    expect(tile('Gilded').className).not.toMatch(/\bworn\b/);
     equipCosmeticRemote.mockResolvedValue({ status: 'ok', value: null, profile: { ...base, revision: 11, loadout: {} } });
     await act(async () => { button('Use default frame')!.click(); });
     await settle();
     expect(equipCosmeticRemote).toHaveBeenLastCalledWith('portrait_frame', '', null);
-    expect(tile('Fire Frame').className).not.toMatch(/\bworn\b/);
+    expect(tile('Fire').className).not.toMatch(/\bworn\b/);
     expect(text('.colls-detail .colls-default-tag')).toBe('Default frame');
     expect($('.colls-detail .pframe-box')?.getAttribute('data-frame') ?? null).not.toBe('frame_fire');
     clean();
@@ -116,12 +116,12 @@ describe('the Portrait Frames tab', () => {
   it('a failed equip (the SQL not run yet) shows an error and changes nothing', async () => {
     open();
     act(() => tab('Portrait Frames')!.click());
-    act(() => tile('Fire Frame').click());
+    act(() => tile('Fire').click());
     equipCosmeticRemote.mockResolvedValue({ status: 'error', reason: 'bad_slot' });
     await act(async () => { button('Equip')!.click(); });
     await settle();
     expect(text('.coll-error')).toBe('Could not change your portrait frame. Try again.');
-    expect(tile('Fire Frame').className).not.toMatch(/\bworn\b/);
+    expect(tile('Fire').className).not.toMatch(/\bworn\b/);
   });
 
   it('the kill switch: a retired frame leaves the album; the category switched off locks the tab', () => {

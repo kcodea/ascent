@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: '5 more Epic portrait frames in crates (Multichrome Energy, Blue Energy, Crackling Ruby, Topaz and Jade), and Gilt Scale, Dark Cloud and Venom are now Legendary.',
+        details: [
+          'Frames now go by their name alone: "Fire" rather than "Fire Frame".',
+          'Frames you already own stay yours.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Portrait frames: 21 new rings for your hero portrait, found in crates. Equip one in the Collection and every player you meet sees it.',
         details: [
           'One Common, seven Rare, eight Epic and five Legendary frames, from Honey and Vine to Stained Glass and Wind.',

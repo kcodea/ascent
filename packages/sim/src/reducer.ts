@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark } from './ancients';
+import { ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -313,6 +313,9 @@ export function upgradeCostOf(s: RunState): number {
 /** The Gold a tavern refresh (reroll) costs right now: the config default, but Tradesman (cheapMinions) pays 2
  *  — cheap to shop, dear to churn. The single source of truth for the reducer's roll charge + the UI button. */
 export function refreshCostOf(s: RunState): number {
+  // Tradesman × Ancient of Fortune (owner 2026-10-02): a minion bought makes the next Refresh cost 0. Folded in here so
+  // the button, `nextRefreshCostOf` and both bot price reads agree; the `roll` branch spends it before anything else.
+  if (ancientTradesRefreshFree(s)) return 0;
   return hasPower(s, 'cheapMinions') ? 2 : CONFIG.refreshCost;
 }
 
@@ -2583,8 +2586,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The UI pill reads `nextRefreshCostOf` (above) — keep this branch and that helper in lockstep.
       const wsFree = !!s.runeWindowShopping && (s.windowShopRolls ?? 0) < 3 * runeStacksOf(s, 'rune_window_shopping');
       if (s.runeWindowShopping) s.windowShopRolls = (s.windowShopRolls ?? 0) + 1;
+      // Tradesman × Ancient of Fortune: a pending "next Refresh costs 0" pays FIRST, so the free-roll bank is kept.
       // Refreshing Texts bank free rerolls — spend one before charging Mana.
-      if (s.freeRolls > 0) {
+      if (ancientTradesSpendFreeRefresh(s)) {
+        // free — Fortune's next-Refresh discount covers it (and is spent)
+      } else if (s.freeRolls > 0) {
         s.freeRolls -= 1;
       } else if (wsFree) {
         procRuneId(s, 'rune_window_shopping');

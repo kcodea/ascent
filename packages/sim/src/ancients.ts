@@ -155,7 +155,8 @@
  *  · `avengeFreeRefresh`          a hero Avenge (N) on ONE running count across BOTH phases (`tradesDeaths`, the Xerox
  *                                 Death shape): SHOP at `fireOnFriendDeath` (`ancientTradesShopDeath`); COMBAT through
  *                                 `QuestCombatMods.ancientRefreshAvenge` (`grantFreeRolls`, the free-roll carry-back). (Death)
- *  · `buyGivesFreeRefresh`        the reducer's minion-buy paths (`ancientTradesBuy`): +free Refreshes, real time. (Fortune)
+ *  · `buyNextRefreshFree`         the reducer's minion-buy paths (`ancientTradesBuy`) set ONE pending "next Refresh costs 0"
+ *                                 (`tradesNextRefreshFree`, never stacks); the `roll` branch spends it first. (Fortune)
  *  · `minionsRallyGold`           a graft on every friendly minion (`applyRuneGrafts` in the Shop, `ancientRallyGold` for
  *                                 combat summons): "Rally: gain N Gold next turn" (`rallyGoldNextTurn`). (War)
  *  · `refreshesCastSpell`         `ancientAfterRefresh`: every Nth Refresh casts the spell through `castSpell`. (Genesis)
@@ -331,7 +332,7 @@ export type AncientEffect =
   /** Avenge (`every`), Shop AND combat (one running count): gain a free Refresh. */
   | { do: 'avengeFreeRefresh'; every: number }
   /** Buying a minion from the Shop gains `count` free Refreshes. */
-  | { do: 'buyGivesFreeRefresh'; count: number }
+  | { do: 'buyNextRefreshFree' }
   /** Your minions have "Rally: gain `gold` Gold next turn." (a graft on every friendly minion, both phases). */
   | { do: 'minionsRallyGold'; gold: number }
   /** Every `every` Refreshes (free ones included), cast `spellId`. */
@@ -733,10 +734,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'avengeFreeRefresh', every: 3 }],
     },
     fortune: {
-      // "When you buy a minion, gain a free Refresh"
-      offerText: 'When you buy a minion, gain a free Refresh.',
-      powerText: '{base} When you buy a minion, gain a free Refresh. Free Refreshes banked: **{freeRolls}**.',
-      effects: [{ do: 'buyGivesFreeRefresh', count: 1 }],
+      // "when you buy a minion, your next refresh costs 0" (owner 2026-10-02, replacing "gain a free Refresh": "this
+      // way it doesn't stack up multiple free refreshes")
+      offerText: 'When you buy a minion, your next Refresh costs 0.',
+      powerText: '{base} When you buy a minion, your next Refresh costs 0. Next Refresh free: **{tNextFree}**.',
+      effects: [{ do: 'buyNextRefreshFree' }],
     },
     war: {
       // "Your minions gain Rally: Gain 1g next turn"
@@ -913,6 +915,9 @@ export interface AncientsState {
   tradesSurchargeOff?: { tier: number; gold: number };
   /** SOREN × WAR: the live +X/+X a Reclaimed copy gains on its return (set at the pick, improved each Start of Turn). */
   sorenWarGain?: number;
+  /** TRADESMAN × FORTUNE: a minion was bought, so the next Refresh costs 0 (owner 2026-10-02). One pending flag, never a
+   *  count: more buys while it is set add nothing. Carries across turns until a Refresh spends it. */
+  tradesNextRefreshFree?: boolean;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1063,7 +1068,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   text = text.replace('{tDeathLeft}', String(ancientTradesAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
     .replace('{freeRolls}', String(Math.max(0, state.freeRolls ?? 0) + (combat.freeRefreshes ?? 0)))
     .replace('{lassoLeft}', String(tradesLassoLeft(state))).replace('{rallyGold}', String(tradesRallyGoldNow(state) + (effectOf(state, 'minionsRallyGold')?.gold ?? 0) * (combat.rallyFires ?? 0)))
-    .replace('{upgradeNow}', tradesUpgradeText(state));
+    .replace('{upgradeNow}', tradesUpgradeText(state)).replace('{tNextFree}', ancientTradesRefreshFree(state) ? 'Yes' : 'No');
   // SOREN × WAR: the live +X/+X (it improves every Start of Turn). Printed twice, so every occurrence.
   text = text.split('{reclaimGain}').join(String(ancientReclaimGain(state)));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
@@ -1927,10 +1932,24 @@ export function ancientTradesShopDeath(state: RunState): void {
 }
 
 /** TRADESMAN × FORTUNE: a minion was BOUGHT from the Shop (a normal buy, the Starform, a displaced body re-bought).
- *  Banks `count` free Refreshes, right then. Spells, Discovers and generated cards never reach this. */
+ *  "Your next Refresh costs 0" (owner 2026-10-02): sets ONE pending flag, right then. Already set = nothing more (it
+ *  never stacks). Separate from the `freeRolls` bank. Spells, Discovers and generated cards never reach this. */
 export function ancientTradesBuy(state: RunState): void {
-  const e = live(state) ? effectOf(state, 'buyGivesFreeRefresh') : undefined;
-  if (e) state.freeRolls = (state.freeRolls ?? 0) + e.count;
+  const a = live(state);
+  if (a && effectOf(state, 'buyNextRefreshFree')) a.tradesNextRefreshFree = true;
+}
+
+/** TRADESMAN × FORTUNE: is the next Refresh's 0 cost pending (the price `refreshCostOf` shows, the power text)? */
+export function ancientTradesRefreshFree(state: RunState): boolean {
+  return !!live(state)?.tradesNextRefreshFree && !!effectOf(state, 'buyNextRefreshFree');
+}
+
+/** TRADESMAN × FORTUNE: the `roll` branch spends the pending 0-cost Refresh FIRST (before the `freeRolls` bank, so a
+ *  banked free Refresh is kept). Returns true when it paid for this Refresh. */
+export function ancientTradesSpendFreeRefresh(state: RunState): boolean {
+  if (!ancientTradesRefreshFree(state)) return false;
+  state.ancients!.tradesNextRefreshFree = false;
+  return true;
 }
 
 /** TRADESMAN × WAR: the graft every friendly minion carries ("Rally: gain N Gold next turn"), or undefined when War is

@@ -8,7 +8,7 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import {
   ANCIENT_IDS, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ancientAvengeCountdown, ancientCombatMods, ancientOfferText,
-  createRun, enableAncients, fireShopRally, heroPowerText, reduce, tradesUpgradeCost, upgradeCostOf,
+  createRun, enableAncients, fireShopRally, heroPowerText, nextRefreshCostOf, reduce, refreshCostOf, tradesUpgradeCost, upgradeCostOf,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
@@ -100,26 +100,62 @@ describe('Tradesman × DEATH: Avenge (3), gain a free Refresh (Shop and combat, 
   });
 });
 
-describe('Tradesman × FORTUNE: when you buy a minion, gain a free Refresh', () => {
-  it('a minion bought from the Shop banks a free Refresh immediately', () => {
+describe('Tradesman × FORTUNE: when you buy a minion, your next Refresh costs 0', () => {
+  const fortuneFree = (s: RunState): boolean => !!s.ancients!.tradesNextRefreshFree;
+  it('a minion bought sets ONE pending 0-cost Refresh; more buys never stack it; the bank is untouched', () => {
     let s = picked('fortune');
-    const offer = minionOffer(s);
     const rolls = s.freeRolls;
+    expect(refreshCostOf(s)).toBe(2);
+    expect(heroPowerText(s)).toContain('Next Refresh free: **No**');
+    const offer = minionOffer(s);
     s = reduce(s, { type: 'buy', uid: offer.uid });
     expect(s.hand.some((c) => c.cardId === offer.cardId)).toBe(true);
-    expect(s.freeRolls).toBe(rolls + 1);
+    expect(fortuneFree(s)).toBe(true);
+    expect(refreshCostOf(s), 'the button / bots price').toBe(0);
+    expect(nextRefreshCostOf(s)).toBe(0);
+    expect(heroPowerText(s)).toContain('Next Refresh free: **Yes**');
+    s = reduce(s, { type: 'buy', uid: minionOffer(s).uid });
+    expect(s.freeRolls, 'never banks into freeRolls').toBe(rolls);
+    // ONE free Refresh, then full price again: two buys did not stack two.
+    const gold = s.embers;
+    s = reduce(s, { type: 'roll' });
+    expect(s.embers, 'the next Refresh costs 0').toBe(gold);
+    expect(fortuneFree(s)).toBe(false);
+    expect(refreshCostOf(s)).toBe(2);
+    s = reduce(s, { type: 'roll' });
+    expect(s.embers, 'the one after is paid').toBe(gold - 2);
   });
-  it('a spell buy does not count, and without the pairing a minion buy banks nothing', () => {
+  it('spent BEFORE a banked free Refresh, which is kept', () => {
+    let s = picked('fortune', { freeRolls: 1 });
+    s = reduce(s, { type: 'buy', uid: minionOffer(s).uid });
+    const gold = s.embers;
+    s = reduce(s, { type: 'roll' });
+    expect(fortuneFree(s)).toBe(false);
+    expect(s.freeRolls, 'the bank is kept').toBe(1);
+    expect(s.embers).toBe(gold);
+  });
+  it('carries across turns until used, and survives a JSON save / restore', () => {
+    let s = picked('fortune');
+    s = reduce(s, { type: 'buy', uid: minionOffer(s).uid });
+    const wave = s.wave;
+    s = reduce(fightNow(s), { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    expect(s.wave).toBe(wave + 1);
+    const restored = JSON.parse(JSON.stringify(s)) as RunState;
+    expect(fortuneFree(restored), 'carried into the next turn').toBe(true);
+    expect(refreshCostOf(restored)).toBe(0);
+  });
+  it('a spell buy does not count, and without the pairing a minion buy does nothing', () => {
     let s = picked('fortune');
     if (s.spell) {
-      const rolls = s.freeRolls;
       s = reduce(s, { type: 'buy', uid: s.spell.uid });
-      expect(s.freeRolls).toBe(rolls);
+      expect(fortuneFree(s)).toBe(false);
     }
     let plain = enableAncients(base());
     const rolls = plain.freeRolls;
     plain = reduce(plain, { type: 'buy', uid: minionOffer(plain).uid });
     expect(plain.freeRolls).toBe(rolls);
+    expect(refreshCostOf(plain)).toBe(2);
   });
 });
 

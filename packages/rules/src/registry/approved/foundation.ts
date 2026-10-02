@@ -3741,6 +3741,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
+  // ── The normal game's loss cap (owner ask 2026-10-02) ───────────────────────────────────────────────
+  {
+    id: 'R-LOBBY-10',
+    title: 'Loss cap: a lost round costs at most 5 on rounds 1-3, 10 on 4-7, 15 on 8-11, 20 on 12-14, and is uncapped from round 15 on',
+    statement:
+      'In the normal game (every lobby that sets no loss caps of its own), a lost round costs the normal loss damage, '
+      + 'capped by round: at most 5 on rounds 1-3, 10 on rounds 4-7, 15 on rounds 8-11 and 20 on rounds 12-14. From '
+      + 'round 15 on there is no cap and a loss deals its full damage (it was 20 through round 15, uncapped from 16, '
+      + 'before 2026-10-02). Every reader asks the same table through roundLossCap: the fight, the lobby settle, the '
+      + 'odds probe and the HUD. The rail prints the cap above its top edge next to the round ("No cap" when uncapped), '
+      + 'and hovering it explains it with the live number. The Gauntlet keeps its own table (R-GAUNTLET-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (rail header + loss cap)', quote: 'change the damage cap rules - on turn 15 it should become uncapped' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts lossDamageCap + roundLossCap; packages/ui/src/LobbyPanel.tsx .lobbyrailhead' },
+    ],
+    example: 'Losing round 14 to a huge board costs at most 20; losing round 15 to the same board costs its full damage.',
+    currentBehaviour: 'Conforms as of 2026-10-02. Pinned by the lossDamageCap table test (5/10/15/20, then uncapped at 15, 16, 17, 30) and the rail header test (the live cap and its tip on rounds 1-14, "No cap" and the full-damage tip from round 15).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/run.test.ts', 'packages/ui/src/lobbyRailHeader.test.tsx'], lastVerifiedAt: '2026-10-02' },
+  },
   // ── Gauntlet (single-player stages, owner design 2026-09-29) ─────────────────────────────────────────
   {
     id: 'R-GAUNTLET-01',
@@ -4182,5 +4203,33 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Stage 2 sets Ruby strength +2/+2 on round 4. Rounds 1 to 3 the opponent\x27s Blazer casts 1/1 Rubies; from round 4 on, with nothing changed later, it casts 3/3 Rubies.',
     currentBehaviour: 'Conforms, built 2026-10-02. The stage\x27s per-round buffs are folded forward onto the authored seat, and authoredSeat attaches them to the round\x27s BoardSnapshot (with any runes), which sideFromSnapshot threads into combat; a buff-less, rune-less seat prepares exactly the board it did before. Pinned end to end: a Kobold stage with Ruby strength +2/+2 from round 4, played through the real reducer, has its opponent Blazer cast 1/1 Rubies on round 3 and 3/3 Rubies on round 5. The Stage Builder\x27s sandbox Test fight uses the same buffs (roundToSnapshot).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts', 'packages/content/src/gauntlet/buffs.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-REPLAY-01',
+    title: 'A replay plays each round\x27s End of Turn, beat for beat, before the fight, from the batch recorded when it was played',
+    statement:
+      'Live, End of Turn resolves once into a presentation batch that the Choreographer plays on the Shop before the '
+      + 'fight. The replay records that batch on the fight\x27s frame (CombatFrame.eot: the batch, the moment End Turn '
+      + 'was pressed, and the Lasso records), deep-cloned at capture. Playback holds the last shop frame until that '
+      + 'moment, then plays the recorded batch through the SAME compiler, timeline player and presenters as a live '
+      + 'End Turn (one beat per source, so Rune of Lasting Cadence shows one beat per Rally), and renders the fight '
+      + 'only when the beats finish. Nothing is reduced or simulated at playback. A pause lets the beats finish and '
+      + 'resume renders the fight; a seek drops them. A recording made before this existed has no batch and goes '
+      + 'straight to its fight, as it always did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-02, relayed verbatim by the coordinator (Brackus victory, Rune of Lasting Cadence)',
+        quote: 'noticing a gap in the replay system - when watching this back, the end of turn with lasting cadence etc wasnt showing any animation or beats at all. can you triage this?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/replayV2.ts (CombatFrame.eot, EotRecord, eotRecordOf); packages/ui/src/store.ts (capture at the faceOmen commit, pendingEotAtMs, replayEotCue / replayEotDone); packages/ui/src/replay/replayPlayer.ts (startEot / awaitEot); packages/ui/src/Recruit.tsx (playEndOfTurnAuthoritative(recorded))' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-02. Before it the replay recorded only the fight, so every End-of-Turn effect (minion '
+      + 'End of Turn, rune and quest payouts, casts, lassos, eats) was missing from replays. Replays recorded before '
+      + 'the fix stay without End-of-Turn beats: playback may not re-resolve them.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/replayEot.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
 ];

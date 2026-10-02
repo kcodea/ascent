@@ -1,5 +1,9 @@
 import './styles.css';
+// The shared tooltip look (owner 2026-10-02) + its DEV size dials. After styles.css so the skin owns the paint.
+import './tooltips.css';
+import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
+import './healthPillConfig'; // side-effect: stamp the health-pill look on <html> (dev: persisted pick; prod: DEFAULT)
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { PERF_DOM_CONTAINERS } from './perfDomContainers';

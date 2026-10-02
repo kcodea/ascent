@@ -27,7 +27,7 @@ import type { SeatContext } from '../balance/types';
  *  - A player NEVER sees another seat's minion list — the card shows a tribe count, not bodies. The only bodies
  *    a player has seen are the boards THEY THEMSELVES FOUGHT (the combat replay). So `lastFought` is the pilot's
  *    own combat memory: the board that seat fielded the last time the pilot met it, never anything else.
- *  - The loss cap for the round is printed on the rail (`LobbyPanel.tsx:114`, `lossDamageCap(lobby.round)`), and
+ *  - The loss cap for the round is printed above the rail (`LobbyPanel.tsx` `.lobbyrailhead`, `roundLossCap(lobby.rules, lobby.round)`), and
  *    the damage rule is the engine's own: foe tier + the tiers of its surviving bodies (`simulate`'s
  *    `playerDamage` / `damageBreakdown`), capped by that round's cap (`runLobby.ts:546` `playerLossDamage`).
  *

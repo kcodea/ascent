@@ -13,6 +13,7 @@ import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { LobbyRailLookTuner } from './LobbyRailLookTuner';
+import { HealthPillTuner } from './HealthPillTuner';
 import { ScoutCardTuner } from './ScoutCardTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
 import { LoadScreenTuner } from './LoadScreenTuner';
@@ -95,6 +96,7 @@ import { RuneforgeEntranceTuner } from './RuneforgeEntranceTuner';
 import { DiscoverEntranceTuner } from './DiscoverEntranceTuner';
 import { CrateFxTuner } from './CrateFxTuner';
 import { PortraitFrameTuner } from './PortraitFrameTuner';
+import { TooltipTuner } from './TooltipTuner';
 import { ScreenWipeTuner } from './ScreenWipeTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
@@ -177,6 +179,7 @@ const GROUPS: Group[] = [
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
       { key: 'opponentsbackplate', icon: '🖼️', label: 'Opponents Backplate', C: OpponentsBackplateTuner, hint: 'The gilded frame art behind the lobby rail', alt: 'lobby rail backdrop backplate frame' },
+      { key: 'hudpills', icon: '❤️', label: 'HUD pills', C: HealthPillTuner, hint: 'Classic vs Gem plate for every Health pill, name pill, Tier / Freeze label, the turn timer and the Skip / Summary / End Combat buttons', alt: 'health hp pill armor shield shop tier name freeze timer clock skip summary end combat hero select look style gem' },
       { key: 'lobbyraillook', icon: '🎨', label: 'Lobby Rail Look', C: LobbyRailLookTuner, hint: 'Colours, portraits, spacing, corners and the next-foe marker inside the rail', alt: 'lobby rail contents colours portraits next foe' },
       { key: 'scoutcard', icon: '🔎', label: 'Scout Card', C: ScoutCardTuner, hint: 'The hover/pinned opponent scouting report — box, text, portraits, rune sockets, colours', alt: 'opponent scout hover card intel report' },
       { key: 'secondpower', icon: '👥', label: 'Second Power', C: SecondPowerTuner, hint: "Void's second hero-power button — offset + scale", alt: 'void twin power position' },
@@ -197,6 +200,7 @@ const GROUPS: Group[] = [
       { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },
       { key: 'portraitframes', icon: '⭕', label: 'Portrait frames', C: PortraitFrameTuner, hint: 'The ring every hero portrait wears: hero select, your shop and combat portrait, the opponent in combat and Now Facing, the lobby rail, the end screen, Career, the Hall, Rankings, Recent Games and match details. Pick Your frame and a frame for opponents (or Same for everyone), then fit it: frame scale, portrait scale and x/y offset, globally or per frame. Live preview at three sizes and Copy JSON', alt: 'portrait frame ring hero avatar border bronze silver gold platinum diamond ascendant rank ranked reward cosmetic' },
+      { key: 'tooltips', icon: '💬', label: 'Tooltips', C: TooltipTuner, hint: 'The one shared tooltip look: title, body, pill and one-line text sizes, line height, max width and padding, live on every tooltip in the game. Pinned samples and Copy values', alt: 'tooltip tip hover text size font readable bubble popover' },
       { key: 'titleaccount', icon: '👤', label: 'Title Account', C: TitleAccountTuner, hint: 'The main-menu account corner — the portrait ring, the name plate on its bottom edge and the rank badge beneath: size + position of each', alt: 'main menu avatar portrait name plate rank badge account corner' },
       { key: 'loadscreen', icon: '⏳', label: 'Load Screen', C: LoadScreenTuner, hint: 'The boot splash — resize the AscentIcon and size/position the loading bar. "Toggle load screen" re-shows it live', alt: 'boot loading splash screen' },
       { key: 'dmgformation', icon: '🧮', label: 'Damage Formation', C: DamageFormationTuner, hint: 'How hero damage builds on screen before EVERY hero attack (Classic and every cosmetic): minion tier badges pulse left to right, their numbers flow up and merge, the hero tier joins, the full damage slams in, then it reduces to the cap under a Damage capped stamp. Pick a board (minions, tiers, hero tier, cap) and which attack follows. Has ▶ Play both directions, 1 / 4 / full board, capped and uncapped and No minions (the buttons sit at the top)', alt: 'damage formation hero attack numbers tier pulse merge join cap capped stamp combine tally' },

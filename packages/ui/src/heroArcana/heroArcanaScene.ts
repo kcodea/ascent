@@ -27,7 +27,6 @@
 import { Container, MeshSimple, Sprite, type Texture } from 'pixi.js';
 import type { HeroBlastTextures } from '../heroBlast/heroBlastScene';
 import { clamp01, easeInOutSine, easeOutCubic, easeOutQuint, mixColor, seededRng, whiten, type Pt } from '../heroAttack/easing';
-import { KO_CYAN, KO_LILAC, KO_MAGENTA, KO_PRISM } from '../heroAttack/knockout';
 import { ribbonPos, type RibbonMotion } from './heroArcanaConfig';
 
 export interface HeroArcanaTextures extends HeroBlastTextures {
@@ -59,6 +58,19 @@ export interface RibbonLook {
   headSize: number;
   sigilSize: number;
 }
+
+/**
+ * TIER V's SWIRL PALETTE (owner 2026-10-02: "for arcana -> make the swirling turn reddish pink and blue and explode
+ * outwards more to be a bit more different"): on a knockout the vortex, its extra pulse and the explosion turn
+ * crimson-pink and electric blue, counter-swirling. The Huge tier never sets it.
+ */
+export const ARCANA_KO_PINK = 0xff3d7f;
+export const ARCANA_KO_ROSE = 0xff6b9a;
+export const ARCANA_KO_BLUE = 0x3d8bff;
+export const ARCANA_KO_SKY = 0x7ab8ff;
+/** How long a ribbon takes to TURN pink or blue once it joins the vortex (ms). */
+export const ARCANA_KO_TURN_MS = 260;
+const KO_SWIRL: readonly number[] = [ARCANA_KO_PINK, ARCANA_KO_BLUE, ARCANA_KO_ROSE, ARCANA_KO_SKY];
 
 /** Hard cap on sprites alive at once (a Tier IV explosion peaks around 400). */
 export const MAX_ARCANA_SPRITES = 900;
@@ -99,6 +111,8 @@ interface Ribbon {
   lastX: number; lastY: number; moteAcc: number;
   /** A blast streak's width thins to this fraction at its end. */
   thin: number;
+  /** Tier V: which swirl colour it turns in the vortex (0 pink, 1 blue; -1 = never), and how far it has turned. */
+  ko: number; koK: number;
 }
 
 type AlphaMode = 'out' | 'punch' | 'hold';
@@ -117,6 +131,8 @@ interface Charge { sigil: Sprite; ring: Sprite; core: Sprite; bloom: Sprite; x: 
 
 interface VortexFx {
   sigil: Sprite; inner: Sprite; track: Sprite; core: Sprite; bloom: Sprite;
+  /** Tier V: a third, wider sigil counter-swirling against the first (null otherwise). */
+  koSigil: Sprite | null;
   x: number; y: number; r0: number; r1: number; tilt: number; age: number; dur: number; conv: number; dir: number; converging: number; moteAcc: number;
 }
 
@@ -132,6 +148,9 @@ export class HeroArcanaScene {
   private particles: Particle[] = [];
   private charge: Charge | null = null;
   private vortex: VortexFx | null = null;
+  /** Tier V: the swirl turns crimson-pink and electric blue (`setKoSwirl`); `koRibbons` alternates the two. */
+  private koSwirl = false;
+  private koRibbons = 0;
   private destroyed = false;
   private readonly hot: number;
   private readonly body: number;
@@ -171,6 +190,9 @@ export class HeroArcanaScene {
     this.idx = new Uint32Array((n - 1) * 6);
     for (let j = 0; j < n - 1; j++) { const a = j * 2; this.idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
   }
+
+  /** Tier V: the vortex, its pulse and the explosion turn crimson-pink and electric blue. */
+  setKoSwirl(on: boolean): void { this.koSwirl = on; }
 
   get liveSprites(): number { return this.used; }
   get liveMeshes(): number { return this.meshes; }
@@ -310,6 +332,7 @@ export class HeroArcanaScene {
       at, landAt, endAt: endAt ?? (ring ? Number.POSITIVE_INFINITY : landAt + trailMs), fadeMs: fadeMs ?? trailMs, age: Math.max(0, age0),
       width: width * S, trailMs, ring, shade, glow, body, core, strand, head: hd, phase: this.rnd() * Math.PI * 2, alpha: 1,
       lastX: p0.x, lastY: p0.y, moteAcc: 0, thin,
+      ko: this.koSwirl && ring ? this.koRibbons++ % 2 : -1, koK: 0,
     });
   }
 
@@ -380,14 +403,17 @@ export class HeroArcanaScene {
    */
   startVortex(x: number, y: number, r0: number, r1: number, tilt: number, durMs: number, convMs: number, dir: number): void {
     if (this.vortex) return;
-    const sigil = this.take('under', this.tex.sigil, this.colors.side);
-    const inner = this.take('under', this.tex.sigil, whiten(this.colors.accent, 0.2));
-    const track = this.take('under', this.tex.ring, this.colors.accent);
-    const bloom = this.take('air', this.tex.glow, this.colors.side);
+    // Tier V: the vortex swirls crimson-pink one way and electric blue the other.
+    const ko = this.koSwirl;
+    const sigil = this.take('under', this.tex.sigil, ko ? ARCANA_KO_PINK : this.colors.side);
+    const inner = this.take('under', this.tex.sigil, ko ? ARCANA_KO_SKY : whiten(this.colors.accent, 0.2));
+    const track = this.take('under', this.tex.ring, ko ? ARCANA_KO_BLUE : this.colors.accent);
+    const bloom = this.take('air', this.tex.glow, ko ? mixColor(ARCANA_KO_PINK, ARCANA_KO_BLUE, 0.35) : this.colors.side);
     const core = this.take('air', this.tex.glow, this.colors.core);
     if (!sigil || !inner || !track || !bloom || !core) { for (const s of [sigil, inner, track, bloom, core]) if (s) this.giveS(s); return; }
-    for (const s of [sigil, inner, track, bloom, core]) { s.position.set(x, y); s.alpha = 0; }
-    this.vortex = { sigil, inner, track, core, bloom, x, y, r0, r1, tilt, age: 0, dur: Math.max(1, durMs), conv: Math.max(1, convMs), dir, converging: -1, moteAcc: 0 };
+    const koSigil = ko ? this.take('under', this.tex.sigil, ARCANA_KO_BLUE) : null;
+    for (const s of [sigil, inner, track, bloom, core, koSigil]) if (s) { s.position.set(x, y); s.alpha = 0; }
+    this.vortex = { sigil, inner, track, core, bloom, koSigil, x, y, r0, r1, tilt, age: 0, dur: Math.max(1, durMs), conv: Math.max(1, convMs), dir, converging: -1, moteAcc: 0 };
   }
 
   /** The vortex collapses inward (the ribbons converge on their own paths): its sigils pull in and flare. */
@@ -398,9 +424,9 @@ export class HeroArcanaScene {
    * rings (the last a wide slow arcane shockwave), the sigil flaring out, RIBBONS flung outward on curling paths, spikes,
    * a storm of glitter and rising motes, and a lingering afterglow.
    */
-  explode(x: number, y: number, radius: number, o: { burst: number; size: number; ribbons: number; motes: number; flashAlpha: number; tilt: number; dir: number; width: number }): void {
+  explode(x: number, y: number, radius: number, o: { burst: number; size: number; ribbons: number; motes: number; flashAlpha: number; tilt: number; dir: number; width: number; ko?: boolean }): void {
     const v = this.vortex;
-    if (v) { for (const s of [v.sigil, v.inner, v.track, v.core, v.bloom]) this.giveS(s); this.vortex = null; }
+    if (v) { for (const s of [v.sigil, v.inner, v.track, v.core, v.bloom, v.koSigil]) if (s) this.giveS(s); this.vortex = null; }
     // The converged ribbons ARE the explosion now: they go, and the blast streaks carry them outward.
     for (let i = this.ribbons.length - 1; i >= 0; i--) {
       const rb = this.ribbons[i]!;
@@ -409,25 +435,30 @@ export class HeroArcanaScene {
     const c = this.colors;
     const S = this.scale;
     const fs = o.burst * o.size;
+    // Tier V: the explosion bursts OUTWARD much harder (wider, faster, straighter) in crimson-pink and electric blue.
+    const ko = o.ko === true;
+    const side = ko ? ARCANA_KO_PINK : c.side, accent = ko ? ARCANA_KO_BLUE : c.accent;
+    const out = ko ? 1.35 : 1;
     const portrait = (radius * 2) / GLOW_PX / S;
     const sig = (radius * 2) / SIGIL_PX / S;
     // The fills are SHORT (the ribbons and the rings carry the explosion, and the big -N must read through it).
     this.fxs('air', this.tex.glow, c.core, x, y, { dur: 130, from: portrait * 1.2, to: portrait * 1.5, a0: 0.8 * o.flashAlpha });
     this.fxs('air', this.tex.glow, c.core, x, y, { dur: 170, from: 1.4 * fs, to: Math.min(5, 3 * fs), a0: o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.side, x, y, { dur: 520, from: 2 * fs, to: Math.min(8, 5 * fs), a0: 0.42 * o.flashAlpha });
-    this.fxs('air', this.tex.glow, c.accent, x, y, { dur: 240, from: 1.2 * fs, to: 3.2 * fs, a0: 0.22 });
-    this.fxs('air', this.tex.ring, c.core, x, y, { dur: 320, from: 0.4, to: 3.4 * o.size, a0: 1 });
-    this.fxs('air', this.tex.ring, c.side, x, y, { dur: 560, from: 0.5, to: 5.2 * o.size, a0: 0.9 });
-    this.fxs('air', this.tex.ring, c.accent, x, y, { dur: 860, from: 0.6, to: 7.5 * o.size, a0: 0.7, sy: 0.55 + 0.45 * o.tilt });
-    this.fxs('air', this.tex.sigil, whiten(c.accent, 0.35), x, y, { dur: 760, from: sig * 1.2, to: sig * 3.1 * o.size, a0: 1, spin: 0.01 * o.dir });
-    this.fxs('under', this.tex.sigil, c.side, x, y, { dur: 1000, from: sig * 1.6, to: sig * 2.4 * o.size, a0: 0.85, spin: -0.005 * o.dir });
+    this.fxs('air', this.tex.glow, side, x, y, { dur: 520, from: 2 * fs, to: Math.min(8, 5 * fs), a0: 0.42 * o.flashAlpha });
+    this.fxs('air', this.tex.glow, accent, x, y, { dur: 240, from: 1.2 * fs, to: 3.2 * fs, a0: 0.22 });
+    this.fxs('air', this.tex.ring, c.core, x, y, { dur: 320, from: 0.4, to: 3.4 * o.size * out, a0: 1 });
+    this.fxs('air', this.tex.ring, side, x, y, { dur: ko ? 460 : 560, from: 0.5, to: 5.2 * o.size * out, a0: 0.9 });
+    this.fxs('air', this.tex.ring, accent, x, y, { dur: ko ? 700 : 860, from: 0.6, to: 7.5 * o.size * out, a0: 0.7, sy: 0.55 + 0.45 * o.tilt });
+    this.fxs('air', this.tex.sigil, whiten(accent, 0.35), x, y, { dur: 760, from: sig * 1.2, to: sig * 3.1 * o.size * out, a0: 1, spin: 0.01 * o.dir });
+    this.fxs('under', this.tex.sigil, side, x, y, { dur: 1000, from: sig * 1.6, to: sig * 2.4 * o.size, a0: 0.85, spin: -0.005 * o.dir });
     // The ribbons blasting OUTWARD: curling away with the vortex's spin, fastest first, thinning as they go.
-    const n = Math.max(0, Math.round(o.ribbons));
+    const n = Math.max(0, Math.round(o.ribbons + (ko ? 4 : 0)));
     for (let i = 0; i < n; i++) {
       const a0 = (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.35;
-      const L = radius * (3 + this.rnd() * 1.8) * o.size;
-      const D = 560 + this.rnd() * 220;
-      const curl = (0.7 + this.rnd() * 0.5) * o.dir;
+      // Tier V: flung much further and faster, barely curling (they read as thrown OUT, not spun round).
+      const L = radius * (3 + this.rnd() * 1.8) * o.size * (ko ? 1.7 : 1);
+      const D = (560 + this.rnd() * 220) * (ko ? 0.78 : 1);
+      const curl = (0.7 + this.rnd() * 0.5) * o.dir * (ko ? 0.35 : 1);
       const r0 = radius * 0.15;
       // Out fast, easing off (a cubic, not harder: the trail is sampled back in time, so a ribbon that stops dead
       // would shrink to a stub), curling away with the vortex's spin.
@@ -438,78 +469,94 @@ export class HeroArcanaScene {
         const r = r0 + L * e;
         return { x: x + Math.cos(th) * r, y: y + Math.sin(th) * r * (0.65 + 0.35 * o.tilt) };
       };
-      this.addStreak(at, D, o.width * (1.1 + this.rnd() * 0.5), i % 2 ? c.accent : c.side);
+      this.addStreak(at, D, o.width * (1.1 + this.rnd() * 0.5), i % 2 ? accent : side);
     }
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2 + (this.rnd() - 0.5) * 0.25;
-      const len = (1 + this.rnd() * 0.6) * o.size;
-      this.fxs('air', this.tex.streak, i % 2 ? c.accent : c.core, x + Math.cos(a) * 80 * S * len, y + Math.sin(a) * 80 * S * len,
+    const spikes = ko ? 14 : 10;
+    for (let i = 0; i < spikes; i++) {
+      const a = (i / spikes) * Math.PI * 2 + (this.rnd() - 0.5) * 0.25;
+      const len = (1 + this.rnd() * 0.6) * o.size * (ko ? 1.5 : 1);
+      this.fxs('air', this.tex.streak, i % 2 ? accent : ko ? side : c.core, x + Math.cos(a) * 80 * S * len, y + Math.sin(a) * 80 * S * len,
         { dur: 320, from: 3.6 * len, to: 6.2 * len, a0: 0.95, sy: 0.18 });
       this.fx[this.fx.length - 1]!.s.rotation = a;
     }
-    this.glitter(x, y, Math.round(o.motes * 0.65), 1250, { life: 760, size: 0.7, grav: 260 });
+    this.glitter(x, y, Math.round(o.motes * 0.65), ko ? 1750 : 1250, { life: 760, size: 0.7, grav: 260 });
     this.glitter(x, y, Math.round(o.motes * 0.35), 700, { life: 1000, size: 0.5, grav: -40, lift: 120 });
     this.embers(x, y, radius, 22);
-    this.fxs('air', this.tex.glow, c.side, x, y, { dur: 1500, from: 2.6 * fs, to: 3.2 * fs, a0: 0.55 });
+    this.fxs('air', this.tex.glow, ko ? mixColor(ARCANA_KO_PINK, ARCANA_KO_BLUE, 0.4) : c.side, x, y, { dur: 1500, from: 2.6 * fs, to: 3.2 * fs, a0: 0.55 });
   }
 
   /**
-   * TIER V (the Knockout variant): the vortex THROBS once more before it collapses. A prismatic pulse ring races out
-   * of the eye (cyan, then magenta a beat behind), the vortex's sigils kick, and a ring of prism glitter is flung off.
-   * Line work over a short flash, all one-shot pooled sprites.
+   * TIER V (the Knockout variant): the vortex THROBS once more before it collapses. A pulse ring races out of the eye
+   * (electric blue, then crimson-pink a beat behind, owner 2026-10-02), a pink sigil and a blue one kick out
+   * counter-spinning, and a ring of pink and blue glitter is flung off. Line work over a short flash, one-shot sprites.
    */
   koPulse(x: number, y: number, radius: number, tilt: number): void {
     const v = this.vortex;
     if (v) v.age = Math.max(0, v.age - 40); // a tiny hitch back in its spin-up reads as the throb
     const ry = 0.55 + 0.45 * tilt;
+    const S = this.scale;
     this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 140, from: 1, to: 2.2, a0: 0.75 });
-    this.fxs('air', this.tex.ring, KO_CYAN, x, y, { dur: 300, from: 0.5, to: (radius * 4.4) / 128 / this.scale, a0: 1, sy: ry });
-    this.fxs('air', this.tex.ring, KO_MAGENTA, x, y, { dur: 360, from: 0.5, to: (radius * 3.6) / 128 / this.scale, a0: 0.9, sy: ry, delay: 60 });
-    this.fxs('under', this.tex.sigil, KO_LILAC, x, y, { dur: 420, from: (radius * 2.6) / SIGIL_PX / this.scale, to: (radius * 3.4) / SIGIL_PX / this.scale, a0: 0.8, sy: ry, spin: 0.01 });
-    this.prismGlitter(x, y, 14, 700, { life: 420, size: 0.5, grav: 0 });
+    this.fxs('air', this.tex.ring, ARCANA_KO_BLUE, x, y, { dur: 300, from: 0.5, to: (radius * 4.4) / 128 / S, a0: 1, sy: ry });
+    this.fxs('air', this.tex.ring, ARCANA_KO_PINK, x, y, { dur: 360, from: 0.5, to: (radius * 3.6) / 128 / S, a0: 0.9, sy: ry, delay: 60 });
+    this.fxs('under', this.tex.sigil, ARCANA_KO_ROSE, x, y, { dur: 420, from: (radius * 2.6) / SIGIL_PX / S, to: (radius * 3.4) / SIGIL_PX / S, a0: 0.8, sy: ry, spin: 0.01 });
+    this.fxs('under', this.tex.sigil, ARCANA_KO_SKY, x, y, { dur: 420, from: (radius * 2.2) / SIGIL_PX / S, to: (radius * 3) / SIGIL_PX / S, a0: 0.7, sy: ry, spin: -0.012 });
+    this.prismGlitter(x, y, 14, 700, { life: 420, size: 0.5, grav: 0 }, KO_SWIRL);
   }
 
   /**
-   * TIER V's PRISM over the explosion: the Ancient palette (cyan to magenta) layered on the arcane colours. Two wide
-   * prismatic shockwaves, a prism sigil flaring out, a second ring of prism ribbons blasting outward (counter-curled to
-   * the arcane ones) and a storm of prism glitter. Short fills, so the big -N still reads.
+   * TIER V over the explosion (owner 2026-10-02: "explode outwards more to be a bit more different"): the blast is
+   * thrown OUT. A big electric-blue shockwave races far past the Huge one's reach, a crimson-pink one and a wide flat
+   * pale-blue one behind it, pink and blue sigils flaring out counter-spinning, a ring of pink and blue ribbons FLUNG
+   * nearly straight out (fast, far, barely curling), a far ring of outward streaks, and a storm of pink and blue
+   * glitter. Short fills, so the big -N still reads.
    */
   koFlourish(x: number, y: number, radius: number, o: { size: number; tilt: number; dir: number; width: number; flashAlpha: number }): void {
     const S = this.scale;
     const ry = 0.55 + 0.45 * o.tilt;
     const sig = (radius * 2) / SIGIL_PX / S;
-    this.fxs('air', this.tex.glow, KO_LILAC, x, y, { dur: 200, from: 1.6 * o.size, to: 4 * o.size, a0: 0.55 * o.flashAlpha });
-    this.fxs('air', this.tex.ring, KO_CYAN, x, y, { dur: 620, from: 0.6, to: 6.4 * o.size, a0: 0.95 });
-    this.fxs('air', this.tex.ring, KO_MAGENTA, x, y, { dur: 900, from: 0.6, to: 9 * o.size, a0: 0.8, sy: ry, delay: 70 });
-    this.fxs('air', this.tex.sigil, KO_CYAN, x, y, { dur: 820, from: sig * 1.3, to: sig * 3.6 * o.size, a0: 0.9, spin: -0.012 * o.dir });
-    this.fxs('under', this.tex.sigil, KO_MAGENTA, x, y, { dur: 1000, from: sig * 1.8, to: sig * 2.8 * o.size, a0: 0.6, spin: 0.006 * o.dir });
-    // A second ring of ribbons, prismatic, curling the OTHER way through the arcane ones.
-    const n = 8;
+    this.fxs('air', this.tex.glow, ARCANA_KO_ROSE, x, y, { dur: 200, from: 1.6 * o.size, to: 4 * o.size, a0: 0.55 * o.flashAlpha });
+    // THE BIG EXPANDING RING: fast (easeOutQuint) and far.
+    this.fxs('air', this.tex.ring, ARCANA_KO_BLUE, x, y, { dur: 560, from: 0.8, to: 14 * o.size, a0: 1 });
+    this.fxs('air', this.tex.ring, ARCANA_KO_PINK, x, y, { dur: 720, from: 0.6, to: 11 * o.size, a0: 0.85, sy: ry, delay: 50 });
+    this.fxs('air', this.tex.ring, ARCANA_KO_SKY, x, y, { dur: 900, from: 1, to: 17 * o.size, a0: 0.45, sy: ry * 0.7, delay: 90 });
+    this.fxs('air', this.tex.sigil, ARCANA_KO_SKY, x, y, { dur: 820, from: sig * 1.3, to: sig * 4.4 * o.size, a0: 0.9, spin: -0.012 * o.dir });
+    this.fxs('under', this.tex.sigil, ARCANA_KO_PINK, x, y, { dur: 1000, from: sig * 1.8, to: sig * 3.6 * o.size, a0: 0.6, spin: 0.012 * o.dir });
+    // Ribbons FLUNG OUT: far, fast, barely curling, alternating pink and blue.
+    const n = 10;
     for (let i = 0; i < n; i++) {
       const a0 = ((i + 0.5) / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.3;
-      const L = radius * (3.4 + this.rnd() * 1.6) * o.size;
-      const D = 620 + this.rnd() * 200;
-      const curl = -(0.6 + this.rnd() * 0.4) * o.dir;
-      const r0 = radius * 0.15;
+      const L = radius * (5 + this.rnd() * 2) * o.size;
+      const D = 480 + this.rnd() * 140;
+      const curl = -(0.12 + this.rnd() * 0.2) * o.dir;
+      const r0 = radius * 0.2;
       const at = (t: number): Pt => {
         const e = easeOutCubic(clamp01(t / D));
         const th = a0 + curl * e;
         const r = r0 + L * e;
         return { x: x + Math.cos(th) * r, y: y + Math.sin(th) * r * (0.65 + 0.35 * o.tilt) };
       };
-      this.addStreak(at, D, o.width * (1 + this.rnd() * 0.4), KO_PRISM[i % 3]!);
+      this.addStreak(at, D, o.width * (1 + this.rnd() * 0.4), i % 2 ? ARCANA_KO_BLUE : ARCANA_KO_PINK);
     }
-    this.prismGlitter(x, y, 36, 1150, { life: 820, size: 0.65, grav: 220 });
+    // A far ring of outward streaks, a beat behind (the blast still travelling).
+    for (let i = 0; i < 12; i++) {
+      const a = ((i + 0.25) / 12) * Math.PI * 2 + (this.rnd() - 0.5) * 0.2;
+      const len = (1.3 + this.rnd() * 0.6) * o.size;
+      const d = radius * (2.4 + this.rnd() * 0.8);
+      this.fxs('air', this.tex.streak, i % 2 ? ARCANA_KO_SKY : ARCANA_KO_ROSE, x + Math.cos(a) * d, y + Math.sin(a) * d * ry,
+        { dur: 300, from: 3 * len, to: 7 * len, a0: 0.9, sy: 0.16, delay: 60 });
+      this.fx[this.fx.length - 1]!.s.rotation = a;
+    }
+    this.prismGlitter(x, y, 36, 1600, { life: 820, size: 0.65, grav: 220 }, KO_SWIRL);
   }
 
-  /** Glitter in the Ancient prism (Tier V). */
-  private prismGlitter(x: number, y: number, n: number, speed: number, o: { life: number; size: number; grav: number }): void {
+  /** Glitter in the Tier V swirl palette (crimson-pink and electric blue). */
+  private prismGlitter(x: number, y: number, n: number, speed: number, o: { life: number; size: number; grav: number }, tints: readonly number[] = KO_SWIRL): void {
     const S = this.scale;
     for (let i = 0; i < n; i++) {
       const a = this.rnd() * Math.PI * 2;
       const sp = speed * (0.45 + this.rnd() * 0.75) * S;
       const sz = o.size * (0.6 + this.rnd() * 0.7);
-      this.particle(this.tex.star, KO_PRISM[i % 3]!, {
+      this.particle(this.tex.star, tints[i % tints.length]!, {
         x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.03, grav: o.grav * S,
         life: o.life * (0.7 + this.rnd() * 0.6), from: sz * S, to: sz * 0.2 * S, alpha: 1,
         twinkle: 0.02 + this.rnd() * 0.02, spin: (this.rnd() - 0.5) * 0.01, streak: false,
@@ -528,15 +575,15 @@ export class HeroArcanaScene {
     this.ribbons.push({
       at, landAt: -1, endAt: durMs, fadeMs: durMs * 0.45, age: 0, width: width * S, trailMs: 190, ring: null,
       shade: null, glow, body, core, strand: null, head: null, phase: this.rnd() * Math.PI * 2, alpha: 1,
-      lastX: p0.x, lastY: p0.y, moteAcc: 0, thin: 0.5,
+      lastX: p0.x, lastY: p0.y, moteAcc: 0, thin: 0.5, ko: -1, koK: 0,
     });
   }
 
   /** An aftershock around the target (IV): a small flash, a ring and glitter. */
   boom(x: number, y: number, size: number): void {
     this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 200, from: 0.8 * size, to: 2 * size, a0: 0.9 });
-    this.fxs('air', this.tex.glow, this.colors.side, x, y, { dur: 420, from: 1.2 * size, to: 3 * size, a0: 0.6 });
-    this.fxs('air', this.tex.ring, this.colors.accent, x, y, { dur: 360, from: 0.3, to: 2.2 * size, a0: 0.9 });
+    this.fxs('air', this.tex.glow, this.koSwirl ? ARCANA_KO_ROSE : this.colors.side, x, y, { dur: 420, from: 1.2 * size, to: 3 * size, a0: 0.6 });
+    this.fxs('air', this.tex.ring, this.koSwirl ? ARCANA_KO_SKY : this.colors.accent, x, y, { dur: 360, from: 0.3, to: (this.koSwirl ? 3 : 2.2) * size, a0: 0.9 });
     this.glitter(x, y, 10, 620, { life: 480, size: 0.5 });
   }
 
@@ -601,6 +648,11 @@ export class HeroArcanaScene {
       v.sigil.rotation += dt * v.dir * (0.001 + 0.004 * u + 0.02 * c);
       v.inner.scale.set(sig * 0.55, sig * 0.55 * (0.55 + 0.45 * v.tilt)); v.inner.alpha = Math.min(0.9, u * 1.8);
       v.inner.rotation -= dt * v.dir * (0.002 + 0.008 * u + 0.03 * c);
+      if (v.koSigil) {
+        // Tier V: the wide blue sigil counter-swirls against the pink one.
+        v.koSigil.scale.set(sig * 1.28, sig * 1.28 * (0.55 + 0.45 * v.tilt)); v.koSigil.alpha = Math.min(0.7, u * 1.8) * (1 - 0.4 * c);
+        v.koSigil.rotation -= dt * v.dir * (0.0015 + 0.005 * u + 0.025 * c);
+      }
       const tr = ((r * 2) / GLOW_PX) * 1.25 * pull; // the ring texture's circle is 0.8 of its box
       v.track.scale.set(tr, tr * v.tilt); v.track.alpha = 0.3 * Math.min(1, u * 3) * (1 - c);
       const throb = 1 + (0.06 + 0.1 * u) * Math.sin(v.age * (0.02 + 0.07 * u));
@@ -614,7 +666,8 @@ export class HeroArcanaScene {
         const rr = r * (1.1 + this.rnd() * 0.5);
         const life = 260 + this.rnd() * 80;
         const sp = rr / (life / 1000);
-        this.particle(this.tex.star, this.rnd() < 0.5 ? this.colors.accent : this.colors.core, {
+        const pick = this.rnd();
+        this.particle(this.tex.star, v.koSigil ? (pick < 0.5 ? ARCANA_KO_ROSE : ARCANA_KO_SKY) : pick < 0.5 ? this.colors.accent : this.colors.core, {
           x: v.x + Math.cos(a) * rr, y: v.y + Math.sin(a) * rr * v.tilt,
           vx: -Math.cos(a) * sp - Math.sin(a) * sp * 0.6 * v.dir, vy: (-Math.sin(a) * sp + Math.cos(a) * sp * 0.6 * v.dir) * v.tilt,
           drag: 1, grav: 0, life, from: 0.45 * S, to: 0.15 * S, alpha: 1, twinkle: 0, spin: 0.01, streak: false,
@@ -626,6 +679,7 @@ export class HeroArcanaScene {
       const rb = this.ribbons[i]!;
       rb.age += dt;
       if (rb.age >= rb.endAt) { this.dropRibbon(rb); this.ribbons.splice(i, 1); continue; }
+      if (rb.ko >= 0 && rb.koK < 1 && rb.ring && rb.age > rb.landAt) this.turnKo(rb);
       this.drawRibbon(rb, dt);
     }
 
@@ -661,6 +715,23 @@ export class HeroArcanaScene {
     }
 
     return this.used > 0 || this.meshes > 0;
+  }
+
+  /**
+   * Tier V: a ribbon that has joined the vortex TURNS crimson-pink or electric blue (alternating round the ring, its
+   * strand the other colour, so the two counter-wind). A tint blend over `ARCANA_KO_TURN_MS`, no paint properties.
+   */
+  private turnKo(rb: Ribbon): void {
+    const k = (rb.koK = clamp01((rb.age - rb.landAt) / ARCANA_KO_TURN_MS));
+    const tgt = rb.ko === 0 ? ARCANA_KO_PINK : ARCANA_KO_BLUE;
+    const alt = rb.ko === 0 ? ARCANA_KO_SKY : ARCANA_KO_ROSE;
+    rb.glow.mesh.tint = mixColor(this.colors.side, tgt, k);
+    rb.body.mesh.tint = mixColor(this.body, whiten(tgt, 0.2), k);
+    if (rb.strand) rb.strand.mesh.tint = mixColor(this.colors.accent, alt, k);
+    if (rb.head) {
+      rb.head.halo.tint = mixColor(this.colors.side, tgt, k);
+      rb.head.sigil.tint = mixColor(whiten(this.colors.accent, 0.35), whiten(alt, 0.2), k);
+    }
   }
 
   /** Sample the ribbon's centreline back in time, then write every strip's vertices in place. */

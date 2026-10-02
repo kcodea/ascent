@@ -173,7 +173,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <div className="titlename-seat">
           {editing ? (
             <input
-              className="acctinput titlename-input"
+              className="acctinput titlename-input hudpill-name"
               autoFocus
               maxLength={24}
               value={draft}
@@ -185,7 +185,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             />
           ) : (
             <button
-              className="titlename"
+              className="titlename hudpill-name"
               onClick={beginEdit}
               data-tip={unnamed ? 'This is a temporary name. Click to make it your own.' : 'Click to change your name'}
             >
@@ -322,7 +322,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mprow">
               <button className="modecard" data-mp="play" onClick={onPlay}>
                 <div className="mcframe" data-mode="lobby" data-mp="play">
-                  <div className="mcname">Play</div>
+                  <div className="mcname hudpill-name">Play</div>
                   {modeArt('lobby')
                     ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
@@ -338,7 +338,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mprow">
               <button className="modecard" data-mp="learn" onClick={() => { sfx.pulse(); setTitleView('learn'); }}>
                 <div className="mcframe" data-mode="learn" data-mp="learn">
-                  <div className="mcname">Learn</div>
+                  <div className="mcname hudpill-name">Learn</div>
                   {modeArt('learn')
                     ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
@@ -348,7 +348,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
               <button className="modecard" data-mp="practice" onClick={() => { sfx.pulse(); startPractice(); }}>
                 <div className="mcframe" data-mode="practice" data-mp="practice">
-                  <div className="mcname">Practice</div>
+                  <div className="mcname hudpill-name">Practice</div>
                   {modeArt('practice')
                     ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
@@ -361,7 +361,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mprow">
               <button className="modecard" data-mp="gauntlet" onClick={() => { sfx.pulse(); setTitleView('gauntlet'); }}>
                 <div className="mcframe" data-mode="gauntlet" data-mp="gauntlet">
-                  <div className="mcname">Gauntlet</div>
+                  <div className="mcname hudpill-name">Gauntlet</div>
                   {modeArt('gauntlet')
                     ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('gauntlet')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><Crest /></span>}
@@ -383,7 +383,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="mprow">
               <button className="modecard" onClick={() => { sfx.pulse(); startTutorial(LEARN_ASCENT); }}>
                 <div className="mcframe" data-mode="learn">
-                  <div className="mcname">Tutorial</div>
+                  <div className="mcname hudpill-name">Tutorial</div>
                   {modeArt('learn')
                     ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
@@ -393,7 +393,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
               <button className="modecard mclocked" disabled data-tip="More guided lessons are coming soon">
                 <div className="mcframe" data-mode="soon">
-                  <div className="mcname">Advanced</div>
+                  <div className="mcname hudpill-name">Advanced</div>
                   <span className="mcemblem"><Icon name="clock" /></span>
                   <div className="mcdesc">Tribes, synergies, tactics. Coming soon.</div>
                 </div>

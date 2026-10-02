@@ -60,6 +60,57 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Refreshed the health, name and Shop Tier pills, the turn timer, and the Skip and Summary buttons.',
+        details: [
+          'Health pills, hero name pills, the Tier and Freeze labels and the turn timer share one new dark and gold look.',
+          'The hero select screen uses the same name and health pills.',
+          'Armor now shows as its own small shield next to your health.',
+          'The Skip, Summary and End Combat buttons match the new look.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Round 15 and later are now uncapped. Max damage per loss was 20 there before.',
+        details: [
+          'Max damage per loss: 5 in rounds 1 to 3, 10 in rounds 4 to 7, 15 in rounds 8 to 11, 20 in rounds 12 to 14.',
+          'From round 15 on, a loss deals full damage.',
+          'The Gauntlet keeps its own limits.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The round and the max damage now sit above the player list, bigger and easier to read.',
+        details: [
+          'Round is on the left. The heart and the max damage for this round are on the right.',
+          'Hover the heart to see what it means. Late in the game it reads No cap.',
+          'The number of players left stays at the top of the list.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Your opponent's portrait now shows their Shop Tier.",
+      },
+      {
+        category: 'Systems',
+        text: 'Replays now show the End of Turn. Every End of Turn effect plays out on the Shop before the fight, just as it did live.',
+        details: [
+          'Before, a replay jumped from the last Shop action straight to combat, so End of Turn effects showed nothing.',
+          'Each effect gets its own beat: minion End of Turn effects, rune and quest rewards, spells cast at End of Turn and more.',
+          'Rune of Lasting Cadence shows one beat for every Rally it triggers.',
+          'This works for games played from now on. Older replays still skip straight to the fight.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Tooltips across the game now share one consistent, easier to read style.',
+        details: [
+          'Every tooltip now uses the hero power tooltip look: a solid dark blue panel, a gold title, and keywords and numbers in gold.',
+          'The rune and quest tooltips are no longer see-through, so they read clearly over bright art.',
+          'Shop buttons, the Gold readout, keyword pills, the lobby scout card, Career and the menus all match.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ancient hero attacks now have a special finishing animation on knockouts.',
         details: [
           'When an Ancient hero attack knocks a player out, it plays a stronger version of its biggest hit.',

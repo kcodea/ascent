@@ -86,7 +86,7 @@ export function StageSelect() {
                     : hidden && !art ? <span className="gslot-emblem gslot-soon"><Icon name="clock" /></span> : null}
               </span>
               <span className="gslot-name">{hidden || !stage ? '???' : stage.name}</span>
-              <span className="gslot-tag">{TAG[state]}</span>
+              <span className="gslot-tag hudpill-name">{TAG[state]}</span>
             </button>
           );
         })}

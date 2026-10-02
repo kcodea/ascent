@@ -116,6 +116,8 @@ import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
 import { playHeroStitch } from './heroStitch/heroStitch';
 import { heroStitchPreviewSpeed } from './heroStitch/heroStitchConfig';
+import { playHeroBulletTime } from './heroBulletTime/heroBulletTime';
+import { heroBulletTimePreviewSpeed } from './heroBulletTime/heroBulletTimeConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -3014,7 +3016,9 @@ export function Recruit() {
     // plays its Knockout version (its Huge, remixed with more emphasis); every other attack keeps playing Huge.
     const knockoutVariant = knockoutVariantFor({ style: attackStyle, knockout, cosmeticId: attackerCosmeticId });
     if (attackStyle !== 'classic') {
-      const runner = attackStyle === 'stitch'
+      const runner = attackStyle === 'bullettime'
+        ? { play: playHeroBulletTime, preview: heroBulletTimePreviewSpeed() }
+        : attackStyle === 'stitch'
         ? { play: playHeroStitch, preview: heroStitchPreviewSpeed() }
         : attackStyle === 'basketball'
         ? { play: playHeroBasketball, preview: heroBasketballPreviewSpeed() }

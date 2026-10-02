@@ -33,6 +33,9 @@ import { SPEC as ARCANA_TUNER } from '../HeroArcanaTuner';
 import { SPEC as HOLY_TUNER } from '../HeroHolyTuner';
 import { SPEC as STITCH_TUNER } from '../HeroStitchTuner';
 import { SPEC as BLAST_TUNER } from '../HeroBlastTuner';
+import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { MAX_BULLET_SPRITES, type HeroBulletTimeTextures } from '../heroBulletTime/heroBulletTimeScene';
+import { SPEC as BULLET_TUNER } from '../HeroBulletTimeTuner';
 
 const W = Texture.WHITE;
 const ARCANA_TEX: HeroArcanaTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W };
@@ -41,6 +44,7 @@ const HOLY_TEX: HeroHolyTextures = {
   glyphs: [W, W, W], waveBody: W, waveEdge: W,
 };
 const STITCH_TEX: HeroStitchTextures = { ...ARCANA_TEX, needle: W, thread: W, shard: W };
+const BULLET_TEX: HeroBulletTimeTextures = { ...ARCANA_TEX, lance: W, glyph: W, glint: W, mote: W, clockFace: W, wash: W, digit3: W, digit2: W, digit1: W };
 
 const ANCIENT_STYLES = COSMETICS.filter((c) => c.category === 'hero_attack' && c.rarity === 'ancient').map((c) => String(c.assets.style));
 
@@ -117,6 +121,7 @@ describe('each variant is its Huge, remixed', () => {
     ['arcana', (o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), MAX_ARCANA_SPRITES],
     ['holy', (o) => playHeroHoly({ ...o, textures: HOLY_TEX }), MAX_HOLY_SPRITES],
     ['stitch', (o) => playHeroStitch({ ...o, textures: STITCH_TEX }), MAX_STITCH_SPRITES],
+    ['bullettime', (o) => playHeroBulletTime({ ...o, textures: BULLET_TEX }), MAX_BULLET_SPRITES],
   ];
 
   for (const [name, play, cap] of cases) {
@@ -196,6 +201,18 @@ describe('each variant is its Huge, remixed', () => {
     for (let t = ko.impactAt; t < ko.impactAt + 600; t += 10) expect(stitchTimeScale(ko, c, t)).toBeGreaterThan(0);
   });
 
+  it('Bullet Time: one extra ring of blades in the dome, a deeper and longer dip, a bigger shake', () => {
+    const huge = run((o) => playHeroBulletTime({ ...o, textures: null }), { total: 40, knockout: true, variant: false }, () => 0).h.plan;
+    const ko = run((o) => playHeroBulletTime({ ...o, textures: null }), { total: 40, knockout: true, variant: true }, () => 0).h.plan;
+    const rings = (p: typeof huge): number => new Set(p.darts.map((d) => d.ring)).size;
+    expect(rings(ko)).toBe(rings(huge) + 1);
+    expect(ko.ko).toBe(true);
+    expect(ko.shakePx).toBeGreaterThan(huge.shakePx);
+    expect(ko.dip!.lo).toBeLessThan(huge.dip!.lo);
+    expect(ko.dip!.ms).toBeGreaterThan(huge.dip!.ms);
+    expect(koDipExtraMs(ko.dip)).toBeGreaterThan(koDipExtraMs(huge.dip));
+  });
+
   it('the dip is a ramp that never reaches 0 (R-PROG-ATTACK-10)', () => {
     const d = { at: 1000, lo: KO_DIP.lo, ms: KO_DIP.ms };
     expect(koTimeScale(d, 999)).toBe(1);
@@ -225,7 +242,7 @@ describe('a style with no variant ignores the flag and plays Huge', () => {
 describe('the tuners: a Knockout preview, Play and Foe, on each Ancient attack only', () => {
   const labels = (s: { actions?: { label: string }[] }): string[] => (s.actions ?? []).map((a) => a.label);
   it('Arcana, Consecration and Soul Stitch have "Knockout" and "Foe knockout"; a Legendary does not', () => {
-    for (const spec of [ARCANA_TUNER, HOLY_TUNER, STITCH_TUNER]) {
+    for (const spec of [ARCANA_TUNER, HOLY_TUNER, STITCH_TUNER, BULLET_TUNER]) {
       expect(labels(spec)).toContain('▶ Knockout (40)');
       expect(labels(spec)).toContain('▶ Foe knockout (40)');
     }

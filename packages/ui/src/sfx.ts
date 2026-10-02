@@ -427,14 +427,15 @@ export interface SfxHandle { stop: () => void; }
  * cutting it. Same gating + category routing as `playSample`. Every node is disconnected once the tail has rung
  * out (natural end) or the skip fade has landed, so nothing piles up. Returns null when nothing was queued.
  */
-function playTailedSample(name: string, category: string, vol: number, delay: number, tail: TailOpts, slice?: ClipSlice, rate = 1): SfxHandle | null {
+function playTailedSample(name: string, category: string, vol: number, delay: number, tail: TailOpts, slice?: ClipSlice, rate = 1, reverse = false): SfxHandle | null {
   if (isHidden() || audioSuspended) return null;
   const a = audio();
   if (!a || muted) return null;
   const buf = buffers.get(name);
   if (!buf) { loadSample(name); return null; }
   const src = a.createBufferSource();
-  src.buffer = buf;
+  // Reversed: the cached reversed copy (Web Audio has no negative playbackRate); a slice is a window of THAT copy.
+  src.buffer = reverse ? reversedBuffer(a, name, buf) : buf;
   const r = Number.isFinite(rate) && rate > 0 ? rate : 1;
   if (r !== 1) src.playbackRate.value = r;
   const level = a.createGain();
@@ -495,14 +496,14 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
  */
 export function playTailedClip(
   clip: string, category: string,
-  opts: { gain?: number; delayMs?: number; startMs?: number; lenMs?: number; tail?: TailOpts; rate?: number } = {},
+  opts: { gain?: number; delayMs?: number; startMs?: number; lenMs?: number; tail?: TailOpts; rate?: number; reverse?: boolean } = {},
 ): SfxHandle | null {
   const vol = opts.gain ?? 1;
   if (!clip || !(vol > 0)) return null;
   const start = Math.max(0, opts.startMs ?? 0) / 1000;
   const len = Math.max(0, opts.lenMs ?? 0) / 1000;
   const slice: ClipSlice | undefined = start > 0 || len > 0 ? { offset: start, duration: len > 0 ? len : 1e6 } : undefined;
-  return playTailedSample(clip, category, vol, Math.max(0, opts.delayMs ?? 0) / 1000, opts.tail ?? NO_TAIL, slice, opts.rate ?? 1);
+  return playTailedSample(clip, category, vol, Math.max(0, opts.delayMs ?? 0) / 1000, opts.tail ?? NO_TAIL, slice, opts.rate ?? 1, opts.reverse ?? false);
 }
 
 /** Two seconds of brown noise per AudioContext, built once (the rumble loops it). */

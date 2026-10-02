@@ -3375,8 +3375,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'variant plays THAT on a knockout instead of plain Huge: its Huge remixed with slightly more emphasis (one extra '
       + 'beat, the Ancient prismatic cyan-to-magenta accent on the final blast, a bigger shake, a slow-mo dip that is never '
       + 'a freeze, and a short KO sting), adding at most about 500 ms. Arcana (an extra vortex pulse before the burst), '
-      + 'Consecration (a seventh, giant prismatic sword driven into the centre) and Soul Stitch (the heart-knot '
-      + 'double-cinches) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
+      + 'Consecration (a seventh, giant prismatic sword driven into the centre), Soul Stitch (the heart-knot '
+      + 'double-cinches) and Bullet Time (an extra ring of prismatic blades in the dome) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
       + 'packages/ui/src/heroAttack/knockoutVariant.ts), not a list of ids: an Ancient attack whose runner has no variant '
       + 'yet falls back to Huge, and every other rarity (and Classic) keeps playing Huge on a knockout, unchanged. Without a '
       + 'knockout an Ancient attack plays its normal damage tiers. The shared tier stays IV underneath (every per-tier '
@@ -3386,7 +3386,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (ancient knockout tier)', quote: 'ancient tier animations should have a separate tier of dmg specific for knockouts. they can just be small changes to the \x27huge\x27 tier. in some cases just adding a hit or something and some color changes or something like that but slightly more emphasis on the knockout animation. can you do this for all 4 ancient tier animations?' },
-      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy and Stitch plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy, Stitch and Bullet Time plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29; the Ancient Knockout variant built 2026-10-02.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts'], lastVerifiedAt: '2026-10-02' },
@@ -3661,6 +3661,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the Ancient rarity SQL (2026-10-02-ancient-rarity.sql) already accepts it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStitch/heroStitch.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/attackTunerButtons.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-PROG-ATTACK-35',
+    title: 'Bullet Time (attack_bullet_time, Ancient): CUTTING THROUGH TIME, cast as magic: crystal lances of light tear rifts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
+    statement:
+      'attack_bullet_time ("Bullet Time", the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
+      + 'damage formation (R-PROG-ATTACK-08) crystal lances of golden light (a time rune spinning at each head) slice in toward the '
+      + 'struck hero, each opening a shimmering rift (a gold seam, a violet aurora, drifting runes) in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: '
+      + 'they keep CRAWLING forward (never stopped), the FX run slowed, afterimages peel off, a rune circle ringing the target '
+      + 'turns with two runes orbiting it and ticks faster and louder, a gold ripple sweeps the screen, motes drift, the camera pushes in; '
+      + 'nothing is greyed. Then time SNAPS back to full speed (a white flash, a cyan and magenta chromatic burst, streaks, a '
+      + 'camera kick, a shimmer, a bell tone and a rising whoosh) and they land. Every shape (the lances, the rune circle, the countdown, the '
+      + 'collapse) CENTRES on the struck portrait\x27s at-rest centre; near an edge the dome shrinks to fit and any blade still '
+      + 'off screen is clamped on, never shifting the centre. It escalates on the shared tiers (thresholds 6 / 12 / 20): I '
+      + 'one lance, then the hit; II three from evenly round the target, hitting together; III a volley of twelve in a spiral '
+      + 'round it, a finger snap, and a rapid run of hits (ticks, the blow on the last); IV dozens of lances in a dome of rings '
+      + 'round the target while the rune circle counts 3-2-1 in glowing runes, then the dome collapses at once into one massive gold and violet '
+      + 'impact on a slow-mo dip (never 0). KNOCKOUT VARIANT (R-PROG-ATTACK-20): IV with one extra ring of cyan and magenta '
+      + 'lances, a prismatic collapse, a 1.3x shake, a deeper and longer dip and the KO sting (about 380 ms over Huge). The '
+      + 'consequence lands exactly ONCE, on the last hit (IV: the collapse). No Ancient or hero art is drawn, and nothing reads as ballistic or mechanical (owner: "remove the bullet aesthetic. make it more magic inspired"). Presentation '
+      + 'only; reduced motion is fades only. It never uses the rune explosion or turn explosion sounds.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient of Time attack, relayed by the coordinator)', quote: 'build a new ancient animation for this ancient, the ancient of time' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the third rewind build, relayed by the coordinator)', quote: 'time attack is a 5/10. i dont like using the art for the attack. try again' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time, relayed by the coordinator)', quote: 'concept for bullet time is cool but it is currently like a 3/10 and we need a 10/10. this also needs a knockout tier as it\x27ll be an ancient tier animation' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time IV, relayed by the coordinator)', quote: 'looks weird not being centered and prefer slow motion vs stopped/grey time. like more cutting through time than stopping it and dont grey out' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bullet_time); packages/ui/src/heroBulletTime/ (bulletPlan / bulletCues / stopTicks / inSlowMo / hangPoints / clockCentre / dartGeos / dartAt / bulletCameraAt, playHeroBulletTime, HeroBulletTimeScene, heroBulletTimeTextures); packages/ui/src/heroAttack/knockoutVariant.ts (bullettime)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBulletTime/heroBulletTime.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
     id: 'R-PROG-ATTACK-25',

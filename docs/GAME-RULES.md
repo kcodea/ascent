@@ -522,7 +522,17 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lace snaps and the knot bursts (the blow: a gold and violet nova, shockwaves, light streaks, soul ribbons and crystal
   rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
   tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
-  the fight. **Card Shark** and
+  the fight. **Bullet Time** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
+  Ancient of Time: CUTTING THROUGH TIME, cast as magic. Crystal lances of golden light, each with a spinning time rune,
+  slice in toward the struck hero, each opening a shimmering rift in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: they keep crawling forward,
+  afterimages peeling off them, a rune circle ringing the target turns with its runes orbiting, a gold ripple sweeps the screen, and
+  the view pushes in. Then time snaps back to full speed (a white flash, a cyan and magenta burst, a shake) and they
+  land. Every shape centres on the struck hero; the colours stay full. I: one lance, then the hit. II: three from round
+  the target, hitting together. III: a volley in a spiral round it, a finger snap, and a rapid run of hits (the blow on
+  the last). IV: dozens of lances in a dome of rings round the target while a big rune circle counts 3, 2, 1 in glowing runes; the dome
+  collapses into one massive gold and violet impact on a slow-motion dip. Its Knockout variant adds a ring of cyan and
+  magenta lances, a prismatic collapse, a bigger shake, a deeper dip and the KO sting. Every hit before the last is a
+  tick; the blow lands once. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero

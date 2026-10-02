@@ -86,6 +86,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
+        details: [
+          'Small: one golden spell slows to a crawl just short of your foe, then hits.',
+          'Bigger hits bring three spells, then a whole volley in a spiral.',
+          'Huge: dozens of spells circle your foe while a magic clock counts 3, 2, 1. Then they all strike at once.',
+          'Equip it in the Collection, on the Attack Animations tab.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new rarity, Ancient, above Legendary. Ancient rewards drop 3% of the time and get their own crate opening.',
         details: [
           'New crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%.',

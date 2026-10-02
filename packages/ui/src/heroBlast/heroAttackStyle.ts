@@ -100,6 +100,11 @@
  * needles cross-stitch an X and the threads snap through; III five pins stab in at the points of a star and the target
  * is stretched toward the hero until they rip out; IV the heroes laced together, the target dragged into a gold heart-knot that
  * ties shut and bursts as it is flung home (`../heroStitch/`).
+ * `bullettime` (`attack_bullet_time`, "Bullet Time", the Ancient of Time; Ancient; owner 2026-10-02 picked "BULLET TIME",
+ * then "more cutting through time than stopping it"): gold clock-hand blades tear cuts through the air and crawl in
+ * dramatic slow motion round the target, then time snaps back and they land. I one blade; II three round the target; III a
+ * spiral volley and a finger snap; IV a dome of blades and a 3-2-1, collapsing in one massive impact. Every shape centres
+ * on the target (`../heroBulletTime/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -113,7 +118,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -130,7 +135,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -142,6 +147,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   backstab: 'Shadow Step (backstab, Rare)',
   basketball: 'Nothing But Net (basketball)',
   stitch: 'Soul Stitch (Ancient)',
+  bullettime: 'Bullet Time (Ancient of Time)',
 };
 
 const KEY = 'ascent.heroattackstyle';

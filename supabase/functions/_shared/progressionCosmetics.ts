@@ -174,7 +174,7 @@ export const HERO_TITLE_NAMES: ReadonlyArray<readonly [heroId: string, title: st
   ['repete', 'Deja Vu'], ['gorr', 'Four Peater'], ['kindness', 'Kind Soul'], ['merrin', 'Pocket Mage'], ['gambler', 'Gambling Addict'],
   ['xerox', 'Paper Jam'], ['frank', 'Bargain Hunter'], ['quillen', 'Archivist'], ['hunch', 'Bookworm'], ['emeraldwarden', 'Vanguard'],
   ['albus', 'Albus Student'], ['flash', 'Speedrunner'], ['midas', 'Midas Touched'], ['juggler', 'Juggling Act'], ['bram', 'Compound Interest'],
-  ['cia', 'High Roller'], ['keshi', 'Crownbearer'], ['mimic', 'Not a Mimic'],
+  ['cia', 'High Roller'], ['keshi', 'Crownbearer'], ['rayse', 'Thornbound'], ['mimic', 'Not a Mimic'],
 ] as const);
 
 /** The catalog id of a hero's title, and of its master (golden plate) version. Permanent. */

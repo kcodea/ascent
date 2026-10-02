@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Balance',
+        text: 'Rayse is back. You can pick her again in Play and Practice.',
+      },
+      {
         category: 'Systems',
         text: '3 more portrait frames in crates: Simple Ring and Void (Rare), and Cherry Blossom (Epic).',
         details: [

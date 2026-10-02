@@ -313,7 +313,7 @@ const RANKED: AchievementDef[] = [
 
 // Heroes ─────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
- * The 35 playable heroes (not archived), id and display name. The progression package stays dependency-free, so
+ * The 36 playable heroes (not archived), id and display name. The progression package stays dependency-free, so
  * the list lives here; packages/sim/src/achievementHeroes.test.ts fails CI when it drifts from `playableHeroes()`.
  * Each hero's TITLE name lives with the catalog (`HERO_TITLE_NAMES` in cosmetics.ts, owner 2026-09-29).
  */
@@ -327,7 +327,7 @@ export const ACHIEVEMENT_HEROES: ReadonlyArray<{ id: string; name: string }> = O
   { id: 'merrin', name: 'Merrin' }, { id: 'gambler', name: 'Gambler' }, { id: 'xerox', name: 'Xerox' }, { id: 'frank', name: 'Frantic Frank' },
   { id: 'quillen', name: 'Quillen' }, { id: 'hunch', name: 'Hunch' }, { id: 'emeraldwarden', name: 'Emerald Warden' }, { id: 'albus', name: 'Albus' },
   { id: 'flash', name: 'Flash' }, { id: 'midas', name: 'Midas' }, { id: 'juggler', name: 'Juggler' }, { id: 'bram', name: 'Braum' },
-  { id: 'cia', name: 'Ayse' }, { id: 'keshi', name: 'Keshi the Protector' }, { id: 'mimic', name: 'Mimic' },
+  { id: 'cia', name: 'Ayse' }, { id: 'keshi', name: 'Keshi the Protector' }, { id: 'rayse', name: 'Rayse' }, { id: 'mimic', name: 'Mimic' },
 ]);
 
 /** Ranked 1sts with a hero that earn its title, and its golden MASTER version (owner 2026-09-29). */

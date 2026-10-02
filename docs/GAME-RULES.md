@@ -506,7 +506,23 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rim and the slam are heard. The hoop is ONE assembly (the backboard behind the rim, the rim on its lower centre, the
   net hanging from it) and it always hangs on the struck hero's portrait, in both directions. Every point it visits
   stays on screen and every shot and slam lands on the struck hero's centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
-  ramp of the whole attack's clock, never a freeze. **Card Shark** and
+  ramp of the whole attack's clock, never a freeze. **Soul Stitch** (2026-10-02; `attack_soul_stitch`; **Ancient**, from
+  crates; R-PROG-ATTACK-34) is the first hero attack built at the Ancient rarity, for the Ancient of Bonds: crystal
+  needles on violet soul thread STITCH the struck hero to the striker (the thread is drawn along each needle's own flight,
+  hangs between the two portraits once it pierces, twangs, goes taut on the pull and snaps). I: one needle pierces the
+  face, the thread hangs taut, a tug (the striker leans back, the target is yanked toward it, a bead of light runs down
+  the thread), then the needle bursts into shards and the thread snaps (the blow). II: three needles cross-stitch an X
+  into the face (two sew the diagonals, the third pins the crossing), the striker yanks and the threads snap through the
+  face (the blow). III, Pinned: five crystal pins stab into the rim at the points of a star, one after another, each on
+  a thread back to the striker; the striker leans back on all five and the portrait stretches toward it; then all five
+  pins rip out at once (five snaps, splinters at each pin) and the portrait snaps back through a squash (the blow, with a
+  shockwave and a crystal spray). IV, Bound Together (every knockout): six needles lace the two portraits together; the
+  striker yanks and the struck portrait is DRAGGED halfway across the board into a gold heart-knot that ties shut round
+  it (three gold pulses, a violet crystal clasp, the portrait crushed small); the striker strikes down the laces, every
+  lace snaps and the knot bursts (the blow: a gold and violet nova, shockwaves, light streaks, soul ribbons and crystal
+  rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
+  tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
+  the fight. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero

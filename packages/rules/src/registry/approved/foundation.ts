@@ -2668,7 +2668,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29).',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3600,6 +3600,59 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-PROG-ATTACK-34',
+    title: 'Soul Stitch (attack_soul_stitch, Ancient): crystal needles on violet soul thread STITCH the target to the striker: a pierce and a tug / a cross-stitched X / five pins it is stretched against / dragged into a gold heart-knot that bursts; the blow lands ONCE',
+    statement:
+      'attack_soul_stitch ("Soul Stitch"; ANCIENT, crate, account-wide, style stitch; the first hero attack built at the '
+      + 'Ancient rarity, for the Ancient of Bonds) plays after the shared damage formation (R-PROG-ATTACK-08), flat 2D, in '
+      + 'the Ancient of Bonds palette (violet #a855f7 to lilac #e9d5ff, deep purple #2e1065, gold #d4a537, bone #efe6d2). '
+      + 'Its one signature, which no other attack has: it SEWS. Crystal needles crystallise on the striking hero\x27s rim and '
+      + 'fly on arcs to the struck hero trailing a violet THREAD drawn along each needle\x27s own path; once a needle '
+      + 'pierces, its thread relaxes into a line that hangs between the portraits (a little sag, a twang), and every '
+      + 'thread end rides the portrait it is sewn into (through that portrait\x27s own stretch or crush). Tiers (shared '
+      + 'thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I one needle pierces the face, the thread hangs '
+      + 'taut, a TUG (the striker leans back, the target is yanked toward it, a bead of light runs down the thread), then '
+      + 'the needle bursts and the thread SNAPS; II three needles CROSS-STITCH an X (two diagonals, the third pins the '
+      + 'crossing), the striker yanks and the threads snap through the face; III PINNED (the owner\x27s pick of three '
+      + 'concepts, after a seam across the board was rejected): five crystal pins stab into the rim at the points of a '
+      + 'star in star order (ticks), the striker leans back on all five (a taut-string twang), the struck portrait '
+      + 'STRETCHES toward it about its far rim (a transform), then all five pins rip out at once (five staggered crystal '
+      + 'snaps, a violet burst and splinters at each pin) and it snaps back through a squash with a flash, a shockwave '
+      + 'and a crystal spray; IV BOUND TOGETHER (the owner\x27s pick of three concept pairs): six needles lace the two '
+      + 'portraits together (target, striker, target), the striker YANKS and the struck portrait is DRAGGED halfway '
+      + 'across the board into a gold HEART-KNOT drawn on and tied shut ROUND IT (three gold cinch pulses, a gold glow '
+      + 'pulsing under it, a violet crystal clasp, the portrait crushed small), the striker strikes down every lace and '
+      + 'the knot BURSTS (a white-gold core, a violet nova, a giant shockwave and rings, radial light streaks, gold and '
+      + 'violet soul ribbons, crystal rain over the board) as the portrait is flung home, landing on its spot. IV\x27s '
+      + 'burst has a short SLOW-MOTION dip (the one clock drops to 0.3x and eases back over 260 ms; never 0, never a '
+      + 'freeze, R-PROG-ATTACK-10). The knot is centred on the struck portrait\x27s live position: the drag and the crush '
+      + 'are solved in screen px with the portrait\x27s scale measured AT REST (restingRect), so a tuner preview started '
+      + 'during the foe portrait\x27s drop-in no longer over-shoots the knot. Every piercing is a tick (FX and a crystal '
+      + 'sound); the consequence (damage, Armor, Resolve) lands exactly ONCE: on the snap (I), the yank (II), the pins '
+      + 'ripping out (III) or the knot bursting (IV); every thread is gone within SNAP_MS (280 ms) of it. Sounds are '
+      + 'reused clips (no ElevenLabs key was set up) and never a rune or explosion clip (owner 2026-10-02): a crystal '
+      + 'summon, a whip of air per needle, a crystal ting per piercing, a soul whisper, a wind-up, a whip-snap for every '
+      + 'snap, a taut-string twang, a heavy drag, gold clanks for the knot, a riser, a hammer strike, a rock-impact '
+      + 'rumble, a triple-impact boom and chiming crystal rain; every cue has its own clip / gain / pitch dial. The '
+      + 'portraits move by transform only and are restored EXACTLY (transform, and the `.duel-attacker-*` z-order class '
+      + 'IV adds to raise the dragged portrait, only if it added it) on the end, finish, cancel and the safety timer. '
+      + 'Thread meshes are 64 vertices (batchable) rewritten in place; sprites pooled under a hard cap (520). '
+      + 'Presentation only; reduced motion is fades only. The DEV tuner (Hero Attack: Soul Stitch) has Play buttons at '
+      + 'the top for all four tiers, both directions.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (an Ancient attack for the Ancient of Bonds, relayed by the coordinator)', quote: 'this ancient binds things together and using soulbindings' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the first build, relayed by the coordinator)', quote: 't1 and t2 are great. t3 is abysmal, and t4 is a 4/10 max. do not use the rune explosion sound, it is overused right now' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bound Together, relayed by the coordinator)', quote: 'the huge one looks pretty awesome, but the heart isn\x27t over the target enough' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the seam, relayed by the coordinator)', quote: 't3 attack is HORRIBLE. please redo it entirely, i hate the direction of it' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (more impact, relayed by the coordinator)', quote: 'can you make a bit more oomph on t3 and t4 for soul stitch? like add some pixi blasts or something to make it a bit more exciting' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_soul_stitch); packages/ui/src/heroStitch/ (stitchPlan / stitchCues / stitchGeo / needleAt / tugAt / stretchAt / dragAt / knotAt / stitchTimeScale / stitchCameraAt; HeroStitchScene; playHeroStitch); packages/ui/src/HeroStitchTuner.tsx; packages/ui/src/heroBlast/heroAttackStyle.ts' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the Ancient rarity SQL (2026-10-02-ancient-rarity.sql) already accepts it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStitch/heroStitch.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/attackTunerButtons.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
     id: 'R-PROG-ATTACK-25',
     title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
     statement:
@@ -4054,7 +4107,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'prismatic crack splits the view at the burst and the colour floods back. The drain and the crack are one-shot; '
       + 'every loop stays transform or opacity. Ancient items today: the six Ancient frames (Bonds, Death, Fortune, Genesis, '
       + 'Time, War) and four moved up from Legendary by the owner: Tee Time Sylus and Edward Colada Hands (minion skins, '
-      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks). Ownership is per id '
+      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks); and Soul Stitch (attack_soul_stitch, R-PROG-ATTACK-34), the first hero attack BUILT at Ancient (2026-10-02), making eleven at 3 / 11 = 0.273% each. Ownership is per id '
       + '(player_cosmetics has no rarity), so a player who owns a moved item keeps it; only its shown rarity and future '
       + 'crate odds change.',
     domain: 'foundation',

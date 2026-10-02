@@ -8,7 +8,7 @@ import { parseProgressionProfile } from './rules';
 /**
  * THE PORTRAIT FRAME SQL, EXECUTED (owner 2026-10-01: "we're adding portrait skins ... we want this to replace the
  * default portrait png when a skin is applied"). PGlite runs the MVP, crates, skins, achievements, hero attack and
- * portrait frame migrations in order, syncs the code catalog (which adds the category and the 36 frames), and drives
+ * portrait frame migrations in order, syncs the code catalog (which adds the category and the 38 frames), and drives
  * `equip_cosmetic` on the account-wide `portrait_frame` slot: an owned frame equips with target '' and shows in the
  * loadout; null goes back to the default ring; a named target, an unowned frame, a frame in another slot or another
  * item in the frame slot is refused; the kill switch drops it; the hero attack and skin slots still work; re-running
@@ -85,11 +85,11 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('the portrait frame slot', () => {
-  it('the sync switches the category on (global) and adds the 36 frames as targetless crate items at their rarity', async () => {
+  it('the sync switches the category on (global) and adds the 38 frames as targetless crate items at their rarity', async () => {
     const cat = await one<{ enabled: boolean; target: string }>("select enabled, target from public.cosmetic_categories where category = 'portrait_frame'");
     expect(cat).toEqual({ enabled: true, target: 'global' });
     const rows = (await db.query<{ rarity: string; n: number }>("select rarity, count(*)::int as n from public.cosmetic_catalog where category = 'portrait_frame' and active and acquisition_source = 'crate' and target_type is null group by rarity order by rarity")).rows;
-    expect(rows).toEqual([{ rarity: 'common', n: 6 }, { rarity: 'epic', n: 14 }, { rarity: 'legendary', n: 8 }, { rarity: 'rare', n: 8 }]);
+    expect(rows).toEqual([{ rarity: 'common', n: 6 }, { rarity: 'epic', n: 14 }, { rarity: 'legendary', n: 8 }, { rarity: 'rare', n: 10 }]);
   });
 
   it('equips an owned frame with target \'\'; the profile loadout carries it; null goes back to the default ring', async () => {

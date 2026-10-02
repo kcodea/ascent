@@ -40,12 +40,14 @@ describe('the frame art and its measured seat', () => {
     for (const c of FRAMES) {
       expect(frameSrc(c.id), c.id).toBeTruthy();
       const a = SKIN_FRAME_ART[c.id]!;
-      expect(a.holeD, c.id).toBeGreaterThan(0.6);
+      // Wedding (2026-10-01) and Simple Ring (2026-10-02) are rings with a gem on top, so their hole truly sits low in
+      // the image (measured 0.577 and 0.563) and the gem's height leaves a smaller hole (Simple Ring 0.596);
+      // frameGeometry seats the measured hole on the disc either way. Every other ring is centred.
+      const gemOnTop = c.id === 'frame_wedding' || c.id === 'frame_simple_ring';
+      expect(a.holeD, c.id).toBeGreaterThan(gemOnTop ? 0.55 : 0.6);
       expect(a.holeD, c.id).toBeLessThan(0.95);
       expect(Math.abs(a.holeCx - 0.5), c.id).toBeLessThan(0.05);
-      // Wedding Frame (2026-10-01) is a ring with its gem on top, so its hole truly sits low in the image (measured
-      // 0.577); frameGeometry seats the measured hole on the disc either way. Every other ring is centred.
-      expect(Math.abs(a.holeCy - 0.5), c.id).toBeLessThan(c.id === 'frame_wedding' ? 0.1 : 0.05);
+      expect(Math.abs(a.holeCy - 0.5), c.id).toBeLessThan(gemOnTop ? 0.1 : 0.05);
       expect(a.aspect, c.id).toBeGreaterThan(0.9);
       // the ring is wider than the disc it frames, and its hole is centred on the disc
       expect(frameGeometry(c.id, NEUTRAL_FIT).width, c.id).toBeGreaterThan(100);

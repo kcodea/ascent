@@ -438,13 +438,18 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_paragon', 'Paragon', 'rare', 'Rare/Paragon.png'),
   portraitFrame('frame_vines', 'Vine', 'rare', 'Rare/Vines.png'),
   portraitFrame('frame_magic', 'Magic', 'rare', 'Rare/Magic.png'),
+  // Portrait frames batch 5 (Kevin 2026-10-02: "added more skins"): rarity = the Portraits rarity folder.
+  portraitFrame('frame_simple_ring', 'Simple Ring', 'rare', 'Rare/SimpleRing.png'),
+  portraitFrame('frame_void', 'Void', 'rare', 'Rare/Void.png'),
   // Portrait frames batch 4 (owner 2026-10-01: Epic, "the other ones should be Epic"). Mike's masters are loose files with spaces in
   // their names ("Blue Energy Frame.png"); `npm run art:frames -- --src <dir> --apply` matches them ignoring spaces and case.
-  portraitFrame('frame_multichrome_energy', 'Multichrome Energy', 'epic', 'Epic/MultichromeEnergyPortrait.png'),
-  portraitFrame('frame_blue_energy', 'Blue Energy', 'epic', 'Epic/BlueEnergyFrame.png'),
-  portraitFrame('frame_crackling_ruby', 'Crackling Ruby', 'epic', 'Epic/CracklingRubyFrame.png'),
-  portraitFrame('frame_topaz', 'Topaz', 'epic', 'Epic/TopazFrame.png'),
-  portraitFrame('frame_jade', 'Jade', 'epic', 'Epic/JadeFrame.png'),
+  // Batch 5 (2026-10-02): the masters now point at Kevin's copies in Epic/ (pixel-identical to the shipped webps; Mike's
+  // rarities win, owner 2026-10-02). Re-wiring from Mike's loose files would need them renamed to these names.
+  portraitFrame('frame_multichrome_energy', 'Multichrome Energy', 'epic', 'Epic/Multichrome.png'),
+  portraitFrame('frame_blue_energy', 'Blue Energy', 'epic', 'Epic/BlueEnergy.png'),
+  portraitFrame('frame_crackling_ruby', 'Crackling Ruby', 'epic', 'Epic/CracklingRuby.png'),
+  portraitFrame('frame_topaz', 'Topaz', 'epic', 'Epic/Topaz.png'),
+  portraitFrame('frame_jade', 'Jade', 'epic', 'Epic/Jade.png'),
   portraitFrame('frame_aura', 'Aura', 'epic', 'Epic/Aura.png'),
   portraitFrame('frame_ascendant', 'Amethyst', 'epic', 'Epic/Ascendant.png'),
   portraitFrame('frame_dark_diamond', 'Shard', 'epic', 'Epic/DarkDiamond.png'),

@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-02',
+    changes: [
+      {
+        category: 'Systems',
+        text: '2 more Rare portrait frames in crates: Simple Ring and Void.',
+      },
+    ],
+  },
+  {
     date: '2026-10-01',
     changes: [
       {

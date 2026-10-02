@@ -390,8 +390,13 @@ export interface StitchPlan {
   knotAt: number | null;
   /** IV: the knot is tied; the hero strikes down the laces (null on other tiers). */
   strikeAt: number | null;
-  /** THE blow: the snap / the yank / the pins ripping out / the knot bursting. */
+  /**
+   * THE blow, where the consequence lands: the snap / the yank / the pins ripping out / the knot bursting (Tier V: the
+   * SLAM in the middle of the board, after the burst).
+   */
   impactAt: number;
+  /** The heart-knot bursts (IV). On every tier but V it IS `impactAt` (V: the burst is a tick, the slam is the impact). */
+  burstAt: number;
   /** IV: the target is back on its spot (the fling home ends; null on other tiers). */
   homeAt: number | null;
   /**
@@ -402,6 +407,16 @@ export interface StitchPlan {
    */
   ko: boolean;
   koCinchAt: number | null;
+  /**
+   * TIER V's FINAL BEAT (owner 2026-10-02: "do a second, faster pull. after the heart knocks them back, latch on and
+   * then yank and have the attacking hero slam into them in the middle of the board"): after the burst flings the
+   * target home, fast needles LATCH onto it (`koLatchAt` they fly, `koLatchedAt` they bite), a SECOND, FASTER YANK pulls
+   * it toward the middle while the striker launches at it, and they SLAM together there (`impactAt`: the consequence
+   * lands on the slam). Both portraits are back on their spots, exactly, from `koHomeAt`. Null on every other tier.
+   */
+  koLatchAt: number | null;
+  koLatchedAt: number | null;
+  koHomeAt: number | null;
   endAt: number;
   passes: number;
   shards: number;
@@ -425,7 +440,8 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
     const at = r.impactAt;
     return {
       reduced: true, tier, kind, k, total, chargeAt: at, absorbEnd: at, launchAt: at, flightMs: 0, needles: [], hits: [],
-      tugAt: at, knotAt: null, strikeAt: null, impactAt: at, homeAt: null, ko: false, koCinchAt: null, endAt: r.endAt, passes: 0, shards: 0, burst: 0, shakePx: 0, zoom: 0,
+      tugAt: at, knotAt: null, strikeAt: null, impactAt: at, burstAt: at, homeAt: null, ko: false, koCinchAt: null,
+      koLatchAt: null, koLatchedAt: null, koHomeAt: null, endAt: r.endAt, passes: 0, shards: 0, burst: 0, shakePx: 0, zoom: 0,
       punch: 0, dim: 0, arc: 0,
     };
   }
@@ -448,23 +464,32 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   const sewnAt = Math.max(...needles.map((q) => q.sewEnd));
   const tugAt = sewnAt + L.HangMs;
   let knotAt: number | null = null, strikeAt: number | null = null, homeAt: number | null = null, koCinchAt: number | null = null;
-  let impactAt: number;
+  let koLatchAt: number | null = null, koLatchedAt: number | null = null, koHomeAt: number | null = null;
+  let impactAt: number, burstAt: number;
   const ko = kind === 'bound' && isKnockoutVariant(input);
   if (kind === 'bound') {
     knotAt = tugAt + L.TugMs;
     strikeAt = knotAt + c.knotMs;
     // Tier V: the second cinch lands where the knot would have tied; the tie waits a beat for it.
     if (ko) { koCinchAt = strikeAt; strikeAt += STITCH_KO.cinchMs; }
-    impactAt = strikeAt + c.strikeMs;
-    homeAt = impactAt + c.flingMs;
-  } else impactAt = tugAt + L.TugMs;
-  const hits = needles.map((q) => q.arriveAt).filter((t) => t < impactAt).sort((a, b) => a - b);
+    burstAt = strikeAt + c.strikeMs;
+    homeAt = burstAt + c.flingMs;
+    impactAt = burstAt;
+    if (ko) {
+      // Tier V: as the burst flings the target home, fast needles latch on; the second yank and the slam follow.
+      koLatchAt = burstAt + STITCH_KO.latchDelayMs;
+      koLatchedAt = koLatchAt + STITCH_KO.latchFlightMs;
+      impactAt = koLatchedAt + STITCH_KO.yankMs;
+      koHomeAt = impactAt + STITCH_KO.returnMs;
+    }
+  } else { impactAt = tugAt + L.TugMs; burstAt = impactAt; }
+  const hits = needles.map((q) => q.arriveAt).filter((t) => t < burstAt).sort((a, b) => a - b);
   // The snap recoil and the ribbons drain after the end: the fight never waits on a falling shard. IV's fling home is
   // inside the end (the portrait is back on its spot before the attack finishes).
-  const endAt = Math.max(impactAt + Math.max(c.zoomOutMs * 0.8, 300), homeAt ?? 0) + L.SettleMs;
+  const endAt = Math.max(impactAt + Math.max(c.zoomOutMs * 0.8, 300), homeAt ?? 0, koHomeAt ?? 0) + L.SettleMs;
   return {
     reduced: false, tier, kind, k, total, chargeAt, absorbEnd, launchAt, flightMs, needles, hits, tugAt, knotAt, strikeAt,
-    impactAt, homeAt, ko, koCinchAt, endAt, passes, shards: Math.round(clamp(L.Shards, 0, STITCH_CAPS.shards)), burst: L.Burst,
+    impactAt, burstAt, homeAt, ko, koCinchAt, koLatchAt, koLatchedAt, koHomeAt, endAt, passes, shards: Math.round(clamp(L.Shards, 0, STITCH_CAPS.shards)), burst: L.Burst,
     shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, STITCH_CAPS.shakePx * (ko ? KO_SHAKE : 1)), zoom: clamp(L.Zoom, 0, STITCH_CAPS.zoom), punch: L.Punch, dim: L.Dim, arc: L.Arc,
   };
 }
@@ -482,9 +507,45 @@ export const STITCH_KO = {
   /** The burst's slow-mo dip: this much slower at its slowest, and this much longer, than the Huge one's. */
   dipLo: 0.25,
   dipExtraMs: 100,
+  /** The final beat: the latch needles fly this long after the burst, and take this long to bite. */
+  latchDelayMs: 170,
+  latchFlightMs: 150,
+  /** The second, FASTER yank (and the striker's launch) into the slam: the first yank takes the tier's TugMs. */
+  yankMs: 190,
+  /** After the slam: the two stay in contact this long, then spring back to their spots by `returnMs`. */
+  contactMs: 50,
+  returnMs: 300,
+  /** How deep the two portraits overlap at the slam (x each one's radius short of the meeting point). */
+  slamOverlap: 0.82,
 } as const;
 
-export type StitchCueKind = 'charge' | 'launch' | 'pierce' | 'sewn' | 'tug' | 'knot' | 'cinch' | 'tied' | 'strike' | 'impact' | 'home' | 'end';
+/**
+ * TIER V: the final beat's pose at `t` (pure). `foe` and `hero` are each portrait's way from its spot (0) to the
+ * meeting point in the middle (1): the striker winds back a touch while the needles latch, then both are HAULED in,
+ * accelerating, and slam; they hold contact a beat and spring back out, EXACTLY 0 from `koHomeAt`. `squash` is the
+ * target's squash on the slam (0 outside it). Every other tier: zeros.
+ */
+export function koSlamAt(p: StitchPlan, t: number): { foe: number; hero: number; squash: number } {
+  if (!p.ko || p.koLatchAt === null || p.koLatchedAt === null || p.koHomeAt === null || t < p.koLatchAt || t >= p.koHomeAt) return { foe: 0, hero: 0, squash: 0 };
+  if (t < p.koLatchedAt) {
+    const u = (t - p.koLatchAt) / Math.max(1, p.koLatchedAt - p.koLatchAt);
+    return { foe: 0, hero: -0.1 * Math.sin(u * Math.PI * 0.5), squash: 0 };
+  }
+  if (t < p.impactAt) {
+    const u = (t - p.koLatchedAt) / Math.max(1, p.impactAt - p.koLatchedAt);
+    // A yank, not a slide: it accelerates all the way in (the striker from its wind-up).
+    const k = Math.pow(u, 2.2);
+    return { foe: k, hero: -0.1 + 1.1 * k, squash: 0 };
+  }
+  const since = t - p.impactAt;
+  const squash = 0.16 * Math.max(0, 1 - since / 160);
+  if (since < STITCH_KO.contactMs) return { foe: 1, hero: 1, squash };
+  const v = Math.min(1, (since - STITCH_KO.contactMs) / Math.max(1, p.koHomeAt - p.impactAt - STITCH_KO.contactMs));
+  const k = 1 - (1 - Math.pow(1 - v, 3));
+  return { foe: k, hero: k, squash };
+}
+
+export type StitchCueKind = 'charge' | 'launch' | 'pierce' | 'sewn' | 'tug' | 'knot' | 'cinch' | 'tied' | 'strike' | 'burst' | 'latch' | 'yank' | 'impact' | 'home' | 'end';
 export interface StitchCue { at: number; kind: StitchCueKind; i: number }
 
 /** Every beat the runner fires, in time order (a tick precedes the impact on a tie). */
@@ -511,11 +572,16 @@ export function stitchCues(p: StitchPlan): StitchCue[] {
       out.push({ at: p.strikeAt, kind: 'strike', i: 0 });
     }
     if (p.homeAt !== null) out.push({ at: p.homeAt, kind: 'home', i: 0 });
+    // Tier V: the heart-knot bursts (a tick now: FX only), the needles latch on, the second yank, the slam (the impact).
+    if (p.burstAt !== p.impactAt) out.push({ at: p.burstAt, kind: 'burst', i: 0 });
+    if (p.koLatchAt !== null) out.push({ at: p.koLatchAt, kind: 'latch', i: 0 });
+    if (p.koLatchedAt !== null) out.push({ at: p.koLatchedAt, kind: 'yank', i: 0 });
+    if (p.koHomeAt !== null) out.push({ at: p.koHomeAt, kind: 'home', i: 1 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
   const order: Record<StitchCueKind, number> = {
-    charge: 0, launch: 1, pierce: 2, sewn: 3, tug: 4, knot: 5, cinch: 6, tied: 7, strike: 8, impact: 9, home: 10, end: 11,
+    charge: 0, launch: 1, pierce: 2, sewn: 3, tug: 4, knot: 5, cinch: 6, tied: 7, strike: 8, burst: 8.5, latch: 8.6, yank: 8.7, impact: 9, home: 10, end: 11,
   };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
@@ -547,6 +613,11 @@ export interface StitchGeo {
   needles: NeedleGeo[];
   /** IV: how far (screen px, along `-u`) the target is dragged toward the striker, into the knot. 0 on other tiers. */
   drag: number;
+  /**
+   * Tier V: the slam. `foe` and `hero` are each portrait's offset (screen px) from its spot to where it meets the other,
+   * `meet` the meeting point in the middle of the board. Null on every other tier.
+   */
+  slam: { foe: Pt; hero: Pt; meet: Pt } | null;
 }
 
 function quad(a: Pt, c: Pt, b: Pt, e: number): Pt {
@@ -583,7 +654,7 @@ export function stitchGeo(p: StitchPlan, a: Pt, d: Pt, aR: number, dR: number, c
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
   const nrm0 = { x: -u.y, y: u.x };
   const nrm = nrm0.y > 0 ? { x: -nrm0.x, y: -nrm0.y } : nrm0;
-  if (p.reduced) return { u, nrm, needles: [], drag: 0 };
+  if (p.reduced) return { u, nrm, needles: [], drag: 0, slam: null };
   const n = p.needles.length;
   const face = Math.atan2(u.y, u.x);
   const spread = n <= 1 ? 0 : Math.min(1.6, 0.42 * (n - 1));
@@ -625,6 +696,14 @@ export function stitchGeo(p: StitchPlan, a: Pt, d: Pt, aR: number, dR: number, c
     }
     drag = Math.max(0, (L - aR - dR) * c.dragReach);
   }
+  // Tier V: where the two portraits meet for the slam: the middle of the gap between their rims, each a little short.
+  let slam: StitchGeo['slam'] = null;
+  if (p.ko) {
+    const gap = Math.max(0, L - aR - dR);
+    const meet = { x: a.x + u.x * (aR + gap / 2), y: a.y + u.y * (aR + gap / 2) };
+    const k = STITCH_KO.slamOverlap;
+    slam = { foe: { x: meet.x + u.x * dR * k - d.x, y: meet.y + u.y * dR * k - d.y }, hero: { x: meet.x - u.x * aR * k - a.x, y: meet.y - u.y * aR * k - a.y }, meet };
+  }
   const needles: NeedleGeo[] = spots.map((spot, i) => {
     const sew = sews[i] ?? [{ x: d.x, y: d.y }];
     const entry = sew[0]!;
@@ -639,7 +718,7 @@ export function stitchGeo(p: StitchPlan, a: Pt, d: Pt, aR: number, dR: number, c
     const sewAt = sewAts[i] ?? sew.map(() => 1);
     return { spot, ctrl, entry, sew, sewLen: lengths(sew), sewAt, restRot: Math.atan2(dir.y, dir.x) };
   });
-  return { u, nrm, needles, drag };
+  return { u, nrm, needles, drag, slam };
 }
 
 /** A needle's flight progress: thrown out fast, still quick into the face (it pierces, never drifts in). */
@@ -679,7 +758,7 @@ const HIDDEN_NEEDLE: NeedleState = { visible: false, x: 0, y: 0, rot: 0, flying:
  */
 export function needleAt(p: StitchPlan, g: StitchGeo, i: number, t: number): NeedleState {
   const q = p.needles[i], n = g.needles[i];
-  if (!q || !n || p.reduced || t < p.chargeAt || t >= p.impactAt) return HIDDEN_NEEDLE;
+  if (!q || !n || p.reduced || t < p.chargeAt || t >= p.burstAt) return HIDDEN_NEEDLE;
   if (p.kind === 'bound' && t >= q.sewEnd + 120) return HIDDEN_NEEDLE;
   if (t < q.launchAt) {
     const dir = quadDir(n.spot, n.ctrl, n.entry, 0);
@@ -718,8 +797,8 @@ export function flightProgress(q: NeedleTiming, t: number): number {
  * I-III: the tug / the stretch up to the impact. IV: the drag up to the knot.
  */
 export function tugAt(p: StitchPlan, t: number): number {
-  const end = p.knotAt ?? p.impactAt;
-  if (p.reduced || t < p.tugAt || t >= end) return p.kind === 'bound' && !p.reduced && t >= end && t < p.impactAt ? 1 : 0;
+  const end = p.knotAt ?? p.burstAt;
+  if (p.reduced || t < p.tugAt || t >= end) return p.kind === 'bound' && !p.reduced && t >= end && t < p.burstAt ? 1 : 0;
   const u = (t - p.tugAt) / Math.max(1, end - p.tugAt);
   return u * u * (3 - 2 * u);
 }
@@ -754,14 +833,14 @@ export function dragAt(p: StitchPlan, t: number): number {
     const haul = u < 0.18 ? -0.04 * Math.sin((u / 0.18) * Math.PI) : easeOutBackK((u - 0.18) / 0.82, 1.2);
     return haul;
   }
-  if (t < p.impactAt) return 1;
-  const u = (t - p.impactAt) / Math.max(1, p.homeAt - p.impactAt);
+  if (t < p.burstAt) return 1;
+  const u = (t - p.burstAt) / Math.max(1, p.homeAt - p.burstAt);
   return 1 - easeOutBackK(u, 1.6);
 }
 
 /** IV: how tightly the knot holds the target (0 open .. 1 tied), from the knot to the strike; released on the burst. */
 export function knotAt(p: StitchPlan, t: number): number {
-  if (p.kind !== 'bound' || p.knotAt === null || p.strikeAt === null || t < p.knotAt || t >= p.impactAt) return 0;
+  if (p.kind !== 'bound' || p.knotAt === null || p.strikeAt === null || t < p.knotAt || t >= p.burstAt) return 0;
   const tieAt = p.koCinchAt ?? p.strikeAt;
   const u = Math.min(1, (t - p.knotAt) / Math.max(1, tieAt - p.knotAt));
   // Tier V: the second cinch squeezes past snug for a moment (the loops close tighter, the portrait crushed smaller).
@@ -784,10 +863,15 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 export function stitchCameraAt(p: StitchPlan, c: HeroStitchConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  if (t >= p.chargeAt && t < p.impactAt) {
+  if (t >= p.chargeAt && t < p.burstAt) {
     z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.launchAt - p.chargeAt));
-    if (t >= p.tugAt) z += p.zoom * 0.6 * sine((t - p.tugAt) / Math.max(1, p.impactAt - p.tugAt));
-  } else if (t >= p.impactAt) z += (p.zoom * 1.6 + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+    if (t >= p.tugAt) z += p.zoom * 0.6 * sine((t - p.tugAt) / Math.max(1, p.burstAt - p.tugAt));
+  } else if (t >= p.burstAt) z += (p.zoom * 1.6 + p.punch) * Math.exp(-(t - p.burstAt) / Math.max(1, c.zoomOutMs / 4));
+  // Tier V: the second yank creeps in, and the slam punches in hard.
+  if (p.ko && p.koLatchedAt !== null) {
+    if (t >= p.koLatchedAt && t < p.impactAt) z += p.zoom * 0.5 * sine((t - p.koLatchedAt) / Math.max(1, p.impactAt - p.koLatchedAt));
+    else if (t >= p.impactAt) z += (p.zoom * 1.2 + p.punch * 1.3) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+  }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => {
     const s = springAt(t - at, hz, tau);
@@ -797,13 +881,18 @@ export function stitchCameraAt(p: StitchPlan, c: HeroStitchConfig, t: number, di
   kick(p.tugAt, -0.35 * p.shakePx, 70, 9);
   if (p.kind === 'bound' && p.knotAt !== null && p.strikeAt !== null) {
     kick(p.knotAt, -p.shakePx * 0.3, 60, 12);
-    if (t >= p.knotAt && t < p.impactAt) {
+    if (t >= p.knotAt && t < p.burstAt) {
       const u = Math.min(1, (t - p.knotAt) / Math.max(1, p.strikeAt - p.knotAt));
       const a = p.shakePx * 0.1 * u;
       x += a * Math.sin(t * 0.21); y += a * Math.sin(t * 0.29 + 1.3);
     }
   }
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 15);
+  kick(p.burstAt, p.shakePx * (p.ko ? 1 / KO_SHAKE : 1), Math.max(1, c.shakeMs / 4), 15);
+  // Tier V: the latch tugs the view back toward the striker; the slam kicks it hardest of all (the KO shake).
+  if (p.ko && p.koLatchedAt !== null) {
+    kick(p.koLatchedAt, -0.3 * p.shakePx, 60, 11);
+    kick(p.impactAt, p.shakePx * 1.15, Math.max(1, c.shakeMs / 4), 14);
+  }
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 

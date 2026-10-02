@@ -56,6 +56,15 @@ export interface HolyLook {
   pathWidth: number; flameHeight: number;
 }
 
+/**
+ * TIER V's PINK + GOLD WAVE (owner 2026-10-02: "for consecration -> make the wave that comes out pink + gold instead of
+ * just gold"): on a knockout the release, the flat blast, the surge and the eruption interleave hot pink and rose with
+ * the gold, so the wave clearly reads pink AND gold. The Huge tier never sets it.
+ */
+export const HOLY_KO_PINK = 0xff4fa3;
+export const HOLY_KO_ROSE = 0xff8fc7;
+export const HOLY_KO_GOLD = 0xffd36b;
+
 /** Hard cap on sprites alive at once (a Tier IV eruption peaks around 450). */
 export const MAX_HOLY_SPRITES = 900;
 
@@ -167,6 +176,8 @@ export class HeroHolyScene {
   private readonly rnd: () => number;
 
   private readonly colors: HolyColors;
+  /** Tier V: the wave rolls out pink + gold (`setKoWave`). */
+  private koWave = false;
 
   constructor(private readonly tex: HeroHolyTextures, colors: HolyColors, private readonly look: HolyLook, private readonly scale = 1, seed = 1) {
     // Gold AND white, never lemon (owner 2026-09-28: "less yellow and more gold + white"): the additive light is the
@@ -194,6 +205,11 @@ export class HeroHolyScene {
     }
     this.warmLeft = 400;
   }
+
+  /** Tier V: the release, the flat blast, the surge and the eruption interleave pink with the gold. */
+  setKoWave(on: boolean): void { this.koWave = on; }
+  /** The wave's gold, or (Tier V) pink and gold alternating by `i` (even = pink, odd = gold). */
+  private pg(i: number, gold: number): number { return this.koWave ? (i % 2 === 0 ? HOLY_KO_PINK : HOLY_KO_GOLD) : gold; }
 
   get liveSprites(): number { return this.used - this.warm.length; }
   get pooledSprites(): number { let n = 0; for (const [id] of LAYERS) n += this.layers[id].children.length; return n; }
@@ -593,7 +609,7 @@ export class HeroHolyScene {
     const z = o.size;
     this.gatherAcc = null;
     this.tw('hot', this.tex.glow, c.core, centre.x, centre.y, { dur: 100, from: (r * 1.2) / GLOW_PX / S, to: (r * 2.6 * z) / GLOW_PX / S, a0: o.flashAlpha });
-    this.tw('under', this.tex.glow, c.gold, centre.x, centre.y, { dur: 360, from: (r * 1.6) / GLOW_PX / S, to: (r * 4 * z) / GLOW_PX / S, a0: 0.25 });
+    this.tw('under', this.tex.glow, this.pg(0, c.gold), centre.x, centre.y, { dur: 360, from: (r * 1.6) / GLOW_PX / S, to: (r * 4 * z) / GLOW_PX / S, a0: 0.25 });
     this.tw('hot', this.tex.star, c.core, centre.x, centre.y, { dur: 300, from: (r * 3.4) / 48 / S, to: (r * 5.6 * z) / 48 / S, a0: 1, ease: easeOutCubic });
     this.tw('hot', this.tex.star, c.sky, centre.x, centre.y, { dur: 260, from: (r * 2.4) / 48 / S, to: (r * 3.6 * z) / 48 / S, a0: 0.5, rot: Math.PI / 4 });
     const rs = ((r * 5 * z) / 256 / S) * L.raysSize;
@@ -602,12 +618,13 @@ export class HeroHolyScene {
       this.tw('ground', this.tex.rays, c.deep, centre.x, centre.y, { dur: 560, from: rs * 0.5, to: rs * 1.1, a0: 0.28, spin: 0.0009, ease: easeOutCubic, outFrom: 0.2 });
     }
     this.tw('glow', this.tex.ring, c.gold, centre.x, centre.y, { dur: 320, from: 0.4, to: (r * 4.4 * z) / RING_PX / S, a0: 0.8, ease: easeOutCubic });
-    this.tw('under', this.tex.ring, c.sky, centre.x, centre.y, { dur: 480, from: 0.5, to: (r * 6 * z) / RING_PX / S, a0: 0.25, ease: easeOutCubic });
+    this.tw('under', this.tex.ring, this.koWave ? HOLY_KO_PINK : c.sky, centre.x, centre.y, { dur: 480, from: 0.5, to: (r * 6 * z) / RING_PX / S, a0: this.koWave ? 0.7 : 0.25, ease: easeOutCubic });
+    if (this.koWave) this.tw('glow', this.tex.ring, HOLY_KO_ROSE, centre.x, centre.y, { dur: 400, delay: 50, from: 0.4, to: (r * 5.2 * z) / RING_PX / S, a0: 0.75, ease: easeOutCubic });
     const n = Math.max(0, Math.round(o.shards));
     for (let i = 0; i < n; i++) {
       const a = (i / Math.max(1, n)) * Math.PI * 2 + (this.rnd() - 0.5) * 0.3;
       const sp = (700 + this.rnd() * 700) * S * z;
-      this.tw(i % 3 === 0 ? 'hot' : 'glow', this.tex.streak, i % 3 === 0 ? c.core : c.gold, centre.x + Math.cos(a) * 10 * S, centre.y + Math.sin(a) * 10 * S, {
+      this.tw(i % 3 === 0 ? 'hot' : 'glow', this.tex.streak, i % 3 === 0 ? c.core : this.pg(i, c.gold), centre.x + Math.cos(a) * 10 * S, centre.y + Math.sin(a) * 10 * S, {
         dur: 280 + this.rnd() * 140, from: 0, to: 0, sx0: 1.6 + this.rnd() * 1.4, sx1: 0.8, sy0: 0.22, sy1: 0.1, a0: 1, ease: easeOutCubic,
         rot: a, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, outFrom: 0.3, ax: 1, ay: 0.5,
       });
@@ -637,7 +654,7 @@ export class HeroHolyScene {
 
 
   /** One crack of the surge, cut into segments along its points (each knows where along the path it starts and ends). */
-  private crackSegs(pts: readonly Pt[], a: Pt, ang: number, len: number, w: number): CrackSeg[] {
+  private crackSegs(pts: readonly Pt[], a: Pt, ang: number, len: number, w: number, light = this.colors.gold): CrackSeg[] {
     const c = this.colors;
     const ux = Math.cos(ang), uy = Math.sin(ang);
     const out: CrackSeg[] = [];
@@ -646,7 +663,7 @@ export class HeroHolyScene {
       const u0 = ((p.x - a.x) * ux + (p.y - a.y) * uy) / Math.max(1, len);
       const u1 = ((q.x - a.x) * ux + (q.y - a.y) * uy) / Math.max(1, len);
       const parts: CrackSeg['parts'] = [];
-      for (const [layer, tint, wm, al] of [['ground', c.deep, 1, 0.9], ['under', c.gold, 3.2, 0.7], ['hot', c.core, 0.42, 1]] as [LayerId, number, number, number][]) {
+      for (const [layer, tint, wm, al] of [['ground', c.deep, 1, 0.9], ['under', light, 3.2, 0.7], ['hot', c.core, 0.42, 1]] as [LayerId, number, number, number][]) {
         const sp = this.take(layer, this.tex.beam, tint);
         if (!sp) continue;
         sp.anchor.set(0, 0.5); sp.position.set(p.x, p.y); sp.rotation = Math.atan2(q.y - p.y, q.x - p.x); sp.alpha = 0; sp.scale.set(0, 0);
@@ -667,15 +684,15 @@ export class HeroHolyScene {
   spread(a: Pt, b: Pt, cracks: readonly (readonly Pt[])[], runes: readonly HolyRune[], durMs: number, width: number): void {
     const c = this.colors, S = this.scale;
     const bandBody = this.take('ground', this.tex.beam, c.deep);
-    const bandLight = this.take('under', this.tex.beam, c.gold);
-    const head = this.take('under', this.tex.glow, c.gold);
+    const bandLight = this.take('under', this.tex.beam, this.pg(0, c.gold));
+    const head = this.take('under', this.tex.glow, this.pg(1, c.gold));
     if (!bandBody || !bandLight || !head) { for (const sp of [bandBody, bandLight, head]) if (sp) this.give(sp); return; }
     const ang = Math.atan2(b.y - a.y, b.x - a.x);
     const len = Math.hypot(b.x - a.x, b.y - a.y);
     for (const sp of [bandBody, bandLight]) { sp.anchor.set(0, 0.5); sp.rotation = ang; sp.position.set(a.x, a.y); sp.alpha = 0; sp.scale.set(0, width / 64); }
     head.alpha = 0;
     const segs: CrackSeg[] = [];
-    cracks.forEach((pts, i) => segs.push(...this.crackSegs(pts, a, ang, len, (i === 0 ? 7 : 4) * S)));
+    cracks.forEach((pts, i) => segs.push(...this.crackSegs(pts, a, ang, len, (i === 0 ? 7 : 4) * S, this.pg(i + 1, c.gold))));
     let waveD0 = 0;
     if (this.wave) { this.wave.flying = true; waveD0 = Math.max(0, (this.wave.x - a.x) * Math.cos(ang) + (this.wave.y - a.y) * Math.sin(ang)); }
     this.gatherAcc = null;
@@ -693,9 +710,9 @@ export class HeroHolyScene {
     const parts: Wave['parts'] = [];
     for (const [layer, tex, tint, a, dm, wm] of [
       ['ground', this.tex.waveBody, c.deep, 0.55, 1, 1],
-      ['under', this.tex.waveBody, c.gold, 0.8, 1.25, 1.2],
-      ['glow', this.tex.waveBody, c.gold, 0.9, 1, 1],
-      ['hot', this.tex.waveEdge, c.core, 1, 1, 1],
+      ['under', this.tex.waveBody, this.pg(0, c.gold), 0.8, 1.25, 1.2],
+      ['glow', this.tex.waveBody, this.pg(1, c.gold), 0.9, 1, 1],
+      ['hot', this.tex.waveEdge, this.koWave ? mixColor(HOLY_KO_ROSE, c.core, 0.35) : c.core, 1, 1, 1],
     ] as [LayerId, Texture, number, number, number, number][]) {
       const sp = this.take(layer, tex, tint);
       if (!sp) continue;
@@ -729,7 +746,7 @@ export class HeroHolyScene {
     const portrait = (r * 2) / GLOW_PX / S;
     this.tw('hot', this.tex.glow, c.core, d.x, d.y, { dur: 110, from: portrait * 1.05, to: portrait * 1.3, a0: 0.6 * o.flashAlpha });
     this.tw('hot', this.tex.glow, c.core, foot.x, foot.y, { dur: 140, from: 1.2 * fs, to: Math.min(3.6, 2.2 * fs), a0: o.flashAlpha, ry: 1 });
-    this.tw('under', this.tex.glow, c.gold, d.x, d.y, { dur: 420, from: 1.6 * fs, to: Math.min(6, 3.4 * fs), a0: 0.35 * o.flashAlpha });
+    this.tw('under', this.tex.glow, this.pg(0, c.gold), d.x, d.y, { dur: 420, from: 1.6 * fs, to: Math.min(6, 3.4 * fs), a0: 0.35 * o.flashAlpha });
     this.tw('hot', this.tex.star, c.core, d.x, d.y, { dur: 340, from: ((r * 3.6) / 48 / S), to: ((r * 5.4) / 48 / S), a0: 1, ease: easeOutCubic });
     this.tw('hot', this.tex.star, c.sky, d.x, d.y, { dur: 300, from: ((r * 2.4) / 48 / S), to: ((r * 3.4) / 48 / S), a0: 0.55, rot: Math.PI / 4 });
     const rs = ((r * 4.4) / 256 / S) * L.raysSize;
@@ -738,7 +755,7 @@ export class HeroHolyScene {
       this.tw('ground', this.tex.rays, c.deep, d.x, d.y, { dur: 800, from: rs * 0.7, to: rs * 1.3, a0: 0.28, spin: 0.0006, ease: easeOutCubic, outFrom: 0.25 });
     }
     this.tw('glow', this.tex.ring, c.gold, foot.x, foot.y, { dur: 380, from: 0.5, to: (r * 4.2) / RING_PX / S, a0: 0.85, ease: easeOutCubic });
-    this.tw('under', this.tex.ring, c.gold, foot.x, foot.y, { dur: 640, from: 0.6, to: (r * 6.5) / RING_PX / S, a0: 0.55, ease: easeOutCubic });
+    this.tw('under', this.tex.ring, this.pg(0, c.gold), foot.x, foot.y, { dur: 640, from: 0.6, to: (r * 6.5) / RING_PX / S, a0: this.koWave ? 0.75 : 0.55, ease: easeOutCubic });
     this.tw('under', this.tex.ring, c.sky, d.x, d.y, { dur: 560, from: (r * 1.2) / RING_PX / S, to: (r * 5) / RING_PX / S, a0: 0.5 });
     // THE HOLY FLAMES: a flat corona, tongues of holy fire licking OUTWARD all round the portrait's rim (the face clear).
     const n = Math.max(0, Math.round(o.flames));
@@ -752,7 +769,7 @@ export class HeroHolyScene {
       const rot = Math.atan2(Math.cos(th), -Math.sin(th)) + (this.rnd() - 0.5) * 0.2; // the tongue points out from the centre
       const base = { delay, dur, from: 0, to: 0, ay: 0.95, ease: easeOutBack, outFrom: 0.35, flick: 0.25, spin: 0, tilt: 1, rot } as const;
       this.tw('body', this.tex.flame, c.deep, fx, fy, { ...base, sx0: (wid * 0.6) / 64 / S, sx1: (wid * 1.05) / 64 / S, sy0: 0.05, sy1: (hgt * 1.05) / 128 / S, a0: 0.55 });
-      this.tw('glow', this.tex.flame, c.gold, fx, fy, { ...base, sx0: (wid * 0.6) / 64 / S, sx1: wid / 64 / S, sy0: 0.05, sy1: hgt / 128 / S, a0: 0.95 });
+      this.tw('glow', this.tex.flame, this.pg(i, c.gold), fx, fy, { ...base, sx0: (wid * 0.6) / 64 / S, sx1: wid / 64 / S, sy0: 0.05, sy1: hgt / 128 / S, a0: 0.95 });
       this.tw('hot', this.tex.flame, c.core, fx, fy, { ...base, sx0: (wid * 0.3) / 64 / S, sx1: (wid * 0.5) / 64 / S, sy0: 0.05, sy1: (hgt * 0.6) / 128 / S, a0: 0.9 });
     }
     this.motes(foot.x, foot.y, Math.round(o.motes * 0.6), { lift: 300, speed: 200, life: 1200, ring: r * 1.1, grav: -60 });
@@ -1009,7 +1026,7 @@ export class HeroHolyScene {
           const side = this.rnd() < 0.5 ? -1 : 1;
           const th = sp.ang + side * (0.6 + this.rnd() * 0.5);
           const flen = (sp.width * (0.9 + this.rnd() * 0.8)) / 128 / S;
-          for (const [layer, tint, a] of [['ground', c.deep, 0.8], ['under', c.gold, 0.85]] as [LayerId, number, number][]) {
+          for (const [layer, tint, a] of [['ground', c.deep, 0.8], ['under', this.pg(side > 0 ? 0 : 1, c.gold), 0.85]] as [LayerId, number, number][]) {
             const h = this.hold(layer, this.tex.crack, tint, hx, hy, 'ground', { a, g0: 0, g1: 1, gMs: 140, inMs: 20, tilt: 1, rot: th, ax: 0, ay: 0.5 });
             if (h) { h.ry = 0.7; h.len = flen; }
           }
@@ -1029,7 +1046,7 @@ export class HeroHolyScene {
         sp.moteAcc += dt * 0.14;
         while (sp.moteAcc >= 1) {
           sp.moteAcc -= 1;
-          this.particle('hot', this.tex.star, this.rnd() < 0.5 ? c.gold : c.core, {
+          this.particle('hot', this.tex.star, this.rnd() < 0.5 ? this.pg(Math.floor(sp.age / 60), c.gold) : c.core, {
             x: hx + (this.rnd() - 0.5) * sp.width, y: hy + (this.rnd() - 0.5) * sp.width * 0.5, vx: (this.rnd() - 0.5) * 40 * S, vy: -(90 + this.rnd() * 130) * S,
             drag: 0.4, grav: -30 * S, life: 700 + this.rnd() * 400, from: (0.35 + this.rnd() * 0.25) * S, to: 0.08 * S, alpha: 1, twinkle: 0.02, spin: 0.004,
           });

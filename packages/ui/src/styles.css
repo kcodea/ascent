@@ -10615,14 +10615,49 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7); }
 .lobbyrail::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .lobbyrail > * { pointer-events: auto; }
-.lobbyhead { display: flex; justify-content: space-between; align-items: center; flex: none; gap: calc(5 * var(--lfont));
+/* The rail's own top row now carries only the seats-left count, centred where it always sat (the round and the
+   max-damage readout moved ABOVE the rail, `.lobbyrailhead`, owner ask 2026-10-02). Same font, same height. */
+.lobbyhead { display: flex; justify-content: center; align-items: center; flex: none; gap: calc(5 * var(--lfont));
   font-size: calc(9 * var(--lfont)); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
-/* Round + seats-left read a touch larger + bold (owner ask 2026-08-11) so the rail header carries the round HUD. */
-.lobbyround { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-round-col, #fff6e4); letter-spacing: 0.05em; }
 .lobbyalive { font-size: calc(11 * var(--lfont)); font-weight: 800; color: var(--lby-alive-col, #f4d58a); }
-/* Max-loss chip — the round's most-you-can-lose readout, moved off the removed top-left plaque. */
-.lobbymax { display: inline-flex; align-items: center; gap: calc(2 * var(--lfont)); font-size: calc(10 * var(--lfont)); font-weight: 800; color: var(--lby-max-col, #ff9a9a); }
-.lobbymax svg { width: calc(11 * var(--lfont)); height: calc(11 * var(--lfont)); color: #ff6b6b; }
+
+/* ROUND HEADER ABOVE THE RAIL (owner ask 2026-10-02): "Round N" on the left, the heart + max damage on the right,
+   both larger than the old in-rail row. A SIBLING of `.lobbyrail` (the rail scrolls, so it would clip a child
+   placed outside its box), positioned from the rail's OWN `right` / `width` / `top` expressions with `bottom`, so
+   its lower edge sits a hair above the rail's top edge. Absolutely positioned: it takes no layout space and moves
+   nothing ("dont let these elements move anything else in the game"). It re-derives the rail's units from the
+   same globals, so the 🪑 Lobby Rail tuner moves both together. No animation; the hover bubble is the shared
+   one-shot `.gtip`. */
+.lobbyrailhead {
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  --lu: calc(var(--u) * var(--lby-scale, 0.82));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9));
+  position: absolute; z-index: 61; pointer-events: none; /* one above the rail, so its hover bubble paints over it */
+  right: calc((var(--lby-right, 0) - var(--lby-x, -23)) * var(--lu));
+  width: calc(var(--lby-w, 251) * var(--lu));
+  bottom: calc(100% - var(--lby-top, 13.5%) - var(--lby-y, 10) * var(--lu) + 3 * var(--lu));
+  display: flex; justify-content: space-between; align-items: flex-end;
+  padding: 0 calc(14 * var(--lu));
+  text-transform: uppercase; line-height: 1; white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.55);
+}
+.lobbyrailhead > * { pointer-events: auto; }
+.lobbyround { font-size: calc(20 * var(--lfont)); font-weight: 800; color: var(--lby-round-col, #fff6e4); letter-spacing: 0.05em; }
+/* Max-loss chip: the round's most-you-can-lose readout ("−5", or "No cap"). */
+.lobbymax { display: inline-flex; align-items: center; gap: calc(3 * var(--lfont)); font-size: calc(20 * var(--lfont)); font-weight: 800; color: var(--lby-max-col, #ff9a9a); }
+.lobbymax svg { width: calc(20 * var(--lfont)); height: calc(20 * var(--lfont)); color: #ff6b6b; }
+/* Its hover tip IS the standard HUD tip (`.herotip`: the dark slate panel, gold hairline, cream rule text, the
+   hero-power / Equipment hover), owner 2026-10-02 ("fix this tooltip, it's unreadable" about the small `.gtip`
+   bubble). Only the anchor differs: the chip's sibling inside the header, it opens ABOVE the header, right-aligned
+   to the chip (the header's right padding), since the chip sits at the stage's right edge and a centred panel would
+   run off it. So it never covers the "Round N" it sits beside. Sized to its two lines instead of the fixed 320px.
+   Undoes the header's uppercase / nowrap / text-shadow, which it would inherit. */
+.lobbyrailhead > .herotip.lobbymax-tip {
+  left: auto; right: calc(14 * var(--lu)); bottom: calc(100% + 12px); transform: none;
+  width: max-content; max-width: 320px; pointer-events: none;
+  text-transform: none; text-shadow: none; letter-spacing: normal; white-space: normal;
+}
+.lobbymax:hover + .herotip.lobbymax-tip, .lobbymax.tt-on + .herotip.lobbymax-tip { opacity: 1; transition-delay: 0.35s; }
 
 /* NEXT-FOE MARKER — the next opponent's seat is lit IN PLACE: a bright gold ring + gentle pulse on the row
    itself (see `.lobbyseat.foe` below). The old "Next" pill was removed (owner ask 2026-08-28) — the glow reads
@@ -11674,7 +11709,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .gtip.gtip-down[data-tip]::after { bottom: auto; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px); }
 .gtip[data-tip]:hover::after, .gtip[data-tip]:focus-visible::after, .gtip[data-tip].tt-on::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
 /* `.gtip-end`: anchored to the element's RIGHT edge (opening leftward) for chips pinned to the right of the screen
-   (the lobby rail's max-loss chip), where a centred bubble would run off the edge. */
+   where a centred bubble would run off the edge. (The lobby rail's max-loss chip used it until 2026-10-02; it now
+   wears the standard `.herotip` panel.) */
 .gtip.gtip-end[data-tip]::after { left: auto; right: 0; transform: translateY(4px); }
 .gtip.gtip-end.gtip-down[data-tip]::after { transform: translateY(-4px); }
 .gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after, .gtip.gtip-end[data-tip].tt-on::after { transform: translateY(0); }
@@ -11729,7 +11765,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* 1a. THE RAIL LEAVES. Combat is a duel, so the eight-seat table slides off to the right and fades as the
    fight starts, then slides back when the shop returns. `pointer-events:none` while it is gone so a card
    dragged near the right edge can't hit an invisible rail. */
-.lobbyrail {
+.lobbyrail, .lobbyrailhead {
   transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
   will-change: transform;
 }
@@ -11737,6 +11773,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    holds still while the entry curtain sweeps over it and does its slide UNDER the blue, and on exit it
    slides back under the blue too, so the reveal sweep always exposes it settled (owner ask 2026-08-28). */
 .app.staged .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
+/* The round header above the rail leaves with it (same width, so 115% is the same distance). */
+.app.staged .lobbyrailhead { transform: translateX(115%); opacity: 0; pointer-events: none; }
+.app.staged .lobbyrailhead > * { pointer-events: none; }
 /* The Gauntlet foe's box is a zero-size anchor (see `.gauntletfoe`), so it slides a fixed distance instead of 115%. */
 .app.staged .gauntletfoe { transform: translateX(calc(520 * var(--u))); opacity: 0; }
 
@@ -11887,6 +11926,21 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 }
 .combatopp-hp svg { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: var(--threat); }
 .combatopp-armor { margin-left: calc(3 * var(--u)); font-size: calc(17 * var(--u)); color: #b7c2cf; }
+/* Opponent SHOP TIER (owner ask 2026-10-02) — a smaller pill of the health pill's family hung just BELOW it.
+   Absolutely positioned inside `.combatopp-hp`, so it rides that pill's transform + strike fade and takes NO space
+   in the column (nothing else moves). Static paint, no animation. The number wears the gold of the player's own
+   Tier plaque (`.tvb-tierpill`). When the foe has Buffs, the arrow cue rides under this pill instead. */
+.combatopp-tier {
+  position: absolute; left: 50%; top: calc(100% + 4 * var(--u)); transform: translateX(-50%);
+  display: inline-flex; align-items: baseline; gap: calc(5 * var(--u)); white-space: nowrap; pointer-events: none;
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(12 * var(--u));
+  padding: calc(4 * var(--u)) calc(11 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); line-height: 1;
+  letter-spacing: 0.02em; color: #f4ecdb;
+}
+.combatopp-tier-n { font-weight: 900; font-size: calc(16 * var(--u)); color: var(--gold); }
 
 /* FOE BUFFS PANEL (owner ask 2026-08-30) — the opponent portrait carries the SAME affordances as the
    player's (darkened hover prompt, click to toggle, an arrow cue), but the arrow rides BELOW the health

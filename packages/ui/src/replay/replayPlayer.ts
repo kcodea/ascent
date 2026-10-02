@@ -44,6 +44,9 @@ const POST_COMBAT_BEAT_MS = 500;
 /** Safety net: if the arena's done bridge never fires (an FX stall, a hidden tab throttling rAF), the
  *  replay moves on anyway rather than hanging forever on one fight. */
 const COMBAT_SAFETY_MS = 120_000;
+/** The same safety net for a recorded End of Turn (`CombatFrame.eot`): if Recruit never reports the beats done,
+ *  the fight renders anyway. Generous, because a long gilded chain legitimately runs tens of seconds. */
+const EOT_SAFETY_MS = 90_000;
 
 type Frame = ShopFrame | CombatFrame;
 
@@ -90,6 +93,17 @@ let partial: { firstWave: number; lastWave: number } | undefined;
 let token = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let unsubCombat: (() => void) | null = null;
+/**
+ * THE RECORDED END OF TURN (owner report 2026-10-02: "when watching this back, the end of turn with lasting cadence
+ * etc wasnt showing any animation or beats at all"). The step from a round's last shop frame INTO its fight is
+ * split in two when the fight carries `eot`: the shop world holds until `eot.atMs` (when End Turn was pressed),
+ * then Recruit plays the recorded batch (`replayEotCue`) and the fight renders once it reports done
+ * (`replayEotDone`). `eotPhase` is that step's progress: 'idle' (not started), 'playing', 'done'. Any frame render
+ * resets it; a pause keeps it (the beats finish under the pause, and resume picks up from the phase).
+ */
+let eotPhase: 'idle' | 'playing' | 'done' = 'idle';
+let eotKey = 0;
+let unsubEot: (() => void) | null = null;
 /** The recording's inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
  *  Playback re-opens the recorded panel at its literal in-step offset — the 1:1 experience includes hovers. */
 let inspectTrail: InspectEvent[] = [];
@@ -303,6 +317,7 @@ export function effectiveTimesOf(times: readonly number[]): number[] {
 function clearPending(): void {
   if (timer !== null) { clearTimeout(timer); timer = null; }
   if (unsubCombat) { unsubCombat(); unsubCombat = null; }
+  if (unsubEot) { unsubEot(); unsubEot = null; }
   for (const t of inspectTimers) clearTimeout(t);
   inspectTimers = [];
 }
@@ -482,6 +497,9 @@ function frameResets(): Partial<StoreState> {
     combatTriggeredQuests: {},
     combatCompletedQuests: [],
     combatReplayDone: false,
+    // A seek / step away from a recorded End of Turn drops its cue (Recruit stops caring; its late completion
+    // no longer matches the key).
+    replayEotCue: null,
   };
 }
 
@@ -522,6 +540,7 @@ function armReplayRuneLockIn(f: ShopFrame): RuneLockInCard[] | null {
 
 function renderFrame(i: number): void {
   stepElapsedSourceMs = 0; // a rendered frame starts a fresh step for the ledger
+  eotPhase = 'idle';       // …and any recorded End of Turn belongs to the step that just ended
   stepArmedAtReal = null;
   if (frames[i]?.kind === 'combat') combatShownAtReal = performance.now();
   ghostLandPending = false; // any render supersedes an in-flight ghost (frameResets clears the layer too)
@@ -744,16 +763,50 @@ function scheduleNext(myToken: number): void {
     // drag (the player was dragging during that gap), and the ghost flight plays that remainder; step +
     // flight = the literal recorded delta, never delta-plus-durMs twice over. The ledger offset keeps a
     // resumed/re-armed step from re-firing hovers that already showed.
+    // INTO A FIGHT WITH A RECORDED END OF TURN: hold the shop until End Turn was pressed, then play the beats.
+    const eot = next.kind === 'combat' ? next.eot : undefined;
+    if (eot && eotPhase !== 'idle') { awaitEot(myToken); return; }
     const stepDrag = next.kind === 'shop' ? playableDragPath(next.drag) : null;
-    const paced = paceStepMs(next.tMs - f.tMs);
+    const stepEndMs = eot ? Math.min(next.tMs, Math.max(f.tMs, eot.atMs)) : next.tMs;
+    const paced = paceStepMs(stepEndMs - f.tMs);
     const total = Math.max(0, paced - (stepDrag ? Math.min(stepDrag.durMs, paced) : 0));
     const remaining = Math.max(0, total - stepElapsedSourceMs);
     scheduleInspects(myToken, f.tMs + stepElapsedSourceMs, next.tMs);
     stepArmedAtReal = performance.now();
     speedAtArm = speed;
     patchSession({ stepEndsAtReal: performance.now() + remaining / speed });
-    timer = setTimeout(() => advance(myToken), remaining / speed);
+    timer = setTimeout(() => (eot ? startEot(myToken) : advance(myToken)), remaining / speed);
   }
+}
+
+/** Hand the upcoming fight's recorded End of Turn to Recruit and wait for it (see `eotPhase`). */
+function startEot(myToken: number): void {
+  if (myToken !== token) return;
+  const next = frames[idx + 1];
+  const eot = next?.kind === 'combat' ? next.eot : undefined;
+  if (!eot) { advance(myToken); return; }
+  eotPhase = 'playing';
+  eotKey += 1;
+  stepArmedAtReal = null; // the step's shop part is spent; the beats run on Recruit's clock
+  patchSession({ stepEndsAtReal: null });
+  useGame.setState({ replayEotCue: { key: eotKey, eot, speed } });
+  awaitEot(myToken);
+}
+
+/** Wait for Recruit to finish the cued End of Turn (or the safety net), then render the fight. Re-entered by a
+ *  resume when the beats were still playing (or already done) at pause time. */
+function awaitEot(myToken: number): void {
+  clearPending();
+  if (!playing || myToken !== token) return;
+  const key = eotKey;
+  const onDone = (): void => {
+    clearPending();
+    eotPhase = 'done';
+    if (myToken === token && playing) advance(myToken);
+  };
+  if (eotPhase === 'done' || useGame.getState().replayEotDone === key) { onDone(); return; }
+  unsubEot = useGame.subscribe((st) => { if (st.replayEotDone === key && myToken === token) onDone(); });
+  timer = setTimeout(() => { if (myToken === token) onDone(); }, EOT_SAFETY_MS);
 }
 
 /**
@@ -946,12 +999,14 @@ export function endReplay(): void {
   playing = false;
   ghostLandPending = false;
   ghostFlightStartedAtReal = null;
+  eotPhase = 'idle';
   useGame.setState({
     ...restore,
     replaying: false,
     replaySession: null,
     replayDragGhost: null, // the ghost layer unmounts with the replay — never outlives it
     combatReplayDone: false,
+    replayEotCue: null,
     replaySeekEpoch: 0, // back to the idle epoch — also remounts Recruit onto the restored run
   });
 }

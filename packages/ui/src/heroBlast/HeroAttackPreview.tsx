@@ -43,6 +43,8 @@ import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from '../heroBasketball/heroBasketballConfig';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { heroStitchPreviewSpeed } from '../heroStitch/heroStitchConfig';
+import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { heroBulletTimePreviewSpeed } from '../heroBulletTime/heroBulletTimeConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -70,6 +72,7 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   backstab: { play: (o) => playHeroBackstab(o), speed: heroBackstabPreviewSpeed },
   basketball: { play: (o) => playHeroBasketball(o), speed: heroBasketballPreviewSpeed },
   stitch: { play: (o) => playHeroStitch(o), speed: heroStitchPreviewSpeed },
+  bullettime: { play: (o) => playHeroBulletTime(o), speed: heroBulletTimePreviewSpeed },
 };
 
 /**

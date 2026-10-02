@@ -12,7 +12,7 @@
  * consequence landing once, and the clock never stopping (the slow-mo dip is never a freeze, R-PROG-ATTACK-10).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Texture } from 'pixi.js';
+import { Container, MeshSimple, Sprite, Texture } from 'pixi.js';
 import { COSMETICS } from '@game/progression';
 import { formationOf } from './formationFixtures';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -20,10 +20,10 @@ import { KO_DIP, koDipExtraMs, koTimeScale } from './knockout';
 import { KNOCKOUT_VARIANT_STYLES, attackRarityOf, knockoutVariantFor, playsKnockoutVariant } from './knockoutVariant';
 import { isKnockoutVariant } from './tiers';
 import { playHeroArcana } from '../heroArcana/heroArcana';
-import { MAX_ARCANA_MESHES, MAX_ARCANA_SPRITES, type HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
+import { ARCANA_KO_BLUE, ARCANA_KO_PINK, ARCANA_KO_TURN_MS, MAX_ARCANA_MESHES, MAX_ARCANA_SPRITES, type HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { playHeroHoly } from '../heroHoly/heroHoly';
 import { HERO_HOLY_DEFAULTS, HOLY_KO, holyCues, koSwordAngle } from '../heroHoly/heroHolyConfig';
-import { MAX_HOLY_SPRITES, type HeroHolyTextures } from '../heroHoly/heroHolyScene';
+import { HOLY_KO_GOLD, HOLY_KO_PINK, MAX_HOLY_SPRITES, type HeroHolyTextures } from '../heroHoly/heroHolyScene';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { KNOT_PULSES, STITCH_KO, HERO_STITCH_DEFAULTS, knotAt, slowMoExtraMs, stitchCues, stitchTimeScale } from '../heroStitch/heroStitchConfig';
 import { MAX_STITCH_SPRITES, type HeroStitchTextures } from '../heroStitch/heroStitchScene';
@@ -33,6 +33,9 @@ import { SPEC as ARCANA_TUNER } from '../HeroArcanaTuner';
 import { SPEC as HOLY_TUNER } from '../HeroHolyTuner';
 import { SPEC as STITCH_TUNER } from '../HeroStitchTuner';
 import { SPEC as BLAST_TUNER } from '../HeroBlastTuner';
+import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { MAX_BULLET_SPRITES, type HeroBulletTimeTextures } from '../heroBulletTime/heroBulletTimeScene';
+import { SPEC as BULLET_TUNER } from '../HeroBulletTimeTuner';
 
 const W = Texture.WHITE;
 const ARCANA_TEX: HeroArcanaTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W };
@@ -41,6 +44,7 @@ const HOLY_TEX: HeroHolyTextures = {
   glyphs: [W, W, W], waveBody: W, waveEdge: W,
 };
 const STITCH_TEX: HeroStitchTextures = { ...ARCANA_TEX, needle: W, thread: W, shard: W };
+const BULLET_TEX: HeroBulletTimeTextures = { ...ARCANA_TEX, lance: W, glyph: W, glint: W, mote: W, clockFace: W, wash: W, digit3: W, digit2: W, digit1: W };
 
 const ANCIENT_STYLES = COSMETICS.filter((c) => c.category === 'hero_attack' && c.rarity === 'ancient').map((c) => String(c.assets.style));
 
@@ -107,20 +111,50 @@ function run<H extends HeroAttackHandle & { scene: unknown }>(
 }
 
 type Liveish = { liveSprites: number; liveMeshes?: number } | null;
+
+/** Every visible sprite / strip mesh tint under a scene root (to read the palette a beat paints in). */
+function tintsOf(root: Container): Set<number> {
+  const out = new Set<number>();
+  const walk = (c: Container): void => {
+    for (const ch of c.children) {
+      if ((ch instanceof Sprite || ch instanceof MeshSimple) && ch.visible && ch.alpha > 0.01) out.add(ch.tint as number);
+      if (ch instanceof Container) walk(ch);
+    }
+  };
+  walk(root);
+  return out;
+}
+
+/** Start a runner on a manual clock and step it to sequence time `at` (a plain 60 fps step). */
+function stepTo<H extends HeroAttackHandle>(play: (o: HeroAttackOptions) => H, variant: boolean, at: (h: H) => number): H {
+  let step: ((dt: number) => void) | null = null;
+  const h = play({
+    formation: formationOf([5, 5, 5, 5, 5, 5, 10], 40), total: 40, knockout: true, knockoutVariant: variant,
+    side: 'player', attacker: { x: 200, y: 850 }, defender: { x: 1500, y: 180 }, defenderRadius: 80, reduced: false, onImpact: () => {},
+    frames: (fn) => { step = fn; return () => { step = null; }; }, sound: false, safety: false, host: null, camera: null, mount: () => () => {},
+  });
+  const target = at(h);
+  let n = 0;
+  while (h.elapsed() < target && !h.done && n++ < 2000) step!(1000 / 60);
+  return h;
+}
 const sprites = (h: { scene: unknown }): number => (h.scene as Liveish)?.liveSprites ?? 0;
 
 describe('each variant is its Huge, remixed', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
   type Runner = (o: HeroAttackOptions) => HeroAttackHandle & { scene: unknown; plan: unknown };
-  const cases: [string, Runner, number][] = [
-    ['arcana', (o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), MAX_ARCANA_SPRITES],
-    ['holy', (o) => playHeroHoly({ ...o, textures: HOLY_TEX }), MAX_HOLY_SPRITES],
-    ['stitch', (o) => playHeroStitch({ ...o, textures: STITCH_TEX }), MAX_STITCH_SPRITES],
+  // [name, runner, sprite cap, the most real ms the Knockout may add over Huge, the least]. Soul Stitch's Knockout grew
+  // its own final beat (owner tuning 2026-10-02: the latch, a second faster yank and the slam): ~0.5 s more than the rest.
+  const cases: [string, Runner, number, number, number][] = [
+    ['arcana', (o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), MAX_ARCANA_SPRITES, 520, 150],
+    ['holy', (o) => playHeroHoly({ ...o, textures: HOLY_TEX }), MAX_HOLY_SPRITES, 520, 150],
+    ['stitch', (o) => playHeroStitch({ ...o, textures: STITCH_TEX }), MAX_STITCH_SPRITES, 1020, 800],
+    ['bullettime', (o) => playHeroBulletTime({ ...o, textures: BULLET_TEX }), MAX_BULLET_SPRITES, 520, 150],
   ];
 
-  for (const [name, play, cap] of cases) {
-    it(`${name}: Knockout plays the variant (tier IV underneath), adds one beat and at most ~500 ms, stays in the caps, lands once, never stops the clock`, () => {
+  for (const [name, play, cap, maxExtra, minExtra] of cases) {
+    it(`${name}: Knockout plays the variant (tier IV underneath), adds its beats (at most ${maxExtra} ms), stays in the caps, lands once, never stops the clock`, () => {
       const huge = run(play, { total: 40, knockout: true, variant: false }, sprites);
       const ko = run(play, { total: 40, knockout: true, variant: true }, sprites);
       const plain = run(play, { total: 3, knockout: false, variant: true }, sprites);
@@ -135,10 +169,10 @@ describe('each variant is its Huge, remixed', () => {
       // No knockout: the normal tiers (a 3 is Tier I), the variant flag ignored.
       expect((plain.h.plan as unknown as { tier: number; ko: boolean }).tier).toBe(1);
       expect((plain.h.plan as unknown as { ko: boolean }).ko).toBe(false);
-      // A small remix: more than Huge, but no more than ~500 ms of real time over it.
+      // A remix: more than Huge, but bounded (real time over it).
       const extraMs = (ko.frames - huge.frames) * (1000 / 60);
-      expect(extraMs).toBeGreaterThan(150);
-      expect(extraMs).toBeLessThanOrEqual(520);
+      expect(extraMs).toBeGreaterThan(minExtra);
+      expect(extraMs).toBeLessThanOrEqual(maxExtra);
       // The consequence lands exactly once; the clock advances every frame (a dip, never a freeze); inside the caps.
       expect(ko.impacts).toBe(1);
       expect(ko.minStep).toBeGreaterThan(0);
@@ -162,6 +196,45 @@ describe('each variant is its Huge, remixed', () => {
     expect(meshes.peak).toBeLessThanOrEqual(MAX_ARCANA_MESHES);
   });
 
+  it('Arcana (owner tuning 2026-10-02): the swirl TURNS crimson-pink and electric blue; Huge keeps its own colours', () => {
+    const at = (h: { plan: { swirlAt: number; koPulseAt: number | null; convergeAt: number } }): number => (h.plan.koPulseAt ?? h.plan.convergeAt) - 20;
+    const ko = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), true, at);
+    const huge = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), false, at);
+    expect(ko.plan.swirlAt + ARCANA_KO_TURN_MS).toBeLessThan(ko.elapsed());
+    const kt = tintsOf(ko.scene!.root), ht = tintsOf(huge.scene!.root);
+    expect(kt.has(ARCANA_KO_PINK)).toBe(true);
+    expect(kt.has(ARCANA_KO_BLUE)).toBe(true);
+    expect(ht.has(ARCANA_KO_PINK) || ht.has(ARCANA_KO_BLUE)).toBe(false);
+    ko.cancel(); huge.cancel();
+  });
+
+  it('Arcana: the Knockout explosion bursts OUTWARD harder than Huge (more flung ribbons, and a bigger, faster ring)', () => {
+    const after = (h: { plan: { impactAt: number } }): number => h.plan.impactAt + 120;
+    const ko = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), true, after);
+    const huge = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), false, after);
+    expect(ko.scene!.liveMeshes).toBeGreaterThan(huge.scene!.liveMeshes);
+    // The widest ring on screen 120 ms in: the Knockout's has raced far past the Huge one's.
+    const widest = (root: Container): number => {
+      let w = 0;
+      const walk = (c: Container): void => { for (const ch of c.children) { if (ch instanceof Sprite && ch.visible) w = Math.max(w, ch.scale.x); if (ch instanceof Container) walk(ch); } };
+      walk(root);
+      return w;
+    };
+    expect(widest(ko.scene!.root)).toBeGreaterThan(widest(huge.scene!.root) * 1.3);
+    ko.cancel(); huge.cancel();
+  });
+
+  it('Consecration (owner tuning 2026-10-02): the wave that comes out is PINK + GOLD; Huge stays gold', () => {
+    const mid = (h: { plan: { spreadAt: number; arriveAt: number } }): number => (h.plan.spreadAt + h.plan.arriveAt) / 2;
+    const ko = stepTo<ReturnType<typeof playHeroHoly>>((o) => playHeroHoly({ ...o, textures: HOLY_TEX }), true, mid);
+    const huge = stepTo<ReturnType<typeof playHeroHoly>>((o) => playHeroHoly({ ...o, textures: HOLY_TEX }), false, mid);
+    const kt = tintsOf(ko.scene!.root), ht = tintsOf(huge.scene!.root);
+    expect(kt.has(HOLY_KO_PINK)).toBe(true);
+    expect(kt.has(HOLY_KO_GOLD)).toBe(true);
+    expect(ht.has(HOLY_KO_PINK)).toBe(false);
+    ko.cancel(); huge.cancel();
+  });
+
   it('Consecration: a seventh, bigger knockout sword driven into the middle after the barrage', () => {
     const huge = run((o) => playHeroHoly({ ...o, textures: null }), { total: 40, knockout: true, variant: false }, () => 0).h;
     const ko = run((o) => playHeroHoly({ ...o, textures: null }), { total: 40, knockout: true, variant: true }, () => 0).h;
@@ -176,6 +249,16 @@ describe('each variant is its Huge, remixed', () => {
     for (const b of huge.geo.swords) expect(Math.abs(Math.cos(b.ang - g.ang))).toBeLessThan(0.95);
     expect(g.tip).toEqual(ko.geo.centre);
     expect(holyCues(ko.plan).filter((q) => q.kind === 'swordHit').length).toBe(ko.plan.swords.length);
+  });
+
+  it('Soul Stitch (owner tuning 2026-10-02): after the burst, the latch, a second FASTER yank and the slam (the one impact)', () => {
+    const huge = run((o) => playHeroStitch({ ...o, textures: null }), { total: 40, knockout: true, variant: false }, () => 0).h.plan;
+    const ko = run((o) => playHeroStitch({ ...o, textures: null }), { total: 40, knockout: true, variant: true }, () => 0).h.plan;
+    // The burst lands where Huge's impact does (plus the double-cinch); the slam is the impact, after it.
+    expect(ko.burstAt - huge.impactAt).toBe(STITCH_KO.cinchMs);
+    expect(ko.impactAt - ko.burstAt).toBe(STITCH_KO.latchDelayMs + STITCH_KO.latchFlightMs + STITCH_KO.yankMs);
+    expect(ko.koHomeAt! - ko.impactAt).toBe(STITCH_KO.returnMs);
+    expect(stitchCues(ko).filter((q) => q.kind === 'impact')).toEqual([{ at: ko.impactAt, kind: 'impact', i: 0 }]);
   });
 
   it('Soul Stitch: the heart-knot double-cinches before it ties', () => {
@@ -194,6 +277,18 @@ describe('each variant is its Huge, remixed', () => {
     const c = HERO_STITCH_DEFAULTS;
     expect(slowMoExtraMs(ko, c)).toBeGreaterThan(slowMoExtraMs(huge, c));
     for (let t = ko.impactAt; t < ko.impactAt + 600; t += 10) expect(stitchTimeScale(ko, c, t)).toBeGreaterThan(0);
+  });
+
+  it('Bullet Time: one extra ring of blades in the dome, a deeper and longer dip, a bigger shake', () => {
+    const huge = run((o) => playHeroBulletTime({ ...o, textures: null }), { total: 40, knockout: true, variant: false }, () => 0).h.plan;
+    const ko = run((o) => playHeroBulletTime({ ...o, textures: null }), { total: 40, knockout: true, variant: true }, () => 0).h.plan;
+    const rings = (p: typeof huge): number => new Set(p.darts.map((d) => d.ring)).size;
+    expect(rings(ko)).toBe(rings(huge) + 1);
+    expect(ko.ko).toBe(true);
+    expect(ko.shakePx).toBeGreaterThan(huge.shakePx);
+    expect(ko.dip!.lo).toBeLessThan(huge.dip!.lo);
+    expect(ko.dip!.ms).toBeGreaterThan(huge.dip!.ms);
+    expect(koDipExtraMs(ko.dip)).toBeGreaterThan(koDipExtraMs(huge.dip));
   });
 
   it('the dip is a ramp that never reaches 0 (R-PROG-ATTACK-10)', () => {
@@ -225,7 +320,7 @@ describe('a style with no variant ignores the flag and plays Huge', () => {
 describe('the tuners: a Knockout preview, Play and Foe, on each Ancient attack only', () => {
   const labels = (s: { actions?: { label: string }[] }): string[] => (s.actions ?? []).map((a) => a.label);
   it('Arcana, Consecration and Soul Stitch have "Knockout" and "Foe knockout"; a Legendary does not', () => {
-    for (const spec of [ARCANA_TUNER, HOLY_TUNER, STITCH_TUNER]) {
+    for (const spec of [ARCANA_TUNER, HOLY_TUNER, STITCH_TUNER, BULLET_TUNER]) {
       expect(labels(spec)).toContain('▶ Knockout (40)');
       expect(labels(spec)).toContain('▶ Foe knockout (40)');
     }

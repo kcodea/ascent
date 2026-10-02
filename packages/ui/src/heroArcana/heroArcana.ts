@@ -94,6 +94,8 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
       headSize: c.headSize, sigilSize: c.sigilSize,
     }, s, arcanaSeed(o.total, dist, o.side))
     : null;
+  // Tier V (owner 2026-10-02): the swirl turns crimson-pink and electric blue, and the explosion bursts outward harder.
+  scene?.setKoSwirl(plan.ko);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -176,7 +178,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
           cue(c.sfxThumpClip, c.sfxThumpGain * 1.1, c.sfxThumpRate - 0.05, { lenMs: 500, fadeMs: 180 });
           scene?.explode(o.defender.x, o.defender.y, radius, {
             burst: plan.burst, size: c.explodeSize, ribbons: Math.min(16, c.explodeRibbons), motes: plan.motes, flashAlpha: c.flashAlpha,
-            tilt: c.swirlTilt, dir: spinDir, width: plan.width,
+            tilt: c.swirlTilt, dir: spinDir, width: plan.width, ko: plan.ko,
           });
           // TIER V: the Ancient prism layered over the explosion, and the KO sting.
           if (plan.ko) {

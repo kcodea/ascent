@@ -59,6 +59,38 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Balance',
+        text: 'Round 15 and later are now uncapped. Max damage per loss was 20 there before.',
+        details: [
+          'Max damage per loss: 5 in rounds 1 to 3, 10 in rounds 4 to 7, 15 in rounds 8 to 11, 20 in rounds 12 to 14.',
+          'From round 15 on, a loss deals full damage.',
+          'The Gauntlet keeps its own limits.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The round and the max damage now sit above the player list, bigger and easier to read.',
+        details: [
+          'Round is on the left. The heart and the max damage for this round are on the right.',
+          'Hover the heart to see what it means. Late in the game it reads No cap.',
+          'The number of players left stays at the top of the list.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Your opponent's portrait now shows their Shop Tier.",
+      },
+      {
+        category: 'Systems',
+        text: 'Replays now show the End of Turn. Every End of Turn effect plays out on the Shop before the fight, just as it did live.',
+        details: [
+          'Before, a replay jumped from the last Shop action straight to combat, so End of Turn effects showed nothing.',
+          'Each effect gets its own beat: minion End of Turn effects, rune and quest rewards, spells cast at End of Turn and more.',
+          'Rune of Lasting Cadence shows one beat for every Rally it triggers.',
+          'This works for games played from now on. Older replays still skip straight to the fight.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Tooltips across the game now share one consistent, easier to read style.',
         details: [
@@ -92,6 +124,16 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Balance',
         text: 'Rayse is back. You can pick her again in Play and Practice.',
+      },
+      {
+        category: 'Systems',
+        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
+        details: [
+          'Small: one golden spell slows to a crawl just short of your foe, then hits.',
+          'Bigger hits bring three spells, then a whole volley in a spiral.',
+          'Huge: dozens of spells circle your foe while a magic clock counts 3, 2, 1. Then they all strike at once.',
+          'Equip it in the Collection, on the Attack Animations tab.',
+        ],
       },
       {
         category: 'Systems',

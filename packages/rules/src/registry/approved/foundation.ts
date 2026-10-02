@@ -3361,7 +3361,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-20',
-    title: 'A hero attack that knocks the struck player out always plays its Tier IV ("Huge") version, in every style',
+    title: 'A hero attack that knocks the struck player out always plays its Tier IV ("Huge") version, in every style; an ANCIENT attack plays its own Knockout variant ("Tier V") instead',
     statement:
       'When the end-of-combat hero attack ELIMINATES the struck player (their Resolve + Armor going in is at or under '
       + 'the blow the engine decided, so the settle takes them to 0), the attack plays Tier IV whatever the damage number: '
@@ -3371,15 +3371,25 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and invulnerable Practice never knocks you out. Presentation only: the number shown and the consequence are '
       + 'unchanged. The tier rule lives in one place (attackTier in packages/ui/src/heroAttack/tiers.ts) and the '
       + 'knockout is read off the state the engine settles from (heroStrikeKnockout), so a replay plays what the live '
-      + 'fight did.',
+      + 'fight did. THE ANCIENT EXCEPTION (owner 2026-10-02): an attack of the ANCIENT rarity that has a Knockout '
+      + 'variant plays THAT on a knockout instead of plain Huge: its Huge remixed with slightly more emphasis (one extra '
+      + 'beat, the Ancient prismatic cyan-to-magenta accent on the final blast, a bigger shake, a slow-mo dip that is never '
+      + 'a freeze, and a short KO sting), adding at most about 500 ms. Arcana (an extra vortex pulse before the burst), '
+      + 'Consecration (a seventh, giant prismatic sword driven into the centre) and Soul Stitch (the heart-knot '
+      + 'double-cinches) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
+      + 'packages/ui/src/heroAttack/knockoutVariant.ts), not a list of ids: an Ancient attack whose runner has no variant '
+      + 'yet falls back to Huge, and every other rarity (and Classic) keeps playing Huge on a knockout, unchanged. Without a '
+      + 'knockout an Ancient attack plays its normal damage tiers. The shared tier stays IV underneath (every per-tier '
+      + 'dial reads IV); the variant is a flag on top (isKnockoutVariant in tiers.ts).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
-      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout); every style config plan (attackTier); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (ancient knockout tier)', quote: 'ancient tier animations should have a separate tier of dmg specific for knockouts. they can just be small changes to the \x27huge\x27 tier. in some cases just adding a hit or something and some color changes or something like that but slightly more emphasis on the knockout animation. can you do this for all 4 ancient tier animations?' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy and Stitch plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-29.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
+    currentBehaviour: 'Conforms, built 2026-09-29; the Ancient Knockout variant built 2026-10-02.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   // ── The first EPIC hero attacks: Card Shark and Storm Call (owner ask 2026-09-29) ─────────────────────────
   {

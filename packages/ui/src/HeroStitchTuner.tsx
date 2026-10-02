@@ -141,6 +141,7 @@ const built = rareTunerSpec({
   verb: 'stitches',
   smallHint: 'one needle, pierced, tugged, snapped.',
   bigHint: 'bound together.',
+  knockoutHint: 'the Huge bind, remixed: the heart-knot double-cinches in a prismatic flash, then bursts in cyan and magenta over the gold, with a bigger shake, a deeper slow-mo dip and a KO sting.',
   tierHints: [
     'one crystal needle on a violet thread pierces the target; the thread hangs taut; a tug, then the snap.',
     'three needles cross-stitch an X into the target; the hero yanks and the threads snap through.',

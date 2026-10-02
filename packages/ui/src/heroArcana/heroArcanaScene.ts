@@ -27,6 +27,7 @@
 import { Container, MeshSimple, Sprite, type Texture } from 'pixi.js';
 import type { HeroBlastTextures } from '../heroBlast/heroBlastScene';
 import { clamp01, easeInOutSine, easeOutCubic, easeOutQuint, mixColor, seededRng, whiten, type Pt } from '../heroAttack/easing';
+import { KO_CYAN, KO_LILAC, KO_MAGENTA, KO_PRISM } from '../heroAttack/knockout';
 import { ribbonPos, type RibbonMotion } from './heroArcanaConfig';
 
 export interface HeroArcanaTextures extends HeroBlastTextures {
@@ -450,6 +451,70 @@ export class HeroArcanaScene {
     this.glitter(x, y, Math.round(o.motes * 0.35), 700, { life: 1000, size: 0.5, grav: -40, lift: 120 });
     this.embers(x, y, radius, 22);
     this.fxs('air', this.tex.glow, c.side, x, y, { dur: 1500, from: 2.6 * fs, to: 3.2 * fs, a0: 0.55 });
+  }
+
+  /**
+   * TIER V (the Knockout variant): the vortex THROBS once more before it collapses. A prismatic pulse ring races out
+   * of the eye (cyan, then magenta a beat behind), the vortex's sigils kick, and a ring of prism glitter is flung off.
+   * Line work over a short flash, all one-shot pooled sprites.
+   */
+  koPulse(x: number, y: number, radius: number, tilt: number): void {
+    const v = this.vortex;
+    if (v) v.age = Math.max(0, v.age - 40); // a tiny hitch back in its spin-up reads as the throb
+    const ry = 0.55 + 0.45 * tilt;
+    this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 140, from: 1, to: 2.2, a0: 0.75 });
+    this.fxs('air', this.tex.ring, KO_CYAN, x, y, { dur: 300, from: 0.5, to: (radius * 4.4) / 128 / this.scale, a0: 1, sy: ry });
+    this.fxs('air', this.tex.ring, KO_MAGENTA, x, y, { dur: 360, from: 0.5, to: (radius * 3.6) / 128 / this.scale, a0: 0.9, sy: ry, delay: 60 });
+    this.fxs('under', this.tex.sigil, KO_LILAC, x, y, { dur: 420, from: (radius * 2.6) / SIGIL_PX / this.scale, to: (radius * 3.4) / SIGIL_PX / this.scale, a0: 0.8, sy: ry, spin: 0.01 });
+    this.prismGlitter(x, y, 14, 700, { life: 420, size: 0.5, grav: 0 });
+  }
+
+  /**
+   * TIER V's PRISM over the explosion: the Ancient palette (cyan to magenta) layered on the arcane colours. Two wide
+   * prismatic shockwaves, a prism sigil flaring out, a second ring of prism ribbons blasting outward (counter-curled to
+   * the arcane ones) and a storm of prism glitter. Short fills, so the big -N still reads.
+   */
+  koFlourish(x: number, y: number, radius: number, o: { size: number; tilt: number; dir: number; width: number; flashAlpha: number }): void {
+    const S = this.scale;
+    const ry = 0.55 + 0.45 * o.tilt;
+    const sig = (radius * 2) / SIGIL_PX / S;
+    this.fxs('air', this.tex.glow, KO_LILAC, x, y, { dur: 200, from: 1.6 * o.size, to: 4 * o.size, a0: 0.55 * o.flashAlpha });
+    this.fxs('air', this.tex.ring, KO_CYAN, x, y, { dur: 620, from: 0.6, to: 6.4 * o.size, a0: 0.95 });
+    this.fxs('air', this.tex.ring, KO_MAGENTA, x, y, { dur: 900, from: 0.6, to: 9 * o.size, a0: 0.8, sy: ry, delay: 70 });
+    this.fxs('air', this.tex.sigil, KO_CYAN, x, y, { dur: 820, from: sig * 1.3, to: sig * 3.6 * o.size, a0: 0.9, spin: -0.012 * o.dir });
+    this.fxs('under', this.tex.sigil, KO_MAGENTA, x, y, { dur: 1000, from: sig * 1.8, to: sig * 2.8 * o.size, a0: 0.6, spin: 0.006 * o.dir });
+    // A second ring of ribbons, prismatic, curling the OTHER way through the arcane ones.
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      const a0 = ((i + 0.5) / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.3;
+      const L = radius * (3.4 + this.rnd() * 1.6) * o.size;
+      const D = 620 + this.rnd() * 200;
+      const curl = -(0.6 + this.rnd() * 0.4) * o.dir;
+      const r0 = radius * 0.15;
+      const at = (t: number): Pt => {
+        const e = easeOutCubic(clamp01(t / D));
+        const th = a0 + curl * e;
+        const r = r0 + L * e;
+        return { x: x + Math.cos(th) * r, y: y + Math.sin(th) * r * (0.65 + 0.35 * o.tilt) };
+      };
+      this.addStreak(at, D, o.width * (1 + this.rnd() * 0.4), KO_PRISM[i % 3]!);
+    }
+    this.prismGlitter(x, y, 36, 1150, { life: 820, size: 0.65, grav: 220 });
+  }
+
+  /** Glitter in the Ancient prism (Tier V). */
+  private prismGlitter(x: number, y: number, n: number, speed: number, o: { life: number; size: number; grav: number }): void {
+    const S = this.scale;
+    for (let i = 0; i < n; i++) {
+      const a = this.rnd() * Math.PI * 2;
+      const sp = speed * (0.45 + this.rnd() * 0.75) * S;
+      const sz = o.size * (0.6 + this.rnd() * 0.7);
+      this.particle(this.tex.star, KO_PRISM[i % 3]!, {
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.03, grav: o.grav * S,
+        life: o.life * (0.7 + this.rnd() * 0.6), from: sz * S, to: sz * 0.2 * S, alpha: 1,
+        twinkle: 0.02 + this.rnd() * 0.02, spin: (this.rnd() - 0.5) * 0.01, streak: false,
+      });
+    }
   }
 
   /** A blast streak: a ribbon without a head, on its own path, fading and thinning over its flight. */

@@ -430,10 +430,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // the two Dragonscale rings are named by look: Dark Scale, Gilt Scale (ids keep the master names).
   portraitFrame('frame_dark_dragonscale', 'Dark Scale', 'common', 'Common/DarkDragonscale.png'),
   portraitFrame('frame_golden_dragonscale', 'Gilt Scale', 'legendary', 'Legendary/GoldenDragonscale.png'),
-  portraitFrame('frame_bronze', 'Burnished', 'rare', 'Rare/BronzeFrame.png'),
-  portraitFrame('frame_silver', 'Sterling', 'rare', 'Rare/SilverFrame.png'),
-  portraitFrame('frame_gold', 'Gilded', 'rare', 'Rare/GoldFrame.png'),
-  portraitFrame('frame_platinum', 'Seaglass', 'rare', 'Rare/PlatinumFrame.png'),
+  // Frames batch 6 (Kevin 2026-10-02: "i added more frames"): the owner moved the four metal rings from Rare/ to Common/; the
+  // folder is the rarity, so they are Common now. Owned copies stay owned (a rarity change only moves crate odds).
+  portraitFrame('frame_bronze', 'Burnished', 'common', 'Common/BronzeFrame.png'),
+  portraitFrame('frame_silver', 'Sterling', 'common', 'Common/SilverFrame.png'),
+  portraitFrame('frame_gold', 'Gilded', 'common', 'Common/GoldFrame.png'),
+  portraitFrame('frame_platinum', 'Seaglass', 'common', 'Common/PlatinumFrame.png'),
   portraitFrame('frame_glass_shard', 'Glass Shard', 'rare', 'Rare/GlassShard.png'),
   portraitFrame('frame_paragon', 'Paragon', 'rare', 'Rare/Paragon.png'),
   portraitFrame('frame_vines', 'Vine', 'rare', 'Rare/Vines.png'),
@@ -446,14 +448,17 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // Batch 5 (2026-10-02): the masters now point at Kevin's copies in Epic/ (pixel-identical to the shipped webps; Mike's
   // rarities win, owner 2026-10-02). Re-wiring from Mike's loose files would need them renamed to these names.
   portraitFrame('frame_multichrome_energy', 'Multichrome Energy', 'epic', 'Epic/Multichrome.png'),
+  // Frames batch 6 (2026-10-02): Kevin's folder had Blue Energy in Rare/, but Mike set it Epic in #1898 and the owner
+  // ruled "use mike's setting if he has any frame rarities set", so it stays Epic and the master moved back to Epic/.
   portraitFrame('frame_blue_energy', 'Blue Energy', 'epic', 'Epic/BlueEnergy.png'),
   portraitFrame('frame_crackling_ruby', 'Crackling Ruby', 'epic', 'Epic/CracklingRuby.png'),
   portraitFrame('frame_topaz', 'Topaz', 'epic', 'Epic/Topaz.png'),
   portraitFrame('frame_jade', 'Jade', 'epic', 'Epic/Jade.png'),
   portraitFrame('frame_aura', 'Aura', 'epic', 'Epic/Aura.png'),
   portraitFrame('frame_ascendant', 'Amethyst', 'epic', 'Epic/Ascendant.png'),
-  portraitFrame('frame_dark_diamond', 'Shard', 'epic', 'Epic/DarkDiamond.png'),
-  portraitFrame('frame_diamond', 'Prism', 'epic', 'Epic/DiamondFrame.png'),
+  // Frames batch 6 (2026-10-02): the owner moved Shard and Prism from Epic/ to Rare/, so they are Rare now.
+  portraitFrame('frame_dark_diamond', 'Shard', 'rare', 'Rare/DarkDiamond.png'),
+  portraitFrame('frame_diamond', 'Prism', 'rare', 'Rare/DiamondFrame.png'),
   portraitFrame('frame_ice', 'Frost', 'epic', 'Epic/Ice.png'),
   portraitFrame('frame_pearlescent', 'Pearlescent', 'epic', 'Epic/Pearlescent.png'),
   portraitFrame('frame_rank1', 'Crimson', 'epic', 'Epic/Rank1Frame.png'),
@@ -466,6 +471,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_water', 'Water', 'legendary', 'Legendary/Water.png'),
   portraitFrame('frame_stained_glass', 'Stained Glass', 'legendary', 'Legendary/StainedGlass.png'),
   portraitFrame('frame_wind', 'Wind', 'legendary', 'Legendary/WindPortrait.png'),
+  // Portrait frames batch 6 (Kevin 2026-10-02: "i added more frames"): rarity = the Portraits rarity folder.
+  portraitFrame('frame_cherry_blossom', 'Cherry Blossom', 'epic', 'Epic/CherryBlossom.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

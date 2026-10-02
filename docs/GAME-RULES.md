@@ -528,11 +528,13 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
 - **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..04).** A cosmetic ring that replaces the default ring
-  around a player's hero portrait. 38 frames, all from crates at the rarity of the folder their master sits in
-  (`Skins/Portraits/<Common|Rare|Epic|Legendary>/`; the folder IS the rarity): Common Honey, Ale, Ruby, Steel, Wood,
-  Dark Scale; Rare Burnished, Sterling, Gilded, Seaglass, Glass Shard, Paragon, Vine, Magic, Simple Ring, Void; Epic Aura, Amethyst, Shard,
-  Prism, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, Crackling Ruby, Topaz, Jade;
-  Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained Glass, Wind. A frame's name is just its name, with
+  around a player's hero portrait. 39 frames, all from crates at the rarity of the folder their master sits in
+  (`Skins/Portraits/<Common|Rare|Epic|Legendary>/`; the folder IS the rarity, except that a rarity Mike set in batch 4
+  wins over the folder, owner 2026-10-02): Common Honey, Ale, Ruby, Steel, Wood, Dark Scale, Burnished, Sterling,
+  Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, Shard, Prism; Epic Aura, Amethyst,
+  Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, Crackling Ruby, Topaz, Jade, Cherry
+  Blossom; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained Glass, Wind. A rarity
+  change only moves crate odds: an owned frame stays owned. A frame's name is just its name, with
   no "Frame" or "Portrait" on it (owner 2026-10-01); the names avoid the ranked medal words so a crate frame never reads
   as a Ranked reward.
   Account-wide (any hero): equipped in the Collection's Portrait Frames tab ("Use default frame" takes it off; an

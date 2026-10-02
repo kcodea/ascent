@@ -1,0 +1,152 @@
+/* ── HEALTH PILL LOOKS ───────────────────────────────────────────────────────────────────────────────────────
+   Owner ask 2026-10-02: "can you fix these pills for me? they are very outdated and ugly."
+
+   One switch (`data-hp-look` on <html>, set by healthPillConfig.ts; DEV picks it in the ❤️ Health pills tuner)
+   paints every hero HEALTH pill and the foe's SHOP TIER pill:
+     .statusbar .hero .hpbox                     your own Health, under your portrait
+     .combatopp-hp / .combatopp-armor            the opponent's Health + Armor in combat
+     .combatopp-tier                             the opponent's Shop Tier pill (hangs under its Health pill)
+     .gauntletfoe-meta / .gauntletfoe-cap        the Gauntlet foe's round + loss-cap pills (same pill family)
+
+   Looks: classic (the old pill, kept for comparison) · slate (A) · gem (B) · minimal (C).
+
+   LAYOUT CONTRACT. Nothing here moves or resizes a neighbour. Every look keeps each pill's old BOX HEIGHT (the
+   opponent's Health pill sits in a centred column, so a taller pill would shift its portrait): a 1px border look
+   adds the missing 1px back to the padding, and Minimal's bigger numbers keep the old line box. Position and
+   transform are never touched; they stay with styles.css and the tuners.
+
+   PERFORMANCE. Static paint only. No animation, no filter, no backdrop-filter. The hit-shake on your own pill is
+   the existing one-shot transform in styles.css.
+   ─────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* Classic (and no attribute at all): the plain "+N" armor, no shield, flat heart. */
+.combatopp-armor > svg,
+.hpbox .armval > svg,
+.hpi-facet,
+.hpi-gloss { display: none; }
+
+/* ── Shared by the three new looks ───────────────────────────────────────────────────────────────────────── */
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .hp-armplus { display: none; }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
+  display: inline-flex; align-items: center; line-height: 1; font-variant-numeric: tabular-nums;
+}
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-armor > svg {
+  display: block; flex: none; width: calc(14 * var(--u)); height: calc(14 * var(--u));
+}
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .statusbar .hero .hpbox .armval > svg {
+  display: block; flex: none; width: calc(15 * var(--u)); height: calc(15 * var(--u));
+}
+/* Your own number + armor sit on one centred row (the armor used to ride the number's baseline). */
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .statusbar .hero .hpbox .hpval {
+  display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;
+}
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-hp { font-variant-numeric: tabular-nums; }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-tier { align-items: center; }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-tier-l {
+  text-transform: uppercase; letter-spacing: 0.09em; font-size: calc(11 * var(--u));
+}
+
+/* The two THIN-border looks: 1px instead of 2px, with the lost 1px handed back to the padding so every box keeps
+   its height and width exactly. */
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+  border-width: 1px;
+}
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-hp { padding: calc(6 * var(--u) + 1px) calc(14 * var(--u) + 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-tier { padding: calc(4 * var(--u) + 1px) calc(11 * var(--u) + 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .statusbar .hero .hpbox { padding: calc(8 * var(--u) + 1px) calc(15 * var(--u) + 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .gauntletfoe-group .gauntletfoe-meta { padding: calc(6 * var(--u) + 1px) calc(16 * var(--u) + 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .gauntletfoe-group .gauntletfoe-cap { padding: calc(4 * var(--u) + 1px) calc(11 * var(--u) + 1px); }
+
+/* ── A. SLATE: the Aegis tooltip family. Slate glass, a crisp light hairline, white numbers, a shield chip. ── */
+:root[data-hp-look="slate"] :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+  background: linear-gradient(180deg, #2e394d 0%, #1c2331 58%, #151a25 100%);
+  border-style: solid; border-color: rgba(190, 214, 240, 0.34);
+  border-radius: calc(13 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.4), 0 3px 10px -2px rgba(0, 0, 0, 0.62);
+}
+/* The gold top edge the tooltips wear, as a hairline on the Health pills only. */
+:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox) { border-top-color: color-mix(in srgb, var(--gold-lt, #ffd98a) 80%, transparent); }
+:root[data-hp-look="slate"] .combatopp-tier { border-radius: calc(10 * var(--u)); }
+:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox) > svg { color: #ff4d6d; }
+:root[data-hp-look="slate"] .hpi-gloss { display: inline; opacity: 0.42; }
+:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox .hpval) { color: #f5f8fc; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
+:root[data-hp-look="slate"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
+  gap: calc(3 * var(--u)); margin-left: calc(5 * var(--u)); padding: calc(3 * var(--u)) calc(7 * var(--u)) calc(3 * var(--u)) calc(5 * var(--u));
+  border-radius: 999px; background: rgba(120, 152, 194, 0.2); border: 1px solid rgba(190, 214, 240, 0.32);
+  color: #dfe9f5; text-shadow: none;
+}
+:root[data-hp-look="slate"] .combatopp-armor { font-size: calc(15 * var(--u)); }
+:root[data-hp-look="slate"] .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
+:root[data-hp-look="slate"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) > svg { color: #9fc3ec; }
+:root[data-hp-look="slate"] .combatopp-tier { color: #a9b7ca; }
+:root[data-hp-look="slate"] .combatopp-tier-n { color: #ffd98a; }
+:root[data-hp-look="slate"] .gauntletfoe-group :is(.gauntletfoe-meta, .gauntletfoe-cap) { color: #eef2f8; }
+:root[data-hp-look="slate"] .gauntletfoe-capnum { color: #ff6d86; }
+:root[data-hp-look="slate"] .gauntletfoe-capnum svg { color: #ff4d6d; }
+
+/* ── B. GEM PLATE: ornate but clean. A thin gold gradient edge over a deep amethyst plate, a cut-gem heart,
+   a steel armor chip, and the Shop Tier number in the cream-and-gold Tier plaque. ───────────────────────── */
+:root[data-hp-look="gem"] :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+  border-style: solid; border-color: transparent;
+  background:
+    linear-gradient(180deg, #382950 0%, #21173a 55%, #170f29 100%) padding-box,
+    linear-gradient(180deg, #ffe9b0 0%, #c8953f 38%, #7a571f 62%, #e8c27a 100%) border-box;
+  border-radius: calc(9 * var(--u));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 217, 138, 0.2), inset 0 calc(6 * var(--u)) calc(8 * var(--u)) -4px rgba(255, 255, 255, 0.07), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+}
+/* Filigree studs: a small gold lozenge pinned to each end of the Health pill. Static. */
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::before,
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::after {
+  content: ''; position: absolute; top: 50%; width: calc(7 * var(--u)); height: calc(7 * var(--u));
+  background: linear-gradient(135deg, #fff1c4, #c8953f 55%, #7a571f); border: 1px solid #4a3410;
+  transform: translateY(-50%) rotate(45deg); pointer-events: none;
+}
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::before { left: calc(-4 * var(--u)); }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::after { right: calc(-4 * var(--u)); }
+:root[data-hp-look="gem"] .combatopp-tier { border-radius: calc(8 * var(--u)); color: #efe1c2; }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox) > svg { color: #ff2f58; }
+:root[data-hp-look="gem"] :is(.hpi-gloss, .hpi-facet) { display: inline; }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox .hpval) { color: #fff1d6; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+:root[data-hp-look="gem"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
+  gap: calc(2 * var(--u)); margin-left: calc(5 * var(--u)); padding: calc(3 * var(--u)) calc(6 * var(--u)) calc(3 * var(--u)) calc(4 * var(--u));
+  border-radius: calc(5 * var(--u)); border: 1px solid #262d39;
+  background: linear-gradient(180deg, #eef2f6 0%, #b3bdca 48%, #7d8999 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #18202c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+:root[data-hp-look="gem"] .combatopp-armor { font-size: calc(15 * var(--u)); }
+:root[data-hp-look="gem"] .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
+:root[data-hp-look="gem"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) > svg { color: #3b4758; }
+:root[data-hp-look="gem"] .combatopp-tier-n {
+  display: inline-block; min-width: calc(18 * var(--u)); padding: calc(2 * var(--u)) calc(6 * var(--u)); text-align: center;
+  font-size: calc(13 * var(--u)); line-height: 1; color: var(--ink, #2a1d08);
+  background: linear-gradient(180deg, #fff, #f3ead4); border: 1px solid var(--gold); border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+:root[data-hp-look="gem"] .gauntletfoe-group :is(.gauntletfoe-meta, .gauntletfoe-cap) { color: #fff1d6; }
+:root[data-hp-look="gem"] .gauntletfoe-capnum svg { color: #ff2f58; }
+
+/* ── C. MINIMAL: borderless, an opaque soft gradient (never backdrop-filter), bigger white numbers, icon-led. ── */
+:root[data-hp-look="minimal"] :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+  /* The 2px border stays (transparent) so the box keeps its size; the gradient paints under it. */
+  border-color: transparent;
+  background: linear-gradient(180deg, #221e33 0%, #151223 100%) border-box;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 4px 14px -4px rgba(0, 0, 0, 0.72);
+}
+/* Bigger numbers on the SAME line box: the font grows, the line-height shrinks to keep the old height. */
+:root[data-hp-look="minimal"] .combatopp-hp { font-size: calc(28 * var(--u)); line-height: calc(24 / 28); font-weight: 900; color: #fff; }
+:root[data-hp-look="minimal"] .statusbar .hero .hpbox .hpval { font-size: calc(30 * var(--u)); line-height: calc(26 / 30); font-weight: 900; color: #fff; }
+:root[data-hp-look="minimal"] :is(.combatopp-hp, .statusbar .hero .hpbox) > svg { color: #ff4f6a; }
+:root[data-hp-look="minimal"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
+  gap: calc(3 * var(--u)); margin-left: calc(7 * var(--u)); padding-left: calc(8 * var(--u));
+  border-left: 1px solid rgba(255, 255, 255, 0.16); font-weight: 800; color: #c3d1e2;
+}
+:root[data-hp-look="minimal"] .combatopp-armor { font-size: calc(18 * var(--u)); }
+:root[data-hp-look="minimal"] .statusbar .hero .hpbox .armval { font-size: calc(19 * var(--u)); }
+:root[data-hp-look="minimal"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) > svg { color: #8fb3dc; }
+:root[data-hp-look="minimal"] .combatopp-tier { color: rgba(236, 232, 248, 0.6); }
+:root[data-hp-look="minimal"] .combatopp-tier-l { font-size: calc(10 * var(--u)); letter-spacing: 0.12em; }
+:root[data-hp-look="minimal"] .combatopp-tier-n { font-size: calc(17 * var(--u)); color: #ffd98a; }
+:root[data-hp-look="minimal"] .gauntletfoe-group :is(.gauntletfoe-meta, .gauntletfoe-cap) { color: #f1eefa; }
+:root[data-hp-look="minimal"] .gauntletfoe-capnum svg { color: #ff4f6a; }

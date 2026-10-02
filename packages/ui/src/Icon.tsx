@@ -127,6 +127,23 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   heart: <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />,
+  // The HEALTH PILL heart (health pill redesign 2026-10-02): the same silhouette as `heart`, plus a darker right
+  // facet and a glossy highlight. The two extra layers carry classes so each pill look can show or hide them
+  // (healthPills.css): the gem look wants both, the flatter looks drop one or both.
+  heartPill: (
+    <>
+      <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />
+      <path className="hpi-facet" fill="#000" opacity="0.22" d="M12 10.6L21 8c0 3-2 8-9 13z" />
+      <ellipse className="hpi-gloss" fill="#fff" opacity="0.6" cx="7.3" cy="7.1" rx="2.3" ry="1.25" transform="rotate(-38 7.3 7.1)" />
+    </>
+  ),
+  // ARMOR on the health pills: a solid shield with a shaded right half, so it reads as a plate at small sizes.
+  armor: (
+    <>
+      <path fill="currentColor" d="M12 2.5l8 3v5.8c0 5-3.4 8.6-8 10.9-4.6-2.3-8-5.9-8-10.9V5.5l8-3z" />
+      <path fill="#000" opacity="0.2" d="M12 2.5l8 3v5.8c0 5-3.4 8.6-8 10.9z" />
+    </>
+  ),
   anvil: <path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z" />,
   // Engraved — a rune mark (angular strokes), replacing the anvil for the Engraved keyword.
   engrave: (

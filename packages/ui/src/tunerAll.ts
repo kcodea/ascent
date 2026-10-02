@@ -52,6 +52,7 @@ import { SPEC as InfuseFxSpec } from './InfuseFxTuner';
 import { SPEC as LayoutSpec } from './LayoutTuner';
 import { SPEC as LobbyPanelSpec } from './LobbyPanelTuner';
 import { SPEC as LobbyRailLookSpec } from './LobbyRailLookTuner';
+import { SPEC as HealthPillSpec } from './HealthPillTuner';
 import { SPEC as ScoutCardSpec } from './ScoutCardTuner';
 import { SPEC as OpponentsBackplateSpec } from './OpponentsBackplateTuner';
 import { SPEC as ModePickSpec } from './ModePickTuner';
@@ -149,6 +150,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   LayoutSpec,
   LobbyPanelSpec,
   LobbyRailLookSpec,
+  HealthPillSpec,
   ScoutCardSpec,
   OpponentsBackplateSpec,
   ModePickSpec,

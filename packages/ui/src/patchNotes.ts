@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Systems',
+        text: 'Refreshed the health and Shop Tier pills.',
+        details: [
+          'Your health pill, the opponent health pill and the opponent Shop Tier pill have a new, cleaner look.',
+          'Armor now shows as its own small shield next to your health.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Round 15 and later are now uncapped. Max damage per loss was 20 there before.',
         details: [

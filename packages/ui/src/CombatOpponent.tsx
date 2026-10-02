@@ -27,7 +27,7 @@ export const OppTierPill = memo(function OppTierPill({ tier, arrow = null }: { t
   if (!tierKnown(tier)) return null;
   return (
     <span className="combatopp-tier">
-      Shop Tier <b className="combatopp-tier-n">{tier}</b>
+      <span className="combatopp-tier-l">Shop Tier</span> <b className="combatopp-tier-n">{tier}</b>
       {arrow && <span className="oppbuffs-arrow" aria-hidden="true">{arrow}</span>}
     </span>
   );
@@ -154,8 +154,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             health pill — a number that could only ever "drop" and snap back would misreport the fight. */}
         {!gauntlet && (
           <div className="combatopp-hp">
-            <Icon name="heart" />{shownResolve}
-            {shownArmor > 0 && <span className="combatopp-armor">+{shownArmor}</span>}
+            <Icon name="heartPill" />{shownResolve}
+            {/* Armor: a shield chip in the newer pill looks, the plain "+N" in Classic (healthPills.css shows one). */}
+            {shownArmor > 0 && <span className="combatopp-armor"><Icon name="armor" /><span className="hp-armplus">+</span>{shownArmor}</span>}
             {/* The foe's SHOP TIER (owner ask 2026-10-02) — a smaller pill hung BELOW the health pill. A child of
                 the health pill, absolutely positioned, so it takes the pill's transform and strike fade and never
                 shifts the column. When it shows, the Buffs arrow rides under IT instead of under the health pill

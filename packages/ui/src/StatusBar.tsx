@@ -818,8 +818,8 @@ export function StatusBar() {
             className={`hpbox${hit ? ' hit' : ''}`}
             aria-label={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
           >
-            <Icon name="heart" />
-            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" aria-description="Armor. Absorbs damage before your Health.">+{run.armor}</b>}</span>
+            <Icon name="heartPill" />
+            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" aria-description="Armor. Absorbs damage before your Health."><Icon name="armor" /><span className="hp-armplus">+</span>{run.armor}</b>}</span>
             {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
           </div>
         </div>

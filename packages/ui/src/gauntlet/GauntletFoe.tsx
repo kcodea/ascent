@@ -54,7 +54,7 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
         {/* The round's loss cap in its own pill below (owner ask 2026-09-30): the number + heart in red. */}
         <div className="gauntletfoe-cap">
           {Number.isFinite(cap)
-            ? <>Max loss <span className="gauntletfoe-capnum"><Icon name="heart" />{cap}</span></>
+            ? <>Max loss <span className="gauntletfoe-capnum"><Icon name="heartPill" />{cap}</span></>
             : 'No cap'}
         </div>
         <div className="gauntletfoe-runes">

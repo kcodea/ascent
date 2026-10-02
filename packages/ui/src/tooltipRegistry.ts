@@ -49,3 +49,19 @@ export const PAINT_EXCEPTIONS = [
   '.etbwrap.ready .etb-tip',
   '.kwbox[data-kw="rebirth"]',
 ] as const;
+
+/**
+ * Tips that keep their OWN text sizes / padding (matched as a substring of the selector), each for a stated reason.
+ * Everything else is sized by the 💬 Tooltips tuner's dials.
+ * - `.etbwrap .etb-tip`: the End Turn tip's size, padding, line height and radius are owner-tuned dials in the End
+ *   Turn tuner (endTurnConfig.ts), measured to make its two-line label fit beside the diamond (owner 2026-08-17).
+ * - `.etbwrap.ready .etb-tip`: the End Combat label (Combat Controls tuner), a standing label, not a hover tip.
+ * - `lobbyscout`: the scout card is a board report whose text is laid out by the Scout Card tuner's size dials.
+ * - `anc-pv`: the Ancients preview card pages are measured by its own sizer (`--anc-k`).
+ */
+export const OWN_SIZE_EXCEPTIONS = [
+  '.etbwrap .etb-tip',
+  '.etbwrap.ready .etb-tip',
+  'lobbyscout',
+  'anc-pv',
+] as const;

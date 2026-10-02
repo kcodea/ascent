@@ -841,12 +841,12 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .statcell:hover .sbtip, .statcell.tt-on .sbtip { opacity: 1; transition-delay: 0.3s; }
 /* Gold-cell hover — a small dark projection card: this turn's Gold + the START of the next two waves
    (cap-aware, folding in board income + banked Gold). Extends the .sbtip dark pill but stacks rows. */
-.goldtip { display: flex; flex-direction: column; gap: calc(3 * var(--u)); text-align: left; min-width: calc(150 * var(--u)); }
-.goldtip .gt-now { padding-bottom: calc(4 * var(--u)); border-bottom: 1px solid var(--atip-divider); }
-.goldtip .gt-row { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--u)); }
+.goldtip { display: flex; flex-direction: column; gap: 0.2em; text-align: left; min-width: 10em; }
+.goldtip .gt-now { padding-bottom: 0.3em; border-bottom: 1px solid var(--atip-divider); }
+.goldtip .gt-row { display: flex; align-items: center; justify-content: space-between; gap: 1.1em; }
 .goldtip .gt-row span { color: var(--atip-text); }
-.goldtip .gt-row b { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-variant-numeric: tabular-nums; }
-.goldtip .gt-row b svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--mana); }
+.goldtip .gt-row b { display: inline-flex; align-items: center; gap: 0.25em; font-variant-numeric: tabular-nums; }
+.goldtip .gt-row b svg { width: 1.1em; height: 1.1em; color: var(--mana); }
 .shopbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: calc(9 * var(--u)); height: calc(50 * var(--u)); padding: 0 calc(18 * var(--u)); background: linear-gradient(180deg, #f5e8cb 0%, #e4c992 100%); border: 2px solid var(--gold); border-radius: calc(12 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); font-family: var(--font-ui); font-weight: 800; color: #5a3d12; cursor: url('/cursors/gauntlet_default.svg') 6 2, pointer; transition: transform 0.1s ease, filter 0.1s ease, background 0.1s ease; }
 button.shopbtn:not(:disabled):hover { filter: brightness(1.05); }
 button.shopbtn:not(:disabled):active { transform: translateY(calc(2 * var(--u))) scale(0.98); filter: brightness(0.94); }
@@ -2276,9 +2276,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   display: flex; flex-direction: column; align-items: stretch; gap: 6px;
   opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s;
 }
-.herotip-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; padding-bottom: 7px; border-bottom: 1px solid var(--atip-divider); }
+.herotip-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; padding-bottom: 0.5em; border-bottom: 1px solid var(--atip-divider); }
 /* The Ancient tag keeps its colour, lifted toward white so it reads on navy. */
-.herotip-anc { font-family: var(--font-title); font-weight: 800; font-size: var(--atip-title-size); line-height: 1.15; filter: brightness(1.35) saturate(1.1); }
+.herotip-anc { font-family: var(--font-title); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15; filter: brightness(1.35) saturate(1.1); }
 /* Glossary pills inside a hero-panel tooltip (the Equipment slot): the same `.kwbox` chrome as the card hover,
    stacked full-width under the rule text, left-aligned like a definition list. */
 .herotip .kwdefs { display: flex; max-width: none; margin-top: 10px; text-align: left; align-self: stretch; }
@@ -3178,7 +3178,7 @@ body.modalup .app { z-index: auto; }
    in the positioned layer, which is ABOVE a static in-flow sibling no matter who comes first in the tree.
    z-index 30 clears every z a card can take internally, so the panel also
    stays in front of the frame, badges and any keyword aura. */
-.inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, calc(44 * var(--vw, 1vw))); max-height: min(calc(72 * var(--vh, 1vh)), 560px); overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; }
+.inspect-buffs { position: relative; z-index: 30; align-self: center; min-width: 92px; max-width: min(252px, calc(44 * var(--vw, 1vw))); max-height: min(calc(72 * var(--vh, 1vh)), 560px); overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
 .ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
 /* Keyword definition panel (KeywordDefs) — a column of word-led boxes beside the enlarged card on the hover
@@ -3835,8 +3835,8 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* A granted quest's REWARD, under its objective in the hero-power tooltip. The hairline separates the two so
    "what to do" and "what you get" don't read as one run-on sentence; the label carries the accent so the eye
    lands on the payoff first. */
-.herotip-reward { display: block; padding-top: 6px; border-top: 1px solid var(--atip-divider); }
-.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--atip-hl); font-size: var(--atip-pill-size); letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--font-ui); }
+.herotip-reward { display: block; padding-top: 0.45em; border-top: 1px solid var(--atip-divider); }
+.herotip-reward > b { display: block; margin-bottom: 1px; color: var(--atip-hl); font-size: var(--atip-z-pill); letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--font-ui); }
 
 /* VOID'S SECOND POWER (owner spec 2026-08-22) — the slot-1 button, seated right of the hero under the main
    power button. `--hp2-*` come from the 👥 Second Power tuner (secondPowerConfig.ts); these fallbacks are the
@@ -7740,17 +7740,17 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-herotip { position: fixed; z-index: 520; width: 250px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; animation: fadein 0.12s ease; }
 .cv2-herotip-name { margin-bottom: 2px; }
 .cv2-herotip-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.cv2-herotip-l { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--atip-muted); white-space: nowrap; }
-.cv2-herotip-record { display: inline-flex; align-items: baseline; gap: 3px; margin-left: auto; font-weight: 900; font-size: 20px; font-variant-numeric: tabular-nums; color: #fff; }
+.cv2-herotip-l { font-size: 0.87em; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--atip-muted); white-space: nowrap; }
+.cv2-herotip-record { display: inline-flex; align-items: baseline; gap: 3px; margin-left: auto; font-weight: 900; font-size: 1.33em; font-variant-numeric: tabular-nums; color: #fff; }
 .cv2-herotip-n.win { color: #6fe0a0; }
 .cv2-herotip-n.loss { color: #ff9a9a; }
-.cv2-herotip-wl { font-size: 12px; letter-spacing: 0.06em; color: var(--atip-muted); margin-right: 4px; }
+.cv2-herotip-wl { font-size: 0.8em; letter-spacing: 0.06em; color: var(--atip-muted); margin-right: 4px; }
 .cv2-herotip-sep { color: var(--atip-muted); margin-right: 4px; }
-.cv2-herotip-rate { font-weight: 900; font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
-.cv2-herotip-v { font-weight: 900; font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-herotip-rate { font-weight: 900; font-size: 1.33em; color: #fff; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+.cv2-herotip-v { font-weight: 900; font-size: 1.33em; color: #fff; font-variant-numeric: tabular-nums; }
 .cv2-herotip-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.cv2-herotip-sub:first-of-type { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--atip-divider); }
-.cv2-herotip-sv { font-weight: 800; font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv2-herotip-sub:first-of-type { margin-top: 4px; padding-top: 0.4em; border-top: 1px solid var(--atip-divider); }
+.cv2-herotip-sv { font-weight: 800; font-size: 1em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cv2-herotip-sv.won { color: #6fe0a0; }
 .cv2-herotip-sv.top4 { color: var(--atip-text); }
 .cv2-herotip-sv.lost { color: #ff9a9a; }
@@ -11425,10 +11425,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 
 /* Quillen's archived types under the power rule — each in its own tribe colour, unused slots muted. */
-.herotip-types { display: flex; gap: calc(5 * var(--u)); justify-content: center; margin-top: calc(5 * var(--u)); }
+.herotip-types { display: flex; gap: 0.35em; justify-content: center; margin-top: 0.35em; }
 .herotip-type {
-  padding: calc(1.5 * var(--u)) calc(6 * var(--u)); border-radius: 999px;
-  font-size: calc(10 * var(--u)); font-weight: 700; line-height: 1.4;
+  padding: 0.12em 0.55em; border-radius: 999px;
+  font-size: 0.75em; font-weight: 700; line-height: 1.4;
   color: var(--tc, #cbb9a2);
   background: color-mix(in srgb, var(--tc, #cbb9a2) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--tc, #cbb9a2) 45%, transparent);
@@ -11679,7 +11679,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .gtip.gtip-end.gtip-down[data-tip]::after { transform: translateY(-4px); }
 .gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after, .gtip.gtip-end[data-tip].tt-on::after { transform: translateY(0); }
 /* The lobby rail clips its overflow (it scrolls), so a bubble inside it must fit its ~125px left of the chip. */
-.lobbyrail .gtip[data-tip]::after { max-width: 118px; font-size: calc(var(--atip-simple-size) - 2px); padding: 5px 8px; }
+.lobbyrail .gtip[data-tip]::after { max-width: 118px; font-size: calc(var(--atip-z-simple) * 0.86); padding: calc(var(--atip-z-pad) * 0.45) calc(var(--atip-z-pad) * 0.75); }
 @media (prefers-reduced-motion: reduce) { .gtip[data-tip]::after { transition: none; } }
 
 /* ── TITLE-SCREEN TOOLTIPS (owner ask 2026-08-24) — a styled bubble in the game's own language, replacing the

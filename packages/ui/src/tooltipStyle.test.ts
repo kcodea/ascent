@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { NOT_TIP_CLASSES, PAINT_EXCEPTIONS, TIP_CLASSES } from './tooltipRegistry';
+import { NOT_TIP_CLASSES, OWN_SIZE_EXCEPTIONS, PAINT_EXCEPTIONS, TIP_CLASSES } from './tooltipRegistry';
 import { TOOLTIP_DEFAULTS, TOOLTIP_VARS, sanitizeTooltipConfig, type TooltipConfig } from './tooltipConfig';
 
 /**
@@ -12,7 +12,9 @@ import { TOOLTIP_DEFAULTS, TOOLTIP_VARS, sanitizeTooltipConfig, type TooltipConf
  *  2. every class that looks like a tip is registered (tooltipRegistry.ts), so the rule above can see it;
  *  3. every `role="tooltip"` element in the UI wears a registered tip class;
  *  4. no native `title=` attribute on a DOM element (owner rule: no OS tooltips; ESLint also bans it);
- *  5. the tuner's baked defaults match the stylesheet's tokens, so production plays what the CSS declares.
+ *  5. the tuner's baked defaults match the stylesheet's tokens, so production plays what the CSS declares;
+ *  6. no tip (or a part of one) sets its own font-size / padding / line-height: sizes come from the `--atip-*` dials
+ *     (or `em`, which is relative to them), so the 💬 Tooltips tuner moves every tip uniformly.
  */
 
 const SRC = __dirname;
@@ -77,6 +79,29 @@ describe('one shared tooltip style', () => {
       }
     }
     expect(bad, 'paint a tooltip through the shared skin in tooltips.css (or register a deliberate exception in tooltipRegistry.ts)').toEqual([]);
+  });
+
+  it('no tip sets its own text size, padding or line height (the tuner dials move them all)', () => {
+    const SIZE_PROPS = /^(font-size|line-height|padding(-(top|right|bottom|left|block|inline)(-(start|end))?)?)$/;
+    const relatedTo = (sel: string): boolean => [...sel.matchAll(/\.([a-zA-Z][\w-]*)/g)]
+      .some(([, c]) => TIP_CLASSES.some((t) => c === t || c.startsWith(`${t}-`)));
+    /** Relative or dial-driven: `var(--atip-*)`, or only unitless numbers / `em` / 0 / keywords. */
+    const okValue = (v: string): boolean => v.includes('var(--atip-')
+      || v.replace(/calc\(|\)|[*/+]/g, ' ').split(/\s+/).filter(Boolean).every((t) => /^(-?[\d.]+(em)?|normal|inherit|initial|unset)$/.test(t));
+    const bad: string[] = [];
+    for (const r of [...ALL_RULES, ...rules(join(SRC, 'tooltips.css'))]) {
+      for (const sel of r.selector.split(',').map((x) => x.trim())) {
+        if (!relatedTo(sel) || OWN_SIZE_EXCEPTIONS.some((e) => sel.includes(e))) continue;
+        for (const decl of r.body.split(';')) {
+          const i = decl.indexOf(':');
+          if (i < 0) continue;
+          const prop = decl.slice(0, i).trim().toLowerCase();
+          const value = decl.slice(i + 1).trim();
+          if (SIZE_PROPS.test(prop) && !okValue(value)) bad.push(`${relative(SRC, r.file)}: ${sel} { ${prop}: ${value} }`);
+        }
+      }
+    }
+    expect(bad, 'size a tooltip from the --atip-* dials (or em) so the Tooltips tuner reaches it').toEqual([]);
   });
 
   it('every tip-looking class is registered', () => {

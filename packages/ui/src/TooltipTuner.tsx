@@ -6,7 +6,7 @@ import { TunerPanel } from './TunerPanel';
  *  hover. Static markup: the dials change CSS variables, and these samples repaint with every tooltip in the game. */
 function TooltipPreview(): JSX.Element {
   return (
-    <div className="atip-preview">
+    <div className="tipsamples">
       <TipPanel title="Aegis" pills={['once per turn']}>
         Give a friendly minion <b>Ward</b>, then give your minions with <b>Ward +5 Attack</b>.
       </TipPanel>

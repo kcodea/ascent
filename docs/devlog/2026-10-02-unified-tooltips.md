@@ -28,6 +28,20 @@ in."
   the `--atip-*` custom properties on `:root` (no re-render). DEV-only persistence (`ascent.tooltips`); production
   plays the baked DEFAULTS, which mirror tooltips.css. Pinned sample tips in the panel; Copy values / Reset as usual.
 
+## One size system (owner follow-up: the Gold tip was far bigger than the rest)
+
+Most tips sit inside a SCALED control (Gold pill x1.69, Refresh x1.54, Tavern Up x1.24, quest/rune row x1.09, hero
+power x0.87, the card reveal's keyword column zoomed x1.52, Inspect x1.9), and a scaled parent scaled its tip, so the
+Gold readout rendered at 28px while the hero tip rendered at 13px. Each tip now declares its parent's scale as
+`--atip-k` (read from that control's own tuner var), and every size is `dial / --atip-k` via the `--atip-z-*` values
+derived on each tip. The dials are therefore true ON-SCREEN px and move every tip by the same amount; sizes inside
+a tip are `em`. Measured at 1920x1080: every rich tip's title, body and padding render at exactly the dial values,
+and moving the body dial to 22 moved hero power, rune, Gold and keyword pills to 22 together. The guard test now
+also fails a tip (or a part of one) that sets its own font-size / padding / line-height.
+
+Baked the owner's dialled values: title 17, body 17, pill 16, one-line 14, line height 1.42, max width 320,
+padding 12 (on-screen px).
+
 ## Kept deliberately
 
 - The **End Combat** label (`.etbwrap.ready .etb-tip`) keeps its Combat Controls tuner colours: it is a standing
@@ -35,6 +49,8 @@ in."
 - A **Rebirth** keyword pill keeps its blue fire border and title.
 - JS-placed tips keep their fixed widths (`.cv2-rune-tip` 280, `.cv2-herotip` 250) because their placement math uses
   them. Everything else is content-sized up to the max width.
+- Own sizes (`OWN_SIZE_EXCEPTIONS`): the End Turn / End Combat tips (their tuner dials), the lobby scout card (Scout
+  Card text dials) and the Ancients preview (its page sizer).
 - The tutorial coach panels are a guided-lesson UI, not hover tips, and were left alone.
 
 ## Guard

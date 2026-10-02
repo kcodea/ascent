@@ -5,7 +5,8 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  * text size and dial it in").
  *
  * Every tip in the game wears one shared look (`tooltips.css`), sized by a handful of `--atip-*` custom properties on
- * `:root`. This module owns those sizes: the 💬 Tooltips tuner writes them here, and they are pushed onto `:root`, so
+ * `:root`, in ON-SCREEN px: each tip divides out the scale of the control it sits in (`--atip-k`), so one dial moves
+ * every tip by the same amount. This module owns those sizes: the 💬 Tooltips tuner writes them here, and they are pushed onto `:root`, so
  * a change reaches every tooltip at once with no React re-render (CSS variables only).
  *
  * DEV only: values persist in localStorage (`ascent.tooltips`) and apply at load. Production plays the BAKED
@@ -31,9 +32,10 @@ export interface TooltipConfig {
 }
 
 const DEFAULTS: TooltipConfig = {
+  // Owner-dialled values, baked 2026-10-02.
   titleSize: 17,
-  bodySize: 15,
-  pillSize: 12,
+  bodySize: 17,
+  pillSize: 16,
   simpleSize: 14,
   lineHeight: 1.42,
   maxWidth: 320,

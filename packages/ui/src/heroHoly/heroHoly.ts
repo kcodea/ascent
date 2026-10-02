@@ -94,6 +94,8 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
       swordGlow: c.swordGlow, pathWidth: c.pathWidth, flameHeight: c.flameHeight,
     }, s, holySeed(o.total, dist, o.side))
     : null;
+  // Tier V (owner 2026-10-02): the wave that comes out rolls pink + gold, not just gold.
+  scene?.setKoWave(plan.ko);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 

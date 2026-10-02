@@ -392,12 +392,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
       >
         <div className="herocard big hsc-clone-card" style={{ width: BIG_CARD_W, transform: `scale(${k})` }}>
           <div ref={frameRef} className="hcframe">
-            <div className="hcname">{hero.name}</div>
+            <div className="hcname hudpill-name">{hero.name}</div>
             {art ? <img decoding="sync" className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
-            <div className="hchp">
-              <Icon name="heart" />
+            <div className="hchp hudpill-hp">
+              <Icon name="heartPill" />
               {hero.resolve}
-              {hero.armor > 0 && <span className="hcarmor">+{hero.armor}</span>}
+              {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
             </div>
           </div>
           {/* The resting face only (difficulty + tip) — the hover face never shows on a clone nobody can

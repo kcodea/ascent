@@ -62,7 +62,7 @@ export const FreezeButton = memo(function FreezeButton({
       </span>
       {/* "Freeze" label pill (owner ask 2026-08-14) — same cream/gold plaque as the Tavern Up tier pill,
           seated near the gem; position/size from the ❄️ tuner via --frz-pill-x/y/s. */}
-      <span className="frz-pill" aria-hidden="true">Freeze</span>
+      <span className="frz-pill hudpill-name" aria-hidden="true">Freeze</span>
       <span className="sbtip frz-tip">
         {combat ? (frozen ? 'Tavern frozen' : 'Tavern not frozen')
           : frozen ? 'Frozen. Click to unfreeze.' : 'Freeze the tavern'}

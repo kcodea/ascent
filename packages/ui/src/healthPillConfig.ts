@@ -1,13 +1,14 @@
 /**
- * HEALTH PILL LOOK (owner ask 2026-10-02: "can you fix these pills for me? they are very outdated and ugly").
+ * HUD PILL LOOK (owner asks 2026-10-02: "can you fix these pills for me? they are very outdated and ugly"; the owner
+ * picked B, Gem plate, then extended it to the name pills, the Tier / Freeze labels, the turn timer, the hero-select
+ * screen and the Skip / Summary buttons).
  *
- * One switch picks the paint of every hero HEALTH pill and the foe's SHOP TIER pill: your own Health under your
- * portrait, the opponent's Health + Shop Tier in combat, and the Gauntlet foe's round / loss-cap pills. The look is
- * a `data-hp-look` attribute on `<html>`; `healthPills.css` paints each look off it. Nothing here moves or resizes
- * a pill's box: every look keeps the old box height, so the anchors stay where they were.
+ * One switch picks the paint of every HEALTH pill (`.hudpill-hp`), NAME / LABEL pill (`.hudpill-name`), the turn
+ * timer and the combat controls. The look is a `data-hp-look` attribute on `<html>`; `healthPills.css` paints each
+ * look off it. Nothing here moves or resizes a pill's box, so the anchors stay where they were.
  *
- * Same architecture as `boardEdgeConfig`: DEV-only localStorage, production always uses the baked DEFAULT. Bake a
- * pick by changing DEFAULT_LOOK (and, once the owner has chosen, the unchosen looks can be deleted from the CSS).
+ * Same architecture as `boardEdgeConfig`: DEV-only localStorage, production always uses the baked DEFAULTS (Gem).
+ * Slate and Minimal only restyle the health family; they can be deleted from the CSS once nobody needs to compare.
  */
 import './healthPills.css';
 import type { TunerControl, TunerSpec } from './tunerSchema';
@@ -16,18 +17,18 @@ export const HP_LOOKS = ['classic', 'slate', 'gem', 'minimal'] as const;
 export type HpLook = (typeof HP_LOOKS)[number];
 
 const LOOK_LABELS: Record<HpLook, string> = {
-  classic: 'Classic (the old pill)',
-  slate: 'A. Slate',
-  gem: 'B. Gem plate',
-  minimal: 'C. Minimal',
+  classic: 'Classic (the old pills)',
+  slate: 'A. Slate (health pills only)',
+  gem: 'B. Gem plate (shipped)',
+  minimal: 'C. Minimal (health pills only)',
 };
 
 export interface HealthPillConfig {
   look: HpLook;
 }
 
-/** The baked look production renders. Provisional until the owner picks one. */
-const DEFAULTS: HealthPillConfig = { look: 'slate' };
+/** The baked look production renders: Gem plate, the owner's pick (2026-10-02: "gem plate looks good"). */
+const DEFAULTS: HealthPillConfig = { look: 'gem' };
 
 const KEY = 'ascent.hpPillLook';
 
@@ -70,14 +71,14 @@ export function resetHealthPillConfig(): void {
 const controls: TunerControl<Extract<keyof HealthPillConfig, string>>[] = [
   {
     key: 'look', label: 'Look', kind: 'select', options: HP_LOOKS, optionLabels: LOOK_LABELS,
-    hint: 'Paints every Health pill (yours, the opponent in combat, the Gauntlet foe) and the Shop Tier pill. Live.',
+    hint: 'Paints every Health pill, every name and label pill (Tier, Freeze), the turn timer and the Skip / Summary / End Combat buttons. Classic is the old look; Slate and Minimal only change the Health pills. Live.',
     min: 0, max: 0, step: 0,
   },
 ];
 
 export const SPEC: TunerSpec<HealthPillConfig> = {
-  id: 'healthpills',               // FROZEN: indexes this panel's dragged position in localStorage
-  title: 'Health pills',
+  id: 'hudpills',                  // FROZEN: indexes this panel's dragged position in localStorage
+  title: 'HUD pills',
   note: 'dev · live',
   read: getHealthPillConfig,
   write: () => { /* no numeric controls */ },

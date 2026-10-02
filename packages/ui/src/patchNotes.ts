@@ -60,10 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Refreshed the health and Shop Tier pills.',
+        text: 'Refreshed the health, name and Shop Tier pills, the turn timer, and the Skip and Summary buttons.',
         details: [
-          'Your health pill, the opponent health pill and the opponent Shop Tier pill have a new, cleaner look.',
+          'Health pills, hero name pills, the Tier and Freeze labels and the turn timer share one new dark and gold look.',
+          'The hero select screen uses the same name and health pills.',
           'Armor now shows as its own small shield next to your health.',
+          'The Skip, Summary and End Combat buttons match the new look.',
         ],
       },
       {

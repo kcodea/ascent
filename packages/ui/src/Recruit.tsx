@@ -426,7 +426,8 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
   const goldSpent = useGame((st) => (gauntlet ? Math.min(st.run.goldSpentThisTurn ?? 0, GAUNTLET_CLOCK_GOLD) : 0));
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}${gauntletWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
-      <span className="sc-ic"><Icon name="clock" /></span>
+      {/* Two faces, one shown per HUD look (healthPills.css): the flat Classic glyph and the Gem plate gold clock. */}
+      <span className="sc-ic"><Icon name="clock" /><Icon name="timerClock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
       {gauntletWaiting ? (
         <span className="gclock" aria-label={`${goldSpent} of ${GAUNTLET_CLOCK_GOLD} Gold spent`}>

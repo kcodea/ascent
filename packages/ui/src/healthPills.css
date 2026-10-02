@@ -1,133 +1,232 @@
-/* ── HEALTH PILL LOOKS ───────────────────────────────────────────────────────────────────────────────────────
-   Owner ask 2026-10-02: "can you fix these pills for me? they are very outdated and ugly."
+/* ── HUD PILL LOOKS ──────────────────────────────────────────────────────────────────────────────────────────
+   Owner asks 2026-10-02: "can you fix these pills for me? they are very outdated and ugly." The owner picked
+   B, Gem plate, then: "can you update the name pill and timer a well while we're here? the name pill's aesthetic
+   should probably also cover the freeze and shop tier pills", plus the hero-select screen.
 
-   One switch (`data-hp-look` on <html>, set by healthPillConfig.ts; DEV picks it in the ❤️ Health pills tuner)
-   paints every hero HEALTH pill and the foe's SHOP TIER pill:
-     .statusbar .hero .hpbox                     your own Health, under your portrait
-     .combatopp-hp / .combatopp-armor            the opponent's Health + Armor in combat
-     .combatopp-tier                             the opponent's Shop Tier pill (hangs under its Health pill)
-     .gauntletfoe-meta / .gauntletfoe-cap        the Gauntlet foe's round + loss-cap pills (same pill family)
+   One switch (`data-hp-look` on <html>, set by healthPillConfig.ts; DEV picks it in the ❤️ HUD pills tuner).
+   Production ships `gem`. Three SHARED classes carry the look, so every surface reads from one source of truth:
 
-   Looks: classic (the old pill, kept for comparison) · slate (A) · gem (B) · minimal (C).
+     .hudpill-hp    a HEALTH pill: your Health (.hpbox), the opponent's (.combatopp-hp), the hero-select card's
+                    (.hchp, also the ceremony clone), the Gauntlet foe's round / loss-cap pills
+     .hudpill-arm   the ARMOR chip inside one (.armval, .combatopp-armor, .hcarmor)
+     .hudpill-name  a NAME / LABEL pill: your hero name (.heroname), the opponent's (.combatopp-name, also the
+                    Gauntlet foe), the hero-select names (.hcname), the shop's "Tier N" (.tvb-tierpill) and
+                    "Freeze" (.frz-pill) labels, the title-screen account name (.titlename + its edit field), the
+                    mode cards (.mcname), the Career hero name (.cv2-heroname), the Gauntlet stage tag (.gslot-tag)
+   plus the opponent's Shop Tier pill (.combatopp-tier), the TURN TIMER box (.statstrip) and the combat controls
+  (.combatsummary, .combathud-skip, the End Combat pill .etbwrap.ready .etb-tip).
 
-   LAYOUT CONTRACT. Nothing here moves or resizes a neighbour. Every look keeps each pill's old BOX HEIGHT (the
-   opponent's Health pill sits in a centred column, so a taller pill would shift its portrait): a 1px border look
-   adds the missing 1px back to the padding, and Minimal's bigger numbers keep the old line box. Position and
-   transform are never touched; they stay with styles.css and the tuners.
+   Looks: classic (the old pills) · slate (A) · gem (B, shipped) · minimal (C). Slate and Minimal only restyle the
+   health family; the name pills, the timer and the combat controls have a Gem treatment and otherwise stay Classic.
 
-   PERFORMANCE. Static paint only. No animation, no filter, no backdrop-filter. The hit-shake on your own pill is
-   the existing one-shot transform in styles.css.
+   LAYOUT CONTRACT. Nothing here moves or resizes a neighbour. Every look keeps each pill's old BOX SIZE in the
+   direction that matters (the opponent's Health pill sits in a centred column, so a taller pill would shift its
+   portrait): a 1px border look hands the lost 1px back to the padding, the name pills keep their 2px border (now a
+   gold gradient), and Minimal's bigger numbers keep the old line box. Position and transform are never touched.
+
+   PERFORMANCE. Static paint only. No animation, no filter, no backdrop-filter. The existing one-shot hit-shake and
+   the timer's low-time tint (a static background switch) are untouched.
    ─────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /* Classic (and no attribute at all): the plain "+N" armor, no shield, flat heart. */
-.combatopp-armor > svg,
-.hpbox .armval > svg,
+.hudpill-arm > svg,
 .hpi-facet,
 .hpi-gloss { display: none; }
+/* The timer shows ONE of its two clock faces: the flat glyph (Classic and the health-only looks), or the Gem gold
+   clock. Both live in `.sc-ic`; the hidden one takes no space. */
+.statcell.time .sc-ic svg + svg { display: none; }
+:root[data-hp-look="gem"] .statcell.time .sc-ic svg:first-child { display: none; }
+:root[data-hp-look="gem"] .statcell.time .sc-ic svg + svg { display: block; }
 
-/* ── Shared by the three new looks ───────────────────────────────────────────────────────────────────────── */
+/* ── Shared by the three new health looks ────────────────────────────────────────────────────────────────── */
 :root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .hp-armplus { display: none; }
-:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .hudpill-arm.hudpill-arm {
   display: inline-flex; align-items: center; line-height: 1; font-variant-numeric: tabular-nums;
 }
-:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-armor > svg {
-  display: block; flex: none; width: calc(14 * var(--u)); height: calc(14 * var(--u));
-}
-:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .statusbar .hero .hpbox .armval > svg {
-  display: block; flex: none; width: calc(15 * var(--u)); height: calc(15 * var(--u));
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .hudpill-arm.hudpill-arm > svg {
+  display: block; flex: none; width: 0.92em; height: 0.92em;
 }
 /* Your own number + armor sit on one centred row (the armor used to ride the number's baseline). */
 :root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .statusbar .hero .hpbox .hpval {
   display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;
 }
-:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-hp { font-variant-numeric: tabular-nums; }
-:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-tier { align-items: center; }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .hudpill-hp { font-variant-numeric: tabular-nums; }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-tier {
+  /* Pinned to the Classic pill's height (16u number line + 8u padding + 4px border), so the Buffs arrow that hangs
+     under it never moves, whatever the number badge measures. */
+  align-items: center; height: calc(24 * var(--u) + 4px);
+}
 :root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .combatopp-tier-l {
   text-transform: uppercase; letter-spacing: 0.09em; font-size: calc(11 * var(--u));
 }
 
 /* The two THIN-border looks: 1px instead of 2px, with the lost 1px handed back to the padding so every box keeps
    its height and width exactly. */
-:root:is([data-hp-look="slate"], [data-hp-look="gem"]) :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
-  border-width: 1px;
-}
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) :is(.hudpill-hp.hudpill-hp, .combatopp-tier) { border-width: 1px; }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-hp { padding: calc(6 * var(--u) + 1px) calc(14 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-tier { padding: calc(4 * var(--u) + 1px) calc(11 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .statusbar .hero .hpbox { padding: calc(8 * var(--u) + 1px) calc(15 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .gauntletfoe-group .gauntletfoe-meta { padding: calc(6 * var(--u) + 1px) calc(16 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .gauntletfoe-group .gauntletfoe-cap { padding: calc(4 * var(--u) + 1px) calc(11 * var(--u) + 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .herocard.big .hchp { padding: 4px 19px; }
+/* Children hung off the pill's bottom edge (`top: 100%` = the PADDING box) would drop 1px with the thinner border;
+   pull them back so the Shop Tier pill and the Buffs arrow stay exactly where they were. */
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-tier { top: calc(100% + 4 * var(--u) - 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-hp .oppbuffs-arrow { top: calc(100% - 1px); }
 
 /* ── A. SLATE: the Aegis tooltip family. Slate glass, a crisp light hairline, white numbers, a shield chip. ── */
-:root[data-hp-look="slate"] :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+:root[data-hp-look="slate"] :is(.hudpill-hp.hudpill-hp, .combatopp-tier) {
   background: linear-gradient(180deg, #2e394d 0%, #1c2331 58%, #151a25 100%);
   border-style: solid; border-color: rgba(190, 214, 240, 0.34);
   border-radius: calc(13 * var(--u));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.4), 0 3px 10px -2px rgba(0, 0, 0, 0.62);
 }
 /* The gold top edge the tooltips wear, as a hairline on the Health pills only. */
-:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox) { border-top-color: color-mix(in srgb, var(--gold-lt, #ffd98a) 80%, transparent); }
+:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp) { border-top-color: color-mix(in srgb, var(--gold-lt, #ffd98a) 80%, transparent); }
+:root[data-hp-look="slate"] .herocard.big .hchp { border-radius: 13px; }
 :root[data-hp-look="slate"] .combatopp-tier { border-radius: calc(10 * var(--u)); }
-:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox) > svg { color: #ff4d6d; }
+:root[data-hp-look="slate"] .hudpill-hp.hudpill-hp > svg { color: #ff4d6d; }
 :root[data-hp-look="slate"] .hpi-gloss { display: inline; opacity: 0.42; }
-:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox .hpval) { color: #f5f8fc; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
-:root[data-hp-look="slate"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
-  gap: calc(3 * var(--u)); margin-left: calc(5 * var(--u)); padding: calc(3 * var(--u)) calc(7 * var(--u)) calc(3 * var(--u)) calc(5 * var(--u));
+:root[data-hp-look="slate"] :is(.hudpill-hp.hudpill-hp, .statusbar .hero .hpbox .hpval) { color: #f5f8fc; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
+:root[data-hp-look="slate"] .hudpill-arm.hudpill-arm {
+  gap: 0.2em; margin-left: 0.3em; padding: 0.2em 0.45em 0.2em 0.32em;
   border-radius: 999px; background: rgba(120, 152, 194, 0.2); border: 1px solid rgba(190, 214, 240, 0.32);
   color: #dfe9f5; text-shadow: none;
 }
 :root[data-hp-look="slate"] .combatopp-armor { font-size: calc(15 * var(--u)); }
 :root[data-hp-look="slate"] .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
-:root[data-hp-look="slate"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) > svg { color: #9fc3ec; }
+:root[data-hp-look="slate"] .hudpill-arm.hudpill-arm > svg { color: #9fc3ec; }
 :root[data-hp-look="slate"] .combatopp-tier { color: #a9b7ca; }
 :root[data-hp-look="slate"] .combatopp-tier-n { color: #ffd98a; }
-:root[data-hp-look="slate"] .gauntletfoe-group :is(.gauntletfoe-meta, .gauntletfoe-cap) { color: #eef2f8; }
 :root[data-hp-look="slate"] .gauntletfoe-capnum { color: #ff6d86; }
 :root[data-hp-look="slate"] .gauntletfoe-capnum svg { color: #ff4d6d; }
 
-/* ── B. GEM PLATE: ornate but clean. A thin gold gradient edge over a deep amethyst plate, a cut-gem heart,
-   a steel armor chip, and the Shop Tier number in the cream-and-gold Tier plaque. ───────────────────────── */
-:root[data-hp-look="gem"] :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+/* ── B. GEM PLATE (shipped): ornate but clean. A thin gold gradient edge over a deep amethyst plate, a cut-gem
+   heart, a steel armor chip, and the Shop Tier number in the cream-and-gold Tier plaque. ──────────────────── */
+:root[data-hp-look="gem"] {
+  --gem-plate: linear-gradient(180deg, #382950 0%, #21173a 55%, #170f29 100%);
+  --gem-edge: linear-gradient(180deg, #ffe9b0 0%, #c8953f 38%, #7a571f 62%, #e8c27a 100%);
+  --gem-ink: #fff1d6;
+}
+:root[data-hp-look="gem"] :is(.hudpill-hp.hudpill-hp, .combatopp-tier) {
   border-style: solid; border-color: transparent;
-  background:
-    linear-gradient(180deg, #382950 0%, #21173a 55%, #170f29 100%) padding-box,
-    linear-gradient(180deg, #ffe9b0 0%, #c8953f 38%, #7a571f 62%, #e8c27a 100%) border-box;
+  background: var(--gem-plate) padding-box, var(--gem-edge) border-box;
   border-radius: calc(9 * var(--u));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 217, 138, 0.2), inset 0 calc(6 * var(--u)) calc(8 * var(--u)) -4px rgba(255, 255, 255, 0.07), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
 }
-/* Filigree studs: a small gold lozenge pinned to each end of the Health pill. Static. */
-:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::before,
-:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::after {
-  content: ''; position: absolute; top: 50%; width: calc(7 * var(--u)); height: calc(7 * var(--u));
+:root[data-hp-look="gem"] .herocard.big .hchp {
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 217, 138, 0.2), inset 0 6px 8px -4px rgba(255, 255, 255, 0.07), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+}
+/* Filigree studs: a small gold lozenge pinned to each end of a Health pill. Static. (Not on the Gauntlet's
+   round / loss-cap pills, which are readouts rather than a life total.) */
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::before,
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::after {
+  content: ''; position: absolute; top: 50%; width: 0.3em; height: 0.3em;
   background: linear-gradient(135deg, #fff1c4, #c8953f 55%, #7a571f); border: 1px solid #4a3410;
   transform: translateY(-50%) rotate(45deg); pointer-events: none;
 }
-:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::before { left: calc(-4 * var(--u)); }
-:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox)::after { right: calc(-4 * var(--u)); }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::before { left: -0.17em; }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::after { right: -0.17em; }
 :root[data-hp-look="gem"] .combatopp-tier { border-radius: calc(8 * var(--u)); color: #efe1c2; }
-:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox) > svg { color: #ff2f58; }
+:root[data-hp-look="gem"] .hudpill-hp.hudpill-hp > svg { color: #ff2f58; }
 :root[data-hp-look="gem"] :is(.hpi-gloss, .hpi-facet) { display: inline; }
-:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox .hpval) { color: #fff1d6; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
-:root[data-hp-look="gem"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
-  gap: calc(2 * var(--u)); margin-left: calc(5 * var(--u)); padding: calc(3 * var(--u)) calc(6 * var(--u)) calc(3 * var(--u)) calc(4 * var(--u));
-  border-radius: calc(5 * var(--u)); border: 1px solid #262d39;
+:root[data-hp-look="gem"] :is(.hudpill-hp.hudpill-hp, .statusbar .hero .hpbox .hpval) { color: var(--gem-ink); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+:root[data-hp-look="gem"] .hudpill-arm.hudpill-arm {
+  gap: 0.14em; margin-left: 0.3em; padding: 0.2em 0.4em 0.2em 0.27em;
+  border-radius: 0.33em; border: 1px solid #262d39;
   background: linear-gradient(180deg, #eef2f6 0%, #b3bdca 48%, #7d8999 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   color: #18202c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 :root[data-hp-look="gem"] .combatopp-armor { font-size: calc(15 * var(--u)); }
 :root[data-hp-look="gem"] .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
-:root[data-hp-look="gem"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) > svg { color: #3b4758; }
+:root[data-hp-look="gem"] .hudpill-arm.hudpill-arm > svg { color: #3b4758; }
 :root[data-hp-look="gem"] .combatopp-tier-n {
   display: inline-block; min-width: calc(18 * var(--u)); padding: calc(2 * var(--u)) calc(6 * var(--u)); text-align: center;
   font-size: calc(13 * var(--u)); line-height: 1; color: var(--ink, #2a1d08);
   background: linear-gradient(180deg, #fff, #f3ead4); border: 1px solid var(--gold); border-radius: 999px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
-:root[data-hp-look="gem"] .gauntletfoe-group :is(.gauntletfoe-meta, .gauntletfoe-cap) { color: #fff1d6; }
 :root[data-hp-look="gem"] .gauntletfoe-capnum svg { color: #ff2f58; }
 
+/* NAME + LABEL PILLS (Gem). The 2px border stays (now the gold gradient edge), so no box changes size; the cream
+   face becomes the amethyst plate and the dark ink becomes light. Long names keep their ellipsis rules. */
+:root[data-hp-look="gem"] .hudpill-name.hudpill-name {
+  border-color: transparent;
+  background: var(--gem-plate) padding-box, var(--gem-edge) border-box;
+  color: var(--gem-ink); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 217, 138, 0.16), 0 2px 8px -2px rgba(0, 0, 0, 0.6);
+}
+/* The shop's Tier label echoes the gold tier badge: the plate, with the words in gold. */
+:root[data-hp-look="gem"] .tvbwrap .tvb-tierpill.hudpill-name { color: #ffd98a; }
+/* Title-screen name: the old hover brightened the gold border; now a brighter gold ring (static on hover). */
+:root[data-hp-look="gem"] .titlename.hudpill-name:hover { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 1px #ffe9b0, 0 2px 8px -2px rgba(0, 0, 0, 0.6); }
+:root[data-hp-look="gem"] .titlename-seat .titlename-input.hudpill-name::placeholder { color: rgba(255, 241, 214, 0.45); }
+/* State variants that used to recolour the cream face or its border. */
+:root[data-hp-look="gem"] .modecard.mclocked .mcname.hudpill-name,
+:root[data-hp-look="gem"] .gslot:is([data-state='locked'], [data-state='soon']) .gslot-tag.hudpill-name {
+  background: linear-gradient(180deg, #34323d, #1f1d26) padding-box, linear-gradient(180deg, #d9d9e2, #8c8c98) border-box;
+  color: #d6d6de;
+}
+:root[data-hp-look="gem"] .mcframe[data-mode='rift'] .mcname.hudpill-name { background: var(--gem-plate) padding-box, linear-gradient(180deg, var(--tier-7), color-mix(in srgb, var(--tier-7) 55%, #000)) border-box; }
+:root[data-hp-look="gem"] .gslot[data-state='cleared'] .gslot-tag.hudpill-name { background: var(--gem-plate) padding-box, linear-gradient(180deg, #b6f0be, #4fae5c) border-box; }
+:root[data-hp-look="gem"] .gslot[data-state='draft'] .gslot-tag.hudpill-name { background: var(--gem-plate) padding-box; border-color: #c8953f; }
+
+/* TURN TIMER (Gem). Same edge and plate as the pills; the clock icon and the low-time tint (`.statcell.time.low`,
+   a static background on the cell, no pulse) keep working on top. 1px edge, with the lost px handed back as
+   padding so the box keeps its width (its height is fixed). */
+:root[data-hp-look="gem"] .statstrip {
+  border: 1px solid transparent; padding: 1px;
+  background: var(--gem-plate) padding-box, var(--gem-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 217, 138, 0.18), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+}
+:root[data-hp-look="gem"] .statstrip .statcell .sc-v { color: var(--gem-ink); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+/* The gold clock: drawn to the box's edge, so it reads a touch larger than the old outline glyph inside the same
+   20u box (the cell keeps its size), and it centres on the digits through `.sc-ic`'s grid. */
+:root[data-hp-look="gem"] .statstrip .statcell.time .sc-ic svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); margin: calc(-1 * var(--u)); }
+:root[data-hp-look="gem"] .statstrip .statcell.time.low .sc-v { color: #ff9db0; }
+/* The lone time cell is both :first-child and :last-child, so the strip's corner rules leave its LEFT corners square
+   and the low-time tint used to poke out past the rounded edge. Round all four, inset by the 1px edge + 1px pad. */
+:root[data-hp-look="gem"] .statstrip .statcell.time { border-radius: calc(13 * var(--u) - 2px); }
+/* Low time: the rim and pin warm to the warning red and the hands go pink. Static (no pulse). */
+:root[data-hp-look="gem"] .statstrip .statcell.time.low :is(.tck-rim, .tck-pin) { fill: #ff6b81; }
+:root[data-hp-look="gem"] .statstrip .statcell.time.low .tck-edge { stroke: #7a1f2e; }
+:root[data-hp-look="gem"] .statstrip .statcell.time.low .tck-hand { stroke: #ffd0d8; }
+
+/* COMBAT CONTROLS (Gem): the Summary pill, the Skip button and the End Combat pill (`.etbwrap.ready .etb-tip`), all
+   formerly bright blue with a copper outline. Same 1px border width (now the gold gradient edge), so nothing changes
+   size. They stay findable as BUTTONS: a gold icon, a brighter plate + edge on hover, Skip keeps its press lip and
+   its one-shot press-down. No transitions added, nothing loops. Their Combat Controls tuner still owns position,
+   text size and radius; its colour pickers are Classic-only. */
+:root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip) {
+  border-color: transparent; color: var(--gem-ink); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--gem-plate) padding-box, var(--gem-edge) border-box;
+}
+/* The End Combat label is the End Turn TIP in its combat-done state; its own selector is a registered paint
+   exception in tooltipRegistry.ts (PAINT_EXCEPTIONS), so it stays a single exact selector here. */
+:root[data-hp-look="gem"] .etbwrap.ready .etb-tip {
+  border-color: transparent; color: var(--gem-ink); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--gem-plate) padding-box, var(--gem-edge) border-box;
+}
+:root[data-hp-look="gem"] .combatsummary {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 217, 138, 0.18), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+}
+:root[data-hp-look="gem"] .combathud-skip {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 217, 138, 0.18), 0 calc(4 * var(--u)) 0 #6a4b19, 0 calc(6 * var(--u)) calc(10 * var(--u)) -4px rgba(0, 0, 0, 0.7);
+}
+:root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip) svg { color: #ffd98a; }
+:root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip):hover {
+  color: #fff;
+  background: linear-gradient(180deg, #4a3768 0%, #2d2050 55%, #1f1638 100%) padding-box,
+              linear-gradient(180deg, #fff6d6 0%, #ffd27a 40%, #b98a3a 65%, #ffe3a0 100%) border-box;
+}
+:root[data-hp-look="gem"] .combathud-skip:active {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 217, 138, 0.18), 0 calc(2 * var(--u)) 0 #6a4b19;
+}
+
 /* ── C. MINIMAL: borderless, an opaque soft gradient (never backdrop-filter), bigger white numbers, icon-led. ── */
-:root[data-hp-look="minimal"] :is(.combatopp-hp, .combatopp-tier, .statusbar .hero .hpbox, .gauntletfoe-group .gauntletfoe-meta, .gauntletfoe-group .gauntletfoe-cap) {
+:root[data-hp-look="minimal"] :is(.hudpill-hp.hudpill-hp, .combatopp-tier) {
   /* The 2px border stays (transparent) so the box keeps its size; the gradient paints under it. */
   border-color: transparent;
   background: linear-gradient(180deg, #221e33 0%, #151223 100%) border-box;
@@ -137,14 +236,15 @@
 /* Bigger numbers on the SAME line box: the font grows, the line-height shrinks to keep the old height. */
 :root[data-hp-look="minimal"] .combatopp-hp { font-size: calc(28 * var(--u)); line-height: calc(24 / 28); font-weight: 900; color: #fff; }
 :root[data-hp-look="minimal"] .statusbar .hero .hpbox .hpval { font-size: calc(30 * var(--u)); line-height: calc(26 / 30); font-weight: 900; color: #fff; }
-:root[data-hp-look="minimal"] :is(.combatopp-hp, .statusbar .hero .hpbox) > svg { color: #ff4f6a; }
-:root[data-hp-look="minimal"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) {
-  gap: calc(3 * var(--u)); margin-left: calc(7 * var(--u)); padding-left: calc(8 * var(--u));
-  border-left: 1px solid rgba(255, 255, 255, 0.16); font-weight: 800; color: #c3d1e2;
+:root[data-hp-look="minimal"] .herocard.big .hchp { color: #fff; }
+:root[data-hp-look="minimal"] .hudpill-hp.hudpill-hp > svg { color: #ff4f6a; }
+:root[data-hp-look="minimal"] .hudpill-arm.hudpill-arm {
+  gap: 0.18em; margin-left: 0.4em; padding-left: 0.45em;
+  border-left: 1px solid rgba(255, 255, 255, 0.16); background: none; font-weight: 800; color: #c3d1e2;
 }
 :root[data-hp-look="minimal"] .combatopp-armor { font-size: calc(18 * var(--u)); }
 :root[data-hp-look="minimal"] .statusbar .hero .hpbox .armval { font-size: calc(19 * var(--u)); }
-:root[data-hp-look="minimal"] :is(.combatopp-armor, .statusbar .hero .hpbox .armval) > svg { color: #8fb3dc; }
+:root[data-hp-look="minimal"] .hudpill-arm.hudpill-arm > svg { color: #8fb3dc; }
 :root[data-hp-look="minimal"] .combatopp-tier { color: rgba(236, 232, 248, 0.6); }
 :root[data-hp-look="minimal"] .combatopp-tier-l { font-size: calc(10 * var(--u)); letter-spacing: 0.12em; }
 :root[data-hp-look="minimal"] .combatopp-tier-n { font-size: calc(17 * var(--u)); color: #ffd98a; }

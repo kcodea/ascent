@@ -696,7 +696,7 @@ export function Career() {
                 labelled. The player's name and title moved up into the page header. */}
             <div className="cv2-favlabel">Favorite hero</div>
             <HeroFrame heroId={heroId} skins={accountProgression?.loadout} />
-            <div className="cv2-heroname">{heroName}</div>
+            <div className="cv2-heroname hudpill-name">{heroName}</div>
             {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
                 not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
             {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}

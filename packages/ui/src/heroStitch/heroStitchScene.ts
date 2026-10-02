@@ -67,6 +67,10 @@ const HEART_PTS = 64;
 export const KNOT_LOOPS = 3;
 /** How long the snap (the halves whipping back, the rest fading) takes. */
 export const SNAP_MS = 280;
+/** Tier V: the latch needles (fast, re-stitching onto the flung target before the second yank). */
+export const KO_LATCH_NEEDLES = 3;
+/** Tier V: the latch threads part this fast on the slam. */
+export const LATCH_SNAP_MS = 170;
 /** A needle's length, px at stage scale 1 (x the size dial). */
 const NEEDLE_PX = 104;
 const GLOW_PX = 128;
@@ -199,6 +203,9 @@ function drawStrand(st: Strand, th: Thread, s0: number, s1: number, w: number, g
 
 interface NeedleSprites { body: Sprite; glow: Sprite }
 
+/** Tier V: one latch: a fast needle and its thread, from the striker's rim to the flung target's (`fan` round its face). */
+interface Latch { th: Thread; needle: NeedleSprites; fan: number }
+
 interface Ribbon { trail: RibbonTrail; age: number; life: number; cx: number; cy: number; dx: number; dy: number; reach: number; curl: number; w: number; phase: number; width: number }
 
 /**
@@ -223,9 +230,11 @@ export class HeroStitchScene extends FxPool {
   /** IV: the gold glow pulsing under the knot as it cinches (alpha and scale only: no paint property). */
   private knotGlow: Sprite | null = null;
   /** IV: where the knot burst (the target's offset at the burst): the bursting loops stay there as it is flung home. */
-  private burstAt: Pt | null = null;
+  private burstOff: Pt | null = null;
   private ribbons: Ribbon[] = [];
   private readonly ribbonPool: RibbonTrail[] = [];
+  /** Tier V: the latch needles and their threads (empty on every other tier). */
+  private readonly latch: Latch[] = [];
   private ownOn = true;
   /** The last frame drawn (the impact bursts where things were last drawn). */
   private last: StitchFrame = { heroX: 0, heroY: 0, foeX: 0, foeY: 0 };
@@ -270,10 +279,23 @@ export class HeroStitchScene extends FxPool {
       this.knotGlow.anchor.set(0.5); this.knotGlow.blendMode = 'add'; this.knotGlow.tint = colors.gold; this.knotGlow.visible = false;
       this.threadGlowC.addChildAt(this.knotGlow, 0);
     }
+    if (plan.ko) {
+      for (let i = 0; i < KO_LATCH_NEEDLES; i++) {
+        const th = new Thread(this.threadGlowC, this.threadCoreC, this.needleC, tex.thread, tex.glow, TETHER_PTS + 2);
+        const glow = new Sprite(tex.glow);
+        glow.anchor.set(0.5); glow.blendMode = 'add'; glow.tint = colors.gold; glow.visible = false;
+        const body = new Sprite(tex.needle);
+        body.anchor.set(0.93, 0.5); body.visible = false;
+        this.needleC.addChild(glow, body);
+        this.latch.push({ th, needle: { body, glow }, fan: KO_LATCH_NEEDLES <= 1 ? 0 : -0.55 + (1.1 * i) / (KO_LATCH_NEEDLES - 1) });
+      }
+    }
   }
 
   /** Thread meshes alive (two strands x glow + core per thread, the knot's loops included). Exposed for tests. */
-  get threadMeshes(): number { return (this.threads.length + this.knot.length) * 4; }
+  get threadMeshes(): number { return (this.threads.length + this.knot.length + this.latch.length) * 4; }
+  /** Tier V: the latch threads drawing this frame. */
+  get visibleLatches(): number { let n = 0; for (const l of this.latch) n += l.th.a.core.visible ? 1 : 0; return n; }
   /** Strand meshes drawing this frame (the needles' threads). */
   get visibleStrands(): number { let n = 0; for (const th of this.threads) n += (th.a.core.visible ? 1 : 0) + (th.b.core.visible ? 1 : 0); return n; }
   /** The heart-knot's loops drawing this frame. */
@@ -308,10 +330,10 @@ export class HeroStitchScene extends FxPool {
     this.last = f;
     const p = this.plan, g = this.geo, L = this.look, c = this.colors, S = this.scale;
     const tug = tugAt(p, t);
-    const snapK = t >= p.impactAt ? clamp01((t - p.impactAt) / SNAP_MS) : 0;
+    const snapK = t >= p.burstAt ? clamp01((t - p.burstAt) / SNAP_MS) : 0;
     const fp = tmpFoe;
     // IV: the strike sends beads down every lace (0..1 from the strike to the burst).
-    const strike = p.strikeAt !== null && t >= p.strikeAt && t < p.impactAt ? (t - p.strikeAt) / Math.max(1, p.impactAt - p.strikeAt) : -1;
+    const strike = p.strikeAt !== null && t >= p.strikeAt && t < p.burstAt ? (t - p.strikeAt) / Math.max(1, p.burstAt - p.strikeAt) : -1;
     const hx = f.heroX, hy = f.heroY;
     for (let i = 0; i < p.needles.length; i++) {
       const q = p.needles[i]!, n = g.needles[i]!, th = this.threads[i]!, ns = this.needles[i]!;
@@ -335,7 +357,7 @@ export class HeroStitchScene extends FxPool {
         ns.glow.alpha = L.needleGlow * (t < q.launchAt ? 0.5 + 0.5 * Math.sin(Math.PI * grow) : 0.75 + 0.25 * tug) * ns.body.alpha;
       } else { ns.body.visible = false; ns.glow.visible = false; }
       // ── the thread ──
-      if (t < q.launchAt || t >= p.impactAt + SNAP_MS) { th.hide(); continue; }
+      if (t < q.launchAt || t >= p.burstAt + SNAP_MS) { th.hide(); continue; }
       th.begin();
       const arrived = t >= q.arriveAt;
       const taut = arrived ? clamp01((t - q.arriveAt) / Math.max(1, L.tautMs)) : 0;
@@ -421,6 +443,82 @@ export class HeroStitchScene extends FxPool {
       }
     }
     if (p.kind === 'bound') this.drawKnot(t, f, snapK);
+    if (this.latch.length) this.drawLatch(t, f);
+  }
+
+  /**
+   * TIER V: THE LATCH. As the burst flings the target home, fast gold-cored needles fly off the striker's rim and bite
+   * into the target's face (a fan facing the striker); their threads go taut and a bead of light races down each on the
+   * second yank, the two portraits hauled together; on the slam every thread snaps and whips away. Both ends ride their
+   * portraits every frame (the offsets the runner hands `draw`).
+   */
+  private drawLatch(t: number, f: StitchFrame): void {
+    const p = this.plan, g = this.geo, L = this.look, c = this.colors, S = this.scale;
+    const la = p.koLatchAt, ld = p.koLatchedAt;
+    const hide = (l: Latch): void => { l.th.hide(); l.needle.body.visible = false; l.needle.glow.visible = false; };
+    if (la === null || ld === null || t < la || t >= p.impactAt + LATCH_SNAP_MS) { for (const l of this.latch) hide(l); return; }
+    const u = g.u, nrm = g.nrm;
+    const face = Math.atan2(u.y, u.x), back = face + Math.PI;
+    const fr = this.foe.r;
+    const e = clamp01((t - la) / Math.max(1, ld - la));
+    const fly = 1 - (1 - e) * (1 - e);
+    const yank = t >= ld && t < p.impactAt ? (t - ld) / Math.max(1, p.impactAt - ld) : t >= p.impactAt ? 1 : 0;
+    const snapK = t >= p.impactAt ? clamp01((t - p.impactAt) / LATCH_SNAP_MS) : 0;
+    const k = (NEEDLE_PX * L.needleSize * S * 0.85) / NEEDLE_TEX_W;
+    for (let i = 0; i < this.latch.length; i++) {
+      const l = this.latch[i]!;
+      const spot = g.needles[Math.min(g.needles.length - 1, Math.round((i / Math.max(1, this.latch.length - 1)) * (g.needles.length - 1)))]?.spot;
+      if (!spot) { hide(l); continue; }
+      // The striker's end rides the striker; the target's end is a point on its rim facing the striker, riding it.
+      const ax = spot.x + f.heroX, ay = spot.y + f.heroY;
+      const bx = this.foe.x + Math.cos(back + l.fan) * fr * 0.9 + f.foeX, by = this.foe.y + Math.sin(back + l.fan) * fr * 0.9 + f.foeY;
+      const len = Math.hypot(bx - ax, by - ay) || 1;
+      // In flight: the needle runs a shallow arc to the bite; the thread trails it, slack, then snaps taut.
+      const bow = len * 0.12 * (i - (this.latch.length - 1) / 2) * Math.sin(Math.PI * fly);
+      const tipX = ax + (bx - ax) * fly + nrm.x * bow, tipY = ay + (by - ay) * fly + nrm.y * bow;
+      const rot = Math.atan2(by - ay, bx - ax);
+      const nb = l.needle;
+      const on = snapK <= 0;
+      nb.body.visible = on; nb.glow.visible = on;
+      if (on) {
+        nb.body.position.set(tipX, tipY); nb.body.rotation = rot;
+        nb.body.scale.set(k * (e < 1 ? 1.15 : 1), k * (e < 1 ? 0.82 : 1)); nb.body.alpha = 1;
+        nb.glow.position.set(tipX - Math.cos(rot) * k * NEEDLE_TEX_W * 0.4, tipY - Math.sin(rot) * k * NEEDLE_TEX_W * 0.4);
+        nb.glow.scale.set((NEEDLE_PX * 1.3 * L.needleSize * S) / GLOW_PX, (NEEDLE_PX * 0.55 * L.needleSize * S) / GLOW_PX);
+        nb.glow.rotation = rot; nb.glow.alpha = L.needleGlow * (0.8 + 0.2 * yank);
+      }
+      // The thread: from the striker's rim to the needle (taut and humming on the yank).
+      const th = l.th;
+      th.begin();
+      const ex = on ? tipX : bx, ey = on ? tipY : by;
+      const tl = Math.hypot(ex - ax, ey - ay) || 1;
+      const nx = -(ey - ay) / tl, ny = (ex - ax) / tl;
+      const slack = e < 1 ? 0.1 * tl * (1 - e) : 0;
+      const hum = yank > 0 && yank < 1 ? 3 * S * Math.sin(t * 0.09 + i) : 0;
+      for (let j = 0; j < TETHER_PTS; j++) {
+        const fj = j / (TETHER_PTS - 1), hang = 4 * fj * (1 - fj);
+        th.add(ax + (ex - ax) * fj + nx * (slack + hum) * hang, ay + (ey - ay) * fj + ny * (slack + hum) * hang + slack * hang * 0.5);
+      }
+      th.tetherN = th.n;
+      const w = L.threadWidth * S * (1.2 + 0.6 * yank);
+      const total = th.length;
+      if (snapK <= 0) {
+        drawStrand(th.a, th, 0, total, w, w * 3.4, 1, L.threadGlow * (0.6 + 0.4 * yank), whiten(c.gold, 0.4 + 0.4 * yank), mixColor(c.thread, c.gold, 0.45));
+        th.b.hide();
+        if (yank > 0 && yank < 1 && total > 1) {
+          th.at(total * yank, tmp);
+          th.bead.visible = true; th.bead.position.set(tmp.x, tmp.y);
+          th.bead.scale.set(((26 + 20 * yank) * S) / GLOW_PX);
+          th.bead.tint = mixColor(c.lilac, c.gold, 0.6); th.bead.alpha = 0.95;
+        } else th.bead.visible = false;
+      } else {
+        // THE SNAP: parted at the middle, both halves whip back to their ends and fade.
+        const ease = 1 - (1 - snapK) * (1 - snapK), fade = 1 - snapK, mid = total * 0.5;
+        drawStrand(th.a, th, 0, Math.max(0, mid * (1 - ease)), w, w * 3.4, fade, L.threadGlow * fade, c.gold, c.thread, 24 * S * snapK, t * 0.05);
+        drawStrand(th.b, th, mid + (total - mid) * ease, total, w, w * 3.4, fade, L.threadGlow * fade, c.gold, c.thread);
+        th.bead.visible = false;
+      }
+    }
   }
 
   /**
@@ -430,7 +528,7 @@ export class HeroStitchScene extends FxPool {
    */
   private drawKnot(t: number, f: StitchFrame, snapK: number): void {
     const p = this.plan, c = this.colors, L = this.look, S = this.scale;
-    if (p.knotAt === null || t < p.knotAt || t >= p.impactAt + SNAP_MS) {
+    if (p.knotAt === null || t < p.knotAt || t >= p.burstAt + SNAP_MS) {
       for (const k of this.knot) k.hide();
       if (this.gem) this.gem.visible = false;
       if (this.gemGlow) this.gemGlow.visible = false;
@@ -438,13 +536,13 @@ export class HeroStitchScene extends FxPool {
       return;
     }
     const tie = knotAt(p, t);
-    const ox = snapK > 0 && this.burstAt ? this.burstAt.x : f.foeX, oy = snapK > 0 && this.burstAt ? this.burstAt.y : f.foeY;
+    const ox = snapK > 0 && this.burstOff ? this.burstOff.x : f.foeX, oy = snapK > 0 && this.burstOff ? this.burstOff.y : f.foeY;
     const cx = this.foe.x + ox, cy = this.foe.y + oy;
     const base = this.foe.r * L.knotSize;
     const draw = p.strikeAt !== null ? clamp01((t - p.knotAt) / Math.max(1, (p.strikeAt - p.knotAt) * 0.75)) : 1;
     const burst = snapK > 0 ? 1 + 0.9 * (1 - (1 - snapK) * (1 - snapK)) : 1;
     const fade = 1 - snapK;
-    const strain = p.strikeAt !== null && t >= p.strikeAt && t < p.impactAt ? (t - p.strikeAt) / Math.max(1, p.impactAt - p.strikeAt) : 0;
+    const strain = p.strikeAt !== null && t >= p.strikeAt && t < p.burstAt ? (t - p.strikeAt) / Math.max(1, p.burstAt - p.strikeAt) : 0;
     for (let k = 0; k < this.knot.length; k++) {
       const th = this.knot[k]!;
       // Each loop is drawn on after the one before, wide, then cinches snug as the knot ties.
@@ -467,7 +565,7 @@ export class HeroStitchScene extends FxPool {
     }
     // A gold glow pulses under the knot as it cinches, quickening and swelling into the strike.
     if (this.knotGlow) {
-      const on = snapK <= 0 && t < p.impactAt;
+      const on = snapK <= 0 && t < p.burstAt;
       this.knotGlow.visible = on;
       if (on) {
         const since = t - p.knotAt;
@@ -578,6 +676,46 @@ export class HeroStitchScene extends FxPool {
     this.rip(d, dR, KO_PRISM, 8);
   }
 
+  /** TIER V: a latch needle bites into the flung target (a tick): a gold-white flash and a few chips, riding it. */
+  koLatched(): void {
+    const c = this.colors, S = this.scale, g = this.geo;
+    const back = Math.atan2(-g.u.y, -g.u.x);
+    for (const l of this.latch) {
+      const x = this.foe.x + Math.cos(back + l.fan) * this.foe.r * 0.9, y = this.foe.y + Math.sin(back + l.fan) * this.foe.r * 0.9;
+      this.spawn('core', this.tex.star, c.bone, x, y, { dur: 220, from: (16 * S) / STAR_PX, to: (64 * S) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.12, rot: back, follow: true });
+      this.spawn('glow', this.tex.ring, c.gold, x, y, { dur: 260, from: (14 * S) / RING_PX, to: (90 * S) / RING_PX, a0: 0.85, ease: 'cubic', follow: true });
+      this.burst('body', this.tex.shard, [c.thread, c.gold], x, y, 3, { speed: 280, dir: back, spread: 1.8, life: 340, size: (11 * S) / SHARD_TEX, grav: 700, spin: 0.03 });
+    }
+  }
+
+  /**
+   * TIER V: THE SLAM, where the consequence lands: the striker crashes into the target in the middle of the board. A
+   * white-gold flash, a nova, a gold shockwave and a violet one behind it, crystal shards and light streaks sprayed out
+   * SIDEWAYS (the two hit along the line between them), the latch needles shattering, soul ribbons bursting out. `at`
+   * is the contact point (screen px), `dR` the target's radius, `B` the tier's burst.
+   */
+  koSlam(at: Pt, dR: number, B: number): void {
+    const c = this.colors, S = this.scale, g = this.geo;
+    for (const l of this.latch) {
+      const nb = l.needle.body;
+      if (!nb.visible) continue;
+      this.burst('body', this.tex.shard, [c.thread, c.lilac, c.gold], nb.position.x, nb.position.y, 3, { speed: 360 * B, life: 460, size: (13 * S) / SHARD_TEX, grav: 900, spin: 0.04 });
+    }
+    this.spawn('core', this.tex.glow, c.bone, at.x, at.y, { dur: 200, from: (dR * 1.2) / GLOW_PX, to: (dR * 4.6) / GLOW_PX, a0: 1, mode: 'punch', peakAt: 0.06 });
+    this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 460, from: (dR * 1.4) / GLOW_PX, to: (dR * 5.6) / GLOW_PX, a0: 0.65, mode: 'punch', peakAt: 0.1 });
+    this.spawn('core', this.tex.star, c.bone, at.x, at.y, { dur: 300, from: (dR * 1.6) / STAR_PX, to: (dR * 5.4) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.1, rot: Math.atan2(g.u.y, g.u.x) });
+    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 560, from: (dR * 0.6) / RING_PX, to: (dR * 7 * Math.max(1, B / 2)) / RING_PX, a0: 0.95, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.thread, at.x, at.y, { dur: 720, from: (dR * 0.6) / RING_PX, to: (dR * 9 * Math.max(1, B / 2)) / RING_PX, a0: 0.8, ease: 'cubic', delay: 60 });
+    // The two hit along the line between them: the debris sprays out to either side of it.
+    const side = Math.atan2(g.nrm.y, g.nrm.x);
+    for (const dir of [side, side + Math.PI]) {
+      this.burst('core', this.tex.streak, [c.gold, c.lilac, c.bone], at.x, at.y, 8, { speed: 1500 * B / 2, dir, spread: 1.5, life: 340, size: 0.6, align: true, drag: 0.12 });
+      this.burst('body', this.tex.shard, [c.thread, c.lilac, c.gold, c.bone], at.x, at.y, 10, { speed: 760 * B, dir, spread: 2, life: 700, size: (17 * S) / SHARD_TEX, grav: 900, drag: 0.4, spin: 0.06 });
+    }
+    this.burst('core', this.tex.spark, [c.gold, c.bone, c.lilac], at.x, at.y, 14, { speed: 900 * B / 2, life: 500, size: 0.4, drag: 0.25, grav: 400 });
+    this.rip(at, dR, [c.gold, c.thread, c.lilac], 10);
+  }
+
   /** IV: the knot is tied: the clasp flashes. */
   tied(at: Pt): void {
     const c = this.colors, r = this.foe.r, S = this.scale;
@@ -598,7 +736,7 @@ export class HeroStitchScene extends FxPool {
     const p = this.plan, g = this.geo, c = this.colors, S = this.scale, B = o.burst;
     // The needles shatter where they stand (the frame's own positions, so they burst exactly where they were drawn).
     for (let i = 0; i < this.needles.length; i++) {
-      const at = needleAt(p, g, i, p.impactAt - 1);
+      const at = needleAt(p, g, i, p.burstAt - 1);
       if (!at.visible) continue;
       let x = at.x + o.hero.x + (o.foe.x - o.hero.x) * at.on, y = at.y + o.hero.y + (o.foe.y - o.hero.y) * at.on;
       if (at.on >= 1 && this.last.foeM) { this.foePoint(at.x, at.y, this.last, tmp); x = tmp.x; y = tmp.y; }
@@ -664,7 +802,7 @@ export class HeroStitchScene extends FxPool {
       this.burst('body', this.tex.shard, [c.thread, c.lilac, c.bone, c.deep], d.x, d.y, n, { speed: 640 * B, life: 680, size: (16 * S) / SHARD_TEX, grav: 900, drag: 0.4, spin: 0.06 });
       this.burst('core', this.tex.streak, [c.lilac, c.bone], d.x, d.y, 10, { speed: 900 * B, life: 260, size: 0.45, align: true, drag: 0.15 });
     } else {
-      this.burstAt = { x: o.foe.x, y: o.foe.y };
+      this.burstOff = { x: o.foe.x, y: o.foe.y };
       // THE HEART-KNOT BURSTS: a nova, gold and violet shockwaves, soul ribbons, crystal shards.
       this.spawn('core', this.tex.glow, c.bone, d.x, d.y, { dur: 260, from: (dR * 0.6) / GLOW_PX, to: (dR * 3.2) / GLOW_PX, a0: 0.9, mode: 'punch', peakAt: 0.08 });
       this.spawn('glow', this.tex.glow, c.gold, d.x, d.y, { dur: 420, from: (dR * 1) / GLOW_PX, to: (dR * 4.2) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.12 });
@@ -745,6 +883,7 @@ export class HeroStitchScene extends FxPool {
     for (const th of this.threads) th.hide();
     for (const k of this.knot) k.hide();
     for (const n of this.needles) { n.body.visible = false; n.glow.visible = false; }
+    for (const l of this.latch) { l.th.hide(); l.needle.body.visible = false; l.needle.glow.visible = false; }
     if (this.gem) this.gem.visible = false;
     if (this.gemGlow) this.gemGlow.visible = false;
     if (this.knotGlow) this.knotGlow.visible = false;

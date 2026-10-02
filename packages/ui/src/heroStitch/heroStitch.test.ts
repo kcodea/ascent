@@ -16,9 +16,9 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
   HERO_STITCH_DEFAULTS, HERO_STITCH_RANGES, clampHeroStitchValue, flightPoint, heroStitchConfigJson, needleAt, sanitizeHeroStitchConfig,
-  KNOT_PULSES, dragAt, knotAt, slowMoExtraMs, stitchCameraAt, stitchTimeScale, stretchAt, stitchCues, stitchGeo, stitchKind, stitchPlan, tugAt, type HeroStitchConfig, type HeroStitchNumKey,
+  KNOT_PULSES, STITCH_KO, dragAt, knotAt, koSlamAt, slowMoExtraMs, stitchCameraAt, stitchTimeScale, stretchAt, stitchCues, stitchGeo, stitchKind, stitchPlan, tugAt, type HeroStitchConfig, type HeroStitchNumKey,
 } from './heroStitchConfig';
-import { HeroStitchScene, KNOT_LOOPS, MAX_STITCH_SPRITES, SNAP_MS, THREAD_PTS, type HeroStitchTextures } from './heroStitchScene';
+import { HeroStitchScene, KNOT_LOOPS, LATCH_SNAP_MS, MAX_STITCH_SPRITES, SNAP_MS, THREAD_PTS, type HeroStitchTextures } from './heroStitchScene';
 import { foePull, playHeroStitch, type HeroStitchOptions } from './heroStitch';
 import { SPEC } from '../HeroStitchTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
@@ -557,6 +557,131 @@ describe('the runner (the shared clock)', () => {
     f.tick(h.plan.endAt + 100, 16);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(camera.style.transform).toBe('');
+  });
+});
+
+describe('Tier V (the Knockout variant): the latch, the second yank and the slam', () => {
+  afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
+  const KO = { total: 40, knockout: true, knockoutVariant: true, formation: formationOf([40], 40) };
+  const koPlan = () => stitchPlan({ total: 40, knockout: true, knockoutVariant: true, distance: 1600, leadIn: leadInOf([40]) }, C);
+
+  it('the plan: the burst (a tick), the latch, the second FASTER yank, THE slam (the impact), both home; Huge is untouched', () => {
+    const p = koPlan(), huge = plan(40, { knockout: true });
+    expect(huge.burstAt).toBe(huge.impactAt);
+    expect(huge.koLatchAt).toBeNull();
+    expect(p.koLatchAt! - p.burstAt).toBe(STITCH_KO.latchDelayMs);
+    expect(p.koLatchedAt! - p.koLatchAt!).toBe(STITCH_KO.latchFlightMs);
+    expect(p.impactAt - p.koLatchedAt!).toBe(STITCH_KO.yankMs);
+    expect(p.koHomeAt! - p.impactAt).toBe(STITCH_KO.returnMs);
+    // The second yank is faster than the first (the drag into the knot).
+    expect(p.impactAt - p.koLatchedAt!).toBeLessThan(p.knotAt! - p.tugAt);
+    const kinds = stitchCues(p).map((q) => q.kind);
+    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
+    expect(kinds.indexOf('burst')).toBeLessThan(kinds.indexOf('latch'));
+    expect(kinds.indexOf('latch')).toBeLessThan(kinds.indexOf('yank'));
+    expect(kinds.indexOf('yank')).toBeLessThan(kinds.indexOf('impact'));
+    expect(stitchCues(huge).some((q) => q.kind === 'burst' || q.kind === 'latch' || q.kind === 'yank')).toBe(false);
+    // The slow-mo dip moved onto the slam (never 0).
+    expect(stitchTimeScale(p, C, p.impactAt)).toBeLessThan(1);
+    expect(stitchTimeScale(p, C, p.impactAt)).toBeGreaterThan(0);
+    expect(stitchTimeScale(p, C, p.burstAt)).toBe(1);
+  });
+
+  it('the pose: the striker winds up, both are hauled in (accelerating), meet in the middle, and are EXACTLY home from koHomeAt', () => {
+    const p = koPlan();
+    expect(koSlamAt(p, p.koLatchAt! - 1)).toEqual({ foe: 0, hero: 0, squash: 0 });
+    expect(koSlamAt(p, p.koLatchedAt! - 1).hero).toBeLessThan(0); // the striker winds back
+    const early = koSlamAt(p, p.koLatchedAt! + (p.impactAt - p.koLatchedAt!) * 0.25).foe;
+    const late = koSlamAt(p, p.koLatchedAt! + (p.impactAt - p.koLatchedAt!) * 0.75).foe;
+    expect(late - early).toBeGreaterThan(early); // accelerating: a yank, not a slide
+    expect(koSlamAt(p, p.impactAt)).toMatchObject({ foe: 1, hero: 1 });
+    expect(koSlamAt(p, p.impactAt).squash).toBeGreaterThan(0);
+    expect(koSlamAt(p, p.koHomeAt!)).toEqual({ foe: 0, hero: 0, squash: 0 });
+    expect(koSlamAt(plan(40, { knockout: true }), 99999)).toEqual({ foe: 0, hero: 0, squash: 0 });
+    // The meeting point is the middle of the gap between the two rims; each portrait stops a little short of it.
+    const g = stitchGeo(p, A, D, R, R, C);
+    const L = Math.hypot(D.x - A.x, D.y - A.y);
+    const along = (q: { x: number; y: number }): number => (q.x - A.x) * g.u.x + (q.y - A.y) * g.u.y;
+    expect(along(g.slam!.meet)).toBeCloseTo(R + (L - 2 * R) / 2, 3);
+    expect(along({ x: D.x + g.slam!.foe.x, y: D.y + g.slam!.foe.y }) - along(g.slam!.meet)).toBeCloseTo(R * STITCH_KO.slamOverlap, 3);
+    expect(along(g.slam!.meet) - along({ x: A.x + g.slam!.hero.x, y: A.y + g.slam!.hero.y })).toBeCloseTo(R * STITCH_KO.slamOverlap, 3);
+    expect(stitchGeo(plan(40, { knockout: true }), A, D, R, R, C).slam).toBeNull();
+  });
+
+  it('the runner: the burst does NOT land the blow; the latch threads bite, the two are hauled together, it lands ONCE on the slam', () => {
+    const a = { x: 100, y: 800 }, d = { x: 1400, y: 150 };
+    const { h, f, onImpact, attackerEl, defenderEl, host } = run({ ...KO, attacker: a, defender: d, camera: null });
+    const u = h.geo.u;
+    f.tick(h.plan.burstAt + 20, 4);
+    expect(onImpact).not.toHaveBeenCalled(); // the heart-knot burst is a tick now
+    f.tick(h.plan.koLatchedAt! + (h.plan.impactAt - h.plan.koLatchedAt!) / 2 - h.elapsed(), 4);
+    expect(onImpact).not.toHaveBeenCalled();
+    expect(h.scene!.visibleLatches).toBe(3);
+    f.tick(h.plan.impactAt - h.elapsed() - 2, 2);
+    expect(onImpact).not.toHaveBeenCalled();
+    // At contact: the striker has flown toward the target and the target toward the striker, to the middle.
+    const ht = translateOf(attackerEl), ft = translateOf(defenderEl);
+    const sl = h.slamOffsets(h.elapsed());
+    expect(ht.x * u.x + ht.y * u.y).toBeGreaterThan(200);
+    expect(ft.x * u.x + ft.y * u.y).toBeLessThan(-200);
+    expect(Math.hypot(ht.x - sl.hero.x, ht.y - sl.hero.y)).toBeLessThan(40); // plus what is left of the burst's lunge spring
+    f.tick(8, 2);
+    expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('.hblast-hit')!.textContent).toBe('-40');
+    f.tick(LATCH_SNAP_MS + 40 + slowMoExtraMs(h.plan, C), 4);
+    expect(h.scene!.visibleLatches).toBe(0);
+    f.tick(h.plan.endAt - h.elapsed() + 32 + slowMoExtraMs(h.plan, C), 8);
+    expect(h.done).toBe(true);
+    expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(attackerEl.style.transform).toBe('');
+    expect(defenderEl.style.transform).toBe('');
+  });
+
+  it('the striker is raised over the target for the slam; EVERY exit puts BOTH portraits and BOTH z-orders back', () => {
+    for (const exit of ['cancel', 'finish', 'end'] as const) {
+      for (const side of ['player', 'opp'] as const) {
+        const heroCls = side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player';
+        const foeCls = side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
+        const { h, f, attackerEl, defenderEl } = run({ ...KO, side, camera: null });
+        attackerEl.style.transform = 'translate(5px, 6px)';
+        defenderEl.style.transform = 'translate(3px, 4px)'; // resting transforms of their own
+        f.tick((h.plan.koLatchedAt! + h.plan.impactAt) / 2, 4);
+        const tag = exit + ' ' + side;
+        expect(document.body.classList.contains(heroCls), tag).toBe(true);
+        expect(document.body.classList.contains(foeCls), tag).toBe(false);
+        expect(attackerEl.style.transform).not.toBe('translate(5px, 6px)');
+        expect(defenderEl.style.transform).not.toBe('translate(3px, 4px)');
+        if (exit === 'cancel') h.cancel();
+        else if (exit === 'finish') h.finish();
+        else f.tick(h.plan.endAt + 200 + slowMoExtraMs(h.plan, C), 8);
+        expect(document.body.classList.contains(heroCls), tag).toBe(false);
+        expect(document.body.classList.contains(foeCls), tag).toBe(false);
+        expect(attackerEl.style.transform, tag).toBe('');
+        expect(defenderEl.style.transform, tag).toBe('');
+      }
+    }
+  });
+
+  it('interrupted mid-slam (finish, cancel): the blow lands at most once and both portraits are home', () => {
+    for (const exit of ['cancel', 'finish'] as const) {
+      const { h, f, onImpact, attackerEl, defenderEl } = run({ ...KO, camera: null });
+      f.tick(h.plan.impactAt + 30, 4);
+      expect(onImpact).toHaveBeenCalledTimes(1);
+      if (exit === 'cancel') h.cancel(); else h.finish();
+      expect(onImpact).toHaveBeenCalledTimes(1);
+      expect(attackerEl.style.transform, exit).toBe('');
+      expect(defenderEl.style.transform, exit).toBe('');
+      expect(document.body.className).toBe('');
+    }
+  });
+
+  it('a striker z-order class that was already on is left alone', () => {
+    document.body.classList.add('duel-attacker-player');
+    const { h, f } = run({ ...KO, side: 'player', camera: null });
+    f.tick(h.plan.impactAt - 10, 8);
+    h.cancel();
+    expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
+    document.body.classList.remove('duel-attacker-player');
   });
 });
 

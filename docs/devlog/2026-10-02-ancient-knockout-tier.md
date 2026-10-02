@@ -102,6 +102,80 @@ variant it plays Huge on a knockout (the fallback). To give it one:
 
 Keep it a remix: one extra beat, the prism, the shake, the dip, the sting, at most about 500 ms over its Huge.
 
+## 2026-10-02 owner tuning
+
+Owner feedback (on Consecration's Knockout screenshot): "for consecration -> make the wave that comes out pink + gold
+instead of just gold. for arcana -> make the swirling turn reddish pink and blue and explode outwards more to be a bit
+more different. for soul stiatch -> do a second, faster pull. after the heart knocks them back, latch on and then yank
+and have the attacking hero slam into them in the middle of the board."
+
+Scope, owner-confirmed ("those are for the knockout versions"): only the three KNOCKOUT variants change. Every Huge tier
+is untouched (each new path is gated on `plan.ko`; the tests check Huge keeps its own colours, cues and timings).
+
+- **Consecration KO**: the wave that comes out is pink + gold. `HeroHolyScene.setKoWave` (set from `plan.ko`) makes the
+  release, the flat blast (its layers alternate hot pink `HOLY_KO_PINK` #ff4fa3 and gold `HOLY_KO_GOLD` #ffd36b, with a
+  rose #ff8fc7 edge), the surge (band, head, cracks, forks, motes) and the eruption (ring, glow, flame tongues) interleave
+  pink with gold. The extra rose ring on the release is one sprite. Everything else (the seventh sword, the prism ring,
+  the sting, the dip) is unchanged.
+- **Arcana KO**: the swirl turns crimson-pink and electric blue. `HeroArcanaScene.setKoSwirl`: every ribbon that joins the
+  vortex blends (a tint lerp over `ARCANA_KO_TURN_MS` = 260 ms, no paint property) to crimson-pink #ff3d7f or electric
+  blue #3d8bff, alternating round the ring, its strand the other colour. The vortex sigil goes pink, the inner one sky
+  blue, plus a wider blue sigil counter-swirling against the pink. The extra pulse and the aftershocks went pink and blue.
+  The explosion bursts OUTWARD much harder (`explode({ ko })`): 4 more flung ribbons, 1.7x as far, 22% faster, curling a
+  third as much (they read as thrown out, not spun), rings 1.35x wider and faster, 14 longer spikes, faster glitter. Over
+  it `koFlourish` (now pink/blue, not the cyan/magenta prism) adds a big expanding blue ring (14x, 560 ms), a pink one and
+  a wide flat sky-blue one (17x), 10 ribbons flung almost straight out, and a far ring of 12 outward streaks.
+- **Soul Stitch KO**: a new final beat. After the heart-knot bursts (now a tick: FX only, `burstAt`) and flings the
+  target home, three fast gold-cored needles LATCH on (`koLatchAt` = burst + 170 ms, they bite at `koLatchedAt` 150 ms
+  later), the SECOND, FASTER YANK (190 ms against the first yank's tier TugMs) hauls the target toward the middle while the
+  striker's portrait winds back and LAUNCHES at it, and they SLAM together in the middle of the board (`impactAt`: the
+  damage lands here, once). The slam: a white-gold flash, a nova, a gold and a violet shockwave, crystal shards and light
+  streaks sprayed out sideways, the latch needles shattering, soul ribbons, the prism flourish, the KO sting, the KO shake
+  and the slow-mo dip (moved from the burst to the slam). Both portraits hold contact 50 ms, then spring back to their
+  spots by `koHomeAt` (slam + 300 ms), EXACTLY home (`koSlamAt` is 0 from there).
+  - The pose is pure (`koSlamAt`) and the meeting point is in the geometry (`geo.slam`: the middle of the gap between the
+    rims, each portrait 0.82 of its radius short of it). Positions come from the at-rest measure (`restingRect`, the heart
+    fix), transforms only. The striker is raised over the target from the latch (its own side's `.duel-attacker-*`; the
+    target's raise is dropped). Every exit (end, finish, cancel) restores both transforms and both classes, and a class
+    that was already on is left alone.
+  - `StitchPlan.burstAt` is new (on every other tier and on Huge it equals `impactAt`), and every burst-keyed function
+    (needles, tug, drag, knot, camera, the scene's snap and knot) reads it, so Huge did not move.
+  - No rune or turn explosion sounds: the slam uses the style's own strike, impact, thump, snap, shatter and boom clips.
+
+### Timings (a 40 knockout, real time at 1x, from the frame count)
+
+| attack | Huge | KO before | KO now | KO now minus Huge |
+|---|---|---|---|---|
+| Arcana | 5233 ms | 5733 ms | 5733 ms | +500 ms |
+| Consecration | 6483 ms | 6967 ms | 6967 ms | +483 ms |
+| Soul Stitch | 6467 ms | 6883 ms | 7350 ms | +883 ms (+467 ms over the previous KO) |
+
+### Perf (each KO against its previous version)
+
+Same method as above (dev build in Chrome, manual 60 fps frame stepping through the real runner, real textures, the
+real Pixi `above` renderer drawing every frame, `gl.finish()` included; 1 warm-up then 5 runs, median shown):
+
+| attack | peak sprites | peak meshes | mean frame (update + render) | p95 | max (median run) |
+|---|---|---|---|---|---|
+| Arcana KO | 215 -> 233 | 60 -> 78 | 0.176 -> 0.185 ms | 0.5 -> 0.5 ms | 1.2 -> 1.9 ms |
+| Consecration KO | 497 -> 502 | - | 0.123 -> 0.127 ms | 0.4 -> 0.4 ms | 1.7 -> 1.6 ms |
+| Soul Stitch KO | 219 -> 215 | - | 0.154 -> 0.153 ms | 0.4 -> 0.4 ms | 1.4 -> 1.2 ms |
+
+All inside the caps (Arcana 900 sprites / 140 meshes, Holy 900, Stitch 520) and far inside the 16.7 ms budget. No
+looping paint properties (all Pixi; the DOM moves are `transform` only). Same caveat as before: the Browser pane was
+hidden, so the compositor never presented a frame.
+
+### Tests
+
+`knockoutVariant.test.ts`: the length bound is per style now (Soul Stitch's KO may add up to ~1 s over Huge, the others
+520 ms); Arcana's swirl paints pink and blue (Huge never does) and its KO explosion has more ribbons and a ring well over
+1.3x as wide; Consecration's wave paints pink AND gold (Huge never pink); Soul Stitch's cue chain (burst, latch, yank,
+slam). `heroStitch.test.ts`: the plan (the burst a tick, the second yank faster, the slam the one impact, the dip on the
+slam), the pure pose (wind-up, accelerating haul, contact, exactly home, the meeting point), the runner (the burst does
+not land, the latch threads bite, the blow lands once on the slam with both portraits in the middle), and the guards
+extended to the striker's portrait: both transforms and both z-order classes restored on every exit, both sides, plus
+mid-slam finish / cancel and a pre-existing striker class left alone.
+
 ## Follow-ups
 
 - The variants' own numbers are fixed constants (`ARCANA_KO`, `HOLY_KO`, `STITCH_KO`, `KO_DIP`, `KO_SHAKE`), not tuner

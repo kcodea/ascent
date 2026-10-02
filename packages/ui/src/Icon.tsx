@@ -127,6 +127,37 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   heart: <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />,
+  // The HEALTH PILL heart (health pill redesign 2026-10-02): the same silhouette as `heart`, plus a darker right
+  // facet and a glossy highlight. The two extra layers carry classes so each pill look can show or hide them
+  // (healthPills.css): the gem look wants both, the flatter looks drop one or both.
+  heartPill: (
+    <>
+      <path fill="currentColor" d="M12 21C5 16 3 11 3 8a4.5 4.5 0 019-1 4.5 4.5 0 019 1c0 3-2 8-9 13z" />
+      <path className="hpi-facet" fill="#000" opacity="0.22" d="M12 10.6L21 8c0 3-2 8-9 13z" />
+      <ellipse className="hpi-gloss" fill="#fff" opacity="0.6" cx="7.3" cy="7.1" rx="2.3" ry="1.25" transform="rotate(-38 7.3 7.1)" />
+    </>
+  ),
+  // TURN TIMER clock for the Gem plate HUD look: a gold rim with a top-left highlight, a dark face, four cream
+  // ticks and cream hands at ten past ten. Each layer carries a class so healthPills.css can recolour it (the
+  // low-time tint); the fills here are only the defaults.
+  timerClock: (
+    <>
+      <circle className="tck-rim" cx="12" cy="12" r="11" fill="#e3b04f" />
+      <circle className="tck-edge" cx="12" cy="12" r="10.6" fill="none" stroke="#6e4f1c" strokeWidth="0.8" />
+      <path className="tck-hi" d="M3.3 9A9.8 9.8 0 0 1 9 2.7" fill="none" stroke="#fff1c4" strokeWidth="1.1" strokeLinecap="round" opacity="0.8" />
+      <circle className="tck-face" cx="12" cy="12" r="8.4" fill="#1d1430" />
+      <path className="tck-tick" d="M12 4.6v1.5M19.4 12h-1.5M12 19.4v-1.5M4.6 12h1.5" stroke="#f3e6c8" strokeWidth="1.3" strokeLinecap="round" />
+      <path className="tck-hand" d="M12 12V7.3M12 12l3.6 2.3" fill="none" stroke="#fff1d6" strokeWidth="1.7" strokeLinecap="round" />
+      <circle className="tck-pin" cx="12" cy="12" r="1.15" fill="#e3b04f" />
+    </>
+  ),
+  // ARMOR on the health pills: a solid shield with a shaded right half, so it reads as a plate at small sizes.
+  armor: (
+    <>
+      <path fill="currentColor" d="M12 2.5l8 3v5.8c0 5-3.4 8.6-8 10.9-4.6-2.3-8-5.9-8-10.9V5.5l8-3z" />
+      <path fill="#000" opacity="0.2" d="M12 2.5l8 3v5.8c0 5-3.4 8.6-8 10.9z" />
+    </>
+  ),
   anvil: <path fill="currentColor" d="M5 7h9c0 2 1 3 3 3v3l3 1-1 3H7l-1-3 2-1V9H5V7zm1 11h10v2H6v-2z" />,
   // Engraved — a rune mark (angular strokes), replacing the anvil for the Engraved keyword.
   engrave: (

@@ -810,16 +810,16 @@ export function StatusBar() {
             </div>
             {/* The player NAME sits OUTSIDE `.herolunge`, so it stays put while the portrait lunges — matching
                 the anchored health and the foe's anchored name (owner ask 2026-08-25). */}
-            {playerName && <div className="heroname" ref={playerNameRef}>{playerName}</div>}
+            {playerName && <div className="heroname hudpill-name" ref={playerNameRef}>{playerName}</div>}
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}
           <div
-            className={`hpbox${hit ? ' hit' : ''}`}
+            className={`hpbox hudpill-hp${hit ? ' hit' : ''}`}
             aria-label={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
           >
-            <Icon name="heart" />
-            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" aria-description="Armor. Absorbs damage before your Health.">+{run.armor}</b>}</span>
+            <Icon name="heartPill" />
+            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval hudpill-arm" aria-description="Armor. Absorbs damage before your Health."><Icon name="armor" /><span className="hp-armplus">+</span>{run.armor}</b>}</span>
             {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
           </div>
         </div>

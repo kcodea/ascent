@@ -185,7 +185,7 @@ export function HeroSelect() {
                   onClick={onPick(id, i)}
                 >
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
-                    <div className="hcname">{hero.name}</div>
+                    <div className="hcname hudpill-name">{hero.name}</div>
                     {art ? <FadeImg className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                     {powArt && <FadeImg className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
                     {/* PRACTICE-ONLY heroes (owner ask 2026-08-23): withheld from Play while they are reworked.
@@ -194,10 +194,10 @@ export function HeroSelect() {
                         height, so an extra line there spills over the card in the next row (measured). */}
                     {hero.practiceOnly && <span className="hcpractice">Not currently enabled in Play</span>}
                     <PortraitFrame frame={frame} />
-                    <div className="hchp">
-                      <Icon name="heart" />
+                    <div className="hchp hudpill-hp">
+                      <Icon name="heartPill" />
                       {hero.resolve}
-                      {hero.armor > 0 && <span className="hcarmor">+{hero.armor}</span>}
+                      {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
                     </div>
                   </div>
                   {/* One box, two crossfading faces (owner ask 2026-08-20): at rest the card answers "how hard

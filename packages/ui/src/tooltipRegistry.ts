@@ -48,6 +48,8 @@ export const NOT_TIP_CLASSES = ['gtip', 'gtip-down', 'gtip-end', 'rankbar-tip', 
  */
 export const PAINT_EXCEPTIONS = [
   '.etbwrap.ready .etb-tip',
+  // ...and the same End Combat label in the Gem plate HUD look (healthPills.css), matching the Skip / Summary buttons.
+  ':root[data-hp-look="gem"] .etbwrap.ready .etb-tip',
   '.kwbox[data-kw="rebirth"]',
 ] as const;
 

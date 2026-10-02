@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Systems',
+        text: 'Refreshed the health, name and Shop Tier pills, the turn timer, and the Skip and Summary buttons.',
+        details: [
+          'Health pills, hero name pills, the Tier and Freeze labels and the turn timer share one new dark and gold look.',
+          'The hero select screen uses the same name and health pills.',
+          'Armor now shows as its own small shield next to your health.',
+          'The Skip, Summary and End Combat buttons match the new look.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Round 15 and later are now uncapped. Max damage per loss was 20 there before.',
         details: [

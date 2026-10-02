@@ -46,15 +46,15 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
   return (
     <div className="gauntletfoe" aria-label={`Your opponent: ${name}`}>
       <div className="gauntletfoe-group">
-        <div className="combatopp-name">{name}</div>
+        <div className="combatopp-name hudpill-name">{name}</div>
         <div className="gauntletfoe-face" aria-hidden="true">
           <FoePortraitDisc art={art} gauntlet tribe={tribe} frame={frame} />
         </div>
-        <div className="gauntletfoe-meta">Round {round} / {GAUNTLET_ROUNDS}</div>
+        <div className="gauntletfoe-meta hudpill-hp">Round {round} / {GAUNTLET_ROUNDS}</div>
         {/* The round's loss cap in its own pill below (owner ask 2026-09-30): the number + heart in red. */}
-        <div className="gauntletfoe-cap">
+        <div className="gauntletfoe-cap hudpill-hp">
           {Number.isFinite(cap)
-            ? <>Max loss <span className="gauntletfoe-capnum"><Icon name="heart" />{cap}</span></>
+            ? <>Max loss <span className="gauntletfoe-capnum"><Icon name="heartPill" />{cap}</span></>
             : 'No cap'}
         </div>
         <div className="gauntletfoe-runes">

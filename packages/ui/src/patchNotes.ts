@@ -70,6 +70,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Leaving a Ranked game early no longer counts as an 8th place finish.',
+        details: [
+          'Clearing your saved game, or starting a new game over it, no longer changes your Rating.',
+          'Save & Quit still works the same. Continue picks the game back up and it counts when it really ends.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Round 15 and later are now uncapped. Max damage per loss was 20 there before.',
         details: [
           'Max damage per loss: 5 in rounds 1 to 3, 10 in rounds 4 to 7, 15 in rounds 8 to 11, 20 in rounds 12 to 14.',

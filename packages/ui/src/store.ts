@@ -2097,7 +2097,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => {
-    // QUITTING COSTS RATING (R-RANK-05): discarding an unfinished RATED save settles it at the lowest open place.
+    // QUITTING COSTS RATING (R-RANK-05): discarding an unfinished RATED save would settle it at the lowest open place (switched OFF 2026-10-02: ABANDON_PENALTY_ENABLED, rank/ratedRun.ts).
     settleAbandonedRun(get().savedRun);
     void cloudSave.endRun(); // …and the cloud copy with it (R-PERSIST-CLOUD-03); reads the lease before clearSave
     clearSave();
@@ -2431,7 +2431,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     }
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
     // QUITTING COSTS RATING (R-RANK-05): the new run REPLACES the one saved save slot, so an unfinished
-    // RATED save it overwrites is abandoned and settles at the lowest open place. Outside the updater (a queue write).
+    // RATED save it overwrites is abandoned (a no-op while ABANDON_PENALTY_ENABLED is off, owner 2026-10-02). Outside the updater (a queue write).
     settleAbandonedRun(get().savedRun);
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
@@ -2920,7 +2920,7 @@ function mintRunId(): string {
  * with the reason, and nothing is queued.
  */
 function beginRankSubmission(runId: string, placement: number, seed: number, seatKeys: readonly string[] = []): void {
-  const item = enqueuePendingRank(rankRequestFor(runId, placement, seed, seatKeys));
+  const item = enqueuePendingRank(rankRequestFor(runId, placement, seed, seatKeys, 'finish'));
   if (!item) {
     useGame.setState({ rankRunId: runId, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: remoteEnabled() ? 'no_account' : 'no_backend', lastRating: null });
     return;
@@ -2939,6 +2939,11 @@ function beginRankSubmission(runId: string, placement: number, seed: number, sea
  * `applyRankOutcome` adopts the settled profile and leaves the post-game slice alone. Save & Quit and Continue
  * never come through here, so a resumed game settles normally at its real end. Nothing else is uploaded (no
  * career row, no fight ledger, no XP): only the Rating moves.
+ *
+ * SWITCHED OFF 2026-10-02 (owner: "oh i didnt know there was an abandon penalty in. can we remove that for now?"):
+ * while `ABANDON_PENALTY_ENABLED` (rank/ratedRun.ts) is false, `rankedAbandonOf` answers null, so every door
+ * above simply drops the run: nothing is queued and the Rating does not move. The callers stay wired so the
+ * penalty comes back by flipping that one constant.
  */
 function settleAbandonedRun(abandoned: RunState | null | undefined): void {
   const quit = rankedAbandonOf(abandoned);
@@ -2951,7 +2956,7 @@ function settleAbandonedRun(abandoned: RunState | null | undefined): void {
   } catch (e) {
     if (import.meta.env.DEV) console.warn('[abandon] the seat keys could not be assembled', e);
   }
-  if (enqueuePendingRank(rankRequestFor(quit.runId, quit.placement, abandoned.seed, seatKeys))) void flushPendingRanks(applyRankOutcome);
+  if (enqueuePendingRank(rankRequestFor(quit.runId, quit.placement, abandoned.seed, seatKeys, 'abandon'))) void flushPendingRanks(applyRankOutcome);
 }
 
 /**

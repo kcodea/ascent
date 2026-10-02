@@ -200,18 +200,15 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   from the seat kinds (`lobbyIsUnrated`), the end screen reads **"Unrated · No opponents reached"**, and the
   client submits no rank request. The server enforces it too: `submit-rating` refuses to settle a request whose
   seat keys are all generated (`bot:…`, `allSeatsGenerated`). A lobby with at least one real run is rated as usual.
-- **Quitting a rated game costs Rating** (owner 2026-09-29, verbatim: *"quitting an official game should lose you
-  MMR relative to the lowest available place when you quit. for example. if one player was already out, then
-  quitting would place you in 7th place"*; R-RANK-05). Abandoning an unfinished rated game settles it as a finish
-  in the **lowest place still open**: the number of seats still alive (8th with nobody out, 7th with one out, and
-  so on), with that place's normal award and every gate that applies to it (demotion and promotion games, the
-  top-4 strength bonus). **Abandoning** = giving up the one saved game: **Clear** on the title, or starting any new
-  game (Play, Practice, the tutorial) over it. **Save & Quit is not quitting**: Continue resumes the game and it
-  settles once, at its real end. Practice, the tutorial, the Scene Builder and unrated lobbies abandon for free. The
-  title's Clear and Play tips name the place a rated save would count as. The client computes the placement from
-  the saved lobby and submits it through the normal rank queue (`settleAbandonedRun` → `submit-rating`); a quit
-  writes no career row, fight-ledger rows or XP. A save the game drops itself (a card this build no longer has)
-  is not a quit and does not settle.
+- **Leaving a rated game early costs nothing** (owner 2026-10-02, verbatim: *"oh i didnt know there was an
+  abandon penalty in. can we remove that for now?"*; R-RANK-05, switched off). Giving up an unfinished rated game
+  (**Clear** on the title, starting any new game over it, or a cloud copy of another run adopted over it) simply
+  drops it: no rank request, no Rating change, no Career row, no XP, and the title tips name no placement. An
+  abandon request still waiting in the local rank queue is dropped, never sent. **Save & Quit** + Continue is
+  unchanged: the game settles once, at its real end. The superseded penalty (2026-09-29: an abandon settled as a
+  finish in the lowest place still open, 8th with nobody out) is kept in code behind `ABANDON_PENALTY_ENABLED`
+  (`packages/ui/src/rank/ratedRun.ts`) so it can be turned back on. The server has no abandon path of its own: it
+  settles whatever placement a client sends, so builds from before the switch keep charging abandons until replaced.
 - **What Continue resumes** (owner 2026-09-30, R-PERSIST-01). A game is saved only once a hero is picked and it has
   started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
   (Play, Practice, the tutorial) is ever saved or resumed. A saved run in the retired 17-round course format is

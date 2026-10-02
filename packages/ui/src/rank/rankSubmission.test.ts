@@ -221,3 +221,34 @@ describe('the durable pending queue', () => {
     expect(pendingRanks()).toHaveLength(2);
   });
 });
+
+describe('the abandon penalty is switched off (owner 2026-10-02, R-RANK-05)', () => {
+  it('an abandon request already waiting in the queue is DROPPED, never sent; finishes around it still settle', async () => {
+    const server = fakeServer();
+    invokeImpl = server.settle;
+    const { enqueuePendingRank, flushPendingRanks, pendingRanks, rankRequestFor } = await load();
+    enqueuePendingRank(rankRequestFor('win-1', 1, 11, [], 'finish'));
+    enqueuePendingRank(rankRequestFor('quit-1', 8, 12, [], 'abandon')); // left behind by a build that charged it
+    enqueuePendingRank(rankRequestFor('win-2', 1, 13, [], 'finish'));
+    const seen: string[] = [];
+    await flushPendingRanks((i, o) => seen.push(`${i.runId}:${o.status}`));
+    expect(seen, 'the dropped abandon reports nothing').toEqual(['win-1:confirmed', 'win-2:confirmed']);
+    expect(server.settledRuns, 'the abandon never reached the server').toEqual(['win-1', 'win-2']);
+    expect(pendingRanks(), 'and it is gone from the queue').toHaveLength(0);
+  });
+
+  it('the kind tag stays on the client: it is never part of the request body', async () => {
+    invokeImpl = fakeServer().settle;
+    const { submitRating, rankRequestFor } = await load();
+    await submitRating(rankRequestFor('win-3', 2, 14, [], 'finish'));
+    expect(invokes[0]!.body).not.toHaveProperty('kind');
+  });
+
+  it('isDroppedAbandon: only an abandon, and only while the switch is off', async () => {
+    const { isDroppedAbandon } = await load();
+    expect(isDroppedAbandon({ kind: 'abandon' })).toBe(true);
+    expect(isDroppedAbandon({ kind: 'finish' })).toBe(false);
+    expect(isDroppedAbandon({})).toBe(false); // an untagged item from an older build is a finish as far as we can tell
+    expect(isDroppedAbandon({ kind: 'abandon' }, true)).toBe(false); // switched back on: it is sent as before
+  });
+});

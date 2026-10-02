@@ -114,6 +114,8 @@ import { playHeroBackstab } from './heroBackstab/heroBackstab';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
+import { playHeroRewind } from './heroRewind/heroRewind';
+import { heroRewindPreviewSpeed } from './heroRewind/heroRewindConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -3007,7 +3009,9 @@ export function Recruit() {
     // (`heroAttack/options.ts`).
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins) });
     if (attackStyle !== 'classic') {
-      const runner = attackStyle === 'basketball'
+      const runner = attackStyle === 'rewind'
+        ? { play: playHeroRewind, preview: heroRewindPreviewSpeed() }
+        : attackStyle === 'basketball'
         ? { play: playHeroBasketball, preview: heroBasketballPreviewSpeed() }
         : attackStyle === 'backstab'
         ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }

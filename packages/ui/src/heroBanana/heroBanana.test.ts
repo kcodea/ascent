@@ -855,7 +855,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it("Oona's Banana Cannon (attack_banana) is a Legendary crate hero attack that plays the banana style; the dev override can force it; unknown ids play Classic", () => {
     expect(COSMETIC_INDEX.attack_banana).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: "Oona's Banana Cannon", assets: { style: 'banana' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball']);
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'rewind']);
     expect(styleOfCosmetic('attack_banana')).toBe('banana');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_poison', 'poison'], ['attack_holy', 'holy']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

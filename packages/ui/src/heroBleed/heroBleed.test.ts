@@ -717,7 +717,7 @@ describe('the scene (headless Pixi)', () => {
 describe('the cosmetic', () => {
   it('Hemorrhage (attack_bleed) is a Legendary crate hero attack that plays Bleed; the dev override can force it; the other styles unchanged; unknown ids play Classic', () => {
     expect(COSMETIC_INDEX.attack_bleed).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Hemorrhage', assets: { style: 'bleed' }, active: true });
-    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball']); // + the Epics Card Shark and Storm Call (2026-09-29)
+    expect(HERO_ATTACK_STYLES).toEqual(['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'rewind']); // + the Epics Card Shark and Storm Call (2026-09-29)
     expect(styleOfCosmetic('attack_bleed')).toBe('bleed');
     for (const [id, st] of [['attack_blast', 'blast'], ['attack_quake', 'quake'], ['attack_arcana', 'arcana'], ['attack_blades', 'blades'], ['attack_enraged', 'enraged'], ['attack_poison', 'poison'], ['attack_frost', 'frost'], ['attack_holy', 'holy']] as const) {
       expect(styleOfCosmetic(id)).toBe(st);

@@ -3600,6 +3600,44 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBasketball/heroBasketball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-PROG-ATTACK-35',
+    title: 'Rewind (attack_rewind, ANCIENT): a bolt of golden sand lands, time scrubs BACKWARD (its own frames in reverse) and the same strike replays, faster and bigger each loop; III a stutter of three; IV five loops of frozen echoes into an hourglass shatter on a slow-mo dip; the blow lands ONCE',
+    statement:
+      'attack_rewind ("Rewind", the Ancient of Time; ANCIENT rarity, crate, account-wide, style rewind; the first hero attack built for '
+      + 'the Ancient rarity): after the shared damage formation (R-PROG-ATTACK-08) the Ancient of Time MANIFESTS over the board '
+      + '(its own art, art/ancients/time.webp, as a colossal translucent bust with gold and violet eye glows and its broken halo) and '
+      + 'its raised hand pours a torrent of golden hourglass sand across the board onto the struck hero. A REWIND is the strike\x27s own story played backward: every frame is drawn from a story '
+      + 'time that runs forward, then BACKWARD at the rewind\x27s pace (a fast scrub, about 150 ms), so the struck portrait re-jolts '
+      + 'into the hit, the bolt leaves the face and retraces its EXACT forward path to the hand with its trail leading it; it never '
+      + 'reads as a second throw. Time visibly bends the WHOLE board through every rewind: the god blazes and its eyes flare, the '
+      + 'screen washes gold, every card on both boards twitches backward (one transform per board row, found once), the halo snaps '
+      + 'backward like clock hands, the torrent splits into magenta and cyan (RGB) ghosts, scrub bars tear across the screen, both '
+      + 'portraits jitter sideways (transform only), the splash is sucked back into the hit in a spiralling sand vortex, and a '
+      + 'reversed whoosh, a reversed tape zip and a stutter of three reversed clock ticks play. Every replay leaves the instant the scrub reaches the hand (no dead '
+      + 'air), snaps back faster than the last (a rubber band) and lands BIGGER (more sand, bigger rings, a harder camera kick, a '
+      + 'deeper thud). It escalates on the shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I one '
+      + 'strike; II it lands, rewinds and lands again; III it rewinds twice, each loop landing leaving an afterimage at the contact, '
+      + 'and on the last replay the two afterimages fly just ahead of the bolt so three echoes land in a rapid stutter; IV a '
+      + 'board-spanning clock face rises behind everything (its hands spinning backward, faster every loop), the strike loops FIVE '
+      + 'times, each rewind leaving an echo frozen in mid flight, an hourglass forms round the struck hero, the god closes its grip '
+      + '(its halo rings clamp onto the target), and every echo snaps in with the last replay as the WHOLE SCREEN SHATTERS like '
+      + 'glass (a grid of big panes bursting out from the hit, a white flash, shock rings, a crystal-sand rain, a gong) on a '
+      + 'SLOW-MO DIP: the one clock eases down to 0.28x and back over 460 ms, a smooth ramp that never reaches 0. Every landing '
+      + 'before the last (the loop landings and the stutter) is a tick; the consequence (the damage, Armor, Resolve) lands exactly '
+      + 'ONCE, on the last landing (IV: the shatter). No hit-stop or freeze (R-PROG-ATTACK-10); no grey drain (the Ancient crate '
+      + 'reveal owns it); presentation only; reduced motion is fades only. It never uses the rune explosion or turn explosion sounds.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient of Time attack, relayed by the coordinator)', quote: 'build a new ancient animation for this ancient, the ancient of time. rewinding/stopping time concepts could be cool, and repeating time for the final hit or something to repeat the same attack maybe?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the first build, relayed by the coordinator)', quote: 'the idea for rewind is okay, but it is so boring and slow paced. it\x27s a 3.5/10 right now and we need at least a 9/10' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the second build, relayed by the coordinator)', quote: 'rewind is still a 4/10. please continue to refine and improve this. the attack is an ancient power, literally a god\x27s attack. make it cooler' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_rewind); packages/ui/src/heroRewind/ (rewindPlan / rewindCues / rewindStateAt / rewindTimeScale / rewindPath / strikePos / rewindCameraAt / haloRateAt, playHeroRewind, HeroRewindScene, heroRewindTextures); packages/ui/src/sfx.ts (playTailedClip reverse)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroRewind/heroRewind.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
     id: 'R-PROG-ATTACK-25',
     title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
     statement:

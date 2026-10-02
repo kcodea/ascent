@@ -64,6 +64,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'A new Ancient hero attack in crates: Rewind. The Ancient of Time pours golden sand on your foe, time runs backward, and the same hit lands again.',
+        details: [
+          'Small: one torrent of golden sand.',
+          'Bigger hits rewind and replay, faster and harder each time. The whole board bends back with them.',
+          'Huge: a giant clock fills the board, the hit loops five times, and every echo lands at once as the screen shatters like glass.',
+          'Equip it in the Collection, on the Attack Animations tab.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new rarity, Ancient, above Legendary. Ancient rewards drop 3% of the time and get their own crate opening.',
         details: [
           'New crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%.',

@@ -23,6 +23,7 @@
 import { RANK_RULES, RANK_SEASON } from '@game/sim';
 import { currentUserId } from '../identity';
 import { remoteEnabled, submitRating } from '../remoteBoards';
+import { ABANDON_PENALTY_ENABLED } from './ratedRun';
 import type { RankSubmitOutcome, RankSubmitRequest } from './types';
 
 const QUEUE_KEY = 'ascent.rankqueue';
@@ -58,15 +59,17 @@ function isPendingRank(x: unknown): x is PendingRank {
   if (!(typeof o.userId === 'string' && typeof o.runId === 'string' && Number.isInteger(o.placement)
     && Number.isInteger(o.seasonId) && Number.isInteger(o.rulesVersion))) return false;
   // Optional (2026-09-22): the seat keys, a list of strings when present.
+  if (o.kind !== undefined && o.kind !== 'finish' && o.kind !== 'abandon') return false;
   return o.seatKeys === undefined || (Array.isArray(o.seatKeys) && o.seatKeys.every((k) => typeof k === 'string'));
 }
 
 /** Build the request a finished rated run submits — season + rules pinned NOW, retried verbatim later. */
-export function rankRequestFor(runId: string, placement: number, seed?: number, seatKeys?: readonly string[]): RankSubmitRequest {
+export function rankRequestFor(runId: string, placement: number, seed?: number, seatKeys?: readonly string[], kind?: 'finish' | 'abandon'): RankSubmitRequest {
   return {
     runId, placement, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion,
     ...(seed != null ? { seed } : {}),
     ...(seatKeys && seatKeys.length > 0 ? { seatKeys: [...seatKeys] } : {}),
+    ...(kind ? { kind } : {}),
   };
 }
 
@@ -107,6 +110,11 @@ function recordAttempt(item: PendingRank, error: string): void {
   if (cur) { cur.attempts += 1; cur.lastError = error; saveQueue(q); }
 }
 
+/** An abandon request the queue must not send: the penalty is switched off (`ABANDON_PENALTY_ENABLED`). */
+export function isDroppedAbandon(item: Pick<RankSubmitRequest, 'kind'>, enabled: boolean = ABANDON_PENALTY_ENABLED): boolean {
+  return !enabled && item.kind === 'abandon';
+}
+
 let flushing: Promise<void> | null = null;
 
 /**
@@ -120,6 +128,10 @@ export function flushPendingRanks(onSettled: RankSettleListener): Promise<void> 
   const run = async (): Promise<void> => {
     for (const item of pendingRanks()) {
       if (currentUserId() !== item.userId) return; // the account changed under us — never cross-submit
+      // THE ABANDON PENALTY IS OFF (owner 2026-10-02, R-RANK-05): an abandon request still waiting here (queued
+      // while it was on, then left unsent by a dropped connection) is DROPPED, never sent. No answer is reported:
+      // it is not the current run's result and it moves nothing.
+      if (isDroppedAbandon(item)) { removeItem(item); continue; }
       const outcome = await submitRating(item);
       if (outcome.status === 'retryable') { recordAttempt(item, outcome.reason); onSettled(item, outcome); return; }
       removeItem(item);

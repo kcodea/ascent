@@ -45,6 +45,11 @@ export interface RankSubmitRequest {
    *  the fight ledger at settle time and applies the top-4 bonus. Never a strength, never a bonus. Absent
    *  on a request queued before the bonus existed (settles with no bonus). */
   seatKeys?: string[];
+  /** CLIENT-ONLY (never sent to the server): why this request exists. `'finish'` = the game really ended;
+   *  `'abandon'` = R-RANK-05 settled a game the player left. Tagged since 2026-10-02 so the queue can drop
+   *  abandon requests while the penalty is switched off (`ABANDON_PENALTY_ENABLED`). Absent on an item queued
+   *  by an older build, which cannot be told apart from a finish and is sent as before. */
+  kind?: 'finish' | 'abandon';
 }
 
 /** The typed answer from `submitRating`. */

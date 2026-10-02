@@ -3266,43 +3266,39 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RANK-05',
-    title: 'Ranked: quitting an unfinished rated game settles it as a finish in the lowest place still open, with the normal Rating change for that place',
+    title: 'Ranked: leaving an unfinished rated game early costs NOTHING (the 2026-09-29 abandon penalty is switched off, owner 2026-10-02)',
     statement:
-      'A RATED game (Play mode, a lobby with at least one recorded player at the table) that the player abandons before '
-      + 'it ends settles exactly as if they had finished in the lowest placement still available at that moment: the '
-      + 'number of seats still alive. Nobody out yet is 8th; one seat already out is 7th; and so on. The normal placement '
-      + 'award for that place applies unchanged, with every gate that already exists for it (a demotion game, a '
-      + 'promotion game, the top-4 strength bonus, the all-generated refusal). ABANDONING means giving up the one saved '
-      + 'game: discarding it from the title, or starting any new game (Play, Practice, the tutorial) that replaces it. '
-      + 'Save & Quit is NOT quitting: the game stays live, Continue resumes it, and it settles once at its real end. '
-      + 'Practice, the tutorial, the Scene Builder and an unrated all-generated lobby abandon for free. A game already '
-      + 'over (the player out, or the lobby finished) has settled through its normal end and is never settled again. '
-      + 'The literal rule stands at the top too: with 4 or fewer seats alive the lowest open place is 4th or better, so '
-      + 'a quit there GAINS Rating and can win a promotion game. A quit moves Rating ONLY: it earns no Account XP and '
-      + 'writes nothing to Career or Recent Games.',
+      'SWITCHED OFF 2026-10-02. Leaving or replacing an unfinished RATED game (Clear on the title, starting any new game '
+      + '(Play, Practice, the tutorial) over the save, or a cloud copy of another run adopted over it) simply drops the '
+      + 'run: no rank request, no rank_results row, no Rating change, no Career row, no XP. The title tips name no '
+      + 'placement. An abandon request still waiting in a player\x27s local rank queue (ascent.rankqueue, queued by a build '
+      + 'that charged it) is dropped, never sent. Save & Quit + Continue is unchanged: the game settles once at its real end. '
+      + 'SUPERSEDED RULE, kept in code behind ABANDON_PENALTY_ENABLED (packages/ui/src/rank/ratedRun.ts) so it can be '
+      + 'turned back on: an abandoned rated game settled as a finish in the lowest place still open (the number of seats '
+      + 'alive: 8th with nobody out, 7th with one out), with that place\x27s normal award and gates.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (MMR stayed flat after three Ranked wins: each win was followed by an abandon-settled 8th of a newly started game)', quote: 'oh i didnt know there was an abandon penalty in. can we remove that for now?' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (quitting a rated game)', quote: 'yes, quitting an official game should lose you MMR relative to the lowest available place when you quit. for example. if one player was already out, then quitting would place you in 7th place. losing you MMR' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit with 4 or fewer alive may gain Rating / promote', quote: 'YES' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit should earn Account XP for its placement', quote: 'NO' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether quits should show in Career and Recent Games', quote: 'NO' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked about closing the wipe-the-save gap server-side', quote: 'Eventually - we will want to write saved and quit games to supabase as well.' },
-      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
+      { kind: 'code', ref: 'packages/ui/src/rank/ratedRun.ts ABANDON_PENALTY_ENABLED (false) gates rankedAbandonOf, so store.settleAbandonedRun (clearRun, pickHero, newRun, startTutorial, adoptCloudRun) queues nothing; rankSubmission.ts isDroppedAbandon drops a queued kind:abandon item at flush. The kept rule: packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-29 (feat/quit-costs-rating). Until then an abandoned rated game never settled and cost '
-      + 'nothing. The quit placement is computed on the client from the saved lobby and submitted like any finish, so '
-      + 'the server settles it with the same rules; the server has no separate quit record and cannot force a settle '
-      + 'for a save that is never discarded (the save lives on the device). A save the game itself drops because the '
-      + 'build no longer has one of its cards is not a player quit and does not settle. The Clear and Play '
-      + 'tips on the title name the placement a rated save would count as. No career row, fight-ledger rows or XP are written for a '
-      + 'quit: only the Rating moves.',
+      'Conforms as of 2026-10-02 (fix/mmr-flat-after-win). From 2026-09-29 to then, leaving a rated game settled it at '
+      + 'the lowest open place: the owner\x27s Bram, Brackus and Keshi 1sts each counted (+40), but after each he started '
+      + 'a new game and left it, so three abandon 8ths (-40) took him back to Bronze III 10 every time and his MMR looked '
+      + 'flat. Abandon requests are tagged kind:abandon on the client from this build; an UNTAGGED item queued by an older '
+      + 'build cannot be told apart from a finish and is still sent (abandons flush at once, so one only lingers if it '
+      + 'was queued offline). The server has no abandon path of its own (submit-rating / settle_rank settle any placement '
+      + 'they are sent), so older clients keep charging abandons until the new build is deployed.',
     example:
-      'Silver II 50, quit on round 3 with all eight alive: an 8th, -40, to 10. The same with one seat out: a 7th, -28, '
-      + 'to 22. At Silver II 0 in a demotion game, quitting with nobody out demotes. Save & Quit on round 6, Continue, '
-      + 'win the lobby: one settlement, a 1st.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/abandonPlacement.test.ts', 'packages/ui/src/rank/quitCostsRating.test.ts'], lastVerifiedAt: '2026-09-29' },
+      'Bronze III 50, start a new Ranked game, leave it on round 3 and press Play again: nothing is settled, still 50. '
+      + 'Save & Quit on round 6, Continue, win the lobby: one settlement, a 1st.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/abandonPenaltyOff.test.ts', 'packages/ui/src/rank/rankSubmission.test.ts', 'packages/ui/src/rank/quitCostsRating.test.ts', 'packages/sim/src/lobby/abandonPlacement.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   // ── A card's On Death sound plays for the card that died (owner report 2026-09-29) ─────────────────────
   {

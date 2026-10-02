@@ -10,6 +10,11 @@
  *   - a practice save, an all-generated (unrated) lobby and an empty slot cost nothing;
  *   - Save & Quit + Continue is NOT a quit: nothing settles until the game really ends, and then it settles once,
  *     at the real placement.
+ *
+ * SWITCHED OFF 2026-10-02 (owner: "oh i didnt know there was an abandon penalty in. can we remove that for now?").
+ * The rule is KEPT behind `ABANDON_PENALTY_ENABLED`, so this file pins it with the switch forced ON (the mock
+ * below), proving it still works the day it is turned back on. The live, switched-off behaviour is pinned in
+ * `abandonPenaltyOff.test.ts`.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatResult } from '@game/core';
@@ -40,6 +45,16 @@ vi.mock('./rankSubmission', async (importOriginal) => {
     enqueuePendingRank: vi.fn((req: unknown) => ({ ...(req as object), userId: 'me', at: 'now', attempts: 0 })),
     flushPendingRanks: vi.fn(async () => {}),
     installRankRetryTriggers: vi.fn(),
+  };
+});
+
+// Force the switch ON for this file only: the store calls these exports, so wrapping them is enough.
+vi.mock('./ratedRun', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('./ratedRun')>();
+  return {
+    ...mod,
+    rankedAbandonOf: (run: Parameters<typeof mod.rankedAbandonOf>[0]) => mod.rankedAbandonOf(run, true),
+    abandonWarningOf: (run: Parameters<typeof mod.abandonWarningOf>[0]) => mod.abandonWarningOf(run, true),
   };
 });
 
@@ -75,7 +90,7 @@ function finishingRatedLobby(seed: number, runId: string): RunState {
 
 const queued = () => vi.mocked(enqueuePendingRank).mock.calls.map((c) => c[0]);
 
-describe('quitting a rated game settles it at the lowest open place', () => {
+describe('with the abandon penalty switched ON, quitting a rated game settles it at the lowest open place', () => {
   beforeEach(() => {
     vi.mocked(enqueuePendingRank).mockClear();
     vi.mocked(flushPendingRanks).mockClear();

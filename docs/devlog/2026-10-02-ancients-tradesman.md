@@ -13,7 +13,7 @@ a paid roll, a free roll, a power's refresh (Clearance, Buyout). The turn-start 
 | Ancient | Owner's words | What it does |
 | --- | --- | --- |
 | Death | "Avenge (3): Gain a free Refresh" | A hero Avenge (3) on ONE running count of friendly deaths across Shop and combat (`AncientsState.tradesDeaths`, the Xerox Death convention). Every 3rd death banks a free Refresh (`RunState.freeRolls`) right then. Combat banks through `grantFreeRolls` (the Gryphon carry-back), usable from the next Shop. Rune of Fury fires the combat half again. |
-| Fortune | "When you buy a minion, gain a free Refresh" | Every minion bought from the Shop (a normal buy, the Starform, a displaced body re-bought) banks a free Refresh immediately. Spells, Discovers and generated cards do not count. |
+| Fortune | "When you buy a minion, gain a free Refresh" | Every minion bought from the Shop (a normal buy, the Starform, a displaced body re-bought) banks a free Refresh immediately. Spells, Discovers and generated cards do not count. Changed the same day: see the section at the end. |
 | War | "Your minions gain Rally: Gain 1g next turn" | Every friendly minion carries the Rally keyword and a grafted `rallyGoldNextTurn`. Every Rally trigger banks 1 Gold next turn, uncapped: a swing, a Rally multiplier repeat, a free or Shop Rally. |
 | Genesis | "Every 2 Refreshes, cast Lasso." | A running Refresh count since the pick (`tradesRefreshes`, free ones included). Every 2nd casts Lasso through `castSpell` right after the new row is in, so it steals from the fresh Shop. The beam leaves the hero power. |
 | Time | "End of Turn: Reduce the cost of upgrading the Shop by 3." | A virtual recurring End-of-Turn entry (`ancientTradesUpgrade`) knocks 3 off the FINAL upgrade price, Frugal's +2 included, down to 0 (owner ruling: "Yes, down to 0"). |
@@ -66,3 +66,18 @@ Still open:
 - **FX**: no new beats. The Time cut rides its own End-of-Turn beat (the recurring entry) but emits no
   `resourceChanged` consequence (the Rune of Shopkeep one does); the Genesis Lasso uses the existing lasso beam from
   the hero-power button (new `'hero'` origin).
+
+## 2026-10-02 change: Fortune is "your next Refresh costs 0"
+
+Owner: "change tradesman's fortune ancient to 'when you buy a minion, your next refresh costs 0' this way it doesn't
+stack up multiple free refreshes."
+
+- A minion buy now sets ONE pending flag (`AncientsState.tradesNextRefreshFree`, effect `buyNextRefreshFree`). More
+  buys while it is set do nothing. It no longer touches the `freeRolls` bank.
+- The `roll` branch spends it FIRST, before a banked free Refresh (Death, runes) or Window Shopping, so the bank is
+  kept for later. Window Shopping still counts that Refresh toward its 3, as it already does for banked free rolls.
+- It carries across turns until used, and survives save / restore (plain data on `AncientsState`).
+- `refreshCostOf` returns 0 while it is pending, so the Refresh button (`nextRefreshCostOf`) and both bot price reads
+  agree. The power text prints "Next Refresh free: Yes / No". The Genesis / Bonds refresh hooks count the free Refresh
+  like any other (they run on every `refreshTavern`).
+- Oracle R-ANCTRADES-02 updated; tests in `ancientsTradesman.test.ts`.

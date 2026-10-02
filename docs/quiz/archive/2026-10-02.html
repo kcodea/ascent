@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ascent Quiz #51 — 2026-10-02</title>
+<style>
+  :root {
+    --bg: #14181f;
+    --panel: #1d232d;
+    --panel2: #242b37;
+    --ink: #e9edf3;
+    --sub: #9aa6b5;
+    --accent: #6fb3ff;
+    --accent2: #c9a4ff;
+    --good: #4fd17a;
+    --bad: #ff6b6b;
+    --border: #313a48;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100%;
+  }
+  body {
+    display: flex; justify-content: center; padding: 32px 16px 60px;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 { font-size: 1.4rem; margin: 0 0 4px; letter-spacing: 0.2px; }
+  header p { color: var(--sub); margin: 0; font-size: 0.9rem; }
+  .progress-row {
+    display: flex; align-items: center; gap: 10px; margin: 18px 0 22px;
+  }
+  .progress-bar {
+    flex: 1; height: 8px; background: var(--panel2); border-radius: 999px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .progress-fill {
+    height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.3s ease;
+  }
+  .progress-label { font-size: 0.8rem; color: var(--sub); white-space: nowrap; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+  .topic-tag {
+    display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); background: rgba(111,179,255,0.1); border: 1px solid rgba(111,179,255,0.3);
+    border-radius: 999px; padding: 3px 10px; margin-bottom: 14px;
+  }
+  .question { font-size: 1.1rem; line-height: 1.5; margin: 0 0 20px; }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex; align-items: flex-start; gap: 12px; text-align: left;
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; color: var(--ink); font-size: 0.95rem; line-height: 1.4;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .choice:hover:not(.locked) { border-color: var(--accent); background: #273040; }
+  .choice .letter {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
+  }
+  .choice.correct { border-color: var(--good); background: rgba(79,209,122,0.12); }
+  .choice.correct .letter { background: var(--good); color: #0a1a10; }
+  .choice.wrong { border-color: var(--bad); background: rgba(255,107,107,0.12); }
+  .choice.wrong .letter { background: var(--bad); color: #220a0a; }
+  .choice.dim { opacity: 0.55; }
+  .explain {
+    margin-top: 16px; padding: 14px 16px; border-radius: 10px; font-size: 0.92rem; line-height: 1.55;
+    background: var(--panel2); border: 1px solid var(--border); display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .nav-row { display: flex; justify-content: flex-end; margin-top: 20px; }
+  .btn {
+    background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #0b0e14; border: none;
+    font-weight: 700; font-size: 0.95rem; padding: 10px 22px; border-radius: 999px; cursor: pointer;
+    display: none;
+  }
+  .btn.show { display: inline-block; }
+  .btn:active { transform: translateY(1px); }
+  .summary { text-align: center; }
+  .summary .big { font-size: 2.4rem; font-weight: 800; margin: 6px 0 2px; }
+  .summary .line { color: var(--sub); margin: 0 0 18px; }
+  footer { text-align: center; color: var(--sub); font-size: 0.78rem; margin-top: 22px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎓 Ascent Quiz #51</h1>
+    <p>2026-10-02 · how the game is coded, not how it plays</p>
+  </header>
+
+  <div class="progress-row">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">Question 1 / 10</div>
+  </div>
+
+  <div class="card" id="quizCard"></div>
+
+  <footer>Reply to Mike's session with your score (e.g. "8/10, missed the event bus one") so tomorrow's quiz adapts.</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topic: "Run reducer & state",
+    question: "packages/sim/src/reducer.ts has helper functions like spendGold(s: RunState, amount: number) that write straight onto `s` (e.g. `s.embers -= amount`) instead of returning a new object. Why is that OK in a codebase that cares about avoiding stray mutation?",
+    choices: [
+      "Because RunState is a special exception allowed to mutate shared global state freely.",
+      "Because spendGold only runs in the UI layer, where mutation is always considered safe.",
+      "Because the reducer clones the incoming state into a fresh private draft first, then lets small helpers mutate THAT draft cheaply — callers only ever see the new returned reference, never the original state.",
+      "Because TypeScript automatically blocks any code outside reducer.ts from mutating a RunState object."
+    ],
+    answer: 2,
+    explain: "Reducer.ts clones the state into a new object (you can see this pattern where it spreads `...rest` into a fresh copy) and then helper functions mutate that one disposable draft for speed — the caller still gets back a brand-new reference, so from the outside nothing looks mutated. It's the same trick libraries like Immer use: clone once, mutate freely inside, return the new copy. Nothing actually exempts RunState from the \"don't mutate shared state\" idea — this is mutating a private draft, not something shared. The UI never touches reducer internals directly, and TypeScript doesn't enforce anything about mutation at runtime — this discipline is purely a code convention here."
+  },
+  {
+    topic: "Zustand UI store",
+    question: "packages/ui/src/store.ts calls `create()` from the `zustand` library to build the UI's store, importing types like RunState FROM @game/sim rather than reimplementing them. Per CLAUDE.md's sim/UI split, what is this Zustand store actually for?",
+    choices: [
+      "Holding UI/presentation-only state (which screen is open, animation/view flags, derived view helpers) that's separate from the sim's own RunState, which it just imports and reads.",
+      "Replacing packages/sim entirely by holding Gold totals and board HP itself.",
+      "Running the combat simulation, since Zustand can execute pure functions directly.",
+      "Storing card data as a replacement for packages/content."
+    ],
+    answer: 0,
+    explain: "The sim owns RunState (Gold, board, combat results) in packages/sim; the UI store just imports and reads that, while using Zustand to hold things that are purely about presentation — like which Career view is focused, or live quest-tally deltas for an in-progress replay. That's the whole point of \"decoupled from the UI\": the engine doesn't know Zustand exists. Taking over Gold/board tracking would mean duplicating the sim's job, which store.ts never does — it imports RunState rather than redefining it. Running combat simulation or storing card data are both jobs that belong to packages/core and packages/content, not a UI store."
+  },
+  {
+    topic: "Combat event bus",
+    question: "packages/core/src/events.ts defines a small CombatBus with .on(event, handler) and .emit(event, payload), and its own comment warns that handlers may cause further emits (e.g. a Deathrattle summon triggers an onSummon event). What actually stops a chain like that from looping forever?",
+    choices: [
+      "CombatBus automatically removes duplicate events before emitting them.",
+      "The JavaScript engine itself automatically halts any function after 1000 calls.",
+      "Handlers are only allowed to emit an event of a different type than the one that triggered them, which prevents cycles by construction.",
+      "The combat simulator has its own iteration guard that bounds how far any handler-triggered cascade of emits is allowed to go."
+    ],
+    answer: 3,
+    explain: "Straight from the file's own comment: \"the simulator's iteration guard bounds any cascade.\" The bus itself is deliberately dumb — it just calls handlers — so the safety net has to live one layer up, in the simulator that owns the loop. This is a useful general lesson: an event system that lets handlers re-emit needs an explicit depth/iteration cap somewhere, because nothing about emit/handler wiring prevents infinite recursion on its own. JavaScript has no built-in call-count breaker, CombatBus doesn't dedupe events, and nothing restricts a handler to emitting only a different event type than the one that triggered it."
+  },
+  {
+    topic: "Cards organized into sets",
+    question: "In packages/content/src/sets.ts, the code building SET3_SHARED_SPELLS looks up each spell id from a hardcoded list against the real spell arrays, and explicitly throws an Error if an id isn't found (\"no spell list provides\"). Why deliberately crash instead of just skipping a missing id quietly?",
+    choices: [
+      "To save memory by never caching the resulting spell list.",
+      "So that a typo'd or renamed spell id fails loudly the moment the set is built, instead of silently vanishing from Set 3 and shipping a quietly-broken card pool nobody notices.",
+      "Because zod validation requires every error in the content package to be thrown by hand.",
+      "Because Set 3 is deprecated and this throw exists specifically to stop it from ever loading."
+    ],
+    answer: 1,
+    explain: "This is a \"fail fast, fail loud\" choice: if someone renames a spell elsewhere and forgets to update this list, skipping silently would mean Set 3's shop quietly loses a card with no error anywhere — exactly the kind of bug that's hard to notice until a player reports it. Throwing turns that mistake into an immediate, obvious crash while building the set. The file's own comment says it plainly: \"a rename there breaks loudly here.\" This has nothing to do with memory caching, zod doesn't force manual throws like this, and Set 3 is an active, shipping set, not a deprecated one — this is a defensive-programming pattern, not a shutoff switch."
+  },
+  {
+    topic: "Package boundaries",
+    question: "CLAUDE.md says ui must depend on the other packages \"through public package entrypoints only — importing an internal means the boundary leaked.\" store.ts follows this by importing things like `createRun` from '@game/sim' (the package name) rather than a deep path into sim's internal files. Why does that restriction actually matter?",
+    choices: [
+      "It's purely a style preference — there's no real functional consequence either way.",
+      "Deep imports execute measurably slower at runtime than package-level imports.",
+      "Importing through a package's public entrypoint means sim/content are free to rename or reorganize their internal files without breaking ui, since only the exported surface is a promise to other packages; a deep import would quietly couple ui to internals that are expected to change.",
+      "'@game/sim' imports are required because TypeScript is physically unable to resolve relative paths across package folders."
+    ],
+    answer: 2,
+    explain: "A package's public entrypoint (its index) is the contract — everything behind it is free to move. If ui imported a file three folders deep inside sim, moving or renaming that file would silently break ui even though nothing about sim's public behavior changed. That's \"the boundary leaked.\" The TypeScript-can't-resolve-it claim is a tempting but false technical excuse — TypeScript can absolutely resolve a relative path across folders; this rule is a deliberate architectural choice, not a compiler limitation. Calling it \"just style\" or \"just slower\" both understate the real, concrete cost of coupling to internals."
+  },
+  {
+    topic: "Effects as data, not classes",
+    question: "packages/content/src/schema.ts defines an EffectFactoryIdSchema — a zod enum listing specific ids like 'deathrattleSummon', 'rallyCastSpell', and 'onKillBuffSelf'. In the \"cards are data, not bespoke classes\" architecture, what does this enum actually represent?",
+    choices: [
+      "The set of rarities a card can have (Common, Rare, Epic, Legendary).",
+      "The full list of every card currently shipped in the game.",
+      "A cache of previously computed combat results, kept for performance.",
+      "A fixed whitelist of known effect \"shapes\" a card's data is allowed to reference by name — a new card reuses one of these factory ids (or someone adds a new one to this very list) instead of writing a custom class for its ability."
+    ],
+    answer: 3,
+    explain: "This is exactly what CLAUDE.md means by \"add it to the factories + whitelist it in the content schema + the EffectFactoryId union\" — a card's `do` field has to name one of these pre-built effect factories, and zod rejects anything that isn't on the list. That's how \"data, not classes\" is enforced mechanically: you can't invent an arbitrary new behavior inline, you pick from (or extend) this whitelist. Card rarity, the full card catalog, and combat-result caching are all real things in the content/engine code, just not what this particular schema enum is for."
+  },
+  {
+    topic: "Effect timing: recruit vs combat",
+    question: "CLAUDE.md distinguishes recruit-phase effects, which \"bake into stats before combat,\" from combat-time effects that \"the combat simulator runs\" and emits as log events. A Battlecry that permanently buffs a minion's Attack when it's played is an example of which kind — and why does that distinction matter?",
+    choices: [
+      "It's a recruit-phase effect: it's resolved once while the board is being built, so simulate() just receives a minion that's already buffed; combat-time effects like a Deathrattle instead run DURING simulate() and show up as their own event in the log.",
+      "It's a combat-time effect, because every buff calculation happens inside simulate() for performance reasons.",
+      "The distinction doesn't actually matter — recruit-phase and combat-time effects always run through one identical code path.",
+      "It's a combat-time effect because Battlecry text happens to be displayed during the combat animation."
+    ],
+    answer: 0,
+    explain: "simulate() is a pure function over whatever board state it's handed, so anything that must already be true BEFORE the fight starts — like a Battlecry's permanent stat buff — has to be baked into the minion's stats beforehand. Something like a Deathrattle, by contrast, needs to happen visibly mid-fight, so it has to be a combat-time effect that emits its own CombatEvent the UI can animate. Getting this wrong (baking something that should be a live event, or vice versa) is exactly the kind of timing bug the architecture is designed to prevent — and the two phases do NOT run through one identical path, nor does when Battlecry TEXT happens to display decide when the effect itself resolves."
+  },
+  {
+    topic: "Testing: determinism tests",
+    question: "Vitest files across the repo include describe blocks literally named 'determinism' (e.g. in packages/sim/src/productionBots/bots.test.ts), run as part of `npm test`. What is a \"determinism test\" actually checking, as opposed to a normal test that checks one specific output value?",
+    choices: [
+      "That the code finishes running within a performance time budget.",
+      "That feeding the exact same inputs (same seed, same sequence of actions) through the sim TWICE produces byte-for-byte identical results both times — proving nothing hidden, like an unseeded random call, is sneaking non-reproducible behavior in.",
+      "That the UI renders a pixel-identical screenshot across every browser.",
+      "That every card definition in the content package is syntactically valid JSON."
+    ],
+    answer: 1,
+    explain: "A determinism test isn't checking \"is this value correct\" — it's checking \"does running it again produce the exact same thing,\" which is only guaranteed if every source of randomness goes through the one seeded RNG (and nothing calls something like Date.now() or iterates in an unstable order). It's the direct regression guard for the \"Math.random is banned\" rule and the whole shareable-seed/replay promise. Performance budgets, cross-browser screenshots, and JSON-validity checks are all real, different kinds of tests that exist elsewhere, but none of them is what \"determinism\" means here."
+  },
+  {
+    topic: "TypeScript union types",
+    question: "packages/core/src/types.ts defines a CombatEvent union type, which CLAUDE.md calls \"the source of truth for the event count.\" In plain terms, what does a TypeScript union type like this actually constrain in the code?",
+    choices: [
+      "It merges several unrelated event shapes together into one giant object carrying every field from all of them at once.",
+      "It's a live runtime array that new event types can be pushed onto while a combat is in progress.",
+      "It exists purely for documentation — TypeScript doesn't actually check it against real code anywhere.",
+      "It forces a CombatEvent value to be exactly ONE of a fixed, named set of shapes (an attack event, OR a death event, OR a summon event, etc.) — any code that handles a CombatEvent has to account for every member, and the compiler flags a case someone forgot."
+    ],
+    answer: 3,
+    explain: "A union (`A | B | C`) means \"exactly one of these,\" which is why handling a CombatEvent usually involves a switch over its `type` field — and the compiler can tell you if a new event kind gets added but a switch elsewhere in the UI forgot to handle it. Merging every field together describes an INTERSECTION type (`A & B`) instead — a common beginner mix-up with unions, and the opposite of what's happening here. It's also not a runtime collection you push onto, and `npm run typecheck` genuinely enforces this against the whole codebase, which is exactly why CLAUDE.md calls it \"the gate\" rather than a documentation-only comment."
+  },
+  {
+    topic: "Immutability & shared references",
+    question: "CLAUDE.md says to \"never mutate shared CardDefs — clone into combat Minion instances,\" yet reducer.ts deliberately shares its `lastCombat` result BY REFERENCE for performance rather than cloning it. Why is sharing lastCombat safe, while sharing (and mutating) a CardDef would not be?",
+    choices: [
+      "They're equally unsafe — sharing lastCombat by reference is actually a known bug in the codebase.",
+      "lastCombat happens to be a small object, while CardDefs are enormous, so the size is what decides it.",
+      "lastCombat is treated as read-only forever after it's produced — nothing ever writes to it again, so handing out one shared reference is harmless; a CardDef, by contrast, is a template other code actively writes new values onto, so sharing instead of cloning it would corrupt every other minion built from that same card.",
+      "CardDefs are intentionally recalculated from scratch every single frame, so mutating them is expected and fine."
+    ],
+    answer: 2,
+    explain: "The real rule isn't \"never share a reference\" — it's \"never mutate something that's shared.\" lastCombat is a big, read-only result nobody writes to again, so reusing the same reference instead of deep-cloning it is pure savings (the code's own comment says this drops ~80-90% of the per-dispatch clone cost). A CardDef is different: other code paths DO write to a minion's stats, so if that minion were just a shared reference to the original card, buffing one copy would corrupt every other minion drawn from that same card — which is exactly why combat clones CardDefs into fresh Minion instances first. Object size isn't actually the deciding factor here (mutability is), and CardDefs are not recalculated every frame at all."
+  }
+];
+
+let current = 0;
+let score = 0;
+let answered = false;
+
+const quizCard = document.getElementById('quizCard');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  answered = false;
+  progressFill.style.width = ((current) / QUESTIONS.length * 100) + '%';
+  progressLabel.textContent = 'Question ' + (current + 1) + ' / ' + QUESTIONS.length;
+
+  const letters = ['A', 'B', 'C', 'D'];
+  let choicesHtml = '';
+  q.choices.forEach((c, i) => {
+    choicesHtml += '<div class="choice" data-idx="' + i + '">' +
+      '<div class="letter">' + letters[i] + '</div>' +
+      '<div>' + c + '</div></div>';
+  });
+
+  quizCard.innerHTML =
+    '<span class="topic-tag">' + q.topic + '</span>' +
+    '<p class="question">' + q.question + '</p>' +
+    '<div class="choices">' + choicesHtml + '</div>' +
+    '<div class="explain" id="explainBox"></div>' +
+    '<div class="nav-row"><button class="btn" id="nextBtn">' +
+      (current === QUESTIONS.length - 1 ? 'See results' : 'Next question') +
+    '</button></div>';
+
+  quizCard.querySelectorAll('.choice').forEach((el) => {
+    el.addEventListener('click', () => onChoose(el, q));
+  });
+  document.getElementById('nextBtn').addEventListener('click', onNext);
+}
+
+function onChoose(el, q) {
+  if (answered) return;
+  answered = true;
+  const idx = parseInt(el.getAttribute('data-idx'), 10);
+  const correct = idx === q.answer;
+  if (correct) score++;
+
+  quizCard.querySelectorAll('.choice').forEach((c) => {
+    const cIdx = parseInt(c.getAttribute('data-idx'), 10);
+    c.classList.add('locked');
+    if (cIdx === q.answer) c.classList.add('correct');
+    else if (cIdx === idx) c.classList.add('wrong');
+    else c.classList.add('dim');
+  });
+
+  const explainBox = document.getElementById('explainBox');
+  explainBox.innerHTML = (correct ? '✅ <b>Correct.</b> ' : '❌ <b>Not quite.</b> ') + q.explain;
+  explainBox.classList.add('show');
+
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+function onNext() {
+  current++;
+  if (current < QUESTIONS.length) {
+    renderQuestion();
+  } else {
+    renderSummary();
+  }
+}
+
+function renderSummary() {
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Done!';
+
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score — every one of today's topics stuck. 🏆";
+  else if (pct >= 80) line = "Great run — you've clearly got a solid read on this part of the codebase.";
+  else if (pct >= 50) line = "Solid progress — a few of these are worth a second look in the actual files.";
+  else line = "A tough set today — that's totally fine, re-reading the referenced files will make tomorrow's quiz click faster.";
+
+  quizCard.innerHTML =
+    '<div class="summary">' +
+      '<div class="big">' + score + ' / ' + QUESTIONS.length + '</div>' +
+      '<p class="line">' + line + '</p>' +
+      '<p class="line" style="font-size:0.85rem;">Reply with your score (and which ones tripped you up) so tomorrow\'s quiz adapts.</p>' +
+    '</div>';
+}
+
+renderQuestion();
+</script>
+</body>
+</html>

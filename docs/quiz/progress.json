@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 50,
+  "totalQuizzes": 51,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
@@ -49,44 +49,44 @@
       "lastAsked": "2026-10-01"
     },
     "reducer-run-state": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "zustand-store": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "event-bus": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "cards-in-sets": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "package-boundaries": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "effects-as-subscriptions": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "effect-timing-pipeline": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "testing-vitest": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "types-basics": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     },
     "immutability": {
-      "asked": 24,
-      "lastAsked": "2026-09-30"
+      "asked": 25,
+      "lastAsked": "2026-10-02"
     }
   },
   "curriculum": [
@@ -1148,6 +1148,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike (50 quizzes in), so mastery/difficulty remain untouched at 1 and all 20 curriculum topics are tied on mastery. With rule 1 (re-teach weak spots) non-differentiating, picked the 10 topics least recently asked (all last asked 2026-09-29, one day older than the other half's 2026-09-30) to keep the two-day rotation even — eslint-rules and performance-memo were also 1 ask behind the rest (23 vs 24) going in, so this quiz brings the whole curriculum back to parity (24-25 asks each). Re-grounded every question in a fresh, concrete source fact rather than reusing prior framings: simulate()'s 4-argument signature as the function example (what-is-a-function); swapping Math.random() in for the seeded rng as a thought experiment on why determinism matters (deterministic-sim); fork() deriving an independent child stream from rng.ts (seeded-rng); the UI only replaying simulate()'s events array, never recomputing outcomes (sim-ui-decoupling); the 'core -> nothing' dependency direction naming core as the leaf package (monorepo-packages); simulate() cloning minions instead of editing CardDefs as the concrete purity example (pure-functions); CardDefSchema's Zod validation as what 'cards are data' means in practice (data-vs-code); why the full event array is kept instead of just a winner (event-log-replay); eslint.config.mjs's banMathRandom scope explicitly including packages/tools, not just core (eslint-rules); and docs/performance.md's explanation of why Unit uses a value comparator instead of React.memo's default reference check (performance-memo). Verified the embedded QUIZ.questions array parses as valid JS via a node script (10 questions, 4 unique choices each, answer index in range, 10 unique topicIds) before publishing, then caught that every correct answer had been left at index 0 (A) — reshuffled choice order per question to C,A,D,B,C,A,D,B,B,A and rewrote the explanations' wrong-choice callouts to be content-based instead of letter-based so they stay correct regardless of order, then re-verified. Published as an interactive Artifact and archived to docs/quiz/archive/2026-10-01.html."
+    },
+    {
+      "date": "2026-10-02",
+      "quizNumber": 51,
+      "difficulty": 1,
+      "topics": [
+        "reducer-run-state",
+        "zustand-store",
+        "event-bus",
+        "cards-in-sets",
+        "package-boundaries",
+        "effects-as-subscriptions",
+        "effect-timing-pipeline",
+        "testing-vitest",
+        "types-basics",
+        "immutability"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (51 quizzes in) — mastery/difficulty remain untouched at 1, so this continues the even two-day rotation: today's 10 topics were the half last asked 2026-09-30 (one day stalest), bringing the whole curriculum back to parity (all 20 topics now at 25 asks). Re-grounded every question in a fresh, concrete source fact read directly from the files rather than reusing prior framings: reducer.ts's spendGold mutating its RunState draft directly as the clone-then-mutate pattern (reducer-run-state); store.ts's own CareerView/CombatQuestDelta shapes as the concrete 'presentation-only state' example, contrasted with the RunState it only imports (zustand-store); events.ts's CombatBus doc comment on Deathrattle-summon cascades and the simulator's iteration guard (event-bus); sets.ts's SET3_SHARED_SPELLS lookup throwing when a spell id isn't found, as a fail-loud example (cards-in-sets); store.ts importing createRun/CARD_INDEX from the '@game/sim'/'@game/content' package names rather than a deep path (package-boundaries); schema.ts's EffectFactoryIdSchema zod enum as the literal whitelist of effect factories (effects-as-subscriptions); a Battlecry stat buff (baked pre-combat) vs. a Deathrattle (live combat-time event) as the two concrete cases (effect-timing-pipeline); the repo's actual 'determinism' describe blocks (e.g. productionBots/bots.test.ts) as the concrete test example (testing-vitest); the CombatEvent union in types.ts, contrasted against a common union-vs-intersection beginner mix-up (types-basics); and reducer.ts's own PERF comment on sharing lastCombat by reference vs. CardDef cloning, to teach 'never mutate shared state' rather than 'never share a reference' (immutability). Verified the embedded QUESTIONS array parses as valid JS via node (10 questions, 4 choices each, in-range answer index, 10 unique topics), caught a run of 4 consecutive B answers on the first pass, reshuffled choice order on two questions to break it, and re-verified the final correct-letter sequence (C,A,D,B,C,D,A,B,D,C — no consecutive repeats) before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-10-02.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

@@ -117,7 +117,7 @@ const TIER_DEFAULTS: Record<BulletTierSuffix, [number, number, number, number]> 
   FlyMs: [260, 250, 300, 220],
   HangMs: [360, 420, 440, 0],
   ResumeMs: [70, 80, 80, 150],
-  Size: [1, 0.95, 0.8, 0.72],
+  Size: [1.25, 1.1, 0.8, 0.72],
   Shake: [10, 13, 16, 34],
   Zoom: [0.02, 0.025, 0.03, 0.04],
   Push: [0.03, 0.04, 0.05, 0.08],
@@ -473,7 +473,7 @@ export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroB
   const n = p.darts.length;
   if (p.kind === 'dart') pts.push(polar(d, back, R * c.hangR));
   else if (p.kind === 'ring') {
-    for (let i = 0; i < n; i++) pts.push(polar(d, inward + (i - (n - 1) / 2) * 0.85, R * (c.hangR + 0.35)));
+    for (let i = 0; i < n; i++) pts.push(polar(d, inward + (i - (n - 1) / 2) * 0.62, R * (c.hangR + 0.6)));
   } else if (p.kind === 'spiral') {
     for (let i = 0; i < n; i++) pts.push(polar(d, inward - 1.5 + (3 * i) / Math.max(1, n - 1), R * (c.hangR + 0.25 + 0.17 * i)));
   } else {

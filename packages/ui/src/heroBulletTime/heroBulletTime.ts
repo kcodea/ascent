@@ -104,10 +104,11 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
   const flip = o.attacker.x > o.defender.x ? -1 : 1;
   const area = { x: o.defender.x - radius * 3.5, y: o.defender.y - radius * 3, w: radius * 7, h: radius * 6 };
-  // The clock: over the target on I-II; III's and IV's GIANT face out over the board behind the shots.
+  // The clock: on I-II a dial ringing the struck portrait (the target sits inside the clock); III's and IV's GIANT face
+  // out over the board behind the shots.
   const clockAt = clockCentre(plan, o.attacker, o.defender, radius, screen);
   const giant = Math.min(screen.w, screen.h);
-  const clockR = c.clockSize * (plan.kind === 'dome' ? giant * 0.4 : plan.kind === 'spiral' ? giant * 0.3 : radius * 1.5);
+  const clockR = c.clockSize * (plan.kind === 'dome' ? giant * 0.4 : plan.kind === 'spiral' ? giant * 0.3 : radius * 1.35);
   const gold = hexToNum(c.colorGold), light = hexToNum(c.colorLight), violet = hexToNum(c.colorViolet);
   const tintOf = (i: number): number => (plan.kind === 'dome' ? [gold, light, gold][plan.darts[i]!.ring % 3]! : gold);
 

@@ -83,8 +83,8 @@ describe('the plan: stopped time', () => {
     const g = dartGeos(p, A, { x: 1750, y: 120 }, R, R, C, screen); // a target tucked in the top-right corner
     const ang = g.map((x) => Math.atan2(x.hang.y - 120, x.hang.x - 1750));
     const sep = (a: number, b: number): number => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-    expect(sep(ang[0]!, ang[1]!)).toBeCloseTo(0.85, 2);
-    expect(sep(ang[1]!, ang[2]!)).toBeCloseTo(0.85, 2);
+    expect(sep(ang[0]!, ang[1]!)).toBeCloseTo(0.62, 2);
+    expect(sep(ang[1]!, ang[2]!)).toBeCloseTo(0.62, 2);
     for (const x of g) {
       expect(Math.hypot(x.hang.x - 1750, x.hang.y - 120)).toBeGreaterThan(R);
       expect(x.hang.x).toBeLessThanOrEqual(1920); expect(x.hang.y).toBeGreaterThanOrEqual(0);

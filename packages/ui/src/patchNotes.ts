@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Systems',
+        text: 'New Ancient hero attack: Soul Stitch. Crystal needles sew the loser to your hero with violet soul thread, then you pull until it snaps.',
+        details: [
+          'It can drop from crates at the Ancient rarity.',
+          'Small hits pierce the target with one needle and tug the thread.',
+          'Bigger hits cross-stitch an X into the target, or pin it with five needles and stretch it until they rip out.',
+          'The biggest hits, and every knockout, drag the loser into a golden heart knot that bursts.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Rayse is back. You can pick her again in Play and Practice.',
       },

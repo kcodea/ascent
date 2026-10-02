@@ -79,6 +79,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientXeroxBond: { a: 'pS1', b: 'pS2', label: 'Ancient of Bonds' }, // Xerox x Bonds: the Soulbind fixture pair (sourceUids)
   ancientRefreshAvenge: { every: 1, tick: 0, flag: 'ancientRefreshAvenge', label: 'Ancient of Death' }, // Tradesman x Death: Avenge (1) so the staged deaths bank Refreshes
   ancientRallyGold: { gold: 1 }, // Tradesman x War: the Rally graft for bodies summoned mid-fight
+  ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }

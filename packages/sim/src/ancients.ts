@@ -162,6 +162,22 @@
  *  · `eotUpgradeDiscount`         a virtual recurring End-of-Turn entry (`ancientTradesUpgrade`): the FINAL upgrade price −N,
  *                                 Frugal's +2 included, down to 0 (`cutUpgradeCost` + `tradesSurchargeOff`). (Time)
  *  · `refreshUpgradeDiscount`     `ancientAfterRefresh`: every Refresh, the same −N on the final price. (Bonds)
+ *  SOREN (Reclaim, `resummon`; owner pairings 2026-10-02). Reclaim = "Choose a friendly minion. At the start of combat,
+ *  destroy it and resummon a copy when there is room." (free, once per turn). The Shop half MARKS the minion
+ *  (`BoardCard.resummon`); combat's Start-of-Combat loop destroys it as a true death (its Echo fires) and queues an
+ *  exact copy that returns the moment its side has room. The combat halves ride `QuestCombatMods.ancientReclaim`.
+ *  · `reclaimEchoExtra`           COMBAT: the Echo Reclaim's destroy triggers fires `extra` more times, through
+ *                                 `playerEchoExtras` (the shared Echo-multiplier fold), so Echo watchers hear each. (Death)
+ *  · `reclaimInShop`              the reducer's `resummon` branch: no mark; the minion is destroyed in the Shop right away
+ *                                 (`destroyMinionInShop`, a true death: no Rise / Rebirth, its Echo fires), an exact copy
+ *                                 returns to its slot (a summon: `fireSummonBuffs`), and the use gains `gold`. No room
+ *                                 after the Echo: an overflow (`fireSummonOverflow`), and the copy is lost. (Fortune)
+ *  · `reclaimGainImproves`        COMBAT: each returned copy gains +X/+X, a combat buff (Engraved keeps it); X starts at
+ *                                 `amount` and `ancientStartOfTurn` improves it by `amount` (`AncientsState.sorenWarGain`). (War)
+ *  · `reclaimCopyLocked`          the `resummon` branch, after the mark: a plain copy of the target to hand, locked for
+ *                                 `turns` turns (`lockedUntilWave`, Hourglass Reserve's lock). Hand full: none. (Genesis)
+ *  · `reclaimSummonsTwice`        COMBAT: the Reclaimed body is resummoned `copies` times, each waiting for room. (Time)
+ *  · `reclaimBondsAdjacent`       COMBAT: when a returned copy lands, its living neighbours gain its Attack, a combat buff. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -171,7 +187,7 @@ import { handCap, mixSeed, type BoardCard, type RunState, type ShopCard, type So
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe } from './recruit';
+import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -323,7 +339,20 @@ export type AncientEffect =
   /** End of Turn: the Shop upgrade costs `amount` less (floored). */
   | { do: 'eotUpgradeDiscount'; amount: number }
   /** Every Refresh (free ones included): the Shop upgrade costs `amount` less (floored). */
-  | { do: 'refreshUpgradeDiscount'; amount: number };
+  | { do: 'refreshUpgradeDiscount'; amount: number }
+  // ── Soren (Reclaim) ──
+  /** The Echo Reclaim's Start-of-Combat destroy triggers fires `extra` more times. */
+  | { do: 'reclaimEchoExtra'; extra: number }
+  /** Reclaim resolves in the Shop instead (destroy + resummon right away), and each use gains `gold`. */
+  | { do: 'reclaimInShop'; gold: number }
+  /** Reclaimed copies gain +X/+X on their return (combat); X starts at `amount` and improves by `amount` each Start of Turn. */
+  | { do: 'reclaimGainImproves'; amount: number }
+  /** Reclaim also gives a plain copy of its target to hand, locked for `turns` turns. */
+  | { do: 'reclaimCopyLocked'; turns: number }
+  /** Reclaim resummons `copies` copies in all. */
+  | { do: 'reclaimSummonsTwice'; copies: number }
+  /** When a Reclaimed copy returns, the minions next to it gain its Attack (combat). */
+  | { do: 'reclaimBondsAdjacent' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -340,7 +369,8 @@ export interface AncientPairing {
    *  (plus those gained so far in the fight on screen); `{genesisTribe}` = the type Genesis would refresh into right now;
    *  `{timeLeft}` = Time's discounted buys left this turn. Xerox: `{xDeathLeft}` = friendly deaths still needed for
    *  Death's next copy (live through a fight); `{pairs}` / `{pairGold}` = the pairs on the board right now and the Gold
-   *  they would bank; `{charges}` = Genesis' Copy Machine uses left; `{bond}` = Bonds' live bond state. */
+   *  they would bank; `{charges}` = Genesis' Copy Machine uses left; `{bond}` = Bonds' live bond state. Soren: `{reclaimGain}` = War's
+   *  live +X/+X. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -733,6 +763,48 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'refreshUpgradeDiscount', amount: 1 }],
     },
   },
+  // SOREN (owner pairings 2026-10-02, quoted above each entry). Reclaim = "Choose a friendly minion. At the start of
+  // combat, destroy it and resummon a copy when there is room." (free, once per turn).
+  soren: {
+    death: {
+      // "Echoes triggered by Reclaim trigger an additional time."
+      offerText: 'The **Echo** Reclaim triggers fires an extra time.',
+      powerText: '{base} Its **Echo** triggers an extra time.',
+      effects: [{ do: 'reclaimEchoExtra', extra: 1 }],
+    },
+    fortune: {
+      // "Reclaim works in Recruit phase instead. Gain 5g when it is used." Owner 2026-10-02 on a full board: "it'd be an
+      // 'overflow' technically, but if no room then it is lost".
+      offerText: 'Reclaim works in the Shop instead. Gain **5 Gold** when you use it.',
+      powerText: 'Choose a friendly minion. Destroy it and resummon a copy right away, if there is room. Gain **5 Gold**.',
+      effects: [{ do: 'reclaimInShop', gold: 5 }],
+    },
+    war: {
+      // "Reclaimed minions gain +10/+10 on re-summon. Start of Turn: Improve this." Owner 2026-10-02: "fight only, but
+      // engraving etc would carry it back".
+      offerText: 'Reclaimed minions gain **+10/+10** when they return. **Start of Turn:** improve this by **+10/+10**.',
+      powerText: '{base} The copy gains **+{reclaimGain}/+{reclaimGain}** for that combat. **Start of Turn:** improve this by **+10/+10**.',
+      effects: [{ do: 'reclaimGainImproves', amount: 10 }],
+    },
+    genesis: {
+      // "Reclaim grants a plain copy of the minion you target, but it is locked for 3 turns."
+      offerText: 'Reclaim also gets you a plain copy of the minion you choose. It is locked for **3** turns.',
+      powerText: '{base} You also get a plain copy of it in your hand, locked for **3** turns.',
+      effects: [{ do: 'reclaimCopyLocked', turns: 3 }],
+    },
+    time: {
+      // "Reclaim summons twice."
+      offerText: 'Reclaim resummons **2** copies.',
+      powerText: 'Choose a friendly minion. At the start of combat, destroy it and resummon **2** copies when there is room.',
+      effects: [{ do: 'reclaimSummonsTwice', copies: 2 }],
+    },
+    bonds: {
+      // "When the reclaimed minion summons, grant its attack to adjacent minions." Owner 2026-10-02: "That fight only".
+      offerText: 'When a Reclaimed minion returns, the minions next to it gain its Attack.',
+      powerText: '{base} When it returns, the minions next to it gain its Attack for that combat.',
+      effects: [{ do: 'reclaimBondsAdjacent' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -839,6 +911,8 @@ export interface AncientsState {
    *  2026-10-02: "Yes, down to 0"). Banked once the running cost is already at its floor; ignored at any other tier, so
    *  every tier-up path clears it by construction. */
   tradesSurchargeOff?: { tier: number; gold: number };
+  /** SOREN × WAR: the live +X/+X a Reclaimed copy gains on its return (set at the pick, improved each Start of Turn). */
+  sorenWarGain?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -911,6 +985,8 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   if (shape) a.powerOverride = { ...shape };
   const extra = effectOf(state, 'copyMachineExtraCharge');
   if (extra) a.xeroxCharges = (a.xeroxCharges ?? 0) + extra.charges; // XEROX × GENESIS: banked at the pick
+  const war = effectOf(state, 'reclaimGainImproves');
+  if (war) a.sorenWarGain = war.amount; // SOREN × WAR: starts at the printed amount
   return true;
 }
 
@@ -988,6 +1064,8 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{freeRolls}', String(Math.max(0, state.freeRolls ?? 0) + (combat.freeRefreshes ?? 0)))
     .replace('{lassoLeft}', String(tradesLassoLeft(state))).replace('{rallyGold}', String(tradesRallyGoldNow(state) + (effectOf(state, 'minionsRallyGold')?.gold ?? 0) * (combat.rallyFires ?? 0)))
     .replace('{upgradeNow}', tradesUpgradeText(state));
+  // SOREN × WAR: the live +X/+X (it improves every Start of Turn). Printed twice, so every occurrence.
+  text = text.split('{reclaimGain}').join(String(ancientReclaimGain(state)));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1158,6 +1236,21 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (td) out.ancientRefreshAvenge = { every: td.every, tick: live(state)?.tradesDeaths ?? 0, flag: ANCIENT_REFRESH_AVENGE_FLAG, label: ANCIENTS.death.name };
   const rally = ancientRallyGoldGraft(state);
   if (rally) out.ancientRallyGold = rally;
+  // SOREN: Reclaim's Start-of-Combat destroy + return, reshaped (Death / War / Time / Bonds). One field, one label.
+  const rEcho = effectOf(state, 'reclaimEchoExtra');
+  const rTime = effectOf(state, 'reclaimSummonsTwice');
+  const rWar = effectOf(state, 'reclaimGainImproves');
+  const rBonds = effectOf(state, 'reclaimBondsAdjacent');
+  if (rEcho || rTime || rWar || rBonds) {
+    const id: AncientId = rEcho ? 'death' : rTime ? 'time' : rWar ? 'war' : 'bonds';
+    out.ancientReclaim = {
+      label: ANCIENTS[id].name,
+      ...(rEcho ? { echoExtra: rEcho.extra } : {}),
+      ...(rTime ? { copies: rTime.copies } : {}),
+      ...(rWar ? { gain: ancientReclaimGain(state) } : {}),
+      ...(rBonds ? { bonds: true } : {}),
+    };
+  }
   return out;
 }
 
@@ -1370,6 +1463,7 @@ export function ancientRiseTint(state: RunState, card: BoardCard): RiseTint | un
 export function ancientStartOfTurn(state: RunState): void {
   albusStartOfTurn(state);
   xeroxStartOfTurn(state);
+  sorenStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -1940,4 +2034,60 @@ export function ancientAfterRefresh(state: RunState): void {
   if (a.tradesRefreshes % Math.max(1, gen.every) !== 0) return;
   const spell = CARD_INDEX[gen.spellId];
   if (spell?.spell) castSpell(state, spell, undefined, 'hero');
+}
+
+// ── Soren (Reclaim) hooks ────────────────────────────────────────────────────────────────────────────────────
+/** WAR: the +X/+X a Reclaimed copy gains on its return right now (0 unless the pairing is live). */
+export function ancientReclaimGain(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'reclaimGainImproves') : undefined;
+  return e ? live(state)?.sorenWarGain ?? e.amount : 0;
+}
+
+/** WAR: "Start of Turn: Improve this." The amount grows by its printed base each Start of Turn (the "Improve this"
+ *  convention: grow by the base amount). No board change, so no beat: the power text reads the new number. */
+function sorenStartOfTurn(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'reclaimGainImproves');
+  if (!a || !e) return;
+  a.sorenWarGain = (a.sorenWarGain ?? e.amount) + e.amount;
+}
+
+/** FORTUNE: Reclaim resolves in the Shop instead of marking the minion for Start of Combat. */
+export function ancientReclaimInShop(state: RunState): boolean {
+  return !!effectOf(state, 'reclaimInShop');
+}
+
+/**
+ * FORTUNE: Reclaim, in the Shop, right now. Combat's Reclaim exactly, moved to the Recruit phase: `card` is destroyed as
+ * a TRUE death (`rise: false`, so no Rise / Rebirth return, as combat forces), its Echo fires where it stood, and an
+ * exact copy of the body it had returns to its slot (to the right of anything its Echo summoned there), as a summon
+ * (`fireSummonBuffs`). No room left after the Echo: an overflow (`fireSummonOverflow`, the Rise-return rule), and the
+ * copy is lost (owner 2026-10-02). The use gains `gold` immediately.
+ */
+export function ancientShopReclaim(state: RunState, card: BoardCard): void {
+  const e = effectOf(state, 'reclaimInShop');
+  if (!e) return;
+  const slot = state.board.indexOf(card);
+  if (slot < 0) return;
+  const copy = exactBoardCopy(state, card); // the body as it is NOW (stats, buffs, keywords, counters)
+  const before = state.board.length;
+  destroyMinionInShop(makeContext(state), card, { rise: false });
+  if (state.board.length >= CONFIG.boardMax) fireSummonOverflow(state);
+  else {
+    const grew = state.board.length - (before - 1); // bodies the Echo added
+    state.board.splice(Math.min(state.board.length, slot + Math.max(0, grew)), 0, copy);
+    fireSummonBuffs(state, copy);
+  }
+  gainGold(state, e.gold);
+}
+
+/** GENESIS: after Reclaim marks `card`, a plain copy (the printed card, never gilded) goes to hand, locked for `turns`
+ *  turns (`lockedUntilWave`: unplayable this turn and the next `turns - 1`). Hand full: no copy (never onto the board). */
+export function ancientAfterReclaimMark(state: RunState, card: BoardCard): void {
+  const e = effectOf(state, 'reclaimCopyLocked');
+  if (!e) return;
+  const def = CARD_INDEX[card.cardId];
+  if (!def || def.spell || state.hand.length >= handCap(state)) return;
+  const copy = grantMinionToHandOrBoard(state, def, false);
+  if (state.hand.includes(copy)) copy.lockedUntilWave = state.wave + e.turns;
 }

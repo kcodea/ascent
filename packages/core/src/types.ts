@@ -1948,6 +1948,14 @@ export interface QuestCombatMods {
   /** ANCIENT OF WAR × Tradesman (owner 2026-10-02): "Your minions gain Rally: Gain 1g next turn." The board's bodies
    *  carry the graft from the Shop (`grantedEffects`); this grafts it onto bodies SUMMONED in the fight too. */
   ancientRallyGold?: { gold: number };
+  /** ANCIENTS × Soren (owner pairings 2026-10-02). Reclaim's Start-of-Combat destroy + resummon, reshaped:
+   *  `echoExtra` (Death): the Echo the Reclaim destroy triggers fires this many more times (one more `playerEchoExtras`
+   *  fire for that body only, so every Echo watcher and the Echo tally hear each fire). `copies` (Time): the Reclaimed
+   *  body is resummoned this many times in all (each waits for room; only the first carries the run card's `sourceUid`).
+   *  `gain` (War): each returned copy gains +gain/+gain, a combat buff (Engraved keeps it, like every combat gain).
+   *  `bonds` (Bonds): when a returned copy lands, its living neighbours gain Attack equal to its Attack, a combat buff.
+   *  Player-only; never snapshotted. */
+  ancientReclaim?: { echoExtra?: number; copies?: number; gain?: number; bonds?: boolean; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

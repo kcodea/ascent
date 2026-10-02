@@ -8280,7 +8280,8 @@ const HandRow = memo(function HandRow({
               : goldLocked
                 ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
                 : waveLocked
-                  ? 'Next turn'
+                  // Turns left (Soren x Genesis locks a copy for 3 turns): the last locked turn reads "Next turn".
+                  ? m.lockedUntilWave! - wave > 1 ? `${m.lockedUntilWave! - wave} turns` : 'Next turn'
                   : undefined;
             return (
               <Card

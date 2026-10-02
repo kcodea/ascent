@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
+import { ancientRunXeroxPairs, ancientXeroxPairsLive, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -548,6 +548,50 @@ export function stampSharedSpoils(state: RunState): void {
   SPOILS_MIRRORING = false;
 }
 
+/**
+ * ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other gains
+ * too." Copy Machine's copy and its original stay bound for the rest of the run (until the bond breaks), so the bond
+ * lives on the run (`AncientsState.xeroxBond`) and is stamped onto the stateless `addBuff` hook exactly like Sable's
+ * one-turn Soulbind above, from the same draft. The partner is looked up LIVE on the run (board first, then hand),
+ * so a board array replaced mid-action, or a bound body moved to hand, is still found.
+ *
+ * `XEROX_MIRRORING` is the load-bearing one-hop guard: the mirrored gain re-enters `addBuff`, and without it the
+ * pair would buff each other forever. Only GAINS mirror (the positive part of each stat).
+ */
+let XEROX: { a: string; b: string; state: RunState } | null = null;
+let XEROX_MIRRORING = false;
+/** Stamp the run's Xerox bond (null when none / Bonds not live). Returns the previous stamp, so a throwaway
+ *  projection can put the live one back when it is done (`restoreXeroxBond`). The bond is VALIDATED here: an end that
+ *  no longer exists anywhere on the run (sold, consumed into a triple, eaten) breaks it for good. */
+export function stampXeroxBond(state: RunState): typeof XEROX {
+  const prev = XEROX;
+  const bond = ancientXeroxBondValidate(state);
+  XEROX = bond ? { a: bond.a, b: bond.b, state } : null;
+  XEROX_MIRRORING = false;
+  return prev;
+}
+export function restoreXeroxBond(prev: typeof XEROX): void {
+  XEROX = prev;
+  XEROX_MIRRORING = false;
+}
+
+/**
+ * AN EXACT COPY of a run minion (Xerox's Copy Machine, owner ruling 2026-08-15, R-COPY-02): every per-instance field
+ * rides along (current stats, the buff breakdown, granted keywords, gilding, accrued counters) under a fresh uid. It is
+ * an extra body, never taken from the shared pool. Shared by Copy Machine and the Xerox Ancients so "a copy" means one
+ * thing everywhere.
+ */
+export function exactBoardCopy(state: RunState, card: BoardCard): BoardCard {
+  return {
+    ...card,
+    uid: `b${state.uidSeq++}`,
+    buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
+    keywords: [...card.keywords],
+    copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
+    resummon: false, // a Soren mark is a per-body choice, not part of the stat line
+  };
+}
+
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
@@ -559,6 +603,16 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
     if (partner) {
       SABLE_MIRRORING = true;
       try { addBuff(partner, 'Soulbind', attack, health, count); } finally { SABLE_MIRRORING = false; }
+    }
+  }
+  // Xerox × Ancient of Bonds: the bound pair (permanent until it breaks). Same one-hop shape; gains only.
+  if (XEROX && !XEROX_MIRRORING && (attack > 0 || health > 0)) {
+    const partnerUid = card.uid === XEROX.a ? XEROX.b : card.uid === XEROX.b ? XEROX.a : undefined;
+    const st = XEROX.state;
+    const partner = partnerUid ? (st.board.find((c) => c.uid === partnerUid) ?? st.hand.find((c) => c.uid === partnerUid)) : undefined;
+    if (partner && partner !== card) {
+      XEROX_MIRRORING = true;
+      try { addBuff(partner, ANCIENTS.bonds.name, Math.max(0, attack), Math.max(0, health), count); } finally { XEROX_MIRRORING = false; }
     }
   }
   // Rune of Shared Spoils: the LEFT-most Dwarf's gain is copied onto the RIGHT-most Dwarf. Same one-hop shape
@@ -1064,13 +1118,16 @@ export interface HeroPowerLive {
   /** Clearance stacks gained SO FAR in the fight being replayed; undefined outside a fight. Frantic Frank × Ancient of
    *  War prints its banked stacks live. */
   clearanceStacks?: number;
+  /** Friendly deaths SO FAR in the fight being replayed; undefined outside a fight. Xerox × Ancient of Death prints its
+   *  running Avenge (5) countdown live. */
+  friendlyDeaths?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -10610,6 +10667,8 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
       conjureToHand(state, poolOf(state).buyable.filter((c) => defIsTribe(c, 'undead') && c.tier <= state.tier), runeStacksOf(state, 'rune_body_counting'), true);
     }
   }
+  // ANCIENTS × Xerox (a no-op unless picked): Death's hero Avenge counts this Shop death; Bonds breaks on it.
+  ancientXeroxShopDeath(state, dead);
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {
@@ -13383,6 +13442,7 @@ function applyEndOfTurnBody(state: RunState): void {
   const recurringBeatSpec = (effect: string): { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; policyKey?: string; family?: string } => {
     // The Ancient of Time's grant is the HERO's, not a rune's (no content owner).
     if (effect === 'ancientTimeWard') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientXeroxPairs') return { source: beatSource('hero', state.heroId, ANCIENTS.fortune.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -13940,6 +14000,9 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     // ANCIENT OF TIME × Warden: "End of Turn: give your minions with Ward +5/+5" — a virtual recurring entry so it
     // gets a beat, the projection, Chronos repeats and the End-of-Turn replays like every other recurrence.
     ...(ancientEotWardBuff(state) ? ['ancientTimeWard' as const] : []),
+    // ANCIENT OF FORTUNE × Xerox: "Gain 4g next turn for every pair you have on board", counted at End of Turn. A
+    // virtual recurring entry like Warden's Time, so its End of Turn repeats and replays follow the one rule.
+    ...(ancientXeroxPairsLive(state) ? ['ancientXeroxPairs' as const] : []),
   ];
 }
 
@@ -13981,6 +14044,8 @@ function runRecurringEndOfTurn(
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
   } else if (effect === 'ancientTimeWard') {
     ancientRunEotWardBuff(state, step);
+  } else if (effect === 'ancientXeroxPairs') {
+    ancientRunXeroxPairs(state);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14325,6 +14390,14 @@ function projectEndOfTurnStepsInner(state: RunState): {
   const clone = structuredClone(rest) as RunState;
   clone.lastCombat = lastCombat;
   stampImproveReps(clone); // Rune of Mastery: the projection's Sergeant improves match the real commit
+  // Xerox × Bonds: mirror against the CLONE for the projection (never the live run), then put the live stamp back.
+  const xeroxPrev = stampXeroxBond(clone);
+  try { return projectEndOfTurnStepsBody(clone); } finally { restoreXeroxBond(xeroxPrev); }
+}
+function projectEndOfTurnStepsBody(clone: RunState): {
+  steps: Array<Record<string, { attack: number; health: number }>>;
+  fx: EotStepFx[];
+} {
   const ctx = makeContext(clone);
   const repeats = endOfTurnRepeats(clone);
   const steps: Array<Record<string, { attack: number; health: number }>> = [];
@@ -14562,6 +14635,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   runeCrucibleChoir: 'Rune of the Crucible Choir',
   runeFiveBanners: 'Rune of the Five Banners',
   ancientTimeWard: 'Ancient of Time',
+  ancientXeroxPairs: 'Ancient of Fortune',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

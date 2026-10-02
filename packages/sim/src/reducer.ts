@@ -1,5 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
-import { ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy } from './ancients';
+import { ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy } from './ancients';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -22,7 +22,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
 import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -1470,6 +1470,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // every mirrored buff landed on a discarded object, so the bond silently did nothing (owner report 2026-08-16).
   stampSableBond(s);
   stampSharedSpoils(s); // Rune of Shared Spoils rides the same stateless addBuff hook, from the same draft
+  stampXeroxBond(s); // Xerox × Ancient of Bonds: the bound pair, from the same draft (validated: a gone end breaks it)
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.lastRallyFires = 0; // transient per-action SHOP-Rally-fire count (set by fireShopRally → read by the rally quest tick)
@@ -3055,7 +3056,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           : slotReady;
       // ANCIENT OF WAR × Frantic Frank: once the turn's own Clearance is spent, a banked stack pays for one more use.
       const stackUse = !readyNow && slot === 0 && power.kind === 'clearance' && ancientClearanceStacks(s) > 0;
-      const available = readyNow || stackUse;
+      // ANCIENT OF GENESIS × Xerox: a spent (once-per-game) Copy Machine fires again on a banked charge.
+      const chargeUse = !readyNow && !stackUse && slot === 0 && power.kind === 'copyMachine' && ancientCopyCharges(s) > 0;
+      const available = readyNow || stackUse || chargeUse;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -3220,26 +3223,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // buff breakdown, granted keywords, golden, accrued counters (summonBonus / attachments / copiedEcho).
         // A full instance spread is the only faithful way to say "exact"; rebuilding from the CardDef would
         // hand back a base-stat body and silently drop everything the minion had earned.
-        const copy: BoardCard = {
-          ...card,
-          uid: `b${s.uidSeq++}`,
-          buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
-          keywords: [...card.keywords],
-          copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
-          resummon: false, // a Soren mark is a per-body choice, not part of the stat line
-        };
+        const copy = exactBoardCopy(s, card);
         s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, copy);
+        // ANCIENT OF BONDS (a no-op unless picked): the copy and the original are bound from here on.
+        ancientOnCopyMachine(s, card, copy);
         // Wishbone: a second copy, each needing its OWN free slot — a full board simply stops the extras
         // rather than overfilling (the same rule the first copy is gated on above).
         for (let r = 1; r < reps && s.board.length < CONFIG.boardMax; r++) {
-          const extra: BoardCard = {
-            ...card,
-            uid: `b${s.uidSeq++}`,
-            buffs: card.buffs ? card.buffs.map((b) => ({ ...b })) : undefined,
-            keywords: [...card.keywords],
-            copiedEcho: card.copiedEcho ? card.copiedEcho.map((e) => ({ ...e })) : undefined,
-            resummon: false,
-          };
+          const extra = exactBoardCopy(s, card);
           s.board.splice(s.board.findIndex((c) => c.uid === card.uid) + 1, 0, extra);
         }
       } else if (power.kind === 'roundedSpellbook') {
@@ -3544,6 +3535,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
 
       if (stackUse) ancientSpendClearanceStack(s); // WAR: the extra use takes a stack (the turn's charge is already spent)
+      else if (chargeUse) ancientSpendCopyCharge(s); // GENESIS × Xerox: the extra use takes the banked charge
       else if (power.usesPerTurn) {
         // Fibbsy: count this turn's use; heroReady stays TRUE until the last charge is spent, so the button is
         // still armed for the second press. On the final use it flips false, which is how every "used" UI cue
@@ -4151,6 +4143,8 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   if (s.hand.length < handCap(s)) s.hand.push(goldenCard);
   else s.board.push(goldenCard);
   carrySableBond(s, combined, goldenCard.uid);
+  ancientXeroxBondTripled(s, combined); // Xerox × Bonds: "if this triples, the effect breaks"
+  stampXeroxBond(s);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
   noteGilded(s); // a triple is a minion becoming Gilded (the Ancient of Bonds' count)
 }

@@ -623,4 +623,89 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-09-30). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsFrank.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
+  {
+    id: 'R-ANCXEROX-01',
+    title: 'Xerox × Ancient of Death: Avenge (5) summons a copy of your highest Attack minion, Shop and combat',
+    statement:
+      "With the Ancient of Death, Xerox has a hero-level Avenge (5) on ONE running count of friendly deaths across the Shop and combat (the Rune of Body Counting meter shape: Shop deaths tick it at fireOnFriendDeath, combat carries it in and settle adds the fight's deaths). Every 5th death summons an exact copy (Copy Machine's meaning: current stats, keywords, gilding; in combat the body's current stats with its Ward and Rise state) of your highest-Attack living minion, ties to the left-most, beside it. A full board copies nothing. In combat it fires mid-fight on the death that completes the count, and Rune of Fury fires it again like every hero Avenge. The power prints the deaths still needed, live through a fight, and the countdown sits in the centre of the power.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'death - Avenge (5): Summon a copy of your highest attack minion' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeCopyTopAttack / ancientXeroxShopDeath / ancientXeroxAvengeLeft; packages/core/src/combat/simulate.ts ancientXeroxAvenge avenge listener' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-02',
+    title: 'Xerox × Ancient of Fortune: gain 4 Gold next turn for every pair on your board',
+    statement:
+      'With the Ancient of Fortune, at End of Turn Xerox banks 4 Gold for next turn for every PAIR on the board: two minions of the same card (a Gilded and a plain copy of one card are the same card), counted as floor(n / 2) per card. It is a virtual recurring End-of-Turn entry, so End of Turn repeats and replays fire it like every other recurrence. The power prints the pairs on the board right now and the Gold they would bank.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'fortune - Gain 4g next turn for every pair you have on board' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pairsGoldNextTurn / boardPairs / ancientRunXeroxPairs; packages/sim/src/recruit.ts recurringEotEffects (ancientXeroxPairs)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-03',
+    title: 'Xerox × Ancient of War: Start of Combat, summon a copy of your highest Health minion',
+    statement:
+      'With the Ancient of War, at Start of Combat Xerox summons an exact copy (current combat stats, keywords, Ward and Rise state, gilding) of the highest-Health living friendly minion, ties to the left-most, beside it. A full board copies nothing. The copy is a combat body only: the run board is unchanged after the fight.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'war - Start of Combat: Summon a copy of your highest health minion' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socCopyTopHealth; packages/core/src/combat/simulate.ts ancientXeroxSoc (Start of Combat)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-04',
+    title: 'Xerox × Ancient of Genesis: Copy Machine gains another use',
+    statement:
+      "With the Ancient of Genesis, the pick banks one more Copy Machine use. Copy Machine is once per game, so this makes two uses for the game: once the once-per-game use is spent, the banked charge lets it fire again (no turn gate), and spends the charge. Picked after Copy Machine was already used, it is usable once more. The power prints the uses left and the button is ready while a charge is banked.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'genesis - Gain another charge of Copy Machine' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts copyMachineExtraCharge / ancientCopyCharges; packages/sim/src/reducer.ts heroPower chargeUse; packages/ui/src/StatusBar.tsx canHero' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-05',
+    title: 'Xerox × Ancient of Time: Start of Turn, get a copy of a minion you control',
+    statement:
+      'With the Ancient of Time, at Start of Turn Xerox gets an exact copy of a random friendly board minion (the seeded run stream) in hand, on its own Start of Turn beat (R-SOT-BEAT-01). An empty board or a full hand gets nothing. The triple check that runs as the Shop opens sees the copy.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'time - Start of Turn: Get a copy of a minion you control.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts sotCopyToHand / xeroxStartOfTurn' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-ANCXEROX-06',
+    title: 'Xerox × Ancient of Bonds: the copy and the original are bound; a triple breaks the bond',
+    statement:
+      "With the Ancient of Bonds, Copy Machine binds its copy and the original (run state, AncientsState.xeroxBond, so it survives save and restore). Whenever either gains stats, the other gains the same, the moment it happens (R-REALTIME-01): in the Shop through addBuff (the Sable Soulbind hook), in combat through ctx.buff matched on the run uid. Only gains mirror, one hop: the mirrored gain never mirrors back. A permanent combat gain mirrors once, at settle (the combat mirror never accrues Engraved carry-back). The bond breaks for good when either end is consumed into a triple, sold, destroyed in the Shop, or otherwise leaves the run; a combat death does not break it (the run board keeps both). The power prints who is bound, or that the bond is broken.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'bonds - The copy and the original are bound. Stats one gains, the other gains too.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'if this triples, the effect breaks' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts copyMachineBonds / ancientOnCopyMachine / ancientXeroxBondValidate; packages/sim/src/recruit.ts stampXeroxBond + addBuff; packages/core/src/combat/simulate.ts ancientXeroxBond' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

@@ -963,6 +963,7 @@ export function simulate(
   // Sable's Soulbind re-entrancy guard — declared beside `ctx` because `ctx.buff` mirrors onto its partner by
   // calling itself. See the mirror block inside `buff`.
   let soulbindMirroring = false;
+  let xeroxBondMirroring = false; // Xerox × Ancient of Bonds: the one-hop guard (see ctx.buff)
   /** ANCIENT OF BONDS: set while its own +Attack lands, so that grant can never trigger Bonds again. */
   let ancientBondsFiring = false;
 
@@ -1127,7 +1128,8 @@ export function simulate(
       if (transcendant) target.auraEngraved = true; // so the carry-back entry attributes it correctly
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
-      if (target.keywords.includes('EG') || transcendant) {
+      // (A Xerox Bonds MIRROR never accrues here: the source's own permanent gain is mirrored by the Shop at settle.)
+      if ((target.keywords.includes('EG') || transcendant) && !xeroxBondMirroring) {
         target.permaGain = {
           attack: (target.permaGain?.attack ?? 0) + attack,
           health: (target.permaGain?.health ?? 0) + health,
@@ -1171,6 +1173,20 @@ export function simulate(
           const pick = rng.pick(others);
           ancientBondsFiring = true;
           try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; }
+        }
+      }
+      // ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other
+      // gains too." The Soulbind shape below, for a bond that lasts the run: matched on the run-board uid (`sourceUid`),
+      // gains only, one hop (`xeroxBondMirroring`).
+      const xb = modsFor('player').ancientXeroxBond;
+      if (xb && !xeroxBondMirroring && target.side === 'player' && (attack > 0 || health > 0)) {
+        const runUid = (m: Minion): string => m.sourceUid ?? m.uid;
+        const tid = runUid(target);
+        const otherUid = tid === xb.a ? xb.b : tid === xb.b ? xb.a : undefined;
+        const partner = otherUid ? boards.player.find((m) => runUid(m) === otherUid && !m.dead && m !== target) : undefined;
+        if (partner) {
+          xeroxBondMirroring = true;
+          try { ctx.buff(partner, Math.max(0, attack), Math.max(0, health), xb.label); } finally { xeroxBondMirroring = false; }
         }
       }
       const bond = modsFor('player').soulbind;
@@ -1799,6 +1815,23 @@ export function simulate(
    * auras, keyword grants, attack-on-summon and the onSummon event apply to *any* summon (token
    * Deathrattles, `deathrattleFillTribe`'s real minions, Brood Matron, future effects).
    */
+  /** XEROX × Ancients: the side's highest-`stat` living minion (ties: the left-most). */
+  function xeroxTop(side: Side, stat: 'attack' | 'health'): Minion | undefined {
+    let best: Minion | undefined;
+    for (const m of boards[side]) if (!m.dead && m.health > 0 && (!best || m[stat] > best[stat])) best = m;
+    return best;
+  }
+  /** XEROX × Ancients: an exact copy of `src` (current combat stats, its keywords, Ward / Rise), beside it. */
+  function xeroxCopy(side: Side, src: Minion): void {
+    const def = cards[src.cardId];
+    if (!def) return;
+    // Granted keywords ride along; the Ward / Rise STATE comes from the body (a popped Ward stays popped).
+    const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
+    summonMinion(side, def, src.uid, kws, src.golden, false, {
+      attack: src.attack, health: src.health, maxHealth: src.maxHealth,
+      divineShield: src.divineShield, rebornAvailable: src.rebornAvailable,
+    });
+  }
   function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
@@ -4287,6 +4320,13 @@ export function simulate(
         if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
       }
     }
+    // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
+    // copy (the Mirror March `copyStats` path + its keywords) of the highest-Health living minion (ties: the left-most),
+    // beside it. No room: nothing.
+    if (smods.ancientXeroxSoc && occupied(scSide) < 7) {
+      const src = xeroxTop(scSide, 'health');
+      if (src) { nextStep(); emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` }); xeroxCopy(scSide, src); }
+    }
     // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
     // Shouts. If you have only one Shout, trigger it once." The two edges are read once, up front; each fires through
     // the shared combat Shout path (`fireShout`: a counted `shout` event, the Shout's combat half, the
@@ -5157,6 +5197,24 @@ export function simulate(
     for (let k = 0; k < fires; k++) {
       clearanceStacksGained[side] += 1;
       fireTrigger(cs.flag, side);
+    }
+  });
+  // ANCIENT OF DEATH × Xerox (owner 2026-10-02): "Avenge (5): Summon a copy of your highest attack minion." A hero Avenge
+  // on ONE running count across Shop and combat (`tick` carried in: the Rune of Body Counting meter shape). Each fire
+  // summons an exact copy of the highest-Attack living minion (ties: the left-most) beside it, room permitting; Rune of
+  // Fury fires it again, like every hero Avenge.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const xa = modsFor(side).ancientXeroxAvenge;
+    if (!xa || (xa.tick + count) % Math.max(1, xa.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      if (occupied(side) >= 7) return;
+      const src = xeroxTop(side, 'attack');
+      if (!src) return;
+      nextStep();
+      emit({ type: 'sc', source: victim?.uid ?? src.uid, text: `${xa.label}: a copy of ${src.name}`, side, heroPower: true });
+      xeroxCopy(side, src);
     }
   });
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.

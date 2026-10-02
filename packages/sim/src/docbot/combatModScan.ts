@@ -75,6 +75,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   shoutMeters: [{ sourceId: 'rune_chorus', per: 1, tick: 0, grantSpell: 1 }], // balance 9/23: the cross-phase Shout tally — pays a hand grant on a combat Shout
   ancientUndying: { uids: ['pS1'], war: true, regainRise: true, label: 'Ancient of War' }, // Risen x Death / War: the Undying body by sourceUid
   ancientSummonExtra: 1, // Risen x Genesis: extra copies per combat summon (a count, not a flag)
+  ancientXeroxAvenge: { every: 1, tick: 0, label: 'Ancient of Death' }, // Xerox x Death: Avenge (1) so the staged deaths copy
+  ancientXeroxBond: { a: 'pS1', b: 'pS2', label: 'Ancient of Bonds' }, // Xerox x Bonds: the Soulbind fixture pair (sourceUids)
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }

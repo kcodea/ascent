@@ -68,3 +68,27 @@ export const OWN_SIZE_EXCEPTIONS = [
   'lobbyscout',
   'anc-pv',
 ] as const;
+
+/**
+ * THE UI THEME (owner 2026-10-02): every colour in a tooltip (tooltips.css) and in a Gem plate HUD pill rule
+ * (healthPills.css, the `[data-hp-look="gem"]` rules) comes from the shared `--ui-*` tokens in uiTheme.css, so the
+ * 🎨 UI Theme tuner recolours them all at once. `tooltipStyle.test.ts` fails a literal colour there, with these
+ * deliberate exceptions:
+ * - pure black / white SHADING (`rgba(0, 0, 0, a)`, `rgba(255, 255, 255, a)`, `#000`, `#fff`): inset rings, drop
+ *   shadows, gloss and text shadows, which darken or lighten whatever theme sits under them;
+ * - the selectors below, which carry STATE colours that must not follow the theme:
+ *   - the opponent's Shop Tier number keeps the game-wide cream-and-gold Tier plaque (`--gold`, `--ink`);
+ *   - a locked / coming-soon mode card or Gauntlet stage reads as disabled grey;
+ *   - a cleared Gauntlet stage's edge is the "done" green;
+ *   - the Rift mode card's edge is Rift's tier colour (`--tier-7`);
+ *   - a hovered combat button's text goes to pure white (covered by the shading rule, listed for clarity).
+ * The other HUD pill looks (Classic, Slate, Minimal) are alternatives behind the ❤️ HUD pills switch, not the
+ * shipped Gem plate, and are not themed.
+ */
+export const GEM_COLOUR_EXCEPTIONS = [
+  ':root[data-hp-look="gem"] .combatopp-tier-n',
+  ':root[data-hp-look="gem"] .modecard.mclocked .mcname.hudpill-name',
+  ':root[data-hp-look="gem"] .gslot:is([data-state=\'locked\'], [data-state=\'soon\']) .gslot-tag.hudpill-name',
+  ':root[data-hp-look="gem"] .gslot[data-state=\'cleared\'] .gslot-tag.hudpill-name',
+  ':root[data-hp-look="gem"] .mcframe[data-mode=\'rift\'] .mcname.hudpill-name',
+] as const;

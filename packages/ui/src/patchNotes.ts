@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Tooltips now match the new HUD style.',
+        details: [
+          'Tooltips use the same dark plate and thin gold edge as the health and name pills.',
+          'Tooltip sizes are unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Refreshed the health, name and Shop Tier pills, the turn timer, and the Skip and Summary buttons.',
         details: [
           'Health pills, hero name pills, the Tier and Freeze labels and the turn timer share one new dark and gold look.',
@@ -104,7 +112,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Tooltips across the game now share one consistent, easier to read style.',
         details: [
-          'Every tooltip now uses the hero power tooltip look: a solid dark blue panel, a gold title, and keywords and numbers in gold.',
+          'Every tooltip now uses the hero power tooltip look: a solid dark panel, a gold title, and keywords and numbers in gold.',
           'The rune and quest tooltips are no longer see-through, so they read clearly over bright art.',
           'Shop buttons, the Gold readout, keyword pills, the lobby scout card, Career and the menus all match.',
         ],

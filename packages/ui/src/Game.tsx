@@ -1,5 +1,6 @@
 import './styles.css';
 // The shared tooltip look (owner 2026-10-02) + its DEV size dials. After styles.css so the skin owns the paint.
+import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD pills
 import './tooltips.css';
 import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)

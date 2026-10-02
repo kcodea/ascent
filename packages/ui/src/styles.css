@@ -1072,7 +1072,7 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
    next-gold tooltip reveals ABOVE it (the pill sits at the board's bottom edge). `--gold-x/y` allow a nudge. */
 /* A CIRCLE (owner ask 2026-08-11) to seat in the board's bottom-right notch — fixed square + border-radius 50%,
    sized/placed by the Layout Lab (--gold-s scale, --gold-x/y inset from the right/bottom edge). */
-.goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 408px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 423px) * var(--scale)); transform: scale(var(--gold-s, 1.69)); transform-origin: bottom right; width: calc(66 * var(--u)); height: calc(66 * var(--u)); display: grid; place-items: center; padding: 0; border-radius: 50%; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); border: 2px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
+.goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 408px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 423px) * var(--scale)); transform: scale(var(--gold-s, 1.69)); transform-origin: bottom right; width: calc(66 * var(--u)); height: calc(66 * var(--u)); display: grid; place-items: center; padding: 0; border-radius: 50%; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15); border: 2px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
 .goldpill svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: #4a2f08; }
 .goldpill-v { font-family: var(--font-ui); font-weight: 900; font-size: calc(23 * var(--u)); font-variant-numeric: tabular-nums; color: #2e1d05; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5); line-height: 1; }
 .goldpill:hover .sbtip, .goldpill.tt-on .sbtip { opacity: 1; transition-delay: 0.3s; }
@@ -5906,19 +5906,19 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* ACCOUNTS C2 — the account overlay (sign-in lives in Settings now). Themed off the shared glass vars so the UI
    Theme tuner reaches it; PRESENTATION IS MIKE'S SEAM, this is a plain functional shell for him to restyle. */
 .acctpanel { position: fixed; inset: 0; z-index: 540; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
-.acctpanel-box { display: flex; flex-direction: column; width: min(440px, calc(92 * var(--vw, 1vw))); border-radius: var(--gl-radius, 16px);
-  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.96)), var(--gl-bot, rgba(20, 25, 34, 0.98)));
-  -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15));
-  border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42));
+.acctpanel-box { display: flex; flex-direction: column; width: min(440px, calc(92 * var(--vw, 1vw))); border-radius: 16px;
+  background: linear-gradient(180deg, rgba(46, 56, 72, 0.96), rgba(20, 25, 34, 0.98));
+  -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15);
+  border: 1px solid rgba(190, 214, 240, 0.22); border-top-color: rgba(226, 240, 255, 0.42);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
 .acctpanel-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 22px 10px; }
-.acctpanel-title { font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gl-text, #f6efe2); }
-.acctpanel-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 22px 24px; color: var(--gl-text, #eef4fb); }
+.acctpanel-title { font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; color: #f6efe2; }
+.acctpanel-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 22px 24px; color: #eef4fb; }
 .acctpanel-lead { font-family: var(--font-ui); font-weight: 800; font-size: 17px; margin: 0; }
-.acctpanel-handle { font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: var(--gl-value, #e6b45a); margin: -6px 0 0; }
-.acctpanel-email { font-weight: 700; font-size: 15px; color: var(--gl-accent, #a8d8ef); margin: -4px 0 0; word-break: break-all; }
+.acctpanel-handle { font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: #e6b45a; margin: -6px 0 0; }
+.acctpanel-email { font-weight: 700; font-size: 15px; color: #a8d8ef; margin: -4px 0 0; word-break: break-all; }
 .acctpanel-note { font-size: 13px; line-height: 1.5; color: rgba(238, 244, 251, 0.82); margin: 0; }
-.acctpanel-note b { color: var(--gl-accent, #a8d8ef); }
+.acctpanel-note b { color: #a8d8ef; }
 /* The email already has an account: signing in switches to it, and the guest's progress stays behind (2026-09-29). */
 .acctpanel-warn { font-size: 13px; line-height: 1.5; margin: 0; padding: 8px 10px; border-radius: 8px; color: #ffd9a8; background: rgba(240, 138, 36, 0.12); border: 1px solid rgba(255, 180, 90, 0.4); }
 .acctpanel-input { text-align: left; min-width: 0; width: 100%; font-size: 16px; padding: 10px 14px; }
@@ -5926,11 +5926,11 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-error { font-size: 13px; font-weight: 700; color: #ff9aa6; margin: 0; }
 .acctpanel-btn { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; padding: 11px 16px; border-radius: 10px; border: 1.5px solid transparent;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: filter 0.1s, opacity 0.1s; }
-.acctpanel-btn.primary { color: #0d1420; background: var(--gl-accent, #a8d8ef); }
+.acctpanel-btn.primary { color: #0d1420; background: #a8d8ef; }
 .acctpanel-btn.primary:hover { filter: brightness(1.08); }
 .acctpanel-btn.primary:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.acctpanel-btn.ghost { color: var(--gl-text, #eef4fb); background: transparent; border-color: var(--gl-border, rgba(190, 214, 240, 0.4)); align-self: flex-start; }
-.acctpanel-btn.ghost:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+.acctpanel-btn.ghost { color: #eef4fb; background: transparent; border-color: rgba(190, 214, 240, 0.4); align-self: flex-start; }
+.acctpanel-btn.ghost:hover { border-color: rgba(226, 240, 255, 0.6); }
 
 /* The left menu column. */
 .titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, calc(7 * var(--vw, 1vw)), 150px); top: 50%; transform: translateY(-50%);
@@ -11498,16 +11498,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* ── REPLAY VIEWER (v2 state replay — Phase B) ─────────────────────────────────────────────────────────── */
 /* Transport bar — floating glass controls while a recorded run plays. Salvaged verbatim from the killed v1
-   branch (PR #956). Presentation is Mike's seam; reads the shared --gl-* vars so the UI Theme tuner reaches it. */
+   branch (PR #956). Presentation is Mike's seam; its glass values were the retired --gl-* UI Theme vars, inlined 2026-10-02. */
 /* Thicker chrome (owner ask 2026-08-30) - more padding and taller controls, so the bar reads as a piece of
    the game's furniture rather than a thin strip floating over it. */
 .replaybar { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 560; display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-radius: 18px;
-  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.94)), var(--gl-bot, rgba(20, 25, 34, 0.97)));
-  -webkit-backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15)); backdrop-filter: var(--gl-blur, blur(10px) saturate(1.15));
-  border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22)); border-top-color: var(--gl-border-top, rgba(226, 240, 255, 0.42));
-  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: var(--gl-text, #eef4fb); font-family: var(--font-ui); }
-.replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 15px; min-width: 46px; height: 42px; padding: 0 8px; border-radius: 9px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent; color: var(--gl-text, #eef4fb); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
-.replaybtn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+  background: linear-gradient(180deg, rgba(46, 56, 72, 0.94), rgba(20, 25, 34, 0.97));
+  -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15);
+  border: 1px solid rgba(190, 214, 240, 0.22); border-top-color: rgba(226, 240, 255, 0.42);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: #eef4fb; font-family: var(--font-ui); }
+.replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 15px; min-width: 46px; height: 42px; padding: 0 8px; border-radius: 9px; border: 1.5px solid rgba(190, 214, 240, 0.4); background: transparent; color: #eef4fb; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
+.replaybtn:hover { border-color: rgba(226, 240, 255, 0.6); }
 /* The viewer toggles (2026-09-19): a dimmed frame + muted glyph when OFF, so the state reads at a glance. */
 .replaybtn.toggle { min-width: 40px; font-size: 14px; }
 .replaybtn.toggle.off { opacity: 0.45; border-style: dashed; }
@@ -11520,40 +11520,40 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    the grab reads as engaged. */
 .replayprog-knob {
   position: absolute; top: 50%; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%;
-  background: var(--gl-accent, #a8d8ef); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+  background: #a8d8ef; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
   transform: translateY(-50%) scale(1); transition: transform 120ms ease; pointer-events: none; }
 .replayprog.scrubbing .replayprog-knob { transform: translateY(-50%) scale(1.25); }
 /* Elapsed / total. Tabular figures so the bar does not jitter as the digits tick over. */
 .replaytime { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; opacity: 0.85; white-space: nowrap; }
 .replaytime i { opacity: 0.45; font-style: normal; }
-.replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left center; background: var(--gl-accent, #a8d8ef); border-radius: 8px; will-change: transform; }
+.replayprog-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: left center; background: #a8d8ef; border-radius: 8px; will-change: transform; }
 .replayround { font-weight: 700; font-size: 14px; min-width: 78px; text-align: center; }
 /* SPEED as a button + menu (owner ask 2026-08-30), replacing a 0.5-step range input: dragging a 90px track to
    land on one of ten values made picking 3x exactly a matter of luck. Six named speeds, one click each.
    No bare `cursor: pointer` anywhere here - a class selector out-specifies the global rule and swaps the
    gauntlet back to the OS arrow, which reads as the cursor breaking (CLAUDE.md, UI conventions). */
-.replayspeed { position: relative; display: inline-flex; align-items: center; font-weight: 800; font-size: 14px; color: var(--gl-value, #e6b45a); }
+.replayspeed { position: relative; display: inline-flex; align-items: center; font-weight: 800; font-size: 14px; color: #e6b45a; }
 .replayspeed-btn {
-  font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--gl-value, #e6b45a);
+  font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #e6b45a;
   min-width: 58px; height: 42px; padding: 0 10px; border-radius: 10px;
-  border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent;
+  border: 1.5px solid rgba(190, 214, 240, 0.4); background: transparent;
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.replayspeed-btn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+.replayspeed-btn:hover { border-color: rgba(226, 240, 255, 0.6); }
 .replayspeed-caret { font-size: 10px; opacity: 0.7; }
 /* Opens UPWARD: the bar sits at the bottom of the viewport, so a downward menu would fall off-screen. */
 .replayspeed-menu {
   position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 12px; z-index: 1;
-  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.97)), var(--gl-bot, rgba(20, 25, 34, 0.99)));
-  border: 1px solid var(--gl-border, rgba(190, 214, 240, 0.22));
+  background: linear-gradient(180deg, rgba(46, 56, 72, 0.97), rgba(20, 25, 34, 0.99));
+  border: 1px solid rgba(190, 214, 240, 0.22);
   box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.7); }
 .replayspeed-opt {
-  font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: var(--gl-text, #eef4fb);
+  font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #eef4fb;
   min-width: 62px; padding: 7px 12px; border-radius: 8px; border: none; background: transparent;
   text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .replayspeed-opt:hover { background: rgba(255, 255, 255, 0.1); }
-.replayspeed-opt.on { background: rgba(255, 255, 255, 0.16); color: var(--gl-value, #e6b45a); }
+.replayspeed-opt.on { background: rgba(255, 255, 255, 0.16); color: #e6b45a; }
 /* Round rail — the per-round index (REWORKED 2026-09-19: one table — Round · Recruit · Combat · Gold · Acts ·
    Tier · Power · Win % — with two clickable cells per row, collapsible to a slim handle, draggable by its grab).
    Styled to match the lobby rail's solid backing plate (translucency over the stonework washes text out).
@@ -11590,7 +11590,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   border-radius: 10px; background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
   font-family: var(--font-ui); box-sizing: border-box; }
 .roundrail-mini-round { flex: 1; font-weight: 800; font-size: 12px; line-height: 16px; color: #fff; white-space: nowrap; }
-.roundrail-mini-phase { font-style: normal; color: var(--gl-value, #e6b45a); }
+.roundrail-mini-phase { font-style: normal; color: #e6b45a; }
 /* THE TABLE. Column 1 the round, 2-3 the two cells, then four data columns sharing `--rrl-col-w`. Rows keep the
    old 24px rhythm (16px line + 4px×2 padding, 3px gap). */
 .roundrail-grid { display: flex; flex-direction: column; gap: 3px; }
@@ -11624,7 +11624,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-verdict.draw { color: rgba(255, 255, 255, 0.55); }
 .roundrail-verdict.none { color: rgba(255, 255, 255, 0.3); }
 .roundrail-loss { font-size: 11px; color: #e88a7a; opacity: 0.85; }
-.roundrail-val { text-align: center; color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
+.roundrail-val { text-align: center; color: #e6b45a; font-variant-numeric: tabular-nums; }
 .roundrail-val.win.good { color: #9fd98a; }
 .roundrail-val.win.bad { color: #e88a7a; }
 /* (The 2026-08-19 slide-out metrics DOCK and its 2026-08-30 chevron removal are history: the dock's three

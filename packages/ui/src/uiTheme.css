@@ -1,0 +1,84 @@
+/* ══ THE UI THEME (owner ask 2026-10-02: "make the tooltips match our hud pill designs now, and then add 6 different
+   color themes in the tuner ... this should control all of them at once") ══════════════════════════════════════
+
+   ONE set of colour tokens for the game's chrome. BOTH the shared tooltip panel (tooltips.css, through its
+   `--atip-*` aliases) and every Gem plate HUD pill (healthPills.css: Health + Armor, the name pills, the shop's
+   Tier / Freeze labels, the turn timer and its clock, Skip / Summary / End Combat) read their colours from here and
+   nowhere else. `tooltipStyle.test.ts` fails a tooltip or Gem pill rule that hard-codes a colour.
+
+   This `:root` block is the BAKED theme production plays. It MUST equal `UI_THEMES[DEFAULT_THEME]` in
+   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the six themes live by writing
+   these same properties inline on `:root`; its "Copy values" gives the block to paste here when the owner picks.
+
+   Colour only: nothing here is a size, so a theme never moves or resizes anything. Static paint: nothing animates. */
+:root {
+  /* 1. Gem Gold (DEFAULT_THEME = 'gem') */
+  --ui-plate-top: #382950;
+  --ui-plate-mid: #21173a;
+  --ui-plate-bot: #170f29;
+  --ui-edge-hi: #ffe9b0;
+  --ui-edge-main: #c8953f;
+  --ui-edge-deep: #7a571f;
+  --ui-edge-lo: #e8c27a;
+  --ui-ring: rgba(255, 217, 138, 0.2);
+  --ui-text: #fff1d6;
+  --ui-muted: #c6b8d8;
+  --ui-title: #ffd98a;
+  --ui-hl: #ffb561;
+  --ui-chip-bg: #140d24;
+  --ui-chip-edge: #6b5330;
+  --ui-chip-text: #f4ecdb;
+  --ui-divider: rgba(255, 217, 138, 0.2);
+  --ui-icon: #ffd98a;
+  --ui-heart: #ff2f58;
+  --ui-armor-top: #eef2f6;
+  --ui-armor-mid: #b3bdca;
+  --ui-armor-bot: #7d8999;
+  --ui-armor-edge: #262d39;
+  --ui-armor-ink: #18202c;
+  --ui-armor-icon: #3b4758;
+  --ui-clock-rim: #e3b04f;
+  --ui-clock-face: #1d1430;
+  --ui-warn: #ff9db0;
+  --ui-warn-rim: #ff6b81;
+  --ui-warn-edge: #7a1f2e;
+  --ui-warn-hand: #ffd0d8;
+  --ui-hover-top: #4a3768;
+  --ui-hover-mid: #2d2050;
+  --ui-hover-bot: #1f1638;
+  --ui-hover-edge-hi: #fff6d6;
+  --ui-hover-edge-main: #ffd27a;
+  --ui-hover-edge-deep: #b98a3a;
+  --ui-hover-edge-lo: #ffe3a0;
+  --ui-lip: #6a4b19;
+  --ui-stud-edge: #4a3410;
+
+  /* Composites (built from the tokens above, so a theme switch re-resolves them). */
+  --ui-plate: linear-gradient(180deg, var(--ui-plate-top) 0%, var(--ui-plate-mid) 55%, var(--ui-plate-bot) 100%);
+  --ui-edge: linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-edge-main) 38%, var(--ui-edge-deep) 62%, var(--ui-edge-lo) 100%);
+  --ui-hover-plate: linear-gradient(180deg, var(--ui-hover-top) 0%, var(--ui-hover-mid) 55%, var(--ui-hover-bot) 100%);
+  --ui-hover-edge: linear-gradient(180deg, var(--ui-hover-edge-hi) 0%, var(--ui-hover-edge-main) 40%, var(--ui-hover-edge-deep) 65%, var(--ui-hover-edge-lo) 100%);
+  --ui-stud: linear-gradient(135deg, var(--ui-edge-hi), var(--ui-edge-main) 55%, var(--ui-edge-deep));
+  --ui-armor: linear-gradient(180deg, var(--ui-armor-top) 0%, var(--ui-armor-mid) 48%, var(--ui-armor-bot) 100%);
+}
+
+/* The 🎨 UI Theme tuner's pinned sample row (UiThemeTuner.tsx): a tooltip, a name pill, a Health pill and a button,
+   side by side, drawn from the live tokens. DEV only markup; the sizes here are the sample's own. */
+.uitsamples { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 10px 4px 14px; }
+.uitsamples .atip { position: relative; }
+.uitsamples-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.uitsample-name { display: inline-block; padding: 3px 14px; border: 2px solid transparent; border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; }
+.uitsample-hp { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 5px 15px; border: 1px solid transparent; border-radius: 9px; font-family: var(--font-ui); font-weight: 900; font-size: 20px; }
+.uitsample-hp > svg { width: 20px; height: 20px; }
+.uitsample-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border: 1px solid transparent; border-radius: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; }
+.uitsample-btn svg { width: 16px; height: 16px; }
+.uitsample-name, .uitsample-hp, .uitsample-btn {
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+}
+.uitsample-hp > svg { color: var(--ui-heart); }
+.uitsample-hp .hudpill-arm { display: inline-flex; align-items: center; gap: 0.14em; padding: 0.15em 0.4em 0.15em 0.27em; border-radius: 0.33em; border: 1px solid var(--ui-armor-edge); background: var(--ui-armor); color: var(--ui-armor-ink); font-size: 15px; text-shadow: none; }
+.uitsample-hp .hudpill-arm > svg { width: 0.92em; height: 0.92em; color: var(--ui-armor-icon); }
+.uitsample-btn svg { color: var(--ui-icon); }
+.uitsample-btn:hover { color: #fff; background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }

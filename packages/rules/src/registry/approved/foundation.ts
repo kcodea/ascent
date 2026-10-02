@@ -3741,6 +3741,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-09-29 (the owner picked a hard gate over a soft nudge). Client-side gate: the server does not yet refuse an anonymous open.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/AccountPanel.test.tsx'], lastVerifiedAt: '2026-09-29' },
   },
+  // ── The normal game's loss cap (owner ask 2026-10-02) ───────────────────────────────────────────────
+  {
+    id: 'R-LOBBY-10',
+    title: 'Loss cap: a lost round costs at most 5 on rounds 1-3, 10 on 4-7, 15 on 8-11, 20 on 12-14, and is uncapped from round 15 on',
+    statement:
+      'In the normal game (every lobby that sets no loss caps of its own), a lost round costs the normal loss damage, '
+      + 'capped by round: at most 5 on rounds 1-3, 10 on rounds 4-7, 15 on rounds 8-11 and 20 on rounds 12-14. From '
+      + 'round 15 on there is no cap and a loss deals its full damage (it was 20 through round 15, uncapped from 16, '
+      + 'before 2026-10-02). Every reader asks the same table through roundLossCap: the fight, the lobby settle, the '
+      + 'odds probe and the HUD. The rail prints the cap above its top edge next to the round ("No cap" when uncapped), '
+      + 'and hovering it explains it with the live number. The Gauntlet keeps its own table (R-GAUNTLET-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (rail header + loss cap)', quote: 'change the damage cap rules - on turn 15 it should become uncapped' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts lossDamageCap + roundLossCap; packages/ui/src/LobbyPanel.tsx .lobbyrailhead' },
+    ],
+    example: 'Losing round 14 to a huge board costs at most 20; losing round 15 to the same board costs its full damage.',
+    currentBehaviour: 'Conforms as of 2026-10-02. Pinned by the lossDamageCap table test (5/10/15/20, then uncapped at 15, 16, 17, 30) and the rail header test (the live cap and its tip on rounds 1-14, "No cap" and the full-damage tip from round 15).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/run.test.ts', 'packages/ui/src/lobbyRailHeader.test.tsx'], lastVerifiedAt: '2026-10-02' },
+  },
   // ── Gauntlet (single-player stages, owner design 2026-09-29) ─────────────────────────────────────────
   {
     id: 'R-GAUNTLET-01',

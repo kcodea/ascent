@@ -59,6 +59,24 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Balance',
+        text: 'Round 15 and later are now uncapped. Max damage per loss was 20 there before.',
+        details: [
+          'Max damage per loss: 5 in rounds 1 to 3, 10 in rounds 4 to 7, 15 in rounds 8 to 11, 20 in rounds 12 to 14.',
+          'From round 15 on, a loss deals full damage.',
+          'The Gauntlet keeps its own limits.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The round and the max damage now sit above the player list, bigger and easier to read.',
+        details: [
+          'Round is on the left. The heart and the max damage for this round are on the right.',
+          'Hover the heart to see what it means. Late in the game it reads No cap.',
+          'The number of players left stays at the top of the list.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Ancient hero attacks now have a special finishing animation on knockouts.',
         details: [

@@ -493,10 +493,12 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
   return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s), setIdOf(s));
 }
 
-/** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:
- *  5 (rounds 1–3), 10 (4–7), 15 (8–11), 20 (12–15), then UNCAPPED (full damage) for the finale (16–17). */
+/** Loss-damage cap by round — the most Resolve (Health) a single loss can cost, ramping up as the game escalates:
+ *  5 (rounds 1–3), 10 (4–7), 15 (8–11), 20 (12–14), then UNCAPPED (full damage) from round 15 on (owner ask
+ *  2026-10-02: "on turn 15 it should become uncapped"; it was 20 through round 15 before). The normal game's
+ *  table only: a lobby with its own `lossCaps` (the Gauntlet) reads that instead, via `roundLossCap`. */
 export function lossDamageCap(wave: number): number {
-  return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 15 ? 20 : Infinity;
+  return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 14 ? 20 : Infinity;
 }
 
 /** The loss cap for `round` under a lobby's rules: its own `lossCaps` table when it has one (Gauntlet), else the

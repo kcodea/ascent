@@ -178,6 +178,23 @@
  *                                 `turns` turns (`lockedUntilWave`, Hourglass Reserve's lock). Hand full: none. (Genesis)
  *  · `reclaimSummonsTwice`        COMBAT: the Reclaimed body is resummoned `copies` times, each waiting for room. (Time)
  *  · `reclaimBondsAdjacent`       COMBAT: when a returned copy lands, its living neighbours gain its Attack, a combat buff. (Bonds)
+ *  ROBIN (Spoils, `sellGold`, PASSIVE; owner pairings 2026-10-02). Spoils = "For each minion you sell, gain 1 Gold next
+ *  turn." A Spoils count is ONE sale: every sale banks it, the manual sale and the spell sales alike (`settleMinionSale`,
+ *  Fodder Treatment, Feed the Alpha), and all three call `ancientOnRobinSale` (via recruit's `bankSpoils`), so the
+ *  sale-keyed pairings below hear every sale exactly once. Sales only happen in the Shop.
+ *  · `summonGainPerSpoils`        SHOP: the `onSummon` fire chokepoint (`ancientOnShopSummon`: a play from hand, a token
+ *                                 summon), a permanent gain; COMBAT: `QuestCombatMods.ancientSummonGain` at the summon-
+ *                                 entry chokepoint, a combat buff. The amount is +a/+h x this turn's Spoils count
+ *                                 (`AncientsState.robinSpoils`, keyed on the wave so a new turn reads 0). (Death)
+ *  · `sellsGrantFreeRefresh`      every `every`th sale (one running count since the pick, `robinSales`) banks a free
+ *                                 Refresh (`RunState.freeRolls`) right then. (Fortune)
+ *  · `saleBuffsLeftmost`          every sale: the left-most board minion (after the sale) gains +a/+h, permanently. (War)
+ *  · `sellsGetCopy`               every `every`th sale (`robinWindow`, the sold cardIds since the last payout): a plain copy
+ *                                 of a random one of them (seeded), hand first, the board when the hand is full. (Genesis)
+ *  · `eotMaxGold`                 a virtual recurring End-of-Turn entry (`ancientRobinMaxGold`): +gold max Gold,
+ *                                 permanently (`maxGoldBonus`, the Gold Font / Shop License channel; no cap). (Time)
+ *  · `saleDiscountsTribe`         every sale marks the sold minion's type(s) (`robinBonds`); the next minion of a marked
+ *                                 type you buy costs at most `price` (`offerBuyPrice`), and the buy spends that mark. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -352,7 +369,20 @@ export type AncientEffect =
   /** Reclaim resummons `copies` copies in all. */
   | { do: 'reclaimSummonsTwice'; copies: number }
   /** When a Reclaimed copy returns, the minions next to it gain its Attack (combat). */
-  | { do: 'reclaimBondsAdjacent' };
+  | { do: 'reclaimBondsAdjacent' }
+  // ── Robin (Spoils) ──
+  /** Every friendly minion summoned (Shop AND combat) gains +a/+h for every Spoils count (sale) this turn. */
+  | { do: 'summonGainPerSpoils'; attack: number; health: number }
+  /** Every `every` minions sold (a running count): bank a free Refresh. */
+  | { do: 'sellsGrantFreeRefresh'; every: number }
+  /** Every minion sold: your left-most minion gains +a/+h, permanently. */
+  | { do: 'saleBuffsLeftmost'; attack: number; health: number }
+  /** Every `every` minions sold: get a plain copy of one of them (random, seeded). */
+  | { do: 'sellsGetCopy'; every: number }
+  /** End of Turn: +`gold` max Gold, permanently. */
+  | { do: 'eotMaxGold'; gold: number }
+  /** Selling a minion marks its type; the next minion of that type you buy costs `price` Gold. */
+  | { do: 'saleDiscountsTribe'; price: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -370,7 +400,9 @@ export interface AncientPairing {
    *  `{timeLeft}` = Time's discounted buys left this turn. Xerox: `{xDeathLeft}` = friendly deaths still needed for
    *  Death's next copy (live through a fight); `{pairs}` / `{pairGold}` = the pairs on the board right now and the Gold
    *  they would bank; `{charges}` = Genesis' Copy Machine uses left; `{bond}` = Bonds' live bond state. Soren: `{reclaimGain}` = War's
-   *  live +X/+X. */
+   *  live +X/+X. Robin: `{spoils}` / `{spoilA}` / `{spoilH}` = this turn's Spoils count and the summon gain it gives right
+   *  now; `{refreshLeft}` / `{copyLeft}` = sales still needed for Fortune's next free Refresh / Genesis' next copy;
+   *  `{maxGold}` = Time's max Gold so far; `{bondsTypes}` = Bonds' marked types. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -805,6 +837,46 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'reclaimBondsAdjacent' }],
     },
   },
+  // ROBIN (owner pairings 2026-10-02, quoted above each entry). Spoils (passive) = "For each minion you sell, gain 1 Gold
+  // next turn." A Spoils count is one sale.
+  robin: {
+    death: {
+      // "Summoned minions gain +3/+2 for every count of Spoils this turn."
+      offerText: 'Minions you summon gain **+3/+2** for every minion you sold this turn.',
+      powerText: '{base} Minions you summon gain **+3/+2** for every minion you sold this turn (**{spoils}** sold: **+{spoilA}/+{spoilH}**).',
+      effects: [{ do: 'summonGainPerSpoils', attack: 3, health: 2 }],
+    },
+    fortune: {
+      // "Every 2 minions sold also grants a free refresh."
+      offerText: 'Every **2** minions you sell also give you a free Refresh.',
+      powerText: '{base} Every **2** minions you sell also give you a free Refresh (**{refreshLeft}** more to go).',
+      effects: [{ do: 'sellsGrantFreeRefresh', every: 2 }],
+    },
+    war: {
+      // "Give your left-most minion +2/+3 every time you sell a minion."
+      offerText: 'Whenever you sell a minion, give your left-most minion **+2/+3**.',
+      powerText: '{base} Whenever you sell a minion, give your left-most minion **+2/+3**.',
+      effects: [{ do: 'saleBuffsLeftmost', attack: 2, health: 3 }],
+    },
+    genesis: {
+      // "When you sell 7 minions, get a copy of one of them."
+      offerText: 'Every **7** minions you sell, get a plain copy of one of them.',
+      powerText: '{base} Every **7** minions you sell, get a plain copy of one of them (**{copyLeft}** more to go).',
+      effects: [{ do: 'sellsGetCopy', every: 7 }],
+    },
+    time: {
+      // "End of Turn: Increase your max gold by 1"
+      offerText: '**End of Turn:** gain **+1 max Gold**.',
+      powerText: '{base} **End of Turn:** gain **+1 max Gold**. **+{maxGold}** so far.',
+      effects: [{ do: 'eotMaxGold', gold: 1 }],
+    },
+    bonds: {
+      // "Selling a minion makes the next of its tribe cost 2g."
+      offerText: 'Selling a minion makes the next minion of its type you buy cost **2 Gold**.',
+      powerText: '{base} Selling a minion makes the next minion of its type you buy cost **2 Gold**.{bondsTypes}',
+      effects: [{ do: 'saleDiscountsTribe', price: 2 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -913,6 +985,18 @@ export interface AncientsState {
   tradesSurchargeOff?: { tier: number; gold: number };
   /** SOREN × WAR: the live +X/+X a Reclaimed copy gains on its return (set at the pick, improved each Start of Turn). */
   sorenWarGain?: number;
+  /** ROBIN × DEATH: Spoils counts (sales) on `wave`. Ticked by every Spoils sale while Ancients are on (whatever is
+   *  picked), so sales made before the pick count this turn. A new wave reads 0. */
+  robinSpoils?: { wave: number; n: number };
+  /** ROBIN × FORTUNE: sales since the last free Refresh (the running count, since the pick). */
+  robinSales?: number;
+  /** ROBIN × GENESIS: the cardIds sold since the last copy (the window the copy is drawn from). */
+  robinWindow?: string[];
+  /** ROBIN × TIME: max Gold the End-of-Turn grant has given this run (printed live). */
+  robinMaxGold?: number;
+  /** ROBIN × BONDS: the marked types, in the order they were marked (one each; `'all'` = an All-types sale, which
+   *  matches any typed minion). A buy of a matching minion spends the first match. Kept until used, across turns. */
+  robinBonds?: (Tribe | 'all')[];
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1066,6 +1150,15 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{upgradeNow}', tradesUpgradeText(state));
   // SOREN × WAR: the live +X/+X (it improves every Start of Turn). Printed twice, so every occurrence.
   text = text.split('{reclaimGain}').join(String(ancientReclaimGain(state)));
+  // ROBIN: Death's live per-summon gain, Fortune / Genesis countdowns, Time's total, Bonds' marked types.
+  const spoils = robinSpoilsThisTurn(state);
+  const sg = effectOf(state, 'summonGainPerSpoils');
+  const fr = effectOf(state, 'sellsGrantFreeRefresh');
+  const gc = effectOf(state, 'sellsGetCopy');
+  text = text.replace('{spoils}', String(spoils)).replace('{spoilA}', String((sg?.attack ?? 0) * spoils)).replace('{spoilH}', String((sg?.health ?? 0) * spoils))
+    .replace('{refreshLeft}', String(fr ? Math.max(1, fr.every) - ((a?.robinSales ?? 0) % Math.max(1, fr.every)) : 0))
+    .replace('{copyLeft}', String(gc ? Math.max(1, gc.every) - ((a?.robinWindow?.length ?? 0) % Math.max(1, gc.every)) : 0))
+    .replace('{maxGold}', String(a?.robinMaxGold ?? 0)).replace('{bondsTypes}', robinBondsText(state));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1251,6 +1344,10 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
       ...(rBonds ? { bonds: true } : {}),
     };
   }
+  // ROBIN × DEATH: this turn's Spoils count, frozen for the fight (nothing is sold mid-combat).
+  const sg = effectOf(state, 'summonGainPerSpoils');
+  const spoils = robinSpoilsThisTurn(state);
+  if (sg && spoils > 0) out.ancientSummonGain = { attack: sg.attack * spoils, health: sg.health * spoils, label: ANCIENTS.death.name };
   return out;
 }
 
@@ -2090,4 +2187,113 @@ export function ancientAfterReclaimMark(state: RunState, card: BoardCard): void 
   if (!def || def.spell || state.hand.length >= handCap(state)) return;
   const copy = grantMinionToHandOrBoard(state, def, false);
   if (state.hand.includes(copy)) copy.lockedUntilWave = state.wave + e.turns;
+}
+
+// ── Robin (Spoils) hooks ─────────────────────────────────────────────────────────────────────────────────────
+/** ROBIN × DEATH: Spoils counts (sales) this turn. */
+export function robinSpoilsThisTurn(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'wave'>): number {
+  const sp = state.ancientsEnabled ? state.ancients?.robinSpoils : undefined;
+  return sp && sp.wave === state.wave ? sp.n : 0;
+}
+
+/** ROBIN × DEATH, Shop half: a friendly minion was summoned (`fire`'s `onSummon`: a play from hand, a token summon). It
+ *  gains +a/+h for every Spoils count this turn, permanently. */
+export function ancientOnShopSummon(state: RunState, minion: BoardCard): void {
+  const e = live(state) ? effectOf(state, 'summonGainPerSpoils') : undefined;
+  const n = e ? robinSpoilsThisTurn(state) : 0;
+  if (!e || n <= 0 || !state.board.includes(minion)) return;
+  captureBuffFx(state, undefined, 'spell', () => addBuff(minion, ANCIENTS.death.name, e.attack * n, e.health * n));
+}
+
+/**
+ * ROBIN: a minion was sold (recruit's `bankSpoils`, called by EVERY sale path: the manual sale and the spell sales). The
+ * caller has already removed `sold`. `spoils`: the seller has the Spoils power (a Spoils count was banked). Ticks the
+ * per-turn Spoils count, then runs the picked sale pairing (Fortune / War / Genesis / Bonds), in real time.
+ */
+export function ancientOnRobinSale(state: RunState, sold: BoardCard, spoils: boolean): void {
+  const a = live(state);
+  if (!a) return;
+  if (spoils) a.robinSpoils = { wave: state.wave, n: robinSpoilsThisTurn(state) + 1 };
+  const fr = effectOf(state, 'sellsGrantFreeRefresh');
+  if (fr) {
+    a.robinSales = (a.robinSales ?? 0) + 1;
+    if (a.robinSales >= Math.max(1, fr.every)) { a.robinSales = 0; state.freeRolls += 1; }
+  }
+  const war = effectOf(state, 'saleBuffsLeftmost');
+  const left = state.board[0];
+  if (war && left) captureBuffFx(state, undefined, 'spell', () => addBuff(left, ANCIENTS.war.name, war.attack, war.health));
+  const gc = effectOf(state, 'sellsGetCopy');
+  if (gc) {
+    const win = [...(a.robinWindow ?? []), sold.cardId];
+    if (win.length >= Math.max(1, gc.every)) {
+      const rng = makeRng(state.rngCursor);
+      const pick = win[rng.int(win.length)]!;
+      state.rngCursor = rng.state();
+      a.robinWindow = [];
+      const def = CARD_INDEX[pick];
+      if (def && !def.spell) grantMinionToHandOrBoard(state, def, false);
+    } else a.robinWindow = win;
+  }
+  if (effectOf(state, 'saleDiscountsTribe')) {
+    const cur = a.robinBonds ?? [];
+    const add = robinTribesOf(CARD_INDEX[sold.cardId]).filter((m) => !cur.includes(m));
+    if (add.length > 0) a.robinBonds = [...cur, ...add];
+  }
+}
+
+/** ROBIN × BONDS: the marks a sold minion makes: `'all'` for an All-types minion, else its real type(s); a minion with
+ *  no type (neutral) marks nothing. */
+function robinTribesOf(def: CardDef | undefined): (Tribe | 'all')[] {
+  if (!def) return [];
+  if (def.universalTribe) return ['all'];
+  return [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
+}
+
+/** ROBIN × BONDS: the index of the first mark a minion of `def` would spend (-1 = none). An All-types minion matches any
+ *  mark; an `'all'` mark matches any typed minion. A neutral minion matches nothing. */
+function robinBondsMatch(state: Pick<RunState, 'ancientsEnabled' | 'ancients'>, def: CardDef | undefined): number {
+  const marks = state.ancientsEnabled ? state.ancients?.robinBonds : undefined;
+  if (!marks?.length || !def || def.spell || def.ruby) return -1;
+  const typed = !!def.universalTribe || (!!def.tribe && def.tribe !== 'neutral') || (!!def.tribe2 && def.tribe2 !== 'neutral');
+  if (!typed) return -1;
+  return marks.findIndex((m) => m === 'all' || !!def.universalTribe || def.tribe === m || def.tribe2 === m);
+}
+
+/** ROBIN × BONDS: the set price a Shop minion buys at right now (undefined = no matching mark, or Bonds is not live). */
+export function ancientRobinBondsPrice(state: RunState, cardId: string): number | undefined {
+  const e = live(state) ? effectOf(state, 'saleDiscountsTribe') : undefined;
+  if (!e || robinBondsMatch(state, CARD_INDEX[cardId]) < 0) return undefined;
+  return e.price;
+}
+
+/** ROBIN × BONDS: a minion was bought; spend the mark it matched (nothing when none matched). */
+export function ancientSpendRobinBonds(state: RunState, cardId: string): void {
+  const a = live(state);
+  if (!a?.robinBonds || !effectOf(state, 'saleDiscountsTribe')) return;
+  const i = robinBondsMatch(state, CARD_INDEX[cardId]);
+  if (i < 0) return;
+  const next = [...a.robinBonds];
+  next.splice(i, 1);
+  a.robinBonds = next;
+}
+
+function robinBondsText(state: RunState): string {
+  const marks = live(state)?.robinBonds ?? [];
+  if (marks.length === 0) return '';
+  const name = (m: Tribe | 'all'): string => (m === 'all' ? 'Any type' : `${m.charAt(0).toUpperCase()}${m.slice(1)}`);
+  return ` Ready: **${marks.map(name).join(', ')}**.`;
+}
+
+/** ROBIN × TIME: is the End-of-Turn max Gold grant live (the `ancientRobinMaxGold` recurring entry)? */
+export function ancientRobinMaxGoldLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotMaxGold');
+}
+
+/** ROBIN × TIME: End of Turn, +gold max Gold, permanently (`maxGoldBonus`: above the natural cap, no ceiling). */
+export function ancientRunRobinMaxGold(state: RunState): void {
+  const a = live(state);
+  const e = effectOf(state, 'eotMaxGold');
+  if (!a || !e || e.gold <= 0) return;
+  state.maxGoldBonus = (state.maxGoldBonus ?? 0) + e.gold;
+  a.robinMaxGold = (a.robinMaxGold ?? 0) + e.gold;
 }

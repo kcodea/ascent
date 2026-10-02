@@ -1956,6 +1956,11 @@ export interface QuestCombatMods {
    *  `bonds` (Bonds): when a returned copy lands, its living neighbours gain Attack equal to its Attack, a combat buff.
    *  Player-only; never snapshotted. */
   ancientReclaim?: { echoExtra?: number; copies?: number; gain?: number; bonds?: boolean; label: string };
+  /** ANCIENT OF DEATH × Robin (owner 2026-10-02): "Summoned minions gain +3/+2 for every count of Spoils this turn." The
+   *  per-summon gain, already multiplied by the turn's Spoils count (fixed for the fight: nothing is sold mid-combat).
+   *  Every FRIENDLY summon (a token, a Rise, a resummon: the summon-entry chokepoint) gains it as a combat buff
+   *  (Engraved keeps it, like every combat gain). Player-only; never snapshotted. */
+  ancientSummonGain?: { attack: number; health: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

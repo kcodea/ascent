@@ -2229,6 +2229,13 @@ export function simulate(
     // …THEN the augmenting onSummon watchers, in CURRENT board order left→right (bus order was registration
     // order, which drifts from the visible board as bodies re-slot and summon).
     emitOnSummonOrdered(minion, side);
+    // ANCIENT OF DEATH × Robin: "Summoned minions gain +3/+2 for every count of Spoils this turn." Every friendly summon
+    // (this chokepoint: a token, a Rise, a resummon) gains the turn's live amount, after its own watchers (the Shop's
+    // Den Marker order), a combat buff.
+    const spoilsGain = modsFor(side).ancientSummonGain;
+    if (spoilsGain && minion.side === side && !minion.dead && (spoilsGain.attack > 0 || spoilsGain.health > 0)) {
+      ctx.buff(minion, spoilsGain.attack, spoilsGain.health, spoilsGain.label);
+    }
     // RUNE OF THE SECOND LITTER: the FIRST Beast summoned each combat summons another copy. `doubled: true`
     // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
     // Beast" and spawn a third. Fired after the triggers so the copy is made from the body as it landed.

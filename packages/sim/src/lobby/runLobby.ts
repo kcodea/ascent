@@ -1,5 +1,5 @@
 import type { BoardMinion, CombatOutcome, CombatResult, Tribe } from '@game/core';
-import { activeSet, type SetId } from '@game/content';
+import { activeSet, type GauntletBuffs, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { combatSide, makeRng, simulate } from '@game/core';
@@ -52,6 +52,10 @@ export interface LobbySeatState {
   authoredTiers?: number[];
   /** Authored seats only (Gauntlet): the opponent's runes, each active from `fromRound` on (they stack). */
   authoredRunes?: { fromRound: number; runeId: string }[];
+  /** Authored seats only (Gauntlet): the run-wide buffs IN FORCE each round (index = round − 1), already folded
+   *  forward (`effectiveBuffs`) and trimmed to the non-zero ones. Each is the `BoardSnapshot` scaler of the same
+   *  name, so `authoredSeat` spreads it onto the round's snapshot and combat reads it as a real run's. */
+  authoredBuffs?: Partial<GauntletBuffs>[];
   /** Gauntlet's opponent: the settle never charges this seat, so it can never be eliminated (the player's goal
    *  is to SURVIVE, not to knock it out). Its hits are still recorded as 0 dealt to it. */
   invulnerable?: true;

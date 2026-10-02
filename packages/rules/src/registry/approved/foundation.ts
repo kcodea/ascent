@@ -4067,4 +4067,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-GAUNTLET-06',
+    title: 'Gauntlet: an opponent\x27s authored run buffs act in combat exactly as a player\x27s would, and carry forward round to round',
+    statement:
+      'A Gauntlet stage may set an opponent\x27s run-wide buffs on any round: the simple numeric run scalers a real run '
+      + 'builds up (Ruby strength, spell power, Front to Back, the Imp, Undead and Attachment auras, Fodder consumed, the '
+      + 'Beast and Undead buy auras, and the counters Grim, Pack Leader, Runescale Drake, Conductor, Bucky, Baby Gastrid, '
+      + 'Squirl Scout, Kindled Sprite, Elderhorn and friends read). A value set on a round stays in force on every later '
+      + 'round until a later round sets it again. In combat the opponent\x27s cards read those values exactly as a '
+      + 'player\x27s cards read their own run\x27s, so an opponent with Ruby strength +2/+2 casts 3/3 Rubies. Per-card '
+      + 'buffs, hand contents, remembered spells and the per-tribe played map are not authored.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Stage Builder run buffs)', quote: 'kobolds buff gems throughout a match, but theres no way for me to reflect that, so rubys stay at 1/1' },
+      { kind: 'code', ref: 'packages/content/src/gauntlet/buffs.ts (GAUNTLET_BUFF_FIELDS, effectiveBuffs); packages/sim/src/lobby/gauntlet.ts (authoredBuffs); packages/sim/src/lobby/tutorialSeats.ts authoredSeat (the run-level snapshot); packages/ui/src/stageBuilder/RunBuffsSection.tsx' },
+    ],
+    example: 'Stage 2 sets Ruby strength +2/+2 on round 4. Rounds 1 to 3 the opponent\x27s Blazer casts 1/1 Rubies; from round 4 on, with nothing changed later, it casts 3/3 Rubies.',
+    currentBehaviour: 'Conforms, built 2026-10-02. The stage\x27s per-round buffs are folded forward onto the authored seat, and authoredSeat attaches them to the round\x27s BoardSnapshot (with any runes), which sideFromSnapshot threads into combat; a buff-less, rune-less seat prepares exactly the board it did before. Pinned end to end: a Kobold stage with Ruby strength +2/+2 from round 4, played through the real reducer, has its opponent Blazer cast 1/1 Rubies on round 3 and 3/3 Rubies on round 5. The Stage Builder\x27s sandbox Test fight uses the same buffs (roundToSnapshot).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/gauntlet.test.ts', 'packages/content/src/gauntlet/buffs.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

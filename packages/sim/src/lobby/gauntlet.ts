@@ -9,7 +9,7 @@
  *  - `maxRounds: 10`, so the lobby finishes after round 10 and a player still standing is placed 1st — a CLEAR,
  *    even if round 10 itself was lost or tied.
  */
-import type { GauntletStage, SetId } from '@game/content';
+import { effectiveBuffs, nonZeroBuffs, type GauntletStage, type SetId } from '@game/content';
 import { createRun, type RunState } from '../state';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbyRules } from './types';
@@ -21,6 +21,13 @@ export const GAUNTLET_LOSS_CAPS: readonly (number | null)[] = [5, 5, 5, 10, 10, 
 /** The opponent's tavern tier on a round the stage leaves blank — a steady tier-up pace (spec §2: "absent =
  *  normal tier-up pace"). Only a DEFAULT: the Stage Builder shows it, and any round can override it. */
 export const GAUNTLET_DEFAULT_TIERS: readonly number[] = [1, 2, 2, 3, 3, 4, 4, 5, 5, 6];
+
+/** The opponent's run buffs per round, folded forward and trimmed to the non-zero ones — or undefined when the
+ *  stage sets none, so a buff-less stage's seat carries no extra key. */
+function authoredBuffsFor(stage: GauntletStage): LobbySeatState['authoredBuffs'] {
+  const perRound = stage.rounds.map((_, i) => nonZeroBuffs(effectiveBuffs(stage, i + 1)));
+  return perRound.some((b) => Object.keys(b).length > 0) ? perRound : undefined;
+}
 
 export function createGauntletRun(seed: number, heroId: string, stage: GauntletStage, setId?: SetId): RunState {
   const run = createRun(seed, heroId, 'gauntlet', undefined, setId);
@@ -50,6 +57,8 @@ export function createGauntletRun(seed: number, heroId: string, stage: GauntletS
       ...(stage.runes.round9 ? [{ fromRound: 9, runeId: stage.runes.round9 }] : []),
     ],
   };
+  const buffs = authoredBuffsFor(stage);
+  if (buffs) foe.authoredBuffs = buffs;
   resetLobbyDrivers([foe]);
   const lobby: RunLobby = { version: 1, seed, setId: run.setId, round: 1, seats: [player, foe], encounters: [], finished: false, rules };
   return { ...run, lobby, gauntletStage: stage.number };

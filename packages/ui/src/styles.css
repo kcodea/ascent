@@ -9253,6 +9253,20 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .stagebuilder .stb-runerow.on { border-color: var(--sb-brass); color: var(--sb-ink); }
 .stagebuilder .stb-runerow:focus-visible { border-color: var(--sb-brass); outline: none; }
 .stagebuilder .sb-tag.stb-noeffect { opacity: 0.8; }
+.stagebuilder .stb-buffonly { gap: calc(6 * var(--u)); }
+.stagebuilder .stb-buffgroup { display: flex; flex-direction: column; gap: calc(2 * var(--u)); margin-top: calc(4 * var(--u)); }
+.stagebuilder .stb-buffgh { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; color: var(--sb-brass); }
+.stagebuilder .stb-buff { flex-wrap: nowrap; gap: calc(5 * var(--u)); }
+.stagebuilder .stb-buffname { flex: 1; min-width: 0; font-size: calc(11 * var(--u)); color: var(--sb-ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stagebuilder .stb-buff.set .stb-buffname { color: var(--sb-ink); font-weight: 800; }
+.stagebuilder .stb-buffpair { display: inline-flex; align-items: center; gap: calc(2 * var(--u)); flex: none; }
+.stagebuilder .stb-buffslash { color: var(--sb-ink3); font-size: calc(10 * var(--u)); }
+.stagebuilder .stb-buffin { width: calc(46 * var(--u)); flex: none; padding: calc(2 * var(--u)) calc(4 * var(--u)); font-variant-numeric: tabular-nums; text-align: right; }
+.stagebuilder .stb-buff.inherited .stb-buffin { opacity: 0.55; }
+.stagebuilder .stb-buff.inherited.zero .stb-buffin { opacity: 0.35; }
+.stagebuilder .stb-buff.set .stb-buffin { border-color: var(--sb-brass); }
+.stagebuilder .stb-bufftail { flex: none; width: calc(62 * var(--u)); display: inline-flex; justify-content: flex-end; }
+.stagebuilder .stb-bufffrom { font-size: calc(9 * var(--u)); color: var(--sb-ink3); white-space: nowrap; }
 .stagebuilder .stb-confirm { flex-wrap: wrap; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
 .stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
 /* ---- STAGE BOARD CANVAS (dev, `stageBuilder/StageBoardCanvas.tsx`) ----

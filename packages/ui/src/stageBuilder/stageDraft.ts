@@ -1,5 +1,8 @@
 import type { BoardMinion, Keyword } from '@game/core';
-import { CARD_INDEX, GAUNTLET_BOARD_MAX, cardRevision, type GauntletMinion, type GauntletRound, type GauntletStage } from '@game/content';
+import {
+  CARD_INDEX, GAUNTLET_BOARD_MAX, buffOverridesEqual, cardRevision, effectiveBuffs, nonZeroBuffs, withBuffOverride,
+  type GauntletBuffKey, type GauntletBuffs, type GauntletMinion, type GauntletRound, type GauntletStage,
+} from '@game/content';
 import { GAUNTLET_DEFAULT_TIERS, runeCombatModsFor, type BoardSnapshot } from '@game/sim';
 import { stagedBoard } from '../sandboxEdit';
 
@@ -16,6 +19,7 @@ const copyMinion = (m: GauntletMinion): GauntletMinion => ({
 const copyRound = (r: GauntletRound): GauntletRound => ({
   ...(r.tier !== undefined ? { tier: r.tier } : {}),
   board: r.board.map(copyMinion),
+  ...(r.buffs ? { buffs: structuredClone(r.buffs) } : {}),
 });
 
 const withRound = (stage: GauntletStage, round: number, next: GauntletRound): GauntletStage => ({
@@ -36,7 +40,8 @@ export function activeRunes(stage: GauntletStage, round: number): string[] {
   return out;
 }
 
-/** A round as the pinned opponent board a Test fight serves (opponent runes included). */
+/** A round as the pinned opponent board a Test fight serves (opponent runes AND the run buffs in force included —
+ *  the same scalers `authoredSeat` puts on the real Gauntlet seat's snapshot). */
 export function roundToSnapshot(stage: GauntletStage, round: number, wave: number): BoardSnapshot {
   const minions: BoardMinion[] = (stage.rounds[round - 1]?.board ?? []).map((m) => {
     const added = m.addedKeywords ?? [];
@@ -53,10 +58,12 @@ export function roundToSnapshot(stage: GauntletStage, round: number, wave: numbe
   });
   const snap = stagedBoard(wave, minions, roundTier(stage, round));
   const runes = activeRunes(stage, round);
-  return runes.length ? { ...snap, runes, questMods: runeCombatModsFor(runes) } : snap;
+  const buffed = { ...snap, ...nonZeroBuffs(effectiveBuffs(stage, round)) };
+  return runes.length ? { ...buffed, runes, questMods: runeCombatModsFor(runes) } : buffed;
 }
 
-/** The inverse: a (possibly edited) pinned board back into a round. Keeps `prev.tier` — the draft's tier is the truth. */
+/** The inverse: a (possibly edited) pinned board back into a round. Keeps `prev.tier` and `prev.buffs` — the draft's
+ *  tier and authored overrides are the truth (the pin only carries the folded, effective buffs). */
 export function snapshotToRound(snap: BoardSnapshot, prev: GauntletRound): GauntletRound {
   const board: GauntletMinion[] = snap.minions.map((m, i) => {
     const def = CARD_INDEX[m.cardId];
@@ -73,15 +80,29 @@ export function snapshotToRound(snap: BoardSnapshot, prev: GauntletRound): Gaunt
       cardVersion,
     };
   });
-  return { ...(prev.tier !== undefined ? { tier: prev.tier } : {}), board };
+  return { ...(prev.tier !== undefined ? { tier: prev.tier } : {}), board, ...(prev.buffs ? { buffs: prev.buffs } : {}) };
 }
 
-/** Deep-copy the previous round's board (and tier) into `round`. Round 1 (or out of range) is a no-op. */
+/** Deep-copy the previous round's board (and tier) into `round`. Round 1 (or out of range) is a no-op. The round's
+ *  own run-buff overrides stay put: buffs already carry forward, so copying them would only duplicate them. */
 export function copyPreviousRound(stage: GauntletStage, round: number): GauntletStage {
   if (round <= 1 || round > stage.rounds.length) return stage;
   const prev = stage.rounds[round - 2];
   if (!prev) return stage;
-  return withRound(stage, round, copyRound(prev));
+  const own = stage.rounds[round - 1]?.buffs;
+  const copied = copyRound({ ...(prev.tier !== undefined ? { tier: prev.tier } : {}), board: prev.board, ...(own ? { buffs: own } : {}) });
+  return withRound(stage, round, copied);
+}
+
+/** Set (`value`) or clear (`undefined` — back to the inherited value) one run-buff override on `round`. Counts are
+ *  floored to whole numbers ≥ 0, like the validator. */
+export function setRoundBuff<K extends GauntletBuffKey>(stage: GauntletStage, round: number, key: K, value: GauntletBuffs[K] | undefined): GauntletStage {
+  const r = stage.rounds[round - 1];
+  if (!r) return stage;
+  const clampN = (n: number): number => Math.max(0, Math.round(Number.isFinite(n) ? n : 0));
+  const clean = value === undefined ? undefined
+    : (typeof value === 'number' ? clampN(value) : { attack: clampN(value.attack), health: clampN(value.health) }) as GauntletBuffs[K];
+  return withRound(stage, round, withBuffOverride(r, key, clean));
 }
 
 /** Move a minion within a round's board. `to` clamps; an out-of-range `from` or a no-move is a no-op. */
@@ -110,9 +131,10 @@ const minionsEqual = (a: GauntletMinion, b: GauntletMinion): boolean => {
   );
 };
 
-/** Dirty compare: same tier (absent counts as absent), same minions in order. */
+/** Dirty compare: same tier (absent counts as absent), same minions in order, same run-buff overrides. */
 export function roundsEqual(a: GauntletRound, b: GauntletRound): boolean {
-  return a.tier === b.tier && a.board.length === b.board.length && a.board.every((m, i) => minionsEqual(m, b.board[i]!));
+  return a.tier === b.tier && a.board.length === b.board.length && a.board.every((m, i) => minionsEqual(m, b.board[i]!))
+    && buffOverridesEqual(a.buffs, b.buffs);
 }
 
 /** Stamp every minion's `cardVersion` with its card's current revision (an unknown card keeps what it had). */

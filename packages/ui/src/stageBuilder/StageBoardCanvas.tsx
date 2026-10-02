@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { CARD_INDEX, GAUNTLET_BOARD_MAX } from '@game/content';
+import { CARD_INDEX, GAUNTLET_BOARD_MAX, effectiveBuffs, type GauntletStage } from '@game/content';
+import { liveCardText } from '../instView';
 import { Card, type CardView } from '../Card';
 import { MinionSkins } from '../skins/skins';
 import { UnitEditor } from '../UnitEditor';
@@ -49,6 +50,47 @@ const toDomRect = (el: Element): DOMRect => {
   return new DOMRect(r.left, r.top, r.width, r.height);
 };
 
+/**
+ * A round's authored minions as the cards the canvas shows: the fight's view of them (printed + added keywords
+ * merged, golden flag) and their rules text run through the live-text chain with the round's RUN BUFFS (carried
+ * forward), so a card whose text reads one (Chef Raag x Imp aura, spell-power casters, …) prints the value it will
+ * fight at. Exported for the test (a compact card renders its text only in the hover reveal).
+ */
+export function roundCardViews(draft: GauntletStage, round: number): CardView[] {
+  const buffs = effectiveBuffs(draft, round);
+  const tier = roundTier(draft, round);
+  return roundToSnapshot(draft, round, 1).minions.map((m) => {
+    const def = CARD_INDEX[m.cardId];
+    const mult = m.golden ? 2 : 1;
+    const golden = m.golden ?? false;
+    const keywords = m.keywords ?? [...(def?.keywords ?? [])];
+    const live = def ? liveCardText(m.cardId, {
+      tier, golden, onBoard: true, keywords,
+      spellBonus: buffs.spellPower.attack, spellBonusH: buffs.spellPower.health,
+      frontToBackBonus: buffs.spellEscalation.attack, frontToBackBonusH: buffs.spellEscalation.health,
+      growthBonus: buffs.growthBonus, spellsThisTurn: buffs.spellsThisTurn, spellsCast: buffs.spellsCast,
+      deathrattlesTriggered: buffs.deathrattles, rubyCasts: buffs.rubyCasts, rubyBonus: buffs.rubyBonus,
+      fodderConsumed: buffs.fodderConsumed, undeadBuyAtk: buffs.undeadBuyAtk, soulsmanGold: 0, impAura: buffs.impAura,
+      revelerX: buffs.revelerX, spiritsPlayed: buffs.spiritsPlayed, squirlScoutBuff: buffs.squirlScoutBuff,
+      conductorBuff: buffs.conductorBuff, goldSpent: buffs.goldSpentThisTurn,
+    }) : null;
+    return {
+      name: def?.name ?? m.cardId,
+      cardId: m.cardId,
+      tribe: def?.tribe ?? 'neutral',
+      ...(def?.tribe2 ? { tribe2: def.tribe2 } : {}),
+      attack: m.attack,
+      health: m.health,
+      keywords,
+      golden,
+      text: live?.text ?? def?.text ?? '',
+      ...(live?.goldenText !== undefined ? { goldenText: live.goldenText } : {}),
+      tier: def?.tier,
+      ...(def ? { baseAttack: def.attack * mult, baseHealth: def.health * mult } : {}),
+    };
+  });
+}
+
 export function StageBoardCanvas() {
   const draft = useStageBuilder((s) => s.draft);
   const round = useStageBuilder((s) => s.round);
@@ -65,25 +107,7 @@ export function StageBoardCanvas() {
   useEffect(() => { endPressRef.current?.(); setEditing(null); setPicking(null); setDragging(null); }, [round, stageNumber]);
 
   const board = draft?.rounds[round - 1]?.board ?? [];
-  // The authored minions as the fight will see them (printed + added keywords merged, golden flag).
-  const minions = useMemo(() => (draft ? roundToSnapshot(draft, round, 1).minions : []), [draft, round]);
-  const views = useMemo<CardView[]>(() => minions.map((m) => {
-    const def = CARD_INDEX[m.cardId];
-    const mult = m.golden ? 2 : 1;
-    return {
-      name: def?.name ?? m.cardId,
-      cardId: m.cardId,
-      tribe: def?.tribe ?? 'neutral',
-      ...(def?.tribe2 ? { tribe2: def.tribe2 } : {}),
-      attack: m.attack,
-      health: m.health,
-      keywords: m.keywords ?? [...(def?.keywords ?? [])],
-      golden: m.golden ?? false,
-      text: def?.text ?? '',
-      tier: def?.tier,
-      ...(def ? { baseAttack: def.attack * mult, baseHealth: def.health * mult } : {}),
-    };
-  }), [minions]);
+  const views = useMemo<CardView[]>(() => (draft ? roundCardViews(draft, round) : []), [draft, round]);
 
   // A unit opened right after an add has no measured rect yet: measure its card once it has rendered.
   useLayoutEffect(() => {

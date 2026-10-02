@@ -20,14 +20,15 @@ import {
 import { searchMinions } from './minionSearch';
 import { runeActsForOpponent } from './runeEffect';
 import { StageBoardCanvas } from './StageBoardCanvas';
+import { RunBuffsSection } from './RunBuffsSection';
 
 /**
  * DEV-only STAGE BUILDER panel — authors a Gauntlet stage's OPPONENT warband round by round. All state lives in
  * `stageBuilderStore.ts`; this is the input surface, beside the full-stage board canvas (`StageBoardCanvas.tsx`,
  * the visual editor). Every edit goes through `editDraft`, shaped by the pure `stageDraft.ts` helpers, so the two
  * surfaces always show the same draft. Sections: Stage (slot + opponent name) · Rounds (dirty dot, red =
- * `validateStage` issue, amber = `stageDrift`) · Round N (tier + the ≤7 minions + a card search) · Runes (rounds 6
- * and 9) · Actions.
+ * `validateStage` issue, amber = `stageDrift`) · Round N (tier + the ≤7 minions + a card search) · Run buffs (the
+ * round's run-wide scalers, carried forward — `RunBuffsSection.tsx`) · Runes (rounds 6 and 9) · Actions.
  *
  * Mounted lazily by Game.tsx through `SandboxDevPanels` (DEV + sandbox), so neither this nor its store reaches the
  * player chunk. Wears the Scene Builder's slate (`.scenebuilder`) plus a few `.stb-*` pieces in styles.css.
@@ -317,6 +318,9 @@ function StageBuilderInner({ confirming, setConfirming, requestClose }: {
                   </div>
                 )}
               </Sec>
+
+              {/* RUN BUFFS — the round's run-wide scalers (Ruby strength, spell power, auras, counters), carried forward. */}
+              <RunBuffsSection draft={draft} round={round} edit={edit} folded={folded} onFold={fold} />
 
               {/* RUNES — the opponent's two rune slots: a picker per slot whose rows preview the REAL rune on hover /
                   keyboard focus (owner 2026-09-29). Greyed + badged = no combat effect for an opponent (shop-only). */}

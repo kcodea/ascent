@@ -40,8 +40,9 @@
 import { configStore } from '../heroAttack/configStore';
 import { clamp, type Pt } from '../heroAttack/easing';
 import {
-  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
+  HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum, isKnockoutVariant,
 } from '../heroAttack/tiers';
+import { KO_SHAKE } from '../heroAttack/knockout';
 
 export { TIERS };
 export type { TierNum };
@@ -393,6 +394,14 @@ export interface StitchPlan {
   impactAt: number;
   /** IV: the target is back on its spot (the fling home ends; null on other tiers). */
   homeAt: number | null;
+  /**
+   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the Huge bind, remixed. The heart-knot DOUBLE-CINCHES: where
+   * it would have tied it squeezes once more, hard, in a prismatic flash (`koCinchAt`), and only then ties (the tie,
+   * the strike and the burst move back by `STITCH_KO.cinchMs`); the burst gets the Ancient prism, a bigger shake, a
+   * deeper, longer slow-mo dip and a KO sting. False / null otherwise.
+   */
+  ko: boolean;
+  koCinchAt: number | null;
   endAt: number;
   passes: number;
   shards: number;
@@ -416,7 +425,7 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
     const at = r.impactAt;
     return {
       reduced: true, tier, kind, k, total, chargeAt: at, absorbEnd: at, launchAt: at, flightMs: 0, needles: [], hits: [],
-      tugAt: at, knotAt: null, strikeAt: null, impactAt: at, homeAt: null, endAt: r.endAt, passes: 0, shards: 0, burst: 0, shakePx: 0, zoom: 0,
+      tugAt: at, knotAt: null, strikeAt: null, impactAt: at, homeAt: null, ko: false, koCinchAt: null, endAt: r.endAt, passes: 0, shards: 0, burst: 0, shakePx: 0, zoom: 0,
       punch: 0, dim: 0, arc: 0,
     };
   }
@@ -438,11 +447,14 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   }
   const sewnAt = Math.max(...needles.map((q) => q.sewEnd));
   const tugAt = sewnAt + L.HangMs;
-  let knotAt: number | null = null, strikeAt: number | null = null, homeAt: number | null = null;
+  let knotAt: number | null = null, strikeAt: number | null = null, homeAt: number | null = null, koCinchAt: number | null = null;
   let impactAt: number;
+  const ko = kind === 'bound' && isKnockoutVariant(input);
   if (kind === 'bound') {
     knotAt = tugAt + L.TugMs;
     strikeAt = knotAt + c.knotMs;
+    // Tier V: the second cinch lands where the knot would have tied; the tie waits a beat for it.
+    if (ko) { koCinchAt = strikeAt; strikeAt += STITCH_KO.cinchMs; }
     impactAt = strikeAt + c.strikeMs;
     homeAt = impactAt + c.flingMs;
   } else impactAt = tugAt + L.TugMs;
@@ -452,13 +464,25 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   const endAt = Math.max(impactAt + Math.max(c.zoomOutMs * 0.8, 300), homeAt ?? 0) + L.SettleMs;
   return {
     reduced: false, tier, kind, k, total, chargeAt, absorbEnd, launchAt, flightMs, needles, hits, tugAt, knotAt, strikeAt,
-    impactAt, homeAt, endAt, passes, shards: Math.round(clamp(L.Shards, 0, STITCH_CAPS.shards)), burst: L.Burst,
-    shakePx: clamp(L.Shake, 0, STITCH_CAPS.shakePx), zoom: clamp(L.Zoom, 0, STITCH_CAPS.zoom), punch: L.Punch, dim: L.Dim, arc: L.Arc,
+    impactAt, homeAt, ko, koCinchAt, endAt, passes, shards: Math.round(clamp(L.Shards, 0, STITCH_CAPS.shards)), burst: L.Burst,
+    shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, STITCH_CAPS.shakePx * (ko ? KO_SHAKE : 1)), zoom: clamp(L.Zoom, 0, STITCH_CAPS.zoom), punch: L.Punch, dim: L.Dim, arc: L.Arc,
   };
 }
 
 /** IV: how many gold pulses the knot cinches in. */
 export const KNOT_PULSES = 3;
+
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+export const STITCH_KO = {
+  /** The second cinch's beat before the knot ties. */
+  cinchMs: 280,
+  /** How much harder the second cinch squeezes (the knot's tightness bumps past 1 for `squeezeMs`). */
+  squeeze: 0.22,
+  squeezeMs: 240,
+  /** The burst's slow-mo dip: this much slower at its slowest, and this much longer, than the Huge one's. */
+  dipLo: 0.25,
+  dipExtraMs: 100,
+} as const;
 
 export type StitchCueKind = 'charge' | 'launch' | 'pierce' | 'sewn' | 'tug' | 'knot' | 'cinch' | 'tied' | 'strike' | 'impact' | 'home' | 'end';
 export interface StitchCue { at: number; kind: StitchCueKind; i: number }
@@ -476,7 +500,12 @@ export function stitchCues(p: StitchPlan): StitchCue[] {
     out.push({ at: p.tugAt, kind: 'tug', i: 0 });
     if (p.knotAt !== null) out.push({ at: p.knotAt, kind: 'knot', i: 0 });
     // IV: the knot cinches in three pulses (gold sparks), between landing in it and the tie.
-    if (p.knotAt !== null && p.strikeAt !== null) for (let i = 1; i <= KNOT_PULSES; i++) out.push({ at: p.knotAt + ((p.strikeAt - p.knotAt) * i) / (KNOT_PULSES + 1), kind: 'cinch', i });
+    if (p.knotAt !== null && p.strikeAt !== null) {
+      const tieAt = p.koCinchAt ?? p.strikeAt;
+      for (let i = 1; i <= KNOT_PULSES; i++) out.push({ at: p.knotAt + ((tieAt - p.knotAt) * i) / (KNOT_PULSES + 1), kind: 'cinch', i });
+      // Tier V: the double-cinch (the hard prismatic squeeze), the cinch after the last.
+      if (p.koCinchAt !== null) out.push({ at: p.koCinchAt, kind: 'cinch', i: KNOT_PULSES + 1 });
+    }
     if (p.strikeAt !== null) {
       out.push({ at: p.strikeAt - 1, kind: 'tied', i: 0 });
       out.push({ at: p.strikeAt, kind: 'strike', i: 0 });
@@ -733,8 +762,12 @@ export function dragAt(p: StitchPlan, t: number): number {
 /** IV: how tightly the knot holds the target (0 open .. 1 tied), from the knot to the strike; released on the burst. */
 export function knotAt(p: StitchPlan, t: number): number {
   if (p.kind !== 'bound' || p.knotAt === null || p.strikeAt === null || t < p.knotAt || t >= p.impactAt) return 0;
-  const u = Math.min(1, (t - p.knotAt) / Math.max(1, p.strikeAt - p.knotAt));
-  return u * u * (3 - 2 * u);
+  const tieAt = p.koCinchAt ?? p.strikeAt;
+  const u = Math.min(1, (t - p.knotAt) / Math.max(1, tieAt - p.knotAt));
+  // Tier V: the second cinch squeezes past snug for a moment (the loops close tighter, the portrait crushed smaller).
+  const second = p.koCinchAt !== null && t >= p.koCinchAt
+    ? STITCH_KO.squeeze * Math.sin(Math.PI * Math.min(1, (t - p.koCinchAt) / STITCH_KO.squeezeMs)) : 0;
+  return u * u * (3 - 2 * u) + second;
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -795,9 +828,11 @@ export function stitchCameraFocus(p: StitchPlan, t: number, a: Pt, d: Pt, foeDra
  * Basketball's technique). Every other tier and moment: 1.
  */
 export function stitchTimeScale(p: StitchPlan, c: HeroStitchConfig, t: number): number {
-  if (p.kind !== 'bound' || p.reduced || c.slowMoMs <= 0 || t < p.impactAt || t >= p.impactAt + c.slowMoMs) return 1;
-  const u = (t - p.impactAt) / c.slowMoMs;
-  const lo = Math.min(1, Math.max(0.1, c.slowMo));
+  // Tier V dips deeper and longer (still a smooth ramp that never reaches 0).
+  const ms = c.slowMoMs + (p.ko && c.slowMoMs > 0 ? STITCH_KO.dipExtraMs : 0);
+  if (p.kind !== 'bound' || p.reduced || ms <= 0 || t < p.impactAt || t >= p.impactAt + ms) return 1;
+  const u = (t - p.impactAt) / ms;
+  const lo = Math.min(1, Math.max(0.1, p.ko ? Math.min(c.slowMo, STITCH_KO.dipLo) : c.slowMo));
   return lo + (1 - lo) * u * u * (3 - 2 * u);
 }
 
@@ -805,6 +840,7 @@ export function stitchTimeScale(p: StitchPlan, c: HeroStitchConfig, t: number): 
 export function slowMoExtraMs(p: StitchPlan, c: HeroStitchConfig): number {
   if (p.kind !== 'bound' || p.reduced || c.slowMoMs <= 0) return 0;
   let extra = 0;
-  for (let t = p.impactAt; t < p.impactAt + c.slowMoMs; t += 5) extra += 5 / stitchTimeScale(p, c, t) - 5;
+  const ms = c.slowMoMs + (p.ko ? STITCH_KO.dipExtraMs : 0);
+  for (let t = p.impactAt; t < p.impactAt + ms; t += 5) extra += 5 / stitchTimeScale(p, c, t) - 5;
   return extra;
 }

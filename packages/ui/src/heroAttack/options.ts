@@ -22,6 +22,13 @@ export interface HeroAttackOptions {
    */
   knockout?: boolean;
   /**
+   * Play the attack's KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02) on this knockout: the Huge version remixed with
+   * one extra beat, the Ancient prismatic accent, a bigger shake, a slow-mo dip and a KO sting. The caller sets it from
+   * the attack's RARITY (`knockoutVariantFor` in `knockoutVariant.ts`: Ancient attacks that have a variant). Ignored
+   * without `knockout`, and by any style that has no variant (it simply plays Huge).
+   */
+  knockoutVariant?: boolean;
+  /**
    * A stable per-blow seed (the run seed and the round) for a style that rolls a VARIATION (the Basketball's dribble
    * move and spot): the same fight rolls the same, so a replay plays it identically. Optional; presentation only.
    */

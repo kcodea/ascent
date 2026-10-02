@@ -27,6 +27,7 @@ import { Container, MeshSimple, Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { clamp01, mixColor, whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
+import { KO_CYAN, KO_LILAC, KO_MAGENTA, KO_PRISM } from '../heroAttack/knockout';
 import { RibbonTrail } from '../heroAttack/ribbonTrail';
 import { flightProgress, knotAt, needleAt, sewProgress, tugAt, type StitchGeo, type StitchPlan } from './heroStitchConfig';
 import { NEEDLE_TEX_W, SHARD_TEX } from './heroStitchTextures';
@@ -550,6 +551,33 @@ export class HeroStitchScene extends FxPool {
     this.burst('core', this.tex.star, [c.gold, c.bone], at.x, at.y, 2 + k, { speed: 200 * S, life: 300, size: (22 * S) / STAR_PX });
   }
 
+  /**
+   * TIER V: the DOUBLE-CINCH. The knot squeezes once more, hard: a prismatic pulse ring snapping in round it (cyan, then
+   * magenta), a white-hot flash, and a spray of prism sparks off the heart. It rides the dragged portrait.
+   */
+  koCinch(at: Pt): void {
+    const c = this.colors, r = this.foe.r * this.look.knotSize, S = this.scale;
+    this.spawn('core', this.tex.glow, c.bone, at.x, at.y, { dur: 200, from: (r * 1.2) / GLOW_PX, to: (r * 3) / GLOW_PX, a0: 0.75, mode: 'punch', peakAt: 0.15, follow: true });
+    this.spawn('glow', this.tex.ring, KO_CYAN, at.x, at.y, { dur: 320, from: (r * 4.4) / RING_PX, to: (r * 1.8) / RING_PX, a0: 1, mode: 'punch', peakAt: 0.2, follow: true });
+    this.spawn('glow', this.tex.ring, KO_MAGENTA, at.x, at.y, { dur: 380, from: (r * 5.2) / RING_PX, to: (r * 2.1) / RING_PX, a0: 0.85, mode: 'punch', peakAt: 0.25, delay: 50, follow: true });
+    this.burst('core', this.tex.spark, KO_PRISM, at.x, at.y - r * 0.2, 14, { speed: 420 * S, life: 420, size: 0.32, drag: 0.2, lift: 140 * S });
+    this.burst('core', this.tex.star, [KO_CYAN, KO_MAGENTA, c.bone], at.x, at.y, 5, { speed: 260 * S, life: 320, size: (26 * S) / STAR_PX });
+  }
+
+  /**
+   * TIER V's PRISM over the heart-knot's burst: the Ancient palette (cyan to magenta) layered on the gold and violet.
+   * Two wider prismatic shockwaves, a prism nova, prism soul ribbons curling out through the gold ones, prism light
+   * streaks. Short fills, so the big -N still reads.
+   */
+  koFlourish(d: Pt, dR: number, B: number): void {
+    this.spawn('glow', this.tex.glow, KO_LILAC, d.x, d.y, { dur: 300, from: (dR * 1.6) / GLOW_PX, to: (dR * 6) / GLOW_PX, a0: 0.55, mode: 'punch', peakAt: 0.1 });
+    this.spawn('glow', this.tex.ring, KO_CYAN, d.x, d.y, { dur: 700, from: (dR * 0.8) / RING_PX, to: (dR * 7.5 * Math.max(1, B / 2)) / RING_PX, a0: 0.95, ease: 'cubic', delay: 20 });
+    this.spawn('glow', this.tex.ring, KO_MAGENTA, d.x, d.y, { dur: 900, from: (dR * 0.8) / RING_PX, to: (dR * 9.5 * Math.max(1, B / 2)) / RING_PX, a0: 0.8, ease: 'cubic', delay: 90 });
+    this.burst('core', this.tex.streak, KO_PRISM, d.x, d.y, 14, { speed: 1400 * B / 2, life: 380, size: 0.6, align: true, drag: 0.12 });
+    this.burst('core', this.tex.spark, KO_PRISM, d.x, d.y, 18, { speed: 950 * B / 2, life: 560, size: 0.4, drag: 0.25, grav: 380 });
+    this.rip(d, dR, KO_PRISM, 8);
+  }
+
   /** IV: the knot is tied: the clasp flashes. */
   tied(at: Pt): void {
     const c = this.colors, r = this.foe.r, S = this.scale;
@@ -658,12 +686,13 @@ export class HeroStitchScene extends FxPool {
   }
 
   /** IV: gold and violet soul ribbons burst out of the knot and curl away (own strip meshes, sampled back along their flight). */
-  private rip(d: Pt, dR: number): void {
+  private rip(d: Pt, dR: number, tints: readonly number[] | null = null, count?: number): void {
     const c = this.colors, S = this.scale;
-    const n = Math.max(0, Math.min(24, Math.round(this.look.ripRibbons)));
+    const n = Math.max(0, Math.min(24, Math.round(count ?? this.look.ripRibbons)));
+    const tt = tints ?? [c.gold, c.thread, c.lilac];
     for (let i = 0; i < n; i++) {
       const trail = this.ribbonPool.pop() ?? new RibbonTrail(this.layers.glow, this.tex.ribbonBody, c.thread, 'add');
-      trail.mesh.tint = i % 3 === 0 ? c.gold : i % 3 === 1 ? c.thread : c.lilac;
+      trail.mesh.tint = tt[i % tt.length]!;
       const a = (i / n) * Math.PI * 2 + this.rnd() * 0.3;
       this.ribbons.push({
         trail, age: 0, life: 760 + this.rnd() * 320, cx: d.x, cy: d.y, dx: Math.cos(a), dy: Math.sin(a),

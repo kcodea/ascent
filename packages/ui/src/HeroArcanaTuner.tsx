@@ -174,13 +174,13 @@ let live: HeroArcanaHandle | null = null;
 /** Play the real Arcana between the two portraits, from the shop or a fight, without touching the run. */
 export function demo(
   side: 'player' | 'opp',
-  opts: { damage?: number; parts?: number; reduced?: boolean; frames?: HeroArcanaOptions['frames']; sound?: boolean; safety?: boolean } = {},
+  opts: { damage?: number; parts?: number; knockout?: boolean; reduced?: boolean; frames?: HeroArcanaOptions['frames']; sound?: boolean; safety?: boolean } = {},
 ): Promise<HeroArcanaHandle | null> {
   live?.cancel();
   const cfg = getHeroArcanaConfig();
   return playAttackDemo(side, (o) => playHeroArcana(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: 1, knockout: opts.knockout, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
@@ -217,6 +217,8 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
     { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
     { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Knockout (40)', hint: 'Your hero KNOCKS THE FOE OUT with 40 (the Ancient Knockout variant, "Tier V"): the Huge vortex, remixed: the vortex throbs with an extra prismatic pulse before it collapses, and the explosion bursts in cyan and magenta over the arcane violet, with a bigger shake, a slow-mo dip and a KO sting.', run: () => { void demo('player', { damage: 40, parts: 7, knockout: true }); } },
+    { label: '▶ Foe knockout (40)', hint: 'The foe knocks YOU out with 40 (the Knockout variant).', run: () => { void demo('opp', { damage: 40, parts: 7, knockout: true }); } },
   ],
 };
 

@@ -25,6 +25,7 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
+import { koDipExtraMs, koTimeScale, playKoSting, scaledFrames } from '../heroAttack/knockout';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   arcanaCameraAt, arcanaCameraFocus, arcanaCues, arcanaPlan, arrivalDir, getHeroArcanaConfig, ribbonMotions,
@@ -62,7 +63,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = arcanaPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = arcanaPlan({ total: o.total, knockout: o.knockout, knockoutVariant: o.knockoutVariant, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, arcanaCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
@@ -155,6 +156,12 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
           if (v) scene?.startVortex(o.defender.x, o.defender.y, v.r0, v.r1, v.tilt, plan.convergeAt - plan.swirlAt, plan.impactAt - plan.convergeAt, spinDir);
         }
         break;
+      case 'koPulse':
+        // TIER V: the vortex throbs once more before it collapses: a prismatic pulse ring and a deep chime.
+        cue(c.sfxChimeClip, c.sfxChimeGain * 0.9, c.sfxChimeRate * 0.8, { lenMs: 700, fadeMs: 260 });
+        cue(c.sfxThumpClip, c.sfxThumpGain * 0.9, c.sfxThumpRate - 0.1, { lenMs: 400, fadeMs: 160 });
+        scene?.koPulse(o.defender.x, o.defender.y, radius, c.swirlTilt);
+        break;
       case 'converge':
         cue(c.sfxImplodeClip, c.sfxImplodeGain, c.sfxImplodeRate, { lenMs: 700, fadeMs: 200 });
         scene?.converge();
@@ -171,6 +178,11 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
             burst: plan.burst, size: c.explodeSize, ribbons: Math.min(16, c.explodeRibbons), motes: plan.motes, flashAlpha: c.flashAlpha,
             tilt: c.swirlTilt, dir: spinDir, width: plan.width,
           });
+          // TIER V: the Ancient prism layered over the explosion, and the KO sting.
+          if (plan.ko) {
+            scene?.koFlourish(o.defender.x, o.defender.y, radius, { size: c.explodeSize, tilt: c.swirlTilt, dir: spinDir, width: plan.width, flashAlpha: c.flashAlpha });
+            playKoSting(voices, sound, real);
+          }
         } else {
           // THE LAST RIBBON: a bright arcane crack and chime, the impact, a low punch (bigger per tier).
           cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
@@ -179,6 +191,11 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
           cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
           if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
           scene?.impact(o.defender.x, o.defender.y, dir, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, flashAlpha: c.flashAlpha, motes: plan.motes });
+          // TIER V with the vortex tuned off: the prism and the sting still land on the last ribbon.
+          if (plan.ko) {
+            scene?.koFlourish(o.defender.x, o.defender.y, radius, { size: 1, tilt: c.swirlTilt, dir: spinDir, width: plan.width, flashAlpha: c.flashAlpha });
+            playKoSting(voices, sound, real);
+          }
         }
         seq.land();
         break;
@@ -239,8 +256,9 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
+    // Tier V's slow-mo dip on the explosion: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
+    frames: scaledFrames(o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)), () => (seq && !seq.done ? koTimeScale(plan.dip, seq.t) : 1)),
+    safetyMs: o.safety !== false ? (plan.endAt + koDipExtraMs(plan.dip)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
     stopVoices: () => voices.stopAll(),

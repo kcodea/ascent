@@ -35,9 +35,10 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { easeInOutSine, easeOutCubic, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
+import { playKoSting } from '../heroAttack/knockout';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  dragAt, getHeroStitchConfig, knotAt, needleAt, stitchCameraAt, stitchCameraFocus, stitchCues, stitchGeo, stitchPlan, stitchTimeScale, slowMoExtraMs, stretchAt, tugAt,
+  KNOT_PULSES, dragAt, getHeroStitchConfig, knotAt, needleAt, stitchCameraAt, stitchCameraFocus, stitchCues, stitchGeo, stitchPlan, stitchTimeScale, slowMoExtraMs, stretchAt, tugAt,
   type HeroStitchConfig, type StitchCue, type StitchGeo, type StitchPlan,
 } from './heroStitchConfig';
 import { HeroStitchScene, type HeroStitchTextures } from './heroStitchScene';
@@ -97,7 +98,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = stitchPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = stitchPlan({ total: o.total, knockout: o.knockout, knockoutVariant: o.knockoutVariant, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, stitchCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
@@ -224,6 +225,13 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
         scene?.knotted(o.defender);
         break;
       case 'cinch':
+        if (q.i > KNOT_PULSES) {
+          // TIER V: the DOUBLE-CINCH: the knot squeezes once more, hard, in a prismatic flash (a heavy clank and a thump).
+          cue(c.sfxKnotClip, c.sfxKnotGain * 1.25, c.sfxKnotRate * 0.85, { lenMs: 500, fadeMs: 200 });
+          cue(c.sfxThumpClip, c.sfxThumpGain * 1.1, c.sfxThumpRate - 0.1, { lenMs: 400, fadeMs: 160 });
+          scene?.koCinch(o.defender); // rides the dragged portrait (`follow`), exactly as the cinches do
+          break;
+        }
         // IV: the knot cinches tighter: a gold clink climbing each time, sparks off the heart.
         cue(c.sfxKnotClip, c.sfxKnotGain * (0.6 + 0.1 * q.i), c.sfxKnotRate * (1 + 0.12 * q.i), { lenMs: 300, fadeMs: 120 });
         scene?.cinch(o.defender, q.i);
@@ -271,6 +279,11 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
         scene?.impact(big ? dNow : o.defender, big ? radius * c.crush : radius, u, {
           shards: plan.shards, burst: plan.burst, t, foe: { x: off.fx, y: off.fy }, hero: { x: off.hx, y: off.hy },
         });
+        // TIER V: the Ancient prism over the gold and violet burst, and the KO sting.
+        if (plan.ko) {
+          scene?.koFlourish(dNow, radius * c.crush, plan.burst);
+          playKoSting(voices, sound, real);
+        }
         seq.land();
         break;
       }

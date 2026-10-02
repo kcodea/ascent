@@ -26,9 +26,10 @@ import { withFormation, type FormationCue } from '../heroAttack/formationConfig'
 import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
+import { koDipExtraMs, koTimeScale, playKoSting, scaledFrames } from '../heroAttack/knockout';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  getHeroHolyConfig, holyCameraAt, holyCameraFocus, holyCues, holyGeo, holyPlan,
+  HOLY_KO, barrageCount, getHeroHolyConfig, holyCameraAt, holyCameraFocus, holyCues, holyGeo, holyPlan,
   type HeroHolyConfig, type HolyCue, type HolyGeo, type HolyPlan,
 } from './heroHolyConfig';
 import { HeroHolyScene, type HeroHolyTextures } from './heroHolyScene';
@@ -63,7 +64,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   // THE DAMAGE FORMATION plays first (shared by every style); this style's own attack starts where it ends.
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = holyPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const plan = holyPlan({ total: o.total, knockout: o.knockout, knockoutVariant: o.knockoutVariant, distance: dist, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, holyCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
@@ -112,6 +113,9 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
     if (sound && gain > 0) voices.keep(playBellStrike('attack', { gain, hz, decayMs: real(decayMs), delayMs: real(delayMs) }));
   };
   let tick = 0;
+  // The barrage's own swords (Tier V adds the knockout sword after them; it rings like the last, and louder).
+  const nb = barrageCount(plan);
+  const isKoSword = (i: number): boolean => plan.ko && i >= nb;
 
   const fire = (q: HolyCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -166,25 +170,32 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         // THE BARRAGE (owner 2026-09-29): a sword flies in from off screen along its own heading. Its whoosh climbs with
         // the ramp; the first carries the descending swoosh, placed so its hit lands on the bite.
         const w = geo.swords[q.i], pw = plan.swords[q.i]!;
-        const n = plan.swords.length, k = n > 1 ? q.i / (n - 1) : 1;
+        const k = isKoSword(q.i) ? 1.2 : nb > 1 ? q.i / (nb - 1) : 1;
         if (q.i === 0) voices.riser(c.sfxDescendClip, c.sfxDescendGain, c.sfxDescendRate, real(pw.arriveAt - pw.launchAt));
         cue(c.sfxSpearClip, c.sfxSpearGain * (1.2 + 0.6 * k), c.sfxSpearRate * (0.75 + 0.35 * k), { lenMs: 450, fadeMs: 160 });
         if (q.i === 1 && sound) {
           // The choir swells from the second sword to the implosion (the barrage charging the centre).
           voices.keep(playHolyChoir('attack', { gain: c.sfxChoirGain, hz: c.sfxChoirHz, buildMs: real(plan.implodeAt - pw.launchAt), holdMs: real(60), tailMs: real(300), rise: 1.3 }));
         }
-        if (w) scene?.launchSword(w.from, w.tip, geo.centre, w.len, pw.arriveAt - pw.launchAt);
+        if (w) scene?.launchSword(w.from, w.tip, geo.centre, w.len, pw.arriveAt - pw.launchAt, isKoSword(q.i));
         break;
       }
       case 'swordHit': {
         // A sword BITES: punchy, not boomy, climbing in pitch and weight through the ramp (a hammer, a metal clang, a bell).
         const w = geo.swords[q.i];
-        const n = plan.swords.length, k = n > 1 ? q.i / (n - 1) : 1;
+        const ko = isKoSword(q.i);
+        const n = nb, k = ko ? 1.2 : n > 1 ? q.i / (n - 1) : 1;
         cue(c.sfxSlamClip, c.sfxSlamGain * (0.6 + 0.5 * k), c.sfxSlamRate * (1 + 0.18 * k), { lenMs: 600, fadeMs: 250 });
         cue(c.sfxClangClip, c.sfxClangGain * (0.6 + 0.5 * k), c.sfxClangRate * (1 + 0.3 * k), { lenMs: 700, fadeMs: 300 });
         if (q.i === 0) cue(c.sfxThumpClip, c.sfxThumpGain * 1.2, c.sfxThumpRate - 0.1, { lenMs: 500, fadeMs: 180 });
         bell(c.sfxBellHz * (0.5 + 0.12 * q.i), c.sfxBellGain * (0.5 + 0.4 * k), 900);
-        if (w) scene?.swordHit(w.tip, geo.centre, radius, q.i, n, { dust: c.slamDust, debris: c.slamDebris, shock: c.shockwave, flashAlpha: c.flashAlpha });
+        if (w) scene?.swordHit(w.tip, geo.centre, radius, Math.min(q.i, n - 1), n, { dust: c.slamDust, debris: c.slamDebris, shock: c.shockwave, flashAlpha: c.flashAlpha });
+        if (ko) {
+          // TIER V: the knockout sword bites dead centre: a low thump under it and a prismatic flare round the hub.
+          cue(c.sfxThumpClip, c.sfxThumpGain * 1.3, c.sfxThumpRate - 0.15, { lenMs: 500, fadeMs: 180 });
+          bell(c.sfxBellHz * 0.75, c.sfxBellGain, 1200);
+          scene?.koSwordHit(geo.centre, radius);
+        }
         break;
       }
       case 'implode':
@@ -218,6 +229,11 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
           bell(c.sfxBellHz, c.sfxBellGain, 1800);
           bell(c.sfxBellHz * 1.5, c.sfxBellGain * 0.5, 1400, 40);
           scene?.eruptFoe(geo.foot, d, radius, { flames: c.flamePillars, flameHeight: 1, burst: plan.burst, motes: plan.motes, flashAlpha: c.flashAlpha });
+          // TIER V: the wider prismatic consecration ring and the KO sting.
+          if (plan.ko) {
+            scene?.koFlourish(geo.foot, d, radius, HOLY_KO.ringScale);
+            playKoSting(voices, sound, real);
+          }
         } else {
           // THE LAST SMITE: a bell strike, the impact, the crystalline break, a low punch (bigger per tier).
           cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 450 });
@@ -283,8 +299,9 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
-    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
+    // Tier V's slow-mo dip on the eruption: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
+    frames: scaledFrames(o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)), () => (seq && !seq.done ? koTimeScale(plan.dip, seq.t) : 1)),
+    safetyMs: o.safety !== false ? (plan.endAt + koDipExtraMs(plan.dip)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
     stopVoices: () => voices.stopAll(),

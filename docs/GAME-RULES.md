@@ -523,18 +523,16 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
   tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
   the fight. **Bullet Time** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
-  Ancient of Time: STOPPED TIME, the shots hang in the air. Gold clock-hand darts fly and STOP DEAD short of the struck
-  hero, each aimed at it, fanned out toward the middle of the board (never off the edge of the screen). While time is
-  stopped only the shots stop: everything else goes grey (a quick fade in, a hard snap back), a gold time ripple sweeps
-  the screen, a clock ticks (louder and faster toward the restart), the hung darts tremble and glint, dust motes drift,
-  and the view keeps pushing in. Then time restarts with a hard snap (a white flash, a cyan and magenta burst, a shake)
-  and the shots land. I: one dart stops just short of the target inside a clock dial, then hits. II: three stop in a
-  fan, then hit together. III: a volley freezes mid-flight in a spiral as a giant clock face appears; the hero snaps
-  its fingers and the darts land in a rapid run (the blow on the last). IV: time stops for the whole board, dozens of
-  blades hang in a dome before a giant clock face while it counts 3, 2, 1; time restarts and the whole dome collapses
-  into one massive gold and violet impact on a slow-motion dip (never a freeze). Its Knockout variant adds a ring of
-  cyan and magenta blades, a prismatic collapse, a bigger shake, a deeper dip and the KO sting. Every hit before the
-  last is a tick; the blow lands once. **Card Shark** and
+  Ancient of Time: CUTTING THROUGH TIME. Gold clock-hand blades slice in toward the struck hero, each tearing a bright gold
+  cut through the air behind it, and as they reach it time drops into dramatic SLOW MOTION: they keep crawling forward,
+  afterimages peeling off them, a clock dial ringing the target sweeps its hand, a gold ripple sweeps the screen, and
+  the view pushes in. Then time snaps back to full speed (a white flash, a cyan and magenta burst, a shake) and they
+  land. Every shape centres on the struck hero; the colours stay full. I: one blade, then the hit. II: three from round
+  the target, hitting together. III: a volley in a spiral round it, a finger snap, and a rapid run of hits (the blow on
+  the last). IV: dozens of blades in a dome of rings round the target while a big clock dial counts 3, 2, 1; the dome
+  collapses into one massive gold and violet impact on a slow-motion dip. Its Knockout variant adds a ring of cyan and
+  magenta blades, a prismatic collapse, a bigger shake, a deeper dip and the KO sting. Every hit before the last is a
+  tick; the blow lands once. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero

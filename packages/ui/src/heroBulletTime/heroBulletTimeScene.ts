@@ -1,16 +1,15 @@
 /**
  * THE BULLET TIME SCENE: everything Bullet Time draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`),
  * so it runs (and is tested) headless. `heroBulletTime.ts` mounts `root` on the above-portrait overlay, feeds
- * `update(dt)`, and each frame tells it where every dart is (`setDart`) and how the clock reads (`setClock`).
+ * `update(dt)`, and each frame tells it where every dart is (`setDart`), how the clock reads (`setClock`) and how fast
+ * the FX run (`setTimeScale`: the slow motion).
  *
- * THE DARTS are gold clock-hand blades with a soft glow and a ribbon streak drawn along their own motion sampled back in
- * time. When time stops a dart STOPS DEAD, its streak frozen behind it (stopped motion), and from then on it is alive
- * but still: it trembles and turns a hair, and glints run along its edge. On the restart it snaps on into the target.
- *
- * STOPPED TIME stays visibly alive (owner rule R-PROG-ATTACK-10, "it looks like lag"): a clock ticks over the target, a
- * gold time ripple pulses off it, dust motes drift, glints run along the hung blades. IV adds a big clock face behind
- * the dome and the 3-2-1. The RESTART is a hard snap (a flash, a shock ring); the IMPACT is gold and violet, IV the
- * biggest in the roster.
+ * CUTTING THROUGH TIME (owner review 2026-10-02: "more cutting through time than stopping it and dont grey out"): the
+ * darts are gold clock-hand blades with a glow and a ribbon streak drawn along their own motion. As each one drops into
+ * the slow motion it leaves a TEAR sliced through the air behind it (a white-hot gold slash over a violet rift glow
+ * that lingers through the slow motion), and while it crawls, afterimages peel off it and glints run along its edge.
+ * The clock over the target sweeps its hand, a spark trailing off its tip. The snap back is hard (a flash, a chromatic
+ * burst); the impact is gold and violet, IV the biggest in the roster. Full colour throughout.
  *
  * Perf: pooled sprites under a hard cap; the darts (at most 64: a body, a glow and one ribbon strip each) and the clock
  * (a face and two hands) are own objects made once and reused; no allocation per frame beyond the pool's own.
@@ -41,19 +40,19 @@ export interface BulletLook {
   dartPx: number;
   trailMs: number;
   trailWidth: number;
-  tremblePx: number;
-  turn: number;
+  riftWidth: number;
   impactSize: number;
 }
 
-export type DartPhase = 'hand' | 'fly' | 'hang' | 'strike' | 'done';
+export type DartPhase = 'hand' | 'fly' | 'crawl' | 'strike' | 'done';
 
 /** Hard cap on sprites alive at once (IV's dome + collapse peak well under it). */
-export const MAX_BULLET_SPRITES = 520;
+export const MAX_BULLET_SPRITES = 900;
 export const MAX_DARTS = 64;
 const GLOW_PX = 128;
 const RING_PX = 160;
 const STAR_PX = 48;
+const BEAM_PX = 64;
 /** The chromatic burst on the restart: the Ancient prismatic pair (cyan, magenta). */
 const CHROMA_A = 0x8af5ff;
 const CHROMA_B = 0xff7ae0;
@@ -66,13 +65,18 @@ export class HeroBulletTimeScene extends FxPool {
   private clockOn = false;
   private age = 0;
   private glintAcc = 0;
+  private handAcc = 0;
+  private handTip: Pt | null = null;
+  /** The FX's own speed (the slow motion slows every spark, mote, ripple, glint and tear). */
+  private timeK = 1;
 
   constructor(private readonly tex: HeroBulletTimeTextures, private readonly colors: BulletColors, private readonly look: BulletLook, scale = 1, seed = 1) {
     super('heroBulletTime', [tex.glow, tex.ring, tex.star, tex.spark, tex.dart, tex.glint, tex.mote, tex.clockFace, tex.clockHand, tex.wash, tex.digit3, tex.digit2, tex.digit1, tex.ribbonSoft, tex.ribbonBody], scale, seed, MAX_BULLET_SPRITES);
   }
 
   get liveDarts(): number { let n = 0; for (const d of this.darts) if (d.on) n++; return n; }
-  get hungDarts(): number { let n = 0; for (const d of this.darts) if (d.on && d.phase === 'hang') n++; return n; }
+  get crawlingDarts(): number { let n = 0; for (const d of this.darts) if (d.on && d.phase === 'crawl') n++; return n; }
+  get timeScale(): number { return this.timeK; }
   get clockVisible(): boolean { return this.clockOn; }
 
   private dartAt(i: number, tint: number): Dart | null {
@@ -90,43 +94,74 @@ export class HeroBulletTimeScene extends FxPool {
     return d;
   }
 
+  /** The slow motion: every FX advances at `k` x the clock (1 = full speed). */
+  setTimeScale(k: number): void { this.timeK = Number.isFinite(k) ? Math.min(1, Math.max(0.02, k)) : 1; }
+
+  override update(dt: number): boolean { return super.update(dt * this.timeK); }
+
   /**
-   * Dart `i` this frame: `sample(ms)` is its position on the clock, `te` the motion time to draw (while it hangs, the
-   * time it stopped, so its streak hangs with it), `phase` where it is in its life, `angle` its heading, `size` its scale.
+   * Dart `i` this frame: `sample(ms)` is its position on the clock, `te` the time to draw it at, `phase` where it is in
+   * its life, `angle` its heading, `size` its scale, `tension` (0..1) the strain in the last beat before the snap.
    */
   setDart(i: number, sample: (ms: number) => Pt, te: number, phase: DartPhase, angle: number, size: number, tint: number, tension = 0): void {
-    const d = this.darts[i] ?? (phase === 'fly' || phase === 'hang' || phase === 'strike' ? this.dartAt(i, tint) : null);
+    const d = this.darts[i] ?? (phase === 'fly' || phase === 'crawl' || phase === 'strike' ? this.dartAt(i, tint) : null);
     if (!d) return;
-    const on = phase === 'fly' || phase === 'hang' || phase === 'strike';
+    const on = phase === 'fly' || phase === 'crawl' || phase === 'strike';
     d.on = on; d.phase = phase;
     d.body.visible = d.glow.visible = on;
     if (!on) { d.trail.hide(); return; }
     const S = this.scale;
     const p = sample(te);
-    let x = p.x, y = p.y, a = angle;
-    if (phase === 'hang') {
-      // Stopped, but alive: a tremble and a hair of turn, never a still frame.
-      // ...and straining harder as the restart nears (the anticipation).
-      const w = this.age * (0.02 + 0.03 * tension) + d.seed;
-      const tr = this.look.tremblePx * (1 + 3 * tension) * S;
-      x += Math.sin(w * 3.1) * tr;
-      y += Math.cos(w * 2.3) * tr;
-      a += Math.sin(w * 1.7) * this.look.turn * (1 + tension);
+    let x = p.x, y = p.y;
+    const a = angle;
+    if (phase === 'crawl' && tension > 0) {
+      // The strain in the last beat before the snap: a fine vibration (the anticipation).
+      const w = this.age * 0.08 + d.seed;
+      x += Math.sin(w * 3.1) * 2.2 * tension * S;
+      y += Math.cos(w * 2.3) * 2.2 * tension * S;
     }
     d.x = x; d.y = y; d.angle = a;
     const k = (this.look.dartPx * size * S) / DART_W;
     d.k = k;
     d.body.position.set(x, y); d.body.rotation = a; d.body.scale.set(k, k * 1.4); d.body.alpha = 1; d.body.tint = tint;
     d.glow.position.set(x, y); d.glow.scale.set((this.look.dartPx * size * S * 1.1) / GLOW_PX);
-    d.glow.alpha = phase === 'hang' ? 0.55 + 0.2 * Math.sin(this.age * 0.012 + d.seed) + 0.25 * tension : 0.7;
+    d.glow.alpha = phase === 'crawl' ? 0.6 + 0.2 * Math.sin(this.age * 0.012 + d.seed) + 0.2 * tension : 0.7;
     d.glow.tint = tint;
     if (this.look.trailMs > 0) {
       d.trail.mesh.tint = whiten(tint, 0.3);
-      d.trail.draw(sample, te, this.look.trailMs, this.look.trailWidth * size * S, phase === 'hang' ? 0.7 : 0.9);
+      d.trail.draw(sample, te, this.look.trailMs, this.look.trailWidth * size * S, 0.9);
     }
   }
 
-  /** A dart stops dead: a tick ring and a glint at its tip. */
+  /**
+   * A blade drops into the slow motion: the TEAR it sliced through the air from `from` to `to` (a white-hot gold slash
+   * over a wider violet rift glow) lingers for `ms` (FX time), and a tick ring flashes at its tip.
+   */
+  cut(from: Pt, to: Pt, ms: number, k = 1): void {
+    const c = this.colors;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len > 4 && this.look.riftWidth > 0) {
+      const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+      const rot = Math.atan2(dy, dx);
+      const w = this.look.riftWidth * k * this.scale;
+      const L = len / BEAM_PX / this.scale;
+      this.spawn('glow', this.tex.beam, c.violet, mx, my, { dur: ms + 160, from: L, to: L, sy: (w * 3.2) / len, a0: 0.55, mode: 'hold', ease: 'linear', rot });
+      this.spawn('glow', this.tex.beam, c.gold, mx, my, { dur: ms + 120, from: L, to: L * 1.02, sy: (w * 1.4) / len, a0: 0.9, mode: 'hold', ease: 'linear', rot });
+      this.spawn('core', this.tex.beam, 0xffffff, mx, my, { dur: ms * 0.7 + 80, from: L * 0.96, to: L, sy: (w * 0.45) / len, a0: 1, mode: 'hold', ease: 'linear', rot });
+    }
+    this.freeze(to, k);
+  }
+
+  /** An afterimage peeling off a crawling blade: a ghost of it, fading where it was. */
+  ghost(i: number, k = 1): void {
+    const d = this.darts[i];
+    if (!d || !d.on) return;
+    const s = this.spawn('glow', this.tex.dart, d.tint, d.x, d.y, { dur: 110, from: d.k * k, to: d.k * k, sy: 1.4, a0: 0.45, ease: 'linear', rot: d.angle });
+    if (s) s.anchor.set(0.97, 0.5);
+  }
+
+  /** A tick ring and a glint at a blade's tip. */
   freeze(at: Pt, k = 1): void {
     const c = this.colors;
     this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 220, from: 0.05 * k, to: 0.35 * k, a0: 0.9, ease: 'cubic' });
@@ -184,6 +219,8 @@ export class HeroBulletTimeScene extends FxPool {
     k.face.position.set(at.x, at.y); k.face.scale.set((r * 2) / (FACE_PX * 0.94)); k.face.alpha = 0.6 * a;
     k.glow.position.set(at.x, at.y); k.glow.scale.set((r * 2.4) / GLOW_PX); k.glow.alpha = 0.18 * a;
     k.long.position.set(at.x, at.y); k.long.scale.set((r * 0.88) / HAND_PX, (r * 0.4) / HAND_PX); k.long.rotation = minute - Math.PI / 2; k.long.alpha = 0.95 * a;
+    // The hand CUTS through time too: sparks trail off its tip as it sweeps.
+    this.handTip = { x: at.x + Math.cos(minute - Math.PI / 2) * r * 0.86, y: at.y + Math.sin(minute - Math.PI / 2) * r * 0.86 };
     k.short.position.set(at.x, at.y); k.short.scale.set((r * 0.55) / HAND_PX, (r * 0.5) / HAND_PX); k.short.rotation = minute / 12 - Math.PI / 2 + 2.1; k.short.alpha = 0.95 * a;
   }
 
@@ -203,12 +240,12 @@ export class HeroBulletTimeScene extends FxPool {
     this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: ms * 0.8, from: (r * 0.8) / RING_PX, to: (r * 2.2) / RING_PX, a0: 0.7, ease: 'cubic' });
   }
 
-  /** The glints: now and then one runs along a hung dart's edge. */
+  /** The glints: now and then one runs along a crawling blade's edge. */
   private glints(dt: number): void {
     this.glintAcc += dt;
     if (this.glintAcc < 45) return;
     this.glintAcc = 0;
-    const hung = this.darts.filter((d) => d.on && d.phase === 'hang');
+    const hung = this.darts.filter((d) => d.on && d.phase === 'crawl');
     if (!hung.length) return;
     const d = hung[Math.floor(this.rnd() * hung.length)]!;
     const len = DART_W * d.k;
@@ -289,6 +326,14 @@ export class HeroBulletTimeScene extends FxPool {
   protected override tick(dt: number): boolean {
     this.age += dt;
     this.glints(dt);
+    if (this.clockOn && this.handTip) {
+      this.handAcc += dt;
+      if (this.handAcc >= 14) {
+        this.handAcc = 0;
+        const h = this.handTip;
+        this.spawn('core', this.tex.star, this.colors.light, h.x, h.y, { dur: 260, from: 0.25, to: 0.05, a0: 0.9, ease: 'linear' });
+      }
+    }
     let own = this.clockOn;
     for (const d of this.darts) if (d.on) { own = true; break; }
     return own;

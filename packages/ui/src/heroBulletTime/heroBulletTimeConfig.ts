@@ -1,26 +1,28 @@
 /**
  * THE BULLET TIME HERO ATTACK ("Bullet Time", the Ancient of Time; ANCIENT rarity): its tuned values, its pure timeline,
- * the pure dart paths and hang points, the slow-mo dip and the pure camera.
+ * the pure dart paths, the slow-mo dip and the pure camera.
  *
- * Owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time". Three builds of a rewind
- * concept were reviewed (3.5, 4 and 5 out of 10; "i dont like using the art for the attack. try again"); the owner then
- * PICKED "BULLET TIME" from three fresh directions. THE SIGNATURE: STOPPED TIME. The shots HANG IN THE AIR.
+ * Owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time". After three rewind builds
+ * the owner PICKED "BULLET TIME", then on review (2026-10-02): "looks weird not being centered and prefer slow motion vs
+ * stopped/grey time. like more cutting through time than stopping it and dont grey out". So THE SIGNATURE is CUTTING
+ * THROUGH TIME: gold clock-hand blades fly in, and as they reach the target time drops into DRAMATIC SLOW MOTION (they
+ * keep crawling forward, never stopping), each one having sliced a bright gold TEAR through the air behind it, a
+ * time-rift glow along the cut, afterimages trailing; then time SNAPS back to full speed and everything lands. Every
+ * shape centres on the struck hero; the colours stay full (no grey).
  *
  * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I: a gold clock-hand dart flies and FREEZES an inch from the target (a tick). It hangs; time resumes: the hit.
- *  - II: three darts freeze in a ring round the target (tick tick tick), then all resume and hit together.
- *  - III: the hero fires a volley; a gold clock face flashes and the volley freezes mid-flight in a SPIRAL round the
- *    target; the hero SNAPS (a finger snap): all of it lands, in a rapid run (the last is the blow).
+ *  - I: a gold clock-hand dart cuts in and slows to a crawl an inch from the target inside a clock dial; snap: the hit.
+ *  - II: three darts cut in from round the target and crawl; snap: they all hit together.
+ *  - III: a volley of twelve cuts in to a spiral round the target and crawls as a clock face appears; the hero SNAPS:
+ *    they land in a machine-gun run (the last is the blow).
+ *  - IV (Huge): dozens of blades slice in to a DOME of rings round the target before a big clock face counting 3-2-1,
+ *    crawling; time snaps back and the whole dome collapses in one massive gold and violet impact, on a slow-mo dip.
  *  - KNOCKOUT ("Tier V", an Ancient knockout; owner rule 2026-10-02): IV remixed: one EXTRA ring of blades in the dome
  *    (cyan and magenta), a PRISMATIC collapse, a 1.3x shake, a deeper and longer slow-mo dip and the KO sting.
- *  - IV (Huge, every knockout of a non-variant): time stops for the whole board. Dozens of blades hang in a DOME round the target while
- *    a clock counts down 3-2-1; time restarts and the whole dome collapses inward in one massive gold and violet impact,
- *    on a slow-mo dip.
  *
- * NEVER A FROZEN FRAME (owner rule R-PROG-ATTACK-10: "it looks like lag"): only the PROJECTILES stop. The screen stays
- * alive the whole time: the clock hand ticks, the hung darts tremble and turn a hair, glints run along their edges, a gold
- * time ripple pulses off the target, dust motes drift, the camera keeps pushing in. Everything but the shots desaturates
- * (a one-shot transition in, a hard snap out). The restart is a hard SNAP: a flash, a shock ring, a shake.
+ * NEVER A FROZEN FRAME (owner rule R-PROG-ATTACK-10: "it looks like lag"): in the slow motion EVERYTHING still moves, just
+ * slowed (the blades crawl, the FX run at `slowFx` speed, the clock hand sweeps, the camera pushes in). The snap back is
+ * hard: a flash, a chromatic burst, a shake.
  *
  * THE CONTRACT: every hit before the last (III's run) is a tick; the consequence lands exactly ONCE, on the last hit (or
  * the collapse). Reduced motion: fades only.
@@ -62,15 +64,17 @@ interface GlobalConfig {
   dartPx: number;
   trailMs: number;
   trailWidth: number;
-  /** The hung darts' tremble (px) and turn (radians). */
-  tremblePx: number;
-  turn: number;
-  /** Everything but the shots desaturates while time is stopped (0 = off). */
-  desat: number;
-  desatInMs: number;
-  /** The gold time ripple pulsing off the target while time is stopped (ms between pulses). */
+  /** In the slow motion each blade crawls this fraction of the rest of the way to the target. */
+  crawl: number;
+  /** How fast the FX run in the slow motion (sparks, motes, ripples, glints, tears). */
+  slowFx: number;
+  /** The gold TEAR each blade slices through the air (px). */
+  riftWidth: number;
+  /** An afterimage peels off a crawling blade every this many ms (IV every three times this). */
+  ghostMs: number;
+  /** The gold time ripple pulsing off the target in the slow motion (ms between pulses). */
   rippleMs: number;
-  /** Dust motes drifting while time is stopped. */
+  /** Dust motes drifting in the slow motion. */
   motes: number;
   clockSize: number;
   impactSize: number;
@@ -161,10 +165,10 @@ export const HERO_BULLET_DEFAULTS: HeroBulletTimeConfig = {
   dartPx: 170,
   trailMs: 24,
   trailWidth: 30,
-  tremblePx: 1.8,
-  turn: 0.05,
-  desat: 0.85,
-  desatInMs: 140,
+  crawl: 0.3,
+  slowFx: 0.25,
+  riftWidth: 9,
+  ghostMs: 80,
   rippleMs: 260,
   motes: 18,
   clockSize: 1,
@@ -213,10 +217,10 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBulletStrKey>, [numb
   dartPx: [16, 200, 1],
   trailMs: [0, 400, 5],
   trailWidth: [1, 60, 0.5],
-  tremblePx: [0, 10, 0.25],
-  turn: [0, 0.4, 0.005],
-  desat: [0, 1, 0.01],
-  desatInMs: [0, 800, 10],
+  crawl: [0, 0.8, 0.01],
+  slowFx: [0.05, 1, 0.01],
+  riftWidth: [0, 40, 0.5],
+  ghostMs: [20, 400, 5],
   rippleMs: [80, 2000, 10],
   motes: [0, 60, 1],
   clockSize: [0.3, 3, 0.05],
@@ -308,7 +312,7 @@ export interface BulletPlan {
   absorbEnd: number;
   fireAt: number;
   darts: BulletDart[];
-  /** STOPPED TIME: from `stopAt` to `resumeAt` the shots hang (the screen stays alive). */
+  /** SLOW MOTION: from `stopAt` to `resumeAt` the shots crawl (everything keeps moving, slowed); then the snap. */
   stopAt: number;
   resumeAt: number;
   /** IV: the 3-2-1 count (each count's time). */
@@ -404,10 +408,10 @@ export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = sto
   return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, darts, stopAt, resumeAt, counts, hits, impactAt, dip, endAt };
 }
 
-export type BulletCueKind = 'charge' | 'launch' | 'freeze' | 'stop' | 'count' | 'tick' | 'snap' | 'hit' | 'impact' | 'end';
+export type BulletCueKind = 'charge' | 'launch' | 'cut' | 'slow' | 'count' | 'tick' | 'snap' | 'hit' | 'impact' | 'end';
 export interface BulletCue { at: number; kind: BulletCueKind; i: number }
 
-/** The clock ticks while time is stopped, ACCELERATING toward the restart. */
+/** The clock ticks through the slow motion, ACCELERATING toward the snap. */
 export function stopTicks(p: BulletPlan): number[] {
   if (p.reduced) return [];
   const out: number[] = [];
@@ -420,8 +424,8 @@ export function bulletCues(p: BulletPlan): BulletCue[] {
   const out: BulletCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    p.darts.forEach((d, i) => { out.push({ at: d.launchAt, kind: 'launch', i }); out.push({ at: d.hangAt, kind: 'freeze', i }); });
-    out.push({ at: p.stopAt, kind: 'stop', i: 0 });
+    p.darts.forEach((d, i) => { out.push({ at: d.launchAt, kind: 'launch', i }); out.push({ at: d.hangAt, kind: 'cut', i }); });
+    out.push({ at: p.stopAt, kind: 'slow', i: 0 });
     p.counts.forEach((at, i) => out.push({ at, kind: 'count', i }));
     stopTicks(p).forEach((at, i) => out.push({ at, kind: 'tick', i }));
     out.push({ at: p.resumeAt, kind: 'snap', i: 0 });
@@ -429,12 +433,12 @@ export function bulletCues(p: BulletPlan): BulletCue[] {
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<BulletCueKind, number> = { charge: 0, launch: 1, freeze: 2, stop: 3, count: 4, tick: 5, snap: 6, hit: 7, impact: 8, end: 9 };
+  const order: Record<BulletCueKind, number> = { charge: 0, launch: 1, cut: 2, slow: 3, count: 4, tick: 5, snap: 6, hit: 7, impact: 8, end: 9 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
 
-/** Is time stopped at `t`? */
-export function timeStopped(p: BulletPlan, t: number): boolean { return !p.reduced && t >= p.stopAt && t < p.resumeAt; }
+/** Is the slow motion on at `t`? */
+export function inSlowMo(p: BulletPlan, t: number): boolean { return !p.reduced && t >= p.stopAt && t < p.resumeAt; }
 
 /**
  * IV's SLOW-MO DIP on the collapse (the Basketball / Soul Stitch technique; a freeze is banned, R-PROG-ATTACK-10): the
@@ -452,63 +456,53 @@ export function bulletSlowExtraMs(p: BulletPlan, c: HeroBulletTimeConfig): numbe
 
 // ─── the geometry (pure) ───────────────────────────────────────────────────────────────────────────────────────
 
-/** A dart's whole path: from the hand bowing into its hang point (arriving pointed at the target), then into the hit. */
-export interface DartGeo { hand: Pt; ctrl: Pt; hang: Pt; hit: Pt; aim: number }
+/**
+ * A dart's whole path: from the hand bowing into the point where time slows (`hang`, arriving pointed at the target),
+ * crawling on to `crawl` through the slow motion, then snapping into the hit.
+ */
+export interface DartGeo { hand: Pt; ctrl: Pt; hang: Pt; crawl: Pt; hit: Pt; aim: number }
+
+type Box = { x: number; y: number; w: number; h: number };
 
 /**
- * Which way is "into the screen" from the target: toward the middle of the stage (a target tucked in a corner gets its
- * blades fanned out over the board, never clipped off the edge), or toward the striker when there is no stage box.
+ * Where each dart enters the slow motion, by tier, every shape CENTRED ON THE TARGET (owner review 2026-10-02: "looks
+ * weird not being centered"): I an inch off it (on the striker's side); II three evenly round it; III a spiral round it;
+ * IV a DOME of full rings round it. A target near an edge keeps its centre: the dome shrinks to fit (down to 60%), and
+ * any point still off screen is clamped onto it.
  */
-export function inwardAngle(a: Pt, d: Pt, bounds?: { x: number; y: number; w: number; h: number }): number {
+export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroBulletTimeConfig, bounds?: Box): Pt[] {
   const back = Math.atan2(a.y - d.y, a.x - d.x);
-  if (!bounds) return back;
-  const cx = bounds.x + bounds.w / 2 - d.x, cy = bounds.y + bounds.h / 2 - d.y;
-  if (Math.hypot(cx, cy) < 1) return back;
-  const inA = Math.atan2(cy, cx);
-  // Lean a little toward the striker so the shots read as coming FROM it.
-  const diff = Math.atan2(Math.sin(back - inA), Math.cos(back - inA));
-  return inA + diff * 0.25;
-}
-
-/**
- * Where each dart hangs, by tier, all fanned out from the target toward the middle of the board and all aimed at it:
- * I an inch off it; II a fan of three; III a spiral sweeping round it; IV a half-shell DOME of blades, ring on ring.
- */
-export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroBulletTimeConfig, bounds?: { x: number; y: number; w: number; h: number }): Pt[] {
-  const back = Math.atan2(a.y - d.y, a.x - d.x);
-  const inward = inwardAngle(a, d, bounds);
   const R = radius;
   const pts: Pt[] = [];
   const n = p.darts.length;
   if (p.kind === 'dart') pts.push(polar(d, back, R * (c.hangR + 0.3)));
   else if (p.kind === 'ring') {
-    for (let i = 0; i < n; i++) pts.push(polar(d, inward + (i - (n - 1) / 2) * 0.62, R * (c.hangR + 0.6)));
+    for (let i = 0; i < n; i++) pts.push(polar(d, back + (i * Math.PI * 2) / n, R * (c.hangR + 0.6)));
   } else if (p.kind === 'spiral') {
-    for (let i = 0; i < n; i++) pts.push(polar(d, inward - 1.5 + (3 * i) / Math.max(1, n - 1), R * (c.hangR + 0.25 + 0.17 * i)));
+    for (let i = 0; i < n; i++) pts.push(polar(d, back + i * 2.39996, R * (c.hangR + 0.25 + 0.13 * i)));
   } else {
+    const rings = 1 + Math.max(0, ...p.darts.map((x) => x.ring));
+    const outer = R * c.domeSize * (1.6 + 0.7 * (rings - 1));
+    const room = bounds ? Math.min(d.x - bounds.x, bounds.x + bounds.w - d.x, d.y - bounds.y, bounds.y + bounds.h - d.y) - R * 0.3 : outer;
+    const k = clamp(room / outer, 0.6, 1);
     p.darts.forEach((dt) => {
       const inRing = p.darts.filter((x) => x.ring === dt.ring);
       const j = inRing.indexOf(dt);
-      const span = 1.25 + 0.12 * dt.ring;
-      const a0 = inward - span + (2 * span * (j + (dt.ring % 2) * 0.5)) / Math.max(1, inRing.length - 0.5);
-      pts.push(polar(d, a0, R * c.domeSize * (1.6 + 0.75 * dt.ring)));
+      const a0 = back + ((j + (dt.ring % 2) * 0.5) / inRing.length) * Math.PI * 2;
+      pts.push(polar(d, a0, R * c.domeSize * k * (1.6 + 0.7 * dt.ring)));
     });
   }
   if (!bounds) return pts;
-  const m = R * 0.4;
+  const m = R * 0.3;
   return pts.map((q) => ({ x: clamp(q.x, bounds.x + m, bounds.x + bounds.w - m), y: clamp(q.y, bounds.y + m, bounds.y + bounds.h - m) }));
 }
 
-/** The clock's centre: out from the target toward the board (IV's giant face sits behind the dome). */
-export function clockCentre(p: BulletPlan, a: Pt, d: Pt, radius: number, bounds?: { x: number; y: number; w: number; h: number }): Pt {
-  const inward = inwardAngle(a, d, bounds);
-  const out = p.kind === 'dome' ? 2.2 : p.kind === 'spiral' ? 1.4 : 0;
-  return polar(d, inward, radius * out);
-}
+/** The clock's centre: the target itself (every shape centres on it). */
+export function clockCentre(p: BulletPlan, a: Pt, d: Pt): Pt { void p; void a; return { x: d.x, y: d.y }; }
 
 function polar(o: Pt, a: number, r: number): Pt { return { x: o.x + Math.cos(a) * r, y: o.y + Math.sin(a) * r }; }
 
-export function dartGeos(p: BulletPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroBulletTimeConfig, bounds?: { x: number; y: number; w: number; h: number }): DartGeo[] {
+export function dartGeos(p: BulletPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroBulletTimeConfig, bounds?: Box): DartGeo[] {
   if (p.reduced) return [];
   const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
@@ -520,17 +514,19 @@ export function dartGeos(p: BulletPlan, a: Pt, d: Pt, radius: number, aRadius: n
     // The control sits back along the aim line, so the dart ARRIVES at its hang point already pointed at the target.
     const ctrl = { x: hang.x - (tx / tl) * D * 0.55, y: hang.y - (ty / tl) * D * 0.55 };
     const hit = { x: d.x - (tx / tl) * radius * 0.2, y: d.y - (ty / tl) * radius * 0.2 };
-    return { hand, ctrl, hang, hit, aim: Math.atan2(ty, tx) };
+    const k = clamp(c.crawl, 0, 0.8);
+    const crawl = { x: hang.x + (hit.x - hang.x) * k, y: hang.y + (hit.y - hang.y) * k };
+    return { hand, ctrl, hang, crawl, hit, aim: Math.atan2(ty, tx) };
   });
 }
 
 const quad = (a: Pt, c: Pt, b: Pt, e: number): Pt => { const m = 1 - e; return { x: m * m * a.x + 2 * m * e * c.x + e * e * b.x, y: m * m * a.y + 2 * m * e * c.y + e * e * b.y }; };
 
-/** A dart's flight ease: near-linear, so it STOPS dead at its hang point (time stopping), never easing to a halt. */
+/** A dart's flight ease: near-linear, so it is still FAST when time drops into slow motion (the cut reads as a brake). */
 export const dartEase = (u: number): number => { const t = Math.min(1, Math.max(0, Number.isFinite(u) ? u : 0)); return 0.8 * t + 0.2 * t * t; };
 
-/** Where dart `i` is at `t`, and whether it is hanging. Pure. */
-export function dartAt(dt: BulletDart, g: DartGeo, t: number): { p: Pt; angle: number; phase: 'hand' | 'fly' | 'hang' | 'strike' | 'done' } {
+/** Where dart `i` is at `t`, and in which part of its life. Pure. */
+export function dartAt(dt: BulletDart, g: DartGeo, t: number): { p: Pt; angle: number; phase: 'hand' | 'fly' | 'crawl' | 'strike' | 'done' } {
   if (t < dt.launchAt) return { p: g.hand, angle: g.aim, phase: 'hand' };
   if (t < dt.hangAt) {
     const e = dartEase((t - dt.launchAt) / Math.max(1, dt.hangAt - dt.launchAt));
@@ -538,11 +534,15 @@ export function dartAt(dt: BulletDart, g: DartGeo, t: number): { p: Pt; angle: n
     const q = quad(g.hand, g.ctrl, g.hang, Math.min(1, e + 0.02));
     return { p, angle: Math.atan2(q.y - p.y, q.x - p.x), phase: 'fly' };
   }
-  if (t < dt.resumeAt) return { p: g.hang, angle: g.aim, phase: 'hang' };
+  if (t < dt.resumeAt) {
+    // SLOW MOTION: it never stops, it CRAWLS on toward the target.
+    const u = (t - dt.hangAt) / Math.max(1, dt.resumeAt - dt.hangAt);
+    return { p: { x: g.hang.x + (g.crawl.x - g.hang.x) * u, y: g.hang.y + (g.crawl.y - g.hang.y) * u }, angle: g.aim, phase: 'crawl' };
+  }
   if (t < dt.hitAt) {
     const u = (t - dt.resumeAt) / Math.max(1, dt.hitAt - dt.resumeAt);
-    const e = u * u; // time snaps back on: it launches off the mark
-    return { p: { x: g.hang.x + (g.hit.x - g.hang.x) * e, y: g.hang.y + (g.hit.y - g.hang.y) * e }, angle: g.aim, phase: 'strike' };
+    const e = u * u; // time snaps back to full speed: it launches off the mark
+    return { p: { x: g.crawl.x + (g.hit.x - g.crawl.x) * e, y: g.crawl.y + (g.hit.y - g.crawl.y) * e }, angle: g.aim, phase: 'strike' };
   }
   return { p: g.hit, angle: g.aim, phase: 'done' };
 }
@@ -553,8 +553,8 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
 /**
- * The camera: a push in through the ready; while time is stopped it keeps PUSHING IN slowly (the screen never holds
- * still); the restart SNAPS it (a kick); the impact punches and shakes (IV the hardest in the roster). Pure.
+ * The camera: a push in through the ready; through the slow motion it keeps PUSHING IN (the screen never holds still);
+ * the snap back to full speed KICKS it; the impact punches and shakes (IV the hardest in the roster). Pure.
  */
 export function bulletCameraAt(p: BulletPlan, c: HeroBulletTimeConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };

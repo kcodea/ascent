@@ -3664,32 +3664,32 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-35',
-    title: 'Bullet Time (attack_bullet_time, Ancient): STOPPED TIME, the shots hang in the air (only they stop; the screen stays alive), then a hard snap and they land; I one dart, II a fan of three, III a spiral volley and a snap, IV a dome of blades and a 3-2-1; the blow lands ONCE',
+    title: 'Bullet Time (attack_bullet_time, Ancient): CUTTING THROUGH TIME: blades tear cuts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
     statement:
       'attack_bullet_time ("Bullet Time", the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
-      + 'damage formation (R-PROG-ATTACK-08) gold clock-hand darts fly from the striking hero and STOP DEAD in the air short of '
-      + 'the struck hero, each aimed at it and fanned out toward the middle of the board (clamped on screen). While time is '
-      + 'stopped ONLY THE SHOTS STOP (R-PROG-ATTACK-10, "it looks like lag"): the boards, the background and both portraits go '
-      + 'grey (a one-shot CSS filter transition in, an instant snap out; never animated per frame), a gold time ripple sweeps '
-      + 'the screen, a clock ticks faster and louder toward the restart, the hung darts tremble, turn a hair and glint (and '
-      + 'strain in the last beat), dust motes drift, and the camera keeps pushing in. Time restarts with a hard SNAP (a white '
-      + 'flash, a cyan and magenta chromatic burst, streaks, a camera kick, a finger snap and a rising whoosh) and the shots '
-      + 'land. It escalates on the shared tiers (thresholds 6 / 12 / 20): I one dart stops just short of the target inside a '
-      + 'clock dial, then hits; II three stop in a fan, then hit together; III a volley of twelve freezes mid-flight at one '
-      + 'instant in a spiral as a giant clock face appears, the hero snaps and they land in a rapid run (ticks, the blow on '
-      + 'the last); IV time stops for the whole board as dozens of blades stream out and hang in a half-shell dome before a '
-      + 'giant clock face counting 3-2-1, then the dome collapses at once into one massive gold and violet impact on a '
-      + 'slow-mo dip (never 0). KNOCKOUT VARIANT (R-PROG-ATTACK-20): IV with one extra ring of cyan and magenta blades, a '
-      + 'prismatic collapse, a 1.3x shake, a deeper and longer dip and the KO sting (about 380 ms over Huge). The consequence '
-      + 'lands exactly ONCE, on the last hit (IV: the collapse). No Ancient or hero art is drawn. Presentation only; reduced '
-      + 'motion is fades only. It never uses the rune explosion or turn explosion sounds.',
+      + 'damage formation (R-PROG-ATTACK-08) gold clock-hand blades slice in toward the struck hero, each tearing a bright gold '
+      + 'cut (over a violet rift glow) through the air behind it, and as they reach it time drops into dramatic SLOW MOTION: '
+      + 'they keep CRAWLING forward (never stopped), the FX run slowed, afterimages peel off, a clock dial ringing the target '
+      + 'sweeps its hand and ticks faster and louder, a gold ripple sweeps the screen, motes drift, the camera pushes in; '
+      + 'nothing is greyed. Then time SNAPS back to full speed (a white flash, a cyan and magenta chromatic burst, streaks, a '
+      + 'camera kick, a finger snap and a rising whoosh) and they land. Every shape (the blades, the clock, the countdown, the '
+      + 'collapse) CENTRES on the struck portrait\x27s at-rest centre; near an edge the dome shrinks to fit and any blade still '
+      + 'off screen is clamped on, never shifting the centre. It escalates on the shared tiers (thresholds 6 / 12 / 20): I '
+      + 'one blade, then the hit; II three from evenly round the target, hitting together; III a volley of twelve in a spiral '
+      + 'round it, a finger snap, and a rapid run of hits (ticks, the blow on the last); IV dozens of blades in a dome of rings '
+      + 'round the target while a clock dial counts 3-2-1, then the dome collapses at once into one massive gold and violet '
+      + 'impact on a slow-mo dip (never 0). KNOCKOUT VARIANT (R-PROG-ATTACK-20): IV with one extra ring of cyan and magenta '
+      + 'blades, a prismatic collapse, a 1.3x shake, a deeper and longer dip and the KO sting (about 380 ms over Huge). The '
+      + 'consequence lands exactly ONCE, on the last hit (IV: the collapse). No Ancient or hero art is drawn. Presentation '
+      + 'only; reduced motion is fades only. It never uses the rune explosion or turn explosion sounds.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient of Time attack, relayed by the coordinator)', quote: 'build a new ancient animation for this ancient, the ancient of time' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the third rewind build, relayed by the coordinator)', quote: 'time attack is a 5/10. i dont like using the art for the attack. try again' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time, relayed by the coordinator)', quote: 'concept for bullet time is cool but it is currently like a 3/10 and we need a 10/10. this also needs a knockout tier as it\x27ll be an ancient tier animation' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bullet_time); packages/ui/src/heroBulletTime/ (bulletPlan / bulletCues / stopTicks / timeStopped / hangPoints / inwardAngle / clockCentre / dartGeos / dartAt / bulletCameraAt, playHeroBulletTime, HeroBulletTimeScene, heroBulletTimeTextures); packages/ui/src/heroAttack/knockoutVariant.ts (bullettime)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time IV, relayed by the coordinator)', quote: 'looks weird not being centered and prefer slow motion vs stopped/grey time. like more cutting through time than stopping it and dont grey out' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bullet_time); packages/ui/src/heroBulletTime/ (bulletPlan / bulletCues / stopTicks / inSlowMo / hangPoints / clockCentre / dartGeos / dartAt / bulletCameraAt, playHeroBulletTime, HeroBulletTimeScene, heroBulletTimeTextures); packages/ui/src/heroAttack/knockoutVariant.ts (bullettime)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBulletTime/heroBulletTime.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },

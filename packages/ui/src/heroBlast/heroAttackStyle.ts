@@ -100,11 +100,11 @@
  * needles cross-stitch an X and the threads snap through; III five pins stab in at the points of a star and the target
  * is stretched toward the hero until they rip out; IV the heroes laced together, the target dragged into a gold heart-knot that
  * ties shut and bursts as it is flung home (`../heroStitch/`).
- * `bullettime` is the first ANCIENT attack built for its rarity (`attack_bullet_time`, "Bullet Time", the Ancient of Time;
- * owner 2026-10-02 picked "BULLET TIME" after three rewind builds): STOPPED TIME, the shots hang in the air. I a gold
- * clock-hand dart stops an inch from the target, then time resumes; II three stop in a ring round it; III a volley freezes
- * mid-flight in a spiral and the hero snaps; IV time stops for the whole board, dozens of blades hang in a dome while a
- * clock counts 3-2-1, then the dome collapses in one massive impact (`../heroBulletTime/`).
+ * `bullettime` (`attack_bullet_time`, "Bullet Time", the Ancient of Time; Ancient; owner 2026-10-02 picked "BULLET TIME",
+ * then "more cutting through time than stopping it"): gold clock-hand blades tear cuts through the air and crawl in
+ * dramatic slow motion round the target, then time snaps back and they land. I one blade; II three round the target; III a
+ * spiral volley and a finger snap; IV a dome of blades and a 3-2-1, collapsing in one massive impact. Every shape centres
+ * on the target (`../heroBulletTime/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names

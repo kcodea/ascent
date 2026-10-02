@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
  * THE BULLET TIME HERO ATTACK (the Ancient of Time, ANCIENT; owner 2026-10-02 picked "BULLET TIME"): the shared four
- * tiers; the tuner values; the pure plan (I one dart; II a ring of three; III a spiral volley and a run; IV the dome, the
- * 3-2-1 and the collapse); the darts STOP DEAD at their hang points while time is stopped, and only they stop (the clock
- * ticks, ripples pulse); the runner on the shared clock (the blow lands exactly ONCE; the desaturation is set once and
- * snapped back; both directions; replay; finish / cancel; cleanup; the camera applied once); the headless scene; the
- * cosmetic. No Ancient art is used.
+ * tiers; the tuner values; the pure plan (I one dart; II three round the target; III a spiral volley and a run; IV the
+ * dome, the 3-2-1 and the collapse); every shape CENTRED ON THE TARGET; the blades brake into SLOW MOTION and keep
+ * crawling (never stop); the runner on the shared clock (the blow lands exactly ONCE; the FX slow down then snap back;
+ * nothing is greyed; both directions; replay; finish / cancel; cleanup; the camera applied once); the headless scene;
+ * the cosmetic. No Ancient art is used.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
@@ -14,7 +14,7 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
   HERO_BULLET_DEFAULTS, HERO_BULLET_RANGES, bulletCues, bulletPlan, bulletSlowExtraMs, bulletTimeScale, clampHeroBulletTimeValue, dartAt,
-  dartGeos, heroBulletTimeConfigJson, stopTicks, timeStopped, type HeroBulletNumKey,
+  dartGeos, heroBulletTimeConfigJson, stopTicks, inSlowMo, hangPoints, type HeroBulletNumKey,
 } from './heroBulletTimeConfig';
 import { HeroBulletTimeScene, MAX_BULLET_SPRITES, type HeroBulletTimeTextures } from './heroBulletTimeScene';
 import { playHeroBulletTime, type HeroBulletTimeOptions } from './heroBulletTime';
@@ -74,25 +74,23 @@ describe('the plan: stopped time', () => {
     expect(p.hits).toEqual([]);
   });
 
-  it('II: three darts hang in a fan round the target (out toward the board, never off screen), then all hit together (one blow)', () => {
+  it('II: three blades come in evenly round the target (CENTRED on it), then all hit together (one blow)', () => {
     const p = plan(8);
     expect(p.darts).toHaveLength(3);
     expect(new Set(p.darts.map((d) => d.hitAt)).size).toBe(1);
     expect(p.hits).toEqual([]);
     const screen = { x: 0, y: 0, w: 1920, h: 1080 };
-    const g = dartGeos(p, A, { x: 1750, y: 120 }, R, R, C, screen); // a target tucked in the top-right corner
-    const ang = g.map((x) => Math.atan2(x.hang.y - 120, x.hang.x - 1750));
+    const T = { x: 960, y: 500 };
+    const g = dartGeos(p, A, T, R, R, C, screen);
+    const ang = g.map((x) => Math.atan2(x.hang.y - T.y, x.hang.x - T.x));
     const sep = (a: number, b: number): number => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-    expect(sep(ang[0]!, ang[1]!)).toBeCloseTo(0.62, 2);
-    expect(sep(ang[1]!, ang[2]!)).toBeCloseTo(0.62, 2);
-    for (const x of g) {
-      expect(Math.hypot(x.hang.x - 1750, x.hang.y - 120)).toBeGreaterThan(R);
-      expect(x.hang.x).toBeLessThanOrEqual(1920); expect(x.hang.y).toBeGreaterThanOrEqual(0);
-      expect(x.aim).toBeCloseTo(Math.atan2(120 - x.hang.y, 1750 - x.hang.x), 6);
-    }
+    expect(sep(ang[0]!, ang[1]!)).toBeCloseTo((Math.PI * 2) / 3, 5);
+    const cx = g.reduce((a, x) => a + x.hang.x, 0) / 3, cy = g.reduce((a, x) => a + x.hang.y, 0) / 3;
+    expect(Math.hypot(cx - T.x, cy - T.y)).toBeLessThan(1); // the centre is the target
+    for (const x of g) expect(x.aim).toBeCloseTo(Math.atan2(T.y - x.hang.y, T.x - x.hang.x), 6);
   });
 
-  it('III: the volley stops mid-flight at ONE instant in a spiral; after the snap it lands in a run (ticks, then the blow)', () => {
+  it('III: the volley brakes into slow motion at ONE instant, in a spiral round the target; after the snap it lands in a run (ticks, then the blow)', () => {
     const p = plan(14);
     expect(p.darts.length).toBe(C.t3Darts);
     expect(new Set(p.darts.map((d) => d.hangAt))).toEqual(new Set([p.stopAt]));
@@ -103,7 +101,7 @@ describe('the plan: stopped time', () => {
     for (let i = 1; i < r.length; i++) expect(r[i]!).toBeGreaterThan(r[i - 1]!); // a spiral: each one further out
   });
 
-  it('IV: time stops for the whole board as the blades leave; dozens hang in a dome; 3-2-1; the dome collapses at once', () => {
+  it('IV: slow motion from the moment the blades leave; dozens crawl in a dome CENTRED on the target; 3-2-1; the dome collapses at once', () => {
     const p = plan(40);
     expect(p.darts.length).toBe(C.domeRings * C.domeBlades);
     expect(p.darts.length).toBeGreaterThanOrEqual(24);
@@ -113,6 +111,18 @@ describe('the plan: stopped time', () => {
     for (const d of p.darts) { expect(d.hangAt).toBeLessThanOrEqual(p.resumeAt); expect(d.hitAt).toBe(p.impactAt); }
     expect(p.hits).toEqual([]);
     expect(bulletCues(p).filter((q) => q.kind === 'impact')).toHaveLength(1);
+    // Centred: in the middle of the screen the dome's centre IS the target; tucked in a corner it shrinks to fit and
+    // is clamped on screen, still wrapped round the target (never shifted off it toward the board).
+    const screen = { x: 0, y: 0, w: 1920, h: 1080 };
+    const mid = hangPoints(p, A, { x: 960, y: 540 }, R, C, screen);
+    const cx = mid.reduce((a, q) => a + q.x, 0) / mid.length, cy = mid.reduce((a, q) => a + q.y, 0) / mid.length;
+    expect(Math.hypot(cx - 960, cy - 540)).toBeLessThan(R * 0.05);
+    const corner = { x: 1750, y: 140 };
+    const pts = hangPoints(p, A, corner, R, C, screen);
+    for (const q of pts) { expect(q.x).toBeLessThanOrEqual(1920); expect(q.y).toBeGreaterThanOrEqual(0); }
+    const above = pts.filter((q) => q.y < corner.y).length, below = pts.filter((q) => q.y > corner.y).length;
+    const left = pts.filter((q) => q.x < corner.x).length, right = pts.filter((q) => q.x > corner.x).length;
+    expect(Math.min(above, below, left, right)).toBeGreaterThan(0); // it still surrounds the target on every side
   });
 
   it('the Knockout bolt-on point: an extra ring of blades on the dome, still one impact', () => {
@@ -121,26 +131,28 @@ describe('the plan: stopped time', () => {
     expect(bulletCues(ko).filter((q) => q.kind === 'impact')).toHaveLength(1);
   });
 
-  it('only the shots stop: the clock ticks all through stopped time, faster toward the restart', () => {
+  it('the slow motion: the clock ticks all through it, faster toward the snap', () => {
     for (const d of [3, 8, 14, 40]) {
       const p = plan(d);
       const ticks = stopTicks(p);
       expect(ticks.length, `dmg ${d}`).toBeGreaterThanOrEqual(2);
-      for (const t of ticks) expect(timeStopped(p, t)).toBe(true);
+      for (const t of ticks) expect(inSlowMo(p, t)).toBe(true);
       for (let i = 2; i < ticks.length; i++) expect(ticks[i]! - ticks[i - 1]!).toBeLessThanOrEqual(ticks[i - 1]! - ticks[i - 2]! + 1e-9);
-      // the longest gap between ticks while stopped stays short (the screen is never left still)
       const gaps = [ticks[0]! - p.stopAt, ...ticks.slice(1).map((t, i) => t - ticks[i]!), p.resumeAt - ticks[ticks.length - 1]!];
       expect(Math.max(...gaps), `dmg ${d}`).toBeLessThanOrEqual(260);
     }
   });
 
-  it('a dart stops DEAD at its hang point (never easing to a halt), pointed at the target, and strikes the target', () => {
+  it('a blade BRAKES into slow motion and keeps crawling (never stops), aimed at the target, then strikes it', () => {
     const p = plan(3);
     const [g] = dartGeos(p, A, D, R, R, C);
     const d = p.darts[0]!;
-    const before = dartAt(d, g!, d.hangAt - 8).p, at = dartAt(d, g!, d.hangAt).p;
-    expect(Math.hypot(at.x - before.x, at.y - before.y)).toBeGreaterThan(10); // still flying fast 8 ms before
-    expect(dartAt(d, g!, (d.hangAt + d.resumeAt) / 2)).toMatchObject({ phase: 'hang', p: g!.hang });
+    const speed = (t: number): number => { const a = dartAt(d, g!, t).p, b = dartAt(d, g!, t + 8).p; return Math.hypot(b.x - a.x, b.y - a.y) / 8; };
+    const fast = speed(d.hangAt - 10), slow = speed((d.hangAt + d.resumeAt) / 2);
+    expect(slow).toBeGreaterThan(0); // never stopped
+    expect(slow).toBeLessThan(fast * 0.15); // dramatically slowed
+    expect(dartAt(d, g!, (d.hangAt + d.resumeAt) / 2).phase).toBe('crawl');
+    expect(Math.hypot(g!.crawl.x - D.x, g!.crawl.y - D.y)).toBeLessThan(Math.hypot(g!.hang.x - D.x, g!.hang.y - D.y)); // creeping in
     expect(g!.aim).toBeCloseTo(Math.atan2(D.y - g!.hang.y, D.x - g!.hang.x), 6);
     expect(Math.hypot(dartAt(d, g!, d.hitAt).p.x - D.x, dartAt(d, g!, d.hitAt).p.y - D.y)).toBeLessThan(R * 0.5);
   });
@@ -196,19 +208,21 @@ function run(over: Partial<HeroBulletTimeOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('II: the darts hang while time is stopped (the board goes grey, the clock shows), then hit once; everything is put back', () => {
+  it('II: the blades crawl in slow motion (the FX slowed, nothing greyed), then hit once; everything is put back', () => {
     const board = document.createElement('div'); board.setAttribute('data-zone', 'warband');
+    board.style.filter = 'blur(0px)';
     document.body.appendChild(board);
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 8, formation: formationOf([8], 8) });
     expect(host.querySelector('.hblast.hbullet')).not.toBeNull();
     f.tick((h.plan.stopAt + h.plan.resumeAt) / 2, 4);
-    expect(h.scene!.hungDarts).toBe(3);
+    expect(h.scene!.crawlingDarts).toBe(3);
     expect(h.scene!.clockVisible).toBe(true);
-    expect(board.style.filter).toContain('grayscale');
-    expect(defenderEl.style.filter).toContain('grayscale');
+    expect(h.scene!.timeScale).toBeCloseTo(C.slowFx, 5);
+    expect(board.style.filter).toBe('blur(0px)'); // never greyed
+    expect(defenderEl.style.filter).toBe('');
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(h.plan.resumeAt - h.elapsed() + 8, 4);
-    expect(board.style.filter).toBe(''); // a hard snap back
+    expect(h.scene!.timeScale).toBe(1); // a hard snap back to full speed
     f.tick(h.plan.impactAt - h.elapsed() + 8, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(host.querySelector('.hblast-hit')!.textContent).toBe('-8');
@@ -219,27 +233,15 @@ describe('the runner (the shared clock)', () => {
     expect(camera.style.transform).toBe('');
     expect(attackerEl.style.transform).toBe('');
     expect(defenderEl.style.transform).toBe('');
-    expect(defenderEl.style.filter).toBe('');
     f.tick(3000, 16);
     expect(f.hooked()).toBe(0);
     expect(root.children).toHaveLength(0);
   });
 
-  it('a cancel mid-stop restores the colour', () => {
-    const board = document.createElement('div'); board.setAttribute('data-zone', 'tavern');
-    board.style.filter = 'blur(0px)';
-    document.body.appendChild(board);
-    const { h, f } = run({ total: 40, formation: formationOf([40], 40) });
-    f.tick(h.plan.counts[0]! + 10, 4);
-    expect(board.style.filter).toContain('grayscale');
-    h.cancel();
-    expect(board.style.filter).toBe('blur(0px)');
-  });
-
-  it('IV: dozens of blades hang in the dome through the 3-2-1, then the collapse is the one blow', () => {
+  it('IV: dozens of blades crawl in the dome through the 3-2-1, then the collapse is the one blow', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     f.tick(h.plan.counts[2]! + 20, 4);
-    expect(h.scene!.hungDarts).toBe(h.plan.darts.length);
+    expect(h.scene!.crawlingDarts).toBe(h.plan.darts.length);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(h.plan.impactAt - h.elapsed() + 8, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
@@ -294,17 +296,20 @@ describe('the runner (the shared clock)', () => {
 describe('the scene (headless Pixi)', () => {
   it('pools, stays under the cap through the dome and its collapse, drains, and destroy leaves nothing', () => {
     const scene = new HeroBulletTimeScene(TEX, { gold: 0xd4a537, light: 0xffe9b0, violet: 0x8b5cf6, side: 0xffe9b0 },
-      { dartPx: 64, trailMs: 90, trailWidth: 14, tremblePx: 1.5, turn: 0.05, impactSize: 1 }, 1, 3);
+      { dartPx: 170, trailMs: 24, trailWidth: 30, riftWidth: 9, impactSize: 1 }, 1, 3);
     const p = plan(40);
     const g = dartGeos(p, A, D, R, R, C);
     const samplers = p.darts.map((d, i) => (ms: number) => dartAt(d, g[i]!, ms).p);
     scene.stop(D, R, { x: 1000, y: 0, w: 900, h: 700 }, 18, true);
     for (let t = p.fireAt; t < p.resumeAt; t += 16) {
-      p.darts.forEach((d, i) => { const s = dartAt(d, g[i]!, t); scene.setDart(i, samplers[i]!, s.phase === 'hang' ? d.hangAt - 0.01 : t, s.phase, s.angle, 1, 0xd4a537); });
+      p.darts.forEach((d, i) => { const s = dartAt(d, g[i]!, t); scene.setDart(i, samplers[i]!, t, s.phase, s.angle, 1, 0xd4a537); if (s.phase === 'crawl' && i % 3 === 0) scene.ghost(i); });
+      if (t === p.fireAt) p.darts.forEach((d, i) => scene.cut(g[i]!.hand, g[i]!.hang, 400, 0.7));
+      scene.setTimeScale(0.25);
       scene.setClock(D, R * 2.7, t * 0.01, 1);
       scene.update(16);
     }
-    expect(scene.hungDarts).toBe(p.darts.length);
+    expect(scene.crawlingDarts).toBe(p.darts.length);
+    scene.setTimeScale(1);
     scene.count(D, 1, R, 300);
     scene.snap(D, R, { x: 0, y: 0, w: 1920, h: 1080 }, 1.6);
     p.darts.forEach((d, i) => scene.setDart(i, samplers[i]!, d.hitAt + 1, 'done', 0, 1, 0xd4a537));

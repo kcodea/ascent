@@ -3,12 +3,12 @@
  * in `heroBulletTimeConfig.ts`) and lands the consequence on its impact beat (the hit, or IV's collapse). Presentation
  * only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
- * THE SIGNATURE: STOPPED TIME. The darts fly and STOP DEAD in the air round the target; time is stopped; then it
- * restarts with a hard snap and they land. Only the PROJECTILES stop: the screen stays alive the whole time (owner rule
- * R-PROG-ATTACK-10, "it looks like lag"): the clock over the target ticks (faster and faster toward the restart), the hung
- * darts tremble and glint, a gold time ripple pulses, dust motes drift, the camera keeps pushing in. While time is stopped
- * everything but the shots DESATURATES (a one-shot CSS filter transition on the board, the portraits and the background,
- * set once and snapped back off; never animated per frame).
+ * CUTTING THROUGH TIME (owner review 2026-10-02: "prefer slow motion vs stopped/grey time. like more cutting through time
+ * than stopping it and dont grey out"; "looks weird not being centered"): gold clock-hand blades slice in, each leaving a
+ * tear through the air, and as they reach the target time drops into DRAMATIC SLOW MOTION: they keep CRAWLING forward,
+ * the FX run at `slowFx` speed, afterimages peel off, the clock over the target sweeps its hand, the camera pushes in.
+ * Then time SNAPS back to full speed and everything lands. Every shape centres on the struck hero (its point is the
+ * portrait's at-rest centre: `portraitGeometry` measures with `restingRect`). Full colour, never grey.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; IV's collapse gets a slow-mo DIP
  * through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the portraits
@@ -17,10 +17,9 @@
  * THE CONTRACT: every hit before the last (III's run) is a tick (FX and sound only). The consequence (`onImpact`) lands
  * exactly ONCE, on the last hit (IV: the collapse).
  *
- * Perf (docs/performance.md): DOM moves are `transform` / `opacity` from the clock; the desaturation is a filter SET twice
- * (a one-shot transition in, an instant snap out) on a handful of elements found once at the start; no layout reads after
- * the opening measure; pooled sprites under a hard cap plus the darts and the clock as own objects; textures painted once
- * per session and pre-warmed during the formation; the updater unhooks the moment the scene drains.
+ * Perf (docs/performance.md): DOM moves are `transform` / `opacity` from the clock; no layout reads after the opening
+ * measure; pooled sprites under a hard cap plus the darts and the clock as own objects; textures painted once per
+ * session and pre-warmed during the formation; the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -35,7 +34,7 @@ import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
   bulletCameraAt, bulletCameraFocus, bulletCues, bulletPlan, bulletSlowExtraMs, bulletTimeScale, clockCentre, dartAt, dartGeos, getHeroBulletTimeConfig,
-  stopTicks, timeStopped, type BulletCue, type BulletPlan, type DartGeo, type HeroBulletTimeConfig,
+  stopTicks, inSlowMo, type BulletCue, type BulletPlan, type DartGeo, type HeroBulletTimeConfig,
 } from './heroBulletTimeConfig';
 import { HeroBulletTimeScene, type HeroBulletTimeTextures } from './heroBulletTimeScene';
 import { heroBulletTimeTextures } from './heroBulletTimeTextures';
@@ -54,21 +53,6 @@ export interface HeroBulletTimeHandle extends HeroAttackHandle {
 
 export function bulletSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
   return (Math.round(total) * 6977 + Math.round(distance) * 43 + (side === 'opp' ? 251 : 29)) >>> 0;
-}
-
-/** One element's filter, saved and restored exactly (the stopped-time desaturation). */
-class FilterMover {
-  private readonly prevFilter: string;
-  private readonly prevTransition: string;
-  constructor(readonly el: HTMLElement) { this.prevFilter = el.style.filter; this.prevTransition = el.style.transition; }
-  /** A one-shot transition into the grey (set once; the browser runs it). */
-  fadeTo(filter: string, ms: number): void {
-    const base = this.prevTransition ? `${this.prevTransition}, ` : '';
-    this.el.style.transition = `${base}filter ${Math.max(0, Math.round(ms))}ms ease-out`;
-    this.el.style.filter = filter;
-  }
-  /** A hard snap back (no transition). */
-  reset(): void { this.el.style.transition = this.prevTransition; this.el.style.filter = this.prevFilter; }
 }
 
 /** Play Bullet Time. Returns a handle; the blow lands via `onImpact` on the last hit. */
@@ -104,12 +88,10 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const samplers = plan.darts.map((d, i) => (ms: number): Pt => dartAt(d, geos[i]!, ms).p);
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
   const flip = o.attacker.x > o.defender.x ? -1 : 1;
-  const area = { x: o.defender.x - radius * 3.5, y: o.defender.y - radius * 3, w: radius * 7, h: radius * 6 };
-  // The clock: on I-II a dial ringing the struck portrait (the target sits inside the clock); III's and IV's GIANT face
-  // out over the board behind the shots.
-  const clockAt = clockCentre(plan, o.attacker, o.defender, radius, screen);
-  const giant = Math.min(screen.w, screen.h);
-  const clockR = c.clockSize * (plan.kind === 'dome' ? giant * 0.4 : plan.kind === 'spiral' ? giant * 0.3 : radius * 1.35);
+  // The clock CENTRES ON THE TARGET (owner 2026-10-02): a dial ringing the struck portrait, bigger each tier (IV's
+  // ringing the whole dome).
+  const clockAt = clockCentre(plan, o.attacker, o.defender);
+  const clockR = c.clockSize * radius * (plan.kind === 'dome' ? 3.4 : plan.kind === 'spiral' ? 2.5 : 1.35);
   const gold = hexToNum(c.colorGold), light = hexToNum(c.colorLight), violet = hexToNum(c.colorViolet);
   // The dome's rings alternate gold and light gold; the Knockout's rings go prismatic (cyan, magenta) between them.
   const tintOf = (i: number): number => (plan.kind !== 'dome' ? gold : (plan.ko ? [gold, KO_CYAN, light, KO_MAGENTA] : [gold, light, gold])[plan.darts[i]!.ring % (plan.ko ? 4 : 3)]!);
@@ -117,7 +99,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const textures = o.textures !== undefined ? o.textures : heroBulletTimeTextures();
   const scene = textures && !reduced
     ? new HeroBulletTimeScene(textures, { gold, light, violet, side: hexToNum(sideHex) }, {
-      dartPx: c.dartPx, trailMs: c.trailMs, trailWidth: c.trailWidth, tremblePx: c.tremblePx, turn: c.turn, impactSize: c.impactSize,
+      dartPx: c.dartPx, trailMs: c.trailMs, trailWidth: c.trailWidth, riftWidth: c.riftWidth, impactSize: c.impactSize,
     }, s, bulletSeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
@@ -127,19 +109,6 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
-  // STOPPED TIME's grey: the boards, the background and both portraits (found ONCE; the shots live on the Pixi canvas,
-  // which is never filtered, so they keep their colour).
-  const greys: FilterMover[] = (() => {
-    if (reduced || local || !doc || c.desat <= 0) return [];
-    const els = new Set<HTMLElement>(doc.querySelectorAll<HTMLElement>('[data-zone="warband"], [data-zone="tavern"], .boardbg'));
-    if (o.attackerEl) els.add(o.attackerEl);
-    if (o.defenderEl) els.add(o.defenderEl);
-    return [...els].map((el) => new FilterMover(el));
-  })();
-  let grey = false;
-  const greyOn = (): void => { if (grey) return; grey = true; for (const g of greys) g.fadeTo(`grayscale(${c.desat.toFixed(2)}) brightness(0.88)`, c.desatInMs / speed); };
-  const greyOff = (): void => { if (!grey) return; grey = false; for (const g of greys) g.reset(); };
-
   const cue = (clip: string, gain: number, rate: number, opts?: CueOpts): void =>
     voices.cue(clip, gain, rate * (0.85 + 0.15 * bulletTimeScale(plan, c, seq ? seq.t : 0)), opts);
   voices.warm([
@@ -150,6 +119,9 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   // A big volley would be a wall of noise: one launch / freeze sound every few darts.
   const every = n > 12 ? 4 : n > 3 ? 3 : 1;
   let rippleNext = 0;
+  // When each crawling blade last shed an afterimage (IV sheds less often: dozens of blades).
+  const ghostEvery = c.ghostMs * (plan.kind === 'dome' ? 4 : 1);
+  const lastGhost = plan.darts.map((_, i) => -i * 13);
 
   const fire = (q: BulletCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -162,18 +134,25 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
       case 'launch':
         if (q.i % every === 0) cue(c.sfxThrowClip, c.sfxThrowGain, c.sfxThrowRate + 0.03 * (q.i / every), { lenMs: 260, fadeMs: 100 });
         break;
-      case 'freeze': {
-        // A dart STOPS DEAD: a glassy tink (pitched up through a volley).
+      case 'cut': {
+        // A blade drops into the slow motion: a glassy tink, and the TEAR it sliced through the air behind it.
         if (q.i % every === 0) cue(c.sfxFreezeClip, c.sfxFreezeGain, c.sfxFreezeRate + 0.04 * (q.i / every), { lenMs: 220, fadeMs: 90 });
-        const g = geos[q.i];
-        if (g && plan.kind !== 'dome') scene?.freeze(g.hang, 1);
-        else if (g && q.i % 3 === 0) scene?.freeze(g.hang, 0.7);
+        const d = plan.darts[q.i], g = geos[q.i];
+        if (d && g) {
+          // The tear runs back along its last stretch of flight, at most a few portrait radii long (a slash, not a laser).
+          const back = dartAt(d, g, d.hangAt - Math.min(140, (d.hangAt - d.launchAt) * 0.6)).p;
+          const bl = Math.hypot(back.x - g.hang.x, back.y - g.hang.y) || 1;
+          const keep = Math.min(1, (radius * (plan.kind === 'dome' ? 2.2 : 3.2)) / bl);
+          const from = { x: g.hang.x + (back.x - g.hang.x) * keep, y: g.hang.y + (back.y - g.hang.y) * keep };
+          // The tear lingers through the slow motion (in the FX's own, slowed, time).
+          const linger = Math.max(0, d.resumeAt - d.hangAt) * c.slowFx + 120;
+          scene?.cut(from, g.hang, linger, plan.kind === 'dome' ? 0.7 : 1);
+        }
         break;
       }
-      case 'stop':
-        // TIME STOPS: a low reversed swell; everything but the shots goes grey; a ripple, motes; III's clock flashes.
+      case 'slow':
+        // TIME SLOWS: a low reversed swell; a ripple sweeps the screen, motes drift; III's and IV's clock flashes in.
         cue(c.sfxStopClip, c.sfxStopGain, c.sfxStopRate, { lenMs: 700, fadeMs: 260, reverse: true });
-        greyOn();
         scene?.stop(o.defender, radius, screen, Math.round(c.motes), plan.kind === 'dome');
         if (plan.kind === 'spiral' || plan.kind === 'dome') scene?.clockFlash(clockAt, clockR);
         // The anticipation: a riser into the restart (III, IV).
@@ -185,19 +164,17 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
         const k = (3 - q.i) as 1 | 2 | 3;
         cue(c.sfxTickClip, c.sfxTickGain * 1.3, c.sfxTickRate * (0.85 + 0.12 * q.i), { lenMs: 300, fadeMs: 120 });
         cue(c.sfxFreezeClip, c.sfxFreezeGain * 0.8, c.sfxFreezeRate * (0.7 + 0.1 * q.i), { lenMs: 300, fadeMs: 120 });
-        scene?.count(clockAt, k, clockR * 0.55, c.countMs);
+        scene?.count(clockAt, k, radius * 0.95, c.countMs);
         break;
       }
       case 'tick':
-        // The clock ticks while time is stopped, faster and higher toward the restart.
-        // ...and LOUDER.
+        // The clock ticks through the slow motion, faster, higher and LOUDER toward the snap.
         cue(c.sfxTickClip, c.sfxTickGain * Math.min(1.6, 0.7 + 0.12 * q.i), c.sfxTickRate + 0.05 * q.i, { lenMs: 160, fadeMs: 70 });
         break;
       case 'snap':
-        // TIME RESTARTS, HARD: the hero snaps its fingers, a rising whoosh, a flash, a shock ring; colour snaps back.
+        // TIME SNAPS BACK TO FULL SPEED: the hero snaps its fingers, a rising whoosh, a flash, a chromatic burst.
         cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate, { lenMs: 200, fadeMs: 80 });
         cue(c.sfxRestartClip, c.sfxRestartGain, c.sfxRestartRate, { lenMs: 420, fadeMs: 160 });
-        greyOff();
         scene?.snap(o.defender, radius, screen, plan.kind === 'dome' ? 1.6 : 1);
         break;
       case 'hit':
@@ -237,16 +214,20 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
     const cm = bulletCameraAt(plan, c, t, toFoe);
     const unit = local ? 1 : s;
     cam.apply(bulletCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
-    const stopped = timeStopped(plan, t);
+    const slow = inSlowMo(plan, t);
     if (scene) {
-      // The last ~300 ms before the restart the hung shots strain (the anticipation).
-      const tension = stopped ? clamp01((t - (plan.resumeAt - 320)) / 320) : 0;
-      // Every dart, from its own pure path; while it hangs, its motion time is the instant it stopped.
+      // THE SLOW MOTION: every FX runs at `slowFx` speed (sparks, motes, ripples, glints, tears), easing in over 80 ms
+      // and snapping straight back to full speed on the snap.
+      scene.setTimeScale(slow ? 1 - (1 - c.slowFx) * clamp01((t - plan.stopAt) / 80) : 1);
+      // The last ~300 ms before the snap the crawling blades strain (the anticipation).
+      const tension = slow ? clamp01((t - (plan.resumeAt - 320)) / 320) : 0;
+      // Every blade, from its own pure path (crawling through the slow motion, never stopped).
       for (let i = 0; i < n; i++) {
         const d = plan.darts[i]!, g = geos[i]!;
         const st = dartAt(d, g, t);
-        const te = st.phase === 'hang' ? d.hangAt - 0.01 : t;
-        scene.setDart(i, samplers[i]!, te, st.phase, st.angle, plan.size * (plan.kind === 'dome' ? 1 + 0.12 * d.ring : 1), tintOf(i), tension);
+        scene.setDart(i, samplers[i]!, t, st.phase, st.angle, plan.size * (plan.kind === 'dome' ? 1 + 0.12 * d.ring : 1), tintOf(i), tension);
+        // Afterimages peel off a crawling blade.
+        if (st.phase === 'crawl' && t - lastGhost[i]! >= ghostEvery) { lastGhost[i] = t; scene.ghost(i); }
       }
       // The clock over the target, ticking (each tick kicks the hand a notch, with a little overshoot).
       let minute = 0;
@@ -255,8 +236,8 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
       // It MATERIALISES: settling in from a little bigger as it fades up; the hand spins hard in the last beat.
       if (tension > 0) minute += tension * tension * Math.PI * 4;
       scene.setClock(clockAt, clockR * (1 + 0.25 * (1 - inU) * (1 - inU)), minute, t >= plan.stopAt && t < plan.resumeAt + 90 ? inU * outA : 0);
-      // The gold time ripple pulses off the target while time is stopped.
-      if (stopped && rippleNext > 0 && t >= rippleNext) { scene.ripple(o.defender, radius); rippleNext += c.rippleMs; }
+      // The gold time ripple pulses off the target through the slow motion.
+      if (slow && rippleNext > 0 && t >= rippleNext) { scene.ripple(o.defender, radius); rippleNext += c.rippleMs; }
     }
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
@@ -297,8 +278,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
     safetyMs: o.safety !== false ? (plan.endAt + bulletSlowExtraMs(plan, c)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
-      nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); greyOff();
-      for (const g of greys) g.reset();
+      nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
       scene?.setClock(o.defender, 0, 0, 0);
     },
     stopVoices: () => voices.stopAll(),

@@ -446,7 +446,9 @@ export type DiscoverSpec =
   | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
   | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
-  | { kind: 'pool'; ids: string[]; borrowed?: boolean };
+  // `spells` (Re-Pete x Ancient of Fortune, owner 2026-10-02: "Offer spells too"): spells in `ids` are offered too.
+  // `lockWave`: the pick is locked in hand until that wave (Hourglass Reserve's `lockedUntilWave`).
+  | { kind: 'pool'; ids: string[]; borrowed?: boolean; spells?: boolean; lockWave?: number };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),
@@ -2406,7 +2408,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

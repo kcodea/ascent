@@ -3,7 +3,7 @@ import { CARD_INDEX, cardRevision, type GauntletStage } from '@game/content';
 import type { Keyword } from '@game/core';
 import { GAUNTLET_DEFAULT_TIERS } from '@game/sim';
 import {
-  activeRunes, addMinion, copyPreviousRound, moveMinion, removeMinion, roundToSnapshot, roundTier, roundsEqual, setMinionStats,
+  activeRunes, addMinion, copyPreviousRound, moveMinion, removeMinion, roundToSnapshot, roundTier, roundsEqual, setMinionStats, setRoundBuff,
   snapshotToRound, stampForSave, swapMinionCard, toggleAddedKeyword, toggleMinionGolden,
 } from './stageDraft';
 import { moveEnemy, toggleEnemyGolden } from '../sandboxEdit';
@@ -155,5 +155,39 @@ describe('stageDraft minion edits (shared by the panel and the board canvas)', (
     const sw = swapMinionCard(s, 3, 1, plain.id).rounds[2]!.board[1]!;
     expect(sw).toEqual({ cardId: plain.id, attack: plain.attack, health: plain.health, cardVersion: cardRevision(plain) });
     expect(swapMinionCard(s, 3, 1, 'no_such_card')).toBe(s);
+  });
+});
+
+describe('stageDraft: run buffs', () => {
+  it('setRoundBuff sets / floors / clears an override on one round only', () => {
+    const s = setRoundBuff(stage(), 4, 'rubyBonus', { attack: 2.4, health: -3 });
+    expect(s.rounds[3]!.buffs).toEqual({ rubyBonus: { attack: 2, health: 0 } });
+    expect(s.rounds[2]!.buffs).toBeUndefined();
+    const cleared = setRoundBuff(s, 4, 'rubyBonus', undefined);
+    expect('buffs' in cleared.rounds[3]!).toBe(false);
+    expect(roundsEqual(cleared.rounds[3]!, stage().rounds[3]!)).toBe(true);
+  });
+
+  it('a buff override makes the round dirty', () => {
+    const s = setRoundBuff(stage(), 4, 'spellsCast', 3);
+    expect(roundsEqual(s.rounds[3]!, stage().rounds[3]!)).toBe(false);
+  });
+
+  it('the pinned snapshot carries the buffs in force (carried forward), and round-trips the overrides', () => {
+    const s = setRoundBuff(setRoundBuff(stage(), 4, 'rubyBonus', { attack: 2, health: 2 }), 5, 'conductorBuff', 1);
+    expect(roundToSnapshot(s, 3, 3)).not.toHaveProperty('rubyBonus');
+    expect(roundToSnapshot(s, 4, 4).rubyBonus).toEqual({ attack: 2, health: 2 });
+    expect(roundToSnapshot(s, 5, 5)).toMatchObject({ rubyBonus: { attack: 2, health: 2 }, conductorBuff: 1 });
+    expect(roundToSnapshot(s, 7, 7)).toMatchObject({ rubyBonus: { attack: 2, health: 2 }, runes: ['rune_adventuring'] });
+    // The pin carries effective values; the round keeps only ITS overrides.
+    expect(snapshotToRound(roundToSnapshot(s, 5, 5), s.rounds[4]!)).toEqual(s.rounds[4]);
+  });
+
+  it("copying the previous round keeps the target round's own overrides (buffs already carry forward)", () => {
+    let s = setRoundBuff(stage(), 3, 'deathrattles', 2);
+    s = setRoundBuff(s, 4, 'spellsCast', 1);
+    const copied = copyPreviousRound(s, 4);
+    expect(copied.rounds[3]!.buffs).toEqual({ spellsCast: 1 });
+    expect(copied.rounds[3]!.board).toEqual(s.rounds[2]!.board);
   });
 });

@@ -163,6 +163,44 @@ describe('the Stage Builder panel', () => {
     expect(document.querySelector('[data-testid="sb-preview"]')?.textContent).toContain(rune.name);
   });
 
+  it('Run buffs: set on round 4 → inherited (dimmed, "from round 4") on round 5 → override there → ✕ clears back', () => {
+    const row = (key: string): HTMLElement => q(`.stb-buff[data-buff="${key}"]`)!;
+    const ins = (key: string): HTMLInputElement[] => [...row(key).querySelectorAll<HTMLInputElement>('input.stb-buffin')];
+    click(roundBtn(4));
+    expect(row('rubyBonus').className).toMatch(/inherited/);
+    type(ins('rubyBonus')[0]!, '2');
+    type(ins('rubyBonus')[1]!, '2');
+    expect(useStageBuilder.getState().draft!.rounds[3]!.buffs).toEqual({ rubyBonus: { attack: 2, health: 2 } });
+    expect(row('rubyBonus').className).toMatch(/(^| )set( |$)/);
+    expect(roundBtn(4).querySelector('.stb-dot')).not.toBeNull();
+    // The sandbox pin re-built with the scaler, so a Test fight uses it.
+    const run = useGame.getState().run!;
+    expect(run.servedBoards?.[run.wave]?.rubyBonus).toEqual({ attack: 2, health: 2 });
+
+    click(roundBtn(5));
+    expect(row('rubyBonus').className).toMatch(/inherited/);
+    expect(ins('rubyBonus').map((i) => i.value)).toEqual(['2', '2']);
+    expect(row('rubyBonus').textContent).toMatch(/from round 4/);
+    expect(roundBtn(5).querySelector('.stb-dot')).toBeNull(); // inheriting does not dirty a round
+    type(ins('rubyBonus')[0]!, '5');
+    expect(useStageBuilder.getState().draft!.rounds[4]!.buffs).toEqual({ rubyBonus: { attack: 5, health: 2 } });
+    click(row('rubyBonus').querySelector('button.stb-buffclear'));
+    expect(useStageBuilder.getState().draft!.rounds[4]!.buffs).toBeUndefined();
+    expect(ins('rubyBonus').map((i) => i.value)).toEqual(['2', '2']);
+    expect(row('rubyBonus').textContent).toMatch(/from round 4/);
+  });
+
+  it('Run buffs: "show only buffs in force" hides the zero, unset rows', () => {
+    click(roundBtn(4));
+    type(q<HTMLInputElement>('.stb-buff[data-buff="spellsCast"] input.stb-buffin'), '3');
+    const only = q<HTMLInputElement>('.stb-buffonly input[type="checkbox"]')!;
+    click(only);
+    expect(qa('.stb-buff').map((r) => r.dataset.buff)).toEqual(['spellsCast']);
+    click(roundBtn(2));
+    expect(qa('.stb-buff')).toHaveLength(0);
+    expect(q('.stb-buffgroup')).toBeNull();
+  });
+
   it('Close while dirty asks to confirm first; confirming closes and drops the edits', () => {
     click(roundBtn(3));
     type(q<HTMLInputElement>('.stb-minion .badge.hp input'), '7');

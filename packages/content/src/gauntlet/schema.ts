@@ -3,6 +3,7 @@ import { TRIBES, type Keyword } from '@game/core';
 import { CARD_INDEX } from '../index';
 import { RUNE_INDEX } from '../runes';
 import { GAUNTLET_BOARD_MAX, GAUNTLET_ROUNDS, type GauntletStage } from './types';
+import { GAUNTLET_BUFF_FIELDS } from './buffs';
 
 /** Every keyword code — complete BY CONSTRUCTION: the `Record<Keyword, true>` fails to compile if the union gains a
  *  member this list lacks (core exports no runtime keyword list). */
@@ -21,6 +22,13 @@ const minionSchema = z.object({
   addedKeywords: z.array(z.enum(KEYWORDS)).optional(),
   cardVersion: z.string(),
 });
+/** Run buffs: known keys only (strict), each a whole number ≥ 0 or an `{ attack, health }` pair of them. No scaler
+ *  the catalogue exposes can legitimately go negative (nothing in sim/core ever decrements one). */
+const buffCount = z.number().int().min(0);
+const buffPair = z.object({ attack: buffCount, health: buffCount }).strict();
+const buffsSchema = z.object(Object.fromEntries(
+  GAUNTLET_BUFF_FIELDS.map((f) => [f.key, (f.kind === 'pair' ? buffPair : buffCount).optional()]),
+) as Record<string, z.ZodTypeAny>).strict();
 const stageSchema = z.object({
   number: z.number().int().min(1).max(10),
   name: z.string().min(1),
@@ -29,7 +37,7 @@ const stageSchema = z.object({
   tribe: z.enum(STAGE_TRIBES).optional(),
   status: z.enum(['draft', 'ready']),
   runes: z.object({ round6: z.string().optional(), round9: z.string().optional() }).strict(),
-  rounds: z.array(z.object({ tier: z.number().optional(), board: z.array(minionSchema) })),
+  rounds: z.array(z.object({ tier: z.number().optional(), board: z.array(minionSchema), buffs: buffsSchema.optional() })),
 });
 
 /** Every problem with a stage, as human-readable lines (empty = valid). Used by CI and the Stage Builder's Save. */

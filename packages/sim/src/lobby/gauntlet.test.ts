@@ -6,6 +6,7 @@ import { CARD_INDEX, RUNE_INDEX, RUNES, cardRevision, type GauntletStage } from 
 import { createGauntletRun, gauntletOutcome, GAUNTLET_LOSS_CAPS, GAUNTLET_DEFAULT_TIERS } from './gauntlet';
 import { reduce, type Action, type RunState } from '../index';
 import type { CombatResult } from '@game/core';
+import { sideFromSnapshot } from '../boardSide';
 
 describe('roundLossCap', () => {
   it('falls back to the normal game table when the lobby sets no caps', () => {
@@ -215,5 +216,56 @@ describe('gauntlet verdict', () => {
     run = playRound(run);
     expect(before - (run.resolve + run.armor)).toBeLessThanOrEqual(5);
     expect(run.lastCombat!.damageCap).toBe(5);
+  });
+});
+
+describe('opponent run buffs (R-GAUNTLET-06)', () => {
+  const blazer = CARD_INDEX['k_blazer']!; // Kobold, "Flurry. Rally: cast a Ruby on your minions." — a combat Ruby source
+  const kobolds = (): GauntletStage => {
+    const s = stageOf(1, 1);
+    s.rounds = s.rounds.map(() => ({ board: [{ cardId: blazer.id, attack: 2, health: 60, cardVersion: cardRevision(blazer) }] }));
+    s.rounds[3]!.buffs = { rubyBonus: { attack: 2, health: 2 } }; // Rubies are 3/3 from round 4 on
+    return s;
+  };
+
+  it('createGauntletRun folds the buffs forward onto the seat; a buff-less stage adds no key', () => {
+    const seat = createGauntletRun(11, 'aster', kobolds()).lobby!.seats[1]!;
+    expect(seat.authoredBuffs![2]).toEqual({});
+    expect(seat.authoredBuffs![3]).toEqual({ rubyBonus: { attack: 2, health: 2 } });
+    expect(seat.authoredBuffs![9]).toEqual({ rubyBonus: { attack: 2, health: 2 } }); // carried forward
+    expect('authoredBuffs' in createGauntletRun(11, 'aster', stageOf(1, 1)).lobby!.seats[1]!).toBe(false);
+  });
+
+  it('the seat\'s round 4+ snapshots carry the scaler, round 3 has none, and sideFromSnapshot threads it', () => {
+    const d = authoredSeat(createGauntletRun(11, 'aster', kobolds()).lobby!.seats[1]!);
+    expect(d.prepare(3)).not.toHaveProperty('snapshot');
+    expect(d.prepare(4)?.snapshot?.rubyBonus).toEqual({ attack: 2, health: 2 });
+    expect(d.prepare(5)?.snapshot?.rubyBonus).toEqual({ attack: 2, health: 2 });
+    expect(d.prepare(5)?.snapshot).not.toHaveProperty('questMods'); // no runes → no rune mods
+    expect(sideFromSnapshot(d.prepare(5)!.snapshot!, 1, []).rubyBonus).toEqual({ attack: 2, health: 2 });
+  });
+
+  it('buffs and runes share one snapshot', () => {
+    const s = { ...kobolds(), runes: { round6: 'rune_adventuring' } };
+    const snap = authoredSeat(createGauntletRun(11, 'aster', s).lobby!.seats[1]!).prepare(6)!.snapshot!;
+    expect(snap).toMatchObject({ rubyBonus: { attack: 2, health: 2 }, runes: ['rune_adventuring'] });
+    expect(snap.questMods?.rallyExtraAlways).toBe(1);
+  });
+
+  it('END TO END: through the real reducer, the opponent\'s combat Rubies are 1/1 on round 3 and 3/3 on round 5', () => {
+    let run = createGauntletRun(5, 'aster', kobolds());
+    const enemyRubies: Record<number, { attack: number; health: number }[]> = {};
+    for (let round = 1; round <= 5 && run.phase !== 'gameover'; round++) {
+      run = playRound(run);
+      const c = run.lastCombat!;
+      const enemyUids = new Set(c.initial.enemy.map((m) => m.uid));
+      enemyRubies[round] = c.events
+        .filter((e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && e.ruby === true && enemyUids.has(e.target))
+        .map((e) => ({ attack: e.attack, health: e.health }));
+    }
+    expect(enemyRubies[3]!.length).toBeGreaterThan(0);
+    expect(enemyRubies[3]!.every((r) => r.attack === 1 && r.health === 1)).toBe(true);
+    expect(enemyRubies[5]!.length).toBeGreaterThan(0);
+    expect(enemyRubies[5]!.every((r) => r.attack === 3 && r.health === 3)).toBe(true);
   });
 });

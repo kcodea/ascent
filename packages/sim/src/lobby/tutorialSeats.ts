@@ -22,6 +22,12 @@ import type { LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbySeatState, RunLobby } from './runLobby';
 
+type AuthoredBuffs = NonNullable<LobbySeatState['authoredBuffs']>[number];
+/** Compile-time pin: every Gauntlet run buff IS a `BoardSnapshot` scaler of the same name and shape, so spreading
+ *  the authored buffs onto a snapshot can never write a field combat does not read (or the wrong shape). */
+const _buffsAreSnapshotScalers = (b: Required<AuthoredBuffs>): Partial<BoardSnapshot> => b;
+void _buffsAreSnapshotScalers;
+
 /** One authored opponent minion. By default identity is the effectless `omen` token and only Attack/Health vary;
  *  a `cardId` swaps in a REAL card (practice-bot utility units, levels 6+) which brings that card's keywords and
  *  effects while keeping the authored stat line. */
@@ -81,19 +87,23 @@ export function authoredTierFor(
 export function authoredSeat(seat: LobbySeatState): SeatDriver {
   const boards = seat.authoredBoards ?? [];
   const modsCache = new Map<string, BoardSnapshot['questMods']>();
-  /** The rune snapshot for a round, or undefined when no rune is active yet — so a rune-less authored seat (the
-   *  tutorial, practice bots) prepares exactly the board it always did. The reducer's lobby path builds the enemy
-   *  side from `PreparedBoard.snapshot`, and `sideFromSnapshot` threads `questMods` into combat, so the runes act
-   *  in the fight with no combat change. `threat` is a required placeholder (an authored seat has no threat). */
-  const runeSnapshot = (round: number, minions: BoardMinion[], tier: number): BoardSnapshot | undefined => {
+  /** The run-level snapshot for a round — the opponent's RUNES (from their round on) and its authored RUN BUFFS (the
+   *  Gauntlet's per-round scalers: Ruby strength, spell power, auras, counters) — or undefined when neither is in
+   *  force, so a rune-less, buff-less authored seat (the tutorial, practice bots) prepares exactly the board it
+   *  always did. The reducer's lobby path builds the enemy side from `PreparedBoard.snapshot` through
+   *  `sideFromSnapshot`, which threads `questMods` and every scaler into combat, so both act in the fight exactly as
+   *  a recorded run's would. `threat` is a required placeholder (an authored seat has no threat). */
+  const runeSnapshot = (round: number, idx: number, minions: BoardMinion[], tier: number): BoardSnapshot | undefined => {
     const runes = (seat.authoredRunes ?? []).filter((r) => r.fromRound <= round).map((r) => r.runeId);
-    if (runes.length === 0) return undefined;
+    const buffs: AuthoredBuffs = seat.authoredBuffs?.[idx] ?? {};
+    if (runes.length === 0 && Object.keys(buffs).length === 0) return undefined;
     const key = runes.join('|');
-    if (!modsCache.has(key)) modsCache.set(key, runeCombatModsFor(runes));
+    if (runes.length > 0 && !modsCache.has(key)) modsCache.set(key, runeCombatModsFor(runes));
     return {
       v: 1, wave: round, heroId: seat.heroId, resolve: seat.resolve, armor: seat.armor, tier, triples: 0,
       tribes: [], threat: 'venom', power: minions.reduce((n, m) => n + m.attack + m.health, 0), minions, seed: seat.seed,
-      questMods: modsCache.get(key), runes,
+      ...structuredClone(buffs),
+      ...(runes.length > 0 ? { questMods: modsCache.get(key), runes } : {}),
     };
   };
   const boardFor = (round: number): PreparedBoard | null => {
@@ -107,7 +117,7 @@ export function authoredSeat(seat: LobbySeatState): SeatDriver {
     // stays tier 1 so the TUTORIAL's gentle pacing is unchanged.
     const minions = omenBoardMinions(boards[idx]!);
     const tier = authoredTierFor(seat, idx + 1);
-    const snapshot = runeSnapshot(round, minions, tier);
+    const snapshot = runeSnapshot(round, idx, minions, tier);
     return { minions, tier, ...(snapshot ? { snapshot } : {}) };
   };
   return {

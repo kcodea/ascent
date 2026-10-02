@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Tooltips across the game now share one consistent, easier to read style.',
+        details: [
+          'Every tooltip now uses the hero power tooltip look: a solid dark blue panel, a gold title, and keywords and numbers in gold.',
+          'The rune and quest tooltips are no longer see-through, so they read clearly over bright art.',
+          'Shop buttons, the Gold readout, keyword pills, the lobby scout card, Career and the menus all match.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ancient hero attacks now have a special finishing animation on knockouts.',
         details: [
           'When an Ancient hero attack knocks a player out, it plays a stronger version of its biggest hit.',

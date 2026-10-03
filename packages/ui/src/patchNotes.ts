@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Rune of Amplification now shows an effect at End of Turn.',
+        details: [
+          'A burst plays on your Equipment slot, and the charge turns blue right then.',
+          'Replays show the same effect.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
         details: [
           'Rune of Shopkeep now bursts on the Tier button at End of Turn, and the price drops right then.',

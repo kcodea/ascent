@@ -1,5 +1,5 @@
 /**
- * THE BULLET TIME SCENE: everything Bullet Time draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`),
+ * THE TIMEBREAK SCENE: everything Timebreak draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`),
  * so it runs (and is tested) headless. `heroBulletTime.ts` mounts `root` on the above-portrait overlay, feeds
  * `update(dt)`, and each frame tells it where every dart is (`setDart`), how the clock reads (`setClock`) and how fast
  * the FX run (`setTimeScale`: the slow motion).

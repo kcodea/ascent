@@ -13,12 +13,12 @@ const ranked = { mode: 'ranked', runId: 'run-1', rulesVersion: 1, comeback: fals
 
 const okResult = (over: Record<string, unknown> = {}) => ({
   runId: 'run-1', mode: 'ranked', rulesVersion: 1, placement: 3, comeback: false,
-  xp: { base: 100, topFour: 40, firstPlace: 0, comeback: 0, total: 140 },
-  before: { lifetimeXp: 200, level: 1 }, after: { lifetimeXp: 340, level: 2 },
+  xp: { base: 100, topFour: 60, firstPlace: 0, comeback: 0, total: 160 },
+  before: { lifetimeXp: 200, level: 1 }, after: { lifetimeXp: 360, level: 2 },
   unlockedTitles: ['alpha_tester'], cratesAwarded: 1, crateIds: ['c-2'], revisionAfter: 2, settledAt: '2026-09-27T12:00:00Z',
   ...over,
 });
-const okProfile = { accountXp: 340, accountLevel: 2, revision: 2, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] };
+const okProfile = { accountXp: 360, accountLevel: 2, revision: 2, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] };
 const rpcReturning = (data: unknown, error: { message?: string } | null = null): RpcCall => vi.fn(async () => ({ data, error }));
 
 describe('validateSubmitBody', () => {
@@ -95,7 +95,7 @@ describe('handleSubmitProgression', () => {
     expect(res.body).toMatchObject({ status: 'confirmed', parity: false });
     expect(log).toHaveBeenCalled();
     // a level that does not match the XP, or a missing title reveal on the crossing, is also a mismatch
-    const badLevel = okResult({ after: { lifetimeXp: 340, level: 3 } });
+    const badLevel = okResult({ after: { lifetimeXp: 360, level: 3 } });
     expect((await handleSubmitProgression(USER, ranked, rpcReturning({ status: 'ok', result: badLevel, profile: okProfile }))).body.parity).toBe(false);
     const noTitle = okResult({ unlockedTitles: [] });
     expect((await handleSubmitProgression(USER, ranked, rpcReturning({ status: 'ok', result: noTitle, profile: okProfile }))).body.parity).toBe(false);
@@ -115,10 +115,10 @@ describe('handleSubmitProgression', () => {
     const practice = { mode: 'practice', runId: 'practice:5', sourceId: 5, rulesVersion: 1, comeback: true };
     const result = okResult({
       runId: 'practice:5', mode: 'practice', placement: 1, comeback: true,
-      xp: { base: 60, topFour: 24, firstPlace: 36, comeback: 15, total: 135 },
-      before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 135, level: 1 }, unlockedTitles: [],
+      xp: { base: 60, topFour: 36, firstPlace: 54, comeback: 15, total: 165 },
+      before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 165, level: 1 }, unlockedTitles: [],
     });
-    const res = await handleSubmitProgression(USER, practice, rpcReturning({ status: 'ok', result, profile: { ...okProfile, accountXp: 135, accountLevel: 1, titles: [], equippedTitleId: null } }));
+    const res = await handleSubmitProgression(USER, practice, rpcReturning({ status: 'ok', result, profile: { ...okProfile, accountXp: 165, accountLevel: 1, titles: [], equippedTitleId: null } }));
     expect(res.body).toMatchObject({ parity: true });
   });
 });
@@ -160,12 +160,12 @@ describe('achievements (batch 1, 2026-09-28)', () => {
   });
 
   it('parity covers achievement XP: known ids, each once, paying exactly what the SQL added', () => {
-    const base = okResult({ after: { lifetimeXp: 340 + 125, level: 2 }, achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125 });
+    const base = okResult({ after: { lifetimeXp: 360 + 125, level: 2 }, achievements: ['career.games.1', 'ranked.first_win'], achievementXp: 125 });
     const parse = (o: Record<string, unknown>) => parseProgressionResult(o)!;
     expect(settlementParity(parse(base))).toBe(true);
     expect(settlementParity(parse({ ...base, achievementXp: 100 }))).toBe(false);
     expect(settlementParity(parse({ ...base, achievements: ['career.games.1', 'career.games.1'], achievementXp: 50 }))).toBe(false);
-    expect(settlementParity(parse({ ...base, achievements: ['made.up'], achievementXp: 0, after: { lifetimeXp: 340, level: 2 } }))).toBe(false);
+    expect(settlementParity(parse({ ...base, achievements: ['made.up'], achievementXp: 0, after: { lifetimeXp: 360, level: 2 } }))).toBe(false);
     // a pre-achievements server's result reads as none and still passes
     expect(settlementParity(parse(okResult()))).toBe(true);
   });

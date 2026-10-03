@@ -79,11 +79,36 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Fixed long games sometimes showing the wrong Game strength.',
       },
+      {
+        category: 'Systems',
+        text: 'Top 4 and 1st place now give 50% more bonus XP.',
+        details: [
+          'Ranked: Top 4 now adds 60 XP (was 40) and 1st adds 90 more (was 60).',
+          'A Ranked win is now worth 250 XP and a Top 4 finish 160.',
+          'Practice still earns 60% of the Ranked amount: 150 for a win, 96 for a Top 4.',
+        ],
+      },
     ],
   },
   {
     date: '2026-10-02',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Rune of Amplification now shows an effect at End of Turn.',
+        details: [
+          'A burst plays on your Equipment slot, and the charge turns blue right then.',
+          'Replays show the same effect.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The MMR chart in Career now always ends on your current rating.',
+        details: [
+          'The chart headline now matches the number on your Seasonal Ranked crest.',
+          'If your rating changed since your last recorded game, the line ends with a point at your current rating.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
@@ -188,7 +213,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
+        text: 'A new Ancient hero attack in crates: Timebreak. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
         details: [
           'Small: one golden spell slows to a crawl just short of your foe, then hits.',
           'Bigger hits bring three spells, then a whole volley in a spiral.',

@@ -2021,12 +2021,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-XP-01',
-    title: 'Account XP per game: Ranked 100 + 40 Top 4 + 60 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
+    title: 'Account XP per game: Ranked 100 + 60 Top 4 + 90 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
     statement:
-      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 40 '
-      + 'for a Top 4 finish, plus 60 for 1st, plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
+      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 60 '
+      + 'for a Top 4 finish, plus 90 for 1st (so a 1st is 250 and a Top 4 160; the bonuses were 40 and 60 until the owner '
+      + 'raised them by half on 2026-10-03), plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
       + 'losses; a draw neither adds to nor clears the streak; once per run). A standard Practice game earns 60% of the '
-      + 'equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135). A Practice game with no meaningful placement '
+      + 'equivalent Ranked XP, summed then rounded (60 / 96 / 150 / 165). A Practice game with no meaningful placement '
       + '(Unlimited Health, played to the curtain) earns a flat 60. The first completion of the current Learn Ascent course '
       + 'earns 250 once per account. The Scene Builder, sandboxes and quit games earn 0. No caps, no diminishing returns. '
       + 'The server computes the XP from its own source rows (the accepted rank result, the player\'s own practice row, a '
@@ -2036,10 +2037,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'XP values and curve exactly as the handoff: Ranked 100 complete + 40 Top 4 + 60 first + 25 comeback' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Practice = round(0.60 × equivalent ranked XP)' },
-      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-09-27-account-progression.sql settle_progression; supabase/functions/_shared/progressionRules.ts (generated)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (placement XP)', quote: 'increase XP for top 4 and for wins per game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (placement XP, the chosen option)', quote: '+50% bonuses' },
+      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-10-03-placement-xp.sql settle_progression (latest); supabase/functions/_shared/progressionRules.ts (generated)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP). Earns nothing until the owner runs the migration, deploys submit-progression and sets the progression epoch.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts'], lastVerifiedAt: '2026-09-27' },
+    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP); placement bonuses raised to 60 / 90 on 2026-10-03 (live once the owner runs 2026-10-03-placement-xp.sql and redeploys submit-progression).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts', 'packages/progression/src/achievements.db.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-CURVE-01',
@@ -3453,7 +3456,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'beat, the Ancient prismatic cyan-to-magenta accent on the final blast, a bigger shake, a slow-mo dip that is never '
       + 'a freeze, and a short KO sting), adding at most about 500 ms. Arcana (an extra vortex pulse before the burst), '
       + 'Consecration (a seventh, giant prismatic sword driven into the centre), Soul Stitch (the heart-knot '
-      + 'double-cinches) and Bullet Time (an extra ring of prismatic blades in the dome) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
+      + 'double-cinches) and Timebreak (an extra ring of prismatic blades in the dome) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
       + 'packages/ui/src/heroAttack/knockoutVariant.ts), not a list of ids: an Ancient attack whose runner has no variant '
       + 'yet falls back to Huge, and every other rarity (and Classic) keeps playing Huge on a knockout, unchanged. Without a '
       + 'knockout an Ancient attack plays its normal damage tiers. The shared tier stays IV underneath (every per-tier '
@@ -3463,7 +3466,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (ancient knockout tier)', quote: 'ancient tier animations should have a separate tier of dmg specific for knockouts. they can just be small changes to the \x27huge\x27 tier. in some cases just adding a hit or something and some color changes or something like that but slightly more emphasis on the knockout animation. can you do this for all 4 ancient tier animations?' },
-      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy, Stitch and Bullet Time plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy, Stitch and Timebreak plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29; the Ancient Knockout variant built 2026-10-02.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts'], lastVerifiedAt: '2026-10-02' },
@@ -3741,9 +3744,9 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-35',
-    title: 'Bullet Time (attack_bullet_time, Ancient): CUTTING THROUGH TIME, cast as magic: crystal lances of light tear rifts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
+    title: 'Timebreak (attack_bullet_time, Ancient): CUTTING THROUGH TIME, cast as magic: crystal lances of light tear rifts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
     statement:
-      'attack_bullet_time ("Bullet Time", the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
+      'attack_bullet_time ("Timebreak", renamed from the placeholder "Bullet Time" 2026-10-03, the id unchanged; the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
       + 'damage formation (R-PROG-ATTACK-08) crystal lances of golden light (a time rune spinning at each head) slice in toward the '
       + 'struck hero, each opening a shimmering rift (a gold seam, a violet aurora, drifting runes) in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: '
       + 'they keep CRAWLING forward (never stopped), the FX run slowed, afterimages peel off, a rune circle ringing the target '
@@ -3764,11 +3767,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient of Time attack, relayed by the coordinator)', quote: 'build a new ancient animation for this ancient, the ancient of time' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the third rewind build, relayed by the coordinator)', quote: 'time attack is a 5/10. i dont like using the art for the attack. try again' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time, relayed by the coordinator)', quote: 'concept for bullet time is cool but it is currently like a 3/10 and we need a 10/10. this also needs a knockout tier as it\x27ll be an ancient tier animation' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time IV, relayed by the coordinator)', quote: 'looks weird not being centered and prefer slow motion vs stopped/grey time. like more cutting through time than stopping it and dont grey out' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Timebreak, then named Bullet Time, relayed by the coordinator)', quote: 'concept for bullet time is cool but it is currently like a 3/10 and we need a 10/10. this also needs a knockout tier as it\x27ll be an ancient tier animation' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Timebreak IV, then named Bullet Time, relayed by the coordinator)', quote: 'looks weird not being centered and prefer slow motion vs stopped/grey time. like more cutting through time than stopping it and dont grey out' },
+      { kind: 'owner-chat', ref: 'Owner decision 2026-10-03 (the name, picked from Timebreak / Chronoweave / Sands of Eternity)', quote: 'Timebreak' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bullet_time); packages/ui/src/heroBulletTime/ (bulletPlan / bulletCues / stopTicks / inSlowMo / hangPoints / clockCentre / dartGeos / dartAt / bulletCameraAt, playHeroBulletTime, HeroBulletTimeScene, heroBulletTimeTextures); packages/ui/src/heroAttack/knockoutVariant.ts (bullettime)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    currentBehaviour: 'Conforms, built 2026-10-02; display name Timebreak since 2026-10-03 (was the placeholder Bullet Time). The item, and its name, reach the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBulletTime/heroBulletTime.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {

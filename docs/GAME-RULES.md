@@ -314,8 +314,9 @@ never touches the ranked ladder (Ranked answers "how am I doing right now"; Acco
 I played"). Live only once the owner has run the migration, deployed `submit-progression` and set the
 progression **epoch**; nothing finished before the epoch counts (no backfill).
 
-- **Match XP.** Ranked: **100** for a completed game, **+40** Top 4, **+60** for 1st, **+25** comeback.
-  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135); a Practice game with
+- **Match XP.** Ranked: **100** for a completed game, **+60** Top 4, **+90** for 1st, **+25** comeback (so a 1st
+  is 250, a Top 4 160; the placement bonuses were 40 / 60 until owner 2026-10-03, "+50% bonuses").
+  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 96 / 150 / 165); a Practice game with
   no meaningful placement (Unlimited Health, played to the curtain) earns a flat **60**. The first completion of
   the current **Learn Ascent** course: **250**, once per account. Scene Builder, sandboxes and quit games: 0.
   No caps, no diminishing returns, no repeat penalties.
@@ -522,7 +523,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lace snaps and the knot bursts (the blow: a gold and violet nova, shockwaves, light streaks, soul ribbons and crystal
   rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
   tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
-  the fight. **Bullet Time** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
+  the fight. **Timebreak** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
   Ancient of Time: CUTTING THROUGH TIME, cast as magic. Crystal lances of golden light, each with a spinning time rune,
   slice in toward the struck hero, each opening a shimmering rift in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: they keep crawling forward,
   afterimages peeling off them, a rune circle ringing the target turns with its runes orbiting, a gold ripple sweeps the screen, and

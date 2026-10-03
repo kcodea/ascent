@@ -40,8 +40,8 @@ const TEXT_TAGS: ReadonlyArray<readonly [RegExp, SynergyTag]> = [
 const cache = new Map<string, readonly SynergyTag[]>();
 
 /** The tags a rune synergizes with — derived from its text (memoized), or the def's explicit override. */
-export function runeSynergies(rune: RuneDef & { synergy?: readonly SynergyTag[] }): readonly SynergyTag[] {
-  if (rune.synergy) return rune.synergy;
+export function runeSynergies(rune: RuneDef): readonly SynergyTag[] {
+  if (rune.synergy) return rune.synergy as readonly SynergyTag[]; // schema-validated strings; authored from this vocabulary
   const hit = cache.get(rune.id);
   if (hit) return hit;
   const tags: SynergyTag[] = [];

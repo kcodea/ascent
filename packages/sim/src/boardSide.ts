@@ -53,6 +53,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     squirlScoutBuff: snap.squirlScoutBuff ?? 0, // enemy Squirl Scout re-fired mid-fight
     rubyCasts: snap.rubyCasts ?? 0, // enemy Vaultkeeper's spell umbrella (text)
     spiritsPlayed: snap.spiritsPlayed ?? 0, // enemy Kindled Sprite's Rally — was never threaded (a served Sprite fought at 0)
+    ...(snap.cardTribes ? { cardTribes: snap.cardTribes } : {}), // Rune of Drakko: a served board's mid-fight summons keep the run's types
     tribesPlayed: snap.tribesPlayed ?? {}, // the per-tribe channel (enemy Bicycle Bob); a legacy capture's Beast/Spirit scalars are folded in by combatSide()
     revelerX: snap.revelerX ?? 0, // enemy Revelers / Luminary (text)
     handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon

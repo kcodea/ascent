@@ -69,6 +69,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'New rune: Rune of Drakko. Get a Drakko, and every Drakko is a Dragon and a Spirit for the rest of the game.',
+        details: [
+          'An Epic rune that costs 4 Gold, in Set 2 and Set 3.',
+          'Every Drakko counts as a Dragon and a Spirit: in the Shop, in your hand, on your board and in combat.',
+          'It is still a Drakko, so it triples with your other Drakkos.',
+          'It is offered when your game has Dragons or Spirits.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell once per combat.',
         details: [
           'Pummel (25) pays once per combat. The damage count carries over between combats.',

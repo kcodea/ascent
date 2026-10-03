@@ -166,6 +166,9 @@ export interface BoardSnapshot {
    *  behind `beastsPlayed` / `spiritsPlayed` (a served Bicycle Bob's Undead count, 2026-09-18). Both legacy
    *  scalars are still written so an older build reads the capture unchanged. */
   tribesPlayed?: Partial<Record<Tribe, number>>;
+  /** RUN-LEVEL TYPE OVERRIDES at capture (Rune of Drakko, 2026-10-03): the board bodies carry them as `addedTribes`;
+   *  this map gives a served board's MID-FIGHT summons of that card the same types. */
+  cardTribes?: Record<string, Tribe[]>;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; locked?: true }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
@@ -420,6 +423,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.rubyCasts ? { rubyCasts: s.rubyCasts } : {}),
     ...(spiritsPlayed ? { spiritsPlayed } : {}),
     ...(Object.keys(tribesPlayed).length ? { tribesPlayed } : {}),
+    ...(s.cardTribes && Object.keys(s.cardTribes).length ? { cardTribes: Object.fromEntries(Object.entries(s.cardTribes).map(([k, v]) => [k, [...v]])) } : {}),
     ...(s.revelerX ? { revelerX: s.revelerX } : {}),
     ...(handMinions.length ? { handMinions } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),

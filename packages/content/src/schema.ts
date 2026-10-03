@@ -661,6 +661,7 @@ export const CardDefSchema = z.object({
     z.object({
       families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
       factor: z.number().int().min(2),
+      group: z.string().optional(), // a variant body shares its base card's non-stacking slot (Rune of All Drakko)
     }).strict(),
   ]).optional(),
   imp: z.boolean().optional(),
@@ -1032,6 +1033,7 @@ export const RuneDefSchema = z.object({
   requiresDoublePower: z.boolean().optional(),
   previewCards: z.array(z.string().min(1)).optional(),
   tribes: z.array(TribeSchema).readonly().optional(),
+  synergy: z.array(z.string().min(1)).readonly().optional(), // explicit forge-synergy tags (Rune of Drakko, 2026-10-03)
 }).strict();
 
 export const QuestDefSchema = z.object({

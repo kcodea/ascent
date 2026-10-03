@@ -17,8 +17,8 @@ describe('isEpicUnit', () => {
     expect(isEpicUnit('taurus')).toBe(false);
     expect(isEpicUnit('nonsense')).toBe(false);
   });
-  it('exposes the curated set (13) + a BASE_URL-relative art path', () => {
-    expect(EPIC_UNITS.size).toBe(13);
+  it('exposes the curated set (14) + a BASE_URL-relative art path', () => {
+    expect(EPIC_UNITS.size).toBe(14); // 13 → 14 on 2026-10-03: Rune of Drakko's Dragon / Spirit Drakko
     expect(EPIC_MEDALLION_SRC).toMatch(/medallions\/epic\.webp$/);
   });
 });

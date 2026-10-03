@@ -93,6 +93,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-02',
     changes: [
       {
+        category: 'Balance',
+        text: 'New rune: Rune of Drakko. Get a Drakko that is both a Dragon and a Spirit.',
+        details: [
+          'An Epic rune that costs 4 Gold, in Set 2 and Set 3.',
+          'The Drakko counts as a Dragon and a Spirit for every effect.',
+          'It is offered when your game has Dragons or Spirits.',
+          'With a regular Drakko too, your Shouts still trigger twice.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Rune of Amplification now shows an effect at End of Turn.',
         details: [

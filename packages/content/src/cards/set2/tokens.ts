@@ -235,4 +235,25 @@ export const SET2_TOKENS: CardDef[] = [
     token: true,
     text: 'A 3/3 that attacks immediately when summoned.',
   },
+  {
+    // RUNE OF ALL DRAKKO's Drakko (owner 2026-10-03: "Get a Drakko with Dragon/Spirit type"). A real DUAL-TYPE
+    // body (Dragon / Spirit) rather than an instance-stamped `drummer`: a printed tribe pair counts for every
+    // def-level, id-keyed (`playedThisTurn` → Spirits played this turn) and combat tribe check, in every phase,
+    // with no special-casing, which the one-slot `addedTribes` channel cannot promise. Same body and rule as
+    // Drakko (`drummer`, 3/5, Shouts trigger twice); `group: 'drummer'` makes it share Drakko's non-stacking
+    // multiplier slot, so this + a regular Drakko is still twice, never four times. Forge-only (`token`).
+    id: 'n2_drakko_dragonspirit',
+    name: 'Drakko',
+    tribe: 'dragon',
+    tribe2: 'spirit',
+    tier: 5,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    effects: [],
+    triggerMultiplier: { families: ['battlecry'], factor: 2, group: 'drummer' },
+    token: true,
+    text: 'Your **Shouts** trigger **twice**.',
+    goldenText: 'Your **Shouts** trigger **three times**.',
+  },
 ];

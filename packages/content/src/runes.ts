@@ -3972,6 +3972,24 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeUnity' },
     sets: ['set3'],
   },
+  // ── Owner add 2026-10-03: "add this rune to set 2 and 3: All Drakko - 4 cost: Get a Drakko with Dragon/Spirit type." ──
+  // Owner follow-ups the same day: pool "Epic"; name "Rune of Drakko"; gate "if either tribe is in a set it should be
+  // offered. categorize it as a dragon and/or spirit rune".
+  {
+    // Hands over `n2_drakko_dragonspirit`: Drakko's body and rule as a printed Dragon / Spirit dual type, so it counts as
+    // both for every tribe check, tally, aura and synergy in every phase (see the token's note in set2/tokens.ts).
+    id: 'rune_drakko',
+    tribes: ['dragon', 'spirit'], // TRIBE GATE: offered when EITHER is one of the run's tribes (the gate is an OR)
+    // Forge-synergy override: the text tagger has no Spirit pattern yet (Set 3 tribes deferred there), so name both.
+    synergy: ['dragon', 'spirit'],
+    name: 'Rune of Drakko',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Drakko** that is a **Dragon** and a **Spirit**.',
+    previewCards: ['n2_drakko_dragonspirit'],
+    reward: { kind: 'grant', cards: ['n2_drakko_dragonspirit'] },
+    sets: ['set2', 'set3'],
+  },
 ];
 
 /**

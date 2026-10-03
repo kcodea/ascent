@@ -153,6 +153,10 @@ export type TriggerMultiplierDef = {
     factor: number;
     extra?: never;
     stacks?: never;
+    /** Non-stacking IDENTITY for a variant body of the same card (Rune of All Drakko's Dragon/Spirit Drakko
+     *  names `group: 'drummer'`): copies sharing a group are ONE multiplier, so regular Drakko + the variant
+     *  is still x2, never x4. Absent = the card's own id. */
+    group?: string;
   }
 );
 
@@ -189,7 +193,8 @@ export function extraTriggerFires(
     if (mult.factor !== undefined) {
       // Golden adds ONE more trigger rather than doubling the factor (owner ruling 2026-08-28): ×2 → ×3.
       const f = mult.factor + (m.golden ? 1 : 0);
-      factors.set(m.cardId, Math.max(factors.get(m.cardId) ?? 0, f));
+      const key = mult.group ?? m.cardId; // a variant body (Rune of All Drakko) shares its base card's slot
+      factors.set(key, Math.max(factors.get(key) ?? 0, f));
     } else {
       extra += (mult.extra ?? 0) * (m.golden ? 2 : 1);
     }
@@ -2494,6 +2499,12 @@ export interface RuneDef {
    * owner ruling 2026-09-10.
    */
   tribes?: readonly Tribe[];
+  /**
+   * Explicit forge-synergy tags (a `SynergyTag` from `@game/content`'s runeSynergy), overriding the tags derived
+   * from the printed text. For a rune whose text under-describes it: Rune of Drakko names a Spirit body, but the
+   * text tagger has no Spirit pattern (owner 2026-10-03: "categorize it as a dragon and/or spirit rune").
+   */
+  synergy?: readonly string[];
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

@@ -134,7 +134,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-09-27 (Set 3 rune design pass, tranche 5): 115 → 117, CONSCIOUSLY. Unity's "While you control all 5 minion
 // types, your minions count as every type." and the Heavy Hand's "Damage your minions deal counts double toward
 // Pummel." (two rule-shaped texts). The Set 3 Menagerie parses fully.
-const UNRESOLVED_CAP = 117;
+// 2026-10-03 (Rune of Drakko): 117 → 118, CONSCIOUSLY. The rune + its Dragon / Spirit Drakko token add one
+// unresolved parse (the grant names a dual-typed body, "Get a Drakko that is a Dragon and a Spirit.").
+const UNRESOLVED_CAP = 118;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

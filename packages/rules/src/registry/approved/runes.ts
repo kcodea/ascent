@@ -1867,4 +1867,26 @@ export const RUNES_RULES: GameRule[] = [
       + 'forge could still leave a player unable to buy, which is not separately guarded.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeforgeNoSkip.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-RUNE-35',
+    title: 'Rune of Drakko: a Set 2 + Set 3 Epic that grants a Drakko counting as BOTH a Dragon and a Spirit',
+    statement:
+      'Rune of Drakko (Epic, 4 Gold, Set 2 and Set 3) grants a Drakko printed as a Dragon / Spirit dual type '
+      + "(n2_drakko_dragonspirit: Drakko's 3/5 body and rule). It counts as both tribes for every tribe check, tally, "
+      + "aura and synergy in every phase. It shares Drakko's non-stacking multiplier slot, so with a regular Drakko your "
+      + "Shouts still trigger twice, not four times. The forge offers it when EITHER Dragon or Spirit is one of the run's "
+      + 'tribes, and it is categorised under both tribes for the forge synergy pick and the Compendium.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rune ask 2026-10-03', quote: 'add this rune to set 2 and 3: All Drakko - 4 cost: Get a Drakko with Dragon/Spirit type.' },
+      { kind: 'owner-chat', ref: 'Owner follow-up 2026-10-03 (gate)', quote: 'if either tribe is in a set it should be offered. categorize it as a dragon and/or spirit rune' },
+      { kind: 'owner-chat', ref: 'Owner follow-up 2026-10-03 (pool, name)', quote: 'Epic. Rune of Drakko' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_drakko; packages/content/src/cards/set2/tokens.ts n2_drakko_dragonspirit; packages/core/src/types.ts extraTriggerFires (multiplier group)' },
+    ],
+    contentIds: ['rune_drakko', 'n2_drakko_dragonspirit'],
+    cardText: 'Get a **Drakko** that is a **Dragon** and a **Spirit**.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-10-03).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeDrakko.test.ts'], lastVerifiedAt: '2026-10-03' },
+  },
 ];

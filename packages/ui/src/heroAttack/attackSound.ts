@@ -6,7 +6,7 @@
  */
 import { duckSfxBuses, getFxClipBuffer, playTailedClip, type SfxHandle } from '../sfx';
 
-/** `reverse`: play the clip BACKWARD (Bullet Time's reversed swell as time slows); a window is a window of the reversed clip. */
+/** `reverse`: play the clip BACKWARD (Timebreak's reversed swell as time slows); a window is a window of the reversed clip. */
 export interface CueOpts { tail?: number; lenMs?: number; fadeMs?: number; startMs?: number; delayMs?: number; reverse?: boolean }
 
 export class AttackVoices {

@@ -36,9 +36,15 @@ describe('the view model', () => {
   it('every achievement shows (with its reward); categories and Set 2 tribe groups in order', () => {
     const v = achievementView(base);
     expect(v.total).toBe(ACHIEVEMENTS.length);
-    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2']);
+    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones']);
     expect(v.categories.find((c) => c.id === 'set2')!.groups.map((g) => g.label)).toEqual(['Kobolds', 'Dwarves', 'Dragons', 'Beasts', 'Demons', 'Cross-tribe', 'Runes']);
-    expect(v.categories.find((c) => c.id === 'heroes')!.groups).toHaveLength(36);
+    // 36 heroes (six tiers each since 2026-10-03) after the account-wide "All heroes" group
+    const heroes = v.categories.find((c) => c.id === 'heroes')!.groups;
+    expect(heroes).toHaveLength(37);
+    expect(heroes[0]!.label).toBe('All heroes');
+    expect(heroes.slice(1).every((g) => g.tiles.length === 6)).toBe(true);
+    expect(v.categories.find((c) => c.id === 'combat')!.total).toBe(36);
+    expect(v.categories.find((c) => c.id === 'milestones')!.total).toBe(34);
     expect(v.done).toBe(1);
     expect(v.xpEarned).toBe(25);
   });
@@ -93,7 +99,7 @@ describe('the rendered tab', () => {
   it('own page: the Career category first, name + requirement + reward on every tile, the date on a completed one, a progress bar', async () => {
     ui = mount(<AchievementsTab userId="me" own ownerName="Kev" />);
     await flush();
-    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2']);
+    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones']);
     expect(all('.ach-cat-count')[0]).toBe('1 / 17');
     const first = ui.container.querySelector('.ach-tile.done')!;
     expect(first.querySelector('.ach-tile-name')!.textContent).toBe('First Steps');
@@ -121,7 +127,7 @@ describe('the rendered tab', () => {
     click(button('Completed'));
     expect(all('.ach-tile-name')).toEqual(['Cut and Set']);
     click(button('In progress'));
-    expect(all('.ach-tile-name')).toHaveLength(43);
+    expect(all('.ach-tile-name')).toHaveLength(81);
     expect(all('.ach-tile-name')).not.toContain('Cut and Set');
   });
 
@@ -182,5 +188,9 @@ describe('the stylesheet: stage and performance tripwires', () => {
     expect(css).not.toMatch(/infinite/);
     expect(css).toMatch(/\.ach-blur\s*\{[^}]*filter:\s*blur\(\d+px\)/);
     expect(css).not.toMatch(/transition:[^;]*filter/);
+  });
+  it('an off-screen group skips layout and paint (446 achievements; Heroes alone is 37 groups)', () => {
+    expect(css).toMatch(/\.ach-group\s*\{[^}]*content-visibility:\s*auto/);
+    expect(css).toMatch(/\.ach-group\s*\{[^}]*contain-intrinsic-size:/);
   });
 });

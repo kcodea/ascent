@@ -122,6 +122,18 @@ export const RUN_METRICS = {
   tribalRunePair: { cap: 1, doc: '1 when the game ended holding a Basic and an Epic Rune of the same tribe.' },
   overtimeProcs: { cap: 10_000, doc: 'Rune of Overtime payouts this game.' },
   blartProcs: { cap: 10_000, doc: 'Rune of Blart payouts this game.' },
+  // Achievements 150 (owner 2026-10-03): heroes and combat feats. Same trust as every run metric (O).
+  heroPowerUses: { cap: 1_000, doc: 'Hero power uses this game (an accepted heroPower action).' },
+  flawlessWins: { cap: 100, doc: 'Combats won this game with no friendly minion dying.' },
+  lastStandWins: { cap: 100, doc: 'Combats won this game with exactly 1 friendly minion surviving.' },
+  combatWinStreakMax: { cap: 100, doc: 'Most combats won in a row this game (a draw or loss ends the run of wins).' },
+  undefeated: { cap: 1, doc: '1 when the game had 5+ combats and lost none.' },
+  knockouts: { cap: 7, doc: 'Lobby players knocked out by your own fight this game (they fell in the round you hit them).' },
+  heroDamageCombatMax: { cap: 1_000, doc: 'Most damage dealt to an opponent in one fight (the lobby encounter record).' },
+  heroDamageDealt: { cap: 100_000, doc: 'Damage dealt to opponents this game (the lobby encounter records, summed).' },
+  enemyKillsCombatMax: { cap: 1_000, doc: 'Most enemy minions destroyed in one combat.' },
+  enemyKills: { cap: 100_000, doc: 'Enemy minions destroyed this game.' },
+  brink: { cap: 1, doc: '1 when your Health fell to 5 or less (and above 0) this game.' },
 } as const satisfies Record<string, { cap: number; doc: string }>;
 
 export type RunMetric = keyof typeof RUN_METRICS;
@@ -173,17 +185,21 @@ export function sanitizeRunMetrics(v: unknown): Partial<Record<RunMetric, number
 
 // ── Definitions ──────────────────────────────────────────────────────────────────────────────────────────────
 
-export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2'] as const;
+export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'combat', 'milestones'] as const;
 export type AchievementCategory = typeof ACHIEVEMENT_CATEGORIES[number];
 export const ACHIEVEMENT_CATEGORY_LABELS: Readonly<Record<AchievementCategory, string>> = Object.freeze({
   career: 'Career', ranked: 'Ranked', heroes: 'Heroes', economy: 'Economy and Build', mechanics: 'Mechanics', runes: 'Runes', set2: 'Set 2',
+  combat: 'Combat', milestones: 'Milestones',
 });
 
 /** Sub-groups (the Set 2 tribes; the others use one group). */
 export const SET2_GROUPS = ['kobold', 'dwarf', 'dragon', 'beast', 'demon', 'cross', 'rune'] as const;
 export const ACHIEVEMENT_GROUP_LABELS: Readonly<Record<string, string>> = Object.freeze({
   kobold: 'Kobolds', dwarf: 'Dwarves', dragon: 'Dragons', beast: 'Beasts', demon: 'Demons', cross: 'Cross-tribe', rune: 'Runes',
+  all: 'All heroes',
 });
+/** The Heroes category's account-wide group (sorted before the per-hero groups). */
+export const HEROES_ALL_GROUP = 'all';
 
 /**
  * Which settlements can move an achievement.
@@ -254,31 +270,31 @@ function def(d: DefInput): AchievementDef {
 // Career ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const CAREER: AchievementDef[] = [
   def({ id: 'tutorial.complete_course', name: 'Ready to Ascend', requirement: 'Complete the Learn Ascent course.', category: 'career', mode: 'tutorial', metric: 'game', target: 1, xp: 100, trust: 'S' }),
-  ...([[1, 'First Steps', 25], [10, 'Regular', 50], [50, 'Seasoned', 75], [100, 'Veteran', 100]] as const).map(([n, name, xp]) => def({
+  ...([[1, 'First Steps', 25], [10, 'Regular', 50], [50, 'Seasoned', 75], [100, 'Veteran', 300]] as const).map(([n, name, xp]) => def({
     id: `career.games.${n}`, name, requirement: n === 1 ? 'Complete a game.' : `Complete ${n} games.`, category: 'career', family: 'career.games',
     mode: 'any', metric: 'game', agg: 'sum', target: n, xp, trust: 'S',
   })),
-  ...([[10, 'Contender', 50], [50, 'Mainstay', 100]] as const).map(([n, name, xp]) => def({
+  ...([[10, 'Contender', 50], [50, 'Mainstay', 300]] as const).map(([n, name, xp]) => def({
     id: `career.top_four.${n}`, name, requirement: `Finish Top 4 in ${n} Ranked games.`, category: 'career', family: 'career.top_four',
     mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 4, target: n, xp, trust: 'S',
   })),
-  ...([[5, 'Victor', 100], [25, 'Conqueror', 200]] as const).map(([n, name, xp]) => def({
+  ...([[5, 'Victor', 100], [25, 'Conqueror', 500]] as const).map(([n, name, xp]) => def({
     id: `career.firsts.${n}`, name, requirement: `Finish 1st in ${n} Ranked games.`, category: 'career', family: 'career.firsts',
     mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 1, target: n, xp, trust: 'S',
   })),
-  ...([[1, 'Never Out', 50], [10, 'Back from the Brink', 100]] as const).map(([n, name, xp]) => def({
+  ...([[1, 'Never Out', 50], [10, 'Back from the Brink', 250]] as const).map(([n, name, xp]) => def({
     id: `career.comebacks.${n}`, name, requirement: n === 1 ? 'Earn the comeback bonus: win a combat right after 4 losses in a row.' : `Earn the comeback bonus ${n} times.`,
     category: 'career', family: 'career.comebacks', mode: 'any', metric: 'comeback', agg: 'sum', target: n, xp, trust: 'S',
   })),
-  ...([[5, 'Well Traveled', 50], [15, 'Many Faces', 100]] as const).map(([n, name, xp]) => def({
+  ...([[5, 'Well Traveled', 50], [15, 'Many Faces', 250]] as const).map(([n, name, xp]) => def({
     id: `career.heroes_played.${n}`, name, requirement: `Complete games with ${n} different heroes.`, category: 'career', family: 'career.heroes_played',
     mode: 'account', metric: 'heroesPlayed', target: n, xp, trust: 'S',
   })),
-  ...([[5, 'Versatile', 100], [15, 'Master of Many', 200]] as const).map(([n, name, xp]) => def({
+  ...([[5, 'Versatile', 100], [15, 'Master of Many', 600]] as const).map(([n, name, xp]) => def({
     id: `career.hero_wins.${n}`, name, requirement: `Finish 1st in Ranked with ${n} different heroes.`, category: 'career', family: 'career.hero_wins',
     mode: 'account', metric: 'heroesWon', target: n, xp, trust: 'S',
   })),
-  ...([[10, 'Collector', 50], [25, 'Completionist', 100]] as const).map(([n, name, xp]) => def({
+  ...([[10, 'Collector', 50], [25, 'Completionist', 200]] as const).map(([n, name, xp]) => def({
     id: `career.achievements.${n}`, name, requirement: `Complete ${n} achievements.`, category: 'career', family: 'career.achievements',
     mode: 'account', metric: 'achievementsCompleted', target: n, xp, trust: 'S',
   })),
@@ -347,7 +363,7 @@ function heroDefs(h: { id: string; name: string }): AchievementDef[] {
     def({ ...base, id: `hero.${h.id}.top_four`, family: 'hero.top_four', name: `${h.name}: Contender`, requirement: `Finish Top 4 in 5 games as ${h.name}.`, mode: 'any', placementMax: 4, target: 5, xp: 75 }),
     def({ ...base, id: `hero.${h.id}.victory`, family: 'hero.victory', name: `${h.name}: Victory`, requirement: `Finish 1st in a Ranked game as ${h.name}.`, mode: 'ranked', placementMax: 1, target: 1, xp: 100 }),
     def({ ...base, id: `hero.${h.id}.titled`, family: 'hero.titled', name: `${h.name}: Titled`, requirement: `Finish 1st in ${HERO_TITLE_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_TITLE_WINS, xp: 150, titleId: heroTitleId(h.id) }),
-    def({ ...base, id: `hero.${h.id}.mastery`, family: 'hero.mastery', name: `${h.name}: Mastery`, requirement: `Finish 1st in ${HERO_MASTERY_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_MASTERY_WINS, xp: 250, titleId: heroMasterTitleId(h.id) }),
+    def({ ...base, id: `hero.${h.id}.mastery`, family: 'hero.mastery', name: `${h.name}: Mastery`, requirement: `Finish 1st in ${HERO_MASTERY_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_MASTERY_WINS, xp: 400, titleId: heroMasterTitleId(h.id) }),
   ];
 }
 const HERO_ACHIEVEMENTS: AchievementDef[] = ACHIEVEMENT_HEROES.flatMap(heroDefs);
@@ -398,7 +414,7 @@ const s2 = (group: string, d: Omit<DefInput, 'category' | 'group' | 'setId'>): A
 const SET2: AchievementDef[] = [
   // Kobolds (Rubies)
   s2('kobold', { id: 's2.kobold.rubies_turn_8', name: 'Cut and Set', requirement: 'Play 8 Rubies in one turn.', mode: 'any', metric: 'rubyPlaysTurnMax', target: 8, xp: 100 }),
-  s2('kobold', { id: 's2.kobold.rubies_life_500', name: 'Gem Hoarder', requirement: 'Play 500 Rubies across all your Set 2 games.', mode: 'any', metric: 'rubyPlays', agg: 'sum', target: 500, xp: 100 }),
+  s2('kobold', { id: 's2.kobold.rubies_life_500', name: 'Gem Hoarder', requirement: 'Play 500 Rubies across all your Set 2 games.', mode: 'any', metric: 'rubyPlays', agg: 'sum', target: 500, xp: 200 }),
   s2('kobold', { id: 's2.kobold.ruby_strength_5', name: 'Master Cut', requirement: 'Raise your Rubies to a +5/+5 bonus in one game.', mode: 'any', metric: 'rubyStrength', target: 5, xp: 150 }),
   s2('kobold', { id: 's2.kobold.every_facet', name: 'Every Facet', requirement: 'Play a Warding, Golden, Splintered, Ripple and Dark Ruby on a Kobold in one game.', mode: 'any', metric: 'rubyFacetsOnKobolds', target: 5, xp: 100 }),
   s2('kobold', { id: 's2.kobold.gemstorm_15', name: 'Gemstorm', requirement: 'Have 15 Rubies land on your minions in one combat.', mode: 'any', metric: 'rubiesLandedCombatMax', target: 15, xp: 150 }),
@@ -449,8 +465,176 @@ const SET2: AchievementDef[] = [
   s2('rune', { id: 's2.rune.three_engines', name: 'Three Engines', requirement: 'Have 3 different Runes each trigger 5 times in one game.', mode: 'any', metric: 'runesFivePlus', target: 3, xp: 150 }),
 ];
 
-/** Every achievement in the game (batch 1). Order is display order within a category. */
-export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2]);
+// ── ACHIEVEMENTS 150 (owner 2026-10-03) ────────────────────────────────────────────────────────────────────────
+// Owner: "add 150 more achievements", themes "Tribes & cards", "Heroes deeper", "Combat feats", "Long-term grind";
+// "make longer term / more difficult achievements grant significantly more xp. some of the larger longer term ones
+// should easily be 500+ xp". XP only (the hero Titled / Mastery tiers stay the only title rewards). Every def reads a
+// metric the client already reports, or one of the 11 new RUN metrics above (same trust, O). No SQL change: the
+// catalog is code-synced by submit-progression and settle_progression reads any metric key from the facts.
+
+/** Set 2, per tribe: the 7-of-a-tribe 1st, lifetime tribe totals on Top 4 and 1st boards. */
+const TRIBE_BANNERS: ReadonlyArray<{ group: string; plural: string; metric: RunMetric; full: string; muster: string; dynasty: string }> = [
+  { group: 'kobold', plural: 'Kobolds', metric: 'finalKobolds', full: 'Gem Throne', muster: 'Tunnel Muster', dynasty: 'Kobold Dynasty' },
+  { group: 'dwarf', plural: 'Dwarves', metric: 'finalDwarves', full: 'Halls of Stone', muster: 'Clan Muster', dynasty: 'Mountain Kings' },
+  { group: 'dragon', plural: 'Dragons', metric: 'finalDragons', full: 'Sky Throne', muster: 'Flight Muster', dynasty: 'Wyrm Dynasty' },
+  { group: 'beast', plural: 'Beasts', metric: 'finalBeasts', full: 'Wild Throne', muster: 'Pack Muster', dynasty: 'Apex Dynasty' },
+  { group: 'demon', plural: 'Demons', metric: 'finalDemons', full: 'Pandemonium', muster: 'Infernal Muster', dynasty: 'Demon Dynasty' },
+];
+const SET2_MORE: AchievementDef[] = [
+  ...TRIBE_BANNERS.flatMap((t) => [
+    s2(t.group, { id: `s2.${t.group}.full_banner`, family: 's2.full_banner', name: t.full, requirement: `Finish 1st in Ranked with 7 ${t.plural} on your final board.`, mode: 'ranked', metric: t.metric, placementMax: 1, target: 7, xp: 500 }),
+    s2(t.group, { id: `s2.${t.group}.muster_100`, family: 's2.muster', name: t.muster, requirement: `Field 100 ${t.plural} in total on final boards that finished Top 4.`, mode: 'any', metric: t.metric, agg: 'sum', placementMax: 4, target: 100, xp: 300 }),
+    s2(t.group, { id: `s2.${t.group}.dynasty_50`, family: 's2.dynasty', name: t.dynasty, requirement: `Field 50 ${t.plural} in total on final boards that finished 1st in Ranked.`, mode: 'ranked', metric: t.metric, agg: 'sum', placementMax: 1, target: 50, xp: 600 }),
+  ]),
+  // Kobolds
+  s2('kobold', { id: 's2.kobold.rubies_life_2000', family: 's2.kobold.rubies_life', name: 'Gem Mountain', requirement: 'Play 2,000 Rubies across all your Set 2 games.', mode: 'any', metric: 'rubyPlays', agg: 'sum', target: 2000, xp: 300 }),
+  s2('kobold', { id: 's2.kobold.rubies_life_5000', family: 's2.kobold.rubies_life', name: 'Crown Jeweler', requirement: 'Play 5,000 Rubies across all your Set 2 games.', mode: 'any', metric: 'rubyPlays', agg: 'sum', target: 5000, xp: 750 }),
+  s2('kobold', { id: 's2.kobold.ruby_strength_10', name: 'Flawless Cut', requirement: 'Raise your Rubies to a +10/+10 bonus in one game.', mode: 'any', metric: 'rubyStrength', target: 10, xp: 400 }),
+  s2('kobold', { id: 's2.kobold.golem_80', name: 'Living Mountain', requirement: 'Summon a Gemheart Golem with 80 or more total Attack and Health in combat.', mode: 'any', metric: 'golemStatsCombatMax', target: 80, xp: 300 }),
+  s2('kobold', { id: 's2.kobold.rubies_turn_12', name: 'Jewel Flood', requirement: 'Play 12 Rubies in one turn.', mode: 'any', metric: 'rubyPlaysTurnMax', target: 12, xp: 250 }),
+  // Dwarves
+  s2('dwarf', { id: 's2.dwarf.ales_life_250', family: 's2.dwarf.ales_life', name: 'Regulars', requirement: 'Cast 250 Dwarven Ales across all your Set 2 games.', mode: 'any', metric: 'alesCast', agg: 'sum', target: 250, xp: 200 }),
+  s2('dwarf', { id: 's2.dwarf.ales_life_1000', family: 's2.dwarf.ales_life', name: 'Brewmaster', requirement: 'Cast 1,000 Dwarven Ales across all your Set 2 games.', mode: 'any', metric: 'alesCast', agg: 'sum', target: 1000, xp: 600 }),
+  s2('dwarf', { id: 's2.dwarf.payroll_50', name: 'Golden Payroll', requirement: 'Spend 50 Gold in one turn with 2 or more Dwarves on your board.', mode: 'any', metric: 'dwarfPayrollTurnMax', target: 50, xp: 350 }),
+  s2('dwarf', { id: 's2.dwarf.ales_turn_12', name: 'Open Bar', requirement: 'Cast 12 Dwarven Ales in one turn.', mode: 'any', metric: 'alesTurnMax', target: 12, xp: 400 }),
+  // Dragons
+  s2('dragon', { id: 's2.dragon.spells_life_500', family: 's2.dragon.spells_life', name: 'Spellbook', requirement: 'Cast 500 Shop spells across all your Set 2 games. Rubies do not count.', mode: 'any', metric: 'spellsCast', agg: 'sum', target: 500, xp: 250 }),
+  s2('dragon', { id: 's2.dragon.spells_life_2000', family: 's2.dragon.spells_life', name: 'Archmage', requirement: 'Cast 2,000 Shop spells across all your Set 2 games. Rubies do not count.', mode: 'any', metric: 'spellsCast', agg: 'sum', target: 2000, xp: 750 }),
+  s2('dragon', { id: 's2.dragon.spell_power_12', name: 'Elder Scholar', requirement: 'Raise your spell power to +12 Attack or +12 Health.', mode: 'any', metric: 'spellPower', target: 12, xp: 400 }),
+  s2('dragon', { id: 's2.dragon.dragonflame_50', name: 'Wildfire', requirement: 'In combat, have one Dragonflame give a minion +50/+50 or more.', mode: 'any', metric: 'dragonflameMax', target: 50, xp: 350 }),
+  // Beasts
+  s2('beast', { id: 's2.beast.stampede_12', name: 'Thundering Herd', requirement: 'Trigger 12 Beast Echoes in one combat.', mode: 'any', metric: 'beastEchoesCombatMax', target: 12, xp: 300 }),
+  s2('beast', { id: 's2.beast.march_20', name: 'Great Migration', requirement: 'Summon 20 Beasts in one combat.', mode: 'any', metric: 'beastSummonsCombatMax', target: 20, xp: 350 }),
+  s2('beast', { id: 's2.beast.royal_100', name: 'Beast of Legend', requirement: 'With King Oona on your board, summon a Beast with 100 or more total Attack and Health in combat.', mode: 'any', metric: 'oonaBeastSummonMax', target: 100, xp: 350 }),
+  s2('beast', { id: 's2.beast.venom_line_5', name: 'Venom Tide', requirement: 'Destroy 5 enemy minions with Execute in one combat.', mode: 'any', metric: 'executeKillsCombatMax', target: 5, xp: 300 }),
+  // Demons
+  s2('demon', { id: 's2.demon.consumes_life_250', family: 's2.demon.consumes_life', name: 'Bottomless Pit', requirement: 'Consume 250 Shop minions across all your Set 2 games.', mode: 'any', metric: 'consumes', agg: 'sum', target: 250, xp: 200 }),
+  s2('demon', { id: 's2.demon.consumes_life_1000', family: 's2.demon.consumes_life', name: 'Devourer of Shops', requirement: 'Consume 1,000 Shop minions across all your Set 2 games.', mode: 'any', metric: 'consumes', agg: 'sum', target: 1000, xp: 600 }),
+  s2('demon', { id: 's2.demon.imp_buff_20', name: 'Imp Overlord', requirement: 'Raise your Imp buff to +20/+20.', mode: 'any', metric: 'impBuff', target: 20, xp: 400 }),
+  s2('demon', { id: 's2.demon.feast_150', name: 'Feast of Ages', requirement: 'Consume a Shop minion with 150 or more total Attack and Health.', mode: 'any', metric: 'consumedStatsMax', target: 150, xp: 350 }),
+  s2('demon', { id: 's2.demon.gorged_300', name: 'Gorged', requirement: 'Finish 1st in Ranked with a Demon of 300 or more total Attack and Health on your final board.', mode: 'ranked', metric: 'finalDemonStatsMax', placementMax: 1, target: 300, xp: 500 }),
+  s2('demon', { id: 's2.demon.legion_10', name: 'Infernal Legion', requirement: 'Summon 10 Imps in one combat.', mode: 'any', metric: 'impSummonsCombatMax', target: 10, xp: 300 }),
+];
+
+/** Heroes, deeper: a sixth tier per hero, plus the account-wide hero feats (the "All heroes" group). */
+export const HERO_DEVOTED_GAMES = 25;
+const HERO_DEVOTED: AchievementDef[] = ACHIEVEMENT_HEROES.map((h) => def({
+  id: `hero.${h.id}.devoted`, family: 'hero.devoted', name: `${h.name}: Devoted`, requirement: `Complete ${HERO_DEVOTED_GAMES} games as ${h.name}.`,
+  category: 'heroes', group: h.id, heroId: h.id, mode: 'any', metric: 'game', agg: 'sum', target: HERO_DEVOTED_GAMES, xp: 200,
+}));
+const heroAll = (d: Omit<DefInput, 'category' | 'group'>): AchievementDef => def({ ...d, category: 'heroes', group: HEROES_ALL_GROUP });
+const n0 = (n: number): string => n.toLocaleString('en-US');
+const HEROES_ALL: AchievementDef[] = [
+  ...([[50, 'Hands On', 100], [250, 'Signature Move', 300], [1000, 'Second Nature', 750]] as const).map(([n, name, xp]) => heroAll({
+    id: `hero.power_uses.${n}`, family: 'hero.power_uses', name, requirement: `Use your hero power ${n0(n)} times.`,
+    mode: 'any', metric: 'heroPowerUses', agg: 'sum', target: n, xp,
+  })),
+  ...([[25, 'Thousand Faces', 300], [30, 'Every Mask', 500]] as const).map(([n, name, xp]) => heroAll({
+    id: `career.heroes_played.${n}`, family: 'career.heroes_played', name, requirement: `Complete games with ${n} different heroes.`,
+    mode: 'account', metric: 'heroesPlayed', target: n, xp, trust: 'S',
+  })),
+  heroAll({ id: 'career.hero_wins.25', family: 'career.hero_wins', name: 'Champion of All', requirement: 'Finish 1st in Ranked with 25 different heroes.', mode: 'account', metric: 'heroesWon', target: 25, xp: 1000, trust: 'S' }),
+];
+
+/** Combat feats (the new Combat category). */
+const cb = (d: Omit<DefInput, 'category'>): AchievementDef => def({ ...d, category: 'combat' });
+const COMBAT: AchievementDef[] = [
+  // Flawless: no friendly minion died
+  cb({ id: 'combat.flawless_win', family: 'combat.flawless_game', name: 'Untouched', requirement: 'Win a combat without a friendly minion dying.', mode: 'any', metric: 'flawlessWins', target: 1, xp: 25 }),
+  cb({ id: 'combat.flawless_game_3', family: 'combat.flawless_game', name: 'Composed', requirement: 'Win 3 combats in one game without a friendly minion dying.', mode: 'any', metric: 'flawlessWins', target: 3, xp: 100 }),
+  cb({ id: 'combat.flawless_game_5', family: 'combat.flawless_game', name: 'Spotless Campaign', requirement: 'Win 5 combats in one game without a friendly minion dying.', mode: 'any', metric: 'flawlessWins', target: 5, xp: 250 }),
+  cb({ id: 'combat.flawless_life_25', family: 'combat.flawless_life', name: 'Perfect Record', requirement: 'Win 25 combats without a friendly minion dying, across all your games.', mode: 'any', metric: 'flawlessWins', agg: 'sum', target: 25, xp: 300 }),
+  cb({ id: 'combat.flawless_life_100', family: 'combat.flawless_life', name: 'Untouchable', requirement: 'Win 100 combats without a friendly minion dying, across all your games.', mode: 'any', metric: 'flawlessWins', agg: 'sum', target: 100, xp: 750 }),
+  // Last stand: exactly one survivor
+  cb({ id: 'combat.last_stand', family: 'combat.last_stand', name: 'Last One Standing', requirement: 'Win a combat with only 1 of your minions left alive.', mode: 'any', metric: 'lastStandWins', target: 1, xp: 50 }),
+  cb({ id: 'combat.last_stand_life_10', family: 'combat.last_stand', name: 'By a Thread', requirement: 'Win 10 combats with only 1 of your minions left alive.', mode: 'any', metric: 'lastStandWins', agg: 'sum', target: 10, xp: 250 }),
+  // Win streaks inside one game
+  ...([[5, 'On a Roll', 75], [8, 'Unstoppable', 250], [12, 'Juggernaut', 600]] as const).map(([n, name, xp]) => cb({
+    id: `combat.streak_${n}`, family: 'combat.streak', name, requirement: `Win ${n} combats in a row in one game.`, mode: 'any', metric: 'combatWinStreakMax', target: n, xp,
+  })),
+  cb({ id: 'combat.undefeated_win', name: 'Unbeaten', requirement: 'Finish 1st in Ranked without losing a combat.', mode: 'ranked', metric: 'undefeated', placementMax: 1, target: 1, xp: 750 }),
+  // Knockouts
+  cb({ id: 'combat.knockout', family: 'combat.knockout_game', name: 'First Blood', requirement: 'Knock out a player.', mode: 'any', metric: 'knockouts', target: 1, xp: 50 }),
+  cb({ id: 'combat.knockout_game_3', family: 'combat.knockout_game', name: 'Kingslayer', requirement: 'Knock out 3 players in one game.', mode: 'any', metric: 'knockouts', target: 3, xp: 300 }),
+  cb({ id: 'combat.knockout_game_5', family: 'combat.knockout_game', name: 'Table Clearer', requirement: 'Knock out 5 players in one game.', mode: 'any', metric: 'knockouts', target: 5, xp: 750 }),
+  cb({ id: 'combat.knockout_win_3', name: 'Conquest', requirement: 'Finish 1st in Ranked after knocking out 3 players that game.', mode: 'ranked', metric: 'knockouts', placementMax: 1, target: 3, xp: 500 }),
+  cb({ id: 'combat.knockout_life_25', family: 'combat.knockout_life', name: 'Headhunter', requirement: 'Knock out 25 players across all your games.', mode: 'any', metric: 'knockouts', agg: 'sum', target: 25, xp: 400 }),
+  cb({ id: 'combat.knockout_life_100', family: 'combat.knockout_life', name: 'Executioner', requirement: 'Knock out 100 players across all your games.', mode: 'any', metric: 'knockouts', agg: 'sum', target: 100, xp: 1000 }),
+  // Damage to opponents
+  ...([[10, 'Heavy Blow', 50], [15, 'Hammer Blow', 100], [20, 'Crushing Blow', 200], [30, 'Annihilation', 500]] as const).map(([n, name, xp]) => cb({
+    id: `combat.hero_damage_${n}`, family: 'combat.hero_damage', name, requirement: `Deal ${n} damage to an opponent in one fight.`, mode: 'any', metric: 'heroDamageCombatMax', target: n, xp,
+  })),
+  cb({ id: 'combat.hero_damage_life_500', family: 'combat.hero_damage_life', name: 'Siege Engine', requirement: 'Deal 500 damage to opponents across all your games.', mode: 'any', metric: 'heroDamageDealt', agg: 'sum', target: 500, xp: 300 }),
+  cb({ id: 'combat.hero_damage_life_2500', family: 'combat.hero_damage_life', name: 'World Breaker', requirement: 'Deal 2,500 damage to opponents across all your games.', mode: 'any', metric: 'heroDamageDealt', agg: 'sum', target: 2500, xp: 750 }),
+  // Enemy minions destroyed
+  ...([[7, 'Clean Sweep', 50], [10, 'Rout', 125], [12, 'Massacre', 250]] as const).map(([n, name, xp]) => cb({
+    id: `combat.kills_combat_${n}`, family: 'combat.kills_combat', name, requirement: `Destroy ${n} enemy minions in one combat.`, mode: 'any', metric: 'enemyKillsCombatMax', target: n, xp,
+  })),
+  cb({ id: 'combat.kills_life_1000', family: 'combat.kills_life', name: 'Thousand Fallen', requirement: 'Destroy 1,000 enemy minions across all your games.', mode: 'any', metric: 'enemyKills', agg: 'sum', target: 1000, xp: 300 }),
+  cb({ id: 'combat.kills_life_5000', family: 'combat.kills_life', name: 'Endless War', requirement: 'Destroy 5,000 enemy minions across all your games.', mode: 'any', metric: 'enemyKills', agg: 'sum', target: 5000, xp: 1000 }),
+  // On the brink
+  cb({ id: 'combat.brink_top_four', family: 'combat.brink', name: 'Still Standing', requirement: 'Finish Top 4 after falling to 5 or less Health.', mode: 'any', metric: 'brink', placementMax: 4, target: 1, xp: 200 }),
+  cb({ id: 'combat.brink_win', family: 'combat.brink', name: 'From the Brink', requirement: 'Finish 1st in Ranked after falling to 5 or less Health.', mode: 'ranked', metric: 'brink', placementMax: 1, target: 1, xp: 600 }),
+  cb({ id: 'career.comebacks.25', family: 'career.comebacks', name: 'Never Say Die', requirement: 'Earn the comeback bonus 25 times.', mode: 'any', metric: 'comeback', agg: 'sum', target: 25, xp: 300, trust: 'S' }),
+  // Bigger fights on the existing combat counters
+  cb({ id: 'combat.board_2500', family: 'build.board', name: 'Grand Army', requirement: 'Begin a combat with 2,500 total Attack and Health on your board.', mode: 'any', metric: 'boardStatsCombatMax', target: 2500, xp: 400 }),
+  cb({ id: 'combat.board_5000', family: 'build.board', name: 'Legion of Legends', requirement: 'Begin a combat with 5,000 total Attack and Health on your board.', mode: 'any', metric: 'boardStatsCombatMax', target: 5000, xp: 750 }),
+  cb({ id: 'combat.summons_25', name: 'Endless Ranks', requirement: 'Summon 25 friendly minions in one combat.', mode: 'any', metric: 'summonsCombatMax', target: 25, xp: 300 }),
+  cb({ id: 'combat.echoes_15', name: 'Chorus of the Fallen', requirement: 'Trigger 15 friendly Echoes in one combat.', mode: 'any', metric: 'echoesCombatMax', target: 15, xp: 300 }),
+  cb({ id: 'combat.wards_10', name: 'Unbreakable Wall', requirement: 'Have your Wards block 10 hits in one combat.', mode: 'any', metric: 'wardBlocksCombatMax', target: 10, xp: 300 }),
+];
+
+/** Long-term grind (the new Milestones category). Higher tiers of the batch 1 families keep their family id. */
+const ms = (d: Omit<DefInput, 'category'>): AchievementDef => def({ ...d, category: 'milestones' });
+const MILESTONES: AchievementDef[] = [
+  ...([[250, 'Old Hand', 400], [500, 'Lifer', 750], [1000, 'Eternal', 1500]] as const).map(([n, name, xp]) => ms({
+    id: `career.games.${n}`, family: 'career.games', name, requirement: `Complete ${n0(n)} games.`, mode: 'any', metric: 'game', agg: 'sum', target: n, xp, trust: 'S',
+  })),
+  ...([[50, 'Ladder Regular', 200], [250, 'Ladder Fixture', 500], [500, 'Ladder Legend', 1000], [1000, 'Ladder Eternal', 1500]] as const).map(([n, name, xp]) => ms({
+    id: `ranked.games.${n}`, family: 'ranked.games', name, requirement: `Complete ${n0(n)} Ranked games.`, mode: 'ranked', metric: 'game', agg: 'sum', target: n, xp, trust: 'S',
+  })),
+  ...([[100, 'Perennial', 300], [250, 'Pillar', 750], [500, 'Monument', 1250]] as const).map(([n, name, xp]) => ms({
+    id: `career.top_four.${n}`, family: 'career.top_four', name, requirement: `Finish Top 4 in ${n0(n)} Ranked games.`, mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 4, target: n, xp, trust: 'S',
+  })),
+  ...([[50, 'Champion', 500], [100, 'Warlord', 900], [250, 'Undying Legend', 1500]] as const).map(([n, name, xp]) => ms({
+    id: `career.firsts.${n}`, family: 'career.firsts', name, requirement: `Finish 1st in ${n0(n)} Ranked games.`, mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 1, target: n, xp, trust: 'S',
+  })),
+  ...([[5000, 'Big Spender', 200], [25000, 'Tycoon', 500], [100000, 'Golden Age', 1000]] as const).map(([n, name, xp]) => ms({
+    id: `economy.spend_lifetime_${n}`, family: 'economy.spend_lifetime', name, requirement: `Spend ${n0(n)} Gold across all your games.`, mode: 'any', metric: 'goldSpent', agg: 'sum', target: n, xp,
+  })),
+  ...([[25, 'Goldsmith', 100], [100, 'Master Goldsmith', 300], [500, 'Gilded Age', 750]] as const).map(([n, name, xp]) => ms({
+    id: `build.gilds_lifetime_${n}`, family: 'build.gilds_lifetime', name, requirement: `Gild ${n0(n)} minions across all your games.`, mode: 'any', metric: 'gildsMade', agg: 'sum', target: n, xp,
+  })),
+  ...([[50, 'Stonecutter', 200], [200, 'Master Carver', 500]] as const).map(([n, name, xp]) => ms({
+    id: `rune.basic_lifetime_${n}`, family: 'rune.basic_lifetime', name, requirement: `Forge ${n0(n)} Basic Runes across all your games.`, mode: 'any', metric: 'basicRunesForged', agg: 'sum', target: n, xp,
+  })),
+  ms({ id: 'rune.epic_lifetime_25', name: 'Rune Lord', requirement: 'Forge 25 Epic Runes across all your games.', mode: 'any', metric: 'epicRunesForged', agg: 'sum', target: 25, xp: 300 }),
+  ...([[1000, 'Humming Stones', 300], [5000, 'Eternal Engine', 750]] as const).map(([n, name, xp]) => ms({
+    id: `rune.triggers_lifetime_${n}`, family: 'rune.triggers_lifetime', name, requirement: `Have your Runes trigger ${n0(n)} times across all your games.`, mode: 'any', metric: 'runeTriggers', agg: 'sum', target: n, xp,
+  })),
+  ...([[10, 'Climber', 300], [25, 'Ever Upward', 600]] as const).map(([n, name, xp]) => ms({
+    id: `ranked.promotions_${n}`, family: 'ranked.promotions', name, requirement: `Win ${n} promotion games.`, mode: 'ranked', metric: 'promoted', agg: 'sum', target: n, xp, trust: 'S',
+  })),
+  ...([[50, 'Trophy Case', 200], [100, 'Hall of Trophies', 400], [200, 'Living Legend', 750]] as const).map(([n, name, xp]) => ms({
+    id: `career.achievements.${n}`, family: 'career.achievements', name, requirement: `Complete ${n} achievements.`, mode: 'account', metric: 'achievementsCompleted', target: n, xp, trust: 'S',
+  })),
+  ms({ id: 'ranked.ascendant_wins_25', name: 'Throne Above', requirement: 'Finish 1st in 25 Ranked games started at Ascendant.', mode: 'ranked', metric: 'ascendantFirst', agg: 'sum', target: 25, xp: 1250, trust: 'S' }),
+  ms({ id: 'ranked.brutal_wins_10', name: 'Giant Slayer', requirement: `Finish 1st in 10 Brutal Ranked lobbies (strength ${BRUTAL_LOBBY_STRENGTH} or more).`, mode: 'ranked', metric: 'brutalFirst', agg: 'sum', target: 10, xp: 600, trust: 'S' }),
+  ms({ id: 'ranked.demotion_escapes_10', name: 'Unyielding', requirement: 'Finish Top 4 in 10 demotion games.', mode: 'ranked', metric: 'demotionEscape', agg: 'sum', target: 10, xp: 300, trust: 'S' }),
+  ms({ id: 'ranked.top_four_streak_20', name: 'Rock Steady', requirement: 'Finish Top 4 in 20 Ranked games in a row.', mode: 'ranked', metric: 'topFourStreak', target: 20, xp: 750, trust: 'S' }),
+  ms({ id: 'ranked.win_streak_5', name: 'Five Crowns', requirement: 'Finish 1st in 5 Ranked games in a row.', mode: 'ranked', metric: 'firstStreak', target: 5, xp: 1000, trust: 'S' }),
+];
+
+// Owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers re-tuned onto the same curve
+// (career.games.100 300, career.top_four.50 300, career.firsts.25 500, career.comebacks.10 250,
+// career.heroes_played.15 250, career.hero_wins.15 600, career.achievements.25 200, s2.kobold.rubies_life_500 200,
+// hero.<id>.mastery 400). Completions already paid keep the XP they paid (achievement_completions.xp_awarded).
+
+/** The 150 added 2026-10-03, in display order. */
+export const ACHIEVEMENTS_150: readonly AchievementDef[] = Object.freeze([...SET2_MORE, ...HERO_DEVOTED, ...HEROES_ALL, ...COMBAT, ...MILESTONES]);
+
+/** Every achievement in the game (batch 1 plus the 2026-10-03 150). Order is display order within a category. */
+export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150]);
 
 export const ACHIEVEMENT_INDEX: Readonly<Record<string, AchievementDef>> = Object.freeze(Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a])));
 export const achievementOf = (id: string | null | undefined): AchievementDef | null => (id && ACHIEVEMENT_INDEX[id] ? ACHIEVEMENT_INDEX[id]! : null);

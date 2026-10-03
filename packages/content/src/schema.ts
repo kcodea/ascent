@@ -857,6 +857,7 @@ z.object({ kind: z.literal('runeAftermarket') }).strict(),
   z.object({ kind: z.literal('runeGrandWorkshop') }).strict(),
   z.object({ kind: z.literal('runeRedGiant') }).strict(),
   z.object({ kind: z.literal('runeSoulScript') }).strict(),
+  z.object({ kind: z.literal('cardTribes'), cardId: z.string().min(1), tribes: z.array(TribeSchema).min(1) }).strict(), // Rune of Drakko
   z.object({ kind: z.literal('runeGambleBoth') }).strict(),
   // ── Set 3 batch 2 (2026-09-16) — tranche A ──
   z.object({ kind: z.literal('runeChosenVessel'), attack: z.number().int(), health: z.number().int() }).strict(),
@@ -1033,6 +1034,7 @@ export const RuneDefSchema = z.object({
   requiresDoublePower: z.boolean().optional(),
   previewCards: z.array(z.string().min(1)).optional(),
   tribes: z.array(TribeSchema).readonly().optional(),
+  synergy: z.array(z.string().min(1)).readonly().optional(), // explicit forge-synergy tags (Rune of Drakko, 2026-10-03)
 }).strict();
 
 export const QuestDefSchema = z.object({

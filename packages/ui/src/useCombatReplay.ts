@@ -146,6 +146,8 @@ export interface UnitFrame {
   cardId: string;
   name: string;
   tribe: Tribe;
+  /** A folded ADDED second tribe (Rune of Drakko / Anomaly Reactor); the printed one comes from the card. */
+  tribe2?: Tribe;
   attack: number;
   health: number;
   keywords: Keyword[];
@@ -228,7 +230,7 @@ const EMPTY_HAND_BUFFS: Record<string, { attack: number; health: number }> = {};
 const EMPTY_HAND_SUMMONED: ReadonlySet<string> = new Set();
 
 const fromSnap = (s: MinionSnapshot): UnitFrame => ({
-  uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, attack: s.attack, health: s.health,
+  uid: s.uid, cardId: s.cardId, name: s.name, tribe: s.tribe, ...(s.tribe2 ? { tribe2: s.tribe2 } : {}), attack: s.attack, health: s.health,
   keywords: [...s.keywords], divineShield: s.keywords.includes('DS'), alive: true,
   golden: s.golden ?? false, summonBonus: s.summonBonus ?? 0, overflowBonus: s.overflowBonus,
   hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)

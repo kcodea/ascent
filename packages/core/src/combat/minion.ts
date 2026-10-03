@@ -1,4 +1,4 @@
-import { type BoardMinion, type CardDef, type Minion, type Side } from '../types';
+import { type BoardMinion, type CardDef, type Minion, type Side, type Tribe } from '../types';
 
 export type CardIndex = Record<string, CardDef>;
 
@@ -12,6 +12,28 @@ function cardReAttacksOnKill(card: CardDef): boolean {
     reAttackCache.set(card.id, v);
   }
   return v;
+}
+
+/**
+ * The ONE fold of an instance's extra tribes into the two tribe slots every combat check and every card face reads
+ * (`tribe` / `tribe2`). Printed tribes keep their slots; extras (`addedTribes`: Anomaly Reactor's added type, Rune of
+ * Soul Script's Undead Starform, Rune of Drakko's run-wide Dragon + Spirit) fill what is free, and a NEUTRAL printed
+ * tribe is "no type", so it yields its slot: a neutral Drakko with Dragon + Spirit is a Dragon / Spirit. A body never
+ * holds more than two (a printed dual keeps its pair). Pure; shared by combat `instantiate` and the UI's tribe line.
+ */
+/** A combat body's second tribe when it was ADDED (folded in by `foldTribes`), i.e. differs from the card's printed
+ *  one; undefined otherwise. The combat snapshot carries only this, so the card face can print it. */
+export function addedSecondTribe(m: { cardId: string; tribe2?: Tribe }, cards: Record<string, CardDef | undefined>): Tribe | undefined {
+  const printed = cards[m.cardId]?.tribe2;
+  return m.tribe2 && m.tribe2 !== printed ? m.tribe2 : undefined;
+}
+
+export function foldTribes<T extends string>(tribe: T, tribe2: T | undefined, extra: readonly T[] | undefined): { tribe: T; tribe2?: T } {
+  if (!extra || extra.length === 0) return tribe2 === undefined ? { tribe } : { tribe, tribe2 };
+  const seen: T[] = [];
+  for (const t of [tribe, tribe2, ...extra]) if (t && t !== 'neutral' && !seen.includes(t)) seen.push(t);
+  if (seen.length === 0) return tribe2 === undefined ? { tribe } : { tribe, tribe2 };
+  return seen[1] === undefined ? { tribe: seen[0]! } : { tribe: seen[0]!, tribe2: seen[1] };
 }
 
 /**
@@ -46,11 +68,9 @@ export function instantiate(
     uid: mkUid(),
     cardId: card.id,
     name: card.name,
-    tribe: card.tribe,
-    // Anomaly Reactor: fold a spell-added instance tribe into the free tribe2 slot, so every combat tribe check
-    // (m.tribe2 === 'mech' — Rally-Mech, Shared Circuit, …) honors it. (A minion that already has a printed
-    // tribe2 keeps it — a rare dual-tribe body can't take a third tribe in combat.)
-    tribe2: card.tribe2 ?? board.addedTribes?.find((t) => t !== card.tribe),
+    // Added instance tribes (Anomaly Reactor, Soul Script, Rune of Drakko's run-wide types) fold into the two slots
+    // through `foldTribes`, so every combat tribe check (m.tribe / m.tribe2) honours them. A printed dual keeps its pair.
+    ...foldTribes(card.tribe, card.tribe2, board.addedTribes),
     attack: board.attack,
     health: board.health,
     maxHealth: board.health,

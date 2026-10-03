@@ -1983,6 +1983,16 @@ export interface RunState {
    *  (every `isTribe` watcher / consume sees an Undead), Undead-aimed friendly spells may aim it, the Undead
    *  Aura (`undeadBuyAtk`) and "your Undead +X" Shop buffs land on it. */
   runeSoulScript?: boolean;
+  /**
+   * RUN-LEVEL TYPE OVERRIDES (Rune of Drakko, owner 2026-10-03: "this makes all drakkos in shop and everywhere a
+   * dragon/spirit. it isnt a new minion, it's just a drakko that has new types"). Card id → the extra tribes EVERY
+   * copy of that card has for the rest of the run: Shop offers, hand, board, Gilded copies, Discover picks, combat.
+   * ONE source of truth, read by the shared tribe predicates: `defIsTribe(def, t, state)` / `hasRunTribe` for
+   * def- and id-level checks (pools, Shop offers, the played-this-turn tallies), and, for instance checks, the
+   * `addedTribes` that `syncRunTribes` stamps on every board / hand copy (which is also what carries it into
+   * combat and onto recorded snapshots). Union-only and idempotent: a second Rune of Drakko changes nothing.
+   */
+  cardTribes?: Record<string, Tribe[]>;
   /** Rune of Gambling (2026-09-17): every Gamble grants BOTH a random minion AND a random spell of the rolled tier. */
   runeGambleBoth?: boolean;
   /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on the Broodwright. */

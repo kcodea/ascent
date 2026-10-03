@@ -1,4 +1,4 @@
-import { damageMeterOf, type Keyword, type Tribe } from '@game/core';
+import { damageMeterOf, foldTribes, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe } from '@game/sim';
 import type { CardView } from './Card';
@@ -11,6 +11,18 @@ import {
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
+
+/**
+ * The TRIBE LINE a card face prints: its printed pair folded with any instance-added tribes (Anomaly Reactor, Soul
+ * Script) and the run's type overrides (Rune of Drakko: `RunState.cardTribes`, so a Shop / Discover Drakko reads
+ * Dragon / Spirit too). One fold (`foldTribes`, the same one combat uses), so no surface can disagree.
+ */
+export function tribeFace(c: { id: string; tribe: Tribe; tribe2?: Tribe }, added?: readonly Tribe[], cardTribes?: Record<string, Tribe[]>): { tribe: Tribe; tribe2?: Tribe } {
+  const run = cardTribes?.[c.id];
+  const extra = run?.length ? [...(added ?? []), ...run] : added;
+  return foldTribes(c.tribe, c.tribe2, extra);
+}
+
 export interface LiveTextParams {
   tier: number;
   golden: boolean;
@@ -46,6 +58,9 @@ export interface LiveTextParams {
   /** The per-tribe "played this turn" map (Bicycle Bob's Undead count). Optional: the player's is derived from the
    *  `playedThisTurn` ids when absent; a served foe in COMBAT passes its snapshot's map (the ids aren't carried). */
   tribesPlayed?: Partial<Record<Tribe, number>>;
+  /** Rune of Drakko: the run's type overrides (`RunState.cardTribes`), so a "per Spirit / Dragon played" count sees a
+   *  re-typed card the way the sim does. */
+  cardTribes?: Record<string, Tribe[]>;
   /** Combat-only per-instance accruals (from the MinionSnapshot), so the unified text covers combat-scaling cards
    *  too: Crypt Drake's total Attack seen, and an Engrave minion's permanent run gain. Absent (0) in the shop. */
   attackSeen?: number;
@@ -182,7 +197,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
     const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
       p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
       p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
-      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, anySpellsThisTurn: p.anySpellsThisTurn },
+      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, anySpellsThisTurn: p.anySpellsThisTurn },
     ));
     if (taught) return { text: taught, goldenText: taught };
   }
@@ -190,7 +205,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling })
+        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -205,7 +220,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
-            overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn }, tribe) : 0)) ?? // Bicycle Bob: the current per-Undead-played grant
+            overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn, cardTribes: p.cardTribes }, tribe) : 0)) ?? // Bicycle Bob: the current per-Undead-played grant
             drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
             shredderText(c.id, p.golden, p.unusedEquipment) ?? // Shredder: the End-of-Turn total for the Equipment still unused
 
@@ -308,7 +323,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState },
+  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -332,7 +347,7 @@ export function instView(
     spellProgress: inst.spellProgress, spiritTally: inst.spiritTally, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
-    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, inHand: live?.inHand, alesThisTurn: live?.alesThisTurn, unusedEquipment: live?.unusedEquipment,
+    playedThisTurn: live?.playedThisTurn, cardTribes: live?.cardTribes, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, inHand: live?.inHand, alesThisTurn: live?.alesThisTurn, unusedEquipment: live?.unusedEquipment,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,
@@ -376,7 +391,7 @@ export function instView(
   // owner Ruby batch 2026-09-24) with its printed "+A/+H" swapped for the live grant.
   const shownText = c.ruby ? rubyLiveText(c.text, shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal) : text;
   return {
-    name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
+    name: c.name, cardId: c.id, ...tribeFace({ id: c.id, tribe: inst.tribe, tribe2: c.tribe2 }, inst.addedTribes),
     chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became
     // (Both) MARKER hook — a card still WAITING to be played (hand). A body already on the board has resolved
     // its Choose One, so it is not a promise any more and carries no marker.
@@ -437,7 +452,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, impAura: run.impBuff, // +1 per Mastery copy (owner 2026-08-27)
       rubyCasts: run.rubyCasts, // Vaultkeeper's spell umbrella — dropped here until the 2026-09-10 parity pass
       goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
-      playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
+      playedThisTurn: run.playedThisTurn, cardTribes: run.cardTribes, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,

@@ -237,14 +237,15 @@ export const NEUTRAL: CardDef[] = [
     keywords: ['DS', 'W', 'RL'],
     // Owner 2026-10-03: "Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random
     // Shop Spell." The Rally strip is unchanged; the Pummel is the shared damage meter (`noteDamageDealt`) with a
-    // random-Shop-Spell body. It prints NO per-combat cap, so it pays every 25 (`maxPerCombat: 'unlimited'`).
+    // random-Shop-Spell body. Owner ruling 2026-10-03 "give tauntbreaker a once per combat flag": once per combat
+    // (the `maxPerCombat` default of 1); the lifetime tally still carries between combats.
     // Gilded doubles the payout (2 spells), never the threshold, like every other Pummel.
     effects: [
       { on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } },
-      { on: 'passive', do: 'dealtDamageGetRandomSpell', params: { every: 25, count: 1, maxPerCombat: 'unlimited' } },
+      { on: 'passive', do: 'dealtDamageGetRandomSpell', params: { every: 25, count: 1 } },
     ],
-    text: '**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get a random **Shop Spell**.',
-    goldenText: '**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get **2** random **Shop Spells**.',
+    text: '**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get a random **Shop Spell**. (Once per combat)',
+    goldenText: '**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get **2** random **Shop Spells**. (Once per combat)',
   },
   {
     // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers

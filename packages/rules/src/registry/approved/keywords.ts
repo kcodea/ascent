@@ -84,8 +84,7 @@ export const KEYWORDS_RULES: GameRule[] = [
       'Pummel (X) counts the damage THIS BODY has dealt over its whole life. The tally is per instance and never '
       + 'resets: it carries from combat to settle to shop to the next combat, it rides a served snapshot, and a '
       + 'Rise or Rebirth return keeps it. A payout is owed each time the tally crosses a multiple of X, but at '
-      + 'most the card\'s printed cap per combat (once, unless it prints "(Max N per combat.)", R-PUMMEL-02; a '
-      + 'Pummel that prints no cap at all pays every multiple, R-PUMMEL-03); '
+      + 'most the card\'s printed cap per combat (once, unless it prints "(Max N per combat.)", R-PUMMEL-02); '
       + 'crossings past the cap in a fight are spent, not banked. Every readout '
       + 'prints progress toward the NEXT payout (the tally modulo X, over X), on the board, in the shop and in '
       + 'combat, and the combat badge ticks on the beat the damage lands.',
@@ -286,19 +285,21 @@ export const KEYWORDS_RULES: GameRule[] = [
   },
   {
     id: 'R-PUMMEL-03',
-    title: 'Tauntbreaker: Rally strips Taunt and Rise from its target; Pummel (25) gets a random Shop Spell, every 25',
+    title: 'Tauntbreaker: Rally strips Taunt and Rise from its target; Pummel (25) gets a random Shop Spell, once per combat',
     statement:
-      'Tauntbreaker reads "Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell." Each attack '
-      + 'removes Taunt AND Rise from the minion it strikes (with no target, as in a Shop Rally replay, nothing happens and no '
-      + 'friendly is disarmed). Its Pummel is the shared lifetime damage meter (R-PUMMEL-01) and pays a random Shop Spell '
-      + '(the run\'s set pool, at or below the shop tier, never a reward-only token) the moment the meter crosses a multiple '
-      + 'of 25, flying to hand mid-fight. The card prints NO per-combat cap, so it pays for EVERY multiple crossed, several '
-      + 'in one fight and several from one big hit. Gilded gets 2 Shop Spells per payout; the threshold stays 25.',
+      'Tauntbreaker reads "Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell. (Once per '
+      + 'combat)". Each attack removes Taunt AND Rise from the minion it strikes (with no target, as in a Shop Rally replay, '
+      + 'nothing happens and no friendly is disarmed). Its Pummel is the shared lifetime damage meter (R-PUMMEL-01) and pays a '
+      + 'random Shop Spell (the run\'s set pool, at or below the shop tier, never a reward-only token) the moment the meter '
+      + 'crosses a multiple of 25, flying to hand mid-fight. It pays at most ONCE per combat (R-PUMMEL-02): further crossings '
+      + 'in the same fight are spent, the tally still carries between combats, and the next fight can pay again. Gilded gets '
+      + '2 Shop Spells per payout, still once; the threshold stays 25.',
     domain: 'keywords',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner card changes 2026-10-03 (Tauntbreaker)', quote: 'Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell.' },
-      { kind: 'code', ref: 'packages/content/src/cards/set1/neutral.ts tauntbreaker; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageGetRandomSpell, maxPerCombat \'unlimited\'); packages/ui/src/cardText.ts stepProgress' },
+      { kind: 'owner-chat', ref: 'Owner ruling on PR #1939, 2026-10-03', quote: 'give tauntbreaker a once per combat flag' },
+      { kind: 'code', ref: 'packages/content/src/cards/set1/neutral.ts tauntbreaker; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageGetRandomSpell, maxPerCombat default 1); packages/ui/src/cardText.ts stepProgress' },
     ],
     contentIds: ['tauntbreaker'],
     currentBehaviour: 'Conforms (built with the change, 2026-10-03).',

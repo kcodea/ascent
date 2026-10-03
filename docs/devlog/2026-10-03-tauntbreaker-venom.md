@@ -5,6 +5,7 @@ Owner changes (verbatim):
 - "Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell."
 - "Venom -> Execute. just needs the text keyword added to body"
 - "wire new tauntbreaker art"
+- "give tauntbreaker a once per combat flag" (ruling on PR #1939)
 
 ## Tauntbreaker (`tauntbreaker`, set 1 neutral def, drawn by set 1 and set 2)
 
@@ -14,12 +15,11 @@ Owner changes (verbatim):
   the shop tier, never a token), a live `toHand` mid-fight, settled via `playerHandGrants`. Registered in the
   `EffectFactoryId` union, `DAMAGE_METER_MARKERS`, the schema whitelist, the presentation policy registry, the
   core factory + recruit no-ops, and `stepProgress` (the live `n/25` badge on every surface).
-- **Repeat decision:** the owner text prints no per-combat rider, unlike every other Pummel card ("(Once per
-  combat)", "(Twice per combat)", "(Max 5 per combat.)"). The keyword's glossary definition is "Triggers each time
-  this minion has dealt another X damage", and the hero Pummel that prints no rider (Ancient of War x Gorr) repeats.
-  So Tauntbreaker pays every multiple of 25 with no cap. Implemented as `maxPerCombat: 'unlimited'` (the default
-  stays 1, so no other card moves). R-PUMMEL-01's statement now names this case; R-PUMMEL-03 pins it.
-- **Gilded:** "Get **2** random **Shop Spells**", threshold unchanged (the Pummel convention: Kobe, Maestro Lux, Han
+- **Once per combat** (owner ruling on PR #1939: "give tauntbreaker a once per combat flag"). The first cut
+  repeated every 25 because the owner text printed no rider; the owner then ruled once per combat. It uses the
+  `maxPerCombat` default of 1 (no new parameter), and the text prints "(Once per combat)" like Goldvein. The
+  lifetime tally still carries between combats, so the next fight can pay again. Oracle R-PUMMEL-03.
+- **Gilded:** "Get **2** random **Shop Spells**. (Once per combat)", threshold unchanged and still once (the Pummel convention: Kobe, Maestro Lux, Han
   Gover double the payout, never the X). The Rally strip has no gilded variant (it already strips both keywords).
 - Shop phase: the meter only advances on landed hits, so it moves in combat; the tally carries combat to shop to
   combat and the shop badge prints it. A Shop Rally replay (Rune of Lasting Cadence) has no target and no-ops.

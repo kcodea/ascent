@@ -41388,7 +41388,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "dealtDamageGetRandomSpell.maxPerCombat",
         "onAttackStripKeywords.keywords"
       ]
     },

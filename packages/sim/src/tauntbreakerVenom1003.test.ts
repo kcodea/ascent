@@ -8,10 +8,10 @@ import { applyEndOfTurn } from './recruit';
  * OWNER CHANGES 2026-10-03.
  *
  *  - "Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell."
+ *    + ruling on PR #1939: "give tauntbreaker a once per combat flag".
  *    The Rally strip is unchanged; the new Pummel (25) is the shared damage meter (`noteDamageDealt`) with a
- *    random-Shop-Spell body (`dealtDamageGetRandomSpell` → `grantRandomSpell`). The card prints NO per-combat cap,
- *    so it pays EVERY multiple of 25 it crosses (`maxPerCombat: 'unlimited'`), the keyword's own "triggers each
- *    time this minion has dealt another X damage". Gilded: 2 spells per payout, threshold unchanged.
+ *    random-Shop-Spell body (`dealtDamageGetRandomSpell` → `grantRandomSpell`), at most ONCE per combat (the
+ *    `maxPerCombat` default of 1); the lifetime tally still carries between combats. Gilded: 2 spells per payout.
  *  - "Venom -> Execute. just needs the text keyword added to body". Venom already carried the V (Execute)
  *    keyword; only the body text changes.
  */
@@ -38,17 +38,17 @@ const fight = (board: BoardMinion[], foes: BoardMinion[], tier = 6) =>
 const spellsGranted = (r: ReturnType<typeof fight>) => (r.playerHandGrants ?? []).filter((id) => CARD_INDEX[id]?.spell);
 const triggers = (r: ReturnType<typeof fight>) => r.events.filter((e) => e.type === 'pummelTrigger');
 
-describe('Tauntbreaker: "Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell."', () => {
+describe('Tauntbreaker: "Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell. (Once per combat)"', () => {
   it('the card: the Rally strip is unchanged and a passive Pummel (25) meter with a random-Shop-Spell body is added', () => {
     const c = CARD_INDEX['tauntbreaker']!;
     expect([c.tribe, c.tier, c.attack, c.health]).toEqual(['neutral', 4, 6, 4]);
     expect(c.keywords).toEqual(['DS', 'W', 'RL']);
     expect(c.effects).toEqual([
       { on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } },
-      { on: 'passive', do: 'dealtDamageGetRandomSpell', params: { every: 25, count: 1, maxPerCombat: 'unlimited' } },
+      { on: 'passive', do: 'dealtDamageGetRandomSpell', params: { every: 25, count: 1 } },
     ]);
-    expect(c.text).toBe('**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get a random **Shop Spell**.');
-    expect(c.goldenText).toBe('**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get **2** random **Shop Spells**.');
+    expect(c.text).toBe('**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get a random **Shop Spell**. (Once per combat)');
+    expect(c.goldenText).toBe('**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get **2** random **Shop Spells**. (Once per combat)');
     expect(damageMeterOf(c)).toEqual({ do: 'dealtDamageGetRandomSpell', every: 25 });
   });
 
@@ -90,18 +90,25 @@ describe('Tauntbreaker: "Rally: Remove Taunt and Rise from the target. Pummel (2
     expect(SET2).toContain(id);
   });
 
-  it('REPEATS: no cap is printed, so it pays every 25, three hits of 25 pay three spells and one 75 hit pays three', () => {
-    const three = fight([tb({ attack: 25 })], [foe(0, 25), foe(0, 25), foe(0, 25)]);
-    expect(spellsGranted(three)).toHaveLength(3);
-    expect(triggers(three)).toHaveLength(3);
-    const one = fight([tb({ attack: 75 })], [foe(0, 1)]);
-    expect(spellsGranted(one)).toHaveLength(3);
-    expect(triggers(one)).toHaveLength(3);
+  it('ONCE PER COMBAT: 50 damage in one fight (two hits of 25, or one 50 hit) pays ONE spell; the tally still reaches 50', () => {
+    const two = fight([tb({ attack: 25 })], [foe(0, 25), foe(0, 25)]);
+    expect(spellsGranted(two)).toHaveLength(1);
+    expect(triggers(two)).toHaveLength(1);
+    expect(two.playerDamageMeters).toEqual([{ sourceUid: 'tb', total: 50 }]);
+    const one = fight([tb({ attack: 50 })], [foe(0, 1)]);
+    expect(spellsGranted(one)).toHaveLength(1);
+    expect(triggers(one)).toHaveLength(1);
   });
 
-  it('GILDED: 2 Shop Spells per payout, still every 25', () => {
+  it('ONCE PER COMBAT re-arms next fight: seeded at 50, a 25 hit crosses 75 and pays again', () => {
+    const next = fight([tb({ attack: 25, damageDealt: 50 })], [foe(0, 25)]);
+    expect(spellsGranted(next)).toHaveLength(1);
+    expect(next.playerDamageMeters).toEqual([{ sourceUid: 'tb', total: 75 }]);
+  });
+
+  it('GILDED: 2 Shop Spells per payout, still once per combat', () => {
     expect(spellsGranted(fight([tb({ attack: 25, golden: true })], [foe(0, 25)]))).toHaveLength(2);
-    expect(spellsGranted(fight([tb({ attack: 50, golden: true })], [foe(0, 1)]))).toHaveLength(4);
+    expect(spellsGranted(fight([tb({ attack: 50, golden: true })], [foe(0, 1)]))).toHaveLength(2);
   });
 
   it('the spells carry into the real hand at settle, and the meter persists combat → shop → next combat', () => {

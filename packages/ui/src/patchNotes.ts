@@ -60,9 +60,9 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell.',
+        text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell once per combat.',
         details: [
-          'Pummel (25) pays every time Tauntbreaker has dealt another 25 damage, with no limit per combat.',
+          'Pummel (25) pays once per combat. The damage count carries over between combats.',
           'Gilded Tauntbreaker gets 2 random Shop Spells each time.',
           'Tauntbreaker has new art.',
         ],

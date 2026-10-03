@@ -30,7 +30,7 @@ import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { enemyScalersOf, type CombatEvent, type CombatResult, type Keyword, type MinionSnapshot } from '@game/core';
+import { damageMeterOf, enemyScalersOf, type CombatEvent, type CombatResult, type Keyword, type MinionSnapshot } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, sideFromSnapshot, snapshotBoard, type BoardCard, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -66,6 +66,9 @@ const structuralSubject = (id: string): boolean => {
   if (c.ascendAt && c.ascendInto) return true;
   // engraveTallyText: Engrave keyword accrues permanent mid-combat stats.
   if (c.keywords.includes('EG')) return true;
+  // stepProgress's Pummel branch: any card carrying a core `DAMAGE_METER_MARKERS` marker (`damageMeterOf`), so a
+  // new Pummel body is a subject the moment it joins the registry (R-PUMMEL-BADGE-01, 2026-10-03).
+  if (damageMeterOf(c)) return true;
   return false;
 };
 

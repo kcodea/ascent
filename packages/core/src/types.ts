@@ -2255,6 +2255,11 @@ export interface QuestCombatMods {
    *  turn-long BUFF, exactly as in the shop counter: EVERY Shout triggered in combat fires this many extra
    *  times, nothing is consumed. */
   encoreExtra?: number;
+  /** The STANDING permanent Shout extras (`RunState.shoutExtraAlways`: Rune of the Choir, Blasting Voices,
+   *  Hoardwake, Orivax's Chorus, Resonant Path). "Your Shouts trigger an additional time" is cross-phase
+   *  (R-SHOUT-TRIGGER-01, owner report 2026-10-03): EVERY Shout triggered in combat fires this many extra times,
+   *  nothing is consumed — the permanent sibling of `encoreExtra`. */
+  shoutExtraAlways?: number;
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */

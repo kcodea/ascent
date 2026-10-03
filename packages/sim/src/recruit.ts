@@ -11297,17 +11297,27 @@ export function drummerRepeats(state: RunState): number {
   return familyRepeats(state, 'battlecry');
 }
 
-/** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS Warm Embers' one-shot double
- *  while its charges last — consuming one charge. Applies ONLY to real plays (playCard / applyBattlecryTarget),
- *  NOT Myra/Ryme re-fires or combat mirrors (which call `drummerRepeats` directly). A non-Battlecry card never
+/** The STANDING "your Shouts trigger an additional time" extras, shared by EVERY Shout trigger in the shop —
+ *  a played Shout (`playedShoutRepeats`) and a re-triggered one (`replayBattlecry`) alike (R-SHOUT-TRIGGER-01):
+ *  `shoutExtraAlways` (Rune of the Choir, Blasting Voices, Hoardwake, Orivax's Chorus, Resonant Path; permanent,
+ *  stacks) plus `shoutExtraTurn` (Demand an Encore; this turn). Pulses the Choir's badge when it contributes.
+ *  Combat reads the same two fields through `questCombatMods` (`shoutExtraAlways` / `encoreExtra`). */
+function standingShoutExtras(state: RunState): number {
+  const always = state.shoutExtraAlways ?? 0;
+  if (always) procRuneId(state, 'rune_choir');
+  return always + (state.shoutExtraTurn ?? 0);
+}
+
+/** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS the standing extras PLUS Warm
+ *  Embers' one-shot double while its charges last — consuming one charge. The CHARGES (Warm Embers, War Drum)
+ *  apply ONLY to real plays (playCard / applyBattlecryTarget), NOT Auctioneer/Ryme re-fires (which go through
+ *  `replayBattlecry`: Drakko + `standingShoutExtras` only, R-SHOUT-TRIGGER-01). A non-Battlecry card never
  *  consumes a charge (guarded by the onPlay check), so it's safe to call for every played minion. */
 function playedShoutRepeats(state: RunState, def: CardDef): number {
   let n = drummerRepeats(state); // 1 + Drakko's extra
   const isShout = def.effects.some((e) => e.on === 'onPlay');
   if (isShout) {
-    n += state.shoutExtraAlways ?? 0; // Hoardwake / The Hoard Wakes — permanent extra triggers (stacks)
-    if (state.shoutExtraAlways) procRuneId(state, 'rune_choir');
-    n += state.shoutExtraTurn ?? 0;   // GIFT — Demand an Encore: this turn only (cleared at end of turn)
+    n += standingShoutExtras(state); // Choir / Hoardwake (permanent) + Demand an Encore (this turn)
     // Warm Embers — the FIRST Shout you play each turn triggers twice (one freebie per turn).
     if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
       state.shoutFirstUsedThisTurn = true;
@@ -11681,7 +11691,14 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   if (onPlay.length === 0) return false;
   state.karwindFlash = [];
   const ctx = makeContext(state);
-  const repeats = drummerRepeats(state);
+  // A TRIGGERED Shout is a Shout (R-SHOUT-TRIGGER-01, owner report 2026-10-03: "auctioneer w/ rune of the choir
+  // does not work and it should"). The standing "your Shouts trigger an additional time" buffs (Rune of the
+  // Choir, Blasting Voices, Hoardwake, Orivax's Chorus, Resonant Path; Demand an Encore this turn) multiply
+  // EVERY Shout trigger, so they fold in HERE, the one shared re-trigger body every path calls (the Auctioneer's
+  // Pulse, Echoing Roar, Resonance, Ryme in the shop, Rune of the Last Word, Crucible Choir). They used to live
+  // only in `playedShoutRepeats`, so a re-fired Shout got Drakko but silently skipped the Choir. The one-per-turn
+  // CHARGES (Warm Embers, War Drum) stay play-only: those are latches, not standing buffs.
+  const repeats = drummerRepeats(state) + standingShoutExtras(state);
   // A REPLAYED Shout is still a Shout trigger — it must advance `shout` objectives (Echoing Roar, Tooth and
   // Tempo, The Author's Hand) exactly like a played one. Every re-trigger path routes through here — Echoing
   // Roar's End-of-Turn reward, the Resonance spell, Myra's hero power — and none of them counted, so a quest

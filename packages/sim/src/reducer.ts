@@ -7829,6 +7829,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // whenever armed — it is a turn-long buff (the shop counter never consumes it), so there is no
     // "unspent" latch to check; the rollover that clears `shoutExtraTurn` happens after the combat.
     encoreExtra: s.shoutExtraTurn || undefined,
+    // Rune of the Choir & co. (R-SHOUT-TRIGGER-01, owner 2026-10-03): the permanent Shout extras apply to every
+    // Shout TRIGGERED in combat too (cross-phase by default). Like the Encore, a standing buff with no latch.
+    shoutExtraAlways: s.shoutExtraAlways || undefined,
     // Rune of Held Strength (owner rework 2026-08-27 — was a one-shot on purchase): Start of Combat, the left
     // and right-most minions gain the stats of the LEFT-MOST non-spell card in hand, read live here at combat
     // build; `copies` fires the grant once per copy held. No qualifying held card → no grant this fight.

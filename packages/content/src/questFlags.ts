@@ -23,6 +23,7 @@ const EXTRA_COMBAT_FLAG_TO_ID: Record<string, string> = {
   runeStampede: 'rune_stampede',
   runeAdventuring: 'rune_adventuring',
   runeCatacomb: 'rune_catacomb',
+  runeChoir: 'rune_choir', // shoutRepeat — a combat-triggered Shout's standing extra (R-SHOUT-TRIGGER-01)
 };
 
 const FLAG_TO_ID: Record<string, string> = (() => {

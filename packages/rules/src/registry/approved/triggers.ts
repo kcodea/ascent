@@ -817,4 +817,54 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-09-29). Before this the Shop clock kept running behind the Esc menu.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escMenuPausesTimer.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-SHOUT-TRIGGER-01',
+    title: 'A triggered Shout is a Shout: every "your Shouts trigger an extra time" effect applies to it, in the Shop and in combat',
+    statement:
+      'GENERAL FORM: an ability fired through something other than its native trigger (a hero power, a rune, a spell, '
+      + 'an Echo, a Rally) still IS that ability, for every listener: every standing multiplier, tally, watcher and rune '
+      + 'that reads the trigger reads it, in every phase. For Shouts: "Your Shouts trigger an additional time" (Rune of '
+      + 'the Choir, Rune of Blasting Voices, Hoardwake Ritual, Resonant Path, Orivax\'s Chorus) and Demand an Encore\'s '
+      + 'this-turn version apply to EVERY Shout trigger: a Shout played from hand, a Shout the Auctioneer\'s Pulse '
+      + 'triggers, every other Shop re-trigger (Echoing Roar, Resonance, Ryme, Rune of the Last Word, Crucible Choir, '
+      + 'Moira), and every Shout triggered in combat (Ryme / Dawnclaw, Parting Cry, Rune of Shared Scripture, Rune of '
+      + 'Ancestral Roar, Rune of the War Chorus). Extras ADD to Drakko\'s repeats (one fold, never multiplied). The '
+      + 'per-turn CHARGES are separate and unchanged: Warm Embers\' "first Shout you play" stays play-only in the Shop. '
+      + 'SPECIFIC CASE: the Auctioneer with Rune of the Choir. Pulse on a minion fires its Shout twice (three times with '
+      + 'Drakko), and the Choir\'s badge pulses each time. '
+      + 'REASONING: the rune\'s text says "your Shouts", not "Shouts you play", and the Pulse\'s text says "trigger a '
+      + 'Shout". Drakko already followed the trigger into every re-fire, so the Choir silently skipping them was an '
+      + 'inconsistency, not a design. ROOT CAUSE (the class Doc Bot must keep catching): there was no single fold for '
+      + '"how many times does this Shout fire". Each fire site counted for itself. The Choir lived only in '
+      + '`playedShoutRepeats` (the played-from-hand counter); `replayBattlecry` (the one shared Shop re-trigger) read '
+      + 'only Drakko; combat never received the Choir (`questCombatMods` had no field for it); and three forced combat '
+      + 'Shouts looped the onPlay factories by hand and read no Shout extras at all. A code comment ("Applies ONLY to '
+      + 'real plays") was then pinned as if it were a ruling (interactionFamilyMatrix P2). FIX: one Shop fold, '
+      + '`standingShoutExtras`, read by both the played counter and `replayBattlecry`; one combat fold, '
+      + '`ctx.shoutCarryExtras`, now carrying `questCombatMods.shoutExtraAlways`, read by every combat Shout site. '
+      + 'Doc Bot lane `shoutTriggerParity` derives every Shop and combat Shout fire site from source and fails any site '
+      + 'that does not read its phase\'s fold, and checks behaviourally that a standing +1 doubles every entry path.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-03 (Claude Code session)', quote: 'auctioneer w/ rune of the choir does not work and it should. why doesn\'t it work? please fix it and wire the logical fix and reasoning into the oracle for docbot' },
+      { kind: 'card-text', ref: 'packages/content/src/runes.ts rune_choir', quote: 'Your **Shouts** trigger an **additional time**. Get a **Shout** minion.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts standingShoutExtras (read by playedShoutRepeats + replayBattlecry); packages/sim/src/reducer.ts questCombatMods.shoutExtraAlways; packages/core/src/combat/simulate.ts shoutCarryExtras (+ the Shared Scripture / Ancestral Roar / War Chorus loops); packages/content/src/questFlags.ts runeChoir' },
+      { kind: 'docbot-scan', ref: 'packages/sim/src/docbot/shoutTriggerParity.ts', quote: 'first run on the pre-fix source: 4 deaf Shout sites (replayBattlecry, onCombatSpellCast, killOrReborn, performAttack)' },
+    ],
+    currentBehaviour:
+      'Conforms (fix/auctioneer-rune-choir, 2026-10-03). Before: Pulse with the Choir fired the Shout once; the Choir did '
+      + 'nothing for any re-triggered Shop Shout or for any Shout in combat (Blasting Voices\' "in combat" never applied).',
+    cardText: 'Rune of the Choir: "Your **Shouts** trigger an **additional time**. Get a **Shout** minion." Auctioneer, Pulse: "Trigger a friendly minion\'s **Shout**."',
+    example:
+      'Auctioneer owns Rune of the Choir. Board: a Whelpling and a Hoard Cleric ("Shout: give your other Dragons +3/+3"). '
+      + 'Pulse on the Cleric gives the Whelpling +6/+6 (two fires), +9/+9 with Drakko. In combat, Ryme dying beside a '
+      + 'Pennycat summons two Strays instead of one.',
+    contentIds: ['rune_choir', 'rune_blasting_voices', 'q_hoardwake_ritual', 'hq_resonant_path_shout', 'd2_orivax', 'gift_encore'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/auctioneerChoir.test.ts', 'packages/sim/src/docbot/shoutTriggerParity.test.ts', 'packages/sim/src/docbot/interactionFamilyMatrix.test.ts'],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
 ];

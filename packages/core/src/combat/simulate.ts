@@ -1057,6 +1057,10 @@ export function simulate(
       // combat-triggered Shout gets the extras, nothing is latched or decremented (mirrors the shop
       // counter's `n += state.shoutExtraTurn` on every played Shout).
       extra += modsFor(side).encoreExtra ?? 0;
+      // Rune of the Choir & co. (R-SHOUT-TRIGGER-01, owner 2026-10-03): the PERMANENT Shout extras, every
+      // combat-triggered Shout, nothing consumed. The badge pulse rides `questTrigger` (runeChoir → rune_choir).
+      const always = modsFor(side).shoutExtraAlways ?? 0;
+      if (always > 0) { extra += always; fireTrigger('runeChoir', side); }
       return extra;
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -1729,12 +1733,17 @@ export function simulate(
         // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
         const reps = drakkoRepeats(ctx, side);
         for (let r = 0; r < reps; r++) {
-          emit({ type: 'sc', source: shout.uid, text: 'Shout' });
-          for (const effect of shout.effects) {
-            if (effect.on !== 'onPlay') continue;
-            withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
+          // R-SHOUT-TRIGGER-01: a forced Shout is a Shout, so the side's Shout extras (Choir, Encore, the carried
+          // War Drum / Warm Embers charges) apply here exactly as in `replayCombatBattlecry`.
+          const carry = 1 + (ctx.shoutCarryExtras?.(side) ?? 0);
+          for (let f = 0; f < carry; f++) {
+            emit({ type: 'sc', source: shout.uid, text: 'Shout' });
+            for (const effect of shout.effects) {
+              if (effect.on !== 'onPlay') continue;
+              withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
+            }
+            deferShopOnlyShout(ctx, shout); // R-REALTIME-03: a Shop-only Shout fires its line now, its Shop part at settle
           }
-          deferShopOnlyShout(ctx, shout); // R-REALTIME-03: a Shop-only Shout fires its line now, its Shop part at settle
         }
       }
       if (rally) fireFreeRally(rally, side);
@@ -3177,12 +3186,15 @@ export function simulate(
       // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
       const roarReps = drakkoRepeats(ctx, minion.side);
       for (let r = 0; r < roarReps; r++) {
-        emit({ type: 'sc', source: minion.uid, text: 'Shout' });
-        for (const effect of minion.effects) {
-          if (effect.on !== 'onPlay') continue;
-          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        const carry = 1 + (ctx.shoutCarryExtras?.(minion.side) ?? 0); // R-SHOUT-TRIGGER-01: the side's Shout extras
+        for (let f = 0; f < carry; f++) {
+          emit({ type: 'sc', source: minion.uid, text: 'Shout' });
+          for (const effect of minion.effects) {
+            if (effect.on !== 'onPlay') continue;
+            withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+          }
+          deferShopOnlyShout(ctx, minion); // R-REALTIME-03
         }
-        deferShopOnlyShout(ctx, minion); // R-REALTIME-03
       }
     }
     // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
@@ -3809,12 +3821,15 @@ export function simulate(
           // rune copy held (boolean-flag duplicate family, owner 2026-08-27). The two multiply.
           const chorusReps = drakkoRepeats(ctx, attacker.side) * flagCopiesOf(attacker.side, 'runeWarChorus');
           for (let r = 0; r < chorusReps; r++) {
-            emit({ type: 'sc', source: lead.uid, text: 'Shout' });
-            for (const effect of lead.effects) {
-              if (effect.on !== 'onPlay') continue;
-              withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
+            const carry = 1 + (ctx.shoutCarryExtras?.(lead.side) ?? 0); // R-SHOUT-TRIGGER-01: the side's Shout extras
+            for (let f = 0; f < carry; f++) {
+              emit({ type: 'sc', source: lead.uid, text: 'Shout' });
+              for (const effect of lead.effects) {
+                if (effect.on !== 'onPlay') continue;
+                withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
+              }
+              deferShopOnlyShout(ctx, lead); // R-REALTIME-03
             }
-            deferShopOnlyShout(ctx, lead); // R-REALTIME-03
           }
         }
       }

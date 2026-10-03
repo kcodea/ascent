@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed Rune of the Choir not working with the Auctioneer.',
+        details: [
+          "The Auctioneer's Pulse now fires a Shout one extra time per Rune of the Choir, and the rune lights up when it does.",
+          'Every effect that triggers a Shout now gets the extra time too, in the Shop and in combat. This includes Rune of Blasting Voices, Hoardwake Ritual and Orivax.',
+          'Shouts you play from hand work the same as before.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
         details: [
           'Rune of Shopkeep now bursts on the Tier button at End of Turn, and the price drops right then.',

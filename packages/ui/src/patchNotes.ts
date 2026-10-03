@@ -60,6 +60,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell once per combat.',
+        details: [
+          'Pummel (25) pays once per combat. The damage count carries over between combats.',
+          'Gilded Tauntbreaker gets 2 random Shop Spells each time.',
+          'Tauntbreaker has new art.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Venom\'s text now shows its Execute keyword.',
+      },
+      {
+        category: 'Balance',
         text: 'Game strength now reflects your final board.',
         details: [
           'Each game is now rated by its last board, compared with every board seen at that round.',
@@ -122,6 +135,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-02',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Damage taken now pops up briefly on the lobby rail after each fight instead of staying there. Hover a player to see their last fight.',
+        details: [
+          'Each player who lost Health shows the number once as you return to the shop. It rises and fades in about a second and a half.',
+          'Hovering a player lists their last three fights with the damage of each.',
+          'The smoke when a player is knocked out is now a softer, slightly slower veil that stays on their row.',
+        ],
+      },
       {
         category: 'Systems',
         text: "Fixed Rune of the Choir and other Shout effects not working on triggered Shouts, like the Auctioneer's Pulse.",

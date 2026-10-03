@@ -18,7 +18,8 @@ import { join } from 'node:path';
  * and the dev UI editor is not player-facing.
  */
 const UI = __dirname;
-const SKIP = new Set(['AvatarPicker.tsx', 'EditorOverlay.tsx']);
+// SceneBuilderHeroPicker.tsx: the DEV Scene Builder's hero grid, deliberately lazy like the AvatarPicker (59 portraits).
+const SKIP = new Set(['AvatarPicker.tsx', 'EditorOverlay.tsx', 'SceneBuilderHeroPicker.tsx']);
 
 function tsxFiles(dir: string): string[] {
   const out: string[] = [];

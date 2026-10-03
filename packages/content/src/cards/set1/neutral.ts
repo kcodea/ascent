@@ -216,7 +216,9 @@ export const NEUTRAL: CardDef[] = [
     health: 1,
     keywords: ['V'],
     effects: [],
-    text: '',
+    // Owner 2026-10-03: "Venom -> Execute. just needs the text keyword added to body". The behaviour was already the
+    // V keyword (Execute); the body now names it so the keyword pill + glossary show.
+    text: '**Execute.**',
   },
   {
     // Anti-defensive tech — its attacks disarm what they hit: the struck enemy loses Taunt (so your board can
@@ -233,8 +235,17 @@ export const NEUTRAL: CardDef[] = [
     // doublers, and Rune of Rallying's SoC pass all skipped it (owner bug 2026-07-18). The strip factory
     // itself is target-guarded, so doubler/SoC re-fires without a target no-op safely.
     keywords: ['DS', 'W', 'RL'],
-    effects: [{ on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } }],
-    text: '**Rally:** Remove **Taunt** and **Rise** from the target before striking.',
+    // Owner 2026-10-03: "Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random
+    // Shop Spell." The Rally strip is unchanged; the Pummel is the shared damage meter (`noteDamageDealt`) with a
+    // random-Shop-Spell body. Owner ruling 2026-10-03 "give tauntbreaker a once per combat flag": once per combat
+    // (the `maxPerCombat` default of 1); the lifetime tally still carries between combats.
+    // Gilded doubles the payout (2 spells), never the threshold, like every other Pummel.
+    effects: [
+      { on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } },
+      { on: 'passive', do: 'dealtDamageGetRandomSpell', params: { every: 25, count: 1 } },
+    ],
+    text: '**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get a random **Shop Spell**. (Once per combat)',
+    goldenText: '**Rally:** Remove **Taunt** and **Rise** from the target. **Pummel (25):** Get **2** random **Shop Spells**. (Once per combat)',
   },
   {
     // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers

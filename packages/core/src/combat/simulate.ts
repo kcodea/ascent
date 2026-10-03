@@ -2823,6 +2823,17 @@ export function simulate(
       }
       return;
     }
+    if (eff.do === 'dealtDamageGetRandomSpell') {
+      // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell. (Once per combat)" — each payout hands over `count`
+      // (x2 gilded) random Shop Spells through the shared combat spell grant (`grantRandomSpell`: the run's set pool,
+      // up to the side's shop tier, a live `toHand` mid-fight, settled via `playerHandGrants`). Once per combat
+      // (owner ruling 2026-10-03, the `maxPerCombat` default of 1).
+      for (let k = 0; k < pays; k++) {
+        fired();
+        ctx.grantRandomSpell(count, dealer.side, dealer.uid);
+      }
+      return;
+    }
     if (eff.do === 'dealtDamageGetRandomRuby') {
       // Kobe (owner Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — each payout
       // hands over `count` (x2 gilded) Rubies, each a random type, through the combat Ruby carry-back.

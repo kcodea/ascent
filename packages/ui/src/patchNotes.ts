@@ -70,6 +70,19 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell once per combat.',
+        details: [
+          'Pummel (25) pays once per combat. The damage count carries over between combats.',
+          'Gilded Tauntbreaker gets 2 random Shop Spells each time.',
+          'Tauntbreaker has new art.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Venom\'s text now shows its Execute keyword.',
+      },
+      {
+        category: 'Balance',
         text: 'Game strength now reflects your final board.',
         details: [
           'Each game is now rated by its last board, compared with every board seen at that round.',

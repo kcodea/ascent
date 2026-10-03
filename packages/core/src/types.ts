@@ -46,6 +46,7 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
   dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
+  dealtDamageGetRandomSpell: true, // Tauntbreaker (owner 2026-10-03) — "Pummel (25): Get a random Shop Spell. (Once per combat)"
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
@@ -419,6 +420,7 @@ export type EffectFactoryId =
   | 'getRandomRubies' // Ruby Shipment (Ruby batch 2026-09-24) — get N RANDOM Rubies, each drawn separately from all six types
   | 'battlecryPlayRubiesRandomTribe' // Shardluck (Ruby batch 2026-09-24) — play N Rubies, each on a random friendly `tribe` minion
   | 'onSummonCardPlayRubiesSelf' // Gemheart Legionnaire (Ruby batch 2026-09-24) — when a friendly `cardId` is summoned, play N permanent Rubies on this
+  | 'dealtDamageGetRandomSpell' // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell. (Once per combat)" — the shared damage meter with a random-Shop-Spell body (`grantRandomSpell`, x2 gilded), capped by `params.maxPerCombat` (default 1)
   | 'dealtDamageGetRandomRuby' // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — the shared damage meter with a random-Ruby body (`grantRandomRubies`, x2 gilded), capped by `params.maxPerCombat`
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
   | 'armChooseBoth' // Dealer — arm THIS body's own first-Choose-One latch (per instance, not a run counter)

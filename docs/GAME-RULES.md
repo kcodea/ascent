@@ -311,8 +311,9 @@ never touches the ranked ladder (Ranked answers "how am I doing right now"; Acco
 I played"). Live only once the owner has run the migration, deployed `submit-progression` and set the
 progression **epoch**; nothing finished before the epoch counts (no backfill).
 
-- **Match XP.** Ranked: **100** for a completed game, **+40** Top 4, **+60** for 1st, **+25** comeback.
-  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135); a Practice game with
+- **Match XP.** Ranked: **100** for a completed game, **+60** Top 4, **+90** for 1st, **+25** comeback (so a 1st
+  is 250, a Top 4 160; the placement bonuses were 40 / 60 until owner 2026-10-03, "+50% bonuses").
+  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 96 / 150 / 165); a Practice game with
   no meaningful placement (Unlimited Health, played to the curtain) earns a flat **60**. The first completion of
   the current **Learn Ascent** course: **250**, once per account. Scene Builder, sandboxes and quit games: 0.
   No caps, no diminishing returns, no repeat penalties.

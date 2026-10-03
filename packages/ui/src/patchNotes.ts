@@ -78,6 +78,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Achievements you already completed keep the XP they paid.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Top 4 and 1st place now give 50% more bonus XP.',
+        details: [
+          'Ranked: Top 4 now adds 60 XP (was 40) and 1st adds 90 more (was 60).',
+          'A Ranked win is now worth 250 XP and a Top 4 finish 160.',
+          'Practice still earns 60% of the Ranked amount: 150 for a win, 96 for a Top 4.',
+        ],
+      },
     ],
   },
   {

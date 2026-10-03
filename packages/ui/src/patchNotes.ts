@@ -60,14 +60,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'The lobby rail has a cleaner new look.',
+        text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
         details: [
-          'The rail now uses the same dark plate and thin gold edge as the HUD pills, and stays crisp at any height.',
-          'Each opponent row is bigger and easier to read: a larger portrait, a bolder name, and larger Health and Armor chips.',
-          'Your row has a gold edge, your next opponent has a red edge, and Health and Armor use the new heart and shield chips.',
-          'When a player is knocked out, their row puffs into smoke as it fades.',
-          'When you are facing a ghost, its row is marked in teal instead of red.',
-          'The rail is the same size and in the same place as before.',
+          'Rune of Shopkeep now bursts on the Tier button at End of Turn, and the price drops right then.',
+          'End of Turn effects that bank Gold for next turn, raise your max Gold or give a free Refresh now show on the Gold pill or the Refresh button too.',
+          'Replays show the same effects.',
         ],
       },
       {
@@ -189,6 +186,18 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Some frames changed rarity. Burnished, Sterling, Gilded and Seaglass are now Common. Shard and Prism are now Rare.',
           'Frames you already own stay yours.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby rail has a cleaner new look.',
+        details: [
+          'The rail now uses the same dark plate and thin gold edge as the HUD pills, and stays crisp at any height.',
+          'Each opponent row is bigger and easier to read: a larger portrait, a bolder name, and larger Health and Armor chips.',
+          'Your row has a gold edge, your next opponent has a red edge, and Health and Armor use the new heart and shield chips.',
+          'When a player is knocked out, their row puffs into smoke as it fades.',
+          'When you are facing a ghost, its row is marked in teal instead of red.',
+          'The rail is the same size and in the same place as before.',
         ],
       },
     ],

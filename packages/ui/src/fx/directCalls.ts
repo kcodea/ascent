@@ -127,6 +127,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The mid-combat Shop-buff bloom (owner-authored 2026-09-02, replacing `shop-buff-aura` on this surface). The
   // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
   'shop-buff-purple': ['useCombatReplay.ts'],
+  // End-of-Turn economy beats (owner 2026-10-02, R-EOT-ECON-01): the generic self-buff burst played on the HUD control
+  // whose number an End-of-Turn trigger moved (Tier stone, Refresh crystal, Gold pill). See choreographer/resourceFx.ts.
+  'self-buff-burst': ['Recruit.tsx'],
   'shop-tier-up': ['TavernUpButton.tsx'],
   'spell-bounce': ['Recruit.tsx', 'choreo/score.ts'], // see `ruby-bounce` above — the spell family's placeholder twin
   // The Starform's pulls (owner-authored 2026-09-12): the token eating a Shop minion (from the meal's

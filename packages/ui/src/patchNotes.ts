@@ -60,11 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Fixed Rune of the Choir not working with the Auctioneer.',
+        text: "Fixed Rune of the Choir and other Shout effects not working on triggered Shouts, like the Auctioneer's Pulse.",
         details: [
-          "The Auctioneer's Pulse now fires a Shout one extra time per Rune of the Choir, and the rune lights up when it does.",
-          'Every effect that triggers a Shout now gets the extra time too, in the Shop and in combat. This includes Rune of Blasting Voices, Hoardwake Ritual and Orivax.',
-          'Shouts you play from hand work the same as before.',
+          "A Shout triggered by anything now counts as a Shout: the Auctioneer's Pulse, Echoing Roar, Resonance, Ryme, Parting Cry and runes.",
+          'Rune of the Choir, Rune of Blasting Voices, Hoardwake Ritual, Resonant Path, Orivax and Demand an Encore now add their extra triggers to these Shouts, in the Shop and in combat.',
+          'Warm Embers, Opening Act and Rune of the War Drum now apply to the first Shout you trigger each turn, not only the first one you play. Each combat also gets its own Warm Embers double.',
+          'Twin Sun Oath and Rune of the Drake Skull now also work on Shouts triggered in combat.',
+          'Shouts fired by Rune of Shared Scripture, Rune of Ancestral Roar and Rune of the War Chorus now count for Shout quests and Shout effects, and show their own animation.',
         ],
       },
       {

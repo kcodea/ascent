@@ -14,12 +14,14 @@
  *  battlecry × shop replay (Myra/Resonance/Last Word)    PINNED      P1–P2 — recruit.ts replayBattlecry folds
  *                                                                    drummerRepeats (1 + card multiplier) PLUS
  *                                                                    the STANDING extras (Choir / Hoardwake /
- *                                                                    Orivax / Encore) via standingShoutExtras —
+ *                                                                    Orivax / Encore) via shoutFireCount —
  *                                                                    R-SHOUT-TRIGGER-01 (owner 2026-10-03, which
  *                                                                    REVERSED the old "play-only" pin: it rested
- *                                                                    on a code comment, never a ruling). Only the
- *                                                                    per-turn CHARGES (Warm Embers) stay play-only.
- *                                                                    Lane: shoutTriggerParity.
+ *                                                                    on a code comment, never a ruling). The
+ *                                                                    per-turn CHARGES (Warm Embers, War Drum) are
+ *                                                                    spent by a triggered Shout too (owner
+ *                                                                    2026-10-03); all in ONE fold, shoutFireCount.
+ *                                                                    Lane: shoutTriggerParity (full matrix).
  *  battlecry × combat replay (PartingCry/Dawnclaw/Ryme/   PINNED      P9–P10 — owner APPROVE 2026-08-27
  *  Embercrest/AncestralRoar/SharedScripture/WarChorus)               (q-interact-combat-shout-multipliers): EVERY
  *                                                                    combat Shout re-fire folds drakkoRepeats —
@@ -118,14 +120,14 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
   // P2 — battlecry × shop replay: the STANDING Shout extras apply to a replay exactly as to a play
   // (R-SHOUT-TRIGGER-01, owner report 2026-10-03: "auctioneer w/ rune of the choir does not work and it should").
   // This pin used to assert the OPPOSITE (2, "a replay is not a play") on the strength of a code comment, which
-  // is how the Choir × Auctioneer bug sat in plain sight. The per-turn charges (Warm Embers) stay play-only.
+  // is how the Choir × Auctioneer bug sat in plain sight. The per-turn charges are spent by a replay too.
   it('P2: Choir/Hoardwake-style standing extras (`shoutExtraAlways`) DO multiply a replayed Shout, additively with Drakko', () => {
     const s = base([card('d', 'deathswarmer'), card('u', 'footman'), card('m', 'drummer')]);
     (s as { shoutExtraAlways?: number }).shoutExtraAlways = 1;
     const before = s.board.find((c) => c.uid === 'u')!.attack;
     replayBattlecry(s, s.board.find((c) => c.uid === 'd')!);
     expect(s.board.find((c) => c.uid === 'u')!.attack - before,
-      'a triggered Shout is a Shout: 1 + Drakko 1 + Choir 1 (recruit.ts replayBattlecry → standingShoutExtras)').toBe(3);
+      'a triggered Shout is a Shout: 1 + Drakko 1 + Choir 1 (recruit.ts replayBattlecry → shoutFireCount)').toBe(3);
   });
 
   // P3 — same-card multiplier copies: non-stacking best-of; golden doubles the contribution.

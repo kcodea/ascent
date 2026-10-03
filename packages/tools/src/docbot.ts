@@ -23,6 +23,7 @@ import {
 // entrypoint — the same reason `ratchetScan` below is local (D-2 in docs/docbot2/final-report.md).
 import { auditEntrySites, entryScan } from '../../sim/src/docbot/entryPaths';
 import { auditFireSites, rallyDerivation, SYNTHETIC_FIRE_SITES } from '../../sim/src/docbot/firePaths';
+import { auditShoutParity, shoutModifierMatrix } from '../../sim/src/docbot/shoutTriggerParity';
 
 /** The ratchet scan, done locally: the registry is pure data (it rides the public sim entrypoint into the
  *  web bundle), so each node-only consumer builds its own fs-backed scanner from the shared pattern. */
@@ -177,7 +178,7 @@ const NEW_LANES: Array<[string, string, string]> = [
   //    two enumerations were hand-listed instead of derived (the Gifts' arrival path; the Rally watcher set). ──
   ['entry paths', 'packages/sim/src/docbot/entryPaths.test.ts', 'every hand/board entry site in the reducer + recruit engine is derived and classified; every set-less card is driven into play through its REAL path (rune → Discover, minting Shout, Equipment) and its cast must change something — the targeted-Gifts class (9852e16f)'],
   ['fire paths', 'packages/sim/src/docbot/firePaths.test.ts', 'every direct FACTORIES dispatch in core is derived and classified as natural or synthetic; the Rally pair proves a free / multiplied Rally reaches exactly the watchers a natural Rally reaches — the Hawkus class (7e04222d); found Hawkus + Mineral Master missing from the multiplier re-fire on its first run'],
-  ['shout-trigger parity', 'packages/sim/src/docbot/shoutTriggerParity.test.ts', 'R-SHOUT-TRIGGER-01 (owner 2026-10-03, Auctioneer x Rune of the Choir): every shop + combat site that fires a Shout is derived from source and must read its phase Shout-extras fold (standingShoutExtras / playedShoutRepeats / ctx.shoutCarryExtras); behaviourally, a standing +1 doubles every entry path. Found 4 deaf sites on its first run (replayBattlecry, Shared Scripture, Ancestral Roar, War Chorus)'],
+  ['shout-trigger parity', 'packages/sim/src/docbot/shoutTriggerParity.test.ts', 'R-SHOUT-TRIGGER-01 (owner 2026-10-03, Auctioneer x Rune of the Choir): every Shop + combat site that fires a Shout is derived from source and must read its phase fold (shoutFireCount / ctx.shoutCarryExtras), and only replayCombatBattlecry may emit battlecryTriggered; behaviourally, every Shout modifier (Choir family, Blasting Voices, Encore, Warm Embers, War Drum) x every entry path (played, Pulse, replayBattlecry, Ryme, Parting Cry, Shared Scripture, Ancestral Roar, War Chorus) must agree on fires, tally, watcher, edge buff and charge latch. First run: 4 deaf sites, 40 of 48 matrix cells failing'],
   // ── 2026-09-11: the presentation half of the conservation laws. ──
   ['beat conservation', 'packages/sim/src/docbot/beatConservation.test.ts', "after EVERY recruit action the beat stream's claims (Σ stat deltas per uid, grants, summons, destroys, hero Gold) EQUAL the state diff — no consequence twice (the Rope Wrangler / #1374 class), none on the wrong body; un-scoped dispatch sites pinned shrink-only with per-pin repro fixtures; combat `factory:` stamps name a body that carries the effect"],
 ];
@@ -207,6 +208,16 @@ for (const [name, file, what] of NEW_LANES) {
   const cls = (c: string): string[] => rally.observations.filter((o) => o.cls === c).map((o) => o.factory);
   console.log(`  Rally pair: rally-watchers [${cls('rally-watcher').join(', ')}] · attack-watchers [${cls('attack-watcher').join(', ')}] · self-rally ${cls('self-rally').length} · unobserved ${cls('unobserved').length} (each excused)`);
   console.log(`  divergences: ${rally.divergences.length ? rally.divergences.map((d) => `${d.factory}: ${d.problem}`).join(' · ') : 'none — free / multiplied Rallies reach exactly the natural watcher set'}`);
+}
+
+// ── Shout-trigger parity (R-SHOUT-TRIGGER-01) — every Shout modifier × every entry path ─────────────────────────
+{
+  const audit = auditShoutParity();
+  const cells = shoutModifierMatrix();
+  const bad = cells.filter((c) => !c.pass);
+  console.log('\n── Shout-trigger parity — a triggered Shout is a Shout, for every modifier and listener ──');
+  console.log(`  fire sites: shop ${audit.shop.length} · combat ${audit.combat.length} · deaf ${audit.deaf.length} · stray notifies ${audit.strayNotifies.length} · unclassified ${audit.unclassified.length}`);
+  console.log(`  matrix: ${cells.length - bad.length}/${cells.length} cells pass${bad.length ? ` — FAILING: ${bad.map((c) => `${c.modifier} @ ${c.path}`).join(' · ')}` : ''}`);
 }
 
 // ── rulebook enforcement picture ───────────────────────────────────────────────────────────────────────────

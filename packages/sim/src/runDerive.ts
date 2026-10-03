@@ -2,7 +2,7 @@ import { CARD_INDEX, contentRevision, revisionOf, type SetId } from '@game/conte
 import { createRun, isPlayerAction, runRecord, type Action, type BoardCard, type RunState } from './state';
 import { reduce, upgradeCostOf } from './reducer';
 import type { Replay } from './snapshot';
-import type { TelemetrySource } from './runTelemetry';
+import type { RunRegime, TelemetryCapture, TelemetrySource } from './runTelemetry';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { setIdOf } from './cardPool';
 import { comebackAfterLosses, PROGRESSION_FACTS_VERSION, type ProgressionMode, type ProgressionRunFactsV2 } from '@game/progression';
@@ -181,6 +181,10 @@ export interface DerivedRun {
   /** Opponent pool + seat mix at lobby creation (fix 2026-09-28) — see `RunTelemetry.lobbyPool`. Stamped by
    *  the UI at upload; absent on earlier payloads and on non-lobby runs. */
   lobbyPool?: LobbyPoolTelemetry;
+  /** Which flat fields were captured live, and the matchmaking regime (2026-10-03) -- see `RunTelemetry.capture`
+   *  and `RunTelemetry.regime`. Stamped by the UI at upload; absent on earlier payloads. */
+  capture?: TelemetryCapture;
+  regime?: RunRegime;
 }
 
 // ── Derivation ─────────────────────────────────────────────────────────────────────────────────────────────

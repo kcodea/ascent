@@ -304,4 +304,49 @@ export const KEYWORDS_RULES: GameRule[] = [
       + 'from card text and fails if any lacks a registered meter or a badge on either surface.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pummelBadge.test.ts', 'packages/ui/src/damageMeterBadge.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
+  {
+    id: 'R-PUMMEL-03',
+    title: 'Tauntbreaker: Rally strips Taunt and Rise from its target; Pummel (25) gets a random Shop Spell, once per combat',
+    statement:
+      'Tauntbreaker reads "Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell. (Once per '
+      + 'combat)". Each attack removes Taunt AND Rise from the minion it strikes (with no target, as in a Shop Rally replay, '
+      + 'nothing happens and no friendly is disarmed). Its Pummel is the shared lifetime damage meter (R-PUMMEL-01) and pays a '
+      + 'random Shop Spell (the run\'s set pool, at or below the shop tier, never a reward-only token) the moment the meter '
+      + 'crosses a multiple of 25, flying to hand mid-fight. It pays at most ONCE per combat (R-PUMMEL-02): further crossings '
+      + 'in the same fight are spent, the tally still carries between combats, and the next fight can pay again. Gilded gets '
+      + '2 Shop Spells per payout, still once; the threshold stays 25.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner card changes 2026-10-03 (Tauntbreaker)', quote: 'Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell.' },
+      { kind: 'owner-chat', ref: 'Owner ruling on PR #1939, 2026-10-03', quote: 'give tauntbreaker a once per combat flag' },
+      { kind: 'code', ref: 'packages/content/src/cards/set1/neutral.ts tauntbreaker; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageGetRandomSpell, maxPerCombat default 1); packages/ui/src/cardText.ts stepProgress' },
+    ],
+    contentIds: ['tauntbreaker'],
+    currentBehaviour: 'Conforms (built with the change, 2026-10-03).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/tauntbreakerVenom1003.test.ts', 'packages/ui/src/tauntbreakerVenomText.test.ts'],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
+  {
+    id: 'R-EXECUTE-03',
+    title: 'Venom prints its Execute keyword in its body text',
+    statement:
+      'Venom\'s card text reads "Execute." so the Execute keyword pill and glossary entry show on every surface. The '
+      + 'mechanic is unchanged: Venom already carried the Execute keyword (R-EXECUTE-01).',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner card changes 2026-10-03 (Venom)', quote: 'Venom -> Execute. just needs the text keyword added to body' },
+    ],
+    contentIds: ['venom'],
+    currentBehaviour: 'Conforms (2026-10-03). The body text was empty before; the V keyword was already on the card.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/tauntbreakerVenom1003.test.ts', 'packages/ui/src/tauntbreakerVenomText.test.ts'],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
 ];

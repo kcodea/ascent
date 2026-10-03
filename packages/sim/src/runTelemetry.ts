@@ -16,6 +16,8 @@ import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import type { Replay } from './snapshot';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
+import { RUN_STRENGTH_FORMULA, type StrengthFormula } from './lobby/boardStrength';
+import { STRENGTH_BANDS_VERSION } from './lobby/strengthBands';
 
 /**
  * What PRODUCED a telemetry row (2026-09-22). `ladder` is a real, rated lobby run — the only thing the run-end
@@ -88,10 +90,54 @@ export interface RunTelemetry {
    *  upload from `lobbyPoolTelemetryOf(run.lobby)`; rides inside the `derived` jsonb (no SQL). Absent on
    *  earlier rows. */
   lobbyPool?: LobbyPoolTelemetry;
+  /** WHICH FIELDS WERE CAPTURED LIVE (2026-10-03, the export fix). Present = `wins` is the live round-win count and
+   *  the card streams are live; `tierByWave` / `choices` say whether the tier curve and the quest + rune fields were
+   *  too (false only for a run resumed from a save written before live capture existed). Absent = a row written
+   *  before 2026-10-03, whose `wins`, `tierByWave`, quests and runes came from `reconstructRunTelemetry`, a replay
+   *  that diverges for a lobby run (`reportSources.ts` picks the best source per field for those old rows).
+   *  Rides inside `derived` (no column); the flat fetch reads it back as a JSON path. */
+  capture?: TelemetryCapture;
+  /** The matchmaking REGIME the run was played under (2026-10-03): the band table, the strength formula and the
+   *  band asked for / used. Stamped at upload inside `derived`; absent on older rows (the report then INFERS it
+   *  from the build and labels it so, `reportSources.ts`). */
+  regime?: RunRegime;
+}
+
+/** See `RunTelemetry.capture`. */
+export interface TelemetryCapture {
+  v: 1;
+  tierByWave: boolean;
+  choices: boolean;
+}
+
+/** See `RunTelemetry.regime`. `bandsVersion` = `STRENGTH_BANDS_VERSION`, `strengthFormula` = `RUN_STRENGTH_FORMULA`
+ *  of the build that played the run; `band` / `bandUsed` = the band asked for and the one the seats were finally
+ *  drawn from (`"0-30"`, `"uncapped"`), null when the run had no band (Platinum, an unrated table). */
+export interface RunRegime {
+  bandsVersion: string | null;
+  strengthFormula: StrengthFormula | null;
+  band: string | null;
+  bandUsed: string | null;
+}
+
+/** The regime THIS build stamps on a run: the band table and formula in the code, plus the run's own band. */
+export function currentRegime(lobbyPool: Pick<LobbyPoolTelemetry, 'strengthBand' | 'strengthBandUsed'> | null | undefined): RunRegime {
+  return {
+    bandsVersion: STRENGTH_BANDS_VERSION,
+    strengthFormula: RUN_STRENGTH_FORMULA,
+    band: lobbyPool?.strengthBand ?? null,
+    bandUsed: lobbyPool?.strengthBandUsed ?? null,
+  };
 }
 
 /**
- * Reconstruct a finished run's telemetry by replaying its action log. `heroOffer` is the offered hero trio
+ * Reconstruct a finished run's telemetry by replaying its action log.
+ *
+ * NOT FOR LOBBY RUNS (2026-10-03). This replays `(seed, actions)` through a plain `createRun`, with no lobby seats
+ * attached, so a lobby run diverges from its first combat (`snapshot.ts` documents the same for boards): its
+ * `wins`, `tierByWave`, quests and runes come out wrong or truncated (31 of 36 rows on the 2026-10-03 epoch had the
+ * wrong `wins`). A lobby run's row is built from the LIVE log (`lobbyRunTelemetry`); this stays only as the
+ * fallback for a run whose live log is incomplete (a resumed pre-capture save) and for non-lobby modes. `heroOffer` is the offered hero trio
  * (from the UI; the picked hero is `replay.heroId`). Deterministic + pure — safe to run headlessly at run-end.
  */
 export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []): RunTelemetry {
@@ -548,6 +594,20 @@ export interface TelemetryLog {
   /** Shop-offer uids already counted as seen — an offer lingering across turns counts once, a refresh mints
    *  new uids. Serialized as an array so the log survives a quit-and-resume in the save file. */
   seenShopUids: string[];
+  /** LIVE TIER CURVE + CHOICES (2026-10-03). All OPTIONAL so a save written before them still loads: such a log
+   *  creates them on its first action and records the wave it started on in `liveFromWave`, so a resumed run is
+   *  known to be PARTIAL and its row falls back to the replay for these fields rather than reporting a curve that
+   *  begins mid-run. `tierByWave[wave] = tier` at the end of that wave (index 0 unused), the replay's shape. Quest
+   *  and rune ids are deduped arrays (a run sees a handful). `questStart` = the wave each quest first became
+   *  active, for `questTurns`. */
+  liveFromWave?: number;
+  tierByWave?: number[];
+  offeredQuests?: string[];
+  pickedQuests?: string[];
+  questTurns?: Record<string, number>;
+  questStart?: Record<string, number>;
+  offeredRunes?: string[];
+  pickedRunes?: string[];
 }
 
 /** Per-log Set index over `seenShopUids` — see the note in `recordTelemetryAction`. WeakMap-keyed on the
@@ -557,7 +617,22 @@ const SEEN_UID_INDEX = new WeakMap<TelemetryLog, Set<string>>();
 
 export const emptyTelemetryLog = (): TelemetryLog => ({
   offeredCards: [], boughtCards: [], discoverOfferedCards: [], discoverBoughtCards: [], buyEvents: [], seenShopUids: [],
+  // A fresh log starts with the run (wave 1), so its tier curve and choices are complete.
+  liveFromWave: 1, tierByWave: [], offeredQuests: [], pickedQuests: [], questTurns: {}, questStart: {}, offeredRunes: [], pickedRunes: [],
 });
+
+const addOnce = (arr: string[], id: string): void => { if (!arr.includes(id)) arr.push(id); };
+
+/** Each quest's first completion -> the turns it took; mirrors `recordCompletions` in `reconstructRunTelemetry`. */
+function noteQuests(log: TelemetryLog, st: RunState): void {
+  const start = (log.questStart ??= {});
+  const turns = (log.questTurns ??= {});
+  for (const q of st.activeQuests ?? []) {
+    if (!(q.questId in start)) start[q.questId] = st.wave;
+    const done = q.completed || (q.completionCount ?? 0) > 0;
+    if (done && !(q.questId in turns)) turns[q.questId] = Math.max(0, st.wave - (start[q.questId] ?? st.wave));
+  }
+}
 
 /**
  * Fold one dispatched action into the live log. `before`/`after` are the run state either side of `reduce`,
@@ -588,7 +663,27 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
   const slot = before.spell;
   if (slot?.uid && slot.cardId) note(slot.uid, slot.cardId);
 
+  // LIVE TIER CURVE + CHOICES (2026-10-03). A log from an older save lacks these: create them now and remember
+  // the wave capture began, so the row knows this run's curve and choices are partial.
+  if (!log.tierByWave) {
+    log.liveFromWave = before.wave;
+    log.tierByWave = []; log.offeredQuests = []; log.pickedQuests = []; log.questTurns = {}; log.questStart = {}; log.offeredRunes = []; log.pickedRunes = [];
+  }
+  const tiers = log.tierByWave;
+  if (tiers[before.wave] == null) { tiers[before.wave] = before.tier; noteQuests(log, before); }
+  if (before.questOffer) for (const id of before.questOffer) addOnce(log.offeredQuests ??= [], id);
+  if (before.runeforgeOffer) for (const id of before.runeforgeOffer) addOnce(log.offeredRunes ??= [], id);
+
   if (after === before) return log; // rejected action — nothing was acquired
+  tiers[after.wave] = after.tier; // tier only rises, so the last write of a wave is the tier the wave ended on
+  noteQuests(log, after);
+  if (action.type === 'buyQuest' && before.questOffer) {
+    const picked = before.questOffer[action.index];
+    if (picked) addOnce(log.pickedQuests ??= [], picked);
+  } else if (action.type === 'buyRune' && before.runeforgeOffer) {
+    const picked = before.runeforgeOffer[action.index];
+    if (picked) addOnce(log.pickedRunes ??= [], picked);
+  }
   if (action.type === 'buy') {
     // A buy resolves from the shop row OR the right-hand spell slot.
     const card = before.shop?.find((c) => c.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
@@ -605,7 +700,11 @@ export function recordTelemetryAction(log: TelemetryLog, before: RunState, actio
 }
 
 /** Overlay a live-captured log onto a reconstructed row, replacing the replay-derived acquisition streams with
- *  what actually happened. Everything the replay gets right regardless (quests, runes, tier curve) is kept. */
+ *  what actually happened. ONLY the card streams are replaced: the row's `wins`, tier curve, quests and runes stay
+ *  replay-derived, and for a LOBBY run those are wrong or truncated as well (the replay diverges from the first
+ *  combat; the old comment here claimed the replay got them right, which the 2026-10-03 audit disproved). A lobby
+ *  run uses `lobbyRunTelemetry`, which reads every field live; this remains for the partial-log fallback and the
+ *  non-lobby modes. */
 export function withLiveTelemetry(t: RunTelemetry, log: TelemetryLog): RunTelemetry {
   return {
     ...t,
@@ -614,5 +713,53 @@ export function withLiveTelemetry(t: RunTelemetry, log: TelemetryLog): RunTeleme
     discoverOfferedCards: log.discoverOfferedCards.filter((id) => CARD_INDEX[id]),
     discoverBoughtCards: log.discoverBoughtCards.filter((id) => CARD_INDEX[id]),
     buyEvents: log.buyEvents.filter((e) => CARD_INDEX[e.id]),
+  };
+}
+
+/** The live round-win count: every won round of the run's own history (the same count `uploadVictory` sends). */
+export const liveRoundWins = (final: Pick<RunState, 'history'>): number => final.history.reduce((n, r) => (r === 'win' ? n + 1 : n), 0);
+
+/** The live tier curve closed against the run's final state: exactly waves 1..`final.wave` (index 0 unused), the
+ *  final wave's tier read from the final state, a wave with no recorded action carrying the previous wave's tier. */
+export function liveTierByWave(log: Pick<TelemetryLog, 'tierByWave'>, final: Pick<RunState, 'wave' | 'tier'>): number[] {
+  const src = log.tierByWave ?? [];
+  const out: number[] = [];
+  let carry = 1;
+  for (let w = 1; w <= final.wave; w++) {
+    const t = w === final.wave ? Math.max(final.tier, src[w] ?? 0) : src[w];
+    if (t != null) carry = Math.max(carry, t);
+    out[w] = carry;
+  }
+  return out;
+}
+
+/**
+ * THE LOBBY RUN'S TELEMETRY ROW, from live capture (2026-10-03; owner "yes fix these issues" on the export audit).
+ * Every field comes from what the run actually did: `wins` from its own history, the card streams, tier curve,
+ * quests and runes from the live log. Nothing re-simulates the lobby run as an Ascent run.
+ *
+ * The one exception is a run resumed from a save written before live tier/choice capture existed
+ * (`liveFromWave > 1`): its curve and choices would start mid-run, so for those fields alone it calls `fallback`
+ * (the replay) and says so in `capture`. `won` / `placement` are the caller's (only the lobby knows them).
+ */
+export function lobbyRunTelemetry(
+  log: TelemetryLog, final: RunState, heroOffer: string[], fallback: () => RunTelemetry,
+): RunTelemetry {
+  const complete = log.tierByWave != null && (log.liveFromWave ?? 1) <= 1;
+  if (complete) noteQuests(log, final);
+  const base: RunTelemetry = complete
+    ? {
+        heroId: final.heroId, heroOffer, won: false, wins: 0,
+        offeredQuests: [...(log.offeredQuests ?? [])], pickedQuests: [...(log.pickedQuests ?? [])], questTurns: { ...(log.questTurns ?? {}) },
+        offeredRunes: [...(log.offeredRunes ?? [])], pickedRunes: [...(log.pickedRunes ?? [])],
+        offeredCards: [], boughtCards: [], tierByWave: liveTierByWave(log, final),
+      }
+    : fallback();
+  return {
+    ...withLiveTelemetry(base, log),
+    heroId: final.heroId,
+    heroOffer,
+    wins: liveRoundWins(final),
+    capture: { v: 1, tierByWave: complete, choices: complete },
   };
 }

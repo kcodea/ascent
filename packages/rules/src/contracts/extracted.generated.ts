@@ -41386,7 +41386,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
+      "confidence": "medium",
       "unparsed": [
         "onAttackStripKeywords.keywords"
       ]
@@ -41412,18 +41412,33 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "event": "onAttack",
         "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
+      },
+      {
+        "event": "passive",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
         "kind": "onAttackStripKeywords"
+      },
+      {
+        "kind": "dealtDamageGetRandomSpell",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1,
+            "every": 25
+          }
+        }
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
-      "basis": "derived:default",
-      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
+      "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"

@@ -312,7 +312,11 @@ describe('dataQuality + sanitizeRows + epochs', () => {
       row({ id: 5, placement: 1, tierByWave: [0, 1], derived: derived({ finalWave: 12, gold: [{ wave: 3, amount: 1, category: 'income', goldAfter: 4, maxGoldAfter: 4 }, { wave: 1, amount: 1, category: 'income', goldAfter: 4, maxGoldAfter: 4 }] }) }),
     ];
     const q = dataQuality(rows);
-    expect(q).toEqual({ rows: 6, placementMissing: 1, placementMalformed: 2, duplicateIds: 1, withDerived: 3, diverged: 1, stackedStreams: 1, replayDisagree: 1, heroOfferMissing: 1, revisionMissing: 1 });
+    const { sources, ...counts } = q;
+    expect(counts).toEqual({ rows: 6, placementMissing: 1, placementMalformed: 2, duplicateIds: 1, withDerived: 3, diverged: 1, stackedStreams: 1, replayDisagree: 1, heroOfferMissing: 1, revisionMissing: 1 });
+    // The source picker (2026-10-03): the two rows with a usable payload read derived wins and tiers, the rest replay.
+    expect(sources.wins).toEqual({ live: 0, derivedWins: 2, derivedCombats: 0, replay: 4 });
+    expect(sources.tierByWave).toEqual({ live: 0, derived: 2, replay: 4 });
     const s = sanitizeRows(rows);
     expect(s.rows.map((r) => r.id)).toEqual([1, 2, 3, 4, 5]);
     expect([s.duplicateIds, s.placementMalformed]).toEqual([1, 2]);

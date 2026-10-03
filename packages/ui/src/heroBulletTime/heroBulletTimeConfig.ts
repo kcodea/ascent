@@ -1,5 +1,5 @@
 /**
- * THE BULLET TIME HERO ATTACK ("Bullet Time", the Ancient of Time; ANCIENT rarity): its tuned values, its pure timeline,
+ * THE TIMEBREAK HERO ATTACK ("Timebreak", the Ancient of Time; ANCIENT rarity): its tuned values, its pure timeline,
  * the pure dart paths, the slow-mo dip and the pure camera.
  *
  * Owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time". After three rewind builds
@@ -335,7 +335,7 @@ export interface BulletPlan {
 
 export function bulletKind(tier: TierNum): BulletKind { return tier === 1 ? 'dart' : tier === 2 ? 'ring' : tier === 3 ? 'spiral' : 'dome'; }
 
-/** The whole Bullet Time, in base ms. Pure and deterministic. */
+/** The whole Timebreak, in base ms. Pure and deterministic. */
 export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = store.get()): BulletPlan {
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV

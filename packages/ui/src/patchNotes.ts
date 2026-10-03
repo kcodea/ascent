@@ -81,6 +81,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The HUD pills, tooltips and lobby rail got a visual polish.',
+        details: [
+          'Pills and tooltips have a soft top sheen, a bevelled edge and a crisper metal trim.',
+          'Lobby rail rows are easier to tell apart, and your own row has an accent stripe down its left side.',
+          'Health bars in the rail have a recessed track and a glossy fill.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: '150 new achievements to chase.',
         details: [
           'Set 2 tribes: crown a win with 7 of one tribe, and build lifetime totals of Rubies, Ales, spells and consumes.',

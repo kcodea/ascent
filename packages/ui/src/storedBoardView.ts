@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import type { BoardMinion } from '@game/core';
+import { foldTribes, type BoardMinion } from '@game/core';
 import type { CardView } from './Card';
 
 /**
@@ -44,9 +44,8 @@ export function storedCardView(m: BoardMinion): CardView {
   return {
     name: def?.name ?? m.name ?? UNKNOWN_CARD_NAME,
     cardId: m.cardId,
-    tribe,
-    // Anomaly Reactor: show the spell-added tribe badge.
-    tribe2: def?.tribe2 ?? m.addedTribes?.find((t) => t !== tribe),
+    // Added tribes (Anomaly Reactor, Rune of Drakko's run-wide types) fold through the one shared `foldTribes`.
+    ...foldTribes(tribe, def?.tribe2, m.addedTribes),
     attack: m.attack,
     health: m.health,
     keywords: m.keywords ?? [],

@@ -172,7 +172,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {
-    name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2,
+    name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: u.tribe2 ?? def?.tribe2, // the combat body's folded pair (Rune of Drakko / Anomaly Reactor)
     chosenOption: u.chosenOption, // the branch's ART rides into combat with it, same as its text
     attack: u.attack,
     health: Math.max(0, u.health),

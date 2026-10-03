@@ -104,8 +104,8 @@ function friendlyBodiesOf(s: RunState): BoardMinion[] {
 
 /** Mirror of the reducer's `playerState = combatSide({...})` in `faceOmen`, minus `poolIds`. */
 function friendlySideOf(s: RunState): Omit<CombatSideState, 'poolIds'> {
-  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
-  const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length;
+  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast', s)).length;
+  const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit', s)).length;
   const { poolIds: _drop, ...side } = combatSide({
     spellsThisTurn: s.spellsThisTurn,
     firstSpellThisTurnId: s.firstSpellThisTurnId,

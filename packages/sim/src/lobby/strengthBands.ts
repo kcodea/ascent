@@ -33,7 +33,7 @@ export const STRENGTH_BANDS: Readonly<Record<RankMedal, StrengthBand | null>> = 
 });
 
 /** The band TABLE as a version string, read off `STRENGTH_BANDS` itself (2026-10-03, the Balance Report regime
- *  stamp): `"B0-30 S10-40 G20-65 P* D10-100 A20-100"` today (`*` = uncapped). Any threshold change changes the
+ *  stamp): `"B0-30 S10-40 G15-65 P15-100 D25-100 A35-100"` today (`*` = an uncapped null band). Any threshold change changes the
  *  string, so a run stamped with it names the exact bands it was matched under, with no version number to forget. */
 export const STRENGTH_BANDS_VERSION: string = (Object.entries(STRENGTH_BANDS) as [RankMedal, StrengthBand | null][])
   .map(([medal, b]) => `${medal.charAt(0)}${b ? `${b.min}-${b.max}` : '*'}`)

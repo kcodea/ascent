@@ -4,9 +4,10 @@ import { canPlayDefs, playDef } from './fx/playDef';
  * THE KNOCKOUT on the lobby rail (owner ask 2026-10-02: "can you add a simple animation for when a player is knocked
  * out? some pixi smoke/burst as their card fades").
  *
- * A seat that falls plays ONE short Pixi effect (`lobby-knockout`: grey-violet smoke, a puff burst, a few embers)
- * centred on its row, while the row fades into its eliminated look (`.lobbyseat.dead.ko`, a one-shot opacity +
- * transform animation in lobbyRail.css). Works in both rail looks.
+ * A seat that falls plays ONE calm Pixi effect (`lobby-knockout`: a soft grey veil that drifts up and thins out, with a
+ * handful of slow motes; calmed 2026-10-03 from a puff burst + embers the owner found "ugly and jarring"), kept to
+ * its row, while the row eases into its eliminated look (`.lobbyseat.dead.ko`, a one-shot opacity animation in
+ * lobbyRail.css, no swell). About 1.5s. Works in both rail looks.
  *
  * WHEN: eliminations land at the round's settle, under the combat -> shop curtain, so LobbyPanel holds the effect
  * until the curtain is down (`whenCurtainDown`, the same hold as the damage float) and the rail has slid back in.
@@ -15,7 +16,7 @@ import { canPlayDefs, playDef } from './fx/playDef';
  */
 
 /** How long the row's fade runs (lobbyRail.css `lobbyko`); the `ko` class is dropped a little after it. */
-export const LOBBY_KO_MS = 850;
+export const LOBBY_KO_MS = 1400;
 
 /**
  * The seats that were alive in `prevAlive` and are out now: the knockouts to announce. `prevAlive` null means this is

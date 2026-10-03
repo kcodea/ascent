@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-03',
     changes: [
       {
+        category: 'Systems',
+        text: 'The equipment slot has a sleek new look.',
+        details: [
+          'A soft gold-edged socket around the art, a clean name plate, and the cost and charges as neat badges on its corners.',
+          'Every equipment name fits on its plate.',
+          'It follows your UI theme.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'New rune: Rune of Drakko. Get a Drakko, and every Drakko is a Dragon and a Spirit for the rest of the game.',
         details: [

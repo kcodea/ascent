@@ -728,14 +728,354 @@ export const UI_THEMES = {
     hoverEdgeHi: '#ffffff', hoverEdgeMain: '#d2e6ac', hoverEdgeDeep: '#80946a', hoverEdgeLo: '#eef8dc',
     lip: '#48543a', studEdge: '#303826',
   },
+
+  /* ── BASIC (added 2026-10-03, owner ask "make some 'basic' ones as well, that are simple and clean"): a near-flat
+     plate, ONE crisp edge colour (all four edge stops equal), a single accent, and the finish dialled down
+     (UI_THEME_FINISH). ── */
+  /** Cool slate grey, a plain blue-grey edge, white text and one soft-blue accent. */
+  cleanslate: {
+    plateTop: '#35383d', plateMid: '#303337', plateBot: '#2b2e32',
+    edgeHi: '#8f959e', edgeMain: '#8f959e', edgeDeep: '#8f959e', edgeLo: '#8f959e', ring: 'rgba(143, 149, 158, 0.12)',
+    text: '#f4f7fa', muted: '#b0bac6', title: '#ffffff', hl: '#9cc8ff',
+    chipBg: '#18191c', chipEdge: '#646970', chipText: '#ecf0f4', divider: 'rgba(143, 149, 158, 0.12)', icon: '#ffffff',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#9aa0a8', clockFace: '#2e3034', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#3e4147', hoverMid: '#3a3d41', hoverBot: '#35383d',
+    hoverEdgeHi: '#aeb3b9', hoverEdgeMain: '#aeb3b9', hoverEdgeDeep: '#aeb3b9', hoverEdgeLo: '#aeb3b9',
+    lip: '#6b7076', studEdge: '#484a4f',
+  },
+  /** Near-black navy with a quiet steel-blue edge and a clear blue accent. */
+  midnightbasic: {
+    plateTop: '#1a2030', plateMid: '#171c2b', plateBot: '#141826',
+    edgeHi: '#4c5c7c', edgeMain: '#4c5c7c', edgeDeep: '#4c5c7c', edgeLo: '#4c5c7c', ring: 'rgba(76, 92, 124, 0.12)',
+    text: '#eef2fa', muted: '#a2acc2', title: '#e8eefc', hl: '#86b6ff',
+    chipBg: '#0b0d15', chipEdge: '#343f58', chipText: '#e5eaf3', divider: 'rgba(76, 92, 124, 0.12)', icon: '#e8eefc',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#5e6c89', clockFace: '#161a28', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#1f2638', hoverMid: '#1c2233', hoverBot: '#1a1f2f',
+    hoverEdgeHi: '#7e8aa1', hoverEdgeMain: '#7e8aa1', hoverEdgeDeep: '#7e8aa1', hoverEdgeLo: '#7e8aa1',
+    lip: '#39455d', studEdge: '#262e3e',
+  },
+  /** Warm charcoal, a mid-grey edge and one amber accent. */
+  softcharcoal: {
+    plateTop: '#302f2e', plateMid: '#2b2a29', plateBot: '#262524',
+    edgeHi: '#6e6c6a', edgeMain: '#6e6c6a', edgeDeep: '#6e6c6a', edgeLo: '#6e6c6a', ring: 'rgba(110, 108, 106, 0.12)',
+    text: '#f2f0ee', muted: '#b4b0ac', title: '#f6f4f2', hl: '#f2c46b',
+    chipBg: '#151414', chipEdge: '#504e4d', chipText: '#ebe8e6', divider: 'rgba(110, 108, 106, 0.12)', icon: '#f6f4f2',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#7c7b79', clockFace: '#282826', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#363534', hoverMid: '#323130', hoverBot: '#2d2c2b',
+    hoverEdgeHi: '#979594', hoverEdgeMain: '#979594', hoverEdgeDeep: '#979594', hoverEdgeLo: '#979594',
+    lip: '#525150', studEdge: '#373635',
+  },
+  /** Dark warm paper brown with a tan rule edge and ink-orange accents. */
+  paperdark: {
+    plateTop: '#2a2723', plateMid: '#262320', plateBot: '#221f1c',
+    edgeHi: '#a89a82', edgeMain: '#a89a82', edgeDeep: '#a89a82', edgeLo: '#a89a82', ring: 'rgba(168, 154, 130, 0.12)',
+    text: '#f6efe4', muted: '#c0b6a6', title: '#f8eedc', hl: '#ff9a84',
+    chipBg: '#13110f', chipEdge: '#6e6456', chipText: '#f0e8dd', divider: 'rgba(168, 154, 130, 0.12)', icon: '#f8eedc',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#b1a48e', clockFace: '#24211e', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#37322c', hoverMid: '#332f2a', hoverBot: '#2f2b26',
+    hoverEdgeHi: '#c0b6a5', hoverEdgeMain: '#c0b6a5', hoverEdgeDeep: '#c0b6a5', hoverEdgeLo: '#c0b6a5',
+    lip: '#7e7462', studEdge: '#544d41',
+  },
+  /** Steel-blue plate with a lighter steel edge and ice-white titles. */
+  steelbasic: {
+    plateTop: '#253b56', plateMid: '#22364f', plateBot: '#1f3148',
+    edgeHi: '#76a0d0', edgeMain: '#76a0d0', edgeDeep: '#76a0d0', edgeLo: '#76a0d0', ring: 'rgba(118, 160, 208, 0.12)',
+    text: '#f0f6fc', muted: '#aebccc', title: '#e4f0ff', hl: '#a6d0ff',
+    chipBg: '#111b28', chipEdge: '#507096', chipText: '#e8eff6', divider: 'rgba(118, 160, 208, 0.12)', icon: '#e4f0ff',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#84aad5', clockFace: '#20344c', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#2d4562', hoverMid: '#2a415c', hoverBot: '#283c56',
+    hoverEdgeHi: '#9cbbdd', hoverEdgeMain: '#9cbbdd', hoverEdgeDeep: '#9cbbdd', hoverEdgeLo: '#9cbbdd',
+    lip: '#58789c', studEdge: '#3b5068',
+  },
+  /** Plain deep forest green, a sage edge and one leaf-green accent. */
+  forestbasic: {
+    plateTop: '#22362a', plateMid: '#1f3126', plateBot: '#1b2c22',
+    edgeHi: '#6f9a7a', edgeMain: '#6f9a7a', edgeDeep: '#6f9a7a', edgeLo: '#6f9a7a', ring: 'rgba(111, 154, 122, 0.12)',
+    text: '#eff8f1', muted: '#a8c2b0', title: '#e6f4e8', hl: '#9ee0a8',
+    chipBg: '#0f1813', chipEdge: '#4b6b54', chipText: '#e6f2e9', divider: 'rgba(111, 154, 122, 0.12)', icon: '#e6f4e8',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#7da487', clockFace: '#1d2e24', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#2a4032', hoverMid: '#273c2e', hoverBot: '#23372b',
+    hoverEdgeHi: '#97b69f', hoverEdgeMain: '#97b69f', hoverEdgeDeep: '#97b69f', hoverEdgeLo: '#97b69f',
+    lip: '#53745c', studEdge: '#384d3d',
+  },
+  /** Plain deep wine, a dusty rose edge and one pink accent. */
+  winebasic: {
+    plateTop: '#3c1e29', plateMid: '#371b25', plateBot: '#311822',
+    edgeHi: '#a0606e', edgeMain: '#a0606e', edgeDeep: '#a0606e', edgeLo: '#a0606e', ring: 'rgba(160, 96, 110, 0.12)',
+    text: '#fbf0f2', muted: '#d0aab4', title: '#f8e2e8', hl: '#ffa2b4',
+    chipBg: '#1b0d13', chipEdge: '#71414d', chipText: '#f6e8eb', divider: 'rgba(160, 96, 110, 0.12)', icon: '#f8e2e8',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#aa707c', clockFace: '#341a24', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#462530', hoverMid: '#42222c', hoverBot: '#3c1f2a',
+    hoverEdgeHi: '#bb8d97', hoverEdgeMain: '#bb8d97', hoverEdgeDeep: '#bb8d97', hoverEdgeLo: '#bb8d97',
+    lip: '#784852', studEdge: '#503037',
+  },
+  /** Plain near-black with one thin gold edge; gold titles, nothing else. */
+  monogold: {
+    plateTop: '#1c1a16', plateMid: '#191713', plateBot: '#161410',
+    edgeHi: '#d0a442', edgeMain: '#d0a442', edgeDeep: '#d0a442', edgeLo: '#d0a442', ring: 'rgba(208, 164, 66, 0.12)',
+    text: '#f4f1ea', muted: '#b8b2a6', title: '#ecdcae', hl: '#dcb050',
+    chipBg: '#0c0b09', chipEdge: '#7e652d', chipText: '#ede9e2', divider: 'rgba(208, 164, 66, 0.12)', icon: '#ecdcae',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#d5ad55', clockFace: '#181612', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#2e281a', hoverMid: '#2b2518', hoverBot: '#292215',
+    hoverEdgeHi: '#ddbd77', hoverEdgeMain: '#ddbd77', hoverEdgeDeep: '#ddbd77', hoverEdgeLo: '#ddbd77',
+    lip: '#9c7b32', studEdge: '#685221',
+  },
+  /** Plain near-black with one thin silver edge. Pure greyscale apart from the semantics. */
+  monosilver: {
+    plateTop: '#1e1f22', plateMid: '#1b1c1f', plateBot: '#18191b',
+    edgeHi: '#b8bcc4', edgeMain: '#b8bcc4', edgeDeep: '#b8bcc4', edgeLo: '#b8bcc4', ring: 'rgba(184, 188, 196, 0.12)',
+    text: '#f4f5f7', muted: '#b0b3ba', title: '#ffffff', hl: '#d8dde6',
+    chipBg: '#0d0e0f', chipEdge: '#71747a', chipText: '#ecedf0', divider: 'rgba(184, 188, 196, 0.12)', icon: '#ffffff',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#bfc3ca', clockFace: '#1a1a1d', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#2d2f32', hoverMid: '#2b2c30', hoverBot: '#28292c',
+    hoverEdgeHi: '#cccfd5', hoverEdgeMain: '#cccfd5', hoverEdgeDeep: '#cccfd5', hoverEdgeLo: '#cccfd5',
+    lip: '#8a8d93', studEdge: '#5c5e62',
+  },
+  /** Plain navy with a soft blue edge and one gold accent. */
+  navybasic: {
+    plateTop: '#1c2848', plateMid: '#192441', plateBot: '#16203a',
+    edgeHi: '#5f78b8', edgeMain: '#5f78b8', edgeDeep: '#5f78b8', edgeLo: '#5f78b8', ring: 'rgba(95, 120, 184, 0.12)',
+    text: '#f0f3fc', muted: '#a8b4d4', title: '#eef2ff', hl: '#ffd36a',
+    chipBg: '#0c1220', chipEdge: '#405282', chipText: '#e7ebf7', divider: 'rgba(95, 120, 184, 0.12)', icon: '#eef2ff',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#6f86bf', clockFace: '#18223e', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#233053', hoverMid: '#202c4d', hoverBot: '#1d2947',
+    hoverEdgeHi: '#8c9ecc', hoverEdgeMain: '#8c9ecc', hoverEdgeDeep: '#8c9ecc', hoverEdgeLo: '#8c9ecc',
+    lip: '#475a8a', studEdge: '#303c5c',
+  },
+  /** Plain plum with a lilac edge and one orchid accent. */
+  plumbasic: {
+    plateTop: '#352242', plateMid: '#311f3c', plateBot: '#2c1c36',
+    edgeHi: '#9d7ab8', edgeMain: '#9d7ab8', edgeDeep: '#9d7ab8', edgeLo: '#9d7ab8', ring: 'rgba(157, 122, 184, 0.12)',
+    text: '#f8f2fc', muted: '#c6b2d4', title: '#f2e6fb', hl: '#dcaaff',
+    chipBg: '#180f1e', chipEdge: '#6c5180', chipText: '#f2eaf7', divider: 'rgba(157, 122, 184, 0.12)', icon: '#f2e6fb',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#a787bf', clockFace: '#2e1e39', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#3f2b4e', hoverMid: '#3c2848', hoverBot: '#372543',
+    hoverEdgeHi: '#b89fcc', hoverEdgeMain: '#b89fcc', hoverEdgeDeep: '#b89fcc', hoverEdgeLo: '#b89fcc',
+    lip: '#765c8a', studEdge: '#4e3d5c',
+  },
+  /** Plain dark teal-green with a mint edge and one mint accent. The ghost goes lavender so it never reads as the mint. */
+  mintbasic: {
+    plateTop: '#1d322e', plateMid: '#1a2d29', plateBot: '#172825',
+    edgeHi: '#7cc8b0', edgeMain: '#7cc8b0', edgeDeep: '#7cc8b0', edgeLo: '#7cc8b0', ring: 'rgba(124, 200, 176, 0.12)',
+    text: '#effaf6', muted: '#a8c8be', title: '#e6faf2', hl: '#8ef0cc',
+    chipBg: '#0d1614', chipEdge: '#508273', chipText: '#e6f4ef', divider: 'rgba(124, 200, 176, 0.12)', icon: '#e6faf2',
+    heart: '#ff4a62', ghost: '#c0aaff', ...STEEL, clockRim: '#89ceb8', clockFace: '#182a27', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#26413b', hoverMid: '#243c36', hoverBot: '#213833',
+    hoverEdgeHi: '#a1d7c6', hoverEdgeMain: '#a1d7c6', hoverEdgeDeep: '#a1d7c6', hoverEdgeLo: '#a1d7c6',
+    lip: '#5d9684', studEdge: '#3e6458',
+  },
+  /** Plain dark terracotta with a clay edge and one peach accent. */
+  claybasic: {
+    plateTop: '#3a2620', plateMid: '#35221d', plateBot: '#2f1e19',
+    edgeHi: '#c27a5e', edgeMain: '#c27a5e', edgeDeep: '#c27a5e', edgeLo: '#c27a5e', ring: 'rgba(194, 122, 94, 0.12)',
+    text: '#fcf1ec', muted: '#d4b4a8', title: '#fbe6dc', hl: '#ffb48c',
+    chipBg: '#1a100e', chipEdge: '#835241', chipText: '#f7eae4', divider: 'rgba(194, 122, 94, 0.12)', icon: '#fbe6dc',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#c8876e', clockFace: '#32201b', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#482e26', hoverMid: '#432b24', hoverBot: '#3e2720',
+    hoverEdgeHi: '#d39f8b', hoverEdgeMain: '#d39f8b', hoverEdgeDeep: '#d39f8b', hoverEdgeLo: '#d39f8b',
+    lip: '#925c46', studEdge: '#613d2f',
+  },
+  /** Plain black with a grey edge, white text and one yellow accent: the highest-contrast theme. */
+  trueblack: {
+    plateTop: '#161616', plateMid: '#131313', plateBot: '#101010',
+    edgeHi: '#5c5c5c', edgeMain: '#5c5c5c', edgeDeep: '#5c5c5c', edgeLo: '#5c5c5c', ring: 'rgba(92, 92, 92, 0.12)',
+    text: '#ffffff', muted: '#b4b4b4', title: '#ffffff', hl: '#ffd24a',
+    chipBg: '#090909', chipEdge: '#3b3b3b', chipText: '#f6f6f6', divider: 'rgba(92, 92, 92, 0.12)', icon: '#ffffff',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#6c6c6c', clockFace: '#121212', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#1d1d1d', hoverMid: '#1a1a1a', hoverBot: '#181818',
+    hoverEdgeHi: '#8a8a8a', hoverEdgeMain: '#8a8a8a', hoverEdgeDeep: '#8a8a8a', hoverEdgeLo: '#8a8a8a',
+    lip: '#454545', studEdge: '#2e2e2e',
+  },
+
+  /* ── SIGNATURE (added 2026-10-03, "some more unique/in depth ones"): layered, multi-hue plates and edges,
+     material-inspired, several with a stronger gloss (UI_THEME_FINISH). ── */
+  /** A plate that falls from plum-magenta to dusk indigo, a coral-to-gold edge and peach highlights. */
+  sunset: {
+    plateTop: '#5a2440', plateMid: '#3a1a3e', plateBot: '#1a1030',
+    edgeHi: '#ffe0a0', edgeMain: '#ff8a5a', edgeDeep: '#8a2a5a', edgeLo: '#ffc070', ring: 'rgba(255, 192, 112, 0.2)',
+    text: '#fff2ea', muted: '#d8b4c8', title: '#ffd08a', hl: '#ff9a7a',
+    chipBg: '#0e091a', chipEdge: '#66234d', chipText: '#faebe6', divider: 'rgba(255, 192, 112, 0.2)', icon: '#ffbb7c',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#ff966a', clockFace: '#2a1537', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#6f374b', hoverMid: '#532e4a', hoverBot: '#37253d',
+    hoverEdgeHi: '#ffe7b5', hoverEdgeMain: '#ffa47e', hoverEdgeDeep: '#a4597e', hoverEdgeLo: '#ffce8f',
+    lip: '#682044', studEdge: '#45152d',
+  },
+  /** Night teal falling to violet, an edge that runs green into indigo and violet. The ghost goes pink so it never reads as the aurora. */
+  borealis: {
+    plateTop: '#173a48', plateMid: '#152a40', plateBot: '#1a1430',
+    edgeHi: '#d0fff0', edgeMain: '#5ae0b0', edgeDeep: '#3a3a9a', edgeLo: '#c08aff', ring: 'rgba(192, 138, 255, 0.2)',
+    text: '#f0fffa', muted: '#a8c4cc', title: '#b8ffe0', hl: '#e0a8ff',
+    chipBg: '#0e0b1a', chipEdge: '#293372', chipText: '#e7f8f4', divider: 'rgba(192, 138, 255, 0.2)', icon: '#9cf6d2',
+    heart: '#ff4a62', ghost: '#ffa8d8', ...STEEL, clockRim: '#6ae3b8', clockFace: '#181f38', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#275059', hoverMid: '#264352', hoverBot: '#2a2f44',
+    hoverEdgeHi: '#dafff3', hoverEdgeMain: '#7ee7c1', hoverEdgeDeep: '#6565b0', hoverEdgeLo: '#cea4ff',
+    lip: '#2c2c74', studEdge: '#1d1d4d',
+  },
+  /** Blue-black with an iridescent edge that turns violet, deep teal and magenta. The ghost goes gold so it never reads as the teal sheen. */
+  oilslick: {
+    plateTop: '#1e2238', plateMid: '#141826', plateBot: '#0c0e16',
+    edgeHi: '#b0fff0', edgeMain: '#8a5aff', edgeDeep: '#0a5a6a', edgeLo: '#ff8ad8', ring: 'rgba(255, 138, 216, 0.2)',
+    text: '#f2f0ff', muted: '#aab0c8', title: '#c8b8ff', hl: '#6af0d8',
+    chipBg: '#07080c', chipEdge: '#0e3c4b', chipText: '#e9e8f8', divider: 'rgba(255, 138, 216, 0.2)', icon: '#b59cff',
+    heart: '#ff4a62', ghost: '#ffd27a', ...STEEL, clockRim: '#966aff', clockFace: '#10131e', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#323151', hoverMid: '#282841', hoverBot: '#222034',
+    hoverEdgeHi: '#c1fff3', hoverEdgeMain: '#a47eff', hoverEdgeDeep: '#407e8b', hoverEdgeLo: '#ffa4e1',
+    lip: '#084450', studEdge: '#052d35',
+  },
+  /** Deep blue-black with a play-of-colour edge (cyan, violet, fire orange). The ghost goes lavender so it never reads as the cyan. */
+  opal: {
+    plateTop: '#1a2438', plateMid: '#121a2a', plateBot: '#0a0f1a',
+    edgeHi: '#e0fff8', edgeMain: '#4ad8ff', edgeDeep: '#6a2a9a', edgeLo: '#ff9a6a', ring: 'rgba(255, 154, 106, 0.2)',
+    text: '#f0faff', muted: '#a4b4c8', title: '#c8f4ff', hl: '#ffaa70',
+    chipBg: '#06080e', chipEdge: '#422368', chipText: '#e7f2f8', divider: 'rgba(255, 154, 106, 0.2)', icon: '#a2ecff',
+    heart: '#ff4a62', ghost: '#c0aaff', ...STEEL, clockRim: '#5cdcff', clockFace: '#0e1422', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#293c51', hoverMid: '#223445', hoverBot: '#1b2a37',
+    hoverEdgeHi: '#e7fffa', hoverEdgeMain: '#72e1ff', hoverEdgeDeep: '#8b59b0', hoverEdgeLo: '#ffb08b',
+    lip: '#502074', studEdge: '#35154d',
+  },
+  /** Black volcanic glass with a smoked-glass edge, a strong gloss and violet glints. */
+  obsidianglass: {
+    plateTop: '#25252e', plateMid: '#121218', plateBot: '#060609',
+    edgeHi: '#ffffff', edgeMain: '#6e6e86', edgeDeep: '#1a1a24', edgeLo: '#bcbcd4', ring: 'rgba(188, 188, 212, 0.2)',
+    text: '#f4f4ff', muted: '#a8a8bc', title: '#e8e8ff', hl: '#b494ff',
+    chipBg: '#030305', chipEdge: '#16161f', chipText: '#ebebf7', divider: 'rgba(188, 188, 212, 0.2)', icon: '#c3c3db',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#7c7c92', clockFace: '#0c0c10', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#36363f', hoverMid: '#24242c', hoverBot: '#1a1a1f',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#8e8ea1', hoverEdgeDeep: '#4c4c54', hoverEdgeLo: '#cbcbdd',
+    lip: '#14141b', studEdge: '#0d0d12',
+  },
+  /** Black marble with a pale polished-stone edge and gold-vein highlights. */
+  marble: {
+    plateTop: '#3c3934', plateMid: '#26241f', plateBot: '#161512',
+    edgeHi: '#ffffff', edgeMain: '#e2d6bc', edgeDeep: '#7e7258', edgeLo: '#f6eedc', ring: 'rgba(246, 238, 220, 0.2)',
+    text: '#fff8ec', muted: '#bfb8aa', title: '#fff2d8', hl: '#f0c060',
+    chipBg: '#0c0c0a', chipEdge: '#564f3e', chipText: '#f7f0e4', divider: 'rgba(246, 238, 220, 0.2)', icon: '#f6ead0',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#e5dac3', clockFace: '#1e1c18', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#524f49', hoverMid: '#3f3c37', hoverBot: '#312f2b',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#e8dfcb', hoverEdgeDeep: '#9a917d', hoverEdgeLo: '#f8f2e4',
+    lip: '#5e5642', studEdge: '#3f392c',
+  },
+  /** A blue-violet nacre plate with a pearl edge that shifts pink to mint, and peach highlights. */
+  pearl: {
+    plateTop: '#36405c', plateMid: '#2a2c48', plateBot: '#1c1a30',
+    edgeHi: '#ffffff', edgeMain: '#ead8f2', edgeDeep: '#8a90b0', edgeLo: '#c8f0e8', ring: 'rgba(200, 240, 232, 0.2)',
+    text: '#fff8fc', muted: '#c0bcd6', title: '#fff0f8', hl: '#ffc8a8',
+    chipBg: '#0f0e1a', chipEdge: '#5f6381', chipText: '#f7f1f7', divider: 'rgba(200, 240, 232, 0.2)', icon: '#f9e9f6',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#ecdcf3', clockFace: '#23233c', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#4d5570', hoverMid: '#43445e', hoverBot: '#37344a',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#efe1f5', hoverEdgeDeep: '#a4a8c1', hoverEdgeLo: '#d4f3ed',
+    lip: '#686c84', studEdge: '#454858',
+  },
+  /** Glossy red-black lacquer with a vermilion edge and gold-leaf highlights. */
+  lacquer: {
+    plateTop: '#5a1210', plateMid: '#3a0a0a', plateBot: '#1e0505',
+    edgeHi: '#ffa088', edgeMain: '#d02c20', edgeDeep: '#3a0604', edgeLo: '#ff6a50', ring: 'rgba(255, 106, 80, 0.2)',
+    text: '#fff2ea', muted: '#dcaaa4', title: '#ffe2c8', hl: '#ffc04a',
+    chipBg: '#100303', chipEdge: '#3a0807', chipText: '#fbe9e2', divider: 'rgba(255, 106, 80, 0.2)', icon: '#f1ab96',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#d54136', clockFace: '#2c0808', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#6b201d', hoverMid: '#4f1918', hoverBot: '#371413',
+    hoverEdgeHi: '#ffb5a2', hoverEdgeMain: '#da5a51', hoverEdgeDeep: '#653d3b', hoverEdgeLo: '#ff8b76',
+    lip: '#2c0403', studEdge: '#1d0302',
+  },
+  /** Jewel panes (cobalt, purple, ruby) behind a dark leaded edge, with gold titles. */
+  stainedglass: {
+    plateTop: '#1a3466', plateMid: '#3a1a4a', plateBot: '#4a1418',
+    edgeHi: '#b4b4bc', edgeMain: '#55555e', edgeDeep: '#18181c', edgeLo: '#9a9aa4', ring: 'rgba(154, 154, 164, 0.2)',
+    text: '#fff6ee', muted: '#cfbcd0', title: '#ffe08a', hl: '#ffb0a0',
+    chipBg: '#290b0d', chipEdge: '#271931', chipText: '#f9efea', divider: 'rgba(154, 154, 164, 0.2)', icon: '#ccb67d',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#66666e', clockFace: '#421731', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#2a416d', hoverMid: '#462a55', hoverBot: '#542429',
+    hoverEdgeHi: '#c4c4cb', hoverEdgeMain: '#7a7a81', hoverEdgeDeep: '#4b4b4e', hoverEdgeLo: '#b0b0b8',
+    lip: '#121215', studEdge: '#0c0c0e',
+  },
+  /** Charcoal that glows red-hot toward the bottom, with a molten orange edge. */
+  embercoal: {
+    plateTop: '#1e1a1a', plateMid: '#2a1410', plateBot: '#4a1608',
+    edgeHi: '#ffd080', edgeMain: '#ff6a1a', edgeDeep: '#5a1a08', edgeLo: '#ffa040', ring: 'rgba(255, 160, 64, 0.2)',
+    text: '#fff2e8', muted: '#d0b0a4', title: '#ffcf80', hl: '#ff8a4a',
+    chipBg: '#290c04', chipEdge: '#44170c', chipText: '#f9eae0', divider: 'rgba(255, 160, 64, 0.2)', icon: '#ffb161',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#ff7931', clockFace: '#3a150c', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#3a2b25', hoverMid: '#45261d', hoverBot: '#602815',
+    hoverEdgeHi: '#ffda9c', hoverEdgeMain: '#ff8b4c', hoverEdgeDeep: '#7e4c3e', hoverEdgeLo: '#ffb56a',
+    lip: '#441406', studEdge: '#2d0d04',
+  },
+  /** Deep-sea blue-black with a glowing cyan-to-violet edge and jellyfish-magenta highlights. The ghost goes gold so it never reads as the glow. */
+  biolume: {
+    plateTop: '#04202e', plateMid: '#031620', plateBot: '#010a12',
+    edgeHi: '#c0fff8', edgeMain: '#1ae0d0', edgeDeep: '#0a4a6a', edgeLo: '#6a8aff', ring: 'rgba(106, 138, 255, 0.2)',
+    text: '#eefffd', muted: '#94b8c0', title: '#a0fff4', hl: '#e478ff',
+    chipBg: '#01060a', chipEdge: '#073349', chipText: '#e3f6f6', divider: 'rgba(106, 138, 255, 0.2)', icon: '#78f6e9',
+    heart: '#ff4a62', ghost: '#ffd27a', ...STEEL, clockRim: '#31e3d5', clockFace: '#021019', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#123945', hoverMid: '#123138', hoverBot: '#10262c',
+    hoverEdgeHi: '#cefffa', hoverEdgeMain: '#4ce7da', hoverEdgeDeep: '#40728b', hoverEdgeLo: '#8ba4ff',
+    lip: '#083850', studEdge: '#052535',
+  },
+  /** Deep-space black with a periwinkle edge that catches warm starlight, and warm-white titles. */
+  starfield: {
+    plateTop: '#0e1026', plateMid: '#08091c', plateBot: '#030412',
+    edgeHi: '#ffffff', edgeMain: '#a8b4ff', edgeDeep: '#2a2a6a', edgeLo: '#ffe8b0', ring: 'rgba(255, 232, 176, 0.2)',
+    text: '#f6f6ff', muted: '#a8acd0', title: '#fff4d0', hl: '#8ab8ff',
+    chipBg: '#02020a', chipEdge: '#1b1b47', chipText: '#ededf9', divider: 'rgba(255, 232, 176, 0.2)', icon: '#e5e1de',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#b1bcff', clockFace: '#060617', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#252841', hoverMid: '#212338', hoverBot: '#1c1e30',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#bbc4ff', hoverEdgeDeep: '#59598b', hoverEdgeLo: '#ffedc1',
+    lip: '#202050', studEdge: '#151535',
+  },
+  /** Violet storm cloud with a thunderhead edge and lightning-yellow highlights. */
+  tempest: {
+    plateTop: '#2e2a48', plateMid: '#1c1a30', plateBot: '#0e0c1c',
+    edgeHi: '#ffffff', edgeMain: '#9a8ad8', edgeDeep: '#2e2856', edgeLo: '#e4dcff', ring: 'rgba(228, 220, 255, 0.2)',
+    text: '#f6f4ff', muted: '#b4aed0', title: '#e8e4ff', hl: '#fff06a',
+    chipBg: '#08070f', chipEdge: '#262245', chipText: '#eeecf9', divider: 'rgba(228, 220, 255, 0.2)', icon: '#d1c9f3',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#a496dc', clockFace: '#151326', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#413c5d', hoverMid: '#312e47', hoverBot: '#242236',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#b0a4e1', hoverEdgeDeep: '#5c577b', hoverEdgeLo: '#eae4ff',
+    lip: '#221e40', studEdge: '#17142b',
+  },
+  /** Deep scaled green with a gold edge that runs into green and lime, and lime-fire highlights. */
+  dragonscale: {
+    plateTop: '#1e3a20', plateMid: '#12261a', plateBot: '#0a1a10',
+    edgeHi: '#fff4b0', edgeMain: '#d4b440', edgeDeep: '#3a5a10', edgeLo: '#a8d860', ring: 'rgba(168, 216, 96, 0.2)',
+    text: '#f6fbec', muted: '#b0c4a8', title: '#f8e080', hl: '#a0f070',
+    chipBg: '#060e09', chipEdge: '#284314', chipText: '#eef4e4', divider: 'rgba(168, 216, 96, 0.2)', icon: '#edd36d',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#d8bc53', clockFace: '#0e2015', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#384d2e', hoverMid: '#2d3b28', hoverBot: '#253120',
+    hoverEdgeHi: '#fff6c1', hoverEdgeMain: '#ddc46a', hoverEdgeDeep: '#657e45', hoverEdgeLo: '#bbe183',
+    lip: '#2c440c', studEdge: '#1d2d08',
+  },
+  /** Rose-violet dusk with a rose edge that warms to peach gold, and gold highlights. */
+  celestialrose: {
+    plateTop: '#4a2040', plateMid: '#2e1430', plateBot: '#1a0c22',
+    edgeHi: '#fff4f0', edgeMain: '#f0a8c0', edgeDeep: '#7a3a6a', edgeLo: '#ffd8b0', ring: 'rgba(255, 216, 176, 0.2)',
+    text: '#fff4f8', muted: '#d4b4cc', title: '#ffe4ec', hl: '#ffd080',
+    chipBg: '#0e0713', chipEdge: '#582950', chipText: '#faecf3', divider: 'rgba(255, 216, 176, 0.2)', icon: '#fad2df',
+    heart: '#ff4a62', ghost: '#4fdccb', ...STEEL, clockRim: '#f2b1c6', clockFace: '#241029', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#5f3653', hoverMid: '#482b46', hoverBot: '#362439',
+    hoverEdgeHi: '#fff6f3', hoverEdgeMain: '#f3bbce', hoverEdgeDeep: '#97658b', hoverEdgeLo: '#ffe1c1',
+    lip: '#5c2c50', studEdge: '#3d1d35',
+  },
+  /** Peacock teal-blue with an edge of green-gold and deep blue, and blue-violet highlights. The ghost goes pink so it never reads as the teal. */
+  peacock: {
+    plateTop: '#0e3040', plateMid: '#0a2030', plateBot: '#061420',
+    edgeHi: '#f0ffb0', edgeMain: '#3ac0a0', edgeDeep: '#1a3a7a', edgeLo: '#b0d040', ring: 'rgba(176, 208, 64, 0.2)',
+    text: '#f0fcff', muted: '#a0bcc4', title: '#c8f8e0', hl: '#a4b4ff',
+    chipBg: '#030b12', chipEdge: '#132e59', chipText: '#e6f4f8', divider: 'rgba(176, 208, 64, 0.2)', icon: '#9de7cd',
+    heart: '#ff4a62', ghost: '#ffb0d0', ...STEEL, clockRim: '#4ec6aa', clockFace: '#081a28', warn: '#ffb0c0', ...WARN,
+    hoverTop: '#1e4651', hoverMid: '#1a3843', hoverBot: '#162d35',
+    hoverEdgeHi: '#f3ffc1', hoverEdgeMain: '#65ceb5', hoverEdgeDeep: '#4c6597', hoverEdgeLo: '#c1da6a',
+    lip: '#142c5c', studEdge: '#0d1d3d',
+  },
 } as const satisfies Record<string, UiThemeTokens>;
 
 export type UiThemeId = keyof typeof UI_THEMES;
 /** The tuner dropdown, grouped by colour scheme into `<optgroup>` sections (owner ask on #1926: "separate them by
  *  color scheme i.e. blue: x,y,z"). The six original families lead with their original theme; Earth, Metal, Neon
- *  and Pastel Night were added with the 60-theme set. Every theme sits in exactly one group (tooltipStyle.test.ts
- *  checks). */
+ *  and Pastel Night were added with the 60-theme set; Basic (at the top, owner ask) and Signature with the 90-theme
+ *  set. Every theme sits in exactly one group (tooltipStyle.test.ts checks). The DEV tuner puts a "Shortlisted"
+ *  group above these (uiThemeConfig.ts); that one is per-machine, so it is not part of the registry. */
 export const UI_THEME_GROUPS: readonly { label: string; options: readonly UiThemeId[] }[] = [
+  { label: 'Basic', options: ['cleanslate', 'midnightbasic', 'softcharcoal', 'paperdark', 'steelbasic', 'forestbasic', 'winebasic', 'monogold', 'monosilver', 'navybasic', 'plumbasic', 'mintbasic', 'claybasic', 'trueblack'] },
+  { label: 'Signature', options: ['sunset', 'borealis', 'oilslick', 'opal', 'obsidianglass', 'marble', 'pearl', 'lacquer', 'stainedglass', 'embercoal', 'biolume', 'starfield', 'tempest', 'dragonscale', 'celestialrose', 'peacock'] },
   { label: 'Gold', options: ['gem', 'sunforge', 'honeycomb', 'gilded', 'champagne'] },
   { label: 'Red & Fire', options: ['ember', 'crimson', 'infernal', 'bloodmoon', 'furnace', 'volcanic', 'garnet'] },
   { label: 'Pink & Violet', options: ['amethyst', 'rose', 'celestial', 'orchid', 'nebula', 'sakura', 'twilight'] },
@@ -811,7 +1151,97 @@ export const UI_THEME_LABELS: Record<UiThemeId, string> = {
   charcoal: 'Charcoal Mono',
   graphite: 'Graphite',
   inkpaper: 'Ink & Parchment',
+  cleanslate: 'Clean Slate',
+  midnightbasic: 'Midnight',
+  softcharcoal: 'Soft Charcoal',
+  paperdark: 'Paper Dark',
+  steelbasic: 'Steel Blue',
+  forestbasic: 'Forest',
+  winebasic: 'Wine',
+  monogold: 'Mono Gold',
+  monosilver: 'Mono Silver',
+  navybasic: 'Navy',
+  plumbasic: 'Plum',
+  mintbasic: 'Mint',
+  claybasic: 'Clay',
+  trueblack: 'True Black',
+  sunset: 'Sunset Blaze',
+  borealis: 'Borealis',
+  oilslick: 'Oil Slick',
+  opal: 'Black Opal',
+  obsidianglass: 'Obsidian Glass',
+  marble: 'Black Marble',
+  pearl: 'Mother-of-Pearl',
+  lacquer: 'Cinnabar Lacquer',
+  stainedglass: 'Stained Glass',
+  embercoal: 'Ember Coal',
+  biolume: 'Bioluminescence',
+  starfield: 'Starfield',
+  tempest: 'Tempest',
+  dragonscale: 'Dragonscale',
+  celestialrose: 'Celestial Rose',
+  peacock: 'Peacock',
 };
 
 /** The theme production plays: uiTheme.css's `:root` block must equal it. Gem Gold until the owner picks. */
 export const DEFAULT_THEME: UiThemeId = 'gem';
+
+/**
+ * THE TIER of each theme (owner ask 2026-10-03: "we may add these to collections"). METADATA ONLY: nothing reads it
+ * at runtime today. A future `ui_theme` Collection cosmetic can map it to a rarity (for example basic = common,
+ * standard = rare, signature = epic). `basic`: simple, flat and clean (the Basic group). `standard`: the original
+ * sixty, by colour family. `signature`: the layered, multi-hue, material-inspired set (the Signature group).
+ */
+export type UiThemeTier = 'basic' | 'standard' | 'signature';
+const BASIC_IDS: readonly UiThemeId[] = ['cleanslate', 'midnightbasic', 'softcharcoal', 'paperdark', 'steelbasic', 'forestbasic', 'winebasic', 'monogold', 'monosilver', 'navybasic', 'plumbasic', 'mintbasic', 'claybasic', 'trueblack'];
+const SIGNATURE_IDS: readonly UiThemeId[] = ['sunset', 'borealis', 'oilslick', 'opal', 'obsidianglass', 'marble', 'pearl', 'lacquer', 'stainedglass', 'embercoal', 'biolume', 'starfield', 'tempest', 'dragonscale', 'celestialrose', 'peacock'];
+export const UI_THEME_TIERS: Record<UiThemeId, UiThemeTier> = Object.fromEntries(
+  (Object.keys(UI_THEMES) as UiThemeId[]).map((id) => [id, BASIC_IDS.includes(id) ? 'basic' : SIGNATURE_IDS.includes(id) ? 'signature' : 'standard']),
+) as Record<UiThemeId, UiThemeTier>;
+
+/**
+ * THE FINISH (added 2026-10-03 for the Basic themes): how strongly a theme wears the shared plate sheen (`--ui-sheen`,
+ * the top-centre highlight) and bevel (`--ui-bevel`, the lit top line and shaded bottom lip). Both are multipliers
+ * on the shipped alphas, written to `--ui-sheen-strength` / `--ui-bevel-strength`: 1 is the look every theme had
+ * before (the default, and what uiTheme.css declares), 0 removes it, above 1 is glossier (glass, lacquer, pearl).
+ * OPTIONAL: a theme absent here plays 1 / 1, so the original sixty look exactly as before. Unitless numbers only,
+ * so a finish can never move or resize anything. (A flat, single-colour edge needs no new token: the Basic themes
+ * set all four edge stops to one colour.)
+ */
+export interface UiThemeFinish { sheen: number; bevel: number }
+export const UI_FINISH_DEFAULT: UiThemeFinish = { sheen: 1, bevel: 1 };
+export const UI_FINISH_VARS: Record<keyof UiThemeFinish, string> = { sheen: '--ui-sheen-strength', bevel: '--ui-bevel-strength' };
+export const UI_THEME_FINISH: Partial<Record<UiThemeId, UiThemeFinish>> = {
+  cleanslate: { sheen: 0.3, bevel: 0.45 },
+  midnightbasic: { sheen: 0.3, bevel: 0.45 },
+  softcharcoal: { sheen: 0.3, bevel: 0.45 },
+  paperdark: { sheen: 0.3, bevel: 0.45 },
+  steelbasic: { sheen: 0.3, bevel: 0.45 },
+  forestbasic: { sheen: 0.3, bevel: 0.45 },
+  winebasic: { sheen: 0.3, bevel: 0.45 },
+  monogold: { sheen: 0.3, bevel: 0.45 },
+  monosilver: { sheen: 0.3, bevel: 0.45 },
+  navybasic: { sheen: 0.3, bevel: 0.45 },
+  plumbasic: { sheen: 0.3, bevel: 0.45 },
+  mintbasic: { sheen: 0.3, bevel: 0.45 },
+  claybasic: { sheen: 0.3, bevel: 0.45 },
+  trueblack: { sheen: 0.3, bevel: 0.45 },
+  sunset: { sheen: 1.2, bevel: 1 },
+  borealis: { sheen: 1.2, bevel: 1 },
+  oilslick: { sheen: 1.5, bevel: 1.1 },
+  opal: { sheen: 1.4, bevel: 1 },
+  obsidianglass: { sheen: 1.9, bevel: 1.35 },
+  marble: { sheen: 1.4, bevel: 1.1 },
+  pearl: { sheen: 1.6, bevel: 1 },
+  lacquer: { sheen: 1.8, bevel: 1.2 },
+  stainedglass: { sheen: 1.3, bevel: 1.2 },
+  embercoal: { sheen: 0.9, bevel: 1.1 },
+  biolume: { sheen: 1.2, bevel: 1 },
+  starfield: { sheen: 1.3, bevel: 1 },
+  tempest: { sheen: 1.2, bevel: 1.2 },
+  dragonscale: { sheen: 1.2, bevel: 1.3 },
+  celestialrose: { sheen: 1.4, bevel: 1 },
+  peacock: { sheen: 1.3, bevel: 1.1 },
+};
+/** A theme's finish, with the default filled in. */
+export const uiThemeFinish = (id: UiThemeId): UiThemeFinish => UI_THEME_FINISH[id] ?? UI_FINISH_DEFAULT;

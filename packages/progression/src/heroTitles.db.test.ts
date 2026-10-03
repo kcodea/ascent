@@ -28,6 +28,8 @@ const FILES = [
 const MVP = read('2026-09-27-account-progression.sql');
 const ACH = read('2026-09-28-achievements.sql');
 const HERO = read('2026-09-29-hero-titles.sql');
+/** The newest settle_progression (2026-10-03, "+50% bonuses"): the runbook re-runs it after the hero titles file. */
+const PLACEMENT_XP = read('2026-10-03-placement-xp.sql');
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -123,6 +125,7 @@ describe('the backfill (runs BEFORE the new code catalog is synced, like the own
     await db.query("insert into public.player_cosmetics (user_id, cosmetic_id, source) values ($1, 'title_hero_soren', 'test') on conflict do nothing", [ten]);
     await db.query("update public.profiles set equipped_title_id = 'title_hero_soren' where user_id = $1", [ten]);
     await db.exec(HERO); // the owner's re-run: idempotent, and it upgrades the worn base title now the master is owned
+    await db.exec(PLACEMENT_XP); // then the newer writer on top (its XP is the one the TS rules state)
     const tier = async (u: string, id: string) => one<{ progress: string; completed: boolean } | undefined>(
       'select progress, completed_at is not null as completed from public.achievement_progress where user_id = $1 and achievement_id = $2', [u, id]);
     expect(await tier(two, 'hero.warden.titled')).toEqual({ progress: 2, completed: false });

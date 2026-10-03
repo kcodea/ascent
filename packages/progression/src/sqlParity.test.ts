@@ -44,12 +44,14 @@ const gauntlet = readFileSync(join(root, 'supabase/migrations/2026-09-29-gauntle
 const frames = readFileSync(join(root, 'supabase/migrations/2026-10-01-portrait-frames.sql'), 'utf8');
 // The Ancient rarity file (2026-10-02): the newest progression_crate_pick + open_crate (five rarities, roll version 4).
 const ancient = readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8');
+// The placement XP file (2026-10-03, owner "+50% bonuses"): the newest settle_progression (Top 4 60, 1st 90).
+const placementXp = readFileSync(join(root, 'supabase/migrations/2026-10-03-placement-xp.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -159,6 +161,7 @@ describe('the migration shape', () => {
       [ach, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [ach, 'sync_achievement_catalog', 'jsonb, text'],
       [heroTitles, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
+      [placementXp, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
     ] as const) {
       const at = text.indexOf(`create or replace function public.${fn}(`);
       const head = text.slice(at, text.indexOf('as $$', at));
@@ -180,7 +183,7 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet, ancient].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet, ancient, placementXp].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
@@ -199,11 +202,15 @@ describe('the migration shape', () => {
 });
 
 describe('the crates migration (2026-09-28)', () => {
-  it('replaces settle_progression WITHOUT changing a single XP / curve / title constant (every later writer keeps the MVP ones)', () => {
+  it('replaces settle_progression WITHOUT changing a single XP / curve / title constant (every later writer keeps the MVP ones, except the 2026-10-03 placement bonuses)', () => {
     const consts = (body: string): string[] => [...body.matchAll(/^\s*(c_[a-z_]+)\s+constant\s+[a-z]+\s*:=\s*([^;]+);/gm)].map((m) => `${m[1]}=${m[2]!.trim()}`);
     const mvp = consts(settleMvp);
     expect(consts(fnBody('settle_progression', crates))).toEqual(mvp);
-    expect(consts(settle).slice(0, mvp.length)).toEqual(mvp);
+    expect(consts(fnBody('settle_progression', heroTitles)).slice(0, mvp.length)).toEqual(mvp);
+    // Owner 2026-10-03 ("+50% bonuses"): the newest writer moves exactly the two placement bonuses, nothing else.
+    const bonus = (c: string): string => c.replace(/^c_top_four=40$/, 'c_top_four=60').replace(/^c_first_place=60$/, 'c_first_place=90');
+    expect(consts(settle).slice(0, mvp.length)).toEqual(mvp.map(bonus));
+    expect(mvp.filter((c) => bonus(c) !== c)).toEqual(['c_top_four=40', 'c_first_place=60']);
     expect(mvp.length).toBeGreaterThan(10);
   });
 

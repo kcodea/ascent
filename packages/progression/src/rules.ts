@@ -10,7 +10,7 @@
  * `npm run progression:shared` copies this file VERBATIM into
  * `supabase/functions/_shared/progressionRules.ts`, the module the `submit-progression` Edge Function (Deno)
  * imports. `sharedArtifact.test.ts` fails CI when the two drift, so there is exactly ONE hand-edited copy of the
- * TypeScript rules. The SQL writer (`settle_progression`, latest in the 2026-09-28 crates migration) carries the same numbers
+ * TypeScript rules. The SQL writer (`settle_progression`, latest in the 2026-10-03 placement-xp migration) carries the same numbers
  * as plpgsql constants; `sqlParity.test.ts` reads them out of the migration text and compares, and the Edge
  * Function re-derives every settlement from this file at runtime and flags `parity: false` on a mismatch.
  *
@@ -115,10 +115,10 @@ export const PROGRESSION_MODES: readonly ProgressionMode[] = ['ranked', 'practic
 export const XP_RULES = {
   /** Complete an accepted Ranked run. */
   complete: 100,
-  /** Finish Top 4 (1st to 4th). */
-  topFour: 40,
-  /** Finish 1st (on top of Top 4). */
-  firstPlace: 60,
+  /** Finish Top 4 (1st to 4th). 40 until owner 2026-10-03 ("+50% bonuses"). */
+  topFour: 60,
+  /** Finish 1st (on top of Top 4). 60 until owner 2026-10-03 ("+50% bonuses"). */
+  firstPlace: 90,
   /** Win a combat right after 4+ consecutive combat losses, once per run. */
   comeback: 25,
   /** The loss streak the comeback needs. */
@@ -155,7 +155,7 @@ export const isValidPlacement = (p: unknown): p is number => typeof p === 'numbe
  * The XP one settlement awards, from the facts the SERVER trusts: the mode, the placement (null when the game
  * has no meaningful placement) and whether the comeback bonus applies. A non-terminal game earns nothing.
  *
- *  - Ranked: 100 + 40 (Top 4) + 60 (1st) + 25 (comeback). A ranked game with no valid placement earns nothing
+ *  - Ranked: 100 + 60 (Top 4) + 90 (1st) + 25 (comeback). A ranked game with no valid placement earns nothing
  *    (it was never accepted by the ladder).
  *  - Practice: each component at 60%, the rounding remainder folded into `base` so `total` is exactly
  *    `round(0.60 * equivalent ranked XP)`. No meaningful placement: a flat 60, no bonuses.

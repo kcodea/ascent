@@ -215,8 +215,10 @@ async function measure(): Promise<void> {
     console.log(`  ${r.key}: before ${weighted.get(r.key)} -> after ${strength.get(r.key)} (last round ${last})`);
   }
   const bandCount = (m: Map<string, number | null>, lo: number, hi: number): number => [...m.values()].filter((v) => typeof v === 'number' && v >= lo && v <= hi).length;
-  for (const [name, lo, hi] of [['Bronze', 0, 30], ['Silver', 10, 40], ['Gold', 20, 65], ['Diamond', 10, 100], ['Ascendant', 20, 100]] as const) {
-    console.log(`  ${name} ${lo}-${hi}: before ${bandCount(weighted, lo, hi)} runs, after ${bandCount(strength, lo, hi)} runs`);
+  for (const medal of RANK_MEDALS) {
+    const b = STRENGTH_BANDS[medal];
+    const [lo, hi] = b ? [b.min, b.max] : [0, 100];
+    console.log(`  ${medal} ${fmtBand(b)}: before ${bandCount(weighted, lo, hi)} runs, after ${bandCount(strength, lo, hi)} runs`);
   }
   // Before / after the round weighting: the runs whose strength moves most, with their per-group means.
   const groupMeans = (key: string): string => {

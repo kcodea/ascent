@@ -1,4 +1,4 @@
-# 2026-10-03 · Game strength is the final board, and no backend read is cut at 1,000 rows
+# 2026-10-03 · Game strength is the final board, bands retuned, and no backend read is cut at 1,000 rows
 
 Owner report (2026-10-03), on Rooks's Albus game (12-1, a final board of seven small minions) showing **Game strength
 83**: *"that board in my mind should not even be close to an 83 unless that number is different from our snapshot
@@ -51,8 +51,9 @@ caring about the snapshots final round board strength?"* Rules: **R-LOBBY-12** (
 
 - **Used directly, not re-ranked.** Ranking a round-6 death's final board against runs that reached round 15 mixes
   scales. The direct number means one thing everywhere: "beat N% of the boards seen at that round".
-- **Band thresholds unchanged** (Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant
-  20-100). On the live pool this inverts Gold and Platinum (below). A change is proposed, not made.
+- **Band thresholds retuned by the owner** (same day, below): *"make gold 15-65, platinum 15-100, diamond 25-100, and
+  ascendant 35-100"*. Bronze 0-30 and Silver 10-40 are unchanged. The bands live only in TS (`STRENGTH_BANDS`): the
+  client sends the band to `pool_runs_sample` as `p_strength_min` / `p_strength_max`, so no SQL changes for them.
 - **Old frozen numbers stay.** Match history rows keep the number they were frozen with.
 
 ## Live pool, before and after (anon reads, `npm run strength -- measure`, 170 eligible set-2 runs)
@@ -68,24 +69,25 @@ Final-board strength: min 1, p10 4, p25 13, **median 32**, p75 62, p90 79, max 9
 | Orangez / Gildmaster (14) | 89 | 49 |
 | Orangez / Indy (16) | 92 | 67 |
 
-| Band | Runs before | Runs after | Mean seat after (200 lobbies) |
-|---|---|---|---|
-| Bronze 0-30 | 50 | 82 | 12.3 |
-| Silver 10-40 | 57 | 68 | 22.1 |
-| Gold 20-65 | 78 | 69 | 41.2 |
-| Platinum uncapped | 170 | 170 | **37.3** |
-| Diamond 10-100 | 158 | 139 | 45.2 |
-| Ascendant 20-100 | 137 | 105 | 55.1 |
+With the OLD thresholds (Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant
+20-100), final-board strength gave mean seats of 12.3, 22.1, 41.2, **37.3**, 45.2 and 55.1, so Platinum averaged below
+Gold. I proposed raising the upper floors. The owner picked: **Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant
+35-100**.
 
-No band needs widening (0 widenings, 0 generated seats, every medal). **Platinum now averages below Gold.** Proposed
-for the owner:
+Final bands on the live pool (170 eligible runs, final-board strength, 200 simulated lobbies per medal):
 
-- **B (recommended): raise the upper floors.** Platinum 15-100, Diamond 25-100, Ascendant 35-100; Bronze, Silver and
-  Gold unchanged. On the live pool the upper medals then average about 49, 58 and 63, close to the owner's "~50, ~55,
-  ~60" of 2026-09-30, and the ladder is monotone again.
-- **A: map every threshold by share** (each band keeps the share of runs it had). Bronze 0-15, Silver 4-20, Gold
-  12-46, Platinum uncapped, Diamond 4-100, Ascendant 12-100. This gives the same table mix as before, but the numbers
-  stop meaning what the owner set them to mean.
+| Band | Runs in band | Players | Fillable seats (4-cap) | Mean seat | Strongest / weakest seat | Widenings |
+|---|---|---|---|---|---|---|
+| Bronze 0-30 | 82 | 10 | 24 | 12.3 | 23.5 / 2.4 | 0 of 200 |
+| Silver 10-40 | 68 | 7 | 17 | 22.1 | 35.3 / 12.1 | 0 of 200 |
+| Gold 15-65 | 87 | 7 | 17 | 36.2 | 58.2 / 17.5 | 0 of 200 |
+| Platinum 15-100 | 123 | 8 | 19 | 49.4 | 83.3 / 19.7 | 0 of 200 |
+| Diamond 25-100 | 95 | 7 | 15 | 58.2 | 86.7 / 32.6 | 0 of 200 |
+| Ascendant 35-100 | 83 | 7 | 14 | 61.8 | 88.1 / 38.6 | 0 of 200 |
+
+The ladder is monotone again, and every band fills a table with no widening and no generated seats. Widening steps:
+Gold 15-65, 5-75, 0-85, 0-95, uncapped. Platinum 15-100, 5-100, uncapped. Diamond 25-100, 15-100, 5-100, uncapped.
+Ascendant 35-100, 25-100, 15-100, 5-100, uncapped.
 
 ## Owner runbook
 
@@ -100,6 +102,7 @@ for the owner:
    select count(*) filter (where strength <= 30) as bronze, count(*) filter (where strength between 20 and 65) as gold,
           percentile_disc(0.5) within group (order by strength) as median
    from public.pool_runs where eligible and set_id = 'set2';                                         -- expect ~82 / ~69 / ~32
+   -- (that `gold` column counts the old 20-65 window; the new Gold band 15-65 holds ~87)
    ```
 
 3. No Edge Function deploy is needed (only comments changed there). Ship a fresh web build so players get the paged

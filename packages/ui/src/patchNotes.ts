@@ -68,6 +68,14 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Matchmaking bands were retuned so higher ranks face stronger final boards.',
+        details: [
+          'Gold now meets boards between 15 and 65, Platinum 15 and up, Diamond 25 and up, Ascendant 35 and up.',
+          'Bronze and Silver are unchanged.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Fixed long games sometimes showing the wrong Game strength.',
       },

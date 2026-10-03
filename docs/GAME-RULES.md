@@ -79,15 +79,16 @@ medal + division — see *Ranked ladder* below).
     2026-10-03 the run's strength was the round-weighted average of its board percentiles (rounds 1-5 20%, 6-9 35%,
     10+ 45%) ranked among runs; that average is still kept as a diagnostic (`pool_runs.strength_avg`), and numbers
     frozen in match history before the change keep the value they were frozen with.
-  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
-    Platinum **uncapped**, Diamond **10-100**, Ascendant **20-100** (set 2026-09-30 for averages of ~50 / ~55 / ~60 on
-    the old ranked-among-runs scale; on the final-board scale the live pool gives about 37 / 45 / 55, so a threshold
-    change is proposed and pending the owner) (owner
+  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **15-65**,
+    Platinum **15-100**, Diamond **25-100**, Ascendant **35-100** (retuned for the final-board scale, owner 2026-10-03:
+    *"make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100"*; on the live pool the mean opponent is
+    about 12, 22, 36, 49, 58 and 62 from Bronze to Ascendant; before: Gold 20-65, Platinum uncapped, Diamond 10-100,
+    Ascendant 20-100, set 2026-09-30 for averages of ~50 / ~55 / ~60) (owner
     2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
     server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
     (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
     it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
-    uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
+    uncapped; for Platinum, Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
     generated seats fill the rest. Practice and the tutorial have no band.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
     and upload with their scores. The pool's strength table is read whole, every page (R-NET-01). When the game ends,

@@ -53,7 +53,7 @@ export interface PoolFetchOptions {
   patchPrefix: string;
   /** Uniform [0, 1). `Math.random` in the app; seeded in tests. */
   random(): number;
-  /** The player's matchmaking band (R-LOBBY-09); null = uncapped (Platinum, or no rank yet). */
+  /** The player's matchmaking band (R-LOBBY-09); null = uncapped (no rank yet). */
   band?: StrengthBand | null;
 }
 

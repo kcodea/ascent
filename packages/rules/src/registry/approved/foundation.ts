@@ -716,7 +716,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '2026-10-03; from 2026-09-30 to 2026-10-03 it was the round-weighted average of the boards\' percentiles ranked '
       + 'among runs, still kept as the diagnostic pool_runs.strength_avg). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + '10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 since 2026-10-03 (Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 before); every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -765,6 +765,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         kind: 'owner-chat',
         ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
         quote: 'game strength for the display',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner pick of the band thresholds for PR #1928, relayed verbatim by the coordinator, 2026-10-03 (final-board scale)',
+        quote: 'make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100',
       },
       { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
@@ -818,9 +823,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Rooks / Albus (2026-10-02): rounds 3-9 at the 73rd-98th percentile, round 13 at the 12th. Game strength 83 before, 12 after.',
     currentBehaviour:
       'Conforms in code as of 2026-10-03. New games freeze the final-board number at once; the pool\'s run strengths (the '
-      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). The bands kept '
-      + 'their thresholds; on the live pool Platinum (uncapped) now averages below Gold (37 vs 41), so a threshold change '
-      + 'is proposed to the owner, not made.',
+      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). On the final-board '
+      + 'scale the old thresholds left Platinum (uncapped) below Gold (37 vs 41), so the owner retuned them the same day '
+      + '(Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100; R-LOBBY-09). Live pool, 200 lobbies per medal: '
+      + 'mean seat 12, 22, 36, 49, 58, 62 from Bronze to Ascendant, 0 widenings.',
     enforcement: {
       kind: 'scenario',
       refs: [

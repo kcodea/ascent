@@ -1,4 +1,4 @@
-# 2026-10-02: Bullet Time, the Ancient of Time hero attack (attack_bullet_time, Ancient)
+# 2026-10-02: Timebreak, the Ancient of Time hero attack (attack_bullet_time, Ancient)
 
 Owner ask (2026-10-02): "build a new ancient animation for this ancient, the ancient of time". It took six builds on one
 branch (PR #1912) in one day.
@@ -11,18 +11,19 @@ branch (PR #1912) in one day.
    "still a 4/10 ... a god's attack. make it cooler".
 3. **Rewind, god scale (v3).** The Ancient's art (`art/ancients/time.webp`) appeared as a bust over the board. Owner:
    "5/10. i dont like using the art for the attack. try again". **Lesson: don't draw hero or Ancient art in an attack.**
-4. **Bullet Time, stopped time (v4).** The shots hung frozen while the world went grey. Owner: "3/10 ... we need a
+4. **Timebreak, stopped time (v4).** The shots hung frozen while the world went grey. Owner: "3/10 ... we need a
    10/10. this also needs a knockout tier". The shots were small, their streaks were long cobweb lines, and everything
    round a corner target was clipped.
-5. **Bullet Time v5.** Big shots fanned toward the board, a giant clock, a sweeping ripple, a chromatic snap, and the
+5. **Timebreak v5.** Big shots fanned toward the board, a giant clock, a sweeping ripple, a chromatic snap, and the
    Knockout variant. Owner, on IV: "looks weird not being centered and prefer slow motion vs stopped/grey time. like
    more cutting through time than stopping it and dont grey out". **Lessons: centre every shape on the target; no
    desaturation; slow motion reads better than a stop.**
-6. **Bullet Time v6.** CUTTING THROUGH TIME, in slow motion, centred on the target. Owner: "bullet time looks good but
+6. **Timebreak v6.** CUTTING THROUGH TIME, in slow motion, centred on the target. Owner: "bullet time looks good but
    remove the bullet aesthetic. make it more magic inspired". The choreography and timings were approved; the LOOK was
    to change from ballistic to arcane.
 7. **v7 (this build): the magic restyle.** The same choreography and timings, cast as magic (see below). The name
-   "Bullet Time" stays as a placeholder until the owner picks one; the id stays `attack_bullet_time`.
+   "Bullet Time" stayed as a placeholder until the owner picked one; the id stays `attack_bullet_time`. (Renamed
+   "Timebreak" on 2026-10-03, see `2026-10-03-rename-timebreak.md`; this entry now uses the final name.)
 
 The rewind code is gone. `attack_rewind` was never merged or deployed, so the id became `attack_bullet_time` (style
 `bullettime`), and nothing in a database or a save refers to the old one.
@@ -62,7 +63,7 @@ Nothing reads as brass, metal, mechanical or ballistic.
 
   The old finger snap (`clickthock`), the glass crack, the metal clang (`equipclang`) and the rock impact are gone.
 
-**Name options** for the owner: "Timebreak", "Chronoweave" or "Sands of Eternity" (the placeholder stays "Bullet Time").
+**Name options** for the owner: "Timebreak", "Chronoweave" or "Sands of Eternity" (the placeholder was "Bullet Time"). The owner chose "Timebreak" on 2026-10-03.
 
 ## The signature: CUTTING THROUGH TIME
 
@@ -113,14 +114,14 @@ collapse).
   `plan.dip`.
 - The runner calls `koFlourish` and `playKoSting` on the impact.
 - The tuner's `knockoutHint` gives it the Knockout buttons.
-- There is a `knockoutVariant.test.ts` row and a Bullet Time check. `extraRings` stays as a plan input.
+- There is a `knockoutVariant.test.ts` row and a Timebreak check. `extraRings` stays as a plan input.
 
 ## Calibration against Arcana (the owner's "top tier good")
 
 I compared frame strips (a manual clock through the `frames` seam).
 
 - **Arcana's strength:** one vivid, saturated shape over the target, then a clean white burst.
-- **What Bullet Time now matches:**
+- **What Timebreak now matches:**
   - one dominant, readable shape centred on the target: the dial and the ring of blades;
   - full colour;
   - a clear anticipation (the strain, the riser, the accelerating ticks) and then a payoff;
@@ -159,8 +160,8 @@ at 60 fps, 1024x768:
 
 | run | frames | p50 | p95 | max | peak sprites |
 | --- | --- | --- | --- | --- | --- |
-| Bullet Time IV | 381 | 0.1 | 0.5 | 0.9 | 503 |
-| Bullet Time Knockout | 401 | 0.1 | 0.5 | 1.1 | 615 |
+| Timebreak IV | 381 | 0.1 | 0.5 | 0.9 | 503 |
+| Timebreak Knockout | 401 | 0.1 | 0.5 | 1.1 | 615 |
 | Arcana IV | 357 | 0.0 | 0.3 | 1.1 | 179 |
 | Arcana Knockout | 388 | 0.1 | 0.4 | 1.1 | 211 |
 

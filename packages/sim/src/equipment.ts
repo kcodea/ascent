@@ -106,6 +106,10 @@ export function spendEquipmentCharge(run: RunState, equipmentId: string): boolea
 /** The cap: one stack per Equipment. */
 export const EQUIPMENT_AMPLIFY_MAX = 1;
 
+/** The presentation counter an End-of-Turn Amplify rides (`counterChanged`, R-EOT-AMPLIFY-01): `equipmentAmplified:<id>`,
+ *  one per Equipment the Rune of Amplification Amplified. The UI folds it onto the slot's charge on the beat. */
+export const EQUIPMENT_AMPLIFIED_COUNTER = 'equipmentAmplified:';
+
 /** How many Amplified stacks this Equipment holds (0 or 1). The UI paints the charge indicator BLUE while > 0. */
 export function equipmentAmplifiedOf(run: Pick<RunState, 'equipment'>, equipmentId: string): number {
   return equipmentState(run).amplified?.[equipmentId] ?? 0;

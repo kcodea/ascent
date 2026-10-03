@@ -446,9 +446,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   heroAttack('attack_soul_stitch', 'Soul Stitch', 'ancient', 'stitch'),
   // Owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time". After three builds of a
   // rewind concept (3.5, 4 and 5 out of 10; "i dont like using the art for the attack. try again") the owner picked
-  // BULLET TIME: stopped time, the shots hang in the air, then time restarts and they all land (IV: a dome of blades and
+  // TIMEBREAK (placeholder name "Bullet Time" until 2026-10-03): stopped time, the shots hang in the air, then time restarts and they all land (IV: a dome of blades and
   // a 3-2-1). Built at the Ancient rarity.
-  heroAttack('attack_bullet_time', 'Bullet Time', 'ancient', 'bullettime'),
+  heroAttack('attack_bullet_time', 'Timebreak', 'ancient', 'bullettime'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

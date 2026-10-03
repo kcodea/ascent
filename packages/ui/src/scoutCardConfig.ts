@@ -34,7 +34,7 @@ export interface ScoutCardConfig {
   labelCol: string;   // stat labels, section titles, column headers, round numbers
   winCol: string;     // a WON fight — result text + damage + portrait ring
   loseCol: string;    // a LOST fight
-  drawCol: string;    // a DREW fight
+  drawCol: string;    // a DRAW fight
   socketCol: string;  // rune-socket outline + fill
 }
 
@@ -149,7 +149,7 @@ const controls: TunerControl<Extract<keyof ScoutCardConfig, string>>[] = [
   col('labelCol', 'Label ink', 'Colours', 'Stat labels, section titles, column headers and round numbers.'),
   col('winCol', 'Won colour', 'Outcome colours', 'A WON fight — its result text, damage and portrait ring.'),
   col('loseCol', 'Lost colour', 'Outcome colours', 'A LOST fight.'),
-  col('drawCol', 'Drew colour', 'Outcome colours', 'A DREW fight.'),
+  col('drawCol', 'Draw colour', 'Outcome colours', 'A DRAW fight.'),
   col('socketCol', 'Rune socket', 'Colours', 'The rune-socket outline + fill hue.'),
 ];
 

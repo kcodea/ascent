@@ -1,5 +1,5 @@
 import {
-  ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_GROUP_LABELS, ACHIEVEMENT_HEROES, SET2_GROUPS,
+  ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_GROUP_LABELS, ACHIEVEMENT_HEROES, HEROES_ALL_GROUP, SET2_GROUPS,
   type AchievementCategory, type AchievementDef,
 } from '@game/progression';
 
@@ -66,7 +66,7 @@ const HERO_NAMES: Readonly<Record<string, string>> = Object.fromEntries(ACHIEVEM
 
 function groupLabel(def: AchievementDef): string | null {
   if (!def.group) return null;
-  if (def.category === 'heroes') return HERO_NAMES[def.group] ?? def.group;
+  if (def.category === 'heroes') return HERO_NAMES[def.group] ?? ACHIEVEMENT_GROUP_LABELS[def.group] ?? def.group;
   return ACHIEVEMENT_GROUP_LABELS[def.group] ?? def.group;
 }
 
@@ -90,7 +90,7 @@ export function achievementView(input: AchievementViewInput): AchievementView {
   }
   const categories = ACHIEVEMENT_CATEGORIES.map((id): AchievementCategoryView => {
     const mine = tiles.filter((t) => t.def.category === id);
-    const order = id === 'set2' ? [...SET2_GROUPS] : id === 'heroes' ? ACHIEVEMENT_HEROES.map((h) => h.id) : [];
+    const order = id === 'set2' ? [...SET2_GROUPS] : id === 'heroes' ? [HEROES_ALL_GROUP, ...ACHIEVEMENT_HEROES.map((h) => h.id)] : [];
     const groups: AchievementGroup[] = [];
     for (const t of mine) {
       const gid = t.def.group ?? '';

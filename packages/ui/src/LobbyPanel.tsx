@@ -15,6 +15,7 @@ import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
+import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
 /** The max-damage readout above the rail: "−5", or "No cap" once the round is uncapped. */
 function maxDamageLabel(cap: number): string {
@@ -222,7 +223,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               </span>
               {seat.alive ? (
                 <span className="lobbyhp">
-                  <Icon name="heart" />{live.resolve}
+                  {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
+                  <Icon name="heartPill" />{live.resolve}
                   {live.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{live.armor}</span>}
                 </span>
               ) : (

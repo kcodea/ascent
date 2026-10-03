@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The lobby rail has a cleaner new look.',
+        details: [
+          'The rail now uses the same dark plate and thin gold edge as the HUD pills, and stays crisp at any height.',
+          'Your row has a gold edge, your next opponent has a red edge, and Health and Armor use the new heart and shield chips.',
+          'The rail is the same size and in the same place as before.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Tooltips now match the new HUD style.',
         details: [
           'Tooltips use the same dark plate and thin gold edge as the health and name pills.',

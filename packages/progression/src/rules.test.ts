@@ -80,12 +80,12 @@ describe('XP curve', () => {
 describe('Ranked XP', () => {
   const ranked = (placement: number, comeback = false) => xpForSettlement({ mode: 'ranked', placement, comeback });
   it('placements 1 to 8', () => {
-    expect(ranked(1)).toEqual({ base: 100, topFour: 40, firstPlace: 60, comeback: 0, total: 200 });
-    for (const p of [2, 3, 4]) expect(ranked(p), `${p}`).toEqual({ base: 100, topFour: 40, firstPlace: 0, comeback: 0, total: 140 });
+    expect(ranked(1)).toEqual({ base: 100, topFour: 60, firstPlace: 90, comeback: 0, total: 250 });
+    for (const p of [2, 3, 4]) expect(ranked(p), `${p}`).toEqual({ base: 100, topFour: 60, firstPlace: 0, comeback: 0, total: 160 });
     for (const p of [5, 6, 7, 8]) expect(ranked(p), `${p}`).toEqual({ base: 100, topFour: 0, firstPlace: 0, comeback: 0, total: 100 });
   });
-  it('the comeback adds 25 on any placement (handoff examples: 1st with comeback = 225)', () => {
-    expect(ranked(1, true).total).toBe(225);
+  it('the comeback adds 25 on any placement (1st with comeback = 275 since the 2026-10-03 +50% bonuses)', () => {
+    expect(ranked(1, true).total).toBe(275);
     expect(ranked(8, true)).toEqual({ base: 100, topFour: 0, firstPlace: 0, comeback: 25, total: 125 });
   });
   it('no valid placement, or a non-terminal run, earns nothing', () => {
@@ -97,11 +97,11 @@ describe('Ranked XP', () => {
 
 describe('Practice XP', () => {
   const practice = (placement: number | null, comeback = false) => xpForSettlement({ mode: 'practice', placement, comeback });
-  it('is round(0.60 x the equivalent ranked XP): 60 / 84 / 120 / 135', () => {
+  it('is round(0.60 x the equivalent ranked XP): 60 / 96 / 150 / 165', () => {
     expect(practice(8).total).toBe(60);
-    expect(practice(4).total).toBe(84);
-    expect(practice(1).total).toBe(120);
-    expect(practice(1, true).total).toBe(135);
+    expect(practice(4).total).toBe(96);
+    expect(practice(1).total).toBe(150);
+    expect(practice(1, true).total).toBe(165);
     expect(practice(6, true).total).toBe(75);
   });
   it('the components sum to the total for every placement and comeback', () => {

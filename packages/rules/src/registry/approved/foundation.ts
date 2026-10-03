@@ -1940,12 +1940,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-XP-01',
-    title: 'Account XP per game: Ranked 100 + 40 Top 4 + 60 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
+    title: 'Account XP per game: Ranked 100 + 60 Top 4 + 90 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
     statement:
-      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 40 '
-      + 'for a Top 4 finish, plus 60 for 1st, plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
+      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 60 '
+      + 'for a Top 4 finish, plus 90 for 1st (so a 1st is 250 and a Top 4 160; the bonuses were 40 and 60 until the owner '
+      + 'raised them by half on 2026-10-03), plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
       + 'losses; a draw neither adds to nor clears the streak; once per run). A standard Practice game earns 60% of the '
-      + 'equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135). A Practice game with no meaningful placement '
+      + 'equivalent Ranked XP, summed then rounded (60 / 96 / 150 / 165). A Practice game with no meaningful placement '
       + '(Unlimited Health, played to the curtain) earns a flat 60. The first completion of the current Learn Ascent course '
       + 'earns 250 once per account. The Scene Builder, sandboxes and quit games earn 0. No caps, no diminishing returns. '
       + 'The server computes the XP from its own source rows (the accepted rank result, the player\'s own practice row, a '
@@ -1955,10 +1956,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'XP values and curve exactly as the handoff: Ranked 100 complete + 40 Top 4 + 60 first + 25 comeback' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Practice = round(0.60 × equivalent ranked XP)' },
-      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-09-27-account-progression.sql settle_progression; supabase/functions/_shared/progressionRules.ts (generated)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (placement XP)', quote: 'increase XP for top 4 and for wins per game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (placement XP, the chosen option)', quote: '+50% bonuses' },
+      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-10-03-placement-xp.sql settle_progression (latest); supabase/functions/_shared/progressionRules.ts (generated)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP). Earns nothing until the owner runs the migration, deploys submit-progression and sets the progression epoch.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts'], lastVerifiedAt: '2026-09-27' },
+    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP); placement bonuses raised to 60 / 90 on 2026-10-03 (live once the owner runs 2026-10-03-placement-xp.sql and redeploys submit-progression).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts', 'packages/progression/src/achievements.db.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-CURVE-01',

@@ -414,7 +414,7 @@ describe('RecentGames — the recording banners', () => {
     // Labelled "Game strength" with the game's hover bubble (owner 2026-09-30), never a native title.
     const fact = ui.container.querySelector('.lb-fact-bstrength')!.parentElement!;
     expect(fact.querySelector('.lb-fact-l')?.textContent).toBe('Game strength');
-    expect(fact.getAttribute('data-tip')).toMatch(/Later rounds count more\.$/);
+    expect(fact.getAttribute('data-tip')).toMatch(/final board/);
     expect(fact.getAttribute('title')).toBeNull();
   });
 

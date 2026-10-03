@@ -45,12 +45,24 @@ async function get<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** EVERY row of a GET (R-NET-01): PostgREST answers at most 1,000 rows per request and says nothing when it stops
+ *  there, so page with limit/offset until a short page. `path` must carry a stable `order`. */
+async function getAll<T>(path: string): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (;;) {
+    const rows = await get<T[]>(`${path}&limit=${PAGE}&offset=${out.length}`);
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
+}
+
 interface PoolRunRow { author: string; hero_id: string; seed: number; user_id: string | null; set_id: string; patch_prefix: string; eligible: boolean }
 interface BoardRow { id: string; author: string | null; hero_id: string; seed: number; wave: number; origin: string | null; snapshot: BoardSnapshot }
 
 /** Fetch every pool run and all of its servable boards (GET only). */
 export async function fetchLivePool(): Promise<LivePool> {
-  const runRows = await get<PoolRunRow[]>('pool_runs?select=author,hero_id,seed,user_id,set_id,patch_prefix,eligible&order=id.asc&limit=5000');
+  const runRows = await getAll<PoolRunRow>('pool_runs?select=author,hero_id,seed,user_id,set_id,patch_prefix,eligible&order=id.asc');
   const runs = new Map<string, LiveRun>();
   for (const r of runRows) {
     const key = `${r.author}|${r.hero_id}|${r.seed}`;
@@ -59,7 +71,7 @@ export async function fetchLivePool(): Promise<LivePool> {
   const seeds = [...new Set(runRows.map((r) => r.seed))];
   for (let i = 0; i < seeds.length; i += 40) {
     const chunk = seeds.slice(i, i + 40);
-    const rows = await get<BoardRow[]>(`boards?select=id,author,hero_id,seed,wave,origin,snapshot&seed=in.(${chunk.join(',')})&order=id.asc&limit=1000`);
+    const rows = await getAll<BoardRow>(`boards?select=id,author,hero_id,seed,wave,origin,snapshot&seed=in.(${chunk.join(',')})&order=id.asc`);
     for (const b of rows) {
       if (!b.snapshot || !Array.isArray(b.snapshot.minions) || b.snapshot.minions.length === 0) continue;
       if ((b.origin ?? 'self') === 'synthetic') continue;

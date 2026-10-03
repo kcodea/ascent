@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-interface Query { table: string; op: 'select' | 'upsert'; select?: string; filters: [string, string, unknown][]; orders: [string, unknown][]; limit?: number; rows?: unknown; opts?: unknown }
+interface Query { table: string; op: 'select' | 'upsert'; select?: string; filters: [string, string, unknown][]; orders: [string, unknown][]; limit?: number; range?: [number, number]; rows?: unknown; opts?: unknown }
 
 const queries: Query[] = [];
 let userId: string | null = 'me-1';
@@ -31,6 +31,7 @@ vi.mock('@supabase/supabase-js', () => ({
         not: (col: string, op: string, val: unknown) => { q.filters.push([col, `not.${op}`, val]); return chain; },
         order: (col: string, opts: unknown) => { q.orders.push([col, opts]); return chain; },
         limit: (n: number) => { q.limit = n; return Promise.resolve(respond(q)); },
+        range: (from: number, to: number) => { q.range = [from, to]; return Promise.resolve(respond(q)); },
       };
       return chain;
     },
@@ -202,6 +203,9 @@ describe('fetchHallHistory + fetchRunFinalBoards — the per-row facts', () => {
     expect(q.table).toBe('lobby_fights');
     expect(q.select).toBe('lobby_seed, run_a, run_b, outcome');
     expect(q.filters).toEqual([['lobby_seed', 'in', [8, 9, 3]]]);
+    // R-NET-01: paged by id, never a silent 1,000-row cut (a short first page ends the read).
+    expect(q.orders).toEqual([['id', { ascending: true }]]);
+    expect(q.range).toEqual([0, 999]);
     expect(own.get('Kev|sable|8')).toEqual({ wins: 1, losses: 1, draws: 1 });
     expect(own.get('Robin|gorr|9')).toEqual({ wins: 0, losses: 1, draws: 0 });
     expect(own.has('Old|warden|3')).toBe(false);

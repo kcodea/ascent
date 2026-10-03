@@ -83,6 +83,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
+  // THE LOBBY KNOCKOUT (owner ask 2026-10-02): smoke + embers over a rail seat's row as the player is knocked out.
+  'lobby-knockout': ['lobbyKnockoutFx.ts'],
   // THE LASSO (owner-authored 2026-09-22): stealing a Shop minion throws a rope at it — from the spell's drop
   // point, from Rope Wrangler's medallion, from the Equipment slot (Whiplass-o) or from the rune badge (Rune of
   // Lassoing). One `fireLassoBeam` in Recruit.tsx serves the action cascade and both End-of-Turn paths.

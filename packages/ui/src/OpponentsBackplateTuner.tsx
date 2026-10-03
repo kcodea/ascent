@@ -51,7 +51,9 @@ const store = createCssTunerStore<BackplateVals>({
   styleId: 'opponentsbackplatetuner',
   defaults: DEFAULTS,
   storageKey: 'ascent.opponentsBackplateTuner',
-  css: (v) => `.lobbyrail.lobbyrail { background: ${bg(v)}; }`,
+  // The art only paints the Classic rail; the Gem rail (lobbyRail.css) is a CSS frame and reads just the Dim, through
+  // `--lby-dim`, as a black layer over its plate.
+  css: (v) => `.lobbyrail.lobbyrail { --lby-dim: ${num(v, 'dim')}; } :root[data-lobby-rail="classic"] .lobbyrail.lobbyrail { background: ${bg(v)}; }`,
 });
 
 const copyCss = (): string =>
@@ -77,7 +79,7 @@ const controls: TunerControl<string>[] = [
   },
   {
     key: 'dim', label: 'Dim', unit: 'opacity', group: 'Readability', min: 0, max: 1, step: 0.01,
-    hint: 'A black layer over the backplate, darkening it behind the rows. 0 leaves the art at full brightness; it does not dim the opponent rows.',
+    hint: 'A black layer over the backplate, darkening it behind the rows. 0 leaves the art at full brightness; it does not dim the opponent rows. Also darkens the Gem plate.',
   },
 ];
 

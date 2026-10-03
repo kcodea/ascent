@@ -1,0 +1,234 @@
+/* ── LOBBY RAIL LOOKS ─────────────────────────────────────────────────────────────────────────────────────────
+   Owner ask 2026-10-02: "is this a png? how can you modernize/clean this up?" about the copper bevelled backplate
+   (`public/opponents-backplate.webp`, stretched 100% x 100% so its bevels distorted with the rail's height).
+
+   One switch: `data-lobby-rail` on <html>, stamped by lobbyRailLookConfig.ts (DEV picks it in the 🎨 Lobby Rail
+   Look tuner, "Look"). Two looks:
+     classic  the bitmap backplate + the solid blue / red rows (styles.css, the `.lobbyrail` block). Kept for
+              comparison while the owner decides; delete it with the image once nobody needs it.
+     gem      THE DEFAULT. Any value other than "classic", or no attribute at all, paints Gem, so production plays it
+              with no JS. A CSS frame in the Gem plate HUD language: a thin gold edge, the dark plate, an inner ring.
+
+   THEME: every colour comes from the shared `--ui-*` tokens (uiTheme.css), so the 🎨 UI Theme switch recolours the
+   rail with the tooltips and HUD pills. `tooltipStyle.test.ts` fails a Gem rail rule that hard-codes a colour
+   (black / white shading excepted).
+
+   LAYOUT CONTRACT. The rail keeps its exact OUTER box (position and size, so nothing outside it moves). Inside,
+   Gem lays out its own way (owner ask 2026-10-02: "can you fill the opponent boxes out better so they are more
+   readable and take up more of the space?"): a thin gutter instead of the bitmap's wide inset, and bigger rows
+   that share the freed space. To hold the outer box, Gem gives the rail an explicit HEIGHT equal to the height
+   Classic sizes to (`--lgem-h`, rebuilt from Classic's own row recipe and the seat count `--lby-n`), and the rows
+   flex to fill it. The gutter, row gap, portrait, name, health and bar sizes all ride the existing 🪑 / 🎨 Lobby
+   Rail dials, times a Gem factor.
+
+   PERFORMANCE. Static paint only, no backdrop-filter. The one loop is the next-foe pulse, which stays the existing
+   opacity animation on `.lobbyseat.foe::after` (compositor only); this file only recolours its static shadow. The
+   damage pop stays the existing one-shot. The dead seat's grayscale is a static filter on the portrait image only.
+   ─────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* Classic keeps its flat heart: the health pill heart's facet + gloss only show in Gem. */
+:root[data-lobby-rail="classic"] .lobbyhp :is(.hpi-facet, .hpi-gloss) { display: none; }
+
+/* ── The frame ─────────────────────────────────────────────────────────────────────────────────────────────── */
+/* Layers, top first: the 🖼️ Opponents Backplate tuner's Dim (black at `--lby-dim`, 0 when unset), a soft top sheen,
+   the plate, and the gold edge in the border ring. The edge gradient runs gold, deep, gold over the rail's height so
+   the long sides read as one bevel at any height. The corner radius is the 🎨 Lobby Rail Look "Rail corners" dial
+   ADDED to a Gem base of 1.2 (the dial ships at 0, which suits the bitmap but not a CSS plate). */
+:root:not([data-lobby-rail="classic"]) .lobbyrail {
+  --lgem-edge: 2px;
+  --lgem-rad: calc(9 * var(--lu) * (var(--lby-rail-rad, 0) + 1.2));
+  /* The gutter between the frame and the rows: the "Rail inset" dial, scaled so its shipped 4.5 gives 8 units (the
+     bitmap needed 36 to clear its bevels; a 2px CSS edge needs a breath, not a moat). */
+  --lgem-gut: calc(var(--lby-pad, 4.5) * 1.78 * var(--lu));
+  --lgem-ring: calc(3.5 * var(--lu));                       /* the inner ring's inset from the edge */
+  --lgem-top: calc(3 * var(--lu));                          /* above the "N left" pill */
+  /* CLASSIC'S HEIGHT, which Gem must keep: its padding top + bottom, the "N left" line (a 1.4042 line box on its
+     11-unit text), the 5-unit gap under it, then per seat Classic's row (its 7-unit padding, the 1.3622 line box of
+     the name, the portrait) and the gaps between seats. The line-box ratios are the UI font's normal line height, and
+     the last term is a measured 0.41-unit trim (the same at 1920x1080 and 1366x768): with it, Classic and Gem rails
+     come out the same height to the hundredth of a pixel. */
+  --lgem-h: calc(
+    16 * var(--lu) * var(--lby-pad, 4.5)
+    + 11 * var(--lfont) * 1.4042 + 5 * var(--lu)
+    + var(--lby-n, 8) * (7 * var(--lrow) * var(--lby-seat-pad, 0.75) + 11 * var(--lfont) * var(--lby-name-size, 1.5) * 1.3622 + 18 * var(--lrow) * var(--lby-face, 1.74))
+    + (var(--lby-n, 8) - 1) * 2 * var(--lrow) * var(--lby-gap, 0.65)
+    - 0.41 * var(--lu));
+  height: var(--lgem-h);
+  /* The rows flex to fit this fixed height, so the rail never needs to scroll; clip instead (the bottom stud's rotated
+     corners would otherwise make a 1px scroll range). */
+  overflow: hidden;
+  border: var(--lgem-edge) solid transparent;
+  padding: var(--lgem-top) var(--lgem-gut) calc(var(--lgem-gut) + 1 * var(--lu));
+  border-radius: var(--lgem-rad);
+  background:
+    linear-gradient(color-mix(in srgb, #000 calc(var(--lby-dim, 0) * 100%), transparent), color-mix(in srgb, #000 calc(var(--lby-dim, 0) * 100%), transparent)) padding-box,
+    radial-gradient(130% 38% at 50% 0%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 70%) padding-box,
+    var(--ui-plate) padding-box,
+    linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-edge-main) 7%, var(--ui-edge-deep) 50%, var(--ui-edge-main) 93%, var(--ui-edge-lo) 100%) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 calc(4 * var(--lu)) calc(14 * var(--lu)) -6px rgba(0, 0, 0, 0.7);
+}
+/* The inner filigree ring, inset off the edge. Absolutely positioned, so it takes no flex slot and no gap. Painted
+   before the rows (DOM order), so every positioned row and the "N left" pill sit over it. */
+:root:not([data-lobby-rail="classic"]) .lobbyrail::before {
+  /* Its top line runs through the middle of the "N left" pill (the pill's line box is 15.45 text units tall). */
+  content: ''; position: absolute; pointer-events: none;
+  inset: calc(var(--lgem-top) + 7.72 * var(--lfont)) var(--lgem-ring) var(--lgem-ring);
+  border: 1px solid var(--ui-ring);
+  border-radius: max(0px, calc(var(--lgem-rad) - var(--lgem-edge) - var(--lgem-ring)));
+}
+/* A small gold lozenge pinned to the ring's bottom centre, echoing the pill on its top edge. */
+:root:not([data-lobby-rail="classic"]) .lobbyrail::after {
+  content: ''; position: absolute; left: 50%; bottom: calc(var(--lgem-ring) - 2px); width: 4px; height: 4px;
+  pointer-events: none; background: var(--ui-stud); border: 1px solid var(--ui-stud-edge);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* ── "N left": a small Gem pill hung on the inner ring at the top ─────────────────────────────────────────── */
+/* The head row keeps Classic's line box. The pill's padding + border are cancelled by equal negative margins, so it
+   paints around that box without growing it; the ring's top line runs through its middle. */
+:root:not([data-lobby-rail="classic"]) .lobbyhead { position: relative; z-index: 1; }
+:root:not([data-lobby-rail="classic"]) .lobbyalive {
+  --lgem-pp: calc(1.5 * var(--lu));
+  padding: var(--lgem-pp) calc(9 * var(--lu));
+  margin: calc(-1 * var(--lgem-pp) - 1px) 0;
+  border: 1px solid transparent; border-radius: 999px;
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.6);
+  color: var(--ui-title); letter-spacing: 0.1em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+/* ── Seats: the layout ─────────────────────────────────────────────────────────────────────────────────────── */
+/* The seat column fills what the rail has left under the pill; the seats share it equally, so eight rows (or however
+   many seats the table has) always fit with no scroll. */
+:root:not([data-lobby-rail="classic"]) .lobbyseats {
+  flex: 1 1 0; min-height: 0; gap: calc(2 * var(--lrow) * var(--lby-gap, 0.65) * 1.4);
+}
+/* One row: a big portrait on the left spanning the whole row; to its right the name on top, the heart + armor chips
+   (and the round-damage number at the far right) under it, and the health bar across the bottom. Every size is the
+   matching Lobby Rail dial times a Gem factor. */
+:root:not([data-lobby-rail="classic"]) .lobbyseat {
+  --lgem-face: calc(18 * var(--lrow) * var(--lby-face, 1.74) * 1.22);
+  flex: 1 1 0; min-height: 0;
+  grid-template-columns: var(--lgem-face) minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  align-content: center; row-gap: calc(1.4 * var(--lrow));
+  column-gap: calc(3.2 * var(--lrow));
+  padding: calc(3 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(4.4 * var(--lrow) * var(--lby-seat-pad, 0.75));
+}
+:root:not([data-lobby-rail="classic"]) .lobbyface {
+  grid-column: 1; grid-row: 1 / -1; align-self: center; width: var(--lgem-face); height: var(--lgem-face);
+}
+:root:not([data-lobby-rail="classic"]) .lobbynameline { grid-column: 2 / -1; grid-row: 1; }
+:root:not([data-lobby-rail="classic"]) .lobbyname {
+  font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5) * 1.3); font-weight: 900; line-height: 1.15;
+}
+:root:not([data-lobby-rail="classic"]) :is(.lobbyhp, .lobbyplace) {
+  grid-column: 2; grid-row: 2; justify-self: start; transform: none; min-width: 0;
+}
+:root:not([data-lobby-rail="classic"]) .lobbyhp { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.32); line-height: 1.1; }
+:root:not([data-lobby-rail="classic"]) .lobbyhp > svg { width: 0.9em; height: 0.9em; }
+:root:not([data-lobby-rail="classic"]) .lobbyplace { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.1); }
+:root:not([data-lobby-rail="classic"]) .lobbydmg {
+  grid-column: 3; grid-row: 2; justify-self: end; min-height: 0;
+  font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1.35) * 1.3);
+}
+
+/* ── Seats: the paint ──────────────────────────────────────────────────────────────────────────────────────── */
+/* A resting seat: a darker inset panel on the plate with a faint hairline and top light. */
+:root:not([data-lobby-rail="classic"]) .lobbyseat {
+  color: var(--ui-text);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 62%, transparent), color-mix(in srgb, var(--ui-chip-bg) 82%, transparent));
+  box-shadow: inset 0 0 0 1px var(--ui-divider), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyname { letter-spacing: -0.01em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+/* YOUR seat: a slim gold edge and a soft gold glow instead of the solid blue fill. Static. */
+:root:not([data-lobby-rail="classic"]) .lobbyseat.you {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 70%, var(--ui-chip-bg)), color-mix(in srgb, var(--ui-chip-bg) 88%, transparent));
+  box-shadow: inset 0 0 0 1px var(--ui-edge-main), inset 0 0 0 2px var(--ui-ring), 0 0 calc(6 * var(--lrow)) color-mix(in srgb, var(--ui-title) 32%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyseat.you .lobbyname { color: var(--ui-title); }
+/* THE NEXT FOE: a red accent bar down the left edge and a red hairline, over a faint red wash at the left. The
+   existing pulse (`.lobbyseat.foe::after`, opacity only) keeps running; only its static ring + glow are recoloured. */
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-heart) 24%, var(--ui-chip-bg)) 0%, color-mix(in srgb, var(--ui-chip-bg) 80%, transparent) 72%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-heart) 55%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe::before {
+  width: calc(var(--lby-foe-bar, 2.7) * var(--lrow) * 0.75);
+  background: var(--ui-heart);
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe::after {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-heart) 90%, transparent),
+    0 0 calc(7 * var(--lrow)) calc(1 * var(--lrow)) color-mix(in srgb, var(--ui-heart) 42%, transparent);
+}
+/* THE FALLEN: dimmed, the portrait in grey, the name struck through (styles.css), the placement as a muted chip. */
+:root:not([data-lobby-rail="classic"]) .lobbyseat.dead {
+  opacity: 0.6;
+  background: color-mix(in srgb, var(--ui-chip-bg) 45%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-divider) 60%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyseat.dead .lobbyname { color: var(--ui-muted); }
+:root:not([data-lobby-rail="classic"]) .lobbyseat.dead :is(img.lobbyface, .lobbyface-img) { filter: grayscale(1); }
+:root:not([data-lobby-rail="classic"]) .lobbyplace { color: var(--ui-muted); font-weight: 800; letter-spacing: 0.04em; }
+
+/* ── Health: the Gem health pill's heart + steel shield chip, compact ───────────────────────────────────────── */
+:root:not([data-lobby-rail="classic"]) .lobbyhp {
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-variant-numeric: tabular-nums; gap: 0.12em;
+}
+:root:not([data-lobby-rail="classic"]) .lobbyhp > svg { color: var(--ui-heart); }
+:root:not([data-lobby-rail="classic"]) .lobbyhp :is(.hpi-facet, .hpi-gloss) { display: inline; }
+:root:not([data-lobby-rail="classic"]) .lobbyarmor {
+  gap: 0.1em; margin-left: 0.28em; padding: 0.1em 0.32em 0.1em 0.2em; line-height: 1; font-size: 0.82em;
+  border-radius: 0.33em; border: 1px solid var(--ui-armor-edge); background: var(--ui-armor);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: var(--ui-armor-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyarmor svg { width: 0.95em; height: 0.95em; color: var(--ui-armor-icon); }
+:root:not([data-lobby-rail="classic"]) .lobbydmg { color: var(--ui-warn); }
+
+/* ── Health bar: a clean bar across the row under the stats, at 80% of Classic's thickness. ───────────────────── */
+:root:not([data-lobby-rail="classic"]) .lobbybar {
+  grid-column: 2 / -1; grid-row: 3;
+  height: calc(3 * var(--lrow) * var(--lby-bar-thick, 1.25) * 0.8);
+  background: color-mix(in srgb, var(--ui-chip-bg) 92%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+:root:not([data-lobby-rail="classic"]) .lobbybar > span,
+:root:not([data-lobby-rail="classic"]) .lobbyseat.you .lobbybar > span {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-heart) 62%, #fff) 0%, var(--ui-heart) 55%, color-mix(in srgb, var(--ui-heart) 80%, #000) 100%);
+}
+
+/* ── KNOCKOUT (both looks; owner ask 2026-10-02) ───────────────────────────────────────────────────────────────
+   The row of a seat that just fell, while the `lobby-knockout` Pixi smoke plays over it (lobbyKnockoutFx.ts): it
+   swells a touch at full strength, then fades to its dead look. No `100%` frame, so it lands on the row's own
+   computed dead opacity in either look. One-shot, transform + opacity only. */
+.lobbyseat.dead.ko { animation: lobbyko 850ms cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+@keyframes lobbyko {
+  0% { opacity: 1; transform: scale(1); }
+  22% { opacity: 1; transform: scale(1.035); }
+  60% { transform: scale(0.985); }
+}
+
+/* ── GHOST OPPONENT (owner ask 2026-10-02: "if the player is facing a ghost, make the target highlight greenish
+   blue instead of red"). The next-foe marker on a ghost pairing (`.lobbyseat.foe.ghost`; the row is the fallen
+   seat whose board is served) wears the `--ui-ghost` teal: Gem's bar, hairline, wash and pulse; Classic's fill and
+   marker. The fallen row is lifted out of its dim so the highlight reads. ─────────────────────────────────────── */
+.lobbyseat.dead.foe.ghost { opacity: 0.92; }
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe.ghost {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-ghost) 24%, var(--ui-chip-bg)) 0%, color-mix(in srgb, var(--ui-chip-bg) 80%, transparent) 72%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 60%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe.ghost::before { background: var(--ui-ghost); }
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe.ghost::after {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 90%, transparent),
+    0 0 calc(7 * var(--lrow)) calc(1 * var(--lrow)) color-mix(in srgb, var(--ui-ghost) 45%, transparent);
+}
+/* Classic: the same marker parts, recoloured through its own vars (its fill, ring, glow and accent bar). */
+:root[data-lobby-rail="classic"] .lobbyseat.foe.ghost {
+  --lby-foe-ring-col: var(--ui-ghost);
+  --lby-foe-glow-col: var(--ui-ghost);
+  --lby-foe-bar-col: var(--ui-ghost);
+  background: color-mix(in srgb, var(--ui-ghost) 42%, #000);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 95%, transparent);
+}

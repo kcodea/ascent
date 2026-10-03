@@ -3758,6 +3758,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-02. Pinned by the lossDamageCap table test (5/10/15/20, then uncapped at 15, 16, 17, 30) and the rail header test (the live cap and its tip on rounds 1-14, "No cap" and the full-damage tip from round 15).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/run.test.ts', 'packages/ui/src/lobbyRailHeader.test.tsx'], lastVerifiedAt: '2026-10-02' },
   },
+  // ── The loss cap holds on every lobby path; practice-bot tables exempt bot-vs-bot (owner 2026-10-02) ──────
+  {
+    id: 'R-LOBBY-11',
+    title: 'Every lobby fight is held to the round loss cap, except bot-vs-bot fights in a Practice bots table (Scene Builder), which hit x5 uncapped',
+    statement:
+      'In a real lobby, every seat is charged at most the round loss cap (roundLossCap) in a round, on every path: the '
+      + "player's own fight and the damage the player deals, seat-vs-seat fights, the ghost stand-in and the bye ghost. "
+      + "The cap bounds Armor plus Resolve together, Armor absorbing first. The rail's round damage and the scout card's "
+      + 'DMG column show exactly what was charged. The one exception is a Practice bots table, which Scene Builder also '
+      + 'runs: a fight between two BOT seats is multiplied by 5 and is not capped, so the table thins and a bots game '
+      + 'does not drag. The player in that table is still capped, and so is the damage the player deals.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Scene Builder -30 on round 7)', quote: 'can you confirm nothing is busted about our lobby rules and they follow the same dmg taken system' },
+      { kind: 'owner-chat', ref: 'Same session, after the finding (bot-vs-bot is x5 uncapped by design)', quote: 'leave practice/scene builder as is' },
+      { kind: 'fix-pr', ref: '#1199 (owner report 2026-08-25: practice bot matches lasted an extremely long time)' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts settleRunLobbyRound seatCap; packages/sim/src/lobby/practiceBots.ts BOT_SEAT_DAMAGE_MULT' },
+    ],
+    example: 'In a real lobby on round 7, no seat loses more than 10. In Scene Builder on round 7, a bot that loses to another bot by 6 loses 30; you still lose at most 10.',
+    currentBehaviour: 'Conforms as of 2026-10-02. Pinned by lobbyLossCap.test.ts: an 8-seat lobby over 16 rounds and 3 seeds (no seat over roundLossCap, every HP drop equals its recorded DMG), a lobby with its own lossCaps table, and a Practice bots table (the player capped, the bot exemption stamp present).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/lobbyLossCap.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
   // ── Gauntlet (single-player stages, owner design 2026-09-29) ─────────────────────────────────────────
   {
     id: 'R-GAUNTLET-01',

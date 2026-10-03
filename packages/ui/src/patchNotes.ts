@@ -188,6 +188,18 @@ export const PATCH_NOTES: PatchNote[] = [
           'Frames you already own stay yours.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The lobby rail has a cleaner new look.',
+        details: [
+          'The rail now uses the same dark plate and thin gold edge as the HUD pills, and stays crisp at any height.',
+          'Each opponent row is bigger and easier to read: a larger portrait, a bolder name, and larger Health and Armor chips.',
+          'Your row has a gold edge, your next opponent has a red edge, and Health and Armor use the new heart and shield chips.',
+          'When a player is knocked out, their row puffs into smoke as it fades.',
+          'When you are facing a ghost, its row is marked in teal instead of red.',
+          'The rail is the same size and in the same place as before.',
+        ],
+      },
     ],
   },
   {

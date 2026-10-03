@@ -22,7 +22,21 @@
  */
 import type { TunerControl, TunerSpec } from './tunerSchema';
 
+/** The rail's two looks (owner ask 2026-10-02: "is this a png? how can you modernize/clean this up?"). `gem` is the
+ *  CSS Gem plate frame themed by the shared `--ui-*` tokens; `classic` is the bitmap backplate. Stamped on `<html>` as
+ *  `data-lobby-rail`; lobbyRail.css paints Gem for anything but "classic", so production needs no JS for it. */
+export const LOBBY_RAIL_LOOKS = ['gem', 'classic'] as const;
+export type LobbyRailLook = (typeof LOBBY_RAIL_LOOKS)[number];
+const LOOK_LABELS: Record<LobbyRailLook, string> = {
+  gem: 'Gem plate (shipped)',
+  classic: 'Classic (the copper backplate)',
+};
+const isLook = (v: unknown): v is LobbyRailLook => typeof v === 'string' && (LOBBY_RAIL_LOOKS as readonly string[]).includes(v);
+
 export interface LobbyRailLookConfig {
+  // Look: the frame + row treatment (Gem plate or the Classic bitmap backplate)
+  look: LobbyRailLook;
+
   // Portrait
   faceScale: number;   // × the 18·lrow portrait cell (scales cell + image together)
   faceRadius: number;  // % — 50 = circle, 0 = square
@@ -87,6 +101,10 @@ const DEFAULTS: LobbyRailLookConfig = {
   // blue YOUR-seat, hot-red health bars, and a fierce red-glowing next foe with a thick left accent bar + a deep
   // pulse. Portraits slightly larger + squarer, rows pulled well in off the frame, tight seat padding, square
   // rail corners. All mirrored into the styles.css fallbacks below so prod paints it with no JS.
+  // The Gem look (2026-10-02) paints its frame and rows from the --ui-* theme tokens, so the COLOUR dials below
+  // only reach Classic; the size, spacing, corner and pulse dials reach both.
+  look: 'gem',
+
   faceScale: 1.74,
   faceRadius: 50,
 
@@ -170,7 +188,8 @@ let cfg: LobbyRailLookConfig = (() => {
   if (!import.meta.env.DEV) return { ...DEFAULTS };
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<LobbyRailLookConfig>) : {}) };
+    const merged: LobbyRailLookConfig = { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<LobbyRailLookConfig>) : {}) };
+    return isLook(merged.look) ? merged : { ...merged, look: DEFAULTS.look };
   } catch {
     return { ...DEFAULTS };
   }
@@ -184,6 +203,7 @@ export function getLobbyRailLookConfig(): LobbyRailLookConfig {
  *  so a missing var (production, or a stale save) renders the shipped look rather than a broken one. */
 export function applyLobbyRailLookVars(): void {
   if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute('data-lobby-rail', cfg.look);
   const s = document.documentElement.style;
   s.setProperty('--lby-face', String(cfg.faceScale));
   s.setProperty('--lby-face-rad', String(cfg.faceRadius));
@@ -226,6 +246,7 @@ export function applyLobbyRailLookVars(): void {
 }
 
 export function setLobbyRailLookValue(key: keyof LobbyRailLookConfig, value: number | string): void {
+  if (key === 'look' && !isLook(value)) return;
   cfg = { ...cfg, [key]: value };
   applyLobbyRailLookVars();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
@@ -251,6 +272,11 @@ const col = (
   ({ key, label, group, hint, kind: 'color', min: 0, max: 0, step: 0 });
 
 const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
+  {
+    key: 'look', label: 'Lobby rail look', group: 'Look', kind: 'select', options: LOBBY_RAIL_LOOKS, optionLabels: LOOK_LABELS,
+    hint: 'Gem plate: a CSS frame and rows painted from the UI Theme, crisp at any height. Classic: the copper backplate image with the solid blue / red rows. The colour dials below only reach Classic. Live.',
+    min: 0, max: 0, step: 0,
+  },
   r('faceScale', 'Portrait size', 'Portrait', '×', 'Hero portrait size — scales the portrait and its column together.'),
   r('faceRadius', 'Portrait rounding', 'Portrait', '%', 'Portrait corner rounding. 50 = a circle, 0 = a square.'),
 

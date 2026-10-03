@@ -20,7 +20,7 @@ import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS, STAR_DESTROYER, equipmentOf
 const STAR_DESTROYER_ID = STAR_DESTROYER.id;
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
-  selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
+  selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
 import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
@@ -4264,9 +4264,32 @@ function endRecruitTurn(s: RunState): void {
   applyEndOfTurn(s);
   // RUNE OF AMPLIFICATION (set 3 batch 2, 2026-09-16): every Equipment you did NOT activate this turn becomes
   // Amplified — read BEFORE the expiry below clears the per-turn activation marks. One proc per Equipment amplified.
+  // END OF TURN BEAT (owner 2026-10-03, R-EOT-AMPLIFY-01: "i think it should get an end of turn beat"): the rune
+  // opens its OWN beat, and each Equipment it Amplified rides it as a `counterChanged` (`equipmentAmplified:<id>`),
+  // so the HUD bursts on the Equipment slot and turns its charge blue ON the beat (and a replay's recorded batch
+  // carries the same). Nothing amplified (every Equipment used, or already capped) → no beat (`discardIfEmpty`).
   if (s.runeAmplification) {
-    const amped = amplifyUnactivated(s);
-    if (amped.length > 0) procRuneId(s, 'rune_amplification', amped.length);
+    const amplify = (): void => {
+      const amped = amplifyUnactivated(s);
+      if (amped.length > 0) procRuneId(s, 'rune_amplification', amped.length);
+      const c = currentCollector();
+      if (c.enabled) {
+        for (const id of amped) c.emit({ type: 'counterChanged', counter: `${EQUIPMENT_AMPLIFIED_COUNTER}${id}`, amount: 1, valueAfter: equipmentAmplifiedOf(s, id) });
+      }
+    };
+    const collector = currentCollector();
+    if (!collector.enabled) amplify();
+    else {
+      const handle = collector.beginTrigger({
+        phase: 'endOfTurn',
+        source: { kind: 'rune', id: 'rune_amplification', label: 'Rune of Amplification', side: 'player' },
+        trigger: 'endOfTurn',
+        ...beatIdentity('rune:rune_amplification:endOfTurn'),
+      });
+      amplify();
+      collector.endTrigger(handle);
+      collector.discardIfEmpty(handle);
+    }
   }
   // Unused Equipment activations and any temporary cost reduction expire with the turn (handoff).
   // The COLLECTION is deliberately left intact — it is cleared by the next Start-of-Turn rebuild,

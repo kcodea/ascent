@@ -35,7 +35,7 @@ describe('progressionFactsOf: fixtures', () => {
       terminal: true, comebackAfterFourLosses: true, combats: { wins: 3, losses: 4, draws: 1 },
       metrics: {}, // an empty observer on an empty board counted nothing (achievements batch 1, 2026-09-28)
     });
-    expect(matchXp(facts).total).toBe(100 + 40 + 25);
+    expect(matchXp(facts).total).toBe(100 + 60 + 25); // Top 4 is +60 since the 2026-10-03 "+50% bonuses"
   });
 
   it('a draw inside the streak neither adds nor clears; three losses then a win does not count', () => {
@@ -51,7 +51,7 @@ describe('progressionFactsOf: fixtures', () => {
     const f = progressionFactsOf(stateWith('WWL'), unlimited, { runId: 'practice:9', mode: 'practice', patch: 'p' });
     expect(f.placement).toBeNull();
     expect(matchXp(f).total).toBe(60);
-    expect(matchXp(progressionFactsOf(stateWith('WWL'), normal, { runId: 'practice:9', mode: 'practice', patch: 'p' })).total).toBe(84);
+    expect(matchXp(progressionFactsOf(stateWith('WWL'), normal, { runId: 'practice:9', mode: 'practice', patch: 'p' })).total).toBe(96); // round(0.6 x 160)
   });
 
   it('a sandbox or an unfinished run is not terminal (earns nothing)', () => {

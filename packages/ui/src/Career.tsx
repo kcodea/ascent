@@ -25,7 +25,7 @@ import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
-import { scalarCaption } from './rank/rankFormat';
+import { rankScalar, scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
   TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, mmrAxisOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
@@ -158,6 +158,8 @@ function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
   const one = series.points.length === 1 ? pts.split(',').map(Number) : null;
   const avgText = series.avg === null ? '—' : `${series.avg}${unit ?? ''}`;
   const n = series.points.length;
+  // The MMR line's closing "now" point (the live rating) is not a run: the footer counts runs only.
+  const runCount = series.points.filter((p) => !p.now).length;
   return (
     <div className="cv2-trend">
       <div className="cv2-trend-head">
@@ -176,7 +178,7 @@ function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
         <span className="cv2-axis bottom">{invert ? yMax : yMin}{unit}</span>
         {n === 0 && <span className="cv2-chart-empty">{empty}</span>}
       </div>
-      <div className="cv2-trend-foot">{n} run{n === 1 ? '' : 's'}</div>
+      <div className="cv2-trend-foot">{runCount} run{runCount === 1 ? '' : 's'}</div>
     </div>
   );
 }
@@ -593,7 +595,21 @@ export function Career() {
   }, [show, tab, userId, practiceRows, practiceTick]);
 
   const aggregates = useMemo(() => careerAggregates(runs ?? []), [runs]);
-  const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now()), [runs, window_]);
+  const mmr = viewing ? viewing.rating : profile.rating;
+  // MEDAL RANK (2026-09-20): the Seasonal Ranked card shows the crest + division bar once a rank exists on the
+  // profile (or, for a viewed player, on the hand-over / the fetch above); the scalar stays as a small caption.
+  // No rank → the bare number.
+  const rank = rankPositionOf(
+    viewing ? (viewing.rank ?? (viewedRank?.userId === viewing.userId ? viewedRank.rank : null)) : profile.rank,
+  );
+  // The viewed player's rank is still IN FLIGHT (no hand-over, the fetch above unanswered): the card holds a
+  // quiet empty ring in the crest's slot rather than flashing the bare number the crest is about to replace
+  // (review 2026-09-21). Offline / no backend never fetches, so it never holds: the bare number, at once.
+  const rankPending = !!viewing && !viewing.rank && remoteEnabled() && viewedRank?.userId !== viewing.userId;
+  // The MMR line ENDS on the number the Seasonal Ranked crest prints (owner 2026-10-03): the crest's rank
+  // scalar when a rank exists, else the bare live rating; while a viewed player's rank is in flight, none yet.
+  const liveMmr = rank ? rankScalar(rank) : rankPending ? null : mmr;
+  const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now(), liveMmr), [runs, window_, liveMmr]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
   // ACCOUNT LEVEL (2026-09-27): your own mirror, or the viewed player's public row. Null until the feature is on.
@@ -608,17 +624,6 @@ export function Career() {
 
   const back = (): void => { sfx.pulse(); close(); };
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
-  const mmr = viewing ? viewing.rating : profile.rating;
-  // MEDAL RANK (2026-09-20): the Seasonal Ranked card shows the crest + division bar once a rank exists on the
-  // profile (or, for a viewed player, on the hand-over / the fetch above); the scalar stays as a small caption.
-  // No rank → the bare number.
-  const rank = rankPositionOf(
-    viewing ? (viewing.rank ?? (viewedRank?.userId === viewing.userId ? viewedRank.rank : null)) : profile.rank,
-  );
-  // The viewed player's rank is still IN FLIGHT (no hand-over, the fetch above unanswered): the card holds a
-  // quiet empty ring in the crest's slot rather than flashing the bare number the crest is about to replace
-  // (review 2026-09-21). Offline / no backend never fetches, so it never holds: the bare number, at once.
-  const rankPending = !!viewing && !viewing.rank && remoteEnabled() && viewedRank?.userId !== viewing.userId;
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
   // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and

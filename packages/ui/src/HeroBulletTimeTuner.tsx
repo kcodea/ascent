@@ -8,7 +8,7 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the BULLET TIME hero attack (the Ancient of Time; owner 2026-10-02 picked "BULLET TIME", then: cutting
+ * DEV tuner for the TIMEBREAK hero attack (the Ancient of Time; owner 2026-10-02 picked "BULLET TIME", then: cutting
  * through time in slow motion, centred on the target). Four groups of per-tier dials (I one dart; II a ring of three; III a spiral volley and a
  * snap; IV the dome, the 3-2-1 and the collapse), the blades, the slow motion (crawl, FX speed, tears, afterimages), the
  * colours and one clip / gain / pitch row per sound cue. The Play buttons at the top play all four tiers.
@@ -90,7 +90,7 @@ const LEVEL_SPECS: Record<BulletTierSuffix, RareLevelSpec> = {
 
 const built = rareTunerSpec({
   id: 'herobullettime', // FROZEN: indexes this panel's dragged position in localStorage
-  title: 'Hero Attack: Bullet Time (Ancient)',
+  title: 'Hero Attack: Timebreak (Ancient)',
   store: heroBulletTimeStore,
   defaults: HERO_BULLET_DEFAULTS,
   ranges: HERO_BULLET_RANGES,

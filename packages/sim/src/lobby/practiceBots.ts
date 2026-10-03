@@ -127,9 +127,11 @@ export function botTierFor(level: BotLevel, round: number): number {
  *
  * REACH FOR THIS FIRST if bot games drag. It is the lever with no side effects on difficulty or on fiction.
  *
- * 5 is where it stops mattering: `lossDamageCap` bounds a round's damage, so from about here a losing bot takes
- * the cap and raising this further changes nothing (measured 2026-08-30 — a dominant run finishes in
- * 19/16/15/15 rounds at 2/3/5/6). It is chosen as the smallest value that reaches that floor.
+ * Bot-vs-bot fights are UNCAPPED (`settleRunLobbyRound`'s `seatCap`, #1199): the round's loss cap protects the
+ * PLAYER only, so a bot seat can lose more than the cap in a round (e.g. -30 on round 7). The player's own fight,
+ * the damage the player deals, and ghost fights stay capped. Pinned by `lobbyLossCap.test.ts`.
+ * 5 is the smallest value past which games stop getting shorter (measured 2026-08-30: a dominant run finishes in
+ * 19/16/15/15 rounds at 2/3/5/6).
  */
 export const BOT_SEAT_DAMAGE_MULT = 5;
 

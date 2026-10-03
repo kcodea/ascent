@@ -172,6 +172,10 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Blossom; owner-named: "i added more frames").
     // → 1405: the Ancient rarity 2026-10-02 (+6 frame webps in `art/frames/skins/`, carried as above: Bonds, Death,
     // Fortune, Genesis, Time, War; owner-named: "i added a new rarity -> Ancient").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1405);
+    // → 1423: skins batch 8 + frames batch 7 2026-10-03 (+11 hero skins in `art/skins/`: Young Tradesman, Author Quillen,
+    // Goth Rayse, Lord of Death, Midas and Melon, Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja
+    // Sweeney, Rayse Sweeney; +7 frame webps in `art/frames/skins/`, carried as above: Cream, Crystal, Disco, Econ, Snare,
+    // Chromatic Scale, Reflective; owner-named: "ive also added many skins to the game's collections").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1423);
   });
 });

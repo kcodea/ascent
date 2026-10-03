@@ -182,6 +182,9 @@ export interface TunerControl<K extends string = string> {
   /** Display text per option value, when the value is an id rather than something readable (the Card Art
    *  picker stores cardIds but must show the card's actual NAME). Absent => the value is shown as-is. */
   optionLabels?: Readonly<Record<string, string>>;
+  /** `select` only: show the options in labelled `<optgroup>` sections, in this order (the UI Theme picker groups
+   *  its themes by colour family). Any option not in a group is listed after the groups. Absent => a flat list. */
+  optionGroups?: readonly { label: string; options: readonly string[] }[];
   /** `range` only: a small ▶ drawn beside the label that plays what this row tunes (the Announcer panel previews
    *  each event's line at its tuned volume). Fires something; writes nothing. */
   preview?: () => void;

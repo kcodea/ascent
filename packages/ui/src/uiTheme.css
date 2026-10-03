@@ -7,7 +7,7 @@
    nowhere else. `tooltipStyle.test.ts` fails a tooltip or Gem pill rule that hard-codes a colour.
 
    This `:root` block is the BAKED theme production plays. It MUST equal `UI_THEMES[DEFAULT_THEME]` in
-   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the six themes live by writing
+   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the themes (60 since 2026-10-03) live by writing
    these same properties inline on `:root`; its "Copy values" gives the block to paste here when the owner picks.
 
    Colour only: nothing here is a size, so a theme never moves or resizes anything. Static paint: nothing animates. */
@@ -56,11 +56,18 @@
 
   /* Composites (built from the tokens above, so a theme switch re-resolves them). */
   --ui-plate: linear-gradient(180deg, var(--ui-plate-top) 0%, var(--ui-plate-mid) 55%, var(--ui-plate-bot) 100%);
-  --ui-edge: linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-edge-main) 38%, var(--ui-edge-deep) 62%, var(--ui-edge-lo) 100%);
+  /* The edge (polish 2026-10-03): five stops, so the deep band sits between two lit bands and reads as a turned metal
+     bevel rather than a two-tone stripe. */
+  --ui-edge: linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-edge-main) 30%, var(--ui-edge-deep) 56%, var(--ui-edge-main) 80%, var(--ui-edge-lo) 100%);
   --ui-hover-plate: linear-gradient(180deg, var(--ui-hover-top) 0%, var(--ui-hover-mid) 55%, var(--ui-hover-bot) 100%);
   --ui-hover-edge: linear-gradient(180deg, var(--ui-hover-edge-hi) 0%, var(--ui-hover-edge-main) 40%, var(--ui-hover-edge-deep) 65%, var(--ui-hover-edge-lo) 100%);
   --ui-stud: linear-gradient(135deg, var(--ui-edge-hi), var(--ui-edge-main) 55%, var(--ui-edge-deep));
   --ui-armor: linear-gradient(180deg, var(--ui-armor-top) 0%, var(--ui-armor-mid) 48%, var(--ui-armor-bot) 100%);
+  /* Polish 2026-10-03, shared by every plate (pills, tooltips, rail): a soft top-centre sheen layered over the plate,
+     and a bevel (a lit top line, a shaded bottom lip) added to its inner shadows. Black / white shading only, so
+     every theme gets the same depth. Static paint. */
+  --ui-sheen: radial-gradient(110% 70% at 50% 0%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0) 75%);
+  --ui-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -4px 6px -4px rgba(0, 0, 0, 0.7);
 }
 
 /* The 🎨 UI Theme tuner's pinned sample row (UiThemeTuner.tsx): a tooltip, a name pill, a Health pill and a button,
@@ -74,12 +81,28 @@
 .uitsample-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border: 1px solid transparent; border-radius: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; }
 .uitsample-btn svg { width: 16px; height: 16px; }
 .uitsample-name, .uitsample-hp, .uitsample-btn {
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
 }
 .uitsample-hp > svg { color: var(--ui-heart); }
 .uitsample-hp .hudpill-arm { display: inline-flex; align-items: center; gap: 0.14em; padding: 0.15em 0.4em 0.15em 0.27em; border-radius: 0.33em; border: 1px solid var(--ui-armor-edge); background: var(--ui-armor); color: var(--ui-armor-ink); font-size: 15px; text-shadow: none; }
 .uitsample-hp .hudpill-arm > svg { width: 0.92em; height: 0.92em; color: var(--ui-armor-icon); }
 .uitsample-btn svg { color: var(--ui-icon); }
-.uitsample-btn:hover { color: #fff; background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.uitsample-btn:hover { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+
+/* The tuner's swatch grid (UiThemeTuner.tsx): every theme as a small plate-in-its-edge chip, one row per colour group,
+   with dots of its title and highlight colours. Per-theme colours come inline from the registry. DEV only markup;
+   static paint, the selected chip wears a white ring. */
+.uitswatches { display: flex; flex-direction: column; gap: 6px; padding: 2px 4px 12px; }
+.uitswatch-group { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 8px; }
+.uitswatch-label { font-family: var(--font-ui); font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7); }
+.uitswatch-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.uitswatch {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  width: 30px; height: 20px; padding: 0; border: 2px solid; border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.uitswatch > i { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
+.uitswatch.on { outline: 2px solid #fff; outline-offset: 1px; }
+.uitswatch-name { margin-top: 2px; font-family: var(--font-ui); font-size: 12px; font-weight: 800; color: rgba(255, 255, 255, 0.85); }

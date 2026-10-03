@@ -2245,7 +2245,7 @@ export interface QuestCombatMods {
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
    *  times. Consumed once per combat (its own latch, so it stacks with `shoutDoubleCharges` — mirroring the
-   *  recruit counter's stacking in `playedShoutRepeats`). */
+   *  recruit fold's stacking in `shoutFireCount`). */
   warDrumExtra?: number;
   /** Warm Embers' legacy `shoutDouble` charges still unspent at combat (same 2026-08-26 ruling, extended):
    *  each of the next N Shouts triggered in combat fires twice (one extra fire per charge). */
@@ -2255,6 +2255,20 @@ export interface QuestCombatMods {
    *  turn-long BUFF, exactly as in the shop counter: EVERY Shout triggered in combat fires this many extra
    *  times, nothing is consumed. */
   encoreExtra?: number;
+  /** The STANDING permanent Shout extras (`RunState.shoutExtraAlways`: Rune of the Choir, Blasting Voices,
+   *  Hoardwake, Orivax's Chorus, Resonant Path). "Your Shouts trigger an additional time" is cross-phase
+   *  (R-SHOUT-TRIGGER-01, owner report 2026-10-03): EVERY Shout triggered in combat fires this many extra times,
+   *  nothing is consumed — the permanent sibling of `encoreExtra`. */
+  shoutExtraAlways?: number;
+  /** Warm Embers / Opening Act (`RunState.shoutFirstDoubleEachRound`): the FIRST Shout triggered in this fight fires
+   *  this many extra times. Its own per-phase charge (R-SHOUT-01), consumed in `shoutCarryExtras` (R-SHOUT-TRIGGER-01). */
+  warmEmbersFirst?: number;
+  /** Twin Sun Oath (`RunState.shoutEdgeBuff`): every Shout fire in combat buffs this side's left- and right-most
+   *  minion (R-SHOUT-TRIGGER-01, cross-phase). */
+  shoutEdgeBuff?: { attack: number; health: number };
+  /** Rune of the Drake Skull (`RunState.shoutEdgeTribeBuff`): every Shout fire in combat buffs the left- and
+   *  right-most minion of `tribe` (R-SHOUT-TRIGGER-01, cross-phase). */
+  shoutEdgeTribeBuff?: { tribe: Tribe; attack: number; health: number };
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */

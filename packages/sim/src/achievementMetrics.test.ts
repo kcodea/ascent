@@ -215,3 +215,55 @@ describe('the hero templates stay in step with the roster', () => {
     expect(ACHIEVEMENT_HEROES.map((h) => ({ ...h }))).toEqual(playableHeroes().map((h) => ({ id: h.id, name: h.name })));
   });
 });
+
+describe('the 2026-10-03 combat and hero metrics (achievements 150)', () => {
+  it('flawless wins, last-stand wins, enemy kills, the win streak and the unbeaten flag', () => {
+    const t = emptyAchTally();
+    const kill = (uid: string): CombatEvent => ({ type: 'death', target: uid, side: 'enemy' } as CombatEvent);
+    const lastStand = { enemyDamageBreakdown: { oppTier: 3, survivorTiers: [2] } } as Partial<CombatResult>;
+    observeAchCombat(t, combat([kill('e1'), kill('e2')], lastStand), 2); // flawless, 1 survivor
+    observeAchCombat(t, combat([{ type: 'death', target: 'p2', side: 'player' } as CombatEvent, kill('e1')]), 3); // a win with a death
+    observeAchCombat(t, combat([kill('e1'), { type: 'death', target: 'e2', side: 'enemy', rise: true } as CombatEvent]), 4); // a Rise is no kill
+    expect(t.m).toMatchObject({ flawlessWins: 2, lastStandWins: 1, enemyKills: 4, enemyKillsCombatMax: 2, combatWinStreakMax: 3 });
+    observeAchCombat(t, combat([], { result: 'draw' }), 5);
+    observeAchCombat(t, combat([]), 6);
+    expect(t.m.combatWinStreakMax).toBe(3); // a draw ends the run of wins
+    expect(finalAchMetrics(t, set2Run()).undefeated).toBe(1); // 5 combats, none lost
+    observeAchCombat(t, combat([], { result: 'lose' }), 7);
+    expect(finalAchMetrics(t, set2Run()).undefeated).toBeUndefined();
+    const short = emptyAchTally();
+    for (let w = 1; w <= 4; w++) observeAchCombat(short, combat([]), w);
+    expect(finalAchMetrics(short, set2Run()).undefeated).toBeUndefined(); // fewer than 5 combats
+  });
+
+  it('hero power uses count accepted actions only; Health at 5 or less (alive) sets the brink flag', () => {
+    const t = emptyAchTally();
+    const before = set2Run({ resolve: 30 });
+    observeAchAction(t, before, { type: 'heroPower' }, before, 0); // refused: the reducer returned the same state
+    observeAchAction(t, before, { type: 'heroPower' }, { ...before }, 0);
+    observeAchAction(t, before, { type: 'heroPower' }, { ...before }, 0);
+    expect(t.m.heroPowerUses).toBe(2);
+    expect(t.m.brink).toBeUndefined();
+    observeAchAction(t, before, { type: 'roll' }, { ...before, resolve: 5 }, 0);
+    expect(t.m.brink).toBe(1);
+    const dead = emptyAchTally();
+    observeAchAction(dead, before, { type: 'roll' }, { ...before, resolve: 0 }, 0);
+    expect(dead.m.brink).toBeUndefined();
+  });
+
+  it('knockouts and damage dealt come from the lobby encounters (a ghost stand-in never counts as a knockout)', () => {
+    const seat = (id: string, alive: boolean, eliminatedRound?: number) => ({ id, alive, ...(eliminatedRound ? { eliminatedRound } : {}) });
+    const lobby = {
+      seats: [seat('s0', true), seat('s1', false, 5), seat('s2', false, 6), seat('s3', false, 6), seat('s4', true)],
+      encounters: [
+        { round: 5, a: 's0', b: 's1', fought: true, damageToA: 0, damageToB: 12 },   // knocked s1 out
+        { round: 6, a: 's2', b: 's0', fought: true, damageToA: 7, damageToB: 3 },    // knocked s2 out (s0 is b)
+        { round: 6, a: 's3', b: 's4', fought: true, damageToA: 9, damageToB: 0 },    // not ours
+        { round: 7, a: 's0', b: 's1', fought: true, damageToA: 0, damageToB: 4, bye: 's0' }, // a ghost of s1: no knockout
+        { round: 8, a: 's0', b: 's4', fought: false, damageToA: 0, damageToB: 0 },
+      ],
+    };
+    const m = finalAchMetrics(emptyAchTally(), set2Run({ lobby } as unknown as Partial<RunState>));
+    expect(m).toMatchObject({ knockouts: 2, heroDamageDealt: 23, heroDamageCombatMax: 12 });
+  });
+});

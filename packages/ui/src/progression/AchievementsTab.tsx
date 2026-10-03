@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { activeSet } from '@game/content';
-import type { AchievementCategory } from '@game/progression';
+import { ACHIEVEMENT_CATEGORIES, type AchievementCategory } from '@game/progression';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import { remoteEnabled } from '../remoteBoards';
@@ -17,13 +17,16 @@ import './achievements.css';
  * next to practice. most should show, with their reward, but the hidden ones will be blurred or say "Hidden"").
  *
  * The Collection's visual language (the gold-rimmed panel, a category strip with done / total, filter chips, a
- * tile album): categories Career, Ranked, Heroes, Economy and Build, Mechanics, Runes, Set 2 (grouped by tribe);
+ * tile album): categories Career, Ranked, Heroes, Economy and Build, Mechanics, Runes, Set 2 (grouped by tribe),
+ * Combat and Milestones (the 2026-10-03 150);
  * filters All / Completed / In progress. A tile shows the name, the exact requirement, the reward ("+150 XP"), a
  * progress bar on the owner's own page for a counting achievement, and the completion date once done. A hidden one
  * is a blurred "Hidden" tile. Visible on anyone's Career: completions are public, progress values are the owner's.
  *
  * Read once per page owner the first time the tab is shown (like the Practice tab). Static tiles: no looping
- * animation, `AchTile` memoized, the list only re-renders on a tab or filter change.
+ * animation, `AchTile` memoized, the list only re-renders on a tab or filter change. Only the CURRENT category's
+ * tiles mount (Heroes, the largest, is 222 after the 2026-10-03 150), and each group skips layout and paint while
+ * it is off screen (`content-visibility: auto` in achievements.css), so the 446-entry registry stays cheap.
  */
 export interface AchievementsTabProps {
   userId: string;
@@ -37,12 +40,13 @@ type Loaded = { userId: string; completions: AchievementCompletionRow[] | null; 
 
 const CATEGORY_ICONS: Readonly<Record<AchievementCategory, string>> = {
   career: 'crown', ranked: 'shield', heroes: 'taunt', economy: 'ember', mechanics: 'gear', runes: 'anvil', set2: 'paw',
+  combat: 'sword', milestones: 'clock',
 };
 const TAB_KEY = 'ascent.career.achievements.cat';
 function loadCat(): AchievementCategory {
   try {
     const v = localStorage.getItem(TAB_KEY);
-    return v === 'ranked' || v === 'heroes' || v === 'economy' || v === 'mechanics' || v === 'runes' || v === 'set2' ? v : 'career';
+    return (ACHIEVEMENT_CATEGORIES as readonly string[]).includes(v ?? '') ? v as AchievementCategory : 'career';
   } catch { return 'career'; }
 }
 

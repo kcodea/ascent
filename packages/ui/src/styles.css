@@ -10737,7 +10737,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-win, #4be081); }
 .lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-lose, #ff5555); }
 .lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-draw, #c9bca3); }
-/* WON / LOST / DREW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
+/* WON / LOST / DRAW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
 .lobbyscout-result { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.05em; white-space: nowrap; }
 .lobbyscout-row.win .lobbyscout-result { color: var(--sc-win, #4be081); }
 .lobbyscout-row.lose .lobbyscout-result { color: var(--sc-lose, #ff5555); }

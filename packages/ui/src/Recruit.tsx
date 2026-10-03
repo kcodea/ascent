@@ -191,6 +191,7 @@ import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
 import { resourceFxFor } from './choreographer/resourceFx';
+import { amplifiedIdsOf, equipmentFxFor, setEotAmplified } from './choreographer/equipmentFx';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
@@ -6296,6 +6297,7 @@ export function Recruit() {
     setEndTurnAnimating(true); // interaction lock (§12.5): shop, board, hero power and End Turn all disabled
     setEotShopStats(null);
     setEotResources(null); // read only while `eotAnimating`, so the commit (same tick) never double-counts
+    setEotAmplified(new Set()); // Rune of Amplification's slot state, also read only while the lock holds
 
     /**
      * CHOREOGRAPHER PR 5 — the FX surface the presenters draw through. Every entry is an EXISTING helper;
@@ -6540,7 +6542,18 @@ export function Recruit() {
         const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         playDef('self-buff-burst', { source: p, target: p }); // == RESOURCE_FX_DEF (pinned by eotEconomyBeats.test)
       },
-      counterChanged: () => { /* weld rings still legacy-only — see the PR 5 gap list */ },
+      // Weld rings are still legacy-only (see the PR 5 gap list). RUNE OF AMPLIFICATION (owner 2026-10-03,
+      // R-EOT-AMPLIFY-01): an `equipmentAmplified:<id>` counter is the rune's End-of-Turn beat. The authored
+      // `self-buff-burst` plays on the Equipment slot here; the blue charge rides the projection (`setEotAmplified`).
+      counterChanged: (counter, amount) => {
+        const fx = equipmentFxFor(counter, amount);
+        if (!fx || !canPlayDefs()) return;
+        const el = document.querySelector<HTMLElement>(fx.selector);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('self-buff-burst', { source: p, target: p }); // == EQUIPMENT_FX_DEF (pinned by eotAmplificationBeat.test)
+      },
       cardTransformed: (uid, toCardId) => {
         // CHOREOGRAPHER: a shop-phase transform now plays ON ITS BEAT (owner report 2026-08-20 — Skybound
         // Ascendant's tier-up "should happen in real time"). The swap itself rides the projection
@@ -6668,6 +6681,8 @@ export function Recruit() {
         setEotTransforms(p.transformedCards.size ? new Map(p.transformedCards) : EMPTY_TRANSFORMS);
         // Shop numbers an End-of-Turn beat moved (R-EOT-ECON-01): the Tier price drops ON its beat, not at commit.
         setEotResources(p.resources.size ? Object.fromEntries(p.resources) : null);
+        // Equipment Rune of Amplification Amplified on a delivered beat (R-EOT-AMPLIFY-01): the slot turns blue now.
+        setEotAmplified(amplifiedIdsOf(p.counters));
       },
       onComplete: () => {
         // Same +pad as the legacy path's completion (see EOT_COMBAT_PAD_MS). Once-guarded because the

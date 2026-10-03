@@ -519,7 +519,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lace snaps and the knot bursts (the blow: a gold and violet nova, shockwaves, light streaks, soul ribbons and crystal
   rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
   tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
-  the fight. **Bullet Time** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
+  the fight. **Timebreak** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
   Ancient of Time: CUTTING THROUGH TIME, cast as magic. Crystal lances of golden light, each with a spinning time rune,
   slice in toward the struck hero, each opening a shimmering rift in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: they keep crawling forward,
   afterimages peeling off them, a rune circle ringing the target turns with its runes orbiting, a gold ripple sweeps the screen, and

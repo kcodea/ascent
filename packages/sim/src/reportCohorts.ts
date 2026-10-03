@@ -32,6 +32,7 @@
  */
 import type { AcquisitionEvent, BoardSnapshotLite, DerivedRun, GoldEvent, OfferEvent, UpgradeEvent } from './runDerive';
 import type { RunTelemetry } from './runTelemetry';
+import { buildOf, resolveRegime, sourceCounts, type ResolvedRegime, type RowSources, type SourceCounts } from './reportSources';
 
 // ── The row the cohorts read ───────────────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,15 @@ export type CohortRow = RunTelemetry & {
   contentRevision?: string | null;
   createdAt?: string | null;
   derived?: DerivedRun | null;
+  /** The client build (`version+commit`) that uploaded the row. */
+  patch?: string | null;
+  /** The live final wave, read from the derived payload as a scalar by the flat fetch (2026-10-03), so a row whose
+   *  payload is not loaded can still clamp its tier series. */
+  finalWave?: number | null;
+  /** Filled by `withBestSources` (`applyReportFilters` runs it on every row): where each corrected field came
+   *  from, and the row's regime with its basis. */
+  sources?: RowSources;
+  regimeInfo?: ResolvedRegime;
 };
 
 /** The pseudonymous player key of a row, or null when the row has none. The DEFAULT (2026-09-23) is the ACCOUNT
@@ -191,9 +201,13 @@ export interface DataQuality {
   withDerived: number;
   diverged: number;
   stackedStreams: number;
-  /** Rows whose replay-derived `tierByWave` does not MATCH the live `finalWave` (its last index falls short of
-   *  it or runs past it; any inequality counts): the flat tier table and shop curve are unreliable for these. */
+  /** Rows whose STORED (as-uploaded) `tierByWave` does not MATCH the live `finalWave` (its last index falls short
+   *  of it or runs past it; any inequality counts). Since 2026-10-03 the report no longer reads that stored series
+   *  when a better one exists: `sources` says how many rows read a live, derived or replay series. */
   replayDisagree: number;
+  /** Per field, how many rows read each source, how their regime was determined, and the old-row flags
+   *  (`reportSources.ts`). */
+  sources: SourceCounts;
   /** Rows whose hero picker trio was not recorded (they cannot enter an offered-not-chosen comparison). */
   heroOfferMissing: number;
   /** Rows with no content revision stamp (they form the `unknown` epoch). */
@@ -201,7 +215,7 @@ export interface DataQuality {
 }
 
 export function dataQuality(rows: CohortRow[]): DataQuality {
-  const q: DataQuality = { rows: rows.length, placementMissing: 0, placementMalformed: 0, duplicateIds: 0, withDerived: 0, diverged: 0, stackedStreams: 0, replayDisagree: 0, heroOfferMissing: 0, revisionMissing: 0 };
+  const q: DataQuality = { rows: rows.length, placementMissing: 0, placementMalformed: 0, duplicateIds: 0, withDerived: 0, diverged: 0, stackedStreams: 0, replayDisagree: 0, heroOfferMissing: 0, revisionMissing: 0, sources: sourceCounts(rows) };
   const ids = new Set<number>();
   for (const r of rows) {
     if (r.placement == null) q.placementMissing++;
@@ -211,7 +225,8 @@ export function dataQuality(rows: CohortRow[]): DataQuality {
       q.withDerived++;
       if (r.derived.diverged) q.diverged++;
       else if (segmentRun(r.derived).stacked) q.stackedStreams++;
-      if (r.tierByWave.length - 1 !== r.derived.finalWave) q.replayDisagree++;
+      const storedWaves = r.sources?.storedTierWaves ?? r.tierByWave.length - 1;
+      if (storedWaves !== r.derived.finalWave) q.replayDisagree++;
     }
     if (r.heroOffer.length === 0) q.heroOfferMissing++;
     if (!r.contentRevision) q.revisionMissing++;
@@ -280,10 +295,45 @@ export interface ReportScope {
   /** ISO date bounds on `createdAt` (inclusive by calendar day), or null for open. */
   from: string | null;
   to: string | null;
+  /** The matchmaking regime (`regimeKeyOf`: band table + strength formula), or null / absent for every regime
+   *  (2026-10-03). A row's regime is stamped, or inferred and labelled so (`reportSources.ts`). */
+  regime?: string | null;
+  /** The client build (the commit in `patch`), or null / absent for every build (2026-10-03). */
+  build?: string | null;
 }
 
+/** A row's regime key and build, read the same way by the filter, the pickers and the export. */
+export const regimeOfRow = (row: CohortRow): ResolvedRegime => row.regimeInfo ?? resolveRegime(row);
+export const buildOfRow = (row: CohortRow): string => buildOf(row.patch);
+
+/** The regimes or builds present in the rows, most runs first: the pickers' options and the export's meta. */
+export function regimesOf(rows: CohortRow[]): { key: string; runs: number; stamped: number; inferred: number }[] {
+  const acc = new Map<string, { key: string; runs: number; stamped: number; inferred: number }>();
+  for (const r of rows) {
+    const g = regimeOfRow(r);
+    let e = acc.get(g.key);
+    if (!e) { e = { key: g.key, runs: 0, stamped: 0, inferred: 0 }; acc.set(g.key, e); }
+    e.runs++;
+    if (g.basis === 'stamped') e.stamped++; else if (g.basis !== 'unknown') e.inferred++;
+  }
+  return [...acc.values()].sort((a, b) => b.runs - a.runs || a.key.localeCompare(b.key));
+}
+export function buildsOf(rows: CohortRow[]): { build: string; runs: number; oldest: string | null; newest: string | null }[] {
+  const acc = new Map<string, { build: string; runs: number; oldest: string | null; newest: string | null }>();
+  for (const r of rows) {
+    const b = buildOfRow(r);
+    let e = acc.get(b);
+    if (!e) { e = { build: b, runs: 0, oldest: null, newest: null }; acc.set(b, e); }
+    e.runs++;
+    const d = r.createdAt ?? null;
+    if (d) { if (!e.oldest || d < e.oldest) e.oldest = d; if (!e.newest || d > e.newest) e.newest = d; }
+  }
+  return [...acc.values()].sort((a, b) => (b.newest ?? '').localeCompare(a.newest ?? '') || b.runs - a.runs);
+}
 export const inScope = (row: CohortRow, scope: ReportScope): boolean => {
   if (scope.epoch !== ALL_EPOCHS && epochOf(row) !== scope.epoch) return false;
+  if (scope.regime && regimeOfRow(row).key !== scope.regime) return false;
+  if (scope.build && buildOfRow(row) !== scope.build) return false;
   const day = (row.createdAt ?? '').slice(0, 10);
   if (scope.from && day && day < scope.from) return false;
   if (scope.to && day && day > scope.to) return false;

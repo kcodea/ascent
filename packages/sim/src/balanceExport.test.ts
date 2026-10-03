@@ -139,10 +139,10 @@ describe('buildBalanceExport', () => {
 
   it('meta states the schema version, the set, the counts before and after every filter, the filters and the patch range', () => {
     expect(x.meta.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
-    expect(EXPORT_SCHEMA_VERSION, 'bumped by the honest-associations pass; a column is never redefined under a shipped version').toBe(2);
+    expect(EXPORT_SCHEMA_VERSION, 'bumped to 3 by the 2026-10-03 export fix (runs[].wins / tierByWave redefined as the best source); a column is never redefined under a shipped version').toBe(3);
     expect(x.meta.activeSet).toEqual({ id: 'set2', name: 'Set 2' });
     expect(x.meta.counts).toEqual({ fetched: 3, ladder: 3, inSet: 3, unstamped: 0, withDerived: 2, duplicateIds: 0, placementMalformed: 0, inScope: 3, exportedRuns: 3, exportedDerived: 2, heroes: 2 });
-    expect(x.meta.filters).toHaveLength(3);
+    expect(x.meta.filters).toHaveLength(4);
     expect(x.meta.patches, 'newest row first, as fetched').toEqual(['0.1.0+bbb', '0.1.0+aaa']);
     expect(x.meta.dateRange).toEqual({ oldest: '2026-09-20T10:00:00Z', newest: '2026-09-22T10:00:00Z' });
     expect(x.meta.appVersion).toBe('0.1.0+test');
@@ -151,7 +151,7 @@ describe('buildBalanceExport', () => {
   });
 
   it('meta carries the scope, the epochs, the quality counts, the fetch coverage, the cohort coverage, the player-key basis, the thresholds and the per-metric exclusions', () => {
-    expect(x.meta.scope).toEqual({ epoch: 'all', from: null, to: null, epochRuns: 3, revisionsIncluded: ['unknown'] });
+    expect(x.meta.scope).toEqual({ epoch: 'all', from: null, to: null, regime: null, build: null, epochRuns: 3, revisionsIncluded: ['unknown'] });
     expect(x.meta.epochs).toEqual(epochsOf(ROWS));
     expect(x.meta.quality).toMatchObject({ rows: 3, placementMissing: 0, placementMalformed: 0, duplicateIds: 0, withDerived: 2, diverged: 0, stackedStreams: 0, revisionMissing: 3 });
     expect(x.meta.fetch).toEqual(FETCH);
@@ -162,7 +162,7 @@ describe('buildBalanceExport', () => {
     expect(x.meta.excludedProlificRuns).toBe(0);
     expect(x.meta.thresholds.welchMinN).toBe(5);
     expect(x.meta.thresholds.evidenceGates.supported.players).toBe(5);
-    expect(Object.keys(x.meta.exclusions).sort()).toEqual(['adjusted', 'economy', 'exposed', 'heroes', 'raw', 'runes', 'tierDecisions', 'tiers']);
+    expect(Object.keys(x.meta.exclusions).sort()).toEqual(['adjusted', 'economy', 'exposed', 'heroes', 'raw', 'runes', 'tierDecisions', 'tiers', 'wins']);
     expect(x.meta.exclusions.exposed).toContain('2 runs with a usable derived payload');
   });
 

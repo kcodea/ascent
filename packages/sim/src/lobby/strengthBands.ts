@@ -32,6 +32,13 @@ export const STRENGTH_BANDS: Readonly<Record<RankMedal, StrengthBand | null>> = 
   Ascendant: { min: 35, max: 100 },
 });
 
+/** The band TABLE as a version string, read off `STRENGTH_BANDS` itself (2026-10-03, the Balance Report regime
+ *  stamp): `"B0-30 S10-40 G20-65 P* D10-100 A20-100"` today (`*` = uncapped). Any threshold change changes the
+ *  string, so a run stamped with it names the exact bands it was matched under, with no version number to forget. */
+export const STRENGTH_BANDS_VERSION: string = (Object.entries(STRENGTH_BANDS) as [RankMedal, StrengthBand | null][])
+  .map(([medal, b]) => `${medal.charAt(0)}${b ? `${b.min}-${b.max}` : '*'}`)
+  .join(' ');
+
 /** Percentile points a band gains on each capped side per widening step. */
 export const BAND_WIDEN_STEP = 10;
 

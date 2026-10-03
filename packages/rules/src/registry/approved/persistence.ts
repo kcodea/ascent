@@ -598,4 +598,31 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-09-30 (with the SQL applied).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/crossDeviceSaves.test.ts', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
+  {
+    id: 'R-REPORT-04',
+    title: 'Balance Report fields come from live capture, never from re-simulating a lobby run as an Ascent run',
+    statement:
+      'Every field of the telemetry row of a lobby run is captured LIVE: round wins from the history of the run itself (every '
+      + 'round counted), the shop tier at the end of each wave covering exactly waves 1 to the final wave, and the quests '
+      + 'and runes offered and picked, recorded as the run is played. Replaying the action log through a plain run is '
+      + 'never a source for a lobby run (it has no lobby seats and goes off course from the first combat); it remains '
+      + 'only the labelled fallback for a run resumed from a save that predates live capture. Rows uploaded before live '
+      + 'capture are read from the best source per field (the live derived payload before the replay), every tier '
+      + 'series is cut at the live final wave, and each exported run says which source each field came from and what '
+      + 'is still inferred. Each run is stamped with its matchmaking regime (band table, strength formula, band asked '
+      + 'for and used); older runs infer it from their build or date and are labelled inferred. The report and the '
+      + 'export can be scoped to one regime and one client build.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner reply 2026-10-03 to the Balance Report export audit (runs[].wins wrong on 31 of 36 rows of one epoch, tierByWave short or long on 32, no regime stamp)', quote: 'yes fix these issues' },
+      { kind: 'code', ref: 'packages/sim/src/runTelemetry.ts (recordTelemetryAction live tier + choices, lobbyRunTelemetry, currentRegime); packages/sim/src/reportSources.ts (bestSources, withBestSources, resolveRegime, KNOWN_BUILD_ERAS); packages/sim/src/playerReport.ts (applyReportFilters, ExportedRun build / regime / sources, EXPORT_SCHEMA_VERSION 3); packages/sim/src/reportCohorts.ts (ReportScope regime + build, dataQuality.sources); packages/ui/src/store.ts the lobby telemetry upload; packages/ui/src/remoteBoards.ts BALANCE_DERIVED_SCALARS' },
+    ],
+    currentBehaviour:
+      'Conforms since 2026-10-03. On the live 36-row epoch bba0a133 the stored wins agreed with the live combat count on '
+      + '5 rows and the stored tier series covered exactly 1 to the final wave on 4; read through the new source picker, '
+      + 'both are 36 of 36. Quests and runes on rows uploaded before the fix stay replay-derived (no live source exists '
+      + 'for them) and are flagged; regimes on those rows are inferred.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reportSources.test.ts', 'packages/ui/src/balanceFetch.test.ts'], lastVerifiedAt: '2026-10-03' },
+  },
 ];

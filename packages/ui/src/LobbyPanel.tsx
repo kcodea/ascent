@@ -169,7 +169,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
     </div>
-    <div className="lobbyrail">
+    {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
+    <div className="lobbyrail" style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
       <div className="lobbyhead">
         <span className="lobbyalive">{living.length} left</span>
       </div>

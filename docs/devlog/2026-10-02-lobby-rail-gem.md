@@ -33,6 +33,20 @@ timer, hero, Refresh, Tier, Gold, End Turn and Freeze are identical to the hundr
 the health bar's VISIBLE height (60%, centred in its old box via margin). The rail still does not scroll, and still
 slides away under the combat curtain.
 
+## Fill-out pass (owner: "can you fill the opponent boxes out better so they are more readable and take up more of the space?")
+
+Gem no longer keeps Classic's INNER geometry, only its outer box. The rail gets an explicit height, `--lgem-h`.
+It is rebuilt from Classic's row recipe plus the seat count `--lby-n`, which `LobbyPanel` sets on the rail.
+A measured 0.41-unit trim makes it match Classic to 0.01px at 1920x1080 and 1366x768. Inside that height:
+- a thin gutter (the Rail inset dial x 1.78, so 8 units);
+- seats that flex to share the column;
+- a 1.22x portrait spanning the row;
+- the name (1.3x, weight 900) on top, then the heart + armor chips (1.32x) with the round damage at the far right,
+  then the health bar across the row at 0.8x Classic's thickness;
+- long names ellipsize.
+
+The rail clips (`overflow: hidden`) instead of scrolling, since the rows always fit.
+
 ## Follow-up
 
 When Classic is removed, `public/opponents-backplate.webp` is referenced only by the Classic rule in `styles.css`,

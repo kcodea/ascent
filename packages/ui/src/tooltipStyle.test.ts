@@ -229,6 +229,21 @@ describe('one shared UI theme (tooltips + HUD pills)', () => {
     expect(bad, 'theme a lobby rail colour through uiTheme.css (--ui-*), not a literal').toEqual([]);
   });
 
+  it('the Scene Builder skin paints with the --ui-* tokens only', () => {
+    // sceneBuilder.css (owner ask 2026-10-03: "have it follow our ui theming"): the DEV panel + its hero flyout.
+    const bad: string[] = [];
+    const sb = rules(join(SRC, 'sceneBuilder.css'));
+    expect(sb.length, 'sceneBuilder.css should carry the Scene Builder skin').toBeGreaterThan(40);
+    for (const r of sb) {
+      for (const decl of r.body.split(';')) {
+        const i = decl.indexOf(':');
+        if (i < 0) continue;
+        for (const c of literalsIn(decl.slice(i + 1))) bad.push(`${r.selector.slice(0, 70)} { ${decl.trim().slice(0, 80)} } -> ${c}`);
+      }
+    }
+    expect(bad, 'theme a Scene Builder colour through uiTheme.css (--ui-*), not a literal').toEqual([]);
+  });
+
   it('the baked uiTheme.css block equals DEFAULT_THEME, token for token', () => {
     const css = readFileSync(join(SRC, 'uiTheme.css'), 'utf8');
     const t: UiThemeTokens = UI_THEMES[DEFAULT_THEME];

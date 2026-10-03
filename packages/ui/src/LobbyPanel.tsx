@@ -307,7 +307,7 @@ function readScoutVariant(): number {
   try { const v = Number(localStorage.getItem(SCOUT_VARIANT_KEY)); return v >= 1 && v <= SCOUT_VARIANTS ? v : 1; }
   catch { return 1; }
 }
-const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DREW' };
+const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DRAW' };
 
 /**
  * The hover read on one opponent: what they are playing, and how their last three fights went.

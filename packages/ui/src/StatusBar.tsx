@@ -8,6 +8,7 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
+import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -210,7 +211,12 @@ export function StatusBar() {
   // AMPLIFIED (owner design 2026-09-16): the selected Equipment's next activation triggers twice — its own stack
   // (Rune of Amplification / the Grand Workshop) or a pending Calibration Wrench charge it can spend (set 3
   // Neutrals, 2026-09-18; never the Wrench itself). The charge indicator turns BLUE while it does.
-  const equipAmplified = selectedEquipDef && equipmentWillAmplify(run, selectedEquipDef.id) ? 1 : 0;
+  // RUNE OF AMPLIFICATION'S END OF TURN BEAT (owner 2026-10-03, R-EOT-AMPLIFY-01): while the End-of-Turn playback
+  // holds the lock the run is still the pre-commit one, so an Equipment the rune Amplified turns blue when its beat
+  // delivers (the projection, via `useEotAmplified`), with the burst, never before and never only at the commit.
+  const eotAmplified = useEotAmplified();
+  const eotLock = useGame((s) => s.endTurnAnimating);
+  const equipAmplified = selectedEquipDef && (equipmentWillAmplify(run, selectedEquipDef.id) || (eotLock && eotAmplified.has(selectedEquipDef.id))) ? 1 : 0;
   const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
   // DISCOUNTED below the definition's printed cost (Efficient Tooling, Quick Release, Overcharge, Empty Hands /
   // Last Tool, a temporary reduction): the coin goes GREEN, the same cue the Rune pivot and the offer price use.

@@ -163,6 +163,10 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // Equipment TRIGGER (repeats included, each carrying its index).
   { key: 'system:equipment:equip', users: ['e3_frank'] },
   { key: 'system:equipment:trigger', users: ['e3_frank'] },
+  // Rune of Amplification's End-of-Turn beat (R-EOT-AMPLIFY-01, 2026-10-03): the rune itself is bucketed under
+  // `recruit` by `runeKey`, but its End-of-Turn Amplify opens its OWN beat under this key — list it so the
+  // emitted identity is a live surface key (classified, and not a registry ghost).
+  { key: 'rune:rune_amplification:endOfTurn', users: ['rune_amplification'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

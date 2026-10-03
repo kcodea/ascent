@@ -45,6 +45,7 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // Goldvein (2026-09-19): the same Pummel meter with a Gold-next-turn body — "Pummel (6): Gain 3 Gold next turn.
   // (Once per combat)"; the printed threshold never scales, the tally is the N/6 step counter.
   k3_goldvein: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  tauntbreaker: { kind: 'accurate-at-any-value', why: 'Tauntbreaker (Pummel (25), 2026-10-03): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   ce3_starcharter: { kind: 'accurate-at-any-value', why: 'Maestro Lux (Pummel (12), 2026-09-24): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   // Goldilox (2026-09-24): the only live value is WHERE the card sits — in the HAND it prints the doubled gain
   // (`inHand`, the hand row). A board body (this harness mounts board/combat Units) prints the exact printed text

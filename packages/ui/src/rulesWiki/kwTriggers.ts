@@ -327,7 +327,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "**Pummel (X)** goes off **each time this minion has dealt another X damage**. The count **never resets**: it carries from fight to shop to the next fight. The card shows your progress toward the next payout.",
     aliases: ['pummel', 'damage dealt', 'damage counter'],
     seeAlso: ['pummel-what-counts', 'pummel-cap'],
-    covers: [{ keyword: 'pummel', fp: '9832c410' }, { rule: 'R-PUMMEL-01', fp: '46dabaaa' }],
+    covers: [{ keyword: 'pummel', fp: '9832c410' }, { rule: 'R-PUMMEL-01', fp: '43c37ba1' }],
   },
   {
     id: 'pummel-what-counts',
@@ -336,16 +336,16 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Any hit it lands: **attacking, hitting back when attacked**, and damage from its effects. Overkill counts in full. A hit that gets **blocked by a Ward** (or deals 0) doesn't count.",
     aliases: ['pummel damage', 'pummel ward', 'overkill pummel'],
     seeAlso: ['pummel', 'ward'],
-    covers: [{ rule: 'R-PUMMEL-01', fp: '46dabaaa' }],
+    covers: [{ rule: 'R-PUMMEL-01', fp: '43c37ba1' }],
   },
   {
     id: 'pummel-cap',
     topic: 'keywords',
     q: 'Can Pummel pay out more than once in a fight?',
-    a: "Only up to the card's limit, which is **once per combat** unless the card says \"Max N per combat\". Crossings past the limit are **used up, not saved**. One huge hit can pay out several times if the limit allows.",
+    a: "Only up to the limit the card prints (\"Once per combat\", \"Twice per combat\", \"Max N per combat\"). A Pummel that prints **no limit** pays out **every time**. Crossings past the limit are **used up, not saved**. One huge hit can pay out several times if the limit allows.",
     aliases: ['pummel once per combat', 'pummel max', 'pummel limit'],
     seeAlso: ['pummel'],
-    covers: [{ rule: 'R-PUMMEL-02', fp: 'cfa3809c' }],
+    covers: [{ rule: 'R-PUMMEL-02', fp: 'cfa3809c' }, { rule: 'R-PUMMEL-03', fp: '4e3f5c8f' }],
   },
   {
     id: 'pummel-gilded',

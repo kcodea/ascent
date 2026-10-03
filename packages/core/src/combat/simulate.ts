@@ -2771,7 +2771,9 @@ export function simulate(
     // fresh every fight, NOT reset by a Rise). A hit that crosses several multiples pays once PER multiple up to
     // what the cap has left — the keyword is "triggers each time this minion has dealt another X damage"; under a
     // cap of 1 that is the old "one payout, the rest spent" reading exactly. Uncredited crossings are SPENT.
-    const cap = Math.max(1, typeof p.maxPerCombat === 'number' ? p.maxPerCombat : 1);
+    // `'unlimited'` — a Pummel that prints NO cap (Tauntbreaker, owner 2026-10-03: "Pummel (25): Get a random Shop
+    // Spell.") pays every multiple it crosses, the keyword's own "triggers each time" reading.
+    const cap = p.maxPerCombat === 'unlimited' ? Infinity : Math.max(1, typeof p.maxPerCombat === 'number' ? p.maxPerCombat : 1);
     const firedSoFar = dealer.pummelFires ?? 0;
     if (firedSoFar >= cap) return;
     const crossings = Math.floor(after / every) - Math.floor(before / every);
@@ -2815,6 +2817,16 @@ export function simulate(
       for (let k = 0; k < pays; k++) {
         fired();
         ctx.grantRandomMinion(count, tribe, dealer.side, undefined, dealer.uid);
+      }
+      return;
+    }
+    if (eff.do === 'dealtDamageGetRandomSpell') {
+      // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell." — each payout hands over `count`
+      // (x2 gilded) random Shop Spells through the shared combat spell grant (`grantRandomSpell`: the run's set pool,
+      // up to the side's shop tier, a live `toHand` mid-fight, settled via `playerHandGrants`). No per-combat cap.
+      for (let k = 0; k < pays; k++) {
+        fired();
+        ctx.grantRandomSpell(count, dealer.side, dealer.uid);
       }
       return;
     }

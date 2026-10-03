@@ -34,7 +34,8 @@ export type RubyRider = 'gold' | 'bounce' | 'ripple' | 'devour';
  *     board, kept by a Rise / Rebirth body (same combat instance), merged as the max on a triple;
  *   · a payout happens each time the tally crosses a MULTIPLE of X (`floor(after/X) - floor(before/X) > 0`);
  *   · but at most `params.maxPerCombat` payouts per combat (default 1 — the "(Once per combat)" rider; Han
- *     Gover's "(Max 5 per combat.)" is 5, owner 2026-09-24), counted by `pummelFires` on the combat Minion,
+ *     Gover's "(Max 5 per combat.)" is 5, owner 2026-09-24; `'unlimited'` for a card that prints no cap —
+ *     Tauntbreaker, owner 2026-10-03), counted by `pummelFires` on the combat Minion,
  *     fresh every fight. One hit that crosses several multiples pays once per multiple up to the cap left, and
  *     the uncredited crossings are SPENT, not banked (under a cap of 1: 120 in one hit pays once and the next
  *     payout is at 160). A crossing past the cap pays nothing; the tally still advanced.
@@ -46,6 +47,7 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
   dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
+  dealtDamageGetRandomSpell: true, // Tauntbreaker (owner 2026-10-03) — "Pummel (25): Get a random Shop Spell." (no cap printed: every 25)
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
@@ -419,6 +421,7 @@ export type EffectFactoryId =
   | 'getRandomRubies' // Ruby Shipment (Ruby batch 2026-09-24) — get N RANDOM Rubies, each drawn separately from all six types
   | 'battlecryPlayRubiesRandomTribe' // Shardluck (Ruby batch 2026-09-24) — play N Rubies, each on a random friendly `tribe` minion
   | 'onSummonCardPlayRubiesSelf' // Gemheart Legionnaire (Ruby batch 2026-09-24) — when a friendly `cardId` is summoned, play N permanent Rubies on this
+  | 'dealtDamageGetRandomSpell' // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell." — the shared damage meter with a random-Shop-Spell body (`grantRandomSpell`, x2 gilded); prints NO per-combat cap, so `params.maxPerCombat: 'unlimited'` pays every multiple crossed
   | 'dealtDamageGetRandomRuby' // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — the shared damage meter with a random-Ruby body (`grantRandomRubies`, x2 gilded), capped by `params.maxPerCombat`
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
   | 'armChooseBoth' // Dealer — arm THIS body's own first-Choose-One latch (per instance, not a run counter)

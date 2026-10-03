@@ -84,7 +84,8 @@ export const KEYWORDS_RULES: GameRule[] = [
       'Pummel (X) counts the damage THIS BODY has dealt over its whole life. The tally is per instance and never '
       + 'resets: it carries from combat to settle to shop to the next combat, it rides a served snapshot, and a '
       + 'Rise or Rebirth return keeps it. A payout is owed each time the tally crosses a multiple of X, but at '
-      + 'most the card\'s printed cap per combat (once, unless it prints "(Max N per combat.)", R-PUMMEL-02); '
+      + 'most the card\'s printed cap per combat (once, unless it prints "(Max N per combat.)", R-PUMMEL-02; a '
+      + 'Pummel that prints no cap at all pays every multiple, R-PUMMEL-03); '
       + 'crossings past the cap in a fight are spent, not banked. Every readout '
       + 'prints progress toward the NEXT payout (the tally modulo X, over X), on the board, in the shop and in '
       + 'combat, and the combat badge ticks on the beat the damage lands.',
@@ -282,5 +283,48 @@ export const KEYWORDS_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, FIXED 2026-09-26: measured on the dev build, the burst played 313ms after contact (after the death dissolve); it now plays 2ms after contact, once.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/wardBreakContact.test.ts'], lastVerifiedAt: '2026-09-26' },
+  },
+  {
+    id: 'R-PUMMEL-03',
+    title: 'Tauntbreaker: Rally strips Taunt and Rise from its target; Pummel (25) gets a random Shop Spell, every 25',
+    statement:
+      'Tauntbreaker reads "Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell." Each attack '
+      + 'removes Taunt AND Rise from the minion it strikes (with no target, as in a Shop Rally replay, nothing happens and no '
+      + 'friendly is disarmed). Its Pummel is the shared lifetime damage meter (R-PUMMEL-01) and pays a random Shop Spell '
+      + '(the run\'s set pool, at or below the shop tier, never a reward-only token) the moment the meter crosses a multiple '
+      + 'of 25, flying to hand mid-fight. The card prints NO per-combat cap, so it pays for EVERY multiple crossed, several '
+      + 'in one fight and several from one big hit. Gilded gets 2 Shop Spells per payout; the threshold stays 25.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner card changes 2026-10-03 (Tauntbreaker)', quote: 'Tauntbreaker -> Rally: Remove Taunt and Rise from the target. Pummel (25): Get a random Shop Spell.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set1/neutral.ts tauntbreaker; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageGetRandomSpell, maxPerCombat \'unlimited\'); packages/ui/src/cardText.ts stepProgress' },
+    ],
+    contentIds: ['tauntbreaker'],
+    currentBehaviour: 'Conforms (built with the change, 2026-10-03).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/tauntbreakerVenom1003.test.ts', 'packages/ui/src/tauntbreakerVenomText.test.ts'],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
+  {
+    id: 'R-EXECUTE-03',
+    title: 'Venom prints its Execute keyword in its body text',
+    statement:
+      'Venom\'s card text reads "Execute." so the Execute keyword pill and glossary entry show on every surface. The '
+      + 'mechanic is unchanged: Venom already carried the Execute keyword (R-EXECUTE-01).',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner card changes 2026-10-03 (Venom)', quote: 'Venom -> Execute. just needs the text keyword added to body' },
+    ],
+    contentIds: ['venom'],
+    currentBehaviour: 'Conforms (2026-10-03). The body text was empty before; the V keyword was already on the card.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/tauntbreakerVenom1003.test.ts', 'packages/ui/src/tauntbreakerVenomText.test.ts'],
+      lastVerifiedAt: '2026-10-03',
+    },
   },
 ];

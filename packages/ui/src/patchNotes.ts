@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-03',
     changes: [
       {
+        category: 'Balance',
+        text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell.',
+        details: [
+          'Pummel (25) pays every time Tauntbreaker has dealt another 25 damage, with no limit per combat.',
+          'Gilded Tauntbreaker gets 2 random Shop Spells each time.',
+          'Tauntbreaker has new art.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Venom\'s text now shows its Execute keyword.',
+      },
+      {
         category: 'Systems',
         text: 'Top 4 and 1st place now give 50% more bonus XP.',
         details: [

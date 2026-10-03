@@ -99,7 +99,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-carry-warm-embers-double-dip (triage round 2, 2026-08-27)',
       quote: 'first shout each turn = the first shout triggered EACH shop or combat phase. so if a shout gets triggered through parting cry in combat on turn 7, then the first shout in turn 8 is a separate charge, so both should work.',
     }],
-    currentBehaviour: 'Conforms — shipped in #1262 (2026-08-27, the THIS TURN rule): each phase carries its own first-Shout charge; pinned by the carryOver lane.',
+    currentBehaviour: 'Conforms — shipped in #1262 (2026-08-27, the THIS TURN rule): each phase carries its own first-Shout charge; pinned by the carryOver lane. 2026-10-03 (R-SHOUT-TRIGGER-01): the combat half is now real for the Warm Embers / Opening Act freebie too (questCombatMods.warmEmbersFirst, spent by the first Shout triggered in each fight), and in the Shop a TRIGGERED Shout spends the charge as well as a played one.',
     enforcement: { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' },
   },
   // ── Late-2026-08 / early-2026-09 fixes and rulings (owner reports + Bug Board rounds 1–2), entered 2026-09-09 ──
@@ -816,5 +816,71 @@ export const TRIGGERS_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms (2026-09-29). Before this the Shop clock kept running behind the Esc menu.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escMenuPausesTimer.test.ts'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-SHOUT-TRIGGER-01',
+    title: 'A triggered Shout is a Shout: every Shout modifier, charge, tally and watcher applies to it, in the Shop and in combat',
+    statement:
+      'GENERAL FORM: an ability fired through something other than its native trigger (a hero power, a rune, a spell, '
+      + 'an Echo, a Rally) still IS that ability, for every listener: every multiplier, charge, tally, watcher and rune '
+      + 'that reads the trigger reads it, in every phase. FOR SHOUTS, every Shout trigger counts the same, however it '
+      + 'was fired: a Shout played from hand; the Auctioneer\'s Pulse; every other Shop re-trigger (Echoing Roar, '
+      + 'Resonance, Ryme, Rune of the Last Word, Crucible Choir, Moira); and every Shout triggered in combat (Ryme / '
+      + 'Dawnclaw, Thunderous Sovereign, Chorus Drake, Parting Cry, Rune of Shared Scripture, Rune of Ancestral Roar, '
+      + 'Rune of the War Chorus, Ancient of Time). On each such trigger: '
+      + '(1) the STANDING extras add fires: Rune of the Choir, Hoardwake Ritual, Resonant Path, Orivax\'s Chorus (+1 '
+      + 'each), Rune of Blasting Voices (+2), Demand an Encore (+1 this turn); '
+      + '(2) the ONE-PER-TURN CHARGES are spent by the first Shout TRIGGERED, not only the first played: Warm Embers / '
+      + 'Opening Act (+1; per phase, so each fight has its own, R-SHOUT-01) and Rune of the War Drum (+2; an unspent '
+      + 'Shop charge carries to the first combat Shout, owner 2026-08-26); '
+      + '(3) Drakko\'s repeats apply, and all extras ADD (one fold, never multiplied); '
+      + '(4) EVERY fire, extras included, is a Shout for every listener: the Shout objectives and tallies (quests, Bane\'s '
+      + 'Presence, Rune of Ancestral Roar\'s count, Merchant\'s Chorus, Hoardcalling), the "whenever you trigger a Shout" '
+      + 'watchers (Karwind, Bane, Embermouth Whelp, Reconfigured Combinator, the Celestial and Spirit Shout runes, '
+      + 'the Ancients), and Twin Sun Oath / Rune of the Drake Skull, which now hear combat Shouts too (a combat buff '
+      + 'for that fight). Each fire is its own counted beat. '
+      + 'SPECIFIC CASE: the Auctioneer with Rune of the Choir. Pulse on a minion fires its Shout twice (three times with '
+      + 'Drakko; five with an unspent Warm Embers and War Drum, which the Pulse then spends), and the Choir\'s badge '
+      + 'pulses. REASONING: the runes say "your Shouts" and "the first Shout you trigger", and the Pulse says "trigger a '
+      + 'Shout"; Drakko already followed the trigger into every re-fire, so everything else skipping them was an '
+      + 'inconsistency, not a design. ROOT CAUSE (the class Doc Bot must keep catching): there was no single fold for '
+      + '"how many times does this Shout fire, and who hears each fire". Each site counted for itself. Shop: the extras '
+      + 'and charges lived only in the played counter, and `replayBattlecry` read only Drakko. Combat: `questCombatMods` '
+      + 'carried no Choir, no Warm Embers and no edge buffs; a carried extra fire emitted no `battlecryTriggered`; and '
+      + 'three forced Shouts looped the onPlay factories by hand, with no extras, no notify and no counted beat. A code '
+      + 'comment ("Applies ONLY to real plays") was then pinned as if it were a ruling (interactionFamilyMatrix P2). '
+      + 'FIX: ONE Shop fold, `shoutFireCount`, for every played and triggered Shout; ONE combat chokepoint, '
+      + '`replayCombatBattlecry` (reached through `fireShout`), which folds `ctx.shoutCarryExtras` and emits '
+      + '`battlecryTriggered` once per fire. Doc Bot lane `shoutTriggerParity` fails any Shop or combat Shout site '
+      + 'outside its fold and any stray notify, and drives every modifier through every entry path (48 cells; 40 '
+      + 'failed before the fix).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-03 (Claude Code session)', quote: 'auctioneer w/ rune of the choir does not work and it should. why doesn\'t it work? please fix it and wire the logical fix and reasoning into the oracle for docbot' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-03 on PR #1933 (the one-per-turn charges)', quote: 'yes pulse or other triggering options should absolutely trigger the extra shouts in this case. make sure all of this logic works across the board. are the other runes fixed now too?' },
+      { kind: 'card-text', ref: 'packages/content/src/runes.ts rune_choir, rune_war_drum', quote: 'Your **Shouts** trigger an **additional time**. / The first **Shout** you trigger each turn triggers **2** more times.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts shoutFireCount (playCard, applyBattlecryTarget, triggerBorrowedEcho, replayBattlecry); packages/sim/src/reducer.ts questCombatMods (shoutExtraAlways, warmEmbersFirst, shoutEdgeBuff, shoutEdgeTribeBuff); packages/core/src/effects/factories.ts replayCombatBattlecry + fireShout; packages/core/src/combat/simulate.ts shoutCarryExtras, the Twin Sun / Drake Skull handler, Shared Scripture / Ancestral Roar / War Chorus via fireShout; packages/content/src/questFlags.ts' },
+      { kind: 'docbot-scan', ref: 'packages/sim/src/docbot/shoutTriggerParity.ts', quote: 'pre-fix source: 4 deaf Shout sites, battlecryTriggered emitted outside the chokepoint, 40 of 48 modifier x entry-path cells failing' },
+    ],
+    currentBehaviour:
+      'Conforms (fix/auctioneer-rune-choir, 2026-10-03). Before: Pulse with the Choir fired the Shout once; no Shop '
+      + 're-trigger heard the Choir, Encore, Warm Embers or the War Drum; no combat Shout heard the Choir, Warm Embers, '
+      + 'Twin Sun Oath or the Drake Skull; carried extra fires were invisible to the tally and watchers; and the three '
+      + 'rune-fired combat Shouts heard nothing and drew only a narration line. Behaviour change to note: a triggered '
+      + 'Shout now SPENDS the Warm Embers / War Drum charge, so a Pulse or an End-of-Turn re-trigger can use it before a '
+      + 'Shout played later that turn.',
+    cardText: 'Rune of the Choir: "Your **Shouts** trigger an **additional time**. Get a **Shout** minion." Auctioneer, Pulse: "Trigger a friendly minion\'s **Shout**."',
+    example:
+      'Auctioneer owns Rune of the Choir and Rune of the War Drum. Board: a Whelpling and a Hoard Cleric ("Shout: give your '
+      + 'other Dragons +3/+3"). The first Pulse of the turn gives the Whelpling +12/+12 (four fires: 1 + Choir + War Drum 2); '
+      + 'a Cleric played afterwards fires twice. In combat, Ryme dying beside a Pennycat with the Choir summons two Strays, '
+      + 'and both fires count toward Bane\'s Presence and pulse the Choir\'s badge.',
+    contentIds: ['rune_choir', 'rune_blasting_voices', 'q_hoardwake_ritual', 'hq_resonant_path_shout', 'd2_orivax', 'gift_encore', 'q_warm_embers', 'hq_opening_act_shout', 'rune_war_drum', 'q_twin_sun_oath', 'rune_drake_skull', 'rune_shared_scripture', 'rune_ancestral_roar', 'rune_war_chorus', 'sp_partingcry'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/auctioneerChoir.test.ts', 'packages/sim/src/docbot/shoutTriggerParity.test.ts', 'packages/sim/src/docbot/interactionFamilyMatrix.test.ts', 'packages/sim/src/runeBatch4T4.test.ts', 'packages/sim/src/runeBatch10.test.ts'],
+      lastVerifiedAt: '2026-10-03',
+    },
   },
 ];

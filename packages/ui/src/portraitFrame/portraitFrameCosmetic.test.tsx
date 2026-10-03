@@ -43,13 +43,14 @@ describe('the frame art and its measured seat', () => {
       // Wedding (2026-10-01) and Simple Ring (2026-10-02) are rings with a gem on top, so their hole truly sits low in
       // the image (measured 0.577 and 0.563) and the gem's height leaves a smaller hole (Simple Ring 0.596);
       // frameGeometry seats the measured hole on the disc either way. Every other ring is centred.
-      // The Ancient frames (2026-10-02): Bonds is a heavy ring with a small hole (measured 0.594); Genesis is a
-      // crescent of leaves on the left, so its hole sits right of centre (x 0.609); Death hangs drapes and bells below
-      // the ring, so its hole is small (0.533) and sits high (y 0.438). Each is allowed by name.
+      // The Ancient frames (2026-10-02) first shipped with three odd holes (Bonds 0.594, Death 0.533 high, Genesis right
+      // of centre). The owner re-exported Bonds, Death, Fortune, Genesis and War on 2026-10-02 (wired 2026-10-03): Bonds
+      // (0.715) and Death (0.625 at y 0.457) are ordinary rings now. Genesis turned: its crescent of leaves now curls
+      // along the BOTTOM, so its hole is centred left-right (x 0.480) but sits high (y 0.390). Allowed by name.
       const gemOnTop = c.id === 'frame_wedding' || c.id === 'frame_simple_ring';
-      const minHoleD = gemOnTop ? 0.55 : c.id === 'frame_bonds' ? 0.58 : c.id === 'frame_death' ? 0.52 : 0.6;
-      const maxOffX = c.id === 'frame_genesis' ? 0.12 : 0.05;
-      const maxOffY = gemOnTop || c.id === 'frame_death' ? 0.1 : 0.05;
+      const minHoleD = gemOnTop ? 0.55 : 0.6;
+      const maxOffX = 0.05;
+      const maxOffY = gemOnTop ? 0.1 : c.id === 'frame_genesis' ? 0.12 : 0.05;
       expect(a.holeD, c.id).toBeGreaterThan(minHoleD);
       expect(a.holeD, c.id).toBeLessThan(0.95);
       expect(Math.abs(a.holeCx - 0.5), c.id).toBeLessThan(maxOffX);

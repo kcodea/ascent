@@ -149,12 +149,9 @@ export const SYNTHETIC_FIRE_SITES: Readonly<Record<string, FireSiteEntry>> = {
   // ── Echo ──
   'simulate.ts#fireOnce#onDeath': { kind: 'natural-dispatch', pair: 'none', why: "fireOwnDeathrattles' inner fire: a body's OWN Echo on its own death runs here (with the killer), then `onDeath` goes out on the bus with ownAlreadyFired for the watchers — the natural death path" },
   'simulate.ts#killOrReborn#onDeath': { kind: 'echo-proc', pair: 'none', why: 'the Rise branch: a body that comes back fires its Echo here before the ownAlreadyFired broadcast. Natural counterpart: fireOwnDeathrattles' },
-  'simulate.ts#killOrReborn#onPlay': { kind: 'battlecry-replay', pair: 'none', why: 'Rune of the Warpath / Sovereign-style "when X dies, the left-most Shout fires" replays. Natural counterpart: the shop play (recruit-owned; cross-phase equivalence is the factoryPhase lane)' },
   'simulate.ts#performAttack#onDeath': { kind: 'echo-proc', pair: 'none', why: "Echohorn Stag / Hawkus-style \"trigger your left-most Echo\" on attack: fires the echoer's onDeath effects without killing it. Natural counterpart: the death path; pair wanted (which onDeath WATCHERS hear a proc'd Echo?)" },
   'simulate.ts#runRuneStartOfCombat#onDeath': { kind: 'echo-proc', pair: 'none', why: 'the rune Start-of-Combat section (runRuneStartOfCombat, one pass per Twilight fire): Rune of the Herald / Bone Throne-style Echo procs on living bodies, plus the Dawnclaw Adjacent-Battlecry replay literal (base pass only). Natural counterpart: the death path' },
   // ── Shouts in combat ──
-  'simulate.ts#onCombatSpellCast#onPlay': { kind: 'battlecry-replay', pair: 'none', why: "Rune of Shared Scripture's forced left-most Shout on the first combat spell cast (folds Drakko, then fireFreeRally for the Rally half). Combat has no natural Shout — the shop play is the natural path" },
-  'simulate.ts#performAttack#onPlay': { kind: 'battlecry-replay', pair: 'none', why: 'the Burning-Legion / left-most-Shout-on-attack combat replays' },
   // ── on-kill ──
   'simulate.ts#performAttack#onKill': { kind: 'kill-replay', pair: 'none', why: 'Slaughter re-fires per multiplier extra after the natural `onKill` bus emit' },
   // ── factories.ts helpers ──
@@ -162,7 +159,7 @@ export const SYNTHETIC_FIRE_SITES: Readonly<Record<string, FireSiteEntry>> = {
   'simulate.ts#spellResolved#spellCast': { kind: 'natural-dispatch', pair: 'none', why: "Goldilox (owner 2026-09-24): the spell-IDENTITY half of a combat cast. The bus `spellCast` fires before the cast body and carries no spell id, so castInCombat reports each finished repetition to ctx.spellResolved, which pays the shopSpellCastGrowSelf watchers (board + hand) for a Shop-pool spell only. The factory ignores the id-less bus emit, so each cast pays once. Natural counterpart: the bus `spellCast` subscription" },
   'factories.ts#triggerEchoOn#onDeath': { kind: 'echo-proc', pair: 'none', why: "the combat arena's triggerEchoOn: runs a living body's onDeath effects under asEcho (Echohorn, Spots, Hawkus)" },
   'factories.ts#fire#onDeath': { kind: 'echo-proc', pair: 'none', why: 'the golden/multiplied inner fire of the arena Echo proc' },
-  'factories.ts#replayCombatBattlecry#onPlay': { kind: 'battlecry-replay', pair: 'none', why: 'the shared combat Shout replay — War Drum / Encore extras consumed here; see the phaseRegistry docblock history' },
+  'factories.ts#replayCombatBattlecry#onPlay': { kind: 'battlecry-replay', pair: 'none', why: 'THE one combat Shout chokepoint (R-SHOUT-TRIGGER-01): every combat Shout fire (Ryme / Dawnclaw / Sovereign / Parting Cry / Shared Scripture / Ancestral Roar / War Chorus, all via fireShout) runs here, folds ctx.shoutCarryExtras (Choir, Encore, Warm Embers, War Drum) and emits battlecryTriggered per fire. The three rune loops that used to dispatch onPlay directly in simulate.ts are gone; lane shoutTriggerParity fails a new one' },
   'factories.ts#battlecryTriggeredOwnDeathrattle#onDeath': { kind: 'echo-proc', pair: 'none', why: "a Shout that fires the body's OWN Echo without dying" },
 };
 

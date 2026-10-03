@@ -81,6 +81,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The HUD pills, tooltips and lobby rail got a visual polish.',
+        details: [
+          'Pills and tooltips have a soft top sheen, a bevelled edge and a crisper metal trim.',
+          'Lobby rail rows are easier to tell apart, and your own row has an accent stripe down its left side.',
+          'Health bars in the rail have a recessed track and a glossy fill.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: '150 new achievements to chase.',
         details: [
           'Set 2 tribes: crown a win with 7 of one tribe, and build lifetime totals of Rubies, Ales, spells and consumes.',
@@ -120,6 +129,27 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each player who lost Health shows the number once as you return to the shop. It rises and fades in about a second and a half.',
           'Hovering a player lists their last three fights with the damage of each.',
           'The smoke when a player is knocked out is now a softer, slightly slower veil that stays on their row.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Fixed Rune of the Choir and other Shout effects not working on triggered Shouts, like the Auctioneer's Pulse.",
+        details: [
+          "A Shout triggered by anything now counts as a Shout: the Auctioneer's Pulse, Echoing Roar, Resonance, Ryme, Parting Cry and runes.",
+          'Rune of the Choir, Rune of Blasting Voices, Hoardwake Ritual, Resonant Path, Orivax and Demand an Encore now add their extra triggers to these Shouts, in the Shop and in combat.',
+          'Warm Embers, Opening Act and Rune of the War Drum now apply to the first Shout you trigger each turn, not only the first one you play. Each combat also gets its own Warm Embers double.',
+          'Twin Sun Oath and Rune of the Drake Skull now also work on Shouts triggered in combat.',
+          'Shouts fired by Rune of Shared Scripture, Rune of Ancestral Roar and Rune of the War Chorus now count for Shout quests and Shout effects, and show their own animation.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: '11 new hero skins and 7 new portrait frames in crates. Two skins are now Ancient.',
+        details: [
+          'Hero skins: Young Tradesman (Rare); Author Quillen, Goth Rayse, Lord of Death and Midas and Melon (Legendary); Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja Sweeney and Rayse Sweeney (Ancient).',
+          'Portrait frames: Cream, Crystal, Disco, Econ and Snare (Epic), Chromatic Scale (Legendary) and Reflective (Ancient).',
+          'Leg Day Darah and Dance Night Hunch are now Ancient. Skins you already own stay yours.',
+          'Bonds, Death, Fortune, Genesis, War and Gilt Scale have refreshed art.',
         ],
       },
       {

@@ -35,7 +35,7 @@
   --atip-line-bot: var(--ui-edge-lo);  /* the bottom of the edge */
   --atip-radius: 12px;
   --atip-radius-simple: 10px;
-  --atip-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), inset 0 6px 8px -4px rgba(255, 255, 255, 0.07);
+  --atip-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), 0 2px 6px -2px rgba(0, 0, 0, 0.5), var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring);
   /* Text */
   --atip-font: var(--font-body);
   --atip-title-font: var(--font-title);
@@ -92,7 +92,7 @@
 .atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip,
 .sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs, .lobbyscout, .anc-pv,
 .gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
-  background: var(--atip-bg) padding-box, var(--atip-edge) border-box;
+  background: var(--ui-sheen) padding-box, var(--atip-bg) padding-box, var(--atip-edge) border-box;
   border: 1px solid transparent;
   border-top-width: 2px;
   border-radius: var(--atip-radius);
@@ -125,13 +125,14 @@
 .atip-title, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child, .riftbtn-tip > b:first-child,
 .runtrophy-tip > b:first-child, .cv2-rune-tip-name, .cv2-herotip-name {
   padding-bottom: 0.45em; border-bottom: 1px solid var(--atip-divider);
+  border-image: linear-gradient(90deg, color-mix(in srgb, var(--ui-edge-main) 80%, transparent), var(--atip-divider) 60%, transparent) 1;
 }
 .atip-title, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child, .riftbtn-tip > b:first-child,
 .runtrophy-tip > b:first-child { display: block; }
 .atip-title.atip-has-ico { display: flex; align-items: center; gap: 0.4em; }
 .atip-ico { flex: none; width: 1.05em; height: 1.05em; display: inline-flex; }
 .atip-ico img, .atip-ico svg { width: 100%; height: 100%; object-fit: contain; display: block; }
-.atip-div { height: 0; border-top: 1px solid var(--atip-divider); }
+.atip-div { height: 0; border-top: 1px solid var(--atip-divider); border-image: linear-gradient(90deg, color-mix(in srgb, var(--ui-edge-main) 80%, transparent), var(--atip-divider) 60%, transparent) 1; }
 
 /* Body text + gold highlights (keywords and numbers come through mdBold as <b>). */
 .atip-body, .herotip-rule, .questbadge-tip-reward, .riftpill-tip-body, .riftbtn-tip-body, .runtrophy-tip-body,
@@ -146,6 +147,7 @@
 .atip-pill, .herotip-live, .questbadge-tip-state, .runtrophy-tip-kind {
   display: inline-block; align-self: flex-start; padding: 0.15em 0.85em; border-radius: 999px;
   background: var(--atip-pill-bg); border: 1px solid var(--atip-pill-line); color: var(--atip-pill-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4);
   font-family: var(--font-ui); font-size: var(--atip-z-pill); font-weight: 800; line-height: 1.4;
   letter-spacing: normal; text-transform: none; font-variant-numeric: tabular-nums;
 }

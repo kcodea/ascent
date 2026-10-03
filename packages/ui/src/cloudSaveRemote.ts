@@ -39,6 +39,7 @@ export function supabaseCloudSaveApi(client: () => SupabaseClient | null, userId
       const c = client();
       if (!c) return { status: 'unavailable' };
       try {
+        // rows: a scalar RPC (one save slot per account).
         const { data, error } = await c.rpc('put_saved_run', { p_run_key: runKey, p_expected: expected, p_device: deviceId, p_payload: payload });
         if (error) return isMissing(error) ? { status: 'absent' } : { status: 'unavailable' };
         const d = data as { status?: string; revision?: number | string; current?: RawRow | null } | null;
@@ -51,6 +52,7 @@ export function supabaseCloudSaveApi(client: () => SupabaseClient | null, userId
       const c = client();
       if (!c) return 'unavailable';
       try {
+        // rows: a scalar RPC (one save slot per account).
         const { data, error } = await c.rpc('clear_saved_run', { p_run_key: runKey, p_expected: expected });
         if (error) return isMissing(error) ? 'absent' : 'unavailable';
         const d = data as { status?: string } | null;

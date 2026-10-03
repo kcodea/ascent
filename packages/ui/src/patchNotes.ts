@@ -59,6 +59,27 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-03',
     changes: [
       {
+        category: 'Balance',
+        text: 'Game strength now reflects your final board.',
+        details: [
+          'Each game is now rated by its last board, compared with every board seen at that round.',
+          'Ranked matchmaking uses the same number, so the opponents you meet are picked by how strong their final board was.',
+          'Games you already played keep the number they showed.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Matchmaking bands were retuned so higher ranks face stronger final boards.',
+        details: [
+          'Gold now meets boards between 15 and 65, Platinum 15 and up, Diamond 25 and up, Ascendant 35 and up.',
+          'Bronze and Silver are unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed long games sometimes showing the wrong Game strength.',
+      },
+      {
         category: 'Systems',
         text: '150 new achievements to chase.',
         details: [

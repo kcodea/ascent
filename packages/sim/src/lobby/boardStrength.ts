@@ -21,9 +21,12 @@ import { mixSeed } from '../state';
  *    the pool. It moves as the pool grows, so it is derived (server-side for the pool, from the server's
  *    histogram for the player's own board) and never stored on a board. `percentileOf` is the one definition;
  *    the SQL (`supabase/migrations/2026-09-30-board-strength.sql`) is parity-tested against it.
- *  - A RUN's strength is a true percentile among RUNS (owner-approved 2026-09-30): the ROUND-WEIGHTED average of its
- *    board percentiles (`runWeightedAverageOf`: rounds 1-5 share 20%, 6-9 share 35%, 10+ share 45%, owner 2026-09-30),
- *    ranked against every other run's average by the same rule (`runPercentileOf`).
+ *  - A RUN's strength is its FINAL board's percentile (owner 2026-10-03: "i think we basically only care about the
+ *    final board strength as an indicator for matchmaking"): the percentile of the run's last scored board within
+ *    its own reference wave, used directly, not re-ranked among runs (`runFinalStrengthOf`). It drives both the
+ *    matchmaking bands (`pool_runs.strength`) and the "Game strength" a player sees.
+ *  - The round-weighted average (`runWeightedAverageOf`, 2026-09-30) is still computed into `pool_runs.strength_avg`
+ *    as a diagnostic (and for clients deployed before 2026-10-03), but it is no longer the run's strength.
  *
  * The reference set lives in `strengthReference.v1.json`, generated ONCE by `npm run strength -- ref` from the
  * live pool. It is loaded lazily (`loadStrengthReference`): it is ~0.5 MB of boards, and nothing on the menu or
@@ -215,8 +218,8 @@ export function strengthRoundGroup(round: number): number {
  * plain average always had (the server averages every scored board of the run). Exact integer arithmetic, so the SQL
  * twin `board_strength_weighted_avg` cannot round differently:
  *   value = sum_g (W_g * S_g / n_g) / sum_g W_g  over the groups with n_g > 0  (S_g = sum, n_g = count of group g)
- * Averages pull toward 50 (a run is rarely the weakest in every round), so this is not yet the run's strength;
- * `runPercentileOf` ranks it among the runs.
+ * Since 2026-10-03 this is a DIAGNOSTIC only (`pool_runs.strength_avg`); the run's strength is its final board
+ * (`runFinalStrengthOf`).
  */
 export function runWeightedAverageOf(rounds: Iterable<{ round: number; value: number | null | undefined }>): number | null {
   const sum = STRENGTH_ROUND_GROUPS.map(() => 0);
@@ -247,14 +250,44 @@ export function weightedAvgFromGroups(sum: readonly number[], count: readonly nu
   return Math.min(100, Math.max(1, Math.floor((2 * num + den) / (2 * den))));
 }
 
+/**
+ * A RUN's strength since 2026-10-03 (owner: "can we try swapping out our algorithm for simply caring about the
+ * snapshots final round board strength?"): the percentile of its FINAL board, used directly (0-100 within that
+ * board's own reference wave, not re-ranked among runs). The final board is the run's latest scored round; when two
+ * boards share that round (a duplicate upload) their percentiles are averaged, rounded half up. A run whose last
+ * round never got a score (the run-end wait timed out) falls back to its latest scored round. Null with none.
+ *
+ * SQL twin: `board_strength_final` over the boards at the run's highest scored `boards.wave` in
+ * `pool_strength_refresh` (supabase/migrations/2026-10-03-final-board-strength.sql), parity-tested in
+ * boardStrength.db.test.ts.
+ */
+export function runFinalStrengthOf(rounds: Iterable<{ round: number; value: number | null | undefined }>): number | null {
+  let last = -Infinity;
+  let sum = 0;
+  let n = 0;
+  for (const r of rounds) {
+    if (typeof r.value !== 'number' || !Number.isFinite(r.value)) continue;
+    const v = Math.round(r.value);
+    if (r.round > last) { last = r.round; sum = v; n = 1; }
+    else if (r.round === last) { sum += v; n++; }
+  }
+  return finalFromSum(sum, n);
+}
+
+/** The mean of `n` whole percentiles summing to `sum`, rounded half up and clamped to 1..100 (null for n = 0), in
+ *  exact integer arithmetic (the SQL `board_strength_final` computes the same expression). */
+export function finalFromSum(sum: number, n: number): number | null {
+  if (!(n > 0)) return null;
+  return Math.min(100, Math.max(1, Math.floor((2 * sum + n) / (2 * n))));
+}
+
 /** How many runs of the set hold each average (the server's `run_strength_histogram`). */
 export interface RunStrengthHistogramEntry { avg: number; count: number }
 
 /**
- * A RUN's strength (owner-approved 2026-09-30): its average ranked among the pool's run averages with the same
- * tie-halving 1..100 rule as a board, so 30 means the bottom 30% of runs and every band holds about its nominal share.
- * `includeSelf` counts the run itself in the population (the player's finished game, not uploaded yet). SQL twin: the
- * rank window in `pool_strength_refresh`.
+ * RETIRED as the run's strength on 2026-10-03 (now `runFinalStrengthOf`). From 2026-09-30 to 2026-10-03 a run's
+ * strength was its average ranked among the pool's run averages with the same tie-halving 1..100 rule as a board.
+ * Kept for the measure tool's before/after; nothing in the game or the SQL ranks runs any more.
  */
 export function runPercentileOf(avg: number, runs: readonly RunStrengthHistogramEntry[] | null | undefined, includeSelf = true): number | null {
   return percentileOf(avg, (runs ?? []).map((r) => ({ raw: r.avg, count: r.count })), includeSelf);
@@ -269,14 +302,14 @@ export function parseBoardStrength(v: unknown): number | null {
 
 /**
  * The player's own run: each round's percentile against the pool's board histogram (the board counted as if it were
- * already in the pool), their round-weighted average (`runWeightedAverageOf`), and the run's strength (that average ranked among the pool's runs). `value`
- * is null without the run histogram, and the whole result null without the board histogram (the server cannot give
- * one yet): the UI then shows nothing rather than a guess. Scores against another reference version are skipped.
+ * already in the pool), and the run's strength: its FINAL board's percentile (`runFinalStrengthOf`, owner 2026-10-03).
+ * The whole result is null without the board histogram (the server cannot give one yet): the UI then shows nothing
+ * rather than a guess. Scores against another reference version are skipped.
  */
 export function runStrengthFromScores(
   scores: Iterable<readonly [number, StrengthScore]>, hist: StrengthHistogram | null | undefined,
-  runs: readonly RunStrengthHistogramEntry[] | null | undefined, ref: string = STRENGTH_REF_VERSION,
-): { value: number | null; average: number | null; rounds: { round: number; value: number }[] } | null {
+  ref: string = STRENGTH_REF_VERSION,
+): { value: number | null; rounds: { round: number; value: number }[] } | null {
   if (!hist) return null;
   const rounds: { round: number; value: number }[] = [];
   for (const [round, score] of scores) {
@@ -287,7 +320,5 @@ export function runStrengthFromScores(
     if (value !== null) rounds.push({ round, value });
   }
   rounds.sort((a, b) => a.round - b.round);
-  const average = runWeightedAverageOf(rounds);
-  const value = average !== null && runs?.length ? runPercentileOf(average, runs, true) : null;
-  return { value, average, rounds };
+  return { value: runFinalStrengthOf(rounds), rounds };
 }

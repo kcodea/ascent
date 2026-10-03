@@ -58,8 +58,9 @@ export function summaryText(d: MatchDetails): string {
 /** The label a RUN's strength (R-LOBBY-09) is shown under, wherever the player sees it: Career, Recent Games and
  *  Match details (owner 2026-09-30: "game strength for the display"). Per-round numbers stay BOARD percentiles. */
 export const GAME_STRENGTH_LABEL = 'Game strength';
-/** Its hover bubble (the game's `.gtip` data-tip, never a native tooltip). */
-export const GAME_STRENGTH_TIP = "How strong your board was across the whole game, compared with everyone else's. Later rounds count more.";
+/** Its hover bubble (the game's `.gtip` data-tip, never a native tooltip). Since 2026-10-03 a game's strength is its
+ *  FINAL board's (owner: "we basically only care about the final board strength"). */
+export const GAME_STRENGTH_TIP = "How strong the final board was, compared with everyone else's boards at that round.";
 
 /** BOARD STRENGTH (R-LOBBY-09): "Game strength 72", or null when the seat was not scored (show nothing). */
 export function strengthLabel(seat: Pick<MatchSeat, 'strength'>): string | null {

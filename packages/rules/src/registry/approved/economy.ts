@@ -171,4 +171,25 @@ export const ECONOMY_RULES: GameRule[] = [
       + 'looked at the economy); Scrap Vendor and Starbroker Nym banked next-turn Gold with no consequence.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eotEconomyBeats.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-EOT-AMPLIFY-01',
+    title: 'Rune of Amplification gets its own End-of-Turn beat on the Equipment slot, and the slot turns Amplified on that beat',
+    statement:
+      'When Rune of Amplification Amplifies Equipment at End of Turn, it plays its OWN beat: the authored self-buff-burst '
+      + 'def plays on the Equipment slot, and the slot\'s charge turns to its Amplified (blue) state at that moment, not '
+      + 'before and not only at the commit. One counterChanged consequence (equipmentAmplified:<id>) rides the beat per '
+      + 'Equipment Amplified. When nothing is Amplified (every Equipment was used, or already at the maximum) no beat '
+      + 'plays. Replays play the same beat from the recorded batch.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner decision 2026-10-03 (the follow-up the R-EOT-ECON-01 audit listed)', quote: 'Where should Rune of Amplification\'s End of Turn effect play? i think it should get an end of turn beat' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts (the rune_amplification End-of-Turn scope, discardIfEmpty, EQUIPMENT_AMPLIFIED_COUNTER); packages/core/src/presentation/policies.ts rune:rune_amplification:endOfTurn; packages/ui/src/choreographer/equipmentFx.ts; packages/ui/src/Recruit.tsx (counterChanged presenter, setEotAmplified); packages/ui/src/StatusBar.tsx (equipAmplified folds the delivered ids while the End-of-Turn lock holds)' },
+    ],
+    contentIds: ['rune_amplification'],
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it the rune Amplified unused Equipment at End of Turn with no beat and no '
+      + 'consequence, so the slot only turned blue after the commit with nothing played.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eotAmplificationBeat.test.ts'], lastVerifiedAt: '2026-10-03' },
+  },
 ];

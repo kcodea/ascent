@@ -27,6 +27,8 @@ const MVP = read('2026-09-27-account-progression.sql');
 const CRATES = read('2026-09-28-progression-crates.sql');
 const SKINS = read('2026-09-28-progression-skins.sql');
 const ACH = read('2026-09-28-achievements.sql');
+/** The newest settle_progression (2026-10-03, "+50% bonuses": Top 4 60, 1st 90); loaded after ACH so the XP is today's. */
+const PLACEMENT_XP = read('2026-10-03-placement-xp.sql');
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -133,7 +135,7 @@ async function completionsOf(u: string): Promise<string[]> {
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(STUB);
-  for (const f of [MVP, CRATES, SKINS, ACH]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [MVP, CRATES, SKINS, ACH, PLACEMENT_XP]) { await db.exec(f); await db.exec(API_GRANTS); }
   await db.exec(`update public.progression_config set epoch = now() - interval '2 days' where id = 1;`);
   expect((await sync()).status).toBe('synced');
 }, 60_000);
@@ -148,7 +150,7 @@ describe('the switch (no retroactive counting)', () => {
       expect(s.status).toBe('ok');
       expect(s.result.achievements).toEqual([]);
       expect(s.result.achievementXp).toBe(0);
-      expect(s.result.xp.total).toBe(200);
+      expect(s.result.xp.total).toBe(250);
     }
     expect(await completionsOf(u)).toEqual([]);
   });
@@ -181,7 +183,7 @@ describe('settlement (the switch is on from here)', () => {
     expect(s.result.cratesAwarded).toBe(s.result.after.level); // Welcome Crate + one per level, achievement XP included
     expect(settlementParity(s.result)).toBe(true);
     const ledger = await one<{ achievement_xp: number; achievement_ids: string[]; total_xp: number }>('select achievement_xp, achievement_ids, total_xp from public.progression_results where user_id = $1', [u]);
-    expect(ledger).toMatchObject({ achievement_xp: expectXp, total_xp: 200 });
+    expect(ledger).toMatchObject({ achievement_xp: expectXp, total_xp: 250 });
     expect(ledger.achievement_ids.sort()).toEqual(s.result.achievements.sort());
   });
 
@@ -328,6 +330,7 @@ describe('the catalog sync', () => {
     expect(await sync(fewer, 'test-hash-fewer')).toMatchObject({ status: 'synced', itemsDeactivated: 1 });
     expect(await one("select active from public.achievement_catalog where achievement_id = 'career.games.100'")).toEqual({ active: false });
     await db.exec(ACH); // idempotent re-run: clears the hash so the next cold start syncs
+    await db.exec(PLACEMENT_XP); // and the newer writer goes back on top, as the runbook says
     expect((await sync()).status).toBe('synced');
     expect(await one("select active from public.achievement_catalog where achievement_id = 'career.games.100'")).toEqual({ active: true });
     expect(await raises('select public.sync_achievement_catalog($1::jsonb, $2)', ['{"items": 3}', 'test-hash-bad'])).toContain('bad_catalog');

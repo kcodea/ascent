@@ -712,15 +712,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the ROUND-WEIGHTED average of its boards\' '
-      + 'percentiles (rounds 1-5 share 20% of the weight, rounds 6-9 35%, rounds 10+ 45%, split evenly inside a group '
-      + 'over the boards the run has there; a group the run never reached drops out and the rest renormalise, e.g. a run '
-      + 'that ended in round 8 weighs 20/55 and 35/55), rounded half up, '
-      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
-      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
+      + 'derived, never stored. A run\'s strength is its FINAL board\'s percentile, used directly (R-LOBBY-12, owner '
+      + '2026-10-03; from 2026-09-30 to 2026-10-03 it was the round-weighted average of the boards\' percentiles ranked '
+      + 'among runs, still kept as the diagnostic pool_runs.strength_avg). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
-      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + '10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 since 2026-10-03 (Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 before); every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -770,6 +766,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
         quote: 'game strength for the display',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner pick of the band thresholds for PR #1928, relayed verbatim by the coordinator, 2026-10-03 (final-board scale)',
+        quote: 'make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100',
+      },
       { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
     currentBehaviour:
@@ -777,7 +778,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
       + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
       + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
-      + 'owner runs the weighted-strength SQL (it recomputes every run).',
+      + 'owner runs the weighted-strength SQL (it recomputes every run). 2026-10-03: the run\'s strength became its final '
+      + 'board (R-LOBBY-12).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -788,6 +790,85 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/boardStrength/runEndStrength.test.ts',
       ],
       lastVerifiedAt: '2026-09-30',
+    },
+  },
+  // ── Run strength = the final board (owner 2026-10-03, after the Rooks / Albus report) ─────────────────────────────
+  {
+    id: 'R-LOBBY-12',
+    title: 'A run\'s strength, for matchmaking and for "Game strength", is its final board\'s percentile',
+    statement:
+      'A run\'s strength is the percentile of its FINAL board within that board\'s own reference wave (the same per-board '
+      + 'percentile as R-LOBBY-09: its place among every scored board seen at that round, ties half), used directly, not '
+      + 'averaged over the run and not re-ranked among runs. The final board is the run\'s latest round with a score; two '
+      + 'boards for that round are averaged, rounded half up; a last round that was never scored falls back to the latest '
+      + 'scored one. That one number drives the rated matchmaking bands (pool_runs.strength) and the "Game strength" a '
+      + 'player sees in the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, an '
+      + 'opponent seat as the pool delivered it). Numbers frozen before the change keep their old value. The round '
+      + 'percentiles in Match details are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-03 (Rooks / Albus 12-1, a 12th-percentile final board showing Game strength 83)',
+        quote: 'that board in my mind should not even be close to an 83',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'i think we basically only care about the final board strength as an indicator for matchmaking. can we try swapping out our algorithm for simply caring about the snapshots final round board strength?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts runFinalStrengthOf / finalFromSum / runStrengthFromScores; supabase/migrations/2026-10-03-final-board-strength.sql (pool_strength_refresh, board_strength_final); packages/ui/src/store.ts run-end freeze; packages/ui/src/matchDetails/matchDetailsText.ts GAME_STRENGTH_TIP' },
+    ],
+    example: 'Rooks / Albus (2026-10-02): rounds 3-9 at the 73rd-98th percentile, round 13 at the 12th. Game strength 83 before, 12 after.',
+    currentBehaviour:
+      'Conforms in code as of 2026-10-03. New games freeze the final-board number at once; the pool\'s run strengths (the '
+      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). On the final-board '
+      + 'scale the old thresholds left Platinum (uncapped) below Gold (37 vs 41), so the owner retuned them the same day '
+      + '(Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100; R-LOBBY-09). Live pool, 200 lobbies per medal: '
+      + 'mean seat 12, 22, 36, 49, 58, 62 from Bronze to Ascendant, 0 widenings.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
+  // ── No Supabase read is cut silently at 1,000 rows (owner 2026-10-03, the histogram bug) ────────────────────────────
+  {
+    id: 'R-NET-01',
+    title: 'Every list read from the backend arrives whole: nothing is cut silently at the 1,000-row server cap',
+    statement:
+      'The backend answers at most 1,000 rows per request and does not say when it stops there. So every list read the '
+      + 'game makes either pages to the end (fetchAllRows: .range() until a short page; a failed page fails the whole '
+      + 'read, never a partial table presented as whole) or carries an explicit, deliberate bound at or below 1,000 rows, '
+      + 'or is a read bounded by construction and says why. In particular the board-strength histogram the game scores '
+      + 'its own rounds against always arrives whole (every wave, every raw score), and an opponent run always arrives '
+      + 'with every one of its boards or not at all (R-LOBBY-08).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'fix the bug, and make it so we never run into similar situations like this and the client always downloads full game snapshots etc.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/supabaseRows.ts fetchAllRows; packages/ui/src/remoteBoards.ts fetchStrengthHistogramRows and every list read; packages/ui/src/progression/progressionRemote.ts; packages/ui/src/gauntlet/gauntletRemote.ts; packages/ui/src/opponentPool/poolFetch.ts; packages/tools/src/strength/livePool.ts' },
+    ],
+    example: 'A 1,070-row histogram is read in two requests (rows 0-999, then 1000-1999, which answers 70): all 1,070 arrive.',
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it the board-strength histogram (1,070 rows) reached every client as 1,000: wave '
+      + '14 cut at raw 0.7 and wave 15+ missing, so long games froze a wrong Game strength. The Hall own-game ledger, the '
+      + 'per-author board list and the board-record reads asked for 2,000 to 10,000 rows and got 1,000, and the pool '
+      + 'fallback listing stopped at 20 pages. A guard test scans every Supabase call in the client, the Edge Functions '
+      + 'and the tools and fails on an unbounded list read.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/supabaseRows.guard.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts'],
+      lastVerifiedAt: '2026-10-03',
     },
   },
   {
@@ -1940,12 +2021,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-XP-01',
-    title: 'Account XP per game: Ranked 100 + 40 Top 4 + 60 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
+    title: 'Account XP per game: Ranked 100 + 60 Top 4 + 90 first + 25 comeback; Practice 60% of that; the tutorial 250 once',
     statement:
-      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 40 '
-      + 'for a Top 4 finish, plus 60 for 1st, plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
+      'Account XP is permanent, earn-only and separate from the ranked ladder. A completed Ranked game earns 100, plus 60 '
+      + 'for a Top 4 finish, plus 90 for 1st (so a 1st is 250 and a Top 4 160; the bonuses were 40 and 60 until the owner '
+      + 'raised them by half on 2026-10-03), plus 25 for a comeback (a combat win right after 4 or more consecutive combat '
       + 'losses; a draw neither adds to nor clears the streak; once per run). A standard Practice game earns 60% of the '
-      + 'equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135). A Practice game with no meaningful placement '
+      + 'equivalent Ranked XP, summed then rounded (60 / 96 / 150 / 165). A Practice game with no meaningful placement '
       + '(Unlimited Health, played to the curtain) earns a flat 60. The first completion of the current Learn Ascent course '
       + 'earns 250 once per account. The Scene Builder, sandboxes and quit games earn 0. No caps, no diminishing returns. '
       + 'The server computes the XP from its own source rows (the accepted rank result, the player\'s own practice row, a '
@@ -1955,10 +2037,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'XP values and curve exactly as the handoff: Ranked 100 complete + 40 Top 4 + 60 first + 25 comeback' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (account progression MVP brief)', quote: 'Practice = round(0.60 × equivalent ranked XP)' },
-      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-09-27-account-progression.sql settle_progression; supabase/functions/_shared/progressionRules.ts (generated)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (placement XP)', quote: 'increase XP for top 4 and for wins per game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (placement XP, the chosen option)', quote: '+50% bonuses' },
+      { kind: 'code', ref: 'packages/progression/src/rules.ts xpForSettlement / comebackAfterLosses; supabase/migrations/2026-10-03-placement-xp.sql settle_progression (latest); supabase/functions/_shared/progressionRules.ts (generated)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP). Earns nothing until the owner runs the migration, deploys submit-progression and sets the progression epoch.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts'], lastVerifiedAt: '2026-09-27' },
+    currentBehaviour: 'Conforms, built 2026-09-27 (account progression MVP); placement bonuses raised to 60 / 90 on 2026-10-03 (live once the owner runs 2026-10-03-placement-xp.sql and redeploys submit-progression).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/server.test.ts', 'packages/sim/src/progressionFacts.test.ts', 'packages/progression/src/achievements.db.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-CURVE-01',
@@ -2603,7 +2687,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
       + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
       + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
-      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'Ranked 1sts, 250 XP, 400 since the 2026-10-03 re-tune) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
       + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
       + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
       + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
@@ -2619,6 +2703,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs supabase/migrations/2026-09-29-hero-titles.sql and redeploys submit-progression and progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/heroTitles.db.test.ts', 'packages/progression/src/achievements.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-ACH-05',
+    title: 'Achievements 150: 150 more XP-only achievements (tribes, heroes, combat, milestones); XP scales steeply with difficulty, the biggest at 750 to 1500',
+    statement:
+      'The registry grows by 150 achievements to 446, all paying Account XP only (61,375 XP added; the hero Titled and '
+      + 'Mastery tiers stay the only title rewards). Tribes & cards (38, Set 2, by tribe): a Ranked 1st with 7 of a tribe on '
+      + 'the final board, lifetime totals of a tribe on Top 4 and 1st boards, lifetime Rubies / Ales / Shop spells / consumes, '
+      + 'and bigger one-game feats. Heroes deeper (42): a sixth tier per hero, Devoted (25 games with that hero, 200 XP), hero '
+      + 'power uses (50 / 250 / 1,000), and more distinct heroes played (25, 30) and won with (25). Combat feats (36, a new '
+      + 'Combat category): flawless wins (no friendly minion died), wins with 1 minion left, win streaks in one game, knockouts '
+      + '(the opponent fell in the round you hit them), damage dealt to opponents, enemy minions destroyed, a Top 4 or Ranked 1st '
+      + 'after falling to 5 or less Health, a Ranked 1st without losing a combat, and bigger board / summon / Echo / Ward '
+      + 'feats. Long-term grind (34, a new Milestones category): higher tiers of games, Ranked games, Top 4s, 1sts, lifetime '
+      + 'Gold, Gilds, runes, promotions, achievements completed, Ascendant and Brutal wins, demotion escapes and streaks. XP '
+      + 'follows difficulty: one-game and easy feats 25 to 100, medium 101 to 300, hard 301 to 499, long-term 500 to 749, the '
+      + 'biggest milestones 750 to 1,500. The 11 new run metrics (heroPowerUses, flawlessWins, lastStandWins, '
+      + 'combatWinStreakMax, undefeated, knockouts, heroDamageCombatMax, heroDamageDealt, enemyKillsCombatMax, enemyKills, '
+      + 'brink) are counted by the run observer from data the client holds at settle and carry ordinary trust, like every run '
+      + 'metric. The batch 1 long-term tiers move onto the same curve (owner-approved): Veteran (100 games) 300, Mainstay (50 '
+      + 'Top 4s) 300, Conqueror (25 1sts) 500, Back from the Brink (10 comebacks) 250, Many Faces (15 heroes played) 250, '
+      + 'Master of Many (15 heroes won) 600, Completionist (25 achievements) 200, Gem Hoarder (500 Rubies) 200, and every hero '
+      + 'Mastery 400; the registry totals 105,950 XP. XP is paid at completion and recorded on the completion, so a re-tune '
+      + 'pays the new amount only on completions after it: one already completed keeps what it paid, with no backfill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150)', quote: 'add 150 more achievements' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, themes chosen)', quote: 'Tribes & cards, Heroes deeper, Combat feats, Long-term grind' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, XP)', quote: 'make longer term / more difficult achievements grant significantly more xp. some of the larger longer term ones should easily be 500+ xp' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (the batch 1 long-term re-tune)', quote: 'yes apply these achievement changes' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS_150, RUN_METRICS); packages/sim/src/achievementMetrics.ts (the new counters); packages/ui/src/progression/AchievementsTab.tsx (Combat + Milestones categories)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-03. Live once the owner redeploys submit-progression (its cold start syncs the catalog; no SQL).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts', 'packages/sim/src/achievementMetrics.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-TITLE-04',
@@ -3372,7 +3491,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'beat, the Ancient prismatic cyan-to-magenta accent on the final blast, a bigger shake, a slow-mo dip that is never '
       + 'a freeze, and a short KO sting), adding at most about 500 ms. Arcana (an extra vortex pulse before the burst), '
       + 'Consecration (a seventh, giant prismatic sword driven into the centre), Soul Stitch (the heart-knot '
-      + 'double-cinches) and Bullet Time (an extra ring of prismatic blades in the dome) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
+      + 'double-cinches) and Timebreak (an extra ring of prismatic blades in the dome) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
       + 'packages/ui/src/heroAttack/knockoutVariant.ts), not a list of ids: an Ancient attack whose runner has no variant '
       + 'yet falls back to Huge, and every other rarity (and Classic) keeps playing Huge on a knockout, unchanged. Without a '
       + 'knockout an Ancient attack plays its normal damage tiers. The shared tier stays IV underneath (every per-tier '
@@ -3382,7 +3501,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (knockout plays huge)', quote: 'add logic so that if a player knocks someone out, it always plays the "huge" animation.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (ancient knockout tier)', quote: 'ancient tier animations should have a separate tier of dmg specific for knockouts. they can just be small changes to the \x27huge\x27 tier. in some cases just adding a hit or something and some color changes or something like that but slightly more emphasis on the knockout animation. can you do this for all 4 ancient tier animations?' },
-      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy, Stitch and Bullet Time plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
+      { kind: 'code', ref: 'packages/ui/src/heroAttack/tiers.ts (attackTier, KNOCKOUT_TIER, isKnockoutVariant); packages/ui/src/heroAttack/knockoutVariant.ts (knockoutVariantFor, KNOCKOUT_VARIANT_STYLES); packages/ui/src/heroAttack/knockout.ts (the shared prism, shake, dip and sting); packages/ui/src/heroBlast/heroStrikeDamage.ts (heroStrikeKnockout); packages/ui/src/heroAttack/options.ts (knockout, knockoutVariant); every style config plan (attackTier); the Arcana, Holy, Stitch and Timebreak plans (ko); packages/ui/src/Recruit.tsx (the post-combat sequence passes knockout and knockoutVariant)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-29; the Ancient Knockout variant built 2026-10-02.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts'], lastVerifiedAt: '2026-10-02' },
@@ -3660,9 +3779,9 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-ATTACK-35',
-    title: 'Bullet Time (attack_bullet_time, Ancient): CUTTING THROUGH TIME, cast as magic: crystal lances of light tear rifts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
+    title: 'Timebreak (attack_bullet_time, Ancient): CUTTING THROUGH TIME, cast as magic: crystal lances of light tear rifts through the air and crawl in dramatic SLOW MOTION round the target (never stopped, never grey, every shape centred on the target), then time snaps back and they land; the blow lands ONCE',
     statement:
-      'attack_bullet_time ("Bullet Time", the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
+      'attack_bullet_time ("Timebreak", renamed from the placeholder "Bullet Time" 2026-10-03, the id unchanged; the Ancient of Time; ANCIENT, crate, account-wide, style bullettime): after the shared '
       + 'damage formation (R-PROG-ATTACK-08) crystal lances of golden light (a time rune spinning at each head) slice in toward the '
       + 'struck hero, each opening a shimmering rift (a gold seam, a violet aurora, drifting runes) in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: '
       + 'they keep CRAWLING forward (never stopped), the FX run slowed, afterimages peel off, a rune circle ringing the target '
@@ -3683,11 +3802,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient of Time attack, relayed by the coordinator)', quote: 'build a new ancient animation for this ancient, the ancient of time' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of the third rewind build, relayed by the coordinator)', quote: 'time attack is a 5/10. i dont like using the art for the attack. try again' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time, relayed by the coordinator)', quote: 'concept for bullet time is cool but it is currently like a 3/10 and we need a 10/10. this also needs a knockout tier as it\x27ll be an ancient tier animation' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Bullet Time IV, relayed by the coordinator)', quote: 'looks weird not being centered and prefer slow motion vs stopped/grey time. like more cutting through time than stopping it and dont grey out' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Timebreak, then named Bullet Time, relayed by the coordinator)', quote: 'concept for bullet time is cool but it is currently like a 3/10 and we need a 10/10. this also needs a knockout tier as it\x27ll be an ancient tier animation' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (5173 review of Timebreak IV, then named Bullet Time, relayed by the coordinator)', quote: 'looks weird not being centered and prefer slow motion vs stopped/grey time. like more cutting through time than stopping it and dont grey out' },
+      { kind: 'owner-chat', ref: 'Owner decision 2026-10-03 (the name, picked from Timebreak / Chronoweave / Sands of Eternity)', quote: 'Timebreak' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_bullet_time); packages/ui/src/heroBulletTime/ (bulletPlan / bulletCues / stopTicks / inSlowMo / hangPoints / clockCentre / dartGeos / dartAt / bulletCameraAt, playHeroBulletTime, HeroBulletTimeScene, heroBulletTimeTextures); packages/ui/src/heroAttack/knockoutVariant.ts (bullettime)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    currentBehaviour: 'Conforms, built 2026-10-02; display name Timebreak since 2026-10-03 (was the placeholder Bullet Time). The item, and its name, reach the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBulletTime/heroBulletTime.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {

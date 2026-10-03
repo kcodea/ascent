@@ -56,6 +56,61 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-03',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Game strength now reflects your final board.',
+        details: [
+          'Each game is now rated by its last board, compared with every board seen at that round.',
+          'Ranked matchmaking uses the same number, so the opponents you meet are picked by how strong their final board was.',
+          'Games you already played keep the number they showed.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Matchmaking bands were retuned so higher ranks face stronger final boards.',
+        details: [
+          'Gold now meets boards between 15 and 65, Platinum 15 and up, Diamond 25 and up, Ascendant 35 and up.',
+          'Bronze and Silver are unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed long games sometimes showing the wrong Game strength.',
+      },
+      {
+        category: 'Systems',
+        text: '150 new achievements to chase.',
+        details: [
+          'Set 2 tribes: crown a win with 7 of one tribe, and build lifetime totals of Rubies, Ales, spells and consumes.',
+          'Heroes: a new Devoted tier for every hero (25 games), plus hero power and many-heroes goals.',
+          'A new Combat category: flawless wins, last-minion wins, win streaks, knockouts, big damage and comebacks from low Health.',
+          'A new Milestones category for the long haul: games, Top 4s, 1sts, Gold, Gilds, runes and more.',
+          'The longer and harder the goal, the bigger the XP. The biggest milestones pay up to 1,500 XP.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Several long-term achievements now give more XP.',
+        details: [
+          'Veteran 300, Mainstay 300, Conqueror 500, Back from the Brink 250, Many Faces 250.',
+          'Master of Many 600, Completionist 200, Gem Hoarder 200, and every hero Mastery 400.',
+          'Achievements you already completed keep the XP they paid.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Top 4 and 1st place now give 50% more bonus XP.',
+        details: [
+          'Ranked: Top 4 now adds 60 XP (was 40) and 1st adds 90 more (was 60).',
+          'A Ranked win is now worth 250 XP and a Top 4 finish 160.',
+          'Practice still earns 60% of the Ranked amount: 150 for a win, 96 for a Top 4.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-02',
     changes: [
       {
@@ -65,6 +120,22 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each player who lost Health shows the number once as you return to the shop. It rises and fades in about a second and a half.',
           'Hovering a player lists their last three fights with the damage of each.',
           'The smoke when a player is knocked out is now a softer, slightly slower veil that stays on their row.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Rune of Amplification now shows an effect at End of Turn.',
+        details: [
+          'A burst plays on your Equipment slot, and the charge turns blue right then.',
+          'Replays show the same effect.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The MMR chart in Career now always ends on your current rating.',
+        details: [
+          'The chart headline now matches the number on your Seasonal Ranked crest.',
+          'If your rating changed since your last recorded game, the line ends with a point at your current rating.',
         ],
       },
       {
@@ -171,7 +242,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
+        text: 'A new Ancient hero attack in crates: Timebreak. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
         details: [
           'Small: one golden spell slows to a crawl just short of your foe, then hits.',
           'Bigger hits bring three spells, then a whole volley in a spiral.',

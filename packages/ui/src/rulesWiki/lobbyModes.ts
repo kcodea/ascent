@@ -325,10 +325,10 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'account-xp',
     topic: 'lobby',
     q: 'How do I earn Account XP?',
-    a: "Finish games. A rated game gives **100 XP**, plus **40** for a top 4, plus **60** more for 1st, plus **25** for a comeback (winning a fight right after losing 4 or more in a row). Practice gives 60% of that (a flat 60 with Unlimited Health). Your first Tutorial finish is worth **250**. Quit games give nothing. It's separate from Rating and never goes down.",
+    a: "Finish games. A rated game gives **100 XP**, plus **60** for a top 4, plus **90** more for 1st, plus **25** for a comeback (winning a fight right after losing 4 or more in a row). Practice gives 60% of that (a flat 60 with Unlimited Health). Your first Tutorial finish is worth **250**. Quit games give nothing. It's separate from Rating and never goes down.",
     aliases: ['xp', 'experience', 'account level', 'level up', 'progression'],
     seeAlso: ['account-levels', 'crates'],
-    covers: [{ rule: 'R-PROG-XP-01', fp: '014e0b65' }],
+    covers: [{ rule: 'R-PROG-XP-01', fp: '17ce351a' }],
   },
   {
     id: 'account-levels',

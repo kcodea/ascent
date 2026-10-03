@@ -70,28 +70,31 @@ medal + division — see *Ranked ladder* below).
     (`boards.strength_raw` / `strength_ref` / `strength_wave`), never recomputed.
   - Its **percentile** (1-100) is its place among every scored board at the same reference wave: the share it is
     stronger than, ties counted half, rounded. Derived, so it follows the pool as it grows; never stored on a board.
-  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the **round-weighted** average
-    of its boards' percentiles (`pool_runs.strength_avg`; owner 2026-09-30: *"rounds 1-5 matter much less than 6-9
-    which matter less than 10+"*): rounds 1-5 share **20%** of the weight, rounds 6-9 **35%**, rounds 10+ **45%**,
-    split evenly over the run's boards inside each group (a duplicate board for a round counts twice, as the plain
-    average always did). A group the run never reached drops out and the rest renormalise (a run that ended in round
-    8: 20/55 and 35/55). Rounded half up to 1..100. Numbers already frozen in match history keep the plain average
-    they were frozen with. Then ranked against every other run's average in the set by the same
-    rule (`pool_runs.strength`). 72 = stronger than 72% of runs, and each band holds about its nominal share of the
-    pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
-    run at most every 10 minutes; ranks are recomputed on every refresh.
-  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
-    Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
+  - A **run's strength** is its **final board's percentile**, used directly (owner 2026-10-03, R-LOBBY-12: *"i think
+    we basically only care about the final board strength as an indicator for matchmaking"*): the percentile of the
+    run's latest scored board within its own reference wave, not averaged over the run and not re-ranked among runs
+    (`pool_runs.strength`). 30 = the final board beat about 30% of the boards seen at that round. Two boards for the
+    last round are averaged (half up); a last round that was never scored falls back to the latest scored one. Runs
+    refresh on every upload for the uploaded runs and for every run at most every 10 minutes. From 2026-09-30 to
+    2026-10-03 the run's strength was the round-weighted average of its board percentiles (rounds 1-5 20%, 6-9 35%,
+    10+ 45%) ranked among runs; that average is still kept as a diagnostic (`pool_runs.strength_avg`), and numbers
+    frozen in match history before the change keep the value they were frozen with.
+  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **15-65**,
+    Platinum **15-100**, Diamond **25-100**, Ascendant **35-100** (retuned for the final-board scale, owner 2026-10-03:
+    *"make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100"*; on the live pool the mean opponent is
+    about 12, 22, 36, 49, 58 and 62 from Bronze to Ascendant; before: Gold 20-65, Platinum uncapped, Diamond 10-100,
+    Ascendant 20-100, set 2026-09-30 for averages of ~50 / ~55 / ~60) (owner
     2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
     server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
     (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
     it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
-    uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
+    uncapped; for Platinum, Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
     generated seats fill the rest. Practice and the tutorial have no band.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
-    and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
-    average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games
-    rows print **"Game strength N"** (the run's strength; renamed from "Board strength" for display, owner 2026-09-30, with a hover tip), and Match details shows your per-round board percentiles
+    and upload with their scores. The pool's strength table is read whole, every page (R-NET-01). When the game ends,
+    each round's board percentile and the run's strength (its final board's percentile) are **frozen** into the
+    game's record: the Career and Recent Games
+    rows print **"Game strength N"** (the run's strength; renamed from "Board strength" for display, owner 2026-09-30, with a hover tip that says it is the final board's strength), and Match details shows your per-round board percentiles
     and each opponent seat's run strength. A game that was not scored (the
     pool's strength data unavailable, or older games) shows nothing.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
@@ -128,7 +131,7 @@ medal + division — see *Ranked ladder* below).
   unaffected by a later global set change.
 
 Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board strength, bands),
-`supabase/migrations/2026-09-30-board-strength.sql`, `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
+`supabase/migrations/2026-09-30-board-strength.sql` + `2026-10-03-final-board-strength.sql`, `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
 `packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
 `packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/lobby/fightLedger.ts`, `packages/sim/src/rank.ts`,
 `packages/sim/src/lobbyStrength.ts`, the `run_fight_records` view (`supabase/migrations/2026-09-22-fight-ledger.sql`).
@@ -311,8 +314,9 @@ never touches the ranked ladder (Ranked answers "how am I doing right now"; Acco
 I played"). Live only once the owner has run the migration, deployed `submit-progression` and set the
 progression **epoch**; nothing finished before the epoch counts (no backfill).
 
-- **Match XP.** Ranked: **100** for a completed game, **+40** Top 4, **+60** for 1st, **+25** comeback.
-  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 84 / 120 / 135); a Practice game with
+- **Match XP.** Ranked: **100** for a completed game, **+60** Top 4, **+90** for 1st, **+25** comeback (so a 1st
+  is 250, a Top 4 160; the placement bonuses were 40 / 60 until owner 2026-10-03, "+50% bonuses").
+  Practice: **60%** of the equivalent Ranked XP, summed then rounded (60 / 96 / 150 / 165); a Practice game with
   no meaningful placement (Unlimited Health, played to the curtain) earns a flat **60**. The first completion of
   the current **Learn Ascent** course: **250**, once per account. Scene Builder, sandboxes and quit games: 0.
   No caps, no diminishing returns, no repeat penalties.
@@ -519,7 +523,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lace snaps and the knot bursts (the blow: a gold and violet nova, shockwaves, light streaks, soul ribbons and crystal
   rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
   tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
-  the fight. **Bullet Time** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
+  the fight. **Timebreak** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
   Ancient of Time: CUTTING THROUGH TIME, cast as magic. Crystal lances of golden light, each with a spinning time rune,
   slice in toward the struck hero, each opening a shimmering rift in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: they keep crawling forward,
   afterimages peeling off them, a rune circle ringing the target turns with its runes orbiting, a gold ripple sweeps the screen, and
@@ -625,11 +629,26 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Hero titles (2026-09-29, R-ACH-04, R-PROG-TITLE-04).** Every playable hero has a title (Warden "Warded", Gambler
   "Gambling Addict", Albus "Albus Student", ...; the list is `HERO_TITLE_NAMES` in `packages/progression/src/cosmetics.ts`).
   The Heroes category gains a fifth tier, **Titled** (3 Ranked 1sts with the hero, 150 XP), which grants the title;
-  **Mastery** (10 Ranked 1sts, 250 XP) now grants its **master** version: the same name as a **golden plate with
+  **Mastery** (10 Ranked 1sts, 250 XP; 400 since 2026-10-03) now grants its **master** version: the same name as a **golden plate with
   embroidered text**. Victory (1 Ranked 1st) stays XP only; Practice never counts. The master upgrades the title in
   place: it replaces a worn base title the moment it is earned, and the Collection shows one entry per hero title (the
   master once owned). Hero titles are achievement rewards, granted inside `settle_progression` with the completion,
   and never drop from a crate. The Heroes category is now 165 achievements; the registry 281 and 35,775 XP.
+- **Achievements 150 (2026-10-03, R-ACH-05).** Owner: "add 150 more achievements", themes Tribes & cards, Heroes
+  deeper, Combat feats, Long-term grind, and "some of the larger longer term ones should easily be 500+ xp". The
+  registry is now **446 achievements, 105,950 XP** (the 150 add 61,375; XP only; the owner-approved re-tune of the
+  batch 1 long-term tiers adds 7,000: Veteran 300, Mainstay 300, Conqueror 500, Back from the Brink 250, Many Faces
+  250, Master of Many 600, Completionist 200, Gem Hoarder 200, every hero Mastery 400. XP is recorded on the
+  completion when it is paid, so an achievement already completed keeps what it paid). Set 2 gains 38 tribe feats (a
+  Ranked 1st with 7 of a tribe, lifetime tribe totals on Top 4 and 1st boards, lifetime Rubies / Ales / spells /
+  consumes). Heroes gains a sixth tier per hero, **Devoted** (25 games, 200 XP), and an **All heroes** group (hero
+  power uses, more distinct heroes played and won with). Two new categories: **Combat** (36: flawless wins, wins with
+  1 minion left, win streaks, knockouts, damage to opponents, enemy kills, finishing well after falling to 5 or less
+  Health, an unbeaten Ranked 1st) and **Milestones** (34: games, Ranked games, Top 4s, 1sts, lifetime Gold, Gilds,
+  runes, promotions, achievements completed, Ascendant and Brutal wins, streaks). XP climbs with difficulty: 25 to
+  100 for one-game feats, up to 1,500 for the biggest milestones. A **knockout** is an opponent who fell in the round
+  your own fight hit them. The new counters are run metrics (ordinary trust). No SQL: `submit-progression` syncs the
+  catalog on its next cold start.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.

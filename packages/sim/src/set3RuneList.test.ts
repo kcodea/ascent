@@ -93,7 +93,9 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     // Design pass tranche 4 (owner 2026-09-27). No Tavern Tab: its Dwarf + Spirit slot is the owner's pick, the Last
     // Call, shipped as "Rune of Closing Time" (the Set 2 Dwarf rune `rune_last_call` already owns "Rune of Last Call").
     basic: { 'minted gems': 'rune_minted_gems', 'gem crypt': 'rune_gem_crypt', pallbearer: 'rune_pallbearer', 'star tap': 'rune_star_tap', 'closing time': 'rune_closing_time' },
-    epic: { 'festival circuit': 'rune_festival_circuit' /* RESTORED */, 'grim toast': 'rune_grim_toast', 'gem star': 'rune_gem_star', 'keepsake gem': 'rune_keepsake_gem' },
+    epic: { 'festival circuit': 'rune_festival_circuit' /* RESTORED */, 'grim toast': 'rune_grim_toast', 'gem star': 'rune_gem_star', 'keepsake gem': 'rune_keepsake_gem',
+      // Owner add 2026-10-03: Rune of Drakko (Set 2 + Set 3, Epic), "categorize it as a dragon and/or spirit rune".
+      drakko: 'rune_drakko' },
   },
   // MENAGERIE (2026-09-27 design pass, tranche 5): the Set 3 Menagerie (gated to all five tribes, MENAGERIE_TRIBES) and
   // Unity (untagged, as the Stoked Menagerie). Five Banners, Strange Caravan and the Stoked Menagerie stay listed as
@@ -154,13 +156,14 @@ const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
   rune_minted_gems: ['kobold', 'dwarf'], rune_gem_crypt: ['kobold', 'undead'], rune_pallbearer: ['undead', 'spirit'],
   rune_star_tap: ['dwarf', 'celestial'], rune_closing_time: ['dwarf', 'spirit'], rune_grim_toast: ['dwarf', 'undead'],
   rune_gem_star: ['kobold', 'celestial'], rune_keepsake_gem: ['kobold', 'spirit'],
+  rune_drakko: ['dragon', 'spirit'], // owner 2026-10-03 (Set 3 fields no Dragons; the Spirit half gates it here)
 };
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
-    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203).
-    expect(LISTED).toHaveLength(203);
+    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204).
+    expect(LISTED).toHaveLength(204);
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -186,7 +189,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
 
   it('counts: 109 Basic / 94 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
     expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(109);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(94);
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(95); // 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

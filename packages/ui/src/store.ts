@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -1838,19 +1838,25 @@ function commitResolvedAction(
               // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
               // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
               // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
-              // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
-              // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
-              // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
+              // EVERY FIELD comes from the LIVE log and the live run, never from the replay (2026-10-03, owner
+              // "yes fix these issues"): `reconstructRunTelemetry` re-runs the action log as a plain Ascent run with
+              // no lobby seats, which diverges from the first combat, and it was writing the wrong `wins` (31 of 36
+              // rows on one epoch) and a truncated tier curve, quests and runes. `lobbyRunTelemetry` reads `wins`
+              // from `next.history` and the rest from the log; the replay is only its fallback for a run resumed
+              // from a save that predates live tier/choice capture (and the row's `capture` says so).
               // SET + SOURCE STAMPS (2026-09-22): the run's pinned set (so the report reads one set) and what
               // produced the row (so a sandbox row could never pass for a ladder row). Both ride on the flat
               // row AND inside `derived`, so a backend without the new columns still keeps them.
               const stampSet = setIdOf(next);
               const stampSource = telemetrySourceOf(next);
-              const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
+              const base = lobbyRunTelemetry(telemetryLog, next, heroOffer, () => reconstructRunTelemetry(replay, heroOffer));
               // POOL + SEAT MIX (fix 2026-09-28): pool size and recorded / hybrid / bot seats at lobby creation,
               // with `allGenerated` flagging a table that seated no real run. Rides in `derived` (jsonb, no SQL).
               const lobbyPool = next.lobby ? lobbyPoolTelemetryOf(next.lobby) : undefined;
-              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource, lobbyPool };
+              // THE REGIME STAMP (2026-10-03): the band table and strength formula this build matched under, plus
+              // the run's own band, so the report can separate regimes. Rides in `derived` like `lobbyPool`.
+              const regime = currentRegime(lobbyPool);
+              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource, lobbyPool, regime };
               // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
               // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
               // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
@@ -1858,7 +1864,7 @@ function commitResolvedAction(
               const derivedBase = finishDerive(deriveState, next, {
                 heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
               });
-              const derived = lobbyPool ? { ...derivedBase, lobbyPool } : derivedBase;
+              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime };
               // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
               // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
               // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).

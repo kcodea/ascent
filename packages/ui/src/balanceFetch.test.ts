@@ -89,6 +89,22 @@ describe('fetchRunTelemetry — the select ladder', () => {
     expect(rows[1]!.source).toBeUndefined();
   });
 
+  it('reads the 2026-10-03 derived scalars (live final wave, capture, regime, lobby pool) as small JSON paths, never the payload', async () => {
+    const regime = { bandsVersion: 'B0-30 S10-40 G20-65 P* D10-100 A20-100', strengthFormula: 'weighted', band: '0-30', bandUsed: '0-30' };
+    respond = () => ({ data: [
+      { ...FLAT[0], derived_final_wave: 14, derived_capture: { v: 1, tierByWave: true, choices: true }, derived_regime: regime, derived_lobby_pool: { strengthBand: '0-30', strengthBandUsed: '0-30' } },
+      { ...FLAT[1], derived_final_wave: null, derived_capture: null, derived_regime: null, derived_lobby_pool: null },
+    ], error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 500 });
+    expect(queries[0]!.select).toContain('derived_final_wave:derived->finalWave');
+    expect(queries[0]!.select).toContain('derived_capture:derived->capture');
+    expect(queries[0]!.select).toContain('derived_regime:derived->regime');
+    expect(res.rows[0]).toMatchObject({ finalWave: 14, capture: { v: 1, tierByWave: true, choices: true }, regime, lobbyPool: { strengthBand: '0-30' } });
+    expect(res.rows[1]!.finalWave).toBeNull();
+    expect(res.rows[1]!.capture, 'an old payload has no capture stamp: the reader then picks the best old source').toBeUndefined();
+    expect(res.rows[1]!.regime).toBeUndefined();
+  });
+
   it('a backend WITHOUT the 2026-09-22 columns errors the first rung and answers from the second, where a stamp written inside derived still reads', async () => {
     respond = (q) => (q.select!.includes('set_id') ? missingColumn('set_id') : { data: FLAT_RUNG2, error: null });
     const res = await (await load()).fetchRunTelemetry({ cap: 500 });

@@ -206,6 +206,17 @@ export const STRENGTH_ROUND_GROUPS: readonly { readonly from: number; readonly t
   { from: 10, to: Infinity, weight: 45 },
 ];
 
+/**
+ * WHICH RUN-STRENGTH FORMULA THIS BUILD COMPUTES (2026-10-03, the Balance Report regime stamp). Stamped into every
+ * uploaded run's `derived.regime` so the report can tell runs matched under one strength regime from another:
+ * `'average'` = the plain mean of board percentiles (#1871, 2026-09-30), `'weighted'` = the round-weighted mean above
+ * (#1890, 2026-10-01), `'final'` = the final board's percentile, used directly (#1928, 2026-10-03). CHANGE THIS IN THE SAME PR that changes how a
+ * run's strength is computed (`runStrengthFromScores` / the SQL twin) -- it is the only way a row can say which rule
+ * it was matched under.
+ */
+export type StrengthFormula = 'average' | 'weighted' | 'final';
+export const RUN_STRENGTH_FORMULA: StrengthFormula = 'final';
+
 /** The index into `STRENGTH_ROUND_GROUPS` of a round (anything below 1 counts with the first group). */
 export function strengthRoundGroup(round: number): number {
   for (let g = STRENGTH_ROUND_GROUPS.length - 1; g > 0; g--) if (round >= STRENGTH_ROUND_GROUPS[g]!.from) return g;

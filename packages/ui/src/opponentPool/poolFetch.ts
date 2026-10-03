@@ -21,10 +21,11 @@ import type { PoolFetch, PoolRun } from './poolLoader';
 /** Runs per sample: about the size of the whole live pool today (150 runs, ~1,760 boards, ~2 MB of JSON before
  *  compression, the same as the old 17 x 120 per-wave pull), and far more than the 7 seats a lobby needs. */
 export const POOL_SAMPLE_RUNS = 150;
-/** Fallback listing: rows per page (PostgREST's default max-rows) and the most pages read. */
+/** Fallback listing: rows per page (PostgREST's max-rows), read until a short page (R-NET-01: never a silent cut).
+ *  `FALLBACK_MAX_PAGES` is only a runaway guard: reaching it FAILS the fetch rather than serve a partial listing. */
 export const FALLBACK_PAGE = 1000;
-export const FALLBACK_MAX_PAGES = 20;
-/** Fallback download: runs per `seed in (...)` request (x ~18 boards stays under the max-rows cap). */
+export const FALLBACK_MAX_PAGES = 1000;
+/** Fallback download: runs per `seed in (...)` request; each request is paged to the end (`boardsForSeeds`). */
 export const FALLBACK_RUNS_PER_REQUEST = 40;
 
 export interface SampleRow { run_key: string; author: string; user_id: string | null; wave_count: number; boards: BoardSnapshot[] | null;
@@ -43,7 +44,7 @@ export interface PoolApi {
   sample(args: SampleArgs, signal: AbortSignal): Res<SampleRow[]>;
   /** One page of board identities for this build version, stable order (by id). */
   lightPage(patchPrefix: string, from: number, to: number, signal: AbortSignal): Res<LightRow[]>;
-  /** Every board of these seeds for this build version. */
+  /** EVERY board of these seeds for this build version (paged to the end by the implementation, R-NET-01). */
   boardsForSeeds(patchPrefix: string, seeds: number[], signal: AbortSignal): Res<Array<{ snapshot: BoardSnapshot; user_id: string | null }>>;
 }
 
@@ -52,7 +53,7 @@ export interface PoolFetchOptions {
   patchPrefix: string;
   /** Uniform [0, 1). `Math.random` in the app; seeded in tests. */
   random(): number;
-  /** The player's matchmaking band (R-LOBBY-09); null = uncapped (Platinum, or no rank yet). */
+  /** The player's matchmaking band (R-LOBBY-09); null = uncapped (no rank yet). */
   band?: StrengthBand | null;
 }
 
@@ -140,6 +141,7 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
 async function fallbackRuns(api: PoolApi, opts: PoolFetchOptions, signal: AbortSignal): Promise<PoolRun[]> {
   // 1. Every board identity of this build version, grouped by run.
   const byRun = new Map<string, { waves: Set<number>; ownerId: string | null; setId: string; seed: number }>();
+  let complete = false;
   for (let page = 0; page < FALLBACK_MAX_PAGES; page++) {
     const from = page * FALLBACK_PAGE;
     const res = await api.lightPage(opts.patchPrefix, from, from + FALLBACK_PAGE - 1, signal);
@@ -152,8 +154,9 @@ async function fallbackRuns(api: PoolApi, opts: PoolFetchOptions, signal: AbortS
       if (!e) byRun.set(k, e = { waves: new Set(), ownerId: r.user_id, setId: r.set_id ?? 'set1', seed: r.seed });
       e.waves.add(r.wave);
     }
-    if (rows.length < FALLBACK_PAGE) break;
+    if (rows.length < FALLBACK_PAGE) { complete = true; break; }
   }
+  if (!complete) throw new Error(`pool listing passed ${FALLBACK_MAX_PAGES} pages`);
   // 2. The eligible runs of this set (the same rule as seat selection), yours included, sampled uniformly.
   const eligible = [...byRun.entries()].filter(([, e]) =>
     e.setId === opts.setId

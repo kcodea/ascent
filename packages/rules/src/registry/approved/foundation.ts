@@ -712,15 +712,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the ROUND-WEIGHTED average of its boards\' '
-      + 'percentiles (rounds 1-5 share 20% of the weight, rounds 6-9 35%, rounds 10+ 45%, split evenly inside a group '
-      + 'over the boards the run has there; a group the run never reached drops out and the rest renormalise, e.g. a run '
-      + 'that ended in round 8 weighs 20/55 and 35/55), rounded half up, '
-      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
-      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
+      + 'derived, never stored. A run\'s strength is its FINAL board\'s percentile, used directly (R-LOBBY-12, owner '
+      + '2026-10-03; from 2026-09-30 to 2026-10-03 it was the round-weighted average of the boards\' percentiles ranked '
+      + 'among runs, still kept as the diagnostic pool_runs.strength_avg). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
-      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + '10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 since 2026-10-03 (Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 before); every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -770,6 +766,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
         quote: 'game strength for the display',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner pick of the band thresholds for PR #1928, relayed verbatim by the coordinator, 2026-10-03 (final-board scale)',
+        quote: 'make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100',
+      },
       { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
     currentBehaviour:
@@ -777,7 +778,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
       + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
       + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
-      + 'owner runs the weighted-strength SQL (it recomputes every run).',
+      + 'owner runs the weighted-strength SQL (it recomputes every run). 2026-10-03: the run\'s strength became its final '
+      + 'board (R-LOBBY-12).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -788,6 +790,85 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/boardStrength/runEndStrength.test.ts',
       ],
       lastVerifiedAt: '2026-09-30',
+    },
+  },
+  // ── Run strength = the final board (owner 2026-10-03, after the Rooks / Albus report) ─────────────────────────────
+  {
+    id: 'R-LOBBY-12',
+    title: 'A run\'s strength, for matchmaking and for "Game strength", is its final board\'s percentile',
+    statement:
+      'A run\'s strength is the percentile of its FINAL board within that board\'s own reference wave (the same per-board '
+      + 'percentile as R-LOBBY-09: its place among every scored board seen at that round, ties half), used directly, not '
+      + 'averaged over the run and not re-ranked among runs. The final board is the run\'s latest round with a score; two '
+      + 'boards for that round are averaged, rounded half up; a last round that was never scored falls back to the latest '
+      + 'scored one. That one number drives the rated matchmaking bands (pool_runs.strength) and the "Game strength" a '
+      + 'player sees in the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, an '
+      + 'opponent seat as the pool delivered it). Numbers frozen before the change keep their old value. The round '
+      + 'percentiles in Match details are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-03 (Rooks / Albus 12-1, a 12th-percentile final board showing Game strength 83)',
+        quote: 'that board in my mind should not even be close to an 83',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'i think we basically only care about the final board strength as an indicator for matchmaking. can we try swapping out our algorithm for simply caring about the snapshots final round board strength?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts runFinalStrengthOf / finalFromSum / runStrengthFromScores; supabase/migrations/2026-10-03-final-board-strength.sql (pool_strength_refresh, board_strength_final); packages/ui/src/store.ts run-end freeze; packages/ui/src/matchDetails/matchDetailsText.ts GAME_STRENGTH_TIP' },
+    ],
+    example: 'Rooks / Albus (2026-10-02): rounds 3-9 at the 73rd-98th percentile, round 13 at the 12th. Game strength 83 before, 12 after.',
+    currentBehaviour:
+      'Conforms in code as of 2026-10-03. New games freeze the final-board number at once; the pool\'s run strengths (the '
+      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). On the final-board '
+      + 'scale the old thresholds left Platinum (uncapped) below Gold (37 vs 41), so the owner retuned them the same day '
+      + '(Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100; R-LOBBY-09). Live pool, 200 lobbies per medal: '
+      + 'mean seat 12, 22, 36, 49, 58, 62 from Bronze to Ascendant, 0 widenings.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
+  // ── No Supabase read is cut silently at 1,000 rows (owner 2026-10-03, the histogram bug) ────────────────────────────
+  {
+    id: 'R-NET-01',
+    title: 'Every list read from the backend arrives whole: nothing is cut silently at the 1,000-row server cap',
+    statement:
+      'The backend answers at most 1,000 rows per request and does not say when it stops there. So every list read the '
+      + 'game makes either pages to the end (fetchAllRows: .range() until a short page; a failed page fails the whole '
+      + 'read, never a partial table presented as whole) or carries an explicit, deliberate bound at or below 1,000 rows, '
+      + 'or is a read bounded by construction and says why. In particular the board-strength histogram the game scores '
+      + 'its own rounds against always arrives whole (every wave, every raw score), and an opponent run always arrives '
+      + 'with every one of its boards or not at all (R-LOBBY-08).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'fix the bug, and make it so we never run into similar situations like this and the client always downloads full game snapshots etc.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/supabaseRows.ts fetchAllRows; packages/ui/src/remoteBoards.ts fetchStrengthHistogramRows and every list read; packages/ui/src/progression/progressionRemote.ts; packages/ui/src/gauntlet/gauntletRemote.ts; packages/ui/src/opponentPool/poolFetch.ts; packages/tools/src/strength/livePool.ts' },
+    ],
+    example: 'A 1,070-row histogram is read in two requests (rows 0-999, then 1000-1999, which answers 70): all 1,070 arrive.',
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it the board-strength histogram (1,070 rows) reached every client as 1,000: wave '
+      + '14 cut at raw 0.7 and wave 15+ missing, so long games froze a wrong Game strength. The Hall own-game ledger, the '
+      + 'per-author board list and the board-record reads asked for 2,000 to 10,000 rows and got 1,000, and the pool '
+      + 'fallback listing stopped at 20 pages. A guard test scans every Supabase call in the client, the Edge Functions '
+      + 'and the tools and fails on an unbounded list read.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/supabaseRows.guard.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts'],
+      lastVerifiedAt: '2026-10-03',
     },
   },
   {
@@ -2606,7 +2687,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
       + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
       + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
-      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'Ranked 1sts, 250 XP, 400 since the 2026-10-03 re-tune) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
       + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
       + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
       + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
@@ -2622,6 +2703,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs supabase/migrations/2026-09-29-hero-titles.sql and redeploys submit-progression and progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/heroTitles.db.test.ts', 'packages/progression/src/achievements.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-ACH-05',
+    title: 'Achievements 150: 150 more XP-only achievements (tribes, heroes, combat, milestones); XP scales steeply with difficulty, the biggest at 750 to 1500',
+    statement:
+      'The registry grows by 150 achievements to 446, all paying Account XP only (61,375 XP added; the hero Titled and '
+      + 'Mastery tiers stay the only title rewards). Tribes & cards (38, Set 2, by tribe): a Ranked 1st with 7 of a tribe on '
+      + 'the final board, lifetime totals of a tribe on Top 4 and 1st boards, lifetime Rubies / Ales / Shop spells / consumes, '
+      + 'and bigger one-game feats. Heroes deeper (42): a sixth tier per hero, Devoted (25 games with that hero, 200 XP), hero '
+      + 'power uses (50 / 250 / 1,000), and more distinct heroes played (25, 30) and won with (25). Combat feats (36, a new '
+      + 'Combat category): flawless wins (no friendly minion died), wins with 1 minion left, win streaks in one game, knockouts '
+      + '(the opponent fell in the round you hit them), damage dealt to opponents, enemy minions destroyed, a Top 4 or Ranked 1st '
+      + 'after falling to 5 or less Health, a Ranked 1st without losing a combat, and bigger board / summon / Echo / Ward '
+      + 'feats. Long-term grind (34, a new Milestones category): higher tiers of games, Ranked games, Top 4s, 1sts, lifetime '
+      + 'Gold, Gilds, runes, promotions, achievements completed, Ascendant and Brutal wins, demotion escapes and streaks. XP '
+      + 'follows difficulty: one-game and easy feats 25 to 100, medium 101 to 300, hard 301 to 499, long-term 500 to 749, the '
+      + 'biggest milestones 750 to 1,500. The 11 new run metrics (heroPowerUses, flawlessWins, lastStandWins, '
+      + 'combatWinStreakMax, undefeated, knockouts, heroDamageCombatMax, heroDamageDealt, enemyKillsCombatMax, enemyKills, '
+      + 'brink) are counted by the run observer from data the client holds at settle and carry ordinary trust, like every run '
+      + 'metric. The batch 1 long-term tiers move onto the same curve (owner-approved): Veteran (100 games) 300, Mainstay (50 '
+      + 'Top 4s) 300, Conqueror (25 1sts) 500, Back from the Brink (10 comebacks) 250, Many Faces (15 heroes played) 250, '
+      + 'Master of Many (15 heroes won) 600, Completionist (25 achievements) 200, Gem Hoarder (500 Rubies) 200, and every hero '
+      + 'Mastery 400; the registry totals 105,950 XP. XP is paid at completion and recorded on the completion, so a re-tune '
+      + 'pays the new amount only on completions after it: one already completed keeps what it paid, with no backfill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150)', quote: 'add 150 more achievements' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, themes chosen)', quote: 'Tribes & cards, Heroes deeper, Combat feats, Long-term grind' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, XP)', quote: 'make longer term / more difficult achievements grant significantly more xp. some of the larger longer term ones should easily be 500+ xp' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (the batch 1 long-term re-tune)', quote: 'yes apply these achievement changes' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS_150, RUN_METRICS); packages/sim/src/achievementMetrics.ts (the new counters); packages/ui/src/progression/AchievementsTab.tsx (Combat + Milestones categories)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-03. Live once the owner redeploys submit-progression (its cold start syncs the catalog; no SQL).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts', 'packages/sim/src/achievementMetrics.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-TITLE-04',

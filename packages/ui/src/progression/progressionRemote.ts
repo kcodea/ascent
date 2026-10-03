@@ -21,6 +21,7 @@ import {
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
+import { fetchAllRows } from '../supabaseRows';
 
 const SUBMIT_TIMEOUT_MS = 15_000;
 const READ_TIMEOUT_MS = 4_000;
@@ -177,20 +178,22 @@ async function fetchProgressionOf(userId: string): Promise<ProgressionProfile | 
 async function fetchOwnedCosmeticIds(userId: string): Promise<{ titles: string[]; all: string[] } | null> {
   const c = supabaseClient();
   if (!c) return null;
-  const owned = await Promise.resolve(
-    c.from('player_cosmetics').select('cosmetic_id, unlocked_at, cosmetic_catalog(category)').eq('user_id', userId).order('unlocked_at', { ascending: true }),
+  const owned = await fetchAllRows<{ cosmetic_id?: unknown; cosmetic_catalog?: { category?: unknown } | null }>((from, to) =>
+    c.from('player_cosmetics').select('cosmetic_id, unlocked_at, cosmetic_catalog(category)').eq('user_id', userId)
+      .order('unlocked_at', { ascending: true }).order('cosmetic_id', { ascending: true }).range(from, to),
   );
   if (!owned.error) {
-    const rows = (owned.data as Array<{ cosmetic_id?: unknown; cosmetic_catalog?: { category?: unknown } | null }> | null) ?? [];
+    const rows = owned.data ?? [];
     const ids = (xs: typeof rows): string[] => xs.map((r) => r.cosmetic_id).filter((t): t is string => typeof t === 'string');
     return {
       titles: ids(rows.filter((r) => (r.cosmetic_catalog?.category ?? COSMETIC_INDEX[String(r.cosmetic_id)]?.category) === 'title')),
       all: ids(rows),
     };
   }
-  const legacy = await Promise.resolve(c.from('player_titles').select('title_id, unlocked_at').eq('user_id', userId).order('unlocked_at', { ascending: true }));
+  const legacy = await fetchAllRows<{ title_id?: unknown }>((from, to) => c.from('player_titles').select('title_id, unlocked_at').eq('user_id', userId)
+    .order('unlocked_at', { ascending: true }).order('title_id', { ascending: true }).range(from, to));
   if (legacy.error) return null;
-  const titles = ((legacy.data as Array<{ title_id?: unknown }> | null) ?? []).map((r) => r.title_id).filter((t): t is string => typeof t === 'string');
+  const titles = (legacy.data ?? []).map((r) => r.title_id).filter((t): t is string => typeof t === 'string');
   return { titles, all: titles };
 }
 
@@ -203,7 +206,8 @@ async function fetchLoadoutRows(userId: string): Promise<Array<{ slot: string; t
   const c = supabaseClient();
   if (!c) return null;
   try {
-    const res = await Promise.resolve(c.from('cosmetic_loadouts').select('slot, target_id, cosmetic_id').eq('user_id', userId));
+    const res = await fetchAllRows((from, to) => c.from('cosmetic_loadouts').select('slot, target_id, cosmetic_id').eq('user_id', userId)
+      .order('slot', { ascending: true }).order('target_id', { ascending: true }).range(from, to));
     if (res.error) return null;
     return ((res.data as Array<{ slot?: unknown; target_id?: unknown; cosmetic_id?: unknown }> | null) ?? [])
       .filter((r) => typeof r.slot === 'string' && typeof r.target_id === 'string' && typeof r.cosmetic_id === 'string')
@@ -226,8 +230,8 @@ export async function fetchServerCatalogState(): Promise<ServerCatalogState | un
     // SQL has no such column: read the flags alone rather than lose the answer.
     const read = (withAdmin: boolean) => Promise.race([
       Promise.all([
-        Promise.resolve(c.from('cosmetic_catalog').select(withAdmin ? 'cosmetic_id, active, admin_off' : 'cosmetic_id, active')),
-        Promise.resolve(c.from('cosmetic_categories').select(withAdmin ? 'category, enabled, admin_off' : 'category, enabled')),
+        fetchAllRows((from, to) => c.from('cosmetic_catalog').select(withAdmin ? 'cosmetic_id, active, admin_off' : 'cosmetic_id, active').order('cosmetic_id', { ascending: true }).range(from, to)),
+        fetchAllRows((from, to) => c.from('cosmetic_categories').select(withAdmin ? 'category, enabled, admin_off' : 'category, enabled').order('category', { ascending: true }).range(from, to)),
       ]),
       timeout(READ_TIMEOUT_MS, null),
     ]);
@@ -278,7 +282,7 @@ export async function fetchOwnCrates(): Promise<CrateRow[] | undefined> {
   if (!c || !userId) return undefined;
   try {
     const read = (columns: string) => Promise.race([
-      Promise.resolve(c.from('loot_crates').select(columns).eq('user_id', userId).order('earned_level', { ascending: true })),
+      fetchAllRows((from, to) => c.from('loot_crates').select(columns).eq('user_id', userId).order('earned_level', { ascending: true }).order('crate_id', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
     let res = await read(`${CRATE_COLUMNS}, source`);
@@ -380,7 +384,7 @@ export async function fetchAchievementCompletions(userId: string): Promise<Achie
   if (!c || !userId) return undefined;
   try {
     const res = await Promise.race([
-      Promise.resolve(c.from('achievement_completions').select('achievement_id, completed_at').eq('user_id', userId).order('completed_at', { ascending: false })),
+      fetchAllRows((from, to) => c.from('achievement_completions').select('achievement_id, completed_at').eq('user_id', userId).order('completed_at', { ascending: false }).order('achievement_id', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error) return undefined;
@@ -399,7 +403,7 @@ export async function fetchOwnAchievementProgress(): Promise<Record<string, numb
   if (!c || !userId) return undefined;
   try {
     const res = await Promise.race([
-      Promise.resolve(c.from('achievement_progress').select('achievement_id, progress').eq('user_id', userId)),
+      fetchAllRows((from, to) => c.from('achievement_progress').select('achievement_id, progress').eq('user_id', userId).order('achievement_id', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error) return undefined;
@@ -420,7 +424,7 @@ export async function fetchRetiredAchievementIds(): Promise<string[] | undefined
   if (!c) return undefined;
   try {
     const res = await Promise.race([
-      Promise.resolve(c.from('achievement_catalog').select('achievement_id, active, admin_off')),
+      fetchAllRows((from, to) => c.from('achievement_catalog').select('achievement_id, active, admin_off').order('achievement_id', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error) return undefined;

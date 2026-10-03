@@ -70,18 +70,19 @@ medal + division — see *Ranked ladder* below).
     (`boards.strength_raw` / `strength_ref` / `strength_wave`), never recomputed.
   - Its **percentile** (1-100) is its place among every scored board at the same reference wave: the share it is
     stronger than, ties counted half, rounded. Derived, so it follows the pool as it grows; never stored on a board.
-  - A **run's strength** is a **percentile among runs** (owner-approved 2026-09-30): the **round-weighted** average
-    of its boards' percentiles (`pool_runs.strength_avg`; owner 2026-09-30: *"rounds 1-5 matter much less than 6-9
-    which matter less than 10+"*): rounds 1-5 share **20%** of the weight, rounds 6-9 **35%**, rounds 10+ **45%**,
-    split evenly over the run's boards inside each group (a duplicate board for a round counts twice, as the plain
-    average always did). A group the run never reached drops out and the rest renormalise (a run that ended in round
-    8: 20/55 and 35/55). Rounded half up to 1..100. Numbers already frozen in match history keep the plain average
-    they were frozen with. Then ranked against every other run's average in the set by the same
-    rule (`pool_runs.strength`). 72 = stronger than 72% of runs, and each band holds about its nominal share of the
-    pool (the plain average squeezed toward 50). Averages refresh on every upload for the uploaded runs and for every
-    run at most every 10 minutes; ranks are recomputed on every refresh.
+  - A **run's strength** is its **final board's percentile**, used directly (owner 2026-10-03, R-LOBBY-12: *"i think
+    we basically only care about the final board strength as an indicator for matchmaking"*): the percentile of the
+    run's latest scored board within its own reference wave, not averaged over the run and not re-ranked among runs
+    (`pool_runs.strength`). 30 = the final board beat about 30% of the boards seen at that round. Two boards for the
+    last round are averaged (half up); a last round that was never scored falls back to the latest scored one. Runs
+    refresh on every upload for the uploaded runs and for every run at most every 10 minutes. From 2026-09-30 to
+    2026-10-03 the run's strength was the round-weighted average of its board percentiles (rounds 1-5 20%, 6-9 35%,
+    10+ 45%) ranked among runs; that average is still kept as a diagnostic (`pool_runs.strength_avg`), and numbers
+    frozen in match history before the change keep the value they were frozen with.
   - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
-    Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
+    Platinum **uncapped**, Diamond **10-100**, Ascendant **20-100** (set 2026-09-30 for averages of ~50 / ~55 / ~60 on
+    the old ranked-among-runs scale; on the final-board scale the live pool gives about 37 / 45 / 55, so a threshold
+    change is proposed and pending the owner) (owner
     2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*). A rated lobby's recorded seats come only from runs inside the band (the
     server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
     (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
@@ -89,9 +90,10 @@ medal + division — see *Ranked ladder* below).
     uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
     generated seats fill the rest. Practice and the tutorial have no band.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
-    and upload with their scores. When the game ends, each round's board percentile and the run's strength (its
-    average ranked against the pool's run averages) are **frozen** into the game's record: the Career and Recent Games
-    rows print **"Game strength N"** (the run's strength; renamed from "Board strength" for display, owner 2026-09-30, with a hover tip), and Match details shows your per-round board percentiles
+    and upload with their scores. The pool's strength table is read whole, every page (R-NET-01). When the game ends,
+    each round's board percentile and the run's strength (its final board's percentile) are **frozen** into the
+    game's record: the Career and Recent Games
+    rows print **"Game strength N"** (the run's strength; renamed from "Board strength" for display, owner 2026-09-30, with a hover tip that says it is the final board's strength), and Match details shows your per-round board percentiles
     and each opponent seat's run strength. A game that was not scored (the
     pool's strength data unavailable, or older games) shows nothing.
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
@@ -128,7 +130,7 @@ medal + division — see *Ranked ladder* below).
   unaffected by a later global set change.
 
 Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board strength, bands),
-`supabase/migrations/2026-09-30-board-strength.sql`, `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
+`supabase/migrations/2026-09-30-board-strength.sql` + `2026-10-03-final-board-strength.sql`, `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
 `packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
 `packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/lobby/fightLedger.ts`, `packages/sim/src/rank.ts`,
 `packages/sim/src/lobbyStrength.ts`, the `run_fight_records` view (`supabase/migrations/2026-09-22-fight-ledger.sql`).

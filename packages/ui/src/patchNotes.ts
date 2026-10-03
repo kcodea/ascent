@@ -56,6 +56,24 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-03',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Game strength now reflects your final board.',
+        details: [
+          'Each game is now rated by its last board, compared with every board seen at that round.',
+          'Ranked matchmaking uses the same number, so the opponents you meet are picked by how strong their final board was.',
+          'Games you already played keep the number they showed.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed long games sometimes showing the wrong Game strength.',
+      },
+    ],
+  },
+  {
     date: '2026-10-02',
     changes: [
       {

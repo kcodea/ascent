@@ -54,6 +54,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try { body = await req.json(); } catch { return json(400, { error: 'bad_body' }); }
 
   const admin = createClient(url, serviceKey);
+  // rows: these server RPCs return one jsonb result each, never a table (R-NET-01).
   const rpc = (fn: string, args: Record<string, unknown>) => admin.rpc(fn, args);
   const log = (msg: string, detail?: unknown) => console.error(msg, detail);
   const res = await handleGauntletClear(userId, anonymous, body, rpc, log);

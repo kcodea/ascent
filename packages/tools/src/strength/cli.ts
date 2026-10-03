@@ -7,6 +7,8 @@
  *  backfill  score every pool board against the committed reference and write a SQL file of UPDATEs
  *            (supabase/backfill/2026-09-30-board-strength-backfill.sql) for the OWNER to run. Never writes to the DB.
  *  measure   the distribution of scores, runs per rank band today, and how often each band would need widening.
+ *            Since 2026-10-03 a run's strength is its FINAL board's percentile (`runFinalStrengthOf`); the measure
+ *            prints the retired weighted-and-ranked number beside it as "before".
  *
  * Nothing here writes to the backend.
  */
@@ -17,7 +19,7 @@ import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import {
   opponentBoard, sideFromSnapshot, STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
   OPPONENT_POOL, registerOpponentRuns, createRunLobby, resetLobbyDrivers, playableHeroes, strengthBandForDivision,
-  runAverageOf, runWeightedAverageOf, runPercentileOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
+  runAverageOf, runWeightedAverageOf, runPercentileOf, runFinalStrengthOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
   bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS,
 } from '@game/sim';
 import { loadLivePool, type LivePool, type LiveRun } from './livePool';
@@ -201,14 +203,28 @@ async function measure(): Promise<void> {
     return { averages, strength };
   };
   const plain = strengthBy((rs) => runAverageOf(rs.map((r) => r.value)));
-  const { averages, strength } = strengthBy((rs) => runWeightedAverageOf(rs));
+  const { averages, strength: weighted } = strengthBy((rs) => runWeightedAverageOf(rs));
+  // THE RUN'S STRENGTH since 2026-10-03: its final board's percentile, used directly (owner: "simply caring about the
+  // snapshots final round board strength"). `weighted` (the 2026-09-30 number, ranked among runs) is the "before".
+  const strength = new Map(runs.map((r) => [r.key, runFinalStrengthOf(pctByRun.get(r.key) ?? [])] as const));
+  const WATCH = [/^Rooks\|albus\|1018031655$/, /^Orangez\|/];
+  console.log('\nfinal board (after) vs weighted average ranked among runs (before):');
+  for (const r of runs.filter((x) => WATCH.some((re) => re.test(x.key)))) {
+    const rs = pctByRun.get(r.key) ?? [];
+    const last = rs.length ? Math.max(...rs.map((x) => x.round)) : null;
+    console.log(`  ${r.key}: before ${weighted.get(r.key)} -> after ${strength.get(r.key)} (last round ${last})`);
+  }
+  const bandCount = (m: Map<string, number | null>, lo: number, hi: number): number => [...m.values()].filter((v) => typeof v === 'number' && v >= lo && v <= hi).length;
+  for (const [name, lo, hi] of [['Bronze', 0, 30], ['Silver', 10, 40], ['Gold', 20, 65], ['Diamond', 10, 100], ['Ascendant', 20, 100]] as const) {
+    console.log(`  ${name} ${lo}-${hi}: before ${bandCount(weighted, lo, hi)} runs, after ${bandCount(strength, lo, hi)} runs`);
+  }
   // Before / after the round weighting: the runs whose strength moves most, with their per-group means.
   const groupMeans = (key: string): string => {
     const rs = pctByRun.get(key) ?? [];
     const g = (lo: number, hi: number): string => { const xs = rs.filter((r) => r.round >= lo && r.round <= hi).map((r) => r.value); return xs.length ? `${Math.round(xs.reduce((a, b) => a + b, 0) / xs.length)} (${xs.length})` : '-'; };
     return `r1-5 ${g(-Infinity, 5)}, r6-9 ${g(6, 9)}, r10+ ${g(10, Infinity)}`;
   };
-  const moved = runs.map((r) => ({ key: r.key, before: plain.strength.get(r.key), after: strength.get(r.key), avgBefore: plain.averages.get(r.key), avgAfter: averages.get(r.key) }))
+  const moved = runs.map((r) => ({ key: r.key, before: plain.strength.get(r.key), after: weighted.get(r.key), avgBefore: plain.averages.get(r.key), avgAfter: averages.get(r.key) }))
     .filter((m): m is { key: string; before: number; after: number; avgBefore: number; avgAfter: number } => typeof m.before === 'number' && typeof m.after === 'number')
     .sort((a, b) => Math.abs(b.after - b.before) - Math.abs(a.after - a.before));
   const plainValues = [...plain.strength.values()].filter((x): x is number => x !== null);
@@ -217,14 +233,14 @@ round weighting: mean |change| ${(moved.reduce((a, m) => a + Math.abs(m.after - 
   for (const m of moved.slice(0, 8)) console.log(`  ${m.key}: strength ${m.before} -> ${m.after} (average ${m.avgBefore} -> ${m.avgAfter}); ${groupMeans(m.key)}`);
   const bandShare = (vals: number[], lo: number, hi: number): string => `${vals.filter((v) => v >= lo && v <= hi).length}`;
   for (const [name, lo, hi] of [['Bronze', 0, 30], ['Silver', 10, 40], ['Gold', 20, 65], ['Diamond', 10, 100], ['Ascendant', 20, 100]] as const) {
-    console.log(`  ${name} ${lo}-${hi}: plain ${bandShare(plainValues, lo, hi)} runs, weighted ${bandShare([...strength.values()].filter((x): x is number => x !== null), lo, hi)} runs`);
+    console.log(`  ${name} ${lo}-${hi}: plain ${bandShare(plainValues, lo, hi)} runs, weighted ${bandShare([...weighted.values()].filter((x): x is number => x !== null), lo, hi)} runs`);
   }
   const avgValues = runs.map((r) => averages.get(r.key)).filter((x): x is number => typeof x === 'number').sort((a, b) => a - b);
   const values = [...strength.values()].filter((x): x is number => x !== null).sort((a, b) => a - b);
   const q = (p: number, xs = values): number => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;
   console.log(`\neligible runs ${runs.length}, scored ${values.length}`);
   console.log(`run AVERAGE of board percentiles: min ${avgValues[0]} p10 ${q(0.1, avgValues)} median ${q(0.5, avgValues)} p90 ${q(0.9, avgValues)} max ${avgValues[avgValues.length - 1]}`);
-  console.log(`run strength (ranked among runs): min ${values[0]} p10 ${q(0.1)} p25 ${q(0.25)} median ${q(0.5)} p75 ${q(0.75)} p90 ${q(0.9)} max ${values[values.length - 1]}`);
+  console.log(`run strength (FINAL board percentile): min ${values[0]} p10 ${q(0.1)} p25 ${q(0.25)} median ${q(0.5)} p75 ${q(0.75)} p90 ${q(0.9)} max ${values[values.length - 1]}`);
   const deciles = Array.from({ length: 10 }, (_, i) => values.filter((v) => v > i * 10 && v <= (i + 1) * 10).length);
   console.log('runs per decile (1-10, 11-20, ... 91-100):', deciles.join(' '));
   // Raw win rate by wave (the per-board spread the percentile sits on).

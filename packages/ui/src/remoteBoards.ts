@@ -16,7 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
-import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
+import { STRENGTH_REF_VERSION, parseBoardStrength, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
 import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
@@ -25,11 +25,11 @@ import { idbPoolCache } from './opponentPool/poolCache';
 import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPool/poolFetch';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
+import { fetchAllRows } from './supabaseRows';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const TABLE = 'boards';
-const FETCH_LIMIT = 2000; // cap for the author/board lookups (the pool itself is a sample of WHOLE RUNS below)
 const FETCH_TIMEOUT_MS = 4000; // never block boot on a slow / absent network
 
 /** True when a backend is configured (both env vars present). */
@@ -345,6 +345,7 @@ const currentPoolBand = (): StrengthBand | null => {
 function poolApi(c: SupabaseClient): PoolApi {
   return {
     async sample(args, signal) {
+      // rows: one row per RUN, at most p_limit (POOL_SAMPLE_RUNS = 150; the RPC caps itself at 300), each run whole.
       const res = await c.rpc('pool_runs_sample', args).abortSignal(signal);
       return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
     },
@@ -354,8 +355,10 @@ function poolApi(c: SupabaseClient): PoolApi {
       return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
     },
     async boardsForSeeds(patchPrefix, seeds, signal) {
-      const res = await c.from(TABLE).select('snapshot,user_id').like('patch', `${patchPrefix}%`).in('seed', seeds).abortSignal(signal);
-      return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
+      // EVERY board of these runs (R-NET-01): 40 runs x up to ~20 boards can pass the 1,000-row cap.
+      const res = await fetchAllRows<{ snapshot: BoardSnapshot; user_id: string | null }>((from, to) => c.from(TABLE).select('snapshot,user_id')
+        .like('patch', `${patchPrefix}%`).in('seed', seeds).order('id', { ascending: true }).range(from, to).abortSignal(signal));
+      return { data: res.data as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
     },
   };
 }
@@ -757,6 +760,7 @@ export async function fetchRunDerived(ids: readonly number[]): Promise<Map<numbe
   try {
     const chunks: number[][] = [];
     for (let i = 0; i < ids.length; i += DERIVED_CHUNK) chunks.push(ids.slice(i, i + DERIVED_CHUNK));
+    // rows: one row per id, DERIVED_CHUNK (100) ids per request: the ids ARE the limit.
     const results = await Promise.all(chunks.map((chunk) => Promise.race([
       Promise.resolve(c.from('run_telemetry').select(BALANCE_DERIVED_SELECT).in('id', chunk)),
       balanceTimeout(BALANCE_DERIVED_TIMEOUT_MS),
@@ -1023,6 +1027,7 @@ export async function fetchReplayForSeed(seed: number, opts?: { userId?: string 
   if (!c || !Number.isFinite(seed)) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    // rows: `.limit(2)` is applied below, after the optional user filter.
     const base = c.from('run_telemetry').select('v2:replay->v2')
       .eq('replay->>seed', String(seed)) // ->> compares as text — robust across PostgREST versions
       .eq('replay->v2->>version', '2');
@@ -1870,8 +1875,8 @@ export async function fetchHallHistory(seeds: number[]): Promise<Map<string, Hal
   const chunks: number[][] = [];
   for (let i = 0; i < ids.length; i += KEY_CHUNK) chunks.push(ids.slice(i, i + KEY_CHUNK));
   try {
-    const request = Promise.all(chunks.map((xs) => Promise.resolve(
-      c.from('run_history').select('placement, entry').eq('mode', 'lobby').in('entry->>seed', xs.map(String)).limit(FETCH_LIMIT),
+    const request = Promise.all(chunks.map((xs) => fetchAllRows((from, to) =>
+      c.from('run_history').select('placement, entry').eq('mode', 'lobby').in('entry->>seed', xs.map(String)).order('id', { ascending: true }).range(from, to),
     )));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const results = await Promise.race([request, timeout]);
@@ -1920,7 +1925,8 @@ export async function fetchHallOwnGames(runs: Array<{ key: string; seed: number 
   const seeds = [...new Set(runs.map((r) => r.seed).filter((x) => Number.isFinite(x)))];
   if (!c || seeds.length === 0) return new Map();
   try {
-    const request = Promise.resolve(c.from('lobby_fights').select('lobby_seed, run_a, run_b, outcome').in('lobby_seed', seeds).limit(FETCH_LIMIT));
+    // Every fight of these lobbies (R-NET-01): ten Hall lobbies of ~60 fights each already pass 1,000 rows.
+    const request = fetchAllRows((from, to) => c.from('lobby_fights').select('lobby_seed, run_a, run_b, outcome').in('lobby_seed', seeds).order('id', { ascending: true }).range(from, to));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return new Map();
@@ -1978,7 +1984,7 @@ export async function fetchPlayerRoundBoards(author: string): Promise<Map<number
   const c = client();
   if (!c || !author) return out;
   try {
-    const request = Promise.resolve(c.from(TABLE).select('snapshot').eq('author', author).limit(FETCH_LIMIT));
+    const request = fetchAllRows((from, to) => c.from(TABLE).select('snapshot').eq('author', author).order('id', { ascending: true }).range(from, to));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return out;
@@ -2007,9 +2013,10 @@ export async function fetchBoardStats(boardIds: string[], round?: number): Promi
   const c = client();
   if (!c || boardIds.length === 0) return new Map();
   try {
-    let query = c.from('board_results').select('board_id, outcome').in('board_id', boardIds);
-    if (round !== undefined) query = query.eq('round', round);
-    const request = Promise.resolve(query.limit(FETCH_LIMIT * 5));
+    const request = fetchAllRows((from, to) => {
+      const base = c.from('board_results').select('board_id, outcome').in('board_id', boardIds);
+      return (round !== undefined ? base.eq('round', round) : base).order('id', { ascending: true }).range(from, to);
+    });
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
     if (!result || result.error || !result.data) return new Map();
@@ -2030,7 +2037,8 @@ export async function fetchAndRegisterBoardRecords(): Promise<number> {
   if (!c) return 0;
   try {
     const request = Promise.resolve(
-      c.from('board_results').select('board_id, outcome').order('created_at', { ascending: false }).limit(RECORDS_FETCH_LIMIT),
+      // The newest RECORDS_FETCH_LIMIT results ON PURPOSE (a recency window), read in pages so the window is whole.
+      fetchAllRows((from, to) => c.from('board_results').select('board_id, outcome').order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to), { maxRows: RECORDS_FETCH_LIMIT }),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
@@ -2063,23 +2071,10 @@ export function refreshOpponentPoolAndRecords(patchPrefix?: string): void {
 // Per reference wave, how many pool boards hold each raw score (`board_strength_histogram`). The player's own raw
 // scores become percentiles against it at run end, so the number a game shows is frozen then. Fetched at startup and
 // between runs, like the pool; a backend without the SQL answers "not found" and the cache stays null, so nothing
-// is shown (never a guess).
+// is shown (never a guess). Read WHOLE through `fetchAllRows` (R-NET-01): the table passed PostgREST's 1,000-row cap
+// on 2026-10-03 and every client lost the top of wave 14 and all of wave 15+.
 let strengthHistogramCache: StrengthHistogram | null = null;
 export const strengthHistogram = (): StrengthHistogram | null => strengthHistogramCache;
-// …and the pool's run AVERAGES (`run_strength_histogram`), which a finished game's average is ranked against: a run's
-// strength is a percentile among runs (owner-approved 2026-09-30).
-let runStrengthHistogramCache: RunStrengthHistogramEntry[] | null = null;
-export const runStrengthHistogram = (): RunStrengthHistogramEntry[] | null => runStrengthHistogramCache;
-
-/** Rows of `run_strength_histogram` into entries (exported for the tests); null when empty. */
-export function runHistogramOf(rows: ReadonlyArray<{ avg: unknown; n: unknown }>): RunStrengthHistogramEntry[] | null {
-  const out: RunStrengthHistogramEntry[] = [];
-  for (const r of rows) {
-    const avg = Number(r.avg); const count = Number(r.n);
-    if (Number.isFinite(avg) && count > 0) out.push({ avg, count });
-  }
-  return out.length ? out : null;
-}
 
 /** Rows of the RPC into the histogram shape (exported for the tests). */
 export function histogramOf(rows: ReadonlyArray<{ wave: unknown; raw: unknown; n: unknown }>): StrengthHistogram | null {
@@ -2094,20 +2089,24 @@ export function histogramOf(rows: ReadonlyArray<{ wave: unknown; raw: unknown; n
   return any ? out : null;
 }
 
+/** The whole histogram, every page (exported for the tests: `rpc` is the client's `rpc`). The RPC orders its rows
+ *  by (wave, raw), so the pages are stable. */
+export async function fetchStrengthHistogramRows(
+  rpc: (fn: string, args: Record<string, unknown>) => { range(from: number, to: number): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }> },
+): Promise<Array<{ wave: unknown; raw: unknown; n: unknown }> | null> {
+  const res = await fetchAllRows<{ wave: unknown; raw: unknown; n: unknown }>((from, to) => rpc('board_strength_histogram', { p_ref: STRENGTH_REF_VERSION }).range(from, to));
+  return res.error ? null : res.data;
+}
+
 export async function refreshStrengthHistogram(): Promise<StrengthHistogram | null> {
   const c = client();
   if (!c) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const [result, runs] = await Promise.all([
-      Promise.race([Promise.resolve(c.rpc('board_strength_histogram', { p_ref: STRENGTH_REF_VERSION })), timeout]),
-      Promise.race([Promise.resolve(c.rpc('run_strength_histogram', { p_set: activeSet().id })), timeout]),
-    ]);
-    if (runs && !runs.error && Array.isArray(runs.data)) {
-      runStrengthHistogramCache = runHistogramOf(runs.data as Array<{ avg: unknown; n: unknown }>) ?? runStrengthHistogramCache;
-    }
-    if (!result || result.error || !Array.isArray(result.data)) return strengthHistogramCache;
-    strengthHistogramCache = histogramOf(result.data as Array<{ wave: unknown; raw: unknown; n: unknown }>) ?? strengthHistogramCache;
+    // rows: paged to the end inside fetchStrengthHistogramRows (fetchAllRows).
+    const rows = await Promise.race([fetchStrengthHistogramRows((fn, args) => c.rpc(fn, args)), timeout]);
+    if (!rows) return strengthHistogramCache;
+    strengthHistogramCache = histogramOf(rows) ?? strengthHistogramCache;
     return strengthHistogramCache;
   } catch {
     return strengthHistogramCache;

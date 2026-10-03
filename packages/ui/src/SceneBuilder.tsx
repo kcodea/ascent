@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { HEROES, isArchivedHero, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
+import { runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
@@ -10,6 +10,8 @@ import { addEnemy, stagedBoard, foeSnapshotOf, MAX_BOARD } from './sandboxEdit';
 import { StatBadgeField, CountStepper } from './StatBadgeField';
 import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview';
 import { toStage } from './stage';
+import { HeroPicker, HeroPickerTrigger } from './SceneBuilderHeroPicker';
+import './sceneBuilder.css';
 
 /**
  * DEV-only SCENE BUILDER control panel — the sandbox rig launched from the title (its own mode, see
@@ -55,9 +57,8 @@ function mutate(fn: (r: RunState) => RunState): void {
 let uidN = 0;
 const uid = (): string => `sb${uidN++}`;
 
-/** EVERY hero, archived ones included — the Scene Builder is the one place an archived hero still shows (owner
- *  2026-09-24: "they should only show in scene builder"). Archived ones are marked, like the set picker's "(live)". */
-export const HERO_OPTIONS = HEROES.map((h) => ({ id: h.id, name: h.name, archived: isArchivedHero(h) })).sort((a, b) => a.name.localeCompare(b.name));
+/* The hero list (EVERY hero, archived ones included: the Scene Builder is the one place an archived hero still shows,
+   owner 2026-09-24) lives in sceneBuilderHeroes.ts and is picked through the portrait flyout (SceneBuilderHeroPicker). */
 
 /** Every set in the registry — INCLUDING disabled ones, which is the point: the rig is how you play a set
  *  that is still in development (`enabled: false`) without flipping the global switch and moving real runs
@@ -89,7 +90,17 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const [enemyAtk, setEnemyAtk] = useState(0);
   const [enemyN, setEnemyN] = useState(5);
   const [refill, setRefill] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
+  // The whole-panel collapse is remembered like the section folds (DEV localStorage).
+  const [collapsed, setCollapsedRaw] = useState<boolean>(() => { try { return localStorage.getItem(SB_COLLAPSED_KEY) === '1'; } catch { return false; } });
+  const setCollapsed = (fn: (c: boolean) => boolean): void => setCollapsedRaw((c) => {
+    const next = fn(c);
+    try { localStorage.setItem(SB_COLLAPSED_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
+  // The portrait hero picker (owner ask 2026-10-03), a flyout beside the panel.
+  const [heroOpen, setHeroOpen] = useState(false);
+  const heroBtnRef = useRef<HTMLButtonElement>(null);
+  const closeHeroPicker = useCallback((): void => setHeroOpen(false), []);
   const sbEditMode = useGame((s) => s.sbEditMode);
   const setSbEditMode = useGame((s) => s.setSbEditMode);
   const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
@@ -210,7 +221,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
     })
       .then(async (r) => {
         const body = (await r.json().catch(() => ({}))) as { ok?: boolean; path?: string; error?: string };
-        setQaStatus(body.ok ? `saved ${body.path} — repro: ${reproCommandFor(scenario.id)}` : `save failed: ${body.error ?? r.statusText}`);
+        setQaStatus(body.ok ? `saved ${body.path}. Repro: ${reproCommandFor(scenario.id)}` : `save failed: ${body.error ?? r.statusText}`);
       })
       .catch((e: unknown) => setQaStatus(`save failed: ${e instanceof Error ? e.message : String(e)} (dev server only)`));
   };
@@ -218,7 +229,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
     const res = loadQaScenario(raw);
     setQaErrors(res.errors);
     setQaSummary('');
-    setQaStatus(res.ok ? 'scenario imported — the rig now holds its state' : '');
+    setQaStatus(res.ok ? 'scenario imported. The rig now holds its state' : '');
     if (res.ok) setQaJson('');
   };
 
@@ -324,14 +335,14 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   });
 
   const foeShown = sbTavernShowsEnemy;
-  const roundLabel = run?.lobby ? `round ${run.lobby.round} · ${run.lobby.seats.filter((x) => x.alive).length} left` : `wave ${run?.wave ?? 1}`;
+  const roundLabel = run?.lobby ? `R${run.lobby.round} · ${run.lobby.seats.filter((x) => x.alive).length} left` : `wave ${run?.wave ?? 1}`;
 
   return (
     <>
     <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
       {/* NAMEPLATE — the struck-brass header the tuner panels wear. The live readout (round · rules) sits in
           it so the collapsed strip still says what the rig is doing. */}
-      <div className="sfxmix-h drag sb-head" onPointerDown={headerPointerDown}>
+      <div className="sfxmix-h drag sb-head" onPointerDown={(e) => { setHeroOpen(false); headerPointerDown(e); }}>
         <span className="sb-emblem" aria-hidden>🧩</span>
         <span className="sb-title">Scene Builder</span>
         <span className="sb-status">{roundLabel} · {sbRules === 'god' ? 'god' : 'normal'}</span>
@@ -343,28 +354,25 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
           {/* SETUP — hero + set side by side. Both restart the sandbox, and each carries the OTHER's current
               value so switching hero can't silently drop you back to the live set (or vice versa). */}
           <Sec id="setup" title="Setup" folded={folded} onFold={fold}>
-            <div className="sb-two">
-              <label className="sb-field">
-                <span className="sb-mini">hero</span>
-                <select className="sb-select" value={run?.heroId ?? 'warden'}
-                  onChange={(e) => startSceneBuilder(e.target.value, setId)}
-                  aria-label="Switch hero (restarts the sandbox so the hero's opener runs)">
-                  {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}{h.archived ? ' (archived)' : ''}</option>)}
-                </select>
-              </label>
-              <label className="sb-field">
-                <span className="sb-mini">set</span>
-                <select className="sb-select" value={setId}
-                  onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
-                  aria-label="Play an unreleased set here without flipping the global switch — real runs are unaffected">
-                  {SET_OPTIONS.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}{s.enabled ? ' (live)' : ''} — {s.minions}m · {s.spells}s</option>
-                  ))}
-                </select>
-              </label>
+            {/* HERO: a portrait button that slides the hero grid out beside the panel (SceneBuilderHeroPicker). */}
+            <div className="sb-field">
+              <span className="sb-mini">hero</span>
+              <HeroPickerTrigger heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} open={heroOpen}
+                onToggle={() => setHeroOpen((o) => !o)} btnRef={heroBtnRef} />
             </div>
+            {/* SET on its own row so its name and pool size never truncate. */}
+            <label className="sb-field">
+              <span className="sb-mini">set</span>
+              <select className="sb-select" value={setId}
+                onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
+                aria-label="Play an unreleased set here without flipping the global switch. Real runs are unaffected">
+                {SET_OPTIONS.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}{s.enabled ? ' (live)' : ''} · {s.minions} minions · {s.spells} spells</option>
+                ))}
+              </select>
+            </label>
             {pool.buyable.length === 0 && (
-              <div className="sb-mini sb-warn">this set has no cards yet — the shop will be empty</div>
+              <div className="sb-mini sb-warn">this set has no cards yet, so the shop will be empty</div>
             )}
             {/* RULES — the sandbox is a lobby game against bots (2026-09-09). GOD keeps the rig's classic feel
                 (infinite time + Gold); NORMAL runs the real clock and the real per-turn Gold. Both keep every
@@ -385,7 +393,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', setId, Number(e.target.value) as BotLevel)}
                   aria-label="Bot strength for the seven other seats (restarts the sandbox — the seats are built at creation)">
                   {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((n) => (
-                    <option key={n} value={n}>level {n}{n === 1 ? ' — gentlest' : n === 10 ? ' — hardest' : ''}</option>
+                    <option key={n} value={n}>level {n}{n === 1 ? ' (gentlest)' : n === 10 ? ' (hardest)' : ''}</option>
                   ))}
                 </select>
               </label>
@@ -403,7 +411,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                 </button>
                 {run?.ancients && (
                   <>
-                    <span className="sb-mini">meter</span>
+                    <span className="sb-mini sb-anc-meter">meter</span>
                     <CountStepper value={run.ancients.points} min={0} max={run.ancients.cost}
                       onCommit={(v) => dispatch({ type: 'ancientSetMeter', points: v })} />
                     <button type="button" className="sb-btn" disabled={!!run.ancients.picked || !!run.ancients.offer}
@@ -492,7 +500,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             <input
               ref={searchRef}
               className="sb-search"
-              placeholder={lib === 'runes' ? 'rune name, id, text… ↵ grants the top match' : `${lib === 'minions' ? 'name, id, tribe, keyword' : 'spell name, id, text'}… ↵ adds the top match to the shop`}
+              placeholder={lib === 'runes' ? 'Search runes… ↵ grants top match' : `Search ${lib}… ↵ adds top match`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -607,6 +615,11 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
       <button className="sb-dock" aria-label="Restore Scene Builder"
         onClick={() => { onRestore(); raise(); }}>🧩</button>
     )}
+    {/* The hero picker flyout: portalled beside the panel while open. */}
+    {heroOpen && !collapsed && !minimized && (
+      <HeroPicker heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} anchor={() => heroBtnRef.current?.closest<HTMLElement>('.scenebuilder') ?? null}
+        triggerRef={heroBtnRef} onPick={(id) => startSceneBuilder(id, setId)} onClose={closeHeroPicker} />
+    )}
     {/* The library's floating preview — mounted ONCE here (not per row); null until a row is hovered/focused. */}
     <SceneBuilderPreview target={collapsed || minimized ? null : preview} run={run} />
     </>
@@ -616,6 +629,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
 /** Where a section's fold state is remembered, per section id. A property of how you are working, not of the
  *  run, so it lives beside the panel's dragged position rather than in any run state. */
 const SB_FOLD_KEY = 'ascent.sb.fold';
+const SB_COLLAPSED_KEY = 'ascent.sb.collapsed';
 function loadFolded(): Record<string, boolean> {
   try { return (JSON.parse(localStorage.getItem(SB_FOLD_KEY) || '{}') as Record<string, boolean>) ?? {}; } catch { return {}; }
 }

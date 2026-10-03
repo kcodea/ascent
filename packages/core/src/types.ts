@@ -46,6 +46,7 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
   dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
+  dealtDamageGetRandomSpell: true, // Tauntbreaker (owner 2026-10-03) — "Pummel (25): Get a random Shop Spell. (Once per combat)"
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
@@ -419,6 +420,7 @@ export type EffectFactoryId =
   | 'getRandomRubies' // Ruby Shipment (Ruby batch 2026-09-24) — get N RANDOM Rubies, each drawn separately from all six types
   | 'battlecryPlayRubiesRandomTribe' // Shardluck (Ruby batch 2026-09-24) — play N Rubies, each on a random friendly `tribe` minion
   | 'onSummonCardPlayRubiesSelf' // Gemheart Legionnaire (Ruby batch 2026-09-24) — when a friendly `cardId` is summoned, play N permanent Rubies on this
+  | 'dealtDamageGetRandomSpell' // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell. (Once per combat)" — the shared damage meter with a random-Shop-Spell body (`grantRandomSpell`, x2 gilded), capped by `params.maxPerCombat` (default 1)
   | 'dealtDamageGetRandomRuby' // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — the shared damage meter with a random-Ruby body (`grantRandomRubies`, x2 gilded), capped by `params.maxPerCombat`
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
   | 'armChooseBoth' // Dealer — arm THIS body's own first-Choose-One latch (per instance, not a run counter)
@@ -2245,7 +2247,7 @@ export interface QuestCombatMods {
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
    *  times. Consumed once per combat (its own latch, so it stacks with `shoutDoubleCharges` — mirroring the
-   *  recruit counter's stacking in `playedShoutRepeats`). */
+   *  recruit fold's stacking in `shoutFireCount`). */
   warDrumExtra?: number;
   /** Warm Embers' legacy `shoutDouble` charges still unspent at combat (same 2026-08-26 ruling, extended):
    *  each of the next N Shouts triggered in combat fires twice (one extra fire per charge). */
@@ -2255,6 +2257,20 @@ export interface QuestCombatMods {
    *  turn-long BUFF, exactly as in the shop counter: EVERY Shout triggered in combat fires this many extra
    *  times, nothing is consumed. */
   encoreExtra?: number;
+  /** The STANDING permanent Shout extras (`RunState.shoutExtraAlways`: Rune of the Choir, Blasting Voices,
+   *  Hoardwake, Orivax's Chorus, Resonant Path). "Your Shouts trigger an additional time" is cross-phase
+   *  (R-SHOUT-TRIGGER-01, owner report 2026-10-03): EVERY Shout triggered in combat fires this many extra times,
+   *  nothing is consumed — the permanent sibling of `encoreExtra`. */
+  shoutExtraAlways?: number;
+  /** Warm Embers / Opening Act (`RunState.shoutFirstDoubleEachRound`): the FIRST Shout triggered in this fight fires
+   *  this many extra times. Its own per-phase charge (R-SHOUT-01), consumed in `shoutCarryExtras` (R-SHOUT-TRIGGER-01). */
+  warmEmbersFirst?: number;
+  /** Twin Sun Oath (`RunState.shoutEdgeBuff`): every Shout fire in combat buffs this side's left- and right-most
+   *  minion (R-SHOUT-TRIGGER-01, cross-phase). */
+  shoutEdgeBuff?: { attack: number; health: number };
+  /** Rune of the Drake Skull (`RunState.shoutEdgeTribeBuff`): every Shout fire in combat buffs the left- and
+   *  right-most minion of `tribe` (R-SHOUT-TRIGGER-01, cross-phase). */
+  shoutEdgeTribeBuff?: { tribe: Tribe; attack: number; health: number };
   /** Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the
    *  board-wide sibling of `runeRallying`, which fires only the left-most). */
   /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant). */

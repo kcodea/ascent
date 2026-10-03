@@ -1,0 +1,205 @@
+/* ══ THE SCENE BUILDER SKIN (SceneBuilder.tsx + SceneBuilderHeroPicker.tsx), DEV only ══════════════════════════════
+   Owner ask 2026-10-03: "have it follow our ui theming. lean it up and improve the usability and readability".
+
+   Every colour here comes from the shared `--ui-*` tokens (uiTheme.css), so the panel wears the Gem plate look and
+   follows the 🎨 UI Theme tuner exactly like the HUD pills and tooltips. `tooltipStyle.test.ts` fails a literal colour
+   in this file (black / white shading excepted). The legacy `--sb-*` names are re-pointed at the tokens on the panel
+   root, so the pieces that still read them (the Stage Builder, the dummy stat badges, the count stepper in
+   styles.css) theme along for free.
+
+   Sizes are one scale: every control is `--sb-ctl-h` tall, labels are one size, sections one rhythm.
+   PERFORMANCE: static gradients + shadows only. Hovers are short one-shot colour transitions; the hero flyout's
+   entrance is a one-shot transform/opacity animation. Nothing loops.
+   CURSOR: the base `.sb-*` rules (shared with the bug-report panel) carry a bare `cursor: pointer`; inside the Scene
+   Builder every control is put back on the game's gauntlet. */
+
+.sfxmix.scenebuilder {
+  --sb-well: var(--ui-chip-bg); --sb-raise: var(--ui-hover-mid); --sb-line: var(--ui-chip-edge); --sb-line2: var(--ui-edge-deep);
+  --sb-ink: var(--ui-text); --sb-ink2: var(--ui-chip-text); --sb-ink3: var(--ui-muted); --sb-brass: var(--ui-title); --sb-brass-dk: var(--ui-edge-deep);
+  --sb-on-ink: var(--ui-plate-bot);
+  --sb-ctl-h: calc(28 * var(--u));
+  --sb-fs: calc(12 * var(--u));
+  --sb-fs-label: calc(10 * var(--u));
+  width: calc(312 * var(--u)); max-width: calc(92 * var(--vw, 1vw));
+  color: var(--ui-text); border: 2px solid transparent; border-radius: 14px; padding: 0 0 calc(10 * var(--u));
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
+}
+.sfxmix.scenebuilder.collapsed { width: calc(232 * var(--u)); padding-bottom: 0; }
+.sfxmix.scenebuilder.minimized { display: none; }
+.scenebuilder :is(button, select, .sb-chk, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.scenebuilder button:disabled { cursor: url('/cursors/gauntlet_open.svg') 6 2, default; }
+
+/* NAMEPLATE */
+.scenebuilder .sb-head { margin: 0; padding: calc(8 * var(--u)) calc(34 * var(--u)) calc(8 * var(--u)) calc(12 * var(--u)); gap: calc(8 * var(--u));
+  display: flex; align-items: center; justify-content: flex-start; border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid var(--ui-divider); background: var(--ui-hover-plate); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.scenebuilder.collapsed .sb-head { border-radius: 12px; border-bottom: 0; }
+.scenebuilder .sb-emblem { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); display: grid; place-items: center; font-size: calc(13 * var(--u)); border-radius: 7px;
+  border: 1px solid transparent; background: linear-gradient(var(--ui-chip-bg), var(--ui-chip-bg)) padding-box, var(--ui-stud) border-box; }
+.scenebuilder .sb-title { font-size: calc(15 * var(--u)); font-weight: 800; color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); letter-spacing: 0.02em; text-transform: none; white-space: nowrap; }
+.scenebuilder .sb-status { flex: 1; min-width: 0; font-size: var(--sb-fs-label); font-weight: 700; color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.scenebuilder .sb-collapse { flex: none; background: none; border: 0; color: var(--ui-muted); font-size: calc(13 * var(--u)); padding: 0 calc(3 * var(--u)); }
+.scenebuilder .sb-collapse:hover { color: var(--ui-title); }
+.scenebuilder .sb-body { display: flex; flex-direction: column; gap: 0; padding: 0 calc(12 * var(--u)); }
+
+/* SECTIONS — a title-coloured heading with a fold caret and a rule fading out of the gold edge. */
+.scenebuilder .sb-sec { display: flex; flex-direction: column; gap: calc(7 * var(--u)); padding: calc(4 * var(--u)) 0 calc(11 * var(--u)); border-bottom: 1px solid var(--ui-divider); }
+.scenebuilder .sb-sec.folded { padding-bottom: calc(4 * var(--u)); }
+.scenebuilder .sb-sec:last-child { border-bottom: 0; }
+.scenebuilder .sb-label { display: flex; align-items: center; gap: calc(6 * var(--u)); padding: calc(7 * var(--u)) 0 calc(2 * var(--u));
+  font-size: calc(11 * var(--u)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+.scenebuilder .sb-label::after { content: ''; flex: 1; height: 1px; order: 5; background: linear-gradient(90deg, color-mix(in srgb, var(--ui-edge-main) 60%, transparent), transparent 70%); }
+.scenebuilder .sb-label-r { order: 9; display: inline-flex; align-items: center; gap: calc(4 * var(--u)); }
+.scenebuilder .sb-fold { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; }
+.scenebuilder .sb-fold:hover { color: var(--ui-hl); }
+.scenebuilder .sb-caret { font-size: calc(9 * var(--u)); width: calc(9 * var(--u)); color: var(--ui-muted); }
+.scenebuilder .sb-count { order: 9; font-size: var(--sb-fs-label); font-weight: 700; color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); border-radius: 999px; padding: 1px calc(7 * var(--u)); letter-spacing: 0.03em; text-transform: none; }
+.scenebuilder .sb-sub { font-size: var(--sb-fs-label); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-muted); margin-top: calc(4 * var(--u)); }
+.scenebuilder .sb-mini { font-size: calc(11 * var(--u)); color: var(--ui-muted); margin-right: 0; }
+.scenebuilder .sb-note { font-style: italic; opacity: 0.9; }
+.scenebuilder .sb-warn { display: block; color: var(--ui-warn); margin-top: calc(2 * var(--u)); }
+
+/* FIELDS — a small caps label over a recessed well. */
+.scenebuilder .sb-two { display: grid; grid-template-columns: 1fr 1fr; gap: calc(6 * var(--u)); }
+.scenebuilder .sb-two-tight { grid-template-columns: 1fr auto; align-items: end; }
+.scenebuilder .sb-field { display: flex; flex-direction: column; gap: calc(3 * var(--u)); min-width: 0; }
+.scenebuilder .sb-field > .sb-mini, .scenebuilder .sb-row > .sb-mini:first-child, .scenebuilder .sb-anc-meter {
+  font-size: var(--sb-fs-label); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+.scenebuilder .sb-select, .scenebuilder .sb-search, .scenebuilder .sb-num input {
+  box-sizing: border-box; background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); color: var(--ui-text);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); border-radius: calc(7 * var(--u)); font-family: var(--font-ui); }
+.scenebuilder .sb-select { width: 100%; height: var(--sb-ctl-h); padding: 0 calc(7 * var(--u)); font-size: var(--sb-fs); font-weight: 700; min-width: 0; }
+.scenebuilder .sb-select option { background: var(--ui-chip-bg); color: var(--ui-chip-text); }
+.scenebuilder .sb-select:focus, .scenebuilder .sb-search:focus, .scenebuilder .sb-num input:focus { outline: none; border-color: var(--ui-title); }
+.scenebuilder .sb-search { width: 100%; height: var(--sb-ctl-h); padding: 0 calc(9 * var(--u)); font-size: var(--sb-fs); font-weight: 700; }
+.scenebuilder textarea.sb-search { height: auto; padding: calc(6 * var(--u)) calc(9 * var(--u)); }
+.scenebuilder .sb-search::placeholder { color: var(--ui-muted); font-weight: 600; opacity: 0.85; }
+
+/* BUTTONS — small Gem plates. */
+.scenebuilder .sb-row { display: flex; align-items: center; gap: calc(6 * var(--u)); flex-wrap: wrap; }
+.scenebuilder .sb-btn { display: inline-flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); min-height: var(--sb-ctl-h); box-sizing: border-box;
+  border: 1px solid transparent; background: var(--ui-plate) padding-box, linear-gradient(var(--ui-chip-edge), var(--ui-chip-edge)) border-box;
+  color: var(--ui-chip-text); border-radius: calc(7 * var(--u)); padding: 0 calc(10 * var(--u)); font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 800;
+  transition: color 0.12s ease; }
+.scenebuilder .sb-btn:hover:not(:disabled) { color: var(--ui-text); background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.scenebuilder .sb-btn:disabled { opacity: 0.4; }
+.scenebuilder .sb-btn.sb-primary, .scenebuilder .sb-btn.sb-primary:hover:not(:disabled) { color: var(--sb-on-ink); background: linear-gradient(var(--ui-title), var(--ui-title)) padding-box, var(--ui-edge) border-box; text-shadow: none; }
+.scenebuilder .sb-btn-tall { align-self: stretch; }
+.scenebuilder .sb-chk { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-size: var(--sb-fs); color: var(--ui-chip-text); }
+.scenebuilder .sb-chk input { accent-color: var(--ui-title); }
+
+/* SEGMENTED ROWS (rules, top row, tier, library tabs) */
+.scenebuilder .sb-seg { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); border-radius: calc(7 * var(--u)); }
+.scenebuilder .sb-seg-3 { grid-template-columns: repeat(3, 1fr); }
+.scenebuilder .sb-seg-7 { grid-template-columns: repeat(7, 1fr); flex: 1; }
+.scenebuilder .sb-seg-btn { min-height: var(--sb-ctl-h); background: transparent; border: 0; color: var(--ui-muted); padding: 0 calc(4 * var(--u));
+  font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 800; letter-spacing: 0.02em; transition: color 0.12s ease; }
+.scenebuilder .sb-seg-btn + .sb-seg-btn { border-left: 1px solid var(--ui-divider); }
+.scenebuilder .sb-seg-btn:hover { color: var(--ui-text); background: var(--ui-hover-mid); }
+.scenebuilder .sb-seg-btn.on, .scenebuilder .sb-seg-btn.on:hover { background: var(--ui-title); color: var(--sb-on-ink); }
+.scenebuilder .sb-seg-btn.sb-tab { display: inline-flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); border-radius: 0; text-transform: uppercase; letter-spacing: 0.06em; font-size: calc(11 * var(--u)); }
+.scenebuilder .sb-seg-btn.sb-tab em { font-style: normal; font-size: var(--sb-fs-label); opacity: 0.75; font-variant-numeric: tabular-nums; }
+.scenebuilder .sb-tierrow { gap: calc(8 * var(--u)); flex-wrap: nowrap; }
+
+/* TILES — same-sized action buttons */
+.scenebuilder .sb-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(5 * var(--u)); }
+.scenebuilder .sb-tile { display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-width: 0; min-height: var(--sb-ctl-h); padding: 0 calc(4 * var(--u));
+  border: 1px solid transparent; border-radius: calc(8 * var(--u)); background: var(--ui-plate) padding-box, linear-gradient(var(--ui-chip-edge), var(--ui-chip-edge)) border-box;
+  color: var(--ui-chip-text); font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 700; white-space: nowrap; transition: color 0.12s ease; }
+.scenebuilder .sb-tile b { font-size: var(--sb-fs); color: var(--ui-icon); font-weight: 900; }
+.scenebuilder .sb-tile:hover:not(:disabled) { color: var(--ui-text); background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.scenebuilder .sb-tile:disabled { opacity: 0.4; }
+.scenebuilder .sb-tile.on { color: var(--ui-text); background: var(--ui-hover-plate) padding-box, var(--ui-edge) border-box; box-shadow: inset 0 0 0 1px var(--ui-ring); }
+.scenebuilder .sb-tile-warn:hover:not(:disabled), .scenebuilder .sb-tile-warn:hover:not(:disabled) b { color: var(--ui-warn); }
+
+/* ANCIENTS block (Set 3): the toggle on its own line, then  meter · stepper · Fill meter  on the next. */
+.scenebuilder .sb-ancients { display: flex; align-items: center; gap: calc(6 * var(--u)); flex-wrap: wrap; padding: calc(6 * var(--u)); border-radius: calc(8 * var(--u)); border: 1px solid var(--ui-divider); background: var(--ui-chip-bg); }
+.scenebuilder .sb-ancients .sb-anc-toggle { flex: 1 0 100%; min-height: var(--sb-ctl-h); padding: 0 calc(10 * var(--u)); border-radius: calc(7 * var(--u)); border: 1px solid var(--ui-chip-edge); }
+.scenebuilder .sb-ancients .sb-btn { margin-left: auto; }
+
+/* ENEMY dummies */
+.scenebuilder .sb-dummies { flex-wrap: wrap; gap: calc(6 * var(--u)); }
+.scenebuilder .sb-dummies .sb-btn { margin-left: auto; }
+.scenebuilder .sb-num { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--ui-muted); }
+.scenebuilder .sb-num input { width: calc(40 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); }
+
+/* LIBRARY list */
+.scenebuilder .sb-results { max-height: calc(300 * var(--u)); overflow-y: auto; display: flex; flex-direction: column; gap: calc(3 * var(--u)); margin-top: 0; }
+.scenebuilder .sb-card { display: flex; align-items: center; gap: calc(8 * var(--u)); width: 100%; min-height: calc(26 * var(--u)); text-align: left; box-sizing: border-box;
+  border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-chip-text); border-radius: calc(7 * var(--u)); padding: 0 calc(8 * var(--u));
+  font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 600; transition: color 0.12s ease; }
+.scenebuilder .sb-card:hover, .scenebuilder .sb-card:focus-visible { outline: none; color: var(--ui-text); border-color: var(--ui-title); background: var(--ui-hover-mid); }
+.scenebuilder .sb-empty { color: var(--ui-muted); font-size: var(--sb-fs); padding: calc(8 * var(--u)); text-align: center; }
+.scenebuilder .sb-bugpaste { min-height: calc(32 * var(--u)); font-size: calc(11 * var(--u)); }
+.scenebuilder .sb-qa-summary { color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); }
+
+/* THE HERO TRIGGER (Setup) — portrait + name, a full-width Gem plate. */
+.scenebuilder .sbhp-trigger { display: flex; align-items: center; gap: calc(9 * var(--u)); width: 100%; box-sizing: border-box; padding: calc(5 * var(--u)) calc(10 * var(--u)) calc(5 * var(--u)) calc(5 * var(--u));
+  border: 1px solid transparent; border-radius: calc(10 * var(--u)); text-align: left; font-family: var(--font-ui); color: var(--ui-text);
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: inset 0 0 0 1px var(--ui-ring); transition: color 0.12s ease; }
+.scenebuilder .sbhp-trigger:hover, .scenebuilder .sbhp-trigger.open { background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.scenebuilder .sbhp-trigger .sbhp-face { width: calc(38 * var(--u)); height: calc(38 * var(--u)); }
+.sbhp-trigger-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.sbhp-trigger-name { font-size: calc(14 * var(--u)); font-weight: 800; color: var(--ui-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+.sbhp-trigger-sub { font-size: var(--sb-fs-label); font-weight: 700; color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.sbhp-trigger-caret { flex: none; color: var(--ui-title); font-size: calc(12 * var(--u)); }
+
+/* A round portrait in a gold ring. Shared by the trigger and the flyout tiles. */
+.sbhp-face { position: relative; flex: none; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; overflow: hidden; box-sizing: border-box;
+  border: 2px solid transparent; background: linear-gradient(var(--ui-chip-bg), var(--ui-chip-bg)) padding-box, var(--ui-edge) border-box; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+.sbhp-face img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.sbhp-face b { font-family: var(--font-ui); font-size: 22px; font-weight: 900; color: var(--ui-title); }
+
+/* THE FLYOUT — portalled into the stage host, seated beside the panel by JS (SceneBuilderHeroPicker). */
+.sbhp { position: fixed; z-index: 960; width: 468px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 10px;
+  font-family: var(--font-ui); color: var(--ui-text); border: 2px solid transparent; border-radius: 14px;
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
+  animation: sbhpin 0.14s ease-out; }
+.sbhp[data-side='right'] { --sbhp-dx: -16px; }
+@keyframes sbhpin { from { opacity: 0; transform: translateX(var(--sbhp-dx, 16px)); } to { opacity: 1; transform: none; } }
+.sbhp :is(button, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.sbhp-head { display: flex; align-items: center; gap: 8px; }
+.sbhp-title { font-size: 15px; font-weight: 800; color: var(--ui-title); letter-spacing: 0.02em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+.sbhp-count { font-size: 11px; font-weight: 700; color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); border-radius: 999px; padding: 0 7px; }
+.sbhp-x { margin-left: auto; width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-muted); font-size: 13px; font-weight: 900; }
+.sbhp-x:hover { color: var(--ui-text); border-color: var(--ui-title); }
+.sbhp-search { width: 100%; height: 30px; box-sizing: border-box; padding: 0 10px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-text);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); font-family: var(--font-ui); font-size: 13px; font-weight: 700; }
+.sbhp-search:focus { outline: none; border-color: var(--ui-title); }
+.sbhp-search::placeholder { color: var(--ui-muted); font-weight: 600; opacity: 0.85; }
+.sbhp-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; font-weight: 700; color: var(--ui-chip-text); }
+.sbhp-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.sbhp-legend .sbhp-anc { position: static; }
+.sbhp-tally { color: var(--ui-muted); }
+.sbhp-filter { margin-left: auto; height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-muted); font-family: var(--font-ui); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.sbhp-filter:hover { color: var(--ui-text); }
+.sbhp-filter.on { background: var(--ui-title); color: var(--ui-plate-bot); border-color: var(--ui-title); }
+.sbhp-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 2px 4px; margin: 0 -2px; }
+.sbhp-grid { display: grid; grid-template-columns: repeat(5, 80px); gap: 6px; justify-content: space-between; }
+.sbhp-sec { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-muted); }
+.sbhp-sec::after { content: ''; flex: 1; height: 1px; background: var(--ui-divider); }
+.sbhp-sec em { font-style: normal; font-size: 10px; color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); border-radius: 999px; padding: 0 6px; letter-spacing: 0.03em; }
+
+/* A tile: portrait over its name. Current hero = the highlight ring; archived = dimmed but clickable. */
+.sbhp-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px 5px; border-radius: 10px; border: 1px solid transparent; background: transparent;
+  color: var(--ui-chip-text); font-family: var(--font-ui); transition: color 0.12s ease, opacity 0.12s ease; }
+.sbhp-tile:hover, .sbhp-tile:focus-visible { outline: none; color: var(--ui-text); background: var(--ui-hover-mid); border-color: var(--ui-chip-edge); }
+.sbhp-tile:focus-visible { border-color: var(--ui-title); }
+.sbhp-tile-face { position: relative; }
+.sbhp-tile-name { width: 100%; font-size: 11.5px; font-weight: 700; line-height: 1.15; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbhp-tile.cur { color: var(--ui-text); background: var(--ui-hover-mid); border-color: var(--ui-hl); box-shadow: inset 0 0 0 1px var(--ui-hl); }
+.sbhp-tile.cur .sbhp-face { background: linear-gradient(var(--ui-chip-bg), var(--ui-chip-bg)) padding-box, linear-gradient(var(--ui-hl), var(--ui-hl)) border-box; }
+.sbhp-tile.cur .sbhp-tile-name { color: var(--ui-hl); }
+.sbhp-tile.arch { opacity: 0.55; }
+.sbhp-tile.arch img { filter: grayscale(0.7); }
+.sbhp-tile.arch:hover, .sbhp-tile.arch:focus-visible, .sbhp-tile.arch.cur { opacity: 1; }
+
+/* The Ancients badge (Set 3): a check for all six, a half disc + count for some. */
+.sbhp-anc { position: absolute; right: -4px; bottom: -3px; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box; border-radius: 999px;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 900; line-height: 1; white-space: nowrap; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.sbhp-anc.full { color: var(--ui-ghost); border-color: var(--ui-ghost); }
+.sbhp-anc.partial { color: var(--ui-hl); border-color: var(--ui-hl); font-size: 10px; }
+.sbhp-empty { padding: 18px; text-align: center; color: var(--ui-muted); font-size: 13px; }
+.sbhp-readout { min-height: 16px; font-size: 12px; font-weight: 600; color: var(--ui-muted); border-top: 1px solid var(--ui-divider); padding-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

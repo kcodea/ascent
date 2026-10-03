@@ -694,8 +694,7 @@ export const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
  */
 export function fireShout(ctx: CombatContext, source: Minion, target: Minion): void {
   ctx.log({ type: 'shout', source: source.uid, target: target.uid });
-  replayCombatBattlecry(ctx, target);
-  ctx.bus.emit('battlecryTriggered', { side: source.side, minion: target });
+  replayCombatBattlecry(ctx, target, source.side); // emits `battlecryTriggered` once per fire, extras included
 }
 
 /**
@@ -752,7 +751,7 @@ export function deferShopOnlyShout(ctx: CombatContext, m: Minion): void {
  * the body's run-card uid). The old 2026-08-04 deferral classes (hand grants, run flags, auras, missing state)
  * are all gone: each has its channel now.
  */
-export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
+export function replayCombatBattlecry(ctx: CombatContext, m: Minion, side: Side = m.side): void {
   // Every Shout lives in FACTORIES (arena-backed, or phase-split) and resolves LIVE here; only SHOP_ONLY_SHOUTS
   // defer their Shop part to settle, where it replays through its recruit factory as the body's own run card.
   // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): a Shout triggered in combat consumes the side's carried
@@ -760,18 +759,21 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
   // (see CombatContext.shoutCarryExtras). Guarded on a real onPlay effect so a no-op call (Ryme re-firing a
   // Shout-less neighbour) never eats a charge. Each extra fire repeats the WHOLE Battlecry, Shop-only defers
   // included — the same "n fires" the shop counter would have paid.
+  // R-SHOUT-TRIGGER-01 (owner 2026-10-03): EVERY fire is a Shout trigger, the extra ones included. Each fire emits
+  // `battlecryTriggered` (Karwind, Bane, Embermouth, the Shout tally + rune meters, Drake Skull / Twin Sun Oath, the
+  // Celestial / Spirit Shout runes), and each EXTRA fire logs its own counted `shout` event so it gets its own beat
+  // (the caller logged the first). This is the ONE combat Shout chokepoint: callers never emit the notify themselves.
   const hasShout = m.effects.some((e) => e.on === 'onPlay');
-  const fires = 1 + (hasShout ? ctx.shoutCarryExtras?.(m.side) ?? 0 : 0);
+  const fires = 1 + (hasShout ? ctx.shoutCarryExtras?.(side) ?? 0 : 0);
   for (let f = 0; f < fires; f++) {
-    if (f > 0) ctx.log({ type: 'sc', source: m.uid, text: `${m.name}'s Battlecry fires again (carried Shout charge)` });
+    if (f > 0) ctx.log({ type: 'shout', source: m.uid, target: m.uid });
     for (const eff of m.effects) {
       if (eff.on !== 'onPlay') continue;
       FACTORIES[eff.do as EffectFactoryId]?.(ctx, m, eff.params ?? {}, { minion: m, side: m.side });
     }
     deferShopOnlyShout(ctx, m);
+    ctx.bus.emit('battlecryTriggered', { side, minion: m });
   }
-  // NB: the `battlecryTriggered` notify (procs Karwind / Bane / Sporeling) is emitted by the CALLER
-  // (deathrattleReplayAdjacentBattlecry) once per re-fire — not here, or every watcher would double-proc.
 }
 
 /** Trigger a minion's Echo (Deathrattle) WITHOUT it dying — the shared body for Echohorn Stag / Hawkus / Spots.
@@ -3003,6 +3005,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
+  dealtDamageGetRandomSpell: () => {}, // Tauntbreaker (2026-10-03): the same meter, a random-Shop-Spell body — `noteDamageDealt` pays it
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it

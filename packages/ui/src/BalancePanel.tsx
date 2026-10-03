@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  aggregatePlayerReport, applyReportFilters, buildBalanceExport, buildCardCsv, cardImpactWithCoverage, dataQuality, defaultEpoch, epochsOf, getHero,
+  aggregatePlayerReport, applyReportFilters, buildBalanceExport, buildCardCsv, buildsOf, cardImpactWithCoverage, dataQuality, defaultEpoch, epochsOf, getHero, regimesOf,
   goldEconomy, heroImpact, impactGroups, mostProlificPlayer, performanceSortValue, playerKeyFor, runeGroups, runeImpact, scopeReport, tierDecisions, tierImpact,
   upgradeShape, ALL_EPOCHS, EPOCH_MIN_RUNS, EVIDENCE_GATES, LEGACY_SET, SAMPLE_GATES, SPEND_CATEGORIES, WELCH_MIN_N,
   type AdjustedStats, type CardImpactRow, type CohortCoverage, type DataQuality, type DerivedRun, type EconomyBucket, type EconomyWaveRow, type EpochInfo,
@@ -293,7 +293,7 @@ const HERO_COLS: Record<string, ColDef<HeroImpactRow>> = {
   offered: { key: 'offered', label: 'Offered', tip: 'Runs whose recorded hero picker offered it.', value: (r) => r.offered, cell: (r) => ({ text: String(r.offered), cls: 'balnum' }) },
   offer: { key: 'offer', label: 'Offer %', tip: 'Percent of all runs where the picker offered it.', value: (r) => r.offerRate, cell: (r) => ({ text: pctOrDash(r.offerRate), cls: 'balnum' }) },
   pick: { key: 'pick', label: 'Pick %', tip: 'Percent of offers that were taken. Do players want it when they see it.', value: (r) => r.pickRate, cell: (r) => ({ text: pctOrDash(r.pickRate), cls: 'balnum' }) },
-  avgWins: { key: 'avgWins', label: 'Round Wins', tip: 'Average combat rounds won per run with it.', value: (r) => r.avgWins, cell: (r) => ({ text: fmtNum(r.avgWins), cls: 'balnum' }) },
+  avgWins: { key: 'avgWins', label: 'Round Wins', tip: 'Average combat rounds won per run with it, every round counted (from the best source per run: live, derived or replay).', value: (r) => r.avgWins, cell: (r) => ({ text: fmtNum(r.avgWins), cls: 'balnum' }) },
   offSkip: { key: 'offSkip', label: 'Offered, chose other', tip: 'Placed runs whose recorded trio offered the hero and that picked another one: the comparison group of the offered association. Runs with no recorded trio cannot be here.', value: (r) => r.offeredSkippers, cell: (r) => ({ text: String(r.offeredSkippers), cls: 'balnum' }) },
   offDelta: { key: 'offDelta', label: 'Offered association', tip: 'Average placement of runs with the hero minus runs that were offered it and chose another. Negative means choosing it went with a better finish among runs that had the choice. Picking a hero is selected behaviour, not a random treatment. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.', value: (r) => (r.evidence === 'insufficient' ? null : r.offeredDelta), firstDir: 1, cell: (r) => ({ text: signed(r.offeredDelta), cls: `balnum${r.offeredDelta === null ? '' : ` balwin${deltaHeat(r.offeredDelta)}`}` }) },
   offCi: { key: 'offCi', label: 'Offered 95%', tip: `Welch 95% range of the offered association. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.offeredCi ? r.offeredCi.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.offeredCi), cls: 'balnum baldim' }) },
@@ -332,7 +332,7 @@ const runeTip = (r: RuneImpactRow): string =>
 
 const TIER_COLS: Record<string, ColDef<TierImpactRow>> = {
   ...placementCols<TierImpactRow>('early runs', 'runs that reached the tier later or never'),
-  reached: { key: 'reached', label: 'Reached', tip: 'Runs whose replay-derived shop tier ever reached this tier.', value: (r) => r.runsReached, cell: (r) => ({ text: String(r.runsReached), cls: 'balnum' }) },
+  reached: { key: 'reached', label: 'Reached', tip: 'Runs whose shop tier ever reached this tier (from the best tier series per run: live, derived or replay).', value: (r) => r.runsReached, cell: (r) => ({ text: String(r.runsReached), cls: 'balnum' }) },
   reachPct: { key: 'reachPct', label: 'Reach %', tip: 'Percent of all runs that reached this tier.', value: (r) => r.reachRate, cell: (r) => ({ text: pctOrDash(r.reachRate), cls: 'balnum' }) },
   avgWave: { key: 'avgWave', label: 'Avg Wave', tip: 'The average wave a run first reached this tier, over the runs that did.', value: (r) => r.avgWaveReached, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgWaveReached), cls: 'balnum' }) },
   reachedPlaced: { key: 'reachedPlaced', label: 'Reached Placed', tip: 'Runs that reached the tier and carry a placement.', value: (r) => r.reachedPlacedN, cell: (r) => ({ text: String(r.reachedPlacedN), cls: 'balnum baldim' }) },
@@ -598,7 +598,8 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
         <span data-tip={`Derived payloads are fetched by id for the newest ${derivedCap} in-set rows. Dropped = asked for and not returned. The exposed and adjusted reads need them.`}>derived {derivedLoading ? 'loading' : `${fetch.derivedFetched} of ${fetch.derivedRequested} requested`}, cap {derivedCap}{derivedDropped > 0 && !derivedLoading ? `, ${derivedDropped} dropped` : ''}</span>
         <span data-tip="Runs in scope with a usable derived payload; the rest are left out of the exposed and adjusted reads and counted, never invented">{coverage.withDerived} of {runs} with usable streams</span>
         <span data-tip="Payloads whose streams carried earlier runs of the same browser session in front of their own. Read by their last segment. The upload-time card arrays stack the same way and cannot be cut, which is why Raw buyers can exceed Buyers this run.">{quality.stackedStreams} stacked payloads</span>
-        <span data-tip="Rows whose replay-derived tier-by-wave does not match the live final wave, short or long. The Shop Tiers reach table and the shop curve are unreliable for them.">{quality.replayDisagree} replay tier tables disagree</span>
+        <span data-tip="Where each run's round wins and tier curve came from. Live = captured as the run was played (uploads from 2026-10-03). Derived = rebuilt from the run's live event streams. Replay = the uploaded value, re-simulated without the lobby seats, which goes off course for a lobby run. Every tier curve is cut at the run's live final wave.">wins {quality.sources.wins.live} live / {quality.sources.wins.derivedWins + quality.sources.wins.derivedCombats} derived / {quality.sources.wins.replay} replay; tiers {quality.sources.tierByWave.live} live / {quality.sources.tierByWave.derived} derived / {quality.sources.tierByWave.replay} replay</span>
+        <span data-tip="Matchmaking regime per run: stamped at upload (from 2026-10-03), or inferred from the build or the date for older runs">regime {quality.sources.regime.stamped} stamped / {quality.sources.regime.inferredFromBuild + quality.sources.regime.inferredFromDate} inferred</span>
         <span data-tip="Rows with no placement, rows whose placement was not an integer 1 to 8 (cleared), and rows dropped for a duplicate id">{quality.placementMissing} missing placement, {quality.placementMalformed} malformed, {quality.duplicateIds} duplicate ids</span>
         <span data-tip="Rows with no recorded hero picker trio; they cannot enter the offered-not-chosen hero comparison">{quality.heroOfferMissing} without a hero trio</span>
         {quality.diverged > 0 && <span data-tip="Partial payloads, left out of every derived read">{quality.diverged} diverged</span>}
@@ -649,6 +650,9 @@ export function BalancePanel() {
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
   const [showThin, setShowThin] = useState(false);
+  // THE REGIME + BUILD FILTERS (2026-10-03): '' = every regime / build.
+  const [regimePick, setRegimePick] = useState<string>('');
+  const [buildPick, setBuildPick] = useState<string>('');
   const [excludeProlific, setExcludeProlific] = useState(false);
   // STAGE TWO of the load (the derived payloads) is in flight: the derived sections and Export all wait for it.
   const [derivedLoading, setDerivedLoading] = useState(false);
@@ -687,7 +691,12 @@ export function BalancePanel() {
   const filtered = useMemo(() => applyReportFilters(rows, set.id), [rows, set.id]);
   const epochs = useMemo(() => epochsOf(filtered.rows), [filtered]);
   const epoch = epochPick ?? defaultEpoch(epochs, buildRev);
-  const scope = useMemo((): ReportScope => ({ epoch, from: from || null, to: to || null }), [epoch, from, to]);
+  const scope = useMemo((): ReportScope => ({ epoch, from: from || null, to: to || null, regime: regimePick || null, build: buildPick || null }), [epoch, from, to, regimePick, buildPick]);
+  // The picker options read the epoch + window slice WITHOUT the regime / build filters, so a choice never hides
+  // the others.
+  const pickerRows = useMemo(() => scopeReport(filtered, { epoch, from: from || null, to: to || null }).rows, [filtered, epoch, from, to]);
+  const regimes = useMemo(() => regimesOf(pickerRows), [pickerRows]);
+  const builds = useMemo(() => buildsOf(pickerRows), [pickerRows]);
   const scoped = useMemo(() => scopeReport(filtered, scope), [filtered, scope]);
   const insufficient = scope.epoch !== ALL_EPOCHS && scoped.rows.length < EPOCH_MIN_RUNS && !showThin;
   // THE PLAYER KEY (2026-09-23): the account key when the backend has it, else the display-name proxy the banner labels.
@@ -801,7 +810,7 @@ export function BalancePanel() {
             </select>
             <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
             <button className="balrun" disabled={loading || derivedLoading || baseRows.length === 0} onClick={exportAll}
-              data-tip={derivedLoading ? 'Waits for the derived streams to land, so the file holds everything it can' : `Downloads the runs in scope (${revisionWord}, the window, the sensitivity toggle) as one JSON file: the tables, the raw rows and the derived streams, with a readme, the caps and the exclusions inside. Schema version 2.`}>
+              data-tip={derivedLoading ? 'Waits for the derived streams to land, so the file holds everything it can' : `Downloads the runs in scope (${revisionWord}, the window, the sensitivity toggle) as one JSON file: the tables, the raw rows and the derived streams, with a readme, the caps and the exclusions inside. Schema version 3.`}>
               {derivedLoading ? 'Export (loading)' : 'Export all'}
             </button>
             <button className="balrun" disabled={loading || baseRows.length === 0} onClick={exportCsv}
@@ -815,6 +824,16 @@ export function BalancePanel() {
               {epochs.map((e) => <option key={e.rev} value={e.rev}>{epochOption(e)}</option>)}
               {!epochs.some((e) => e.rev === buildRev) && <option value={buildRev}>This build: {buildRev} (0 runs)</option>}
               <option value={ALL_EPOCHS}>All revisions, historical ({filtered.rows.length} runs, {epochs.length} revisions)</option>
+            </select>
+            <select className="balpick" value={regimePick} onChange={(e) => { sfx.pulse(); setRegimePick(e.target.value); }} aria-label="Matchmaking regime"
+              data-tip="Matchmaking regime: the rank band table and how run strength was computed. Stamped on runs from 2026-10-03; inferred from the build or the date before that.">
+              <option value="">All regimes ({pickerRows.length} runs)</option>
+              {regimes.map((g) => <option key={g.key} value={g.key}>{g.key} ({g.runs} runs{g.inferred ? `, ${g.inferred} inferred` : ''})</option>)}
+            </select>
+            <select className="balpick" value={buildPick} onChange={(e) => { sfx.pulse(); setBuildPick(e.target.value); }} aria-label="Client build"
+              data-tip="The client build the runs were played on. One content revision can span many builds.">
+              <option value="">All builds ({builds.length})</option>
+              {builds.map((b) => <option key={b.build} value={b.build}>{b.build} ({b.runs} {b.runs === 1 ? 'run' : 'runs'}, {day(b.newest)})</option>)}
             </select>
             <label className="ballabel">from <input className="balpick baldate" type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Window start" /></label>
             <label className="ballabel">to <input className="balpick baldate" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Window end" /></label>
@@ -909,8 +928,9 @@ export function BalancePanel() {
                   <>
                     One row per rune, counted once per run. The <b>Offered association</b> is takers minus the runs that were <b>offered it and
                     skipped it</b>: equivalent forge access, so surviving to turn 6 or 9 does not make every rune look good. The uncontrolled read
-                    against the whole field is kept as <b>Raw association vs field</b>. The offers are replay-derived (re-running the action
-                    log, which is not guaranteed faithful for a lobby run), so reaching the forge is inferred, not observed. With {heroRows.length}
+                    against the whole field is kept as <b>Raw association vs field</b>. Offers and picks are live on {tableQuality.sources.choices.live} runs
+                    (uploads from 2026-10-03) and replay-derived on {tableQuality.sources.choices.replay} (re-running the action log, which goes off course
+                    for a lobby run), so on those reaching the forge is inferred, not observed. With {heroRows.length}
                     {' '}runs across {runes.length} runes most rows are thin: read the evidence label and the 95% ranges first. The Forge chips
                     sum rune-picker incidences and filter the table.
                   </>
@@ -919,10 +939,11 @@ export function BalancePanel() {
               />
             ) : sectionKey === 'shopcurve' ? (
               <>
-                <div className="balnote balwarn">
-                  The curve and the reach table below are REPLAY-derived: the run is re-run without its lobby seats, and on {tableQuality.replayDisagree} of
-                  {' '}{heroRows.length} runs the replayed tier-by-wave does not match the live final wave (short or long). The decision table further down reads the
-                  live upgrade rows instead.
+                <div className={`balnote${tableQuality.sources.tierByWave.replay > 0 ? ' balwarn' : ''}`}>
+                  The curve and the reach table below read each run's best tier series: {tableQuality.sources.tierByWave.live} live,
+                  {' '}{tableQuality.sources.tierByWave.derived} rebuilt from the run's live event streams, and {tableQuality.sources.tierByWave.replay} from the
+                  uploaded replay (re-run without its lobby seats, so it goes off course; {tableQuality.sources.flags.tierShort} of those stop short). Every series is cut
+                  at the run's live final wave. The decision table further down reads the live upgrade rows.
                 </div>
                 <ShopCurveChart curve={report.shopCurve} />
                 <div className="balgap" />
@@ -936,7 +957,7 @@ export function BalancePanel() {
                   nameLabel="Tier" nameValue={tierOrder}
                   legend={(
                     <>
-                      One row per shop tier, replay-derived. <b>Reached</b> and <b>Avg Wave</b> say how many runs got there and when. <b>By Wave</b> is
+                      One row per shop tier, from each run's best tier series (see the note above). <b>Reached</b> and <b>Avg Wave</b> say how many runs got there and when. <b>By Wave</b> is
                       that average rounded, and the <b>early runs</b> reached the tier on or before it. The <b>Raw association</b> is the early runs
                       minus the runs that reached the tier later or never. <b>Reached vs never</b> is a survival statistic (the never-reached runs
                       are the early eliminations), kept for reference.

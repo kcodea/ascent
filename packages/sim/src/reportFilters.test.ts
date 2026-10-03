@@ -67,7 +67,7 @@ describe('applyReportFilters', () => {
     const f = applyReportFilters(all, 'set2');
     expect(f.rows.map((r) => r.heroId)).toEqual(['b', 'c']);
     expect(f.counts).toEqual({ fetched: 7, ladder: 4, inSet: 2, unstamped: 1, withDerived: 1, duplicateIds: 0, placementMalformed: 0, inScope: 2 });
-    expect(f.applied).toHaveLength(3);
+    expect(f.applied, 'ladder, set, sanitising, and the best-source note (2026-10-03)').toHaveLength(4);
     expect(f.applied[0]).toContain('ladder');
     expect(f.applied[1]).toContain('set2');
   });
@@ -86,7 +86,9 @@ describe('applyReportFilters', () => {
 
   it('a sandbox row never counts as ladder, even in the right set with lobby mode', () => {
     const f = applyReportFilters([sandboxLobby, set2Ladder], 'set2');
-    expect(f.rows).toEqual([set2Ladder]);
+    // The rows come back with their best-source annotations (2026-10-03), so compare by identity of content.
+    expect(f.rows.map((r) => r.heroId)).toEqual([set2Ladder.heroId]);
+    expect(f.rows[0]).toMatchObject(set2Ladder);
     expect(f.counts.ladder).toBe(1);
   });
 

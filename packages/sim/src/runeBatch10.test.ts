@@ -74,7 +74,7 @@ describe('Rune of the War Chorus', () => {
       { cardId: rallyCard.id, attack: 2, health: 300 },
     ];
     const shouts = (mods: object) => sim(board, killer, mods).events
-      .filter((e) => e.type === 'sc' && (e as { text?: string }).text === 'Shout').length;
+      .filter((e) => e.type === 'shout' /* R-SHOUT-TRIGGER-01: a forced Shout is a counted `shout` beat now */).length;
     expect(shouts({}), 'baseline should fire no Shout').toBe(0);
     expect(shouts({ runeWarChorus: true }), 'the chorus should fire exactly once per combat').toBe(1);
   });
@@ -88,14 +88,14 @@ describe('Rune of the War Chorus', () => {
       { cardId: 'drummer', attack: 1, health: 300 },
     ];
     const shouts = sim(board, killer, { runeWarChorus: true }).events
-      .filter((e) => e.type === 'sc' && (e as { text?: string }).text === 'Shout').length;
+      .filter((e) => e.type === 'shout' /* R-SHOUT-TRIGGER-01: a forced Shout is a counted `shout` beat now */).length;
     expect(shouts, 'one chorus trigger × Drakko = exactly 2 fires').toBe(2);
   });
 
   it('a board with no Rally never spends it', () => {
     const board: BoardMinion[] = [{ cardId: shoutCard.id, attack: 2, health: 300 }];
     const shouts = sim(board, killer, { runeWarChorus: true }).events
-      .filter((e) => e.type === 'sc' && (e as { text?: string }).text === 'Shout').length;
+      .filter((e) => e.type === 'shout' /* R-SHOUT-TRIGGER-01: a forced Shout is a counted `shout` beat now */).length;
     expect(shouts, 'a plain swing spent the chorus').toBe(0);
   });
 });

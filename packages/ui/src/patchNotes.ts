@@ -69,6 +69,19 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Tauntbreaker reworked: Rally removes Taunt and Rise from its target, and Pummel (25) gets a random Shop Spell once per combat.',
+        details: [
+          'Pummel (25) pays once per combat. The damage count carries over between combats.',
+          'Gilded Tauntbreaker gets 2 random Shop Spells each time.',
+          'Tauntbreaker has new art.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Venom\'s text now shows its Execute keyword.',
+      },
+      {
+        category: 'Balance',
         text: 'Game strength now reflects your final board.',
         details: [
           'Each game is now rated by its last board, compared with every board seen at that round.',
@@ -131,6 +144,26 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-02',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Damage taken now pops up briefly on the lobby rail after each fight instead of staying there. Hover a player to see their last fight.',
+        details: [
+          'Each player who lost Health shows the number once as you return to the shop. It rises and fades in about a second and a half.',
+          'Hovering a player lists their last three fights with the damage of each.',
+          'The smoke when a player is knocked out is now a softer, slightly slower veil that stays on their row.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Fixed Rune of the Choir and other Shout effects not working on triggered Shouts, like the Auctioneer's Pulse.",
+        details: [
+          "A Shout triggered by anything now counts as a Shout: the Auctioneer's Pulse, Echoing Roar, Resonance, Ryme, Parting Cry and runes.",
+          'Rune of the Choir, Rune of Blasting Voices, Hoardwake Ritual, Resonant Path, Orivax and Demand an Encore now add their extra triggers to these Shouts, in the Shop and in combat.',
+          'Warm Embers, Opening Act and Rune of the War Drum now apply to the first Shout you trigger each turn, not only the first one you play. Each combat also gets its own Warm Embers double.',
+          'Twin Sun Oath and Rune of the Drake Skull now also work on Shouts triggered in combat.',
+          'Shouts fired by Rune of Shared Scripture, Rune of Ancestral Roar and Rune of the War Chorus now count for Shout quests and Shout effects, and show their own animation.',
+        ],
+      },
       {
         category: 'Systems',
         text: '11 new hero skins and 7 new portrait frames in crates. Two skins are now Ancient.',

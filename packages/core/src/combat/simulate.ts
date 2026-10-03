@@ -24,7 +24,7 @@ import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, 
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, deferShopOnlyShout, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
@@ -1047,16 +1047,22 @@ export function simulate(
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): consumed once per combat-triggered Shout by
     // `replayCombatBattlecry`. The first Shout gets the whole unspent War Drum multiplier (its own latch),
     // and each of the next N Shouts one extra fire while the carried Warm Embers charges last — the two
-    // STACK on the first Shout, mirroring the recruit counter (`playedShoutRepeats`).
+    // STACK on the first Shout, mirroring the recruit fold (`shoutFireCount`).
     shoutCarryExtras: (side) => {
       let extra = 0;
       const wd = modsFor(side).warDrumExtra;
       if (wd && !warDrumCarrySpent[side]) { warDrumCarrySpent[side] = true; extra += wd; }
       if (shoutDoubleCarryLeft[side] > 0) { shoutDoubleCarryLeft[side] -= 1; extra += 1; }
+      // Warm Embers / Opening Act: this fight's own first-Shout double (R-SHOUT-01 per-phase charge).
+      if (modsFor(side).warmEmbersFirst && !warmFirstSpent[side]) { warmFirstSpent[side] = true; extra += 1; }
       // Demand an Encore (R-TURN-01, owner ruling 2026-08-27): a turn-long BUFF, not a charge — every
       // combat-triggered Shout gets the extras, nothing is latched or decremented (mirrors the shop
       // counter's `n += state.shoutExtraTurn` on every played Shout).
       extra += modsFor(side).encoreExtra ?? 0;
+      // Rune of the Choir & co. (R-SHOUT-TRIGGER-01, owner 2026-10-03): the PERMANENT Shout extras, every
+      // combat-triggered Shout, nothing consumed. The badge pulse rides `questTrigger` (runeChoir → rune_choir).
+      const always = modsFor(side).shoutExtraAlways ?? 0;
+      if (always > 0) { extra += always; fireTrigger('runeChoir', side); }
       return extra;
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -1727,15 +1733,11 @@ export function simulate(
       if (shout) {
         // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the rune's forced Shout folds the
         // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
+        // R-SHOUT-TRIGGER-01: a forced Shout is a Shout. It fires through the shared combat Shout path (`fireShout`:
+        // a counted `shout` beat, the side's Shout extras, `battlecryTriggered` per fire), never a hand-rolled loop,
+        // so the Choir, the charges, the Shout tally and every Shout watcher hear it.
         const reps = drakkoRepeats(ctx, side);
-        for (let r = 0; r < reps; r++) {
-          emit({ type: 'sc', source: shout.uid, text: 'Shout' });
-          for (const effect of shout.effects) {
-            if (effect.on !== 'onPlay') continue;
-            withEffect(shout, effect, () => FACTORIES[effect.do]?.(ctx, shout, effect.params ?? {}, { minion: shout, side }));
-          }
-          deferShopOnlyShout(ctx, shout); // R-REALTIME-03: a Shop-only Shout fires its line now, its Shop part at settle
-        }
+        for (let r = 0; r < reps; r++) fireShout(ctx, shout, shout);
       }
       if (rally) fireFreeRally(rally, side);
     },
@@ -3187,14 +3189,7 @@ export function simulate(
       // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the granted Echo's Shout folds the
       // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
       const roarReps = drakkoRepeats(ctx, minion.side);
-      for (let r = 0; r < roarReps; r++) {
-        emit({ type: 'sc', source: minion.uid, text: 'Shout' });
-        for (const effect of minion.effects) {
-          if (effect.on !== 'onPlay') continue;
-          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
-        }
-        deferShopOnlyShout(ctx, minion); // R-REALTIME-03
-      }
+      for (let r = 0; r < roarReps; r++) fireShout(ctx, minion, minion); // R-SHOUT-TRIGGER-01: the shared Shout path
     }
     // RUNE OF RUBY SHRAPNEL: a dying Ruby-buffed body scatters its Ruby stats across the survivors. The tally
     // is the same read the Gemheart line and Rune of the Gem Golem use — the carried shop 'Ruby' buff plus
@@ -3330,8 +3325,7 @@ export function simulate(
         const reps = drakkoRepeats(ctx, minion.side);
         for (let r = 0; r < reps; r++) {
           emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s parting cry`, cast: true });
-          replayCombatBattlecry(ctx, minion);
-          bus.emit('battlecryTriggered', { side: minion.side, minion });
+          replayCombatBattlecry(ctx, minion); // emits `battlecryTriggered` per fire (R-SHOUT-TRIGGER-01)
         }
       }
     }
@@ -3462,6 +3456,10 @@ export function simulate(
   // rival whose snapshot carried its own unspent charges gets them too. Spend trackers live here (per-combat),
   // never on shared defs; consumed via ctx.shoutCarryExtras in replayCombatBattlecry.
   const warDrumCarrySpent: Record<Side, boolean> = { player: false, enemy: false };
+  // Warm Embers / Opening Act: "your first Shout each round triggers twice" is a per-PHASE charge (R-SHOUT-01, owner
+  // 2026-08-27: "the first shout triggered EACH shop or combat phase"), so each fight opens with its own, spent by
+  // the first Shout triggered in it (R-SHOUT-TRIGGER-01).
+  const warmFirstSpent: Record<Side, boolean> = { player: false, enemy: false };
   const shoutDoubleCarryLeft: Record<Side, number> = {
     player: modsFor('player').shoutDoubleCharges ?? 0,
     enemy: modsFor('enemy').shoutDoubleCharges ?? 0,
@@ -3819,14 +3817,7 @@ export function simulate(
           // the Battlecry multipliers (Drakko) like every other combat Shout re-fire — AND fires once per
           // rune copy held (boolean-flag duplicate family, owner 2026-08-27). The two multiply.
           const chorusReps = drakkoRepeats(ctx, attacker.side) * flagCopiesOf(attacker.side, 'runeWarChorus');
-          for (let r = 0; r < chorusReps; r++) {
-            emit({ type: 'sc', source: lead.uid, text: 'Shout' });
-            for (const effect of lead.effects) {
-              if (effect.on !== 'onPlay') continue;
-              withEffect(lead, effect, () => FACTORIES[effect.do]?.(ctx, lead, effect.params ?? {}, { minion: lead, side: lead.side }));
-            }
-            deferShopOnlyShout(ctx, lead); // R-REALTIME-03
-          }
+          for (let r = 0; r < chorusReps; r++) fireShout(ctx, lead, lead); // R-SHOUT-TRIGGER-01: the shared Shout path
         }
       }
       // The Burning Legion: an attacking Imp summons a copy of itself, while uses remain AND there is room.
@@ -5195,6 +5186,24 @@ export function simulate(
   bus.on('battlecryTriggered', (payload) => {
     const { side, minion } = payload as { side: Side; minion?: Minion };
     if (minion && modsFor(side).runeCallAndAnswer && isTribeOf(minion, 'spirit', cards)) callAndAnswer(side, minion.uid);
+  });
+  // TWIN SUN OATH / RUNE OF THE DRAKE SKULL in combat (R-SHOUT-TRIGGER-01, cross-phase by default): "whenever you
+  // trigger a Shout, give your left and right-most (Dragon) +X/+Y" hears a COMBAT Shout fire too, once per fire, like
+  // the Shop half in `fireBattlecryTriggered`. A combat buff (for this fight), like the Starsong's. One body at both
+  // ends is buffed once.
+  bus.on('battlecryTriggered', (payload) => {
+    const { side } = payload as { side: Side };
+    const m = modsFor(side);
+    const edges = (pool: Minion[]): Minion[] => (pool.length === 0 ? [] : [...new Set([pool[0]!, pool[pool.length - 1]!])]);
+    if (m.shoutEdgeBuff) {
+      const ends = edges(living(side));
+      if (ends.length) { fireTrigger('twinSunOath', side); for (const e of ends) ctx.buff(e, m.shoutEdgeBuff.attack, m.shoutEdgeBuff.health, 'Twin Sun Oath'); }
+    }
+    if (m.shoutEdgeTribeBuff) {
+      const t = m.shoutEdgeTribeBuff;
+      const ends = edges(living(side).filter((c) => isTribeOf(c, t.tribe, cards)));
+      if (ends.length) { fireTrigger('runeDrakeSkull', side); for (const e of ends) ctx.buff(e, t.attack, t.health, 'Rune of the Drake Skull'); }
+    }
   });
   // RUNE OF THE HERALDING STAR / THE STARSONG (Set 3 design pass): every friendly CELESTIAL Shout fire. The Heralding
   // Star banks +3/+3 for the Starform (settle applies it: the token lives in the Shop); the Starsong gives the living

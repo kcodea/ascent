@@ -40,7 +40,7 @@ describe('the five defs ship as specced', () => {
 describe('Rune of Ancestral Roar', () => {
   const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
   const shouts = (board: BoardMinion[], mods: object) => sim(board, killer, { questMods: mods })
-    .events.filter((e) => e.type === 'sc' && (e as { text: string }).text === 'Shout').length;
+    .events.filter((e) => e.type === 'shout' /* R-SHOUT-TRIGGER-01: a forced Shout is a counted `shout` beat now */).length;
 
   it('a dying Dragon with a Shout fires it as an Echo', () => {
     const board: BoardMinion[] = [{ cardId: 'emissary', attack: 2, health: 1 }];
@@ -130,7 +130,7 @@ describe('Rune of Shared Scripture', () => {
       const r = sim(board, killer, { lastSpellCastId: 'growth', questMods: mods });
       const sc = r.events.filter((e) => e.type === 'sc');
       return {
-        shouts: sc.filter((e) => (e as { text: string }).text === 'Shout').length,
+        shouts: r.events.filter((e) => e.type === 'shout').length, // R-SHOUT-TRIGGER-01: the counted `shout` beat
         rallies: sc.filter((e) => (e as { text: string }).text === 'Rally').length,
       };
     };
@@ -154,7 +154,7 @@ describe('Rune of Shared Scripture', () => {
       const r = sim(board, killer, { lastSpellCastId: 'growth', questMods: mods });
       const sc = r.events.filter((e) => e.type === 'sc');
       return {
-        shouts: sc.filter((e) => (e as { text: string }).text === 'Shout').length,
+        shouts: r.events.filter((e) => e.type === 'shout').length, // R-SHOUT-TRIGGER-01: the counted `shout` beat
         rallies: sc.filter((e) => (e as { text: string }).text === 'Rally').length,
       };
     };

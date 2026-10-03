@@ -1,5 +1,5 @@
 /**
- * THE BULLET TIME RUNNER ("Bullet Time", the Ancient of Time; ANCIENT): plays one Bullet Time hero attack (the beats are
+ * THE TIMEBREAK RUNNER ("Timebreak", the Ancient of Time; ANCIENT): plays one Timebreak hero attack (the beats are
  * in `heroBulletTimeConfig.ts`) and lands the consequence on its impact beat (the hit, or IV's collapse). Presentation
  * only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
@@ -56,7 +56,7 @@ export function bulletSeed(total: number, distance: number, side: 'player' | 'op
   return (Math.round(total) * 6977 + Math.round(distance) * 43 + (side === 'opp' ? 251 : 29)) >>> 0;
 }
 
-/** Play Bullet Time. Returns a handle; the blow lands via `onImpact` on the last hit. */
+/** Play Timebreak. Returns a handle; the blow lands via `onImpact` on the last hit. */
 export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHandle {
   const c = o.cfg ?? getHeroBulletTimeConfig();
   const reduced = o.reduced ?? prefersReducedMotion();

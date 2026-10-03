@@ -1,5 +1,5 @@
 /**
- * Bullet Time's textures, painted ONCE per session on 2D canvases and kept (on top of the shared Blast / Arcana set it
+ * Timebreak's textures, painted ONCE per session on 2D canvases and kept (on top of the shared Blast / Arcana set it
  * reuses for glows, rings, stars, streaks, the beam and the ribbon trail). Greys unless noted, so every sprite tints them.
  *
  * ARCANE, NOT BALLISTIC (owner review 2026-10-02: "remove the bullet aesthetic. make it more magic inspired"): nothing

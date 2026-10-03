@@ -25,9 +25,9 @@
   },
   "frame_bonds": {
     "aspect": 1,
-    "holeD": 0.5941,
-    "holeCx": 0.4998,
-    "holeCy": 0.5075
+    "holeD": 0.7145,
+    "holeCx": 0.5,
+    "holeCy": 0.5044
   },
   "frame_bronze": {
     "aspect": 1,
@@ -41,11 +41,29 @@
     "holeCx": 0.5105,
     "holeCy": 0.4686
   },
+  "frame_chromatic_dragonscale": {
+    "aspect": 1,
+    "holeD": 0.7576,
+    "holeCx": 0.5034,
+    "holeCy": 0.4891
+  },
   "frame_crackling_ruby": {
     "aspect": 1,
     "holeD": 0.7912,
     "holeCx": 0.499,
     "holeCy": 0.473
+  },
+  "frame_cream": {
+    "aspect": 1,
+    "holeD": 0.7392,
+    "holeCx": 0.504,
+    "holeCy": 0.4921
+  },
+  "frame_crystal": {
+    "aspect": 1,
+    "holeD": 0.7632,
+    "holeCx": 0.5017,
+    "holeCy": 0.4893
   },
   "frame_dark_cloud": {
     "aspect": 1,
@@ -67,15 +85,27 @@
   },
   "frame_death": {
     "aspect": 1,
-    "holeD": 0.5327,
-    "holeCx": 0.4974,
-    "holeCy": 0.4376
+    "holeD": 0.6252,
+    "holeCx": 0.4996,
+    "holeCy": 0.4569
   },
   "frame_diamond": {
     "aspect": 1,
     "holeD": 0.8293,
     "holeCx": 0.4986,
     "holeCy": 0.4872
+  },
+  "frame_disco": {
+    "aspect": 1,
+    "holeD": 0.7959,
+    "holeCx": 0.5009,
+    "holeCy": 0.484
+  },
+  "frame_econ": {
+    "aspect": 1,
+    "holeD": 0.7911,
+    "holeCx": 0.5044,
+    "holeCy": 0.486
   },
   "frame_fire": {
     "aspect": 1,
@@ -85,15 +115,15 @@
   },
   "frame_fortune": {
     "aspect": 1,
-    "holeD": 0.7081,
-    "holeCx": 0.5032,
-    "holeCy": 0.4843
+    "holeD": 0.7329,
+    "holeCx": 0.5041,
+    "holeCy": 0.4813
   },
   "frame_genesis": {
     "aspect": 1,
-    "holeD": 0.701,
-    "holeCx": 0.6092,
-    "holeCy": 0.4799
+    "holeD": 0.7018,
+    "holeCx": 0.4799,
+    "holeCy": 0.39
   },
   "frame_glass_shard": {
     "aspect": 1,
@@ -109,9 +139,9 @@
   },
   "frame_golden_dragonscale": {
     "aspect": 1,
-    "holeD": 0.748,
-    "holeCx": 0.5013,
-    "holeCy": 0.4773
+    "holeD": 0.7799,
+    "holeCx": 0.5024,
+    "holeCy": 0.4938
   },
   "frame_honey": {
     "aspect": 1.0324,
@@ -179,6 +209,12 @@
     "holeCx": 0.5005,
     "holeCy": 0.4641
   },
+  "frame_reflective": {
+    "aspect": 1,
+    "holeD": 0.8006,
+    "holeCx": 0.4996,
+    "holeCy": 0.4879
+  },
   "frame_ruby": {
     "aspect": 1,
     "holeD": 0.7992,
@@ -196,6 +232,12 @@
     "holeD": 0.5957,
     "holeCx": 0.4997,
     "holeCy": 0.5634
+  },
+  "frame_snare": {
+    "aspect": 1,
+    "holeD": 0.7839,
+    "holeCx": 0.4997,
+    "holeCy": 0.4866
   },
   "frame_stained_glass": {
     "aspect": 1,
@@ -241,9 +283,9 @@
   },
   "frame_war": {
     "aspect": 1,
-    "holeD": 0.673,
-    "holeCx": 0.5098,
-    "holeCy": 0.4706
+    "holeD": 0.7576,
+    "holeCx": 0.4995,
+    "holeCy": 0.4769
   },
   "frame_water": {
     "aspect": 1,

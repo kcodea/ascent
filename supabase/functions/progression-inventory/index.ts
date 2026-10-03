@@ -51,6 +51,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
 
   const admin = createClient(url, serviceKey);
+  // rows: these server RPCs return one jsonb result each, never a table (R-NET-01).
   const rpc = (fn: string, args: Record<string, unknown>) => admin.rpc(fn, args);
   const log = (msg: string, detail?: unknown) => console.error(msg, detail);
   // Once per cold start; never throws; an unchanged catalog is one read (see progressionInventory.ts).

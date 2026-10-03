@@ -97,12 +97,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // function itself is executable by the service role only).
   const admin = createClient(url, serviceKey);
   const baseArgs = { p_user: user.id, p_run_id: runId, p_placement: placement, p_season: RANK_SEASON, p_rules_version: RANK_RULES_VERSION, p_seed: seed };
+  // rows: settle_rank returns one jsonb result (R-NET-01).
   let settled = await admin.rpc('settle_rank', { ...baseArgs, p_seat_keys: seatKeys });
   // A database that has not run the 2026-09-22 fight-ledger migration only knows the six-argument
   // `settle_rank`; PostgREST then answers "could not find the function" (PGRST202). Retry WITHOUT the seat keys
   // so the settlement still lands (with no bonus) — the same fallback-ladder discipline as the client's uploads.
   if (settled.error) {
     const text = `${String(settled.error.message ?? '')} ${String(settled.error.code ?? '')}`;
+    // rows: the same scalar settle_rank, without the seat keys.
     if (/settle_rank|PGRST202/.test(text) && /(could not find|does not exist|PGRST202)/i.test(text)) settled = await admin.rpc('settle_rank', baseArgs);
   }
   if (settled.error) {

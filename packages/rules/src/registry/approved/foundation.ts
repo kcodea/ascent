@@ -712,15 +712,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the ROUND-WEIGHTED average of its boards\' '
-      + 'percentiles (rounds 1-5 share 20% of the weight, rounds 6-9 35%, rounds 10+ 45%, split evenly inside a group '
-      + 'over the boards the run has there; a group the run never reached drops out and the rest renormalise, e.g. a run '
-      + 'that ended in round 8 weighs 20/55 and 35/55), rounded half up, '
-      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
-      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
+      + 'derived, never stored. A run\'s strength is its FINAL board\'s percentile, used directly (R-LOBBY-12, owner '
+      + '2026-10-03; from 2026-09-30 to 2026-10-03 it was the round-weighted average of the boards\' percentiles ranked '
+      + 'among runs, still kept as the diagnostic pool_runs.strength_avg). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
-      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + '10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 since 2026-10-03 (Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 before); every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -770,6 +766,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
         quote: 'game strength for the display',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner pick of the band thresholds for PR #1928, relayed verbatim by the coordinator, 2026-10-03 (final-board scale)',
+        quote: 'make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100',
+      },
       { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
     currentBehaviour:
@@ -777,7 +778,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
       + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
       + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
-      + 'owner runs the weighted-strength SQL (it recomputes every run).',
+      + 'owner runs the weighted-strength SQL (it recomputes every run). 2026-10-03: the run\'s strength became its final '
+      + 'board (R-LOBBY-12).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -788,6 +790,85 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/boardStrength/runEndStrength.test.ts',
       ],
       lastVerifiedAt: '2026-09-30',
+    },
+  },
+  // ── Run strength = the final board (owner 2026-10-03, after the Rooks / Albus report) ─────────────────────────────
+  {
+    id: 'R-LOBBY-12',
+    title: 'A run\'s strength, for matchmaking and for "Game strength", is its final board\'s percentile',
+    statement:
+      'A run\'s strength is the percentile of its FINAL board within that board\'s own reference wave (the same per-board '
+      + 'percentile as R-LOBBY-09: its place among every scored board seen at that round, ties half), used directly, not '
+      + 'averaged over the run and not re-ranked among runs. The final board is the run\'s latest round with a score; two '
+      + 'boards for that round are averaged, rounded half up; a last round that was never scored falls back to the latest '
+      + 'scored one. That one number drives the rated matchmaking bands (pool_runs.strength) and the "Game strength" a '
+      + 'player sees in the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, an '
+      + 'opponent seat as the pool delivered it). Numbers frozen before the change keep their old value. The round '
+      + 'percentiles in Match details are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-03 (Rooks / Albus 12-1, a 12th-percentile final board showing Game strength 83)',
+        quote: 'that board in my mind should not even be close to an 83',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'i think we basically only care about the final board strength as an indicator for matchmaking. can we try swapping out our algorithm for simply caring about the snapshots final round board strength?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts runFinalStrengthOf / finalFromSum / runStrengthFromScores; supabase/migrations/2026-10-03-final-board-strength.sql (pool_strength_refresh, board_strength_final); packages/ui/src/store.ts run-end freeze; packages/ui/src/matchDetails/matchDetailsText.ts GAME_STRENGTH_TIP' },
+    ],
+    example: 'Rooks / Albus (2026-10-02): rounds 3-9 at the 73rd-98th percentile, round 13 at the 12th. Game strength 83 before, 12 after.',
+    currentBehaviour:
+      'Conforms in code as of 2026-10-03. New games freeze the final-board number at once; the pool\'s run strengths (the '
+      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). On the final-board '
+      + 'scale the old thresholds left Platinum (uncapped) below Gold (37 vs 41), so the owner retuned them the same day '
+      + '(Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100; R-LOBBY-09). Live pool, 200 lobbies per medal: '
+      + 'mean seat 12, 22, 36, 49, 58, 62 from Bronze to Ascendant, 0 widenings.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
+  // ── No Supabase read is cut silently at 1,000 rows (owner 2026-10-03, the histogram bug) ────────────────────────────
+  {
+    id: 'R-NET-01',
+    title: 'Every list read from the backend arrives whole: nothing is cut silently at the 1,000-row server cap',
+    statement:
+      'The backend answers at most 1,000 rows per request and does not say when it stops there. So every list read the '
+      + 'game makes either pages to the end (fetchAllRows: .range() until a short page; a failed page fails the whole '
+      + 'read, never a partial table presented as whole) or carries an explicit, deliberate bound at or below 1,000 rows, '
+      + 'or is a read bounded by construction and says why. In particular the board-strength histogram the game scores '
+      + 'its own rounds against always arrives whole (every wave, every raw score), and an opponent run always arrives '
+      + 'with every one of its boards or not at all (R-LOBBY-08).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'fix the bug, and make it so we never run into similar situations like this and the client always downloads full game snapshots etc.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/supabaseRows.ts fetchAllRows; packages/ui/src/remoteBoards.ts fetchStrengthHistogramRows and every list read; packages/ui/src/progression/progressionRemote.ts; packages/ui/src/gauntlet/gauntletRemote.ts; packages/ui/src/opponentPool/poolFetch.ts; packages/tools/src/strength/livePool.ts' },
+    ],
+    example: 'A 1,070-row histogram is read in two requests (rows 0-999, then 1000-1999, which answers 70): all 1,070 arrive.',
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it the board-strength histogram (1,070 rows) reached every client as 1,000: wave '
+      + '14 cut at raw 0.7 and wave 15+ missing, so long games froze a wrong Game strength. The Hall own-game ledger, the '
+      + 'per-author board list and the board-record reads asked for 2,000 to 10,000 rows and got 1,000, and the pool '
+      + 'fallback listing stopped at 20 pages. A guard test scans every Supabase call in the client, the Edge Functions '
+      + 'and the tools and fails on an unbounded list read.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/supabaseRows.guard.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts'],
+      lastVerifiedAt: '2026-10-03',
     },
   },
   {
@@ -2435,7 +2516,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'stale and ignored. Every image in a Hero, Minion or Spell Skins rarity folder is wired as a catalog skin (owner '
       + '2026-10-01: make sure all get added); skinRarityFolders.test.ts fails while one sits there unwired. The '
       + 'wire-art skins job reads the ten rarity sub-folders (Ancient joined 2026-10-02: Tee Time Sylus and Edward Colada '
-      + 'Hands moved there from Legendary by the owner, R-PROG-RARITY-01). On 2026-10-01 forty wired skins moved to their folder\x27s '
+      + 'Hands moved there from Legendary by the owner, R-PROG-RARITY-01; on 2026-10-03 the owner moved DarahSkinEpic.png '
+      + 'and HunchSkinRare.png there too, so Leg Day Darah and Dance Night Hunch went Legendary to Ancient). On 2026-10-01 forty wired skins moved to their folder\x27s '
       + 'rarity; a first crate then holds 24 Common, 27 Rare, 23 Epic and 29 Legendary items (each Common 2.083%, Rare '
       + '1.111%, Epic 0.652%, Legendary 0.172%). A player who owns a skin keeps it; only its shown rarity and future crate '
       + 'odds change, through the catalog sync (R-PROG-SKINS-05 updates rarity on existing rows).',
@@ -2445,10 +2527,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: "i also put all these skins into rarity folders which is how i'll do it from now on" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: 'correct their rarities as such' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS skin rarities); packages/tools/src/wire-art.ts (SKIN_RARITY_DIRS)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01; the Ancient folder since 2026-10-02. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-SKINS-12',
@@ -2490,6 +2573,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-SKINS-14',
+    title: 'Skins batch 8: eleven hero skins join the crates, rarity from the art folder; Leg Day Darah and Dance Night Hunch move to Ancient',
+    statement:
+      'Eleven hero skins are crate items, each targeting its hero by stable id and shipping its own art (a 512px WebP in '
+      + 'packages/ui/src/art/skins/), with the rarity of the Hero Skins folder its master sits in (R-PROG-SKINS-11): Young '
+      + 'Tradesman (Rare, hermithank, the Tradesman); Author Quillen (Legendary, quillen); Goth Rayse (Legendary, rayse); Lord '
+      + 'of Death (Legendary, risen); Midas and Melon (Legendary, midas; the master is "Midas and Melon.png"); Auctioneer '
+      + 'Sweeney (Ancient, myra, the Auctioneer); Goth Nadja (Ancient, nadja); Lord Callen (Ancient, risen); Merrin Sweeney '
+      + '(Ancient, merrin); Nadja Sweeney (Ancient, nadja); Rayse Sweeney (Ancient, rayse). LordOfDeath and LordCallen were '
+      + 'matched to Lord of the Risen by the art, not the name: both wear his crown, his purple-and-gold armour and his '
+      + 'blue-flame greatsword. Names come from the master filenames. Leg Day Darah (skin_darah_1) and Dance Night Hunch '
+      + '(skin_hunch_1) moved Legendary to Ancient because the owner moved their masters into Hero Skins/Ancient/; owners keep '
+      + 'them. With these and portrait frames batch 7 in, a first crate holds 38 Common, 40 Rare, 44 Epic, 37 Legendary and '
+      + '21 Ancient items (each Common 0.921%, Rare 0.775%, Epic 0.5%, Legendary 0.243%, Ancient 0.143%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 8); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-03. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-COLLECTION-03',
@@ -4105,14 +4212,15 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 45 frames (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 52 frames (10 Common, 8 Rare, 18 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 45 crate items, one per master in '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 52 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
       + 'Wood, Dark Scale, Burnished, Sterling, Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, '
       + 'Shard, Prism; Epic Aura, Amethyst, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, '
-      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained '
-      + 'Glass, Wind; Ancient (2026-10-02) Bonds, Death, Fortune, Genesis, Time, War (a frame\x27s display name '
+      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom, Cream, Crystal, Disco, Econ, Snare; Legendary Gilt Scale, Dark Cloud, '
+      + 'Venom, Fire, Reaper, Water, Stained Glass, Wind, Chromatic Scale; Ancient (2026-10-02) Bonds, Death, Fortune, '
+      + 'Genesis, Time, War, Reflective (a frame\x27s display name '
       + 'is the bare name, never "<name> Frame" or "<name> Portrait" (owner 2026-10-01); ids keep the master '
       + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
       + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
@@ -4126,10 +4234,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 5, Kevin)', quote: 'added more skins' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 6, Kevin)', quote: 'i added more frames, please put them in the game' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (frames batch 7)', quote: "ive also added many skins to the game's collections. can you add those all in" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/portraitFrames.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/portraitFrames.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-FRAME-02',
@@ -4197,9 +4306,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'went back from Rare/ to Epic/. A rarity change only moves crate odds; a player who owns the frame keeps it '
       + '(player_cosmetics is keyed by id, and the sync never deletes a catalog row). 39 in all (10 Common, 8 Rare, 13 '
       + 'Epic, 8 Legendary). The Ancient folder (2026-10-02, R-PROG-RARITY-01) added Bonds, Death, Fortune, Genesis, Time '
-      + 'and War at Ancient: 45 in all (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient). Bonds (a small hole, 0.594), '
-      + 'Genesis (an off-centre hole, x 0.609) and Death (small and high, 0.533 at y 0.438) are allowed by name in the '
-      + 'frame geometry test; Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired (md5 duplicates).',
+      + 'and War at Ancient: 45 in all (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient). Batch 7 (2026-10-03) added '
+      + 'Cream, Crystal, Disco, Econ and Snare (Epic), Chromatic Scale (Legendary; ChromaticDragonscale.png, named by look '
+      + 'like Dark Scale and Gilt Scale for the 20-character cap) and Reflective (Ancient): 52 in all (10 Common, 8 Rare, '
+      + '18 Epic, 9 Legendary, 7 Ancient). The same pass re-wired the owner\x27s re-exports of Bonds, Death, Fortune, Genesis, '
+      + 'War and Gilt Scale: Bonds (0.715) and Death (0.625 at y 0.457) are ordinary rings now, and Genesis\x27s crescent '
+      + 'curls along the bottom, so its hole is centred left-right but sits high (y 0.390), allowed by name in the frame '
+      + 'geometry test (with Wedding and Simple Ring). Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired: on '
+      + '2026-10-03 they were still byte-identical (md5) to CracklingRuby.png and BlueEnergy.png.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4210,7 +4324,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/portraitFrame/portraitFrameCosmetic.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-RARITY-01',
@@ -4228,7 +4342,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'prismatic crack splits the view at the burst and the colour floods back. The drain and the crack are one-shot; '
       + 'every loop stays transform or opacity. Ancient items today: the six Ancient frames (Bonds, Death, Fortune, Genesis, '
       + 'Time, War) and four moved up from Legendary by the owner: Tee Time Sylus and Edward Colada Hands (minion skins, '
-      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks); and Soul Stitch (attack_soul_stitch, R-PROG-ATTACK-34), the first hero attack BUILT at Ancient (2026-10-02), making eleven at 3 / 11 = 0.273% each. Ownership is per id '
+      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks); and Soul Stitch (attack_soul_stitch, R-PROG-ATTACK-34), the first hero attack BUILT at Ancient (2026-10-02), making eleven at 3 / 11 = 0.273% each; Timebreak (attack_bullet_time, 2026-10-02) made twelve; on 2026-10-03 skins batch 8 and frames batch 7 (R-PROG-SKINS-14, R-PROG-FRAME-04) added six Ancient hero skins (Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja Sweeney, Rayse Sweeney) and the Reflective frame, and moved Leg Day Darah and Dance Night Hunch up from Legendary, making twenty-one at 3 / 21 = 0.143% each (each Legendary is 9 / 37 = 0.243%). Ownership is per id '
       + '(player_cosmetics has no rarity), so a player who owns a moved item keeps it; only its shown rarity and future '
       + 'crate odds change.',
     domain: 'foundation',
@@ -4239,7 +4353,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETIC_RARITIES, CRATE_RARITY_ODDS, RARITY_LABELS, CRATE_ROLL_VERSION 4); supabase/migrations/2026-10-02-ancient-rarity.sql; packages/ui/src/progression/crateFx/crateFxConfig.ts (RARITY_SIGNATURE, the ancient dials); packages/ui/src/progression/crateFx/crateScene.ts (the freeze); packages/ui/src/progression/crateFx/crateTheatre.css (.sig-timestop); packages/ui/src/styles.css (.r-ancient); packages/ui/src/progression/collectionModel.ts (RARITY_RANK)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-REPLAY-01',

@@ -30,7 +30,8 @@ vi.mock('@supabase/supabase-js', () => ({
           if (gate) await gate;
           return { data: rows, error: null };
         };
-        return { eq: () => ({ order: res, then: (f: (r: unknown) => unknown, r?: (e: unknown) => unknown) => res().then(f, r) }) };
+        const chain = { eq: () => chain, order: () => chain, range: res, then: (f: (r: unknown) => unknown, r?: (e: unknown) => unknown) => res().then(f, r) };
+        return chain;
       },
     }),
   }),

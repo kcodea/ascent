@@ -427,7 +427,13 @@ export function trendWindowLabel(w: TrendWindow): string {
   return w === 'all' ? 'All time' : `${w}d`;
 }
 
-export interface TrendPoint { atMs: number; y: number }
+export interface TrendPoint {
+  atMs: number;
+  y: number;
+  /** The MMR line's closing "now" point (owner 2026-10-03): the LIVE profile rating at `nowMs`, appended when it
+   *  differs from the last stamped run. It is not a run, so the chart's run count skips it. */
+  now?: true;
+}
 export interface TrendSeries {
   /** One point per run in the window that has the value, oldest first. The three RATE series (placement, win
    *  rate, APM) are SMOOTHED (owner 2026-09-20): a point's y is the RUNNING figure through the window up to and
@@ -440,8 +446,9 @@ export interface TrendSeries {
   points: TrendPoint[];
   /** The headline. Rate series: the window's EXACT figure over every contributing run — the mean placement /
    *  APM to one decimal, or the overall match win rate as a whole percent. MMR: the LATEST point's rating (the
-   *  player's MMR at the end of the window), a whole number. Always equals the last point's y. Null with no
-   *  points. */
+   *  player's MMR at the end of the window), a whole number — or, when the live rating is handed in, THAT
+   *  number (see `trendSeries`). Always equals the last point's y when there are points. Null with no points
+   *  and no live rating. */
   avg: number | null;
 }
 export interface TrendSet {
@@ -484,7 +491,15 @@ function rawSeries(values: readonly { atMs: number; v: number }[]): TrendSeries 
 /** The four trend series over the runs that ended within the window — the last `window_` days of `nowMs`, or
  *  every dated run handed in for `'all'` — oldest first: the three rates as running means, MMR raw (see
  *  `TrendSeries`). A run with no usable end time is outside every window, All time included. Pure. */
-export function trendSeries(runs: readonly CareerRun[], window_: TrendWindow, nowMs: number): TrendSet {
+/**
+ *  `liveRating` (owner 2026-10-03: "Should the MMR chart end on your live rating? yes"): the number the
+ *  Seasonal Ranked crest prints — the live `profiles.rating`. The stamped `ratingAfter` rows can lag it (a
+ *  settlement that wrote no career row — the old abandon settle, among others — moved the rating without a
+ *  point: the chart read 250 while the crest read 210). So the MMR line ENDS on the live rating: a closing
+ *  "now" point at `nowMs` is APPENDED when it differs from the last run's rating (historical points are never
+ *  rewritten — they are what each run really settled at), and the headline is the live rating whenever one is
+ *  given, even over an empty window. Null / non-finite → the stamped series exactly as before. */
+export function trendSeries(runs: readonly CareerRun[], window_: TrendWindow, nowMs: number, liveRating: number | null = null): TrendSet {
   // All time = NO lower bound: an explicit branch, not a day count that only approximates "ever".
   const since = window_ === 'all' ? null : nowMs - window_ * 86_400_000;
   const inWindow = runs
@@ -504,7 +519,17 @@ export function trendSeries(runs: readonly CareerRun[], window_: TrendWindow, no
     // `!== null`, never truthiness: a real 0 (the Bronze I floor) is a rating and plots; only a missing one is skipped.
     if (r.ratingAfter !== null) mmr.push({ atMs: r.atMs, v: Math.round(r.ratingAfter) });
   }
-  return { placement: runningSeries(placement, 1), winRate: runningSeries(wins, 0), apm: runningSeries(apm, 1), mmr: rawSeries(mmr) };
+  return { placement: runningSeries(placement, 1), winRate: runningSeries(wins, 0), apm: runningSeries(apm, 1), mmr: endOnLive(rawSeries(mmr), liveRating, nowMs) };
+}
+
+/** The MMR line closed on the live rating (see `trendSeries`): a "now" point when the last stamped point
+ *  disagrees, and the headline always the live number. Never touches the run points themselves. */
+function endOnLive(series: TrendSeries, liveRating: number | null, nowMs: number): TrendSeries {
+  if (liveRating === null || !Number.isFinite(liveRating)) return series;
+  const live = Math.round(liveRating);
+  const last = series.points[series.points.length - 1];
+  if (!last || last.y === live) return { points: series.points, avg: live };
+  return { points: [...series.points, { atMs: Math.max(nowMs, last.atMs), y: live, now: true }], avg: live };
 }
 
 /** The MMR chart's axis: the window's ratings snapped OUT to the ladder's 100-point divisions — from the

@@ -408,6 +408,26 @@ describe('trendSeries — the four lines over a window', () => {
     expect(trendSeries([run({ atMs: NOW + DAY, placement: 1 })], 'all', NOW).placement.points).toEqual([]);
   });
 
+  it('the MMR line ENDS on the live rating (owner 2026-10-03): a stale last stamp gets a closing "now" point and the headline is the crest number; history is untouched', () => {
+    // 30d stamps 86 → 110, but the live profile rating is 70 (a settlement wrote no career row): the line
+    // closes on 70 at NOW and the headline reads 70, exactly what the Seasonal Ranked crest prints.
+    const stale = trendSeries(RUNS, 30, NOW, 70);
+    expect(stale.mmr.points.map((p) => p.y)).toEqual([86, 110, 70]);
+    expect(stale.mmr.points.at(-1)).toEqual({ atMs: NOW, y: 70, now: true });
+    expect(stale.mmr.avg).toBe(70);
+    expect(stale.mmr.points.filter((p) => !p.now)).toEqual(trendSeries(RUNS, 30, NOW).mmr.points);
+    // Already in step → no extra point; the headline is the same number either way.
+    const inStep = trendSeries(RUNS, 30, NOW, 110);
+    expect(inStep.mmr).toEqual(trendSeries(RUNS, 30, NOW).mmr);
+    // A non-integer live value rounds; an empty window still headlines the live rating, with no line drawn.
+    expect(trendSeries(RUNS, 30, NOW, 109.6).mmr.points).toHaveLength(2);
+    expect(trendSeries(RUNS, 7, NOW + 400 * DAY, 210).mmr).toEqual({ points: [], avg: 210 });
+    // No live rating (a viewed player whose rank is still loading) → the stamped series exactly as before.
+    expect(trendSeries(RUNS, 30, NOW, null).mmr).toEqual(trendSeries(RUNS, 30, NOW).mmr);
+    // The three rate lines never see it.
+    expect(stale.placement).toEqual(trendSeries(RUNS, 30, NOW).placement);
+  });
+
   it('an empty window yields empty series with null averages', () => {
     const t = trendSeries(RUNS, 7, NOW + 400 * DAY);
     expect(t.placement).toEqual({ points: [], avg: null });

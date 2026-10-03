@@ -354,7 +354,7 @@ describe('the right column', () => {
     expect(ui.container.querySelector('.cv2-chart animate, .cv2-chart animateTransform, .cv2-chart [title]')).toBeNull();
   });
 
-  it('All time has no lower bound (a run from 400 days back joins the rates); a window with no rated run shows the MMR chart empty, never a line of zeros, while the crest keeps its number', async () => {
+  it('All time has no lower bound (a run from 400 days back joins the rates); a window with no rated run shows the MMR chart empty, never a line of zeros, its headline the live crest number', async () => {
     ui.unmount();
     fetchMyRuns.mockResolvedValue([
       ...RUNS,
@@ -380,11 +380,26 @@ describe('the right column', () => {
     await flush();
     const mmrChart = ui.container.querySelector('.cv2-trend')!;
     expect(mmrChart.querySelector('.cv2-trend-title')?.textContent).toBe('MMR');
-    expect(mmrChart.querySelector('.cv2-trend-avg')?.textContent).toBe('—');
+    // The headline is the LIVE rating the crest prints (owner 2026-10-03), even with no stamped point to draw.
+    expect(mmrChart.querySelector('.cv2-trend-avg')?.textContent).toBe('1234');
     expect(mmrChart.querySelector('.cv2-chart-empty')?.textContent).toBe('No rated runs in this window');
     expect(mmrChart.querySelector('.cv2-trend-foot')?.textContent).toBe('0 runs');
     expect(mmrChart.querySelector('polyline, .cv2-dot')).toBeNull();
     expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
+  });
+
+  it('a stale last stamp: the MMR chart ENDS on the crest number with a closing "now" point that is not counted as a run (owner 2026-10-03)', async () => {
+    ui.unmount();
+    // The newest stamped run says 1250, but the live profile rating (the crest) is 1234.
+    fetchMyRuns.mockResolvedValue([run({ id: 3, atMs: NOW - DAY, placement: 2, ratingAfter: 1250 })]);
+    useGame.setState({ careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    const mmrChart = ui.container.querySelector('.cv2-trend')!;
+    expect(mmrChart.querySelector('.cv2-trend-avg')?.textContent).toBe('1234');
+    expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
+    expect(mmrChart.querySelector('polyline')).not.toBeNull(); // run point → now point: a line, not a lone dot
+    expect(mmrChart.querySelector('.cv2-trend-foot')?.textContent).toBe('1 run');
   });
 });
 

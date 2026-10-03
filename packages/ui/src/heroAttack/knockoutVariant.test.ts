@@ -279,7 +279,7 @@ describe('each variant is its Huge, remixed', () => {
     for (let t = ko.impactAt; t < ko.impactAt + 600; t += 10) expect(stitchTimeScale(ko, c, t)).toBeGreaterThan(0);
   });
 
-  it('Bullet Time: one extra ring of blades in the dome, a deeper and longer dip, a bigger shake', () => {
+  it('Timebreak: one extra ring of blades in the dome, a deeper and longer dip, a bigger shake', () => {
     const huge = run((o) => playHeroBulletTime({ ...o, textures: null }), { total: 40, knockout: true, variant: false }, () => 0).h.plan;
     const ko = run((o) => playHeroBulletTime({ ...o, textures: null }), { total: 40, knockout: true, variant: true }, () => 0).h.plan;
     const rings = (p: typeof huge): number => new Set(p.darts.map((d) => d.ring)).size;

@@ -94,7 +94,7 @@ export {
   equipIsNews, equipmentText, equipmentChargesOf, equipmentOwnChargeOf, equipmentPool, equipmentUsesLeft, holdsEquipment,
   rebuildEquipment, selectEquipment, selectedEquipment, selectedEquipmentDef, spendEquipmentCharge, syncStarDestroyer,
   // AMPLIFIED (owner design 2026-09-16): the blue-charge read + the two rune writers + the activation consumer.
-  EQUIPMENT_AMPLIFY_MAX, equipmentAmplifiedOf, amplifyEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
+  EQUIPMENT_AMPLIFY_MAX, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf, amplifyEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
   calibrationPendingOf, armCalibration, consumeCalibration, equipmentWillAmplify, equipmentPermanentlyAmplified, quickReleaseApplies, unusedEquipmentCount,
   type ReequipCue,
 } from './equipment';

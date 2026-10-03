@@ -2222,7 +2222,7 @@ export interface RunState {
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
   shoutExtraAlways?: number;
   /** GIFT — Demand an Encore: extra Shout triggers for THIS TURN only (the turn-scoped sibling of
-   *  `shoutExtraAlways`, which is permanent). Summed by `playedShoutRepeats` in the shop, threaded into
+   *  `shoutExtraAlways`, which is permanent). Summed by `shoutFireCount` in the shop, threaded into
    *  combat as `questCombatMods.encoreExtra` (R-TURN-01, owner ruling 2026-08-27: "this turn" runs shop
    *  through that turn's combat), and cleared at the turn rollover. */
   shoutExtraTurn?: number;

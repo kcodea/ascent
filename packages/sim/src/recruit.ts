@@ -7738,7 +7738,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Set 2 — Orivax "Chorus": your Shouts permanently trigger `extra` more times. Stacks into the same
-   *  `shoutExtraAlways` counter Hoardwake feeds, so it reads through `playedShoutRepeats` for free.
+   *  `shoutExtraAlways` counter Hoardwake feeds, so it reads through `shoutFireCount` for free.
    *  NOT scaled by golden: Orivax's Gilded benefit is "gain BOTH modes" (`chooseBothWhenGolden`), a wording that
    *  replaces the doubled-numbers convention rather than stacking on it. */
   battlecryGrantShoutExtra: (ctx, self, params) => {
@@ -11320,24 +11320,34 @@ function familyRepeats(state: RunState, family: TriggerFamily): number {
 }
 
 /** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking).
- *  Non-consuming (unlike `playedShoutRepeats`, which also spends a Warm Embers charge) — so it's safe for the
+ *  Non-consuming (unlike `shoutFireCount`, which also spends the per-turn charges) — so it's safe for the
  *  reducer's Shout quest tick to read the battlecry FIRE count (each Drakko re-fire is another Shout trigger). */
 export function drummerRepeats(state: RunState): number {
   return familyRepeats(state, 'battlecry');
 }
 
-/** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS Warm Embers' one-shot double
- *  while its charges last — consuming one charge. Applies ONLY to real plays (playCard / applyBattlecryTarget),
- *  NOT Myra/Ryme re-fires or combat mirrors (which call `drummerRepeats` directly). A non-Battlecry card never
- *  consumes a charge (guarded by the onPlay check), so it's safe to call for every played minion. */
-function playedShoutRepeats(state: RunState, def: CardDef): number {
+/** THE ONE SHOP SHOUT FOLD (R-SHOUT-TRIGGER-01, owner rulings 2026-10-03: "auctioneer w/ rune of the choir does
+ *  not work and it should" / "pulse or other triggering options should absolutely trigger the extra shouts in this
+ *  case"). How many times ONE Shout trigger fires in the Shop, for EVERY entry path: a Shout played from hand
+ *  (playCard / applyBattlecryTarget / Funeral on Loan) AND a re-triggered one (`replayBattlecry`: the Auctioneer's
+ *  Pulse, Echoing Roar, Resonance, Ryme in the Shop, Rune of the Last Word, Crucible Choir, Moira, the arena's
+ *  `replayShout`). Folds, additively:
+ *    · Drakko (1 + the best battlecry multiplier on the board);
+ *    · the STANDING extras: `shoutExtraAlways` (Rune of the Choir, Blasting Voices, Hoardwake, Orivax's Chorus,
+ *      Resonant Path; permanent, stacks) + `shoutExtraTurn` (Demand an Encore; this turn);
+ *    · the one-per-turn CHARGES, CONSUMED by whichever Shout fires first, played or triggered: Warm Embers /
+ *      Opening Act's freebie, the legacy `shoutDoubleCharges` pool, and Rune of the War Drum.
+ *  Every path used to count for itself: the extras and the charges lived only in the played counter, so a
+ *  triggered Shout got Drakko and nothing else. A non-Shout card consumes nothing and adds no tally.
+ *  Combat has the mirror fold, `ctx.shoutCarryExtras` (fed by `questCombatMods`). */
+function shoutFireCount(state: RunState, def: CardDef): number {
   let n = drummerRepeats(state); // 1 + Drakko's extra
   const isShout = def.effects.some((e) => e.on === 'onPlay');
   if (isShout) {
-    n += state.shoutExtraAlways ?? 0; // Hoardwake / The Hoard Wakes — permanent extra triggers (stacks)
-    if (state.shoutExtraAlways) procRuneId(state, 'rune_choir');
-    n += state.shoutExtraTurn ?? 0;   // GIFT — Demand an Encore: this turn only (cleared at end of turn)
-    // Warm Embers — the FIRST Shout you play each turn triggers twice (one freebie per turn).
+    const always = state.shoutExtraAlways ?? 0;
+    if (always) procRuneId(state, 'rune_choir');
+    n += always + (state.shoutExtraTurn ?? 0); // Choir / Hoardwake (permanent) + Demand an Encore (this turn)
+    // Warm Embers / Opening Act — the FIRST Shout each turn triggers twice (one freebie per turn).
     if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
       state.shoutFirstUsedThisTurn = true;
       n += 1;
@@ -11354,7 +11364,8 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
   }
   // ACCUMULATE, don't assign: the reducer zeroes this at the start of every action, and a single action can
   // fire Shouts from more than one path (a play PLUS an Echoing Roar re-trigger). Assigning meant the last
-  // writer won and the rest vanished from the tally.
+  // writer won and the rest vanished from the tally. A REPLAYED Shout counts exactly like a played one (owner
+  // report 2026-07-21: a quest whose own reward re-fires Shouts couldn't advance itself).
   if (isShout) state.lastShoutFires = (state.lastShoutFires ?? 0) + n;
   return n;
 }
@@ -11585,7 +11596,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
   const def = CARD_INDEX[card.cardId];
   if (!def) return;
   // Warm Embers doubles this played (targeted) Shout while charged; Drakko still stacks on top.
-  const repeats = playedShoutRepeats(state, def);
+  const repeats = shoutFireCount(state, def);
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
@@ -11710,13 +11721,9 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   if (onPlay.length === 0) return false;
   state.karwindFlash = [];
   const ctx = makeContext(state);
-  const repeats = drummerRepeats(state);
-  // A REPLAYED Shout is still a Shout trigger — it must advance `shout` objectives (Echoing Roar, Tooth and
-  // Tempo, The Author's Hand) exactly like a played one. Every re-trigger path routes through here — Echoing
-  // Roar's End-of-Turn reward, the Resonance spell, Myra's hero power — and none of them counted, so a quest
-  // whose own reward re-fires Shouts couldn't advance itself (owner report 2026-07-21). Same class as the
-  // Uron rally fix in #594: the effect re-fired but the tally never saw it.
-  state.lastShoutFires = (state.lastShoutFires ?? 0) + repeats;
+  // A TRIGGERED Shout is a Shout (R-SHOUT-TRIGGER-01): the same fold a played Shout uses, so every multiplier,
+  // charge and tally sees it (Drakko, the Choir family, Encore, Warm Embers, the War Drum, the Shout objectives).
+  const repeats = shoutFireCount(state, def);
   for (const effect of onPlay) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
@@ -12344,10 +12351,9 @@ export function consumeTavernFodder(state: RunState): void {
  * The Shout used to be skipped entirely — only the Deathrattle ran — so a Discovered minion carrying both
  * silently lost half its text (owner 2026-07-24).
  *
- * The Shout goes through `playedShoutRepeats`, the same helper a real play uses, so it behaves like one
- * rather than like a re-trigger: Drakko's repeats apply, a Warm Embers charge is SPENT, and `lastShoutFires`
- * is stamped so Shout objectives (Echoing Roar, Tooth and Tempo, The Author's Hand) advance. Using
- * `drummerRepeats` here instead — as `replayBattlecry` does — would quietly make it a free re-trigger.
+ * The Shout goes through `shoutFireCount`, the one Shop Shout fold every play and re-trigger uses
+ * (R-SHOUT-TRIGGER-01): Drakko's repeats and the Choir-family extras apply, a per-turn charge is SPENT, and
+ * `lastShoutFires` is stamped so Shout objectives (Echoing Roar, Tooth and Tempo, The Author's Hand) advance.
  *
  * A TARGETED Battlecry fires with no explicit target, so its factory's auto-pick fallback chooses. That's the
  * same contract `replayBattlecry` already documents, and it's forced here: the normal play path defers a
@@ -12360,7 +12366,7 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
   if (def && onPlay.length > 0) {
     state.karwindFlash = [];
     const ctx = makeContext(state);
-    const repeats = playedShoutRepeats(state, def);
+    const repeats = shoutFireCount(state, def);
     for (const effect of onPlay) {
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
@@ -15237,7 +15243,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   // the picker unconditionally for this case.
   if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
-  const repeats = playedShoutRepeats(state, def);
+  const repeats = shoutFireCount(state, def);
   // CELESTIAL: a Shout half gated on `align` only fires for the matching alignment (Eclipse fires both).
   // Read AFTER the card has entered the board, because entering re-centres the board and therefore decides
   // its own alignment — a Celestial's Shout reads the alignment it just landed in, not the one before.

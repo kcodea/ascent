@@ -6041,7 +6041,7 @@ function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'e
  *  - buffBoard   → a flat +atk/+hp on every board minion (itemized via `addBuff`).
  *  - grant       → conjure the random-tribe minion(s) + each listed card (Gold Pouch) to hand; maybe schedule
  *                  the whole reward to repeat `repeatInTurns` turns later.
- *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `playedShoutRepeats`).
+ *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `shoutFireCount`).
  */
 /** How many runes each Runeforge visit offers (basic + Epic). */
 const RUNEFORGE_OFFER = 4;
@@ -7863,6 +7863,14 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // whenever armed — it is a turn-long buff (the shop counter never consumes it), so there is no
     // "unspent" latch to check; the rollover that clears `shoutExtraTurn` happens after the combat.
     encoreExtra: s.shoutExtraTurn || undefined,
+    // Rune of the Choir & co. (R-SHOUT-TRIGGER-01, owner 2026-10-03): the permanent Shout extras apply to every
+    // Shout TRIGGERED in combat too (cross-phase by default). Like the Encore, a standing buff with no latch.
+    shoutExtraAlways: s.shoutExtraAlways || undefined,
+    // Warm Embers / Opening Act: each fight carries its OWN first-Shout double (R-SHOUT-01, per phase).
+    warmEmbersFirst: s.shoutFirstDoubleEachRound ? 1 : undefined,
+    // Twin Sun Oath / Rune of the Drake Skull hear combat Shouts too (R-SHOUT-TRIGGER-01, cross-phase).
+    shoutEdgeBuff: s.shoutEdgeBuff && (s.shoutEdgeBuff.attack || s.shoutEdgeBuff.health) ? { ...s.shoutEdgeBuff } : undefined,
+    shoutEdgeTribeBuff: s.shoutEdgeTribeBuff ? { ...s.shoutEdgeTribeBuff } : undefined,
     // Rune of Held Strength (owner rework 2026-08-27 — was a one-shot on purchase): Start of Combat, the left
     // and right-most minions gain the stats of the LEFT-MOST non-spell card in hand, read live here at combat
     // build; `copies` fires the grant once per copy held. No qualifying held card → no grant this fight.

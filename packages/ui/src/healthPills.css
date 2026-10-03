@@ -109,20 +109,20 @@
    (the cream Tier plaque, the Gauntlet's locked / cleared tags, the rift mode's tier colour). ─────────────────── */
 :root[data-hp-look="gem"] :is(.hudpill-hp.hudpill-hp, .combatopp-tier) {
   border-style: solid; border-color: transparent;
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   border-radius: calc(9 * var(--u));
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), inset 0 calc(6 * var(--u)) calc(8 * var(--u)) -4px rgba(255, 255, 255, 0.07), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
 }
 :root[data-hp-look="gem"] .herocard.big .hchp {
   border-radius: 10px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), inset 0 6px 8px -4px rgba(255, 255, 255, 0.07), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
 }
 /* Filigree studs: a small gold lozenge pinned to each end of a Health pill. Static. (Not on the Gauntlet's
    round / loss-cap pills, which are readouts rather than a life total.) */
 :root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::before,
 :root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::after {
   content: ''; position: absolute; top: 50%; width: 0.3em; height: 0.3em;
-  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge);
+  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   transform: translateY(-50%) rotate(45deg); pointer-events: none;
 }
 :root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::before { left: -0.17em; }
@@ -135,7 +135,7 @@
   gap: 0.14em; margin-left: 0.3em; padding: 0.2em 0.4em 0.2em 0.27em;
   border-radius: 0.33em; border: 1px solid var(--ui-armor-edge);
   background: var(--ui-armor);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.35);
   color: var(--ui-armor-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 :root[data-hp-look="gem"] .combatopp-armor { font-size: calc(15 * var(--u)); }
@@ -153,9 +153,9 @@
    face becomes the amethyst plate and the dark ink becomes light. Long names keep their ellipsis rules. */
 :root[data-hp-look="gem"] .hudpill-name.hudpill-name {
   border-color: transparent;
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 80%, transparent), 0 2px 8px -2px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 80%, transparent), 0 2px 8px -2px rgba(0, 0, 0, 0.6);
 }
 /* The shop's Tier label echoes the gold tier badge: the plate, with the words in gold. */
 :root[data-hp-look="gem"] .tvbwrap .tvb-tierpill.hudpill-name { color: var(--ui-title); }
@@ -177,8 +177,8 @@
    padding so the box keeps its width (its height is fixed). */
 :root[data-hp-look="gem"] .statstrip {
   border: 1px solid transparent; padding: 1px;
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
 }
 :root[data-hp-look="gem"] .statstrip .statcell .sc-v { color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
 /* The gold clock: drawn to the box's edge, so it reads a touch larger than the old outline glyph inside the same
@@ -207,24 +207,24 @@
    text size and radius; its colour pickers are Classic-only. */
 :root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip) {
   border-color: transparent; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
 }
 /* The End Combat label is the End Turn TIP in its combat-done state; its own selector is a registered paint
    exception in tooltipRegistry.ts (PAINT_EXCEPTIONS), so it stays a single exact selector here. */
 :root[data-hp-look="gem"] .etbwrap.ready .etb-tip {
   border-color: transparent; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
 }
 :root[data-hp-look="gem"] .combatsummary {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
 }
 :root[data-hp-look="gem"] .combathud-skip {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 calc(4 * var(--u)) 0 var(--ui-lip), 0 calc(6 * var(--u)) calc(10 * var(--u)) -4px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 calc(4 * var(--u)) 0 var(--ui-lip), 0 calc(6 * var(--u)) calc(10 * var(--u)) -4px rgba(0, 0, 0, 0.7);
 }
 :root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip) svg { color: var(--ui-icon); }
 :root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip):hover {
   color: #fff;
-  background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
+  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
 }
 :root[data-hp-look="gem"] .combathud-skip:active {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 calc(2 * var(--u)) 0 var(--ui-lip);

@@ -712,15 +712,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is a percentile among RUNS: the ROUND-WEIGHTED average of its boards\' '
-      + 'percentiles (rounds 1-5 share 20% of the weight, rounds 6-9 35%, rounds 10+ 45%, split evenly inside a group '
-      + 'over the boards the run has there; a group the run never reached drops out and the rest renormalise, e.g. a run '
-      + 'that ended in round 8 weighs 20/55 and 35/55), rounded half up, '
-      + 'ranked against every other run\'s average in the set by the same rule, so 30 means the bottom 30% of runs and '
-      + 'each band holds about its nominal share (owner-approved follow-up: averages alone squeezed toward 50). A RATED lobby draws its '
+      + 'derived, never stored. A run\'s strength is its FINAL board\'s percentile, used directly (R-LOBBY-12, owner '
+      + '2026-10-03; from 2026-09-30 to 2026-10-03 it was the round-weighted average of the boards\' percentiles ranked '
+      + 'among runs, still kept as the diagnostic pool_runs.strength_avg). A RATED lobby draws its '
       + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100, so the upper medals average about 50, '
-      + '55 and 60; every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + '10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 since 2026-10-03 (Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 before); every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -770,6 +766,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ask relayed by the coordinator, 2026-09-30 (display label)',
         quote: 'game strength for the display',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner pick of the band thresholds for PR #1928, relayed verbatim by the coordinator, 2026-10-03 (final-board scale)',
+        quote: 'make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100',
+      },
       { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
     ],
     currentBehaviour:
@@ -777,7 +778,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the RPC takes no band (feature-detected, the band is dropped for the session) and every run is unscored, '
       + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
       + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
-      + 'owner runs the weighted-strength SQL (it recomputes every run).',
+      + 'owner runs the weighted-strength SQL (it recomputes every run). 2026-10-03: the run\'s strength became its final '
+      + 'board (R-LOBBY-12).',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -788,6 +790,85 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/boardStrength/runEndStrength.test.ts',
       ],
       lastVerifiedAt: '2026-09-30',
+    },
+  },
+  // ── Run strength = the final board (owner 2026-10-03, after the Rooks / Albus report) ─────────────────────────────
+  {
+    id: 'R-LOBBY-12',
+    title: 'A run\'s strength, for matchmaking and for "Game strength", is its final board\'s percentile',
+    statement:
+      'A run\'s strength is the percentile of its FINAL board within that board\'s own reference wave (the same per-board '
+      + 'percentile as R-LOBBY-09: its place among every scored board seen at that round, ties half), used directly, not '
+      + 'averaged over the run and not re-ranked among runs. The final board is the run\'s latest round with a score; two '
+      + 'boards for that round are averaged, rounded half up; a last round that was never scored falls back to the latest '
+      + 'scored one. That one number drives the rated matchmaking bands (pool_runs.strength) and the "Game strength" a '
+      + 'player sees in the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, an '
+      + 'opponent seat as the pool delivered it). Numbers frozen before the change keep their old value. The round '
+      + 'percentiles in Match details are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-03 (Rooks / Albus 12-1, a 12th-percentile final board showing Game strength 83)',
+        quote: 'that board in my mind should not even be close to an 83',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'i think we basically only care about the final board strength as an indicator for matchmaking. can we try swapping out our algorithm for simply caring about the snapshots final round board strength?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts runFinalStrengthOf / finalFromSum / runStrengthFromScores; supabase/migrations/2026-10-03-final-board-strength.sql (pool_strength_refresh, board_strength_final); packages/ui/src/store.ts run-end freeze; packages/ui/src/matchDetails/matchDetailsText.ts GAME_STRENGTH_TIP' },
+    ],
+    example: 'Rooks / Albus (2026-10-02): rounds 3-9 at the 73rd-98th percentile, round 13 at the 12th. Game strength 83 before, 12 after.',
+    currentBehaviour:
+      'Conforms in code as of 2026-10-03. New games freeze the final-board number at once; the pool\'s run strengths (the '
+      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). On the final-board '
+      + 'scale the old thresholds left Platinum (uncapped) below Gold (37 vs 41), so the owner retuned them the same day '
+      + '(Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100; R-LOBBY-09). Live pool, 200 lobbies per medal: '
+      + 'mean seat 12, 22, 36, 49, 58, 62 from Bronze to Ascendant, 0 widenings.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/boardStrength.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/ui/src/boardStrength/runEndStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-03',
+    },
+  },
+  // ── No Supabase read is cut silently at 1,000 rows (owner 2026-10-03, the histogram bug) ────────────────────────────
+  {
+    id: 'R-NET-01',
+    title: 'Every list read from the backend arrives whole: nothing is cut silently at the 1,000-row server cap',
+    statement:
+      'The backend answers at most 1,000 rows per request and does not say when it stops there. So every list read the '
+      + 'game makes either pages to the end (fetchAllRows: .range() until a short page; a failed page fails the whole '
+      + 'read, never a partial table presented as whole) or carries an explicit, deliberate bound at or below 1,000 rows, '
+      + 'or is a read bounded by construction and says why. In particular the board-strength histogram the game scores '
+      + 'its own rounds against always arrives whole (every wave, every raw score), and an opponent run always arrives '
+      + 'with every one of its boards or not at all (R-LOBBY-08).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
+        quote: 'fix the bug, and make it so we never run into similar situations like this and the client always downloads full game snapshots etc.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/supabaseRows.ts fetchAllRows; packages/ui/src/remoteBoards.ts fetchStrengthHistogramRows and every list read; packages/ui/src/progression/progressionRemote.ts; packages/ui/src/gauntlet/gauntletRemote.ts; packages/ui/src/opponentPool/poolFetch.ts; packages/tools/src/strength/livePool.ts' },
+    ],
+    example: 'A 1,070-row histogram is read in two requests (rows 0-999, then 1000-1999, which answers 70): all 1,070 arrive.',
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it the board-strength histogram (1,070 rows) reached every client as 1,000: wave '
+      + '14 cut at raw 0.7 and wave 15+ missing, so long games froze a wrong Game strength. The Hall own-game ledger, the '
+      + 'per-author board list and the board-record reads asked for 2,000 to 10,000 rows and got 1,000, and the pool '
+      + 'fallback listing stopped at 20 pages. A guard test scans every Supabase call in the client, the Edge Functions '
+      + 'and the tools and fails on an unbounded list read.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/supabaseRows.guard.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts'],
+      lastVerifiedAt: '2026-10-03',
     },
   },
   {

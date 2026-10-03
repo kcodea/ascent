@@ -10,7 +10,6 @@
 export const EPIC_UNITS: ReadonlySet<string> = new Set([
   // The four named units.
   'drummer', // Drakko — Shouts trigger twice
-  'n2_drakko_dragonspirit', // Rune of All Drakko's Dragon/Spirit Drakko (same rule as Drakko)
   'sylus',   // Echoes trigger 1 additional time
   'chronos', // End of Turn effects trigger twice
   'yazzus',  // targeted spells cast an additional time

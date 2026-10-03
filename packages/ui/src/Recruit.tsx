@@ -10,7 +10,7 @@ import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
 import type { CompiledBeat } from './choreographer/timelineTypes';
-import type { ConsequenceEvent, Keyword, PresentationBatch } from '@game/core';
+import type { ConsequenceEvent, Keyword, PresentationBatch, Tribe } from '@game/core';
 import { ALE_IDS } from '@game/core';
 
 /** Consequence types whose cosmetic cue a QUIET paced repeat tick skips (its stats still land). R-REPEAT-04. */
@@ -73,7 +73,7 @@ import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { FightRecap } from './FightRecap';
-import { instView, liveCardText, type LiveTextParams } from './instView';
+import { instView, liveCardText, tribeFace, type LiveTextParams } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
@@ -725,6 +725,8 @@ export function conjuredView(cardId: string, run: RunState): CardView | null { /
 }
 
 interface ShopViewOpts {
+  /** Rune of Drakko: the run's type overrides (`RunState.cardTribes`), so a Shop offer's tribe line reads them too. */
+  cardTribes?: Record<string, Tribe[]>;
   /** Juggler: his Gold Pouches also buff the board, so the card must print that. */
   juggler?: boolean;
   /** "Freedom" rift: the first minion this turn is free → every minion offer shows a 0-Gold price until one is bought. */
@@ -828,6 +830,7 @@ interface ShopViewOpts {
  *  settled — the owner's report) and Discover passing 11 of 30 params. */
 export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for the Scene Builder's hover preview (same live-text chain as the shop)
   return {
+    cardTribes: run.cardTribes, // Rune of Drakko: the tribe line reads the run's type overrides
     cardBuffs: run.cardBuffs, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered,
     spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold,
     impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn,
@@ -858,7 +861,7 @@ function offerChoosesBoth(cardId: string, golden: boolean, o: ShopViewOpts): boo
 /** Build the LiveTextParams for a shop/Discover OFFER (no per-instance accruals — it isn't owned yet). */
 function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string): LiveTextParams {
   return {
-    tier: o.tier ?? 1, golden,
+    tier: o.tier ?? 1, golden, cardTribes: o.cardTribes,
     spellBonus: o.spellBonus ?? 0, spellBonusH: o.spellBonusH ?? o.spellBonus ?? 0, frontToBackBonus: o.frontToBackBonus ?? 0,
     spellsThisTurn: o.spellsThisTurn ?? 0, spellsCast: o.spellsCast ?? 0, deathrattlesTriggered: o.deathrattlesTriggered ?? 0,
     clingEnchant: o.cardBuffs?.cling, fodderConsumed: o.fodderConsumed,
@@ -966,7 +969,7 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
     const heldKeywords = [...h.keywords, ...(card.keywords ?? []).filter((k) => !h.keywords.includes(k))];
     const lt = liveCardText(c.id, { ...offerLiveTextParams(golden, opts, c.id), keywords: heldKeywords });
     return {
-      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+      name: c.name, cardId: c.id, ...tribeFace(c, undefined, opts.cardTribes), universalTribe: !!c.universalTribe,
       attack: Math.max(0, h.attack + (card.atk ?? 0)) + gild.attack, health: h.health + (card.hp ?? 0) + gild.health,
       keywords: heldKeywords,
       text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: opts.minionCost ?? CONFIG.minionCost, tier: c.tier, golden,
@@ -1026,7 +1029,7 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
     (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
   if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+    name: c.name, cardId: c.id, ...tribeFace(c, undefined, opts.cardTribes), universalTribe: !!c.universalTribe,
     chooseBothKey: offerChoosesBoth(c.id, !!card.golden, opts) ? card.uid : undefined, // (Both) marker hook
     attack: (c.attack + addAtk) * goldMul + (opts.eotBuff?.attack ?? 0), health: (c.health + addHp) * goldMul + (opts.eotBuff?.health ?? 0),
     keywords: offerKeywords,
@@ -3580,7 +3583,7 @@ export function Recruit() {
     // built with, so a dispatch that left four of five offers untouched builds one view, not five — see
     // `shopViewCache.ts`. `stabilizeView` still value-compares a rebuilt view against its predecessor.
     () => perfMonitor.measure('view:shop', () => {
-      const optsFor = (o: ShopCard): ShopViewOpts => ({ grimToast: grimToastFold(run), freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: ftbBonus, frontToBackBonusH: ftbBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? minionCostOf(run) : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState });
+      const optsFor = (o: ShopCard): ShopViewOpts => ({ cardTribes: run.cardTribes, grimToast: grimToastFold(run), freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: ftbBonus, frontToBackBonusH: ftbBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? minionCostOf(run) : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState });
       const built = buildShopViews(shopWithHolds, optsFor, (o, opts) => shopView(o, opts), shopViewCache.current, (fresh, prev) => stabilizeView(fresh, prev) ?? fresh);
       shopViewCache.current = built.cache;
       return built.views;
@@ -9068,7 +9071,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                       // that each reads as the thing it would become. Stats come from the live instance when
                       // there is one (a played minion may already be buffed), else the printed base.
                       card={{
-                        name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+                        name: c.name, cardId: c.id, ...tribeFace(c, inst?.addedTribes, run.cardTribes), universalTribe: !!c.universalTribe,
                         golden, attack: inst?.attack ?? c.attack, health: inst?.health ?? c.health,
                         keywords: inst?.keywords ?? c.keywords, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
                         text: chooseOneBranchText(c.id, i, golden, coBonusA, coBonusH),
@@ -9154,7 +9157,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
             // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
             // 0/1 here). Every other surface passes these through `instView`; this panel builds its
             // card view by hand, which is how they got dropped.
-            return { name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+            return { name: c.name, cardId: c.id, ...tribeFace(c, undefined, run.cardTribes), universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
               // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
               chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined };
           })}
@@ -9205,7 +9208,7 @@ const ScoutOverlay = memo(function ScoutOverlay({ overlaysHeld, scouted, dispatc
                 const mul = m.golden ? 2 : 1;
                 return (
                   <div className="disc-slot" key={`${m.cardId}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
-                    <Card card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, golden: !!m.golden, attack: m.attack, health: m.health, baseAttack: c.attack * mul, baseHealth: c.health * mul, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier, buffs: m.buffs }} />
+                    <Card card={{ name: c.name, cardId: c.id, ...tribeFace(c, (m as { addedTribes?: Tribe[] }).addedTribes), universalTribe: !!c.universalTribe, golden: !!m.golden, attack: m.attack, health: m.health, baseAttack: c.attack * mul, baseHealth: c.health * mul, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier, buffs: m.buffs }} />
                   </div>
                 );
               })}

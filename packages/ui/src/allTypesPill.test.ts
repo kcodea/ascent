@@ -77,9 +77,6 @@ const ART_PENDING = new Set<string>([
   // Ruby batch 2026-09-24: Ruby Blast, Blast Pump's token payload spell — the Equipment casts it, it never sits in
   // a hand or the Shop, and no master was named for it (owner rule: wire only the art named in the batch).
   'rubyblast',
-  // Rune of Drakko (owner 2026-10-03): the Dragon / Spirit Drakko token ships on the placeholder art. Drakko's own
-  // portrait is keyed by `drummer`; an alias waits on the owner naming the art (owner rule: wire art only on ask).
-  'n2_drakko_dragonspirit',
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
 ]);
 

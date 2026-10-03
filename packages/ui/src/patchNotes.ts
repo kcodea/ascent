@@ -60,12 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'New rune: Rune of Drakko. Get a Drakko that is both a Dragon and a Spirit.',
+        text: 'New rune: Rune of Drakko. Get a Drakko, and every Drakko is a Dragon and a Spirit for the rest of the game.',
         details: [
           'An Epic rune that costs 4 Gold, in Set 2 and Set 3.',
-          'The Drakko counts as a Dragon and a Spirit for every effect.',
+          'Every Drakko counts as a Dragon and a Spirit: in the Shop, in your hand, on your board and in combat.',
+          'It is still a Drakko, so it triples with your other Drakkos.',
           'It is offered when your game has Dragons or Spirits.',
-          'With a regular Drakko too, your Shouts still trigger twice.',
         ],
       },
       {

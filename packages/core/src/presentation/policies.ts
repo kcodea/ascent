@@ -545,7 +545,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_assembly:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_attacking_gems:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_baal:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
-  'rune:rune_drakko:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // Rune of Drakko (2026-10-03): grants the Dragon / Spirit Drakko
+  'rune:rune_drakko:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // Rune of Drakko (2026-10-03): a Drakko + every Drakko is a Dragon / Spirit
   'rune:rune_backbeat:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_banking:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_banquet_hall:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

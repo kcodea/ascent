@@ -3973,11 +3973,14 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   // ── Owner add 2026-10-03: "add this rune to set 2 and 3: All Drakko - 4 cost: Get a Drakko with Dragon/Spirit type." ──
-  // Owner follow-ups the same day: pool "Epic"; name "Rune of Drakko"; gate "if either tribe is in a set it should be
-  // offered. categorize it as a dragon and/or spirit rune".
+  // Follow-ups the same day: pool "Epic"; name "Rune of Drakko"; gate "if either tribe is in a set it should be offered.
+  // categorize it as a dragon and/or spirit rune"; and the rework: "it SHOULD triple with regular drakkos ... Drakko is a
+  // Dragon/Spirit this game. this makes all drakkos in shop and everywhere a dragon/spirit. it isnt a new minion, it's
+  // just a drakko that has new types."
   {
-    // Hands over `n2_drakko_dragonspirit`: Drakko's body and rule as a printed Dragon / Spirit dual type, so it counts as
-    // both for every tribe check, tally, aura and synergy in every phase (see the token's note in set2/tokens.ts).
+    // Grants a REGULAR Drakko (`drummer`, so it triples with any other) and installs a RUN-LEVEL type override:
+    // `RunState.cardTribes.drummer = ['dragon', 'spirit']`. Every Drakko of the run (Shop, hand, board, Gilded, Discover,
+    // combat) then counts as both through the shared tribe predicates. Union-only, so a second copy changes nothing.
     id: 'rune_drakko',
     tribes: ['dragon', 'spirit'], // TRIBE GATE: offered when EITHER is one of the run's tribes (the gate is an OR)
     // Forge-synergy override: the text tagger has no Spirit pattern yet (Set 3 tribes deferred there), so name both.
@@ -3985,9 +3988,10 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Drakko',
     cost: 4,
     epic: true,
-    text: 'Get a **Drakko** that is a **Dragon** and a **Spirit**.',
-    previewCards: ['n2_drakko_dragonspirit'],
-    reward: { kind: 'grant', cards: ['n2_drakko_dragonspirit'] },
+    text: 'Get a **Drakko**. **Drakko** is a **Dragon** and a **Spirit** this game.',
+    previewCards: ['drummer'],
+    // The override lands FIRST, so the granted copy arrives already typed (its arrival watchers read Dragon / Spirit).
+    reward: { kind: 'multi', rewards: [{ kind: 'cardTribes', cardId: 'drummer', tribes: ['dragon', 'spirit'] }, { kind: 'grant', cards: ['drummer'] }] },
     sets: ['set2', 'set3'],
   },
 ];

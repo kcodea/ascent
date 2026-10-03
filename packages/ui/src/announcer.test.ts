@@ -1119,9 +1119,7 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     expect(CARD_INDEX.drummer?.name).toBe('Drakko');
     expect(CARD_INDEX.sylus?.name).toBe('Sylus');
     for (const id of ['drummer', 'sylus']) expect(CARD_INDEX[id]!.spell).toBeFalsy();
-    // The only BUYABLE Drakko. Rune of Drakko's Dragon / Spirit Drakko (2026-10-03) shares the name but is a forge-only
-    // token, never bought from the Shop, so it cannot trigger BuyDrakko.
-    expect(Object.values(CARD_INDEX).filter((d) => d.name === 'Drakko' && !d.token).map((d) => d.id)).toEqual(['drummer']);
+    expect(Object.values(CARD_INDEX).filter((d) => d.name === 'Drakko').map((d) => d.id)).toEqual(['drummer']);
     expect(Object.values(CARD_INDEX).filter((d) => d.name === 'Sylus').map((d) => d.id)).toEqual(['sylus']);
     expect(ANNOUNCER_NAMED_BUYS).toEqual({ drummer: 'buyDrakko', sylus: 'buySylus' });
   });

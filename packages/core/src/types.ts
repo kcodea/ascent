@@ -153,10 +153,6 @@ export type TriggerMultiplierDef = {
     factor: number;
     extra?: never;
     stacks?: never;
-    /** Non-stacking IDENTITY for a variant body of the same card (Rune of All Drakko's Dragon/Spirit Drakko
-     *  names `group: 'drummer'`): copies sharing a group are ONE multiplier, so regular Drakko + the variant
-     *  is still x2, never x4. Absent = the card's own id. */
-    group?: string;
   }
 );
 
@@ -193,8 +189,7 @@ export function extraTriggerFires(
     if (mult.factor !== undefined) {
       // Golden adds ONE more trigger rather than doubling the factor (owner ruling 2026-08-28): ×2 → ×3.
       const f = mult.factor + (m.golden ? 1 : 0);
-      const key = mult.group ?? m.cardId; // a variant body (Rune of All Drakko) shares its base card's slot
-      factors.set(key, Math.max(factors.get(key) ?? 0, f));
+      factors.set(m.cardId, Math.max(factors.get(m.cardId) ?? 0, f));
     } else {
       extra += (mult.extra ?? 0) * (m.golden ? 2 : 1);
     }
@@ -1537,6 +1532,7 @@ export type QuestReward =
   | { kind: 'runeGrandWorkshop' } // Amplify all your Equipment now, and again every Start of Turn
   | { kind: 'runeRedGiant' } // the Starform has a 50% chance to also Consume a Shop spell (a copy to hand, +8/+8)
   | { kind: 'runeSoulScript' }
+  | { kind: 'cardTribes'; cardId: string; tribes: Tribe[] } // Rune of Drakko: every copy of `cardId` gains `tribes` for the rest of the run
   | { kind: 'runeGambleBoth' } // Rune of Gambling: every Gamble grants BOTH a minion and a spell of the rolled tier // the Starform counts as Undead (Undead consumes, buffs and auras reach it)
   | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
   // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes) ──
@@ -2817,6 +2813,9 @@ export interface MinionSnapshot {
   cardId: string;
   name: string;
   tribe: Tribe;
+  /** The body's second tribe, ONLY when it differs from the card's printed one (an added tribe folded in by
+   *  `foldTribes`: Rune of Drakko, Anomaly Reactor), so the combat card face prints it. Absent otherwise. */
+  tribe2?: Tribe;
   attack: number;
   health: number;
   keywords: Keyword[];
@@ -2995,6 +2994,10 @@ export interface CombatSideState {
    *  channel behind `beastsPlayed` / `spiritsPlayed`, read via `ctx.playedThisTurnFor(side, tribe)` (Bicycle Bob,
    *  2026-09-18). `combatSide()` keeps the two legacy scalars and this map consistent whichever one a caller sets. */
   tribesPlayed: Partial<Record<Tribe, number>>;
+  /** RUN-LEVEL TYPE OVERRIDES (Rune of Drakko, 2026-10-03): card id → extra tribes every copy of that card has this
+   *  run. Board bodies arrive with them already stamped (`BoardMinion.addedTribes`); this map gives a body SUMMONED
+   *  mid-fight from its card id the same types (`summonMinion`). Absent = no override. */
+  cardTribes?: Record<string, Tribe[]>;
   /** Set 2 — lifetime Ruby casts this run. Text-only in combat: the "spell umbrella" cards (Vaultkeeper) print
    *  `spellsCast + rubyCasts`, so an ENEMY body needs its owner's value to read right (owner report 2026-09-10). */
   rubyCasts: number;

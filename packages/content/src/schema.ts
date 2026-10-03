@@ -661,7 +661,6 @@ export const CardDefSchema = z.object({
     z.object({
       families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
       factor: z.number().int().min(2),
-      group: z.string().optional(), // a variant body shares its base card's non-stacking slot (Rune of All Drakko)
     }).strict(),
   ]).optional(),
   imp: z.boolean().optional(),
@@ -857,6 +856,7 @@ z.object({ kind: z.literal('runeAftermarket') }).strict(),
   z.object({ kind: z.literal('runeGrandWorkshop') }).strict(),
   z.object({ kind: z.literal('runeRedGiant') }).strict(),
   z.object({ kind: z.literal('runeSoulScript') }).strict(),
+  z.object({ kind: z.literal('cardTribes'), cardId: z.string().min(1), tribes: z.array(TribeSchema).min(1) }).strict(), // Rune of Drakko
   z.object({ kind: z.literal('runeGambleBoth') }).strict(),
   // ── Set 3 batch 2 (2026-09-16) — tranche A ──
   z.object({ kind: z.literal('runeChosenVessel'), attack: z.number().int(), health: z.number().int() }).strict(),

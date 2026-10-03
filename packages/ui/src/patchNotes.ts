@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-03',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The HUD pills, tooltips and lobby rail got a visual polish.',
+        details: [
+          'Pills and tooltips have a soft top sheen, a bevelled edge and a crisper metal trim.',
+          'Lobby rail rows are easier to tell apart, and your own row has an accent stripe down its left side.',
+          'Health bars in the rail have a recessed track and a glossy fill.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-02',
     changes: [
       {

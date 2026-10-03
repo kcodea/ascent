@@ -9335,6 +9335,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
+  dealtDamageGetRandomSpell: () => {}, // Tauntbreaker (2026-10-03): the same combat-read meter, a random-Shop-Spell body
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same combat-read meter, a random-Ruby body
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body

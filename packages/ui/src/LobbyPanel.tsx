@@ -6,6 +6,7 @@ import {
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeat, whenCurtainDown } from './lobbyDamageFx';
+import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeat } from './lobbyKnockoutFx';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -15,6 +16,7 @@ import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
+import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
 /** The max-damage readout above the rail: "−5", or "No cap" once the round is uncapped. */
 function maxDamageLabel(cap: number): string {
@@ -114,6 +116,30 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   }, [lobby?.round, lobby]);
   useEffect(() => () => pendingFloatRef.current?.(), []);
 
+  // THE KNOCKOUT (owner ask 2026-10-02): a seat that falls plays a one-shot smoke burst on its row as the row fades
+  // into its dead look (lobbyKnockoutFx.ts). Diffed against the alive set this panel last saw, so it fires once per
+  // elimination; the first sight of a table (mount / reload / new run) only records it, so an already-dead seat stays
+  // static. Held for the curtain like the damage float, so it plays over the revealed rail.
+  const aliveRef = useRef<Set<string> | null>(null);
+  const koTimers = useRef<(() => void)[]>([]);
+  const [koIds, setKoIds] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (!lobby) return;
+    const fresh = newlyKnockedOut(aliveRef.current, lobby.seats);
+    aliveRef.current = aliveSet(lobby.seats);
+    if (fresh.length === 0) return;
+    let clear = 0;
+    const cancelHold = whenCurtainDown(() => {
+      requestAnimationFrame(() => {
+        for (const id of fresh) playLobbyKnockoutOnSeat(id);
+        setKoIds((k) => [...k, ...fresh]);
+        clear = window.setTimeout(() => setKoIds((k) => k.filter((id) => !fresh.includes(id))), LOBBY_KO_MS + 100);
+      });
+    });
+    koTimers.current.push(() => { cancelHold(); window.clearTimeout(clear); });
+  }, [lobby]);
+  useEffect(() => () => { for (const stop of koTimers.current) stop(); }, []);
+
   if (!lobby) return null;
   const next = playerOpponent(lobby);
   const foe = next?.seat ?? null;
@@ -168,7 +194,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
     </div>
-    <div className="lobbyrail">
+    {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
+    <div className="lobbyrail" style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
       <div className="lobbyhead">
         <span className="lobbyalive">{living.length} left</span>
       </div>
@@ -177,6 +204,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         {rows.map((seat) => {
           const isYou = seat.id === 's0';
           const isFoe = foe?.id === seat.id;
+          // A GHOST pairing: this round's foe is a fallen seat's board (`playerOpponent`'s `ghost`), marked in teal.
+          const isGhost = isFoe && !!next?.ghost;
           const live = hpOf(seat);
           const hp = live.resolve + live.armor;
           const d = dmg[seat.id];
@@ -185,7 +214,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             <div
               key={seat.id}
               data-seat={seat.id}
-              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${seat.alive ? '' : ' dead'}`}
+              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}`}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
               onMouseEnter={(e) => openScout(e, seat.id)}
@@ -222,7 +251,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               </span>
               {seat.alive ? (
                 <span className="lobbyhp">
-                  <Icon name="heart" />{live.resolve}
+                  {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
+                  <Icon name="heartPill" />{live.resolve}
                   {live.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{live.armor}</span>}
                 </span>
               ) : (

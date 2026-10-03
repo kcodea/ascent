@@ -213,6 +213,22 @@ describe('one shared UI theme (tooltips + HUD pills)', () => {
     expect(bad, 'theme a HUD pill colour through uiTheme.css (--ui-*), or register a state colour in GEM_COLOUR_EXCEPTIONS').toEqual([]);
   });
 
+  it('the Gem lobby rail rules paint with the --ui-* tokens only', () => {
+    // lobbyRail.css (owner ask 2026-10-02): the Gem rail is every rule NOT scoped to the Classic look.
+    const bad: string[] = [];
+    const gem = rules(join(SRC, 'lobbyRail.css')).filter((r) => r.selector.includes(':not([data-lobby-rail="classic"])'));
+    expect(gem.length, 'lobbyRail.css should carry the Gem rail rules').toBeGreaterThan(10);
+    for (const r of gem) {
+      for (const decl of r.body.split(';')) {
+        const i = decl.indexOf(':');
+        if (i < 0) continue;
+        if (decl.slice(0, i).trim().startsWith('--')) continue; // a local custom property is checked where it is used
+        for (const c of literalsIn(decl.slice(i + 1))) bad.push(`${r.selector.slice(0, 70)} { ${decl.trim().slice(0, 80)} } -> ${c}`);
+      }
+    }
+    expect(bad, 'theme a lobby rail colour through uiTheme.css (--ui-*), not a literal').toEqual([]);
+  });
+
   it('the baked uiTheme.css block equals DEFAULT_THEME, token for token', () => {
     const css = readFileSync(join(SRC, 'uiTheme.css'), 'utf8');
     const t: UiThemeTokens = UI_THEMES[DEFAULT_THEME];

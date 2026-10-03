@@ -194,6 +194,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'lasso' joined on 2026-09-22: the owner-authored Shop-steal rope, fired from `Recruit.tsx` for all four
       // steal sources (the Lasso spell, Rope Wrangler, Whiplass-o, Rune of Lassoing).
       'lasso',
+      // 'lobby-knockout' joined on 2026-10-02: the lobby rail's knockout smoke over a fallen seat's row (`lobbyKnockoutFx.ts`).
+      'lobby-knockout',
       // 'rank-up' joined on 2026-09-20: the owner-authored promotion hit on the post-game rank screen (`rank/rankTimeline.ts`).
       'rank-up',
       // 'rebirth-flame' joined on 2026-09-25: the Rebirth keyword's one-shot flame on a real rebirth (`choreo/channels/aura.ts`).

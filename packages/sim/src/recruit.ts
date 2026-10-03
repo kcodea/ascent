@@ -1,5 +1,5 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
-import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
+import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -13506,12 +13506,15 @@ function applyEndOfTurnBody(state: RunState): void {
   // applied the first −3). Floored so it can't go negative.
   if (state.runeShopkeep) {
     procRune(state, 'runeShopkeep');
-    const beforeCost = state.upgradeCost;
+    // The PRICE the Tier button prints (Frugal's surcharge folded in), so the beat moves the number the player
+    // reads by exactly what the commit will (R-EOT-ECON-01). The floor still applies to the running cost.
+    const beforePrice = tradesUpgradeCost(state);
     state.upgradeCost = Math.max(CONFIG.upgradeCostFloor, state.upgradeCost - 3);
-    const delta = state.upgradeCost - beforeCost;
+    const afterPrice = tradesUpgradeCost(state);
+    const delta = afterPrice - beforePrice;
     if (collector.enabled && delta !== 0) collector.withTrigger(
       { phase: 'endOfTurn', source: beatSource('rune', 'rune_shopkeep', 'Rune of Shopkeep'), trigger: 'endOfTurn', ...beatIdentity('rune:rune_shopkeep:endOfTurn') },
-      () => collector.emit({ type: 'resourceChanged', resource: 'upgradeCost', amount: delta, valueAfter: state.upgradeCost }),
+      () => collector.emit({ type: 'resourceChanged', resource: 'upgradeCost', amount: delta, valueAfter: afterPrice }),
     );
   }
   // Rune of the Lapidary + Rune of the Crucible Choir used to run RIGHT HERE, as hardcoded blocks — which
@@ -14870,6 +14873,24 @@ function snapshotStats(state: RunState): StatSnap {
  */
 const recruitTriggerFrames: Array<{ flush: () => void; rebase: () => void }> = [];
 
+/** The Shop resources an End-of-Turn trigger can move, as the HUD shows them (R-EOT-ECON-01). */
+interface EconSnapshot { upgrade: number; freeRolls: number; nextTurnGold: number; maxGold: number }
+function econSnapshot(state: RunState): EconSnapshot {
+  return {
+    upgrade: tradesUpgradeCost(state),
+    freeRolls: state.freeRolls ?? 0,
+    nextTurnGold: state.bonusEmbersNextTurn ?? 0,
+    maxGold: state.maxEmbers + (state.maxGoldBonus ?? 0),
+  };
+}
+/** One `resourceChanged` per resource that moved, in a fixed order (deterministic batches). */
+function emitEconDiff(collector: PresentationCollector, was: EconSnapshot, now: EconSnapshot): void {
+  if (now.upgrade !== was.upgrade) collector.emit({ type: 'resourceChanged', resource: 'upgradeCost', amount: now.upgrade - was.upgrade, valueAfter: now.upgrade });
+  if (now.freeRolls !== was.freeRolls) collector.emit({ type: 'resourceChanged', resource: 'freeRefresh', amount: now.freeRolls - was.freeRolls, valueAfter: now.freeRolls });
+  if (now.nextTurnGold !== was.nextTurnGold) collector.emit({ type: 'resourceChanged', resource: 'nextTurnGold', amount: now.nextTurnGold - was.nextTurnGold, valueAfter: now.nextTurnGold });
+  if (now.maxGold !== was.maxGold) collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: now.maxGold - was.maxGold, valueAfter: now.maxGold });
+}
+
 function withRecruitTrigger(
   ctx: RecruitContext,
   spec: { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; phase: PresentationPhase; repeatIndex?: number; repeatCount?: number; policyKey?: string; family?: string; occurrence?: number },
@@ -14909,6 +14930,16 @@ function withRecruitTrigger(
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
     const tavernBefore = { a: state.tavernBuyBonus?.atk ?? 0, h: state.tavernBuyBonus?.hp ?? 0 };
     const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
+    // END OF TURN ECONOMY (owner 2026-10-02, R-EOT-ECON-01: "make sure when we have end of turn things that they have
+    // beats"): the Shop resources an End-of-Turn trigger moves, diffed like everything else so ANY source (a card, a
+    // rune recurrence, an Ancient of Time entry) carries its own `resourceChanged` on its own beat. Before this, a
+    // Tradesman x Time cut or a Robin x Time max-Gold grant opened a beat with NOTHING in it, and the price on the
+    // Tier button only changed at the commit, after the Shop had already left the screen. End of Turn only: every
+    // other phase commits straight to the HUD, so a consequence there would show nothing new. `upgrade` is the
+    // PRICE the button prints (`tradesUpgradeCost` == `upgradeCostOf`, Frugal's surcharge and every cut folded in),
+    // not the raw running `upgradeCost`, so the projected number is exactly the one the commit will show.
+    const econ = spec.phase === 'endOfTurn' || endOfTurnDepth > 0;
+    const econBefore = econ ? econSnapshot(state) : undefined;
     // A SPELL-sourced scope (`applyCastEffects` opens one per cast effect) cast BY A CARD OR A RUNE — the innermost
     // cast actor right now: its stat gains carry the spell (and the rune), exactly like the per-action buff records
     // (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects"). Rune of
@@ -15052,6 +15083,7 @@ function withRecruitTrigger(
             deliveryKey: 'consume.depart',
           });
         }
+        if (econBefore) emitEconDiff(collector, econBefore, econSnapshot(state));
     };
   };
   let emitSince = snapshot();

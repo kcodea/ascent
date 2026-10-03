@@ -190,6 +190,7 @@ import { commitFlipDeltas, type CommitSweep } from './commitFlip';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
+import { resourceFxFor } from './choreographer/resourceFx';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
@@ -1947,6 +1948,12 @@ export function Recruit() {
   const [eotKeywords, setEotKeywords] = useState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW);
   // uid -> the card it BECAME this End of Turn (Skybound Ascendant's tier-up), so the swap renders on the beat.
   const [eotTransforms, setEotTransforms] = useState<ReadonlyMap<string, string>>(EMPTY_TRANSFORMS);
+  // Shop resource deltas delivered so far this End of Turn (upgrade price, free Refreshes, next-turn Gold), folded
+  // onto the HUD props so the price on the Tier stone drops on its beat (R-EOT-ECON-01). Null outside playback.
+  const [eotResources, setEotResources] = useState<Readonly<Record<string, number>> | null>(null);
+  // Only while the End-of-Turn lock holds: the commit and the lock release land in one tick, so the HUD never adds a
+  // delivered delta on top of the committed run (the deltas are cleared when the next End of Turn starts).
+  const eotRes = eotAnimating ? eotResources : null;
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -6288,6 +6295,7 @@ export function Recruit() {
     endTurnPendingRef.current = true;
     setEndTurnAnimating(true); // interaction lock (§12.5): shop, board, hero power and End Turn all disabled
     setEotShopStats(null);
+    setEotResources(null); // read only while `eotAnimating`, so the commit (same tick) never double-counts
 
     /**
      * CHOREOGRAPHER PR 5 — the FX surface the presenters draw through. Every entry is an EXISTING helper;
@@ -6519,7 +6527,19 @@ export function Recruit() {
         if (a) playDef('death-dissolve', a, { uids: { source: null, target: uid } });
       },
       shopBuffed: () => { /* the shop climb is driven by the projection's shopStats */ },
-      resourceChanged: () => { /* HUD counters read the projection */ },
+      // END OF TURN ECONOMY (owner 2026-10-02, R-EOT-ECON-01): the number itself rides the projection
+      // (`eotResources` → the Tier / Refresh / Gold props below), and THIS is the moment it moves: the authored
+      // `self-buff-burst` on the control that owns the number (Rune of Shopkeep and Tradesman × Time on the Tier
+      // stone). One-shot, fire-and-forget, the same def every self-buff plays.
+      resourceChanged: (resource, amount) => {
+        const fx = resourceFxFor(resource, amount);
+        if (!fx || !canPlayDefs()) return;
+        const el = document.querySelector<HTMLElement>(fx.selector);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('self-buff-burst', { source: p, target: p }); // == RESOURCE_FX_DEF (pinned by eotEconomyBeats.test)
+      },
       counterChanged: () => { /* weld rings still legacy-only — see the PR 5 gap list */ },
       cardTransformed: (uid, toCardId) => {
         // CHOREOGRAPHER: a shop-phase transform now plays ON ITS BEAT (owner report 2026-08-20 — Skybound
@@ -6646,6 +6666,8 @@ export function Recruit() {
         setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId, index: g.index })));
         setEotKeywords(p.keywordChanges.size ? new Map([...p.keywordChanges].map(([u, s]) => [u, new Set(s)])) : EMPTY_KW);
         setEotTransforms(p.transformedCards.size ? new Map(p.transformedCards) : EMPTY_TRANSFORMS);
+        // Shop numbers an End-of-Turn beat moved (R-EOT-ECON-01): the Tier price drops ON its beat, not at commit.
+        setEotResources(p.resources.size ? Object.fromEntries(p.resources) : null);
       },
       onComplete: () => {
         // Same +pad as the legacy path's completion (see EOT_COMBAT_PAD_MS). Once-guarded because the
@@ -7505,8 +7527,9 @@ export function Recruit() {
         replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
-        refreshCost={nextRefreshCostOf(run)} freeRolls={run.freeRolls} tier={run.tier} maxTier={maxTierFor(run.rift)} upgradeCost={upgradeCostOf(run)}
-        nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift}
+        refreshCost={(eotRes?.freeRefresh ?? 0) > 0 ? 0 : nextRefreshCostOf(run)} freeRolls={run.freeRolls + (eotRes?.freeRefresh ?? 0)} tier={run.tier} maxTier={maxTierFor(run.rift)}
+        upgradeCost={Math.max(0, upgradeCostOf(run) + (eotRes?.upgradeCost ?? 0))}
+        nextTurnGold={nextTurnGold + (eotRes?.nextTurnGold ?? 0)} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift}
         combatRoundNo={combatRound(run.lobby, run.wave)}
         onSummary={openSummary} onEndTurn={endTurnStable} onEndCombat={endCombat} onFreeze={onFreeze} onRefresh={onRefresh} onUpgrade={onUpgrade} onSkip={skipCombat}
       />

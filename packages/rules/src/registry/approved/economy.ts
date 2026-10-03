@@ -142,4 +142,33 @@ export const ECONOMY_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-29',
     },
   },
+  {
+    id: 'R-EOT-ECON-01',
+    title: 'An End-of-Turn trigger that moves a Shop number gets its own beat, the self buff burst on that control, and the number moves on the beat',
+    statement:
+      'Every End-of-Turn trigger that changes a Shop resource (the upgrade price, free Refreshes, Gold banked for next '
+      + 'turn, max Gold) carries a resourceChanged consequence on its OWN beat, whatever the source: a minion, a rune '
+      + 'recurrence, an Ancient pairing. The consequence carries the number the HUD prints (the upgrade PRICE, '
+      + 'surcharges and cuts folded in, never the raw running cost). On that beat the authored self-buff-burst def plays '
+      + 'on the control that owns the number (the Tier button for the upgrade price, the Refresh button for free '
+      + 'Refreshes, the Gold pill for Gold), and the printed number changes at that moment, not at the commit. '
+      + 'Replays play the same beats from the recorded batch.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask 2026-10-02, relayed verbatim by the coordinator',
+        quote: 'make sure when we have end of turn things that they have beats and modify what they need to. for example rune of shopkeep and frugal with the ancient of time modifier - nothing plays or shows that that is happening at all. please make sure these triggers have a beat. use the self buff burst fx on the shop tier button when this effect triggers',
+      },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts (withRecruitTrigger econ diff: econSnapshot / emitEconDiff; Rune of Shopkeep emits the printed price); packages/ui/src/choreographer/resourceFx.ts (resource -> HUD control + self-buff-burst); packages/ui/src/Recruit.tsx (resourceChanged presenter, eotResources on the Tier / Refresh / Gold props)' },
+    ],
+    contentIds: ['rune_shopkeep', 'rune_coffers', 'scrapvendor', 'c3_nym'],
+    currentBehaviour:
+      'Conforms as of 2026-10-02. Before it Rune of Shopkeep compiled a beat whose resourceChanged presenter was a no-op '
+      + 'and the Tier button read the committed run, so the price only changed after the Shop had left the screen; '
+      + 'Tradesman x Time, Robin x Time and Xerox x Fortune compiled EMPTY beats (the End-of-Turn scope diff never '
+      + 'looked at the economy); Scrap Vendor and Starbroker Nym banked next-turn Gold with no consequence.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eotEconomyBeats.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
 ];

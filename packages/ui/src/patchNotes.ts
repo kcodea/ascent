@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
+        details: [
+          'Rune of Shopkeep now bursts on the Tier button at End of Turn, and the price drops right then.',
+          'End of Turn effects that bank Gold for next turn, raise your max Gold or give a free Refresh now show on the Gold pill or the Refresh button too.',
+          'Replays show the same effects.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Tooltips now match the new HUD style.',
         details: [
           'Tooltips use the same dark plate and thin gold edge as the health and name pills.',

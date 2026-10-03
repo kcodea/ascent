@@ -1,0 +1,176 @@
+/* ══ THE EQUIPMENT HOUSING (owner ask 2026-10-03: "rebuild the equipment housing from scratch. make it more
+   modern/sleek/cozy and fit our aesthetic. note that it needs to be able to fit all names etc for the equipment") ══
+
+   One switch (`data-eq-look` on <html>, set by equipLookConfig.ts; DEV picks it in the 🧪 Equipment Slot panel).
+   Production ships `socket`. Classic is the old bronze bitmap frame (StatusBar only draws the image in Classic).
+
+     socket  A. Gem socket: a soft rounded-square socket, thin gold edge, inner bevel, a Gem plate name pill
+             eclipsing its bottom edge, the coin and a charge chip on its top corners.
+     halo    B. Halo: a round socket with a thin gold rim and a soft outer ring, a name tag under it.
+     tablet  C. Tablet: one small card, the art on top and the name in its bottom band.
+
+   COLOUR. Every rule scoped to a new look paints from the shared `--ui-*` theme tokens (uiTheme.css), so the 🎨 UI
+   Theme tuner recolours the housing with the HUD pills and the tooltips. Literals allowed: pure black / white
+   shading, and the two STATE colours declared once below (`--eq-boost`, `--eq-amp`: the same green and blue the
+   charge number has always used). `equipHousing.test.ts` holds this file to that.
+
+   LAYOUT CONTRACT. Nothing here moves the slot or a neighbour. The button keeps its 128u box, the name plate keeps
+   the old plate's height, and everything the housing adds (the socket, the bevel, the card) is absolutely
+   positioned. So the slot's centre, which is its anchor, is the same in every look.
+
+   NAMES. In the new looks the plate is a FIXED width and the name auto-shrinks to fit (`--eqn-fit`, measured once
+   per name by EquipNamePlate.tsx), never below NAME_FIT_MIN of its base size; the ellipsis is only a last resort.
+
+   PERFORMANCE. Static paint only. Nothing here animates. The existing glow (`.hpb-glow`: a static shadow whose
+   OPACITY breathes), the one-shot sheen, the fade in / out and the Pixi Amplified loop are untouched; this file
+   only reshapes the glow's box to hug each socket. */
+
+/* The two state colours (the charge chip's text and rim), declared once. Not scoped to a look on purpose. */
+.equipslot { --eq-boost: #8ff0a4; --eq-amp: #7fc4ff; }
+
+/* THE CLOCK-WINDOW READOUT sits ABOVE the slot and out of flow (owner 2026-09-22: "show above the equipment instead
+   of below, and dont let it nudge anything on the screen at all"). The Ancients stylesheet's
+   `.statusbar .heropanel .hplabel { position: relative }` out-ranked the old rule and put it back in flow, under
+   the name, lifting the whole slot by half its height. Re-pinned here at a specificity that wins, in every look. */
+.statusbar .heropanel.equipslot .hplabel.discountwin { position: absolute; }
+
+/* ── Shared by the three new looks ──────────────────────────────────────────────────────────────────────────── */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap::before,
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap::after {
+  content: ''; position: absolute; pointer-events: none;
+}
+/* The socket: the Gem plate's gold gradient edge over the theme's plate, a dark inner line, the ring, a soft drop. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap::before {
+  z-index: 0; box-sizing: border-box;
+  border: calc(2.5 * var(--u)) solid transparent;
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 calc(3 * var(--u)) var(--ui-ring),
+    0 calc(8 * var(--u)) calc(20 * var(--u)) calc(-6 * var(--u)) rgba(0, 0, 0, 0.75);
+}
+/* The bevel OVER the art: a dark seat line, a faint lit inner rim, a soft shade at the foot and a static sheen from
+   the top-left. Above the art (z3), under the refresh flash (z4) and the badges (z6). */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap::after {
+  z-index: 3;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 30%, rgba(255, 255, 255, 0) 46%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 0 calc(2 * var(--u)) rgba(255, 255, 255, 0.07),
+    inset 0 calc(-16 * var(--u)) calc(18 * var(--u)) calc(-10 * var(--u)) rgba(0, 0, 0, 0.6);
+}
+/* The ready / armed glow hugs the socket instead of the bare circle. Same static shadow, same opacity breath. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .heropowerbtn .hpb-glow { transform: none; }
+
+/* The cost coin keeps its Gold face (the economy reads the same everywhere) and gains a seat: a plate-dark rim
+   inside a thin gold ring. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpcost {
+  width: calc(38 * var(--u)); height: calc(38 * var(--u));
+  border: calc(2.5 * var(--u)) solid var(--ui-plate-bot);
+  box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--ui-edge-main), 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55);
+}
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpcost .costn { font-size: calc(20 * var(--u)); }
+
+/* The CHARGE CHIP: the number on a small dark gem chip instead of floating over the frame. Green while the shared
+   bonus pool is in it, BLUE while Amplified (both are the number's old colours), muted at 0. The tuner's X / Y still
+   nudge it; its size is the chip's own. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpb-tally {
+  left: auto; box-sizing: border-box; display: grid; place-items: center;
+  min-width: calc(30 * var(--u)); height: calc(30 * var(--u)); padding: 0 calc(7 * var(--u));
+  border-radius: 999px; border: calc(2 * var(--u)) solid var(--ui-edge-main);
+  background: var(--ui-chip-bg); color: var(--ui-chip-text);
+  font-size: calc(17 * var(--u)); font-weight: 800; font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: translate(calc(var(--equ-x, 0) * 1px), calc(var(--equ-y, 0) * 1px));
+}
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpb-tally.boosted { color: var(--eq-boost); border-color: var(--eq-boost); }
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpb-tally.amplified { color: var(--eq-amp); border-color: var(--eq-amp); }
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot.spent .hpwrap .hpb-tally { color: var(--ui-muted); border-color: var(--ui-chip-edge); }
+
+/* THE NAME PLATE: a fixed width, the OLD plate's exact height (so the column, and with it the anchor, never moves),
+   and a font that shrinks to fit (`--eqn-fit`). The tuner's name X / Y / size still apply. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.eqname {
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+  width: calc(150 * var(--u)); height: calc(18.6 * var(--u) + 4px); padding: 0 calc(10 * var(--u));
+  border: 2px solid transparent; border-radius: 999px;
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 3px 9px -3px rgba(0, 0, 0, 0.7);
+  font-size: calc(12.5 * var(--u) * var(--eqn-fit, 1)); line-height: 1; letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden;
+}
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.eqname .eqname-t {
+  display: inline-block; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+/* Usable: the plate's edge brightens (static), the way a Gem button lights on hover. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot:is(.ready, .armed) .hplabel.eqname {
+  background: var(--ui-plate) padding-box, var(--ui-hover-edge) border-box; color: var(--ui-text);
+}
+
+/* The clock-window readout ("-1 Gold · 6s"), as a Gem plate pill in the discount green. */
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.discountwin {
+  border: 2px solid transparent; border-radius: 999px;
+  background: var(--ui-plate) padding-box, linear-gradient(180deg, var(--eq-boost), var(--ui-edge-deep)) border-box;
+  color: var(--eq-boost); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 3px 9px -3px rgba(0, 0, 0, 0.7);
+  bottom: calc(100% + 20 * var(--u));
+}
+
+/* ── A. GEM SOCKET (shipped) ────────────────────────────────────────────────────────────────────────────────── */
+:root[data-eq-look="socket"] .equipslot .hpwrap::before { inset: calc(-9 * var(--u)); border-radius: calc(34 * var(--u)); }
+:root[data-eq-look="socket"] .equipslot .hpwrap::after { inset: 0; border-radius: calc(26 * var(--u)); }
+:root[data-eq-look="socket"] .equipslot .heropowerbtn .hpb-artwrap { border-radius: calc(26 * var(--u)); }
+:root[data-eq-look="socket"] .equipslot .heropowerbtn .hpb-glow { inset: calc(-9 * var(--u)); border-radius: calc(34 * var(--u)); }
+:root[data-eq-look="socket"] .equipslot .heropowerbtn .hpb-flash { border-radius: calc(26 * var(--u)); }
+/* Coin and chip sit ON the socket's top corners. */
+:root[data-eq-look="socket"] .equipslot .hpwrap .hpcost { top: calc(-17 * var(--u)); left: calc(-17 * var(--u)); }
+:root[data-eq-look="socket"] .equipslot .hpwrap .hpb-tally { top: calc(-15 * var(--u)); right: calc(-15 * var(--u)); }
+/* The plate eclipses the socket's bottom edge (a transform: no layout moves). */
+:root[data-eq-look="socket"] .statusbar .equipslot .hplabel.eqname {
+  transform: translateY(calc(-6 * var(--u))) translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1));
+}
+
+/* ── B. HALO ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+:root[data-eq-look="halo"] .equipslot .hpwrap::before {
+  inset: calc(-8 * var(--u)); border-radius: 50%; border-width: calc(2 * var(--u));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 calc(3 * var(--u)) var(--ui-ring),
+    0 0 0 calc(4 * var(--u)) var(--ui-ring), 0 calc(8 * var(--u)) calc(20 * var(--u)) calc(-6 * var(--u)) rgba(0, 0, 0, 0.75);
+}
+:root[data-eq-look="halo"] .equipslot .hpwrap::after { inset: 0; border-radius: 50%; }
+:root[data-eq-look="halo"] .equipslot .heropowerbtn .hpb-glow { inset: calc(-12 * var(--u)); border-radius: 50%; }
+/* Coin at ten-thirty and chip at one-thirty, riding the rim. */
+:root[data-eq-look="halo"] .equipslot .hpwrap .hpcost { top: calc(-10 * var(--u)); left: calc(-10 * var(--u)); }
+:root[data-eq-look="halo"] .equipslot .hpwrap .hpb-tally { top: calc(-6 * var(--u)); right: calc(-6 * var(--u)); }
+/* A name TAG under the ring: squarer corners, clear of the rim. */
+:root[data-eq-look="halo"] .statusbar .equipslot .hplabel.eqname {
+  border-radius: calc(8 * var(--u));
+  transform: translateY(calc(5 * var(--u))) translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1));
+}
+
+/* ── C. TABLET ───────────────────────────────────────────────────────────────────────────────────────────────── */
+/* The card is the SLOT's own backing (it spans the art and the name), so it rides `.equipslot::before`. */
+:root[data-eq-look="tablet"] .statusbar .equipslot::before {
+  content: ''; position: absolute; pointer-events: none; z-index: 0; box-sizing: border-box;
+  inset: calc(-12 * var(--u)) calc(-4 * var(--u)) calc(-6 * var(--u));
+  border-radius: calc(22 * var(--u));
+  border: calc(2.5 * var(--u)) solid transparent;
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 calc(3 * var(--u)) var(--ui-ring),
+    0 calc(10 * var(--u)) calc(24 * var(--u)) calc(-8 * var(--u)) rgba(0, 0, 0, 0.8);
+}
+/* The art's own seat is just the bevel; the card is the socket. */
+:root[data-eq-look="tablet"] .equipslot .hpwrap::before { content: none; }
+:root[data-eq-look="tablet"] .equipslot .hpwrap::after { inset: 0; border-radius: calc(16 * var(--u)); }
+:root[data-eq-look="tablet"] .equipslot .heropowerbtn .hpb-artwrap { border-radius: calc(16 * var(--u)); }
+:root[data-eq-look="tablet"] .equipslot .heropowerbtn .hpb-flash { border-radius: calc(16 * var(--u)); }
+/* The glow outlines the whole card: from the card's top edge down past the name band. */
+:root[data-eq-look="tablet"] .equipslot .heropowerbtn .hpb-glow {
+  inset: calc(-12 * var(--u)) calc(-15 * var(--u)) calc(-37 * var(--u) - 22px); border-radius: calc(22 * var(--u));
+}
+:root[data-eq-look="tablet"] .equipslot .hpwrap .hpcost { top: calc(-24 * var(--u)); left: calc(-24 * var(--u)); }
+:root[data-eq-look="tablet"] .equipslot .hpwrap .hpb-tally { top: calc(-22 * var(--u)); right: calc(-22 * var(--u)); }
+/* The name is the card's bottom band: no pill of its own, a hairline above it, the words in the theme's title gold. */
+:root[data-eq-look="tablet"] .statusbar .equipslot .hplabel.eqname {
+  width: calc(140 * var(--u)); border: none; border-top: 1px solid var(--ui-divider); border-radius: 0;
+  background: none; box-shadow: none; color: var(--ui-title);
+  transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1));
+}
+:root[data-eq-look="tablet"] .statusbar .equipslot:is(.ready, .armed) .hplabel.eqname { background: none; color: var(--ui-title); }
+:root[data-eq-look="tablet"] .statusbar .equipslot .hplabel.discountwin { bottom: calc(100% + 28 * var(--u)); }

@@ -162,7 +162,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'A new Ancient hero attack in crates: Bullet Time. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
+        text: 'A new Ancient hero attack in crates: Timebreak. Golden spells cut through time, slow to a crawl around your foe, then snap in and land.',
         details: [
           'Small: one golden spell slows to a crawl just short of your foe, then hits.',
           'Bigger hits bring three spells, then a whole volley in a spiral.',

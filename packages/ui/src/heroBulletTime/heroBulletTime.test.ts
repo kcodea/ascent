@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * THE BULLET TIME HERO ATTACK (the Ancient of Time, ANCIENT; owner 2026-10-02 picked "BULLET TIME"): the shared four
+ * THE TIMEBREAK HERO ATTACK (the Ancient of Time, ANCIENT; owner 2026-10-02 picked "BULLET TIME"): the shared four
  * tiers; the tuner values; the pure plan (I one dart; II three round the target; III a spiral volley and a run; IV the
  * dome, the 3-2-1 and the collapse); every shape CENTRED ON THE TARGET; the blades brake into SLOW MOTION and keep
  * crawling (never stop); the runner on the shared clock (the blow lands exactly ONCE; the FX slow down then snap back;
@@ -325,8 +325,8 @@ describe('the scene (headless Pixi)', () => {
 });
 
 describe('the cosmetic', () => {
-  it('Bullet Time (attack_bullet_time) is an ANCIENT crate hero attack that plays the bullettime style', () => {
-    expect(COSMETIC_INDEX.attack_bullet_time).toMatchObject({ category: 'hero_attack', rarity: 'ancient', name: 'Bullet Time', assets: { style: 'bullettime' }, active: true });
+  it('Timebreak (attack_bullet_time) is an ANCIENT crate hero attack that plays the bullettime style', () => {
+    expect(COSMETIC_INDEX.attack_bullet_time).toMatchObject({ category: 'hero_attack', rarity: 'ancient', name: 'Timebreak', assets: { style: 'bullettime' }, active: true });
     expect(HERO_ATTACK_STYLES).toContain('bullettime');
     expect(styleOfCosmetic('attack_bullet_time')).toBe('bullettime');
   });

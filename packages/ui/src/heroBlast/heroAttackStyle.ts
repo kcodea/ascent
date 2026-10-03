@@ -100,7 +100,7 @@
  * needles cross-stitch an X and the threads snap through; III five pins stab in at the points of a star and the target
  * is stretched toward the hero until they rip out; IV the heroes laced together, the target dragged into a gold heart-knot that
  * ties shut and bursts as it is flung home (`../heroStitch/`).
- * `bullettime` (`attack_bullet_time`, "Bullet Time", the Ancient of Time; Ancient; owner 2026-10-02 picked "BULLET TIME",
+ * `bullettime` (`attack_bullet_time`, "Timebreak", the Ancient of Time; Ancient; owner 2026-10-02 picked "BULLET TIME",
  * then "more cutting through time than stopping it"): gold clock-hand blades tear cuts through the air and crawl in
  * dramatic slow motion round the target, then time snaps back and they land. I one blade; II three round the target; III a
  * spiral volley and a finger snap; IV a dome of blades and a 3-2-1, collapsing in one massive impact. Every shape centres
@@ -147,7 +147,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   backstab: 'Shadow Step (backstab, Rare)',
   basketball: 'Nothing But Net (basketball)',
   stitch: 'Soul Stitch (Ancient)',
-  bullettime: 'Bullet Time (Ancient of Time)',
+  bullettime: 'Timebreak (Ancient of Time)',
 };
 
 const KEY = 'ascent.heroattackstyle';

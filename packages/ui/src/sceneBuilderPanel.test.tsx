@@ -119,12 +119,15 @@ describe('the store is not hot-swappable', () => {
 });
 
 describe('the Scene Builder is the one place an archived hero still shows (owner 2026-09-24)', () => {
-  it('its hero picker lists EVERY hero, archived ones marked "(archived)", and an archived hero starts a sandbox', () => {
-    const opts = [...ui!.container.querySelectorAll<HTMLOptionElement>('select[aria-label^="Switch hero"] option')];
-    expect(opts.map((o) => o.value).sort()).toEqual(HEROES.map((h) => h.id).sort());
+  it('its hero picker lists EVERY hero, archived ones in their own block, and an archived hero starts a sandbox', () => {
+    // The portrait flyout (owner ask 2026-10-03) replaced the <select>; sceneBuilderHeroPicker.test.tsx covers it in depth.
+    act(() => { ui!.container.querySelector<HTMLButtonElement>('.sbhp-trigger')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    const tiles = [...document.querySelectorAll<HTMLElement>('.sbhp-tile')];
+    expect(tiles.map((t) => t.dataset.hero).sort()).toEqual(HEROES.map((h) => h.id).sort());
     for (const h of HEROES) {
-      const o = opts.find((x) => x.value === h.id)!;
-      expect(o.textContent, h.id).toBe(isArchivedHero(h) ? `${h.name} (archived)` : h.name);
+      const t = tiles.find((x) => x.dataset.hero === h.id)!;
+      expect(t.classList.contains('arch'), h.id).toBe(isArchivedHero(h));
+      expect(t.querySelector('.sbhp-tile-name')?.textContent, h.id).toBe(h.name);
     }
     for (const id of ['tiff', 'pete', 'rohan']) {
       expect(isArchivedHero(HEROES.find((h) => h.id === id)!), id).toBe(true);

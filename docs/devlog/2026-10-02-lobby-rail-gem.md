@@ -47,6 +47,39 @@ A measured 0.41-unit trim makes it match Classic to 0.01px at 1920x1080 and 1366
 
 The rail clips (`overflow: hidden`) instead of scrolling, since the rows always fit.
 
+## Knockout smoke + ghost marker
+
+The owner asked: "can you add a simple animation for when a player is knocked out? some pixi smoke/burst as their
+card fades. then, if the player is facing a ghost, make the target highlight greenish blue instead of red".
+
+### The knockout
+
+- **The effect:** a new FX def, `fx/defs/lobby-knockout.json`. It is 850 ms of grey-violet smoke, a puff burst and
+  about 20 embers.
+- **How it plays:** `lobbyKnockoutFx.ts` measures the row once and calls
+  `playDef('lobby-knockout', centre)`. It is added to the `directCalls` snapshot and to the `UNIT_LESS` list in
+  `playDefUids.test.ts` (the row is HUD chrome, not a unit).
+- **When it fires:** `LobbyPanel` diffs the alive set against the one it last saw (`newlyKnockedOut`). The first
+  sight of a table only records it, so a seat that is already out on mount or reload never plays the effect.
+- **Timing:** a knockout lands at the settle, under the curtain. The effect is held by `whenCurtainDown` plus a
+  rAF, the same hold the damage float uses, so it plays over the revealed rail.
+- **The row:** it gets `.ko` for 950 ms, a one-shot swell-then-fade to its dead look (`lobbyko`, transform +
+  opacity only). This works in both looks.
+- **Sound:** none. No poof-like clip exists.
+
+### The ghost marker
+
+- **How a ghost pairing is marked:** `playerOpponent` (sim) returns `{ seat, board, ghost: true }`. This happens
+  when the player holds the bye, or when its paired foe fields no board. `seat` is the FALLEN seat whose board is
+  served, so its own (dead) rail row is the one marked.
+- **The row:** `.lobbyseat.foe.ghost` paints the `--ui-ghost` teal. In Gem that is the left bar, the hairline, the
+  wash and the pulse ring; in Classic it is the fill and the ring, glow and bar vars. The row is lifted to 0.92
+  opacity so the marker reads.
+- **The token:** `--ui-ghost` is new. It is #4fdccb in five themes and a cyan #62d8f2 in Verdant, so it doesn't
+  read as the theme's green.
+- **Other ghost surfaces:** the only one is the Fight Recap, which prints "Ghost" as the foe's subtitle (text, no
+  colour). Now Facing and the combat opponent don't mark ghosts.
+
 ## Follow-up
 
 When Classic is removed, `public/opponents-backplate.webp` is referenced only by the Classic rule in `styles.css`,

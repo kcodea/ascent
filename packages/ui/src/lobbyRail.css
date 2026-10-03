@@ -198,3 +198,37 @@
 :root:not([data-lobby-rail="classic"]) .lobbyseat.you .lobbybar > span {
   background: linear-gradient(180deg, color-mix(in srgb, var(--ui-heart) 62%, #fff) 0%, var(--ui-heart) 55%, color-mix(in srgb, var(--ui-heart) 80%, #000) 100%);
 }
+
+/* ── KNOCKOUT (both looks; owner ask 2026-10-02) ───────────────────────────────────────────────────────────────
+   The row of a seat that just fell, while the `lobby-knockout` Pixi smoke plays over it (lobbyKnockoutFx.ts): it
+   swells a touch at full strength, then fades to its dead look. No `100%` frame, so it lands on the row's own
+   computed dead opacity in either look. One-shot, transform + opacity only. */
+.lobbyseat.dead.ko { animation: lobbyko 850ms cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+@keyframes lobbyko {
+  0% { opacity: 1; transform: scale(1); }
+  22% { opacity: 1; transform: scale(1.035); }
+  60% { transform: scale(0.985); }
+}
+
+/* ── GHOST OPPONENT (owner ask 2026-10-02: "if the player is facing a ghost, make the target highlight greenish
+   blue instead of red"). The next-foe marker on a ghost pairing (`.lobbyseat.foe.ghost`; the row is the fallen
+   seat whose board is served) wears the `--ui-ghost` teal: Gem's bar, hairline, wash and pulse; Classic's fill and
+   marker. The fallen row is lifted out of its dim so the highlight reads. ─────────────────────────────────────── */
+.lobbyseat.dead.foe.ghost { opacity: 0.92; }
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe.ghost {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-ghost) 24%, var(--ui-chip-bg)) 0%, color-mix(in srgb, var(--ui-chip-bg) 80%, transparent) 72%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 60%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe.ghost::before { background: var(--ui-ghost); }
+:root:not([data-lobby-rail="classic"]) .lobbyseat.foe.ghost::after {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 90%, transparent),
+    0 0 calc(7 * var(--lrow)) calc(1 * var(--lrow)) color-mix(in srgb, var(--ui-ghost) 45%, transparent);
+}
+/* Classic: the same marker parts, recoloured through its own vars (its fill, ring, glow and accent bar). */
+:root[data-lobby-rail="classic"] .lobbyseat.foe.ghost {
+  --lby-foe-ring-col: var(--ui-ghost);
+  --lby-foe-glow-col: var(--ui-ghost);
+  --lby-foe-bar-col: var(--ui-ghost);
+  background: color-mix(in srgb, var(--ui-ghost) 42%, #000);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 95%, transparent);
+}

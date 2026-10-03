@@ -40,6 +40,9 @@ export interface UiThemeTokens {
   icon: string;
   /** Semantic: the Health heart and the steel Armor chip. */
   heart: string; armorTop: string; armorMid: string; armorBot: string; armorEdge: string; armorInk: string; armorIcon: string;
+  /** Semantic: a GHOST opponent (an eliminated seat's board served as the round's foe), the lobby rail's teal
+   *  next-foe marker (owner ask 2026-10-02). */
+  ghost: string;
   /** The gold turn clock (Gem timer icon): its rim + centre pin, and its dial face. */
   clockRim: string; clockFace: string;
   /** Semantic: low turn time (the timer's digits, and the clock's rim, outline and hands). */
@@ -54,7 +57,7 @@ export interface UiThemeTokens {
 export const UI_THEME_KEYS = [
   'plateTop', 'plateMid', 'plateBot', 'edgeHi', 'edgeMain', 'edgeDeep', 'edgeLo', 'ring',
   'text', 'muted', 'title', 'hl', 'chipBg', 'chipEdge', 'chipText', 'divider', 'icon',
-  'heart', 'armorTop', 'armorMid', 'armorBot', 'armorEdge', 'armorInk', 'armorIcon',
+  'heart', 'ghost', 'armorTop', 'armorMid', 'armorBot', 'armorEdge', 'armorInk', 'armorIcon',
   'clockRim', 'clockFace', 'warn', 'warnRim', 'warnEdge', 'warnHand',
   'hoverTop', 'hoverMid', 'hoverBot', 'hoverEdgeHi', 'hoverEdgeMain', 'hoverEdgeDeep', 'hoverEdgeLo',
   'lip', 'studEdge',
@@ -76,7 +79,7 @@ export const UI_THEMES = {
     edgeHi: '#ffe9b0', edgeMain: '#c8953f', edgeDeep: '#7a571f', edgeLo: '#e8c27a', ring: 'rgba(255, 217, 138, 0.2)',
     text: '#fff1d6', muted: '#c6b8d8', title: '#ffd98a', hl: '#ffb561',
     chipBg: '#140d24', chipEdge: '#6b5330', chipText: '#f4ecdb', divider: 'rgba(255, 217, 138, 0.2)', icon: '#ffd98a',
-    heart: '#ff2f58', ...STEEL, clockRim: '#e3b04f', clockFace: '#1d1430', warn: '#ff9db0', ...WARN,
+    heart: '#ff2f58', ghost: '#4fdccb', ...STEEL, clockRim: '#e3b04f', clockFace: '#1d1430', warn: '#ff9db0', ...WARN,
     hoverTop: '#4a3768', hoverMid: '#2d2050', hoverBot: '#1f1638',
     hoverEdgeHi: '#fff6d6', hoverEdgeMain: '#ffd27a', hoverEdgeDeep: '#b98a3a', hoverEdgeLo: '#ffe3a0',
     lip: '#6a4b19', studEdge: '#4a3410',
@@ -87,7 +90,7 @@ export const UI_THEMES = {
     edgeHi: '#fdf4d6', edgeMain: '#cbb97f', edgeDeep: '#6c6342', edgeLo: '#e6dcb2', ring: 'rgba(230, 220, 178, 0.2)',
     text: '#eef3ff', muted: '#adbbd8', title: '#f3dc9a', hl: '#ffcc6a',
     chipBg: '#0a1230', chipEdge: '#55628a', chipText: '#eef1fa', divider: 'rgba(230, 220, 178, 0.2)', icon: '#f0dc9e',
-    heart: '#ff3d63', ...STEEL, clockRim: '#dccb8e', clockFace: '#101c40', warn: '#ffa3b4', ...WARN,
+    heart: '#ff3d63', ghost: '#4fdccb', ...STEEL, clockRim: '#dccb8e', clockFace: '#101c40', warn: '#ffa3b4', ...WARN,
     hoverTop: '#2f4980', hoverMid: '#1c2f62', hoverBot: '#121f45',
     hoverEdgeHi: '#fffaf0', hoverEdgeMain: '#e6d59e', hoverEdgeDeep: '#8a7d52', hoverEdgeLo: '#f6ecc8',
     lip: '#4a4128', studEdge: '#3a3420',
@@ -98,7 +101,7 @@ export const UI_THEMES = {
     edgeHi: '#ffd6b0', edgeMain: '#cf7a3e', edgeDeep: '#6c3416', edgeLo: '#eea06a', ring: 'rgba(255, 168, 110, 0.18)',
     text: '#f8ece1', muted: '#bba898', title: '#ffb46e', hl: '#ff9147',
     chipBg: '#0b0807', chipEdge: '#6e3c22', chipText: '#f6e6d6', divider: 'rgba(255, 168, 110, 0.18)', icon: '#ffa25c',
-    heart: '#ff3b47', ...STEEL, clockRim: '#e08a4a', clockFace: '#141110', warn: '#ff9a9a', ...WARN,
+    heart: '#ff3b47', ghost: '#4fdccb', ...STEEL, clockRim: '#e08a4a', clockFace: '#141110', warn: '#ff9a9a', ...WARN,
     hoverTop: '#3b332e', hoverMid: '#211c19', hoverBot: '#131110',
     hoverEdgeHi: '#ffe6cc', hoverEdgeMain: '#ef9654', hoverEdgeDeep: '#8a4622', hoverEdgeLo: '#ffbd86',
     lip: '#5a2a10', studEdge: '#3e1c0a',
@@ -109,7 +112,7 @@ export const UI_THEMES = {
     edgeHi: '#ffe2d8', edgeMain: '#d6967f', edgeDeep: '#7b4a3e', edgeLo: '#efbaa6', ring: 'rgba(240, 186, 166, 0.2)',
     text: '#fbeffa', muted: '#cfb6da', title: '#ffc8b6', hl: '#ffa3c4',
     chipBg: '#180a2a', chipEdge: '#7a4a64', chipText: '#f8e8f2', divider: 'rgba(240, 186, 166, 0.2)', icon: '#f6baa6',
-    heart: '#ff3570', ...STEEL, clockRim: '#e8a892', clockFace: '#24113d', warn: '#ffa3bd', ...WARN,
+    heart: '#ff3570', ghost: '#4fdccb', ...STEEL, clockRim: '#e8a892', clockFace: '#24113d', warn: '#ffa3bd', ...WARN,
     hoverTop: '#5e3982', hoverMid: '#3b2160', hoverBot: '#271240',
     hoverEdgeHi: '#fff1ec', hoverEdgeMain: '#ebb09a', hoverEdgeDeep: '#985e4e', hoverEdgeLo: '#ffd2c2',
     lip: '#5e3428', studEdge: '#4a2418',
@@ -120,7 +123,7 @@ export const UI_THEMES = {
     edgeHi: '#fbf4d2', edgeMain: '#c8bb7c', edgeDeep: '#696036', edgeLo: '#e5dca6', ring: 'rgba(229, 220, 166, 0.2)',
     text: '#effaf3', muted: '#abc8bc', title: '#efe2a2', hl: '#c4ec86',
     chipBg: '#071a16', chipEdge: '#4b6a54', chipText: '#eaf5ee', divider: 'rgba(229, 220, 166, 0.2)', icon: '#e6d892',
-    heart: '#ff4560', ...STEEL, clockRim: '#dccf8c', clockFace: '#0e2723', warn: '#ffa6b2', ...WARN,
+    heart: '#ff4560', ghost: '#62d8f2', ...STEEL, clockRim: '#dccf8c', clockFace: '#0e2723', warn: '#ffa6b2', ...WARN,
     hoverTop: '#2a5850', hoverMid: '#193d36', hoverBot: '#0f2a25',
     hoverEdgeHi: '#fffbe8', hoverEdgeMain: '#e2d392', hoverEdgeDeep: '#847a48', hoverEdgeLo: '#f3eabe',
     lip: '#4a4422', studEdge: '#383216',
@@ -131,7 +134,7 @@ export const UI_THEMES = {
     edgeHi: '#ffffff', edgeMain: '#b7c7d8', edgeDeep: '#5d6c7e', edgeLo: '#dce8f4', ring: 'rgba(200, 225, 255, 0.22)',
     text: '#f2f7fc', muted: '#aab8c8', title: '#d4ecff', hl: '#8fd8ff',
     chipBg: '#10151d', chipEdge: '#57667b', chipText: '#eef4fa', divider: 'rgba(200, 225, 255, 0.2)', icon: '#cfe6ff',
-    heart: '#ff4d6d', ...STEEL, armorTop: '#f2f8fd', armorMid: '#bcc9d8', armorBot: '#8293a8', clockRim: '#c9d8e8', clockFace: '#1b222d', warn: '#ffa3b4', ...WARN,
+    heart: '#ff4d6d', ghost: '#4fdccb', ...STEEL, armorTop: '#f2f8fd', armorMid: '#bcc9d8', armorBot: '#8293a8', clockRim: '#c9d8e8', clockFace: '#1b222d', warn: '#ffa3b4', ...WARN,
     hoverTop: '#47566a', hoverMid: '#2c3747', hoverBot: '#1c2431',
     hoverEdgeHi: '#ffffff', hoverEdgeMain: '#d3e1f0', hoverEdgeDeep: '#7a8a9c', hoverEdgeLo: '#eef5fb',
     lip: '#3b4656', studEdge: '#2a3442',

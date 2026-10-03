@@ -11,6 +11,9 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  * those token values; switching one rewrites the tokens on `:root`, so every surface repaints at once with no React
  * re-render (CSS variables only).
  *
+ * 18 themes since 2026-10-03 (owner ask: "add 12 new color themes for the ui in the ui tuner"), listed in the
+ * tuner grouped by colour family (`UI_THEME_IDS`).
+ *
  * DEV only: the pick persists in localStorage (`ascent.uiTheme`) and is applied at load by the 🎨 UI Theme tuner's
  * module. Production never loads this module and plays the BAKED `:root` block in uiTheme.css, which MUST equal the
  * `DEFAULT_THEME` entry below (`tooltipStyle.test.ts` checks the pair).
@@ -139,17 +142,175 @@ export const UI_THEMES = {
     hoverEdgeHi: '#ffffff', hoverEdgeMain: '#d3e1f0', hoverEdgeDeep: '#7a8a9c', hoverEdgeLo: '#eef5fb',
     lip: '#3b4656', studEdge: '#2a3442',
   },
+  /** Deep wine with a royal gold edge. */
+  crimson: {
+    plateTop: '#4f1a2a', plateMid: '#33101c', plateBot: '#220a12',
+    edgeHi: '#fff0c2', edgeMain: '#d4a24a', edgeDeep: '#7d5a1c', edgeLo: '#efcd85', ring: 'rgba(239, 205, 133, 0.2)',
+    text: '#fff2e6', muted: '#d8b4bd', title: '#ffe0a0', hl: '#ffb347',
+    chipBg: '#1a070e', chipEdge: '#74404a', chipText: '#f7e7e9', divider: 'rgba(239, 205, 133, 0.2)', icon: '#ffd47a',
+    heart: '#ff4a6e', ghost: '#4fdccb', ...STEEL, clockRim: '#e2b356', clockFace: '#2a0d17', warn: '#ffa8b8', ...WARN,
+    hoverTop: '#642337', hoverMid: '#421628', hoverBot: '#2d0e1a',
+    hoverEdgeHi: '#fff8e0', hoverEdgeMain: '#f0c46e', hoverEdgeDeep: '#a37a35', hoverEdgeLo: '#ffe2a6',
+    lip: '#5e3f12', studEdge: '#43290a',
+  },
+  /** Teal-black ink with an antique gold edge and aqua highlights. The ghost goes lavender so it never reads as an
+   *  aqua keyword. */
+  teal: {
+    plateTop: '#12313a', plateMid: '#0a2029', plateBot: '#05141b',
+    edgeHi: '#fff3cf', edgeMain: '#c9a75a', edgeDeep: '#6b5426', edgeLo: '#e6cd8c', ring: 'rgba(230, 205, 140, 0.2)',
+    text: '#eefaff', muted: '#9fc0cc', title: '#f2d895', hl: '#5fe3dc',
+    chipBg: '#030f15', chipEdge: '#3f6470', chipText: '#e8f6f8', divider: 'rgba(230, 205, 140, 0.2)', icon: '#ecd08a',
+    heart: '#ff4664', ghost: '#b8a2ff', ...STEEL, clockRim: '#dcc07a', clockFace: '#081a22', warn: '#ffa3b4', ...WARN,
+    hoverTop: '#1a4250', hoverMid: '#102c38', hoverBot: '#081c25',
+    hoverEdgeHi: '#fffaea', hoverEdgeMain: '#e8c977', hoverEdgeDeep: '#8d7238', hoverEdgeLo: '#f6e3ae',
+    lip: '#4b3a18', studEdge: '#372a10',
+  },
+  /** Dusky mauve with a pink rose-gold edge and peach highlights. */
+  rose: {
+    plateTop: '#563849', plateMid: '#3a2432', plateBot: '#281722',
+    edgeHi: '#ffe8e4', edgeMain: '#dc9a96', edgeDeep: '#7f4a4c', edgeLo: '#f4c4be', ring: 'rgba(244, 196, 190, 0.2)',
+    text: '#fff2f4', muted: '#d6bcc8', title: '#ffd9e0', hl: '#ffb48f',
+    chipBg: '#1e0f18', chipEdge: '#7d5260', chipText: '#f9e9ee', divider: 'rgba(244, 196, 190, 0.2)', icon: '#f8c6c0',
+    heart: '#ff3d6e', ghost: '#4fdccb', ...STEEL, clockRim: '#eab0aa', clockFace: '#2f1b28', warn: '#ffadc0', ...WARN,
+    hoverTop: '#6a4659', hoverMid: '#4a2f40', hoverBot: '#33202c',
+    hoverEdgeHi: '#fff5f3', hoverEdgeMain: '#f0b4ae', hoverEdgeDeep: '#a06466', hoverEdgeLo: '#ffd8d2',
+    lip: '#5e3536', studEdge: '#452426',
+  },
+  /** Warm forged bronze with a bright amber edge. */
+  sunforge: {
+    plateTop: '#4a3420', plateMid: '#2f2013', plateBot: '#1f150b',
+    edgeHi: '#fff1c4', edgeMain: '#d9963a', edgeDeep: '#7d4f15', edgeLo: '#f5c56c', ring: 'rgba(245, 197, 108, 0.2)',
+    text: '#fff4e2', muted: '#d4bc9c', title: '#ffcf5c', hl: '#ffa43a',
+    chipBg: '#170f07', chipEdge: '#7a5528', chipText: '#f7ead6', divider: 'rgba(245, 197, 108, 0.2)', icon: '#ffc85a',
+    heart: '#ff3b4f', ghost: '#4fdccb', ...STEEL, clockRim: '#eaa94a', clockFace: '#261a0e', warn: '#ffa3a8', ...WARN,
+    hoverTop: '#5c432a', hoverMid: '#3b2a19', hoverBot: '#281c0f',
+    hoverEdgeHi: '#fff8e0', hoverEdgeMain: '#f5b85a', hoverEdgeDeep: '#a26a24', hoverEdgeLo: '#ffdc94',
+    lip: '#5c3a0f', studEdge: '#3f2808',
+  },
+  /** Near-black navy with an electric cyan edge. The ghost goes violet so it never reads as a cyan keyword. */
+  abyssal: {
+    plateTop: '#0d1830', plateMid: '#070f20', plateBot: '#03070f',
+    edgeHi: '#e6fbff', edgeMain: '#3fb8d9', edgeDeep: '#165066', edgeLo: '#8fe4f5', ring: 'rgba(110, 220, 255, 0.22)',
+    text: '#eaf8ff', muted: '#92aec4', title: '#9ff0ff', hl: '#3fe0ff',
+    chipBg: '#02050c', chipEdge: '#1f5068', chipText: '#e4f6ff', divider: 'rgba(110, 220, 255, 0.2)', icon: '#7fe6ff',
+    heart: '#ff3d6a', ghost: '#b69cff', ...STEEL, clockRim: '#5cc8e6', clockFace: '#06101e', warn: '#ff9fb6', ...WARN,
+    hoverTop: '#152647', hoverMid: '#0c1831', hoverBot: '#050d1c',
+    hoverEdgeHi: '#f4feff', hoverEdgeMain: '#6fd4ef', hoverEdgeDeep: '#23708c', hoverEdgeLo: '#b8eefa',
+    lip: '#0f3a4a', studEdge: '#0a2632',
+  },
+  /** Muted sandstone with a pale sand edge and terracotta highlights. (A light parchment theme was considered and
+   *  dropped: the shared pill and tooltip rules carry fixed dark text shadows and white hover text, so dark ink on a
+   *  light plate could not read cleanly everywhere without changing those rules, and this ask is colours only.) */
+  sandstone: {
+    plateTop: '#4a4034', plateMid: '#302921', plateBot: '#211c16',
+    edgeHi: '#fbeed2', edgeMain: '#c4a578', edgeDeep: '#6e5a3c', edgeLo: '#e3cda4', ring: 'rgba(227, 205, 164, 0.2)',
+    text: '#fbf3e6', muted: '#c9baa4', title: '#f0dcb4', hl: '#f0a878',
+    chipBg: '#17130e', chipEdge: '#6b5a44', chipText: '#f3eadb', divider: 'rgba(227, 205, 164, 0.2)', icon: '#e8d2a6',
+    heart: '#ff4a5c', ghost: '#4fdccb', ...STEEL, clockRim: '#d8bb8c', clockFace: '#28221b', warn: '#ffa8ae', ...WARN,
+    hoverTop: '#5a4e40', hoverMid: '#3b3329', hoverBot: '#29231c',
+    hoverEdgeHi: '#fffaf0', hoverEdgeMain: '#dcc093', hoverEdgeDeep: '#8c7552', hoverEdgeLo: '#f0e0c0',
+    lip: '#4d3f28', studEdge: '#362c1c',
+  },
+  /** Emerald jade with a rich gold edge and vermilion lacquer highlights. The ghost goes sky blue (as in Verdant) so
+   *  it stands off the green plate. */
+  jade: {
+    plateTop: '#174832', plateMid: '#0e3524', plateBot: '#072416',
+    edgeHi: '#fff0b8', edgeMain: '#d6a83c', edgeDeep: '#7a5814', edgeLo: '#f2cf74', ring: 'rgba(242, 207, 116, 0.2)',
+    text: '#f0fbf2', muted: '#a9cdb5', title: '#ffe08a', hl: '#ffa47c',
+    chipBg: '#05180f', chipEdge: '#6d5a2a', chipText: '#ecf7ee', divider: 'rgba(242, 207, 116, 0.2)', icon: '#f5d06a',
+    heart: '#ff4258', ghost: '#74d4ff', ...STEEL, clockRim: '#e3bb5a', clockFace: '#0a2a1b', warn: '#ffadb8', ...WARN,
+    hoverTop: '#205a40', hoverMid: '#14432e', hoverBot: '#0b2e1d',
+    hoverEdgeHi: '#fff8dc', hoverEdgeMain: '#f0c45c', hoverEdgeDeep: '#9c7426', hoverEdgeLo: '#ffe3a0',
+    lip: '#5a4210', studEdge: '#3e2d08',
+  },
+  /** Storm-cloud blue-grey with a gunmetal steel edge and lightning-yellow highlights. */
+  storm: {
+    plateTop: '#2b3646', plateMid: '#1b2330', plateBot: '#11161f',
+    edgeHi: '#e8edf2', edgeMain: '#8a97a8', edgeDeep: '#3c4553', edgeLo: '#b8c3d0', ring: 'rgba(184, 195, 208, 0.2)',
+    text: '#edf1f6', muted: '#a3afbf', title: '#e3ebf5', hl: '#ffd95a',
+    chipBg: '#0c1017', chipEdge: '#4c5767', chipText: '#e9eef4', divider: 'rgba(184, 195, 208, 0.2)', icon: '#c9d4e2',
+    heart: '#ff4d63', ghost: '#4fdccb', ...STEEL, clockRim: '#aab6c4', clockFace: '#161c26', warn: '#ffa3b4', ...WARN,
+    hoverTop: '#374457', hoverMid: '#232d3c', hoverBot: '#161d28',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#b4c0ce', hoverEdgeDeep: '#5d6878', hoverEdgeLo: '#dfe6ee',
+    lip: '#303946', studEdge: '#212831',
+  },
+  /** Black-red with a molten orange edge. */
+  infernal: {
+    plateTop: '#3f0d0f', plateMid: '#280708', plateBot: '#180304',
+    edgeHi: '#fff0b0', edgeMain: '#e8661c', edgeDeep: '#7a1e08', edgeLo: '#ffa648', ring: 'rgba(255, 140, 60, 0.22)',
+    text: '#fff0e4', muted: '#d6a99e', title: '#ffc04a', hl: '#ff8a3a',
+    chipBg: '#120203', chipEdge: '#7a2a14', chipText: '#fbe6da', divider: 'rgba(255, 140, 60, 0.2)', icon: '#ffa040',
+    heart: '#ff2e4a', ghost: '#4fdccb', ...STEEL, clockRim: '#f08a2e', clockFace: '#200506', warn: '#ffa3a3', ...WARN,
+    hoverTop: '#561418', hoverMid: '#370a0c', hoverBot: '#220506',
+    hoverEdgeHi: '#fff6d0', hoverEdgeMain: '#ff9640', hoverEdgeDeep: '#a33410', hoverEdgeLo: '#ffc070',
+    lip: '#6a1e06', studEdge: '#4a1204',
+  },
+  /** Deep indigo with a starlight silver edge and soft violet highlights. */
+  celestial: {
+    plateTop: '#2a2860', plateMid: '#1a1844', plateBot: '#0f0e2e',
+    edgeHi: '#ffffff', edgeMain: '#b9bde6', edgeDeep: '#5a5c8e', edgeLo: '#dcdcfa', ring: 'rgba(210, 210, 255, 0.22)',
+    text: '#f4f3ff', muted: '#b4b2dc', title: '#e6e2ff', hl: '#c7a6ff',
+    chipBg: '#0b0a24', chipEdge: '#4f4e88', chipText: '#efeeff', divider: 'rgba(210, 210, 255, 0.2)', icon: '#dcd8ff',
+    heart: '#ff4775', ghost: '#4fdccb', ...STEEL, clockRim: '#c8cbf0', clockFace: '#151338', warn: '#ffa6c0', ...WARN,
+    hoverTop: '#35337a', hoverMid: '#222055', hoverBot: '#15133a',
+    hoverEdgeHi: '#ffffff', hoverEdgeMain: '#d4d6f6', hoverEdgeDeep: '#7476aa', hoverEdgeLo: '#eeeeff',
+    lip: '#3a3a6a', studEdge: '#26264c',
+  },
+  /** Olive moss with a burnished copper edge. */
+  moss: {
+    plateTop: '#3b3f22', plateMid: '#262915', plateBot: '#181a0c',
+    edgeHi: '#ffd9c0', edgeMain: '#c97a4a', edgeDeep: '#6b3a1c', edgeLo: '#eba57a', ring: 'rgba(235, 165, 122, 0.2)',
+    text: '#f6f6e6', muted: '#bfc2a0', title: '#f8cba8', hl: '#ffa36b',
+    chipBg: '#12140a', chipEdge: '#6a5232', chipText: '#f1f1df', divider: 'rgba(235, 165, 122, 0.2)', icon: '#f0b48a',
+    heart: '#ff4558', ghost: '#4fdccb', ...STEEL, clockRim: '#d98c58', clockFace: '#1f2111', warn: '#ffa8b0', ...WARN,
+    hoverTop: '#4a4f2c', hoverMid: '#31351c', hoverBot: '#1f2210',
+    hoverEdgeHi: '#ffe8d8', hoverEdgeMain: '#e2925c', hoverEdgeDeep: '#8a4c26', hoverEdgeLo: '#f8bf98',
+    lip: '#5a2c12', studEdge: '#3e1e0a',
+  },
+  /** Polar-night teal with a mint edge and aurora-violet highlights. The ghost goes ice blue so it never reads as
+   *  the mint edge. */
+  aurora: {
+    plateTop: '#163f3c', plateMid: '#0c2a28', plateBot: '#061a19',
+    edgeHi: '#eafff6', edgeMain: '#7fd8b8', edgeDeep: '#2a6656', edgeLo: '#b4f0da', ring: 'rgba(150, 240, 210, 0.2)',
+    text: '#effffa', muted: '#9fc6c0', title: '#a8f5d6', hl: '#d2a6ff',
+    chipBg: '#031212', chipEdge: '#3a6e66', chipText: '#e6faf4', divider: 'rgba(150, 240, 210, 0.2)', icon: '#a0f0d0',
+    heart: '#ff4d74', ghost: '#7cc6ff', ...STEEL, clockRim: '#8ee0c2', clockFace: '#0a2326', warn: '#ffa8c0', ...WARN,
+    hoverTop: '#1b4d4a', hoverMid: '#113533', hoverBot: '#0a2222',
+    hoverEdgeHi: '#f6fffb', hoverEdgeMain: '#a2ead0', hoverEdgeDeep: '#3f8a76', hoverEdgeLo: '#cff8e8',
+    lip: '#1c4a3e', studEdge: '#12332a',
+  },
 } as const satisfies Record<string, UiThemeTokens>;
 
 export type UiThemeId = keyof typeof UI_THEMES;
-export const UI_THEME_IDS = Object.keys(UI_THEMES) as UiThemeId[];
+/** The tuner dropdown's order: grouped by colour family (golds, fire, violets, blues, greens, silvers), each group led
+ *  by its original-six theme. Every theme appears exactly once (tooltipStyle.test.ts checks). */
+export const UI_THEME_IDS: UiThemeId[] = [
+  'gem', 'crimson', 'sunforge', 'sandstone',
+  'ember', 'infernal',
+  'amethyst', 'rose', 'celestial',
+  'sapphire', 'abyssal', 'teal',
+  'verdant', 'jade', 'moss', 'aurora',
+  'frost', 'storm',
+];
 export const UI_THEME_LABELS: Record<UiThemeId, string> = {
-  gem: '1. Gem Gold',
-  sapphire: '2. Royal Sapphire',
-  ember: '3. Obsidian Ember',
-  amethyst: '4. Amethyst',
-  verdant: '5. Verdant',
-  frost: '6. Frost Silver',
+  gem: 'Gold · Gem Gold (default)',
+  crimson: 'Gold · Crimson Royale',
+  sunforge: 'Gold · Sunforge',
+  sandstone: 'Gold · Sandstone',
+  ember: 'Fire · Obsidian Ember',
+  infernal: 'Fire · Infernal',
+  amethyst: 'Violet · Amethyst',
+  rose: 'Violet · Rose Quartz',
+  celestial: 'Violet · Celestial',
+  sapphire: 'Blue · Royal Sapphire',
+  abyssal: 'Blue · Abyssal',
+  teal: 'Blue · Midnight Teal',
+  verdant: 'Green · Verdant',
+  jade: 'Green · Jade Dynasty',
+  moss: 'Green · Moss & Copper',
+  aurora: 'Green · Arctic Aurora',
+  frost: 'Silver · Frost Silver',
+  storm: 'Silver · Storm Slate',
 };
 
 /** The theme production plays: uiTheme.css's `:root` block must equal it. Gem Gold until the owner picks. */
@@ -219,7 +380,7 @@ const controls: TunerControl<Extract<keyof UiThemeConfig, string>>[] = [
 export const SPEC: TunerSpec<UiThemeConfig> = {
   id: 'uitheme',                    // FROZEN: indexes this panel's dragged position in localStorage
   title: 'UI Theme',
-  note: 'dev · live · 6 themes',
+  note: `dev · live · ${UI_THEME_IDS.length} themes`,
   read: getUiThemeConfig,
   write: () => { /* no numeric controls */ },
   writeColor: (_key, value) => setUiTheme(value),

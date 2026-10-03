@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { GEM_COLOUR_EXCEPTIONS, NOT_TIP_CLASSES, OWN_SIZE_EXCEPTIONS, PAINT_EXCEPTIONS, TIP_CLASSES } from './tooltipRegistry';
-import { DEFAULT_THEME, UI_THEMES, UI_THEME_IDS, UI_THEME_KEYS, UI_THEME_VARS, type UiThemeTokens } from './uiThemeConfig';
+import { DEFAULT_THEME, UI_THEMES, UI_THEME_IDS, UI_THEME_KEYS, UI_THEME_LABELS, UI_THEME_VARS, type UiThemeTokens } from './uiThemeConfig';
 import { TOOLTIP_DEFAULTS, TOOLTIP_VARS, sanitizeTooltipConfig, type TooltipConfig } from './tooltipConfig';
 
 /**
@@ -244,6 +244,38 @@ describe('one shared UI theme (tooltips + HUD pills)', () => {
       const t: UiThemeTokens = UI_THEMES[id];
       for (const k of UI_THEME_KEYS) expect(t[k], `${id}.${k}`).toMatch(/^(#[0-9a-f]{6}|rgba\(\d+, \d+, \d+, [\d.]+\))$/);
     }
+  });
+
+  it('the tuner lists every theme exactly once, with a label', () => {
+    expect([...UI_THEME_IDS].sort()).toEqual(Object.keys(UI_THEMES).sort());
+    expect(new Set(UI_THEME_IDS).size).toBe(UI_THEME_IDS.length);
+    for (const id of UI_THEME_IDS) expect(UI_THEME_LABELS[id], id).toBeTruthy();
+  });
+
+  it('every theme keeps its ghost marker a different hue from its accents (title, highlight, edge)', () => {
+    // A ghost that shares the accent hue reads as one more keyword (why Verdant's ghost is sky blue, not teal). 25 deg
+    // is a floor, not a target: the 2026-10-02 Frost (teal ghost, ice-blue keywords) sits at 28.
+    const hsl = (c: string): { h: number; s: number } => {
+      const [r, g, b] = hexRgb(c).map((v) => v / 255) as [number, number, number];
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+      if (d === 0) return { h: 0, s: 0 };
+      const l = (max + min) / 2;
+      const s = d / (1 - Math.abs(2 * l - 1));
+      const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      return { h: (h * 60 + 360) % 360, s };
+    };
+    const close: string[] = [];
+    for (const id of UI_THEME_IDS) {
+      const t: UiThemeTokens = UI_THEMES[id];
+      const ghost = hsl(t.ghost);
+      for (const k of ['title', 'hl', 'edgeMain'] as const) {
+        const a = hsl(t[k]);
+        if (a.s < 0.35) continue; // a near-grey accent (Storm's steel title) has no hue to clash with
+        const gap = Math.min(Math.abs(a.h - ghost.h), 360 - Math.abs(a.h - ghost.h));
+        if (gap < 25) close.push(`${id}: ghost ${t.ghost} vs ${k} ${t[k]} (${gap.toFixed(0)} deg)`);
+      }
+    }
+    expect(close).toEqual([]);
   });
 
   it('every theme keeps its text readable (WCAG contrast on the plate)', () => {

@@ -27,7 +27,7 @@ function ThemePreview(): JSX.Element {
 }
 
 /**
- * DEV tuner for the UI THEME (owner ask 2026-10-02): six colour themes for the tooltips and every Gem plate HUD
+ * DEV tuner for the UI THEME (owner asks 2026-10-02 + 2026-10-03): eighteen colour themes for the tooltips and every Gem plate HUD
  * pill at once. One switch rewrites the shared `--ui-*` tokens on `:root` (uiThemeConfig.ts); no element
  * re-renders. Copy values gives the bake-ready `:root` block for uiTheme.css.
  */

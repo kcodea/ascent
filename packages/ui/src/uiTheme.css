@@ -7,7 +7,7 @@
    nowhere else. `tooltipStyle.test.ts` fails a tooltip or Gem pill rule that hard-codes a colour.
 
    This `:root` block is the BAKED theme production plays. It MUST equal `UI_THEMES[DEFAULT_THEME]` in
-   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the six themes live by writing
+   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the themes (18 since 2026-10-03) live by writing
    these same properties inline on `:root`; its "Copy values" gives the block to paste here when the owner picks.
 
    Colour only: nothing here is a size, so a theme never moves or resizes anything. Static paint: nothing animates. */

@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The MMR chart in Career now always ends on your current rating.',
+        details: [
+          'The chart headline now matches the number on your Seasonal Ranked crest.',
+          'If your rating changed since your last recorded game, the line ends with a point at your current rating.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
         details: [
           'Rune of Shopkeep now bursts on the Tier button at End of Turn, and the price drops right then.',

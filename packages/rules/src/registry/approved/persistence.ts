@@ -210,7 +210,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
     statement:
       'The Career page\'s Performance Trends carry an MMR line: one point per rated run in the window, plotted '
       + 'as the rating the run settled to (the same scalar the Seasonal Ranked crest prints), oldest first and '
-      + 'exactly as recorded, never a running mean; its headline is the latest rated run\'s MMR in the window. A '
+      + 'exactly as recorded, never a running mean; the line ends on, and headlines, the live rating (R-CAREER-02). A '
       + 'run with no settled rating (practice, unrated, a row the settle stamp never reached) contributes no '
       + 'point and is never drawn as 0, while a real 0 is a point. The window tabs are 7, 30 and 90 days and All '
       + 'time; All time applies no lower bound at all and is bounded only by the rows the page fetches. The three '
@@ -238,6 +238,34 @@ export const PERSISTENCE_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/ui/src/careerData.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerFetch.test.ts'],
       lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-CAREER-02',
+    title: 'The Career MMR chart always ends on the live rating the Seasonal Ranked crest prints',
+    statement:
+      'The MMR chart\'s headline is always the player\'s current rating, the same number the Seasonal Ranked crest '
+      + 'beside it prints. When the newest rated run in the window settled to a different number (a settlement that '
+      + 'wrote no career row moved the rating since), the line closes with one extra "now" point at the current '
+      + 'rating. Historical points are never rewritten, and the "now" point is not counted as a run. With no rated '
+      + 'run in the window the chart stays empty while the headline still shows the current rating.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner decision 2026-10-03 (the chart read 250 while the crest read 210)', quote: 'Should the MMR chart end on your live rating? yes' },
+      { kind: 'code', ref: 'packages/ui/src/careerData.ts (trendSeries liveRating, endOnLive); packages/ui/src/Career.tsx (liveMmr = the crest\'s rank scalar or bare rating; TrendChart counts runs without the now point)' },
+    ],
+    currentBehaviour:
+      'Conforms since 2026-10-03. Before it the headline and last point were the newest stamped ratingAfter, which '
+      + 'lagged the crest whenever a settlement (for example the abandon settle, switched off in #1920) wrote no '
+      + 'stamped history row. While a viewed player\'s rank is still loading, the chart shows the stamped series.',
+    example:
+      'Runs in the window settled to 230 and then 250, and a later settlement with no career row dropped the rating '
+      + 'to 210. The chart draws 230, 250, 210 and its headline reads 210, matching the crest. The footer says 2 runs.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/careerData.test.ts', 'packages/ui/src/Career.test.tsx'],
+      lastVerifiedAt: '2026-10-03',
     },
   },
   {

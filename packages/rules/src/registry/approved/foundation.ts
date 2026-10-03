@@ -1593,7 +1593,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'While the curtain is up (from the gem\x27s charge-up until the reveal sweep ends), nothing in the game '
       + 'paints over it: no damage tally, flying number, damage float, card reference, cast preview or tooltip. '
       + 'Anything still animating when the wipe starts is swallowed by the bloom, and a float that belongs to '
-      + 'the new screen (the lobby damage you dealt) waits until that screen is revealed. The board behind the '
+      + 'the new screen (the lobby round-damage floats) waits until that screen is revealed. The board behind the '
       + 'curtain only swaps during the fully covered hold. Deliberate full-screen menus (Esc, hero select, dev '
       + 'tools) may still open above it.',
     domain: 'foundation',
@@ -2516,7 +2516,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'stale and ignored. Every image in a Hero, Minion or Spell Skins rarity folder is wired as a catalog skin (owner '
       + '2026-10-01: make sure all get added); skinRarityFolders.test.ts fails while one sits there unwired. The '
       + 'wire-art skins job reads the ten rarity sub-folders (Ancient joined 2026-10-02: Tee Time Sylus and Edward Colada '
-      + 'Hands moved there from Legendary by the owner, R-PROG-RARITY-01). On 2026-10-01 forty wired skins moved to their folder\x27s '
+      + 'Hands moved there from Legendary by the owner, R-PROG-RARITY-01; on 2026-10-03 the owner moved DarahSkinEpic.png '
+      + 'and HunchSkinRare.png there too, so Leg Day Darah and Dance Night Hunch went Legendary to Ancient). On 2026-10-01 forty wired skins moved to their folder\x27s '
       + 'rarity; a first crate then holds 24 Common, 27 Rare, 23 Epic and 29 Legendary items (each Common 2.083%, Rare '
       + '1.111%, Epic 0.652%, Legendary 0.172%). A player who owns a skin keeps it; only its shown rarity and future crate '
       + 'odds change, through the catalog sync (R-PROG-SKINS-05 updates rarity on existing rows).',
@@ -2526,10 +2527,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: "i also put all these skins into rarity folders which is how i'll do it from now on" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: 'correct their rarities as such' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS skin rarities); packages/tools/src/wire-art.ts (SKIN_RARITY_DIRS)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01; the Ancient folder since 2026-10-02. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-SKINS-12',
@@ -2571,6 +2573,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-01' },
+  },
+  {
+    id: 'R-PROG-SKINS-14',
+    title: 'Skins batch 8: eleven hero skins join the crates, rarity from the art folder; Leg Day Darah and Dance Night Hunch move to Ancient',
+    statement:
+      'Eleven hero skins are crate items, each targeting its hero by stable id and shipping its own art (a 512px WebP in '
+      + 'packages/ui/src/art/skins/), with the rarity of the Hero Skins folder its master sits in (R-PROG-SKINS-11): Young '
+      + 'Tradesman (Rare, hermithank, the Tradesman); Author Quillen (Legendary, quillen); Goth Rayse (Legendary, rayse); Lord '
+      + 'of Death (Legendary, risen); Midas and Melon (Legendary, midas; the master is "Midas and Melon.png"); Auctioneer '
+      + 'Sweeney (Ancient, myra, the Auctioneer); Goth Nadja (Ancient, nadja); Lord Callen (Ancient, risen); Merrin Sweeney '
+      + '(Ancient, merrin); Nadja Sweeney (Ancient, nadja); Rayse Sweeney (Ancient, rayse). LordOfDeath and LordCallen were '
+      + 'matched to Lord of the Risen by the art, not the name: both wear his crown, his purple-and-gold armour and his '
+      + 'blue-flame greatsword. Names come from the master filenames. Leg Day Darah (skin_darah_1) and Dance Night Hunch '
+      + '(skin_hunch_1) moved Legendary to Ancient because the owner moved their masters into Hero Skins/Ancient/; owners keep '
+      + 'them. With these and portrait frames batch 7 in, a first crate holds 38 Common, 40 Rare, 44 Epic, 37 Legendary and '
+      + '21 Ancient items (each Common 0.921%, Rare 0.775%, Epic 0.5%, Legendary 0.243%, Ancient 0.143%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 8); packages/ui/src/art/skins/*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-03. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-COLLECTION-03',
@@ -4186,14 +4212,15 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 45 frames (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 52 frames (10 Common, 8 Rare, 18 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 45 crate items, one per master in '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 52 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
       + 'Wood, Dark Scale, Burnished, Sterling, Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, '
       + 'Shard, Prism; Epic Aura, Amethyst, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, '
-      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained '
-      + 'Glass, Wind; Ancient (2026-10-02) Bonds, Death, Fortune, Genesis, Time, War (a frame\x27s display name '
+      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom, Cream, Crystal, Disco, Econ, Snare; Legendary Gilt Scale, Dark Cloud, '
+      + 'Venom, Fire, Reaper, Water, Stained Glass, Wind, Chromatic Scale; Ancient (2026-10-02) Bonds, Death, Fortune, '
+      + 'Genesis, Time, War, Reflective (a frame\x27s display name '
       + 'is the bare name, never "<name> Frame" or "<name> Portrait" (owner 2026-10-01); ids keep the master '
       + 'names, e.g. frame_gold, frame_rank1, frame_wind). Every one is in the crate pool at the fixed rarity odds, equal '
       + 'chance within a rarity. A frame is ACCOUNT-WIDE: equip_cosmetic(user, \x27portrait_frame\x27, \x27\x27, id) wears an '
@@ -4207,10 +4234,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 5, Kevin)', quote: 'added more skins' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 6, Kevin)', quote: 'i added more frames, please put them in the game' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (frames batch 7)', quote: "ive also added many skins to the game's collections. can you add those all in" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/portraitFrames.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/portraitFrames.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-FRAME-02',
@@ -4278,9 +4306,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'went back from Rare/ to Epic/. A rarity change only moves crate odds; a player who owns the frame keeps it '
       + '(player_cosmetics is keyed by id, and the sync never deletes a catalog row). 39 in all (10 Common, 8 Rare, 13 '
       + 'Epic, 8 Legendary). The Ancient folder (2026-10-02, R-PROG-RARITY-01) added Bonds, Death, Fortune, Genesis, Time '
-      + 'and War at Ancient: 45 in all (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient). Bonds (a small hole, 0.594), '
-      + 'Genesis (an off-centre hole, x 0.609) and Death (small and high, 0.533 at y 0.438) are allowed by name in the '
-      + 'frame geometry test; Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired (md5 duplicates).',
+      + 'and War at Ancient: 45 in all (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient). Batch 7 (2026-10-03) added '
+      + 'Cream, Crystal, Disco, Econ and Snare (Epic), Chromatic Scale (Legendary; ChromaticDragonscale.png, named by look '
+      + 'like Dark Scale and Gilt Scale for the 20-character cap) and Reflective (Ancient): 52 in all (10 Common, 8 Rare, '
+      + '18 Epic, 9 Legendary, 7 Ancient). The same pass re-wired the owner\x27s re-exports of Bonds, Death, Fortune, Genesis, '
+      + 'War and Gilt Scale: Bonds (0.715) and Death (0.625 at y 0.457) are ordinary rings now, and Genesis\x27s crescent '
+      + 'curls along the bottom, so its hole is centred left-right but sits high (y 0.390), allowed by name in the frame '
+      + 'geometry test (with Wedding and Simple Ring). Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired: on '
+      + '2026-10-03 they were still byte-identical (md5) to CracklingRuby.png and BlueEnergy.png.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4291,7 +4324,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/portraitFrame/portraitFrameCosmetic.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-RARITY-01',
@@ -4309,7 +4342,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'prismatic crack splits the view at the burst and the colour floods back. The drain and the crack are one-shot; '
       + 'every loop stays transform or opacity. Ancient items today: the six Ancient frames (Bonds, Death, Fortune, Genesis, '
       + 'Time, War) and four moved up from Legendary by the owner: Tee Time Sylus and Edward Colada Hands (minion skins, '
-      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks); and Soul Stitch (attack_soul_stitch, R-PROG-ATTACK-34), the first hero attack BUILT at Ancient (2026-10-02), making eleven at 3 / 11 = 0.273% each. Ownership is per id '
+      + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks); and Soul Stitch (attack_soul_stitch, R-PROG-ATTACK-34), the first hero attack BUILT at Ancient (2026-10-02), making eleven at 3 / 11 = 0.273% each; Timebreak (attack_bullet_time, 2026-10-02) made twelve; on 2026-10-03 skins batch 8 and frames batch 7 (R-PROG-SKINS-14, R-PROG-FRAME-04) added six Ancient hero skins (Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja Sweeney, Rayse Sweeney) and the Reflective frame, and moved Leg Day Darah and Dance Night Hunch up from Legendary, making twenty-one at 3 / 21 = 0.143% each (each Legendary is 9 / 37 = 0.243%). Ownership is per id '
       + '(player_cosmetics has no rarity), so a player who owns a moved item keeps it; only its shown rarity and future '
       + 'crate odds change.',
     domain: 'foundation',
@@ -4320,7 +4353,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETIC_RARITIES, CRATE_RARITY_ODDS, RARITY_LABELS, CRATE_ROLL_VERSION 4); supabase/migrations/2026-10-02-ancient-rarity.sql; packages/ui/src/progression/crateFx/crateFxConfig.ts (RARITY_SIGNATURE, the ancient dials); packages/ui/src/progression/crateFx/crateScene.ts (the freeze); packages/ui/src/progression/crateFx/crateTheatre.css (.sig-timestop); packages/ui/src/styles.css (.r-ancient); packages/ui/src/progression/collectionModel.ts (RARITY_RANK)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory.',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-02' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-REPLAY-01',
@@ -4349,5 +4382,29 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'End of Turn, rune and quest payouts, casts, lassos, eats) was missing from replays. Replays recorded before '
       + 'the fix stay without End-of-Turn beats: playback may not re-resolve them.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/replayEot.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  // ── The lobby rail announces round damage once, then keeps nothing on the row (owner ask 2026-10-03) ─────
+  {
+    id: 'R-PRESENT-30',
+    title: 'The lobby rail shows each seat\x27s round damage once as a float as the shop returns, and never as a number left on the row',
+    statement:
+      'No lobby rail row prints a lasting round-damage number, in either rail look. When the rail is revealed after a '
+      + 'fight (once the combat and shop curtain is down), every seat still standing that lost Health that round shows '
+      + 'its loss once as a "-N" that pops on its row, rises a little and fades (about 1.5s, opacity and transform '
+      + 'only, never looping). A seat that took nothing, won, or was knocked out shows no float. It fires once per '
+      + 'seat per round: never again on a re-render, a remount, a reload or a scroll. The lasting record is the hover '
+      + 'card, whose fight list gives the round, the foe, the outcome and the damage of each of the last three fights.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask on the Gem lobby rail, 2026-10-03', quote: 'remove the -x number here. when the player gets back to lobby, they can have the damage dealt to players show and float/fade, but dont leave it on the rail' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (seenRound effect); packages/ui/src/lobbyDamageFx.ts roundDamageFloats / floatLobbyDamageOnSeat' },
+      { kind: 'fix-pr', ref: 'fix/rail-damage-float' },
+    ],
+    example: 'You lose 5 and the seat two rows down loses 7: as the shop returns, "-5" floats off your row and "-7" off theirs, then both are gone. Hovering that seat shows round 1, LOST, -7.',
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it, every row kept last round\x27s loss as a static "-N" for the whole shop '
+      + 'phase, and only the damage you dealt floated (over your foe).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRoundDamage.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
 ];

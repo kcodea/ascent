@@ -154,10 +154,10 @@ describe('the catalog <-> the bundle', () => {
     ['skin_frank_2', 'epic', 'frank', 'Frantic Frank', 'BlackFridayFrank.jpg'],
     ['skin_frank_3', 'common', 'frank', 'Frantic Frank', 'CoasterFrank.png'],
     ['skin_bram_1', 'rare', 'bram', 'Braum', 'BraumSkinRare.png'],
-    ['skin_darah_1', 'legendary', 'darah', 'Darah', 'DarahSkinEpic.png'],
+    ['skin_darah_1', 'ancient', 'darah', 'Darah', 'DarahSkinEpic.png'], // Ancient since batch 8 (master moved to Ancient/)
     ['skin_darah_2', 'rare', 'darah', 'Darah', 'DarahSkinRare.png'],
     ['skin_emeraldwarden_1', 'epic', 'emeraldwarden', 'Emerald Warden', 'EmeraldWardenSkinRare.png'],
-    ['skin_hunch_1', 'legendary', 'hunch', 'Hunch', 'HunchSkinRare.png'],
+    ['skin_hunch_1', 'ancient', 'hunch', 'Hunch', 'HunchSkinRare.png'], // Ancient since batch 8
     ['skin_keshi_1', 'common', 'keshi', 'Keshi the Protector', 'KeshiTheCityguard.png'],
     ['skin_keshi_2', 'epic', 'keshi', 'Keshi the Protector', 'PopStarKeshi.png'],
     ['skin_soren_1', 'epic', 'soren', 'Soren', 'KingSorenEpic.png'],
@@ -231,6 +231,31 @@ describe('the catalog <-> the bundle', () => {
     ['skin_robin_2', 'rare', 'robin', 'Robin', 'RobinHood.png'],
   ];
   it.each(BATCH7_HEROES)('batch 7: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', rarity, { type: 'hero', id: heroId }, master, true]);
+    expect(HEROES.find((h) => h.id === heroId)!.name).toBe(heroName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
+  });
+  // Skins batch 8 (owner 2026-10-03: "ive also added many skins to the game's collections. can you add those all in"):
+  // eleven hero skins, rarity = the Hero Skins folder. LordOfDeath and LordCallen are Lord of the Risen (id risen), by
+  // the art (his crown, armour and blue-flame sword). Same checks as batch 7.
+  const BATCH8_HEROES: [id: string, rarity: string, heroId: string, heroName: string, master: string][] = [
+    ['skin_hermithank_1', 'rare', 'hermithank', 'Tradesman', 'YoungTradesman.png'],
+    ['skin_quillen_1', 'legendary', 'quillen', 'Quillen', 'AuthorQuillen.png'],
+    ['skin_rayse_1', 'legendary', 'rayse', 'Rayse', 'GothRayse.png'],
+    ['skin_risen_1', 'legendary', 'risen', 'Lord of the Risen', 'LordOfDeath.png'],
+    ['skin_midas_1', 'legendary', 'midas', 'Midas', 'Midas and Melon.png'],
+    ['skin_myra_1', 'ancient', 'myra', 'Auctioneer', 'AuctioneerSweeney.png'],
+    ['skin_nadja_1', 'ancient', 'nadja', 'Nadja', 'GothNadja.png'],
+    ['skin_risen_2', 'ancient', 'risen', 'Lord of the Risen', 'LordCallen.png'],
+    ['skin_merrin_2', 'ancient', 'merrin', 'Merrin', 'MerrinSweeney.png'],
+    ['skin_nadja_2', 'ancient', 'nadja', 'Nadja', 'NadjaSweeney.png'],
+    ['skin_rayse_2', 'ancient', 'rayse', 'Rayse', 'RayseSweeney.png'],
+  ];
+  it.each(BATCH8_HEROES)('batch 8: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
     const c = cosmeticOf(id)!;
     expect(c).toBeTruthy();
     expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', rarity, { type: 'hero', id: heroId }, master, true]);

@@ -10628,7 +10628,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyscout-row.win .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-win, #4be081); }
 .lobbyscout-row.lose .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-lose, #ff5555); }
 .lobbyscout-row.draw .lobbyscout-foeface { box-shadow: 0 0 0 2px var(--sc-draw, #c9bca3); }
-/* WON / LOST / DRAW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
+/* WON / LOST / DREW sits BETWEEN the portrait and the damage (owner ask 2026-08-31); colour rides the row. */
 .lobbyscout-result { font-family: var(--font-ui); font-weight: 900; letter-spacing: 0.05em; white-space: nowrap; }
 .lobbyscout-row.win .lobbyscout-result { color: var(--sc-win, #4be081); }
 .lobbyscout-row.lose .lobbyscout-result { color: var(--sc-lose, #ff5555); }
@@ -10804,15 +10804,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Tips open to the LEFT (the foe sits at the board's right edge). */
 .gauntletfoe-runerow .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 .gauntletfoe-runerow > :hover { z-index: 10; }
-/* Health / placement sit on row 2 at the right, beside the round-damage number, now the name owns row 1. */
+/* Health / placement sit on row 2 at the right, now the name owns row 1. */
 .lobbyhp, .lobbyplace { grid-column: 3; grid-row: 2; justify-self: start; transform: translateX(calc(var(--lby-hp-x, 7) * var(--lrow))); }
 /* The health number LEFT-aligns at a fixed start toward the right (owner ask 2026-08-28): it reserves a width
    sized to the biggest reading, so the number sits in the SAME spot whether or not the seat has armor — armor
    extends rightward into the reserve instead of shoving the number left the way right-alignment did. The reserve
    scales with the health-text dial so the ratio holds as the text grows. */
 .lobbyhp { min-width: calc(30 * var(--lrow) * var(--lby-hp-size, 1.45)); }
-/* Damage from the round that just resolved — sits under the name, so the row keeps ONE stable shape whether or
-   not a number is present (an inline cell reflowed the health column between seats). */
 /* HEALTH BAR — the element was rendered by the panel but had no rule at all, so it painted nothing. Given a
    row of its own beneath the name so it reads as the seat's whole remaining pool at a glance, next to the exact
    number on the right. */
@@ -10821,13 +10819,6 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbybar > span { display: block; height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, var(--lby-bar-a, #ff5024), var(--lby-bar-b, #fe0101)); }
 .lobbyseat.you .lobbybar > span { background: linear-gradient(90deg, var(--lby-youbar-a, #ff5024), var(--lby-youbar-b, #fe0101)); }
-.lobbydmg { grid-column: 2; grid-row: 2; font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1.35)); font-weight: 800; color: var(--lby-dmg-col, #e18484);
-  line-height: 1; min-height: calc(8 * var(--lfont)); animation: lobbydmgpop 420ms ease-out; }
-@keyframes lobbydmgpop {
-  0% { transform: translateY(calc(-2 * var(--lfont))) scale(1.3); opacity: 0; }
-  40% { transform: translateY(0) scale(1.1); opacity: 1; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
 
 /* ── LOBBY END SCREEN ────────────────────────────────────────────────────────
    A lobby result is one number — where you finished — so it gets the whole headline, with the final warband
@@ -10861,8 +10852,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .endscreen.lobbyend.won .endplace-num {
   background-image: linear-gradient(180deg, #fffdf6, #ffe08a 52%, #e8b43f); }
 
-/* The damage you dealt, floated over the seat that took it. Appended to <body> (not the row) so it outlives
-   the re-sort that happens the moment a round settles. */
+/* The round's damage, floated once over each seat that took it (lobbyDamageFx.ts). Appended to the stage host
+   (not the row) so it outlives the re-sort that happens the moment a round settles. */
 .lobbydmg-float { position: fixed; z-index: 2000; pointer-events: none; will-change: transform, opacity;
   font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: -0.02em; color: #ff5d5d;
   text-shadow: 0 0 10px rgba(255, 60, 60, 0.55), 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.9); }

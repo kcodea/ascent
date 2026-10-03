@@ -7,7 +7,7 @@ import { validateInventoryBody } from './inventory';
 
 /**
  * PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits. we want
- * this to replace the default portrait png when a skin is applied"). The 45 frames (every one a crate drop at its
+ * this to replace the default portrait png when a skin is applied"). The 52 frames (every one a crate drop at its
  * folder's rarity, the rank-named masters included), the account-wide `portrait_frame` slot, the loadout and the run
  * snapshot carrying it, and the one resolver that drops unknown / retired / wrong-category ids.
  */
@@ -16,7 +16,7 @@ const FRAMES = COSMETICS.filter((c) => c.category === 'portrait_frame');
 afterEach(() => setServerCatalogState(null));
 
 describe('the portrait frame catalog', () => {
-  it('45 crate frames at their folder rarity (10 Common, 8 Rare, 13 Epic, 8 Legendary, 6 Ancient), each naming its master and art key', () => {
+  it('52 crate frames at their folder rarity (10 Common, 8 Rare, 18 Epic, 9 Legendary, 7 Ancient), each naming its master and art key', () => {
     expect(Object.fromEntries(FRAMES.map((c) => [c.id, c.rarity]))).toEqual({
       frame_honey: 'common', frame_ale: 'common', frame_ruby: 'common', frame_steel: 'common', frame_wood: 'common',
       frame_dark_dragonscale: 'common',
@@ -27,6 +27,9 @@ describe('the portrait frame catalog', () => {
       frame_aura: 'epic', frame_ascendant: 'epic', frame_ice: 'epic', frame_pearlescent: 'epic', frame_rank1: 'epic', frame_nimbus: 'epic',
       frame_wedding: 'epic', frame_multichrome_energy: 'epic', frame_blue_energy: 'epic', frame_crackling_ruby: 'epic', frame_topaz: 'epic', frame_jade: 'epic',
       frame_cherry_blossom: 'epic',
+      // frames batch 7 (2026-10-03)
+      frame_cream: 'epic', frame_crystal: 'epic', frame_disco: 'epic', frame_econ: 'epic', frame_snare: 'epic',
+      frame_chromatic_dragonscale: 'legendary', frame_reflective: 'ancient',
       frame_golden_dragonscale: 'legendary', frame_dark_cloud: 'legendary', frame_venom: 'legendary',
       frame_fire: 'legendary', frame_reaper: 'legendary', frame_water: 'legendary', frame_stained_glass: 'legendary', frame_wind: 'legendary',
       // the first Ancient frames (owner 2026-10-02: "i added a new rarity -> Ancient")
@@ -49,7 +52,8 @@ describe('the portrait frame catalog', () => {
       'Seaglass', 'Glass Shard', 'Paragon', 'Vine', 'Magic', 'Simple Ring', 'Void', 'Multichrome Energy', 'Blue Energy', 'Crackling Ruby', 'Topaz', 'Jade',
       'Aura', 'Amethyst', 'Shard', 'Prism', 'Frost', 'Pearlescent',
       'Crimson', 'Nimbus', 'Dark Cloud', 'Venom', 'Wedding', 'Fire', 'Reaper', 'Water', 'Stained Glass', 'Wind',
-      'Cherry Blossom', 'Bonds', 'Death', 'Fortune', 'Genesis', 'Time', 'War',
+      'Cherry Blossom', 'Cream', 'Crystal', 'Disco', 'Econ', 'Snare', 'Chromatic Scale',
+      'Bonds', 'Death', 'Fortune', 'Genesis', 'Time', 'War', 'Reflective',
     ]);
     expect(new Set(FRAMES.map((c) => c.name)).size).toBe(FRAMES.length);
   });

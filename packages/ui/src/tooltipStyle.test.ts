@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { GEM_COLOUR_EXCEPTIONS, NOT_TIP_CLASSES, OWN_SIZE_EXCEPTIONS, PAINT_EXCEPTIONS, TIP_CLASSES } from './tooltipRegistry';
-import { DEFAULT_THEME, UI_THEMES, UI_THEME_IDS, UI_THEME_KEYS, UI_THEME_LABELS, UI_THEME_VARS, type UiThemeTokens } from './uiThemeConfig';
+import {
+  DEFAULT_THEME, UI_FINISH_DEFAULT, UI_FINISH_VARS, UI_THEMES, UI_THEME_FINISH, UI_THEME_GROUPS, UI_THEME_IDS, UI_THEME_KEYS, UI_THEME_LABELS,
+  UI_THEME_TIERS, UI_THEME_VARS, sanitizeShortlist, uiThemeDropdownGroups, type UiThemeId, type UiThemeTokens,
+} from './uiThemeConfig';
 import { TOOLTIP_DEFAULTS, TOOLTIP_VARS, sanitizeTooltipConfig, type TooltipConfig } from './tooltipConfig';
 
 /**
@@ -250,6 +253,54 @@ describe('one shared UI theme (tooltips + HUD pills)', () => {
     expect([...UI_THEME_IDS].sort()).toEqual(Object.keys(UI_THEMES).sort());
     expect(new Set(UI_THEME_IDS).size).toBe(UI_THEME_IDS.length);
     for (const id of UI_THEME_IDS) expect(UI_THEME_LABELS[id], id).toBeTruthy();
+  });
+
+  it('theme ids are frozen: every shipped id is still in the registry', () => {
+    // Persisted ids (the DEV pick, the shortlist, any future Collection ownership row). Rename a theme by its LABEL.
+    // Adding a theme appends here; removing or renaming an id fails.
+    const SHIPPED = [
+      'gem', 'sapphire', 'ember', 'amethyst', 'verdant', 'frost', 'crimson', 'teal', 'rose', 'sunforge', 'abyssal',
+      'sandstone', 'jade', 'storm', 'infernal', 'celestial', 'moss', 'aurora', 'bloodmoon', 'furnace', 'honeycomb',
+      'desert', 'emerald', 'toxic', 'ocean', 'cobalt', 'orchid', 'nebula', 'charcoal', 'pewter', 'gilded',
+      'champagne', 'volcanic', 'garnet', 'sakura', 'twilight', 'lapis', 'glacier', 'sage', 'graphite', 'inkpaper',
+      'walnut', 'saddle', 'turquoise', 'basalt', 'canyon', 'rosegold', 'patina', 'titanium', 'brass', 'chrome',
+      'synthwave', 'matrix', 'ultraviolet', 'electric', 'nightdrive', 'lavender', 'sorbet', 'cottoncandy',
+      'pistachio', 'cleanslate', 'midnightbasic', 'softcharcoal', 'paperdark', 'steelbasic', 'forestbasic',
+      'winebasic', 'monogold', 'monosilver', 'navybasic', 'plumbasic', 'mintbasic', 'claybasic', 'trueblack',
+      'sunset', 'borealis', 'oilslick', 'opal', 'obsidianglass', 'marble', 'pearl', 'lacquer', 'stainedglass',
+      'embercoal', 'biolume', 'starfield', 'tempest', 'dragonscale', 'celestialrose', 'peacock',
+    ];
+    for (const id of SHIPPED) expect(UI_THEMES, id).toHaveProperty(id);
+  });
+
+  it('every theme has a tier, and the Basic / Signature groups hold exactly their tier', () => {
+    for (const id of UI_THEME_IDS) expect(['basic', 'standard', 'signature'], id).toContain(UI_THEME_TIERS[id]);
+    const group = (label: string): string[] => [...(UI_THEME_GROUPS.find((g) => g.label === label)?.options ?? [])].sort();
+    const tier = (t: string): string[] => UI_THEME_IDS.filter((id) => UI_THEME_TIERS[id] === t).sort();
+    expect(group('Basic')).toEqual(tier('basic'));
+    expect(group('Signature')).toEqual(tier('signature'));
+    expect(UI_THEME_GROUPS[0]!.label, 'Basic sits at the top of the dropdown').toBe('Basic');
+  });
+
+  it('the finish dials are optional, unitless and default to the shipped look', () => {
+    const css = readFileSync(join(SRC, 'uiTheme.css'), 'utf8');
+    for (const k of ['sheen', 'bevel'] as const) {
+      expect(css, UI_FINISH_VARS[k]).toMatch(new RegExp(`${UI_FINISH_VARS[k]}:\\s*1;`));
+      expect(UI_FINISH_DEFAULT[k]).toBe(1);
+    }
+    expect(UI_THEME_FINISH[DEFAULT_THEME], 'the default theme plays the stylesheet finish').toBeUndefined();
+    for (const [id, f] of Object.entries(UI_THEME_FINISH)) {
+      for (const v of [f!.sheen, f!.bevel]) expect(v >= 0 && v <= 2, `${id} finish ${v}`).toBe(true);
+    }
+  });
+
+  it('the shortlist keeps known ids once, in dropdown order, and tops the dropdown only when non-empty', () => {
+    expect(sanitizeShortlist(['sunset', 'nope', 'gem', 'sunset', 3])).toEqual(UI_THEME_IDS.filter((id) => id === 'gem' || id === 'sunset'));
+    expect(sanitizeShortlist('junk')).toEqual([]);
+    expect(uiThemeDropdownGroups([])).toBe(UI_THEME_GROUPS);
+    const g = uiThemeDropdownGroups(['marble' as UiThemeId]);
+    expect(g[0]!.options).toEqual(['marble']);
+    expect(g.slice(1)).toEqual(UI_THEME_GROUPS);
   });
 
   it('every theme keeps its ghost marker a different hue from its accents (title, highlight, edge)', () => {

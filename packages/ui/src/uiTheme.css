@@ -7,7 +7,7 @@
    nowhere else. `tooltipStyle.test.ts` fails a tooltip or Gem pill rule that hard-codes a colour.
 
    This `:root` block is the BAKED theme production plays. It MUST equal `UI_THEMES[DEFAULT_THEME]` in
-   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the themes (60 since 2026-10-03) live by writing
+   uiThemeConfig.ts (the test checks the pair). In DEV the 🎨 UI Theme tuner swaps the themes (90 since 2026-10-03) live by writing
    these same properties inline on `:root`; its "Copy values" gives the block to paste here when the owner picks.
 
    Colour only: nothing here is a size, so a theme never moves or resizes anything. Static paint: nothing animates. */
@@ -66,8 +66,13 @@
   /* Polish 2026-10-03, shared by every plate (pills, tooltips, rail): a soft top-centre sheen layered over the plate,
      and a bevel (a lit top line, a shaded bottom lip) added to its inner shadows. Black / white shading only, so
      every theme gets the same depth. Static paint. */
-  --ui-sheen: radial-gradient(110% 70% at 50% 0%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0) 75%);
-  --ui-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -4px 6px -4px rgba(0, 0, 0, 0.7);
+  /* The FINISH dials (2026-10-03, uiThemes.ts UI_THEME_FINISH): unitless multipliers on the sheen and bevel alphas.
+     1 is the shipped look (so every theme without a finish entry renders exactly as before); the Basic themes dial
+     them down for a flat, clean plate, and a few Signature themes dial the sheen up for gloss. */
+  --ui-sheen-strength: 1;
+  --ui-bevel-strength: 1;
+  --ui-sheen: radial-gradient(110% 70% at 50% 0%, rgba(255, 255, 255, calc(0.15 * var(--ui-sheen-strength))), rgba(255, 255, 255, calc(0.03 * var(--ui-sheen-strength))) 55%, rgba(255, 255, 255, 0) 75%);
+  --ui-bevel: inset 0 1px 0 rgba(255, 255, 255, calc(0.18 * var(--ui-bevel-strength))), inset 0 -4px 6px -4px rgba(0, 0, 0, calc(0.7 * var(--ui-bevel-strength)));
 }
 
 /* The 🎨 UI Theme tuner's pinned sample row (UiThemeTuner.tsx): a tooltip, a name pill, a Health pill and a button,
@@ -106,3 +111,17 @@
 .uitswatch > i { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); }
 .uitswatch.on { outline: 2px solid #fff; outline-offset: 1px; }
 .uitswatch-name { margin-top: 2px; font-family: var(--font-ui); font-size: 12px; font-weight: 800; color: rgba(255, 255, 255, 0.85); }
+
+/* The swatch grid's filter (All / Basic / Shortlisted) and the shortlist star (2026-10-03). DEV only markup. */
+.uitswatch-filter { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.uitswatch-filter > button {
+  padding: 2px 10px; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px; background: rgba(0, 0, 0, 0.35);
+  font-family: var(--font-ui); font-size: 11px; font-weight: 800; color: rgba(255, 255, 255, 0.75);
+}
+.uitswatch-filter > button.on { background: rgba(255, 255, 255, 0.9); color: #111; border-color: #fff; }
+.uitswatch { position: relative; }
+.uitswatch > b { position: absolute; top: -7px; right: -6px; font-size: 11px; line-height: 1; color: #ffd84a; text-shadow: 0 0 2px #000, 0 1px 1px #000; pointer-events: none; }
+.uitswatch-current { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.uitstar { padding: 1px 9px; border: 1px solid rgba(255, 216, 74, 0.6); border-radius: 999px; background: rgba(0, 0, 0, 0.35); font-family: var(--font-ui); font-size: 11px; font-weight: 800; color: #ffd84a; }
+.uitstar.on { background: #ffd84a; color: #1a1400; }
+.uitswatch-empty { font-family: var(--font-ui); font-size: 11px; color: rgba(255, 255, 255, 0.6); }

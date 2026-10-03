@@ -1512,7 +1512,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'While the curtain is up (from the gem\x27s charge-up until the reveal sweep ends), nothing in the game '
       + 'paints over it: no damage tally, flying number, damage float, card reference, cast preview or tooltip. '
       + 'Anything still animating when the wipe starts is swallowed by the bloom, and a float that belongs to '
-      + 'the new screen (the lobby damage you dealt) waits until that screen is revealed. The board behind the '
+      + 'the new screen (the lobby round-damage floats) waits until that screen is revealed. The board behind the '
       + 'curtain only swaps during the fully covered hold. Deliberate full-screen menus (Esc, hero select, dev '
       + 'tools) may still open above it.',
     domain: 'foundation',
@@ -4229,5 +4229,29 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'End of Turn, rune and quest payouts, casts, lassos, eats) was missing from replays. Replays recorded before '
       + 'the fix stay without End-of-Turn beats: playback may not re-resolve them.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/replayEot.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  // ── The lobby rail announces round damage once, then keeps nothing on the row (owner ask 2026-10-03) ─────
+  {
+    id: 'R-PRESENT-30',
+    title: 'The lobby rail shows each seat\x27s round damage once as a float as the shop returns, and never as a number left on the row',
+    statement:
+      'No lobby rail row prints a lasting round-damage number, in either rail look. When the rail is revealed after a '
+      + 'fight (once the combat and shop curtain is down), every seat still standing that lost Health that round shows '
+      + 'its loss once as a "-N" that pops on its row, rises a little and fades (about 1.5s, opacity and transform '
+      + 'only, never looping). A seat that took nothing, won, or was knocked out shows no float. It fires once per '
+      + 'seat per round: never again on a re-render, a remount, a reload or a scroll. The lasting record is the hover '
+      + 'card, whose fight list gives the round, the foe, the outcome and the damage of each of the last three fights.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask on the Gem lobby rail, 2026-10-03', quote: 'remove the -x number here. when the player gets back to lobby, they can have the damage dealt to players show and float/fade, but dont leave it on the rail' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (seenRound effect); packages/ui/src/lobbyDamageFx.ts roundDamageFloats / floatLobbyDamageOnSeat' },
+      { kind: 'fix-pr', ref: 'fix/rail-damage-float' },
+    ],
+    example: 'You lose 5 and the seat two rows down loses 7: as the shop returns, "-5" floats off your row and "-7" off theirs, then both are gone. Hovering that seat shows round 1, LOST, -7.',
+    currentBehaviour:
+      'Conforms as of 2026-10-03. Before it, every row kept last round\x27s loss as a static "-N" for the whole shop '
+      + 'phase, and only the damage you dealt floated (over your foe).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRoundDamage.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
 ];

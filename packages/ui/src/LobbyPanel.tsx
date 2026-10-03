@@ -1,11 +1,11 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, playerOpponent, roundLossCap, seatResults, snapshotBoard,
+  boardIntel, getHero, lastRoundDamage, playerOpponent, roundLossCap, seatResults, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { floatLobbyDamageOnSeat, whenCurtainDown } from './lobbyDamageFx';
+import { floatLobbyDamageOnSeat, roundDamageFloats, whenCurtainDown } from './lobbyDamageFx';
 import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeat } from './lobbyKnockoutFx';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
@@ -54,7 +54,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
   const selfFrame = usePortraitFrame('self', frameIdOf(runSkins)); // your seat: the frame recorded on this run
   const oppFrame = usePortraitFrame('opp');
-  const firedRound = useRef(0);
+  const seenRound = useRef<number | null>(null); // the round whose damage floats already played (null = first sight)
   const pendingFloatRef = useRef<(() => void) | null>(null);
   // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
   // — see `ScoutCard`. One measurement per hover, not per frame, so this does not violate the layout-read rule.
@@ -94,25 +94,31 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     return () => document.removeEventListener('mousedown', onDown);
   }, [pinned]);
 
-  // WHAT YOU JUST DID TO THEM. The rail prints every seat's loss as a static number, but a win is the moment
-  // the mode is about and shouldn't read the same as a draw until you scan the table — so the damage you dealt
-  // floats over the seat that took it, once, on the round it happened.
+  // THE ROUND'S DAMAGE, ANNOUNCED ONCE (owner ask 2026-10-03: "remove the -x number here. when the player gets back to
+  // lobby, they can have the damage dealt to players show and float/fade, but dont leave it on the rail"). The rail
+  // used to print every seat's last-round loss as a static number that sat there all shop phase; now each seat that
+  // took damage gets a one-shot "-N" that pops on its row, rises a little and fades (`floatLobbyDamageOnSeat`), and
+  // the hover card carries the lasting record (its last-fights list). This absorbed the older "damage you dealt"
+  // float: your foe's loss is one of the seats announced.
   //
-  // Keyed on the round rather than on a render: the panel re-renders constantly during a shop phase, and the
-  // rows re-sort by health the instant a round settles, so anything tied to the element's lifetime would fire
-  // repeatedly or not at all. `rAF` waits for the re-sorted rows to be laid out before measuring one.
+  // Keyed on the ROUND, not on a render: the panel re-renders constantly during a shop phase and the rows re-sort by
+  // health the instant a round settles, so anything tied to an element's lifetime would fire repeatedly or not at all.
+  // The FIRST sight of a table (mount, reload, a new run) only records its round, like the knockout below, so a
+  // reload never replays a fight that already happened. Held until the combat -> shop curtain is down (the round
+  // settles under full blue; see whenCurtainDown), then a rAF lets the re-sorted rows lay out before one is measured.
+  // Not cancelled by a re-render (the lobby object changes under the hold; the round guard would then never re-arm
+  // it): only a newer round's floats or unmounting drop a pending one.
   useEffect(() => {
-    if (!lobby || lobby.round === firedRound.current) return;
-    firedRound.current = lobby.round;
-    const last = lastPlayerEncounter(lobby);
-    if (!last || last.dealt <= 0) return; // a draw or a loss has nothing to announce
-    // Held until the combat -> shop curtain is down: the round settles under full blue, and a float fired then
-    // would pop over the curtain instead of over the rail (see whenCurtainDown). A rAF after it lifts still
-    // lets the re-sorted rows lay out before one is measured.
-    // Not cancelled by a re-render (the lobby object changes under the hold; the round guard above would then
-    // never re-arm it): only a newer round's float or unmounting drops a pending one.
+    if (!lobby) return;
+    const prev = seenRound.current;
+    seenRound.current = lobby.round;
+    if (prev === null || prev === lobby.round) return;
+    const floats = roundDamageFloats(lobby.seats, lastRoundDamage(lobby));
+    if (floats.length === 0) return;
     pendingFloatRef.current?.();
-    pendingFloatRef.current = whenCurtainDown(() => { requestAnimationFrame(() => floatLobbyDamageOnSeat(last.foe.id, last.dealt)); });
+    pendingFloatRef.current = whenCurtainDown(() => {
+      requestAnimationFrame(() => { for (const f of floats) floatLobbyDamageOnSeat(f.id, f.amount); });
+    });
   }, [lobby?.round, lobby]);
   useEffect(() => () => pendingFloatRef.current?.(), []);
 
@@ -146,7 +152,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The foe's board is already prepared by `playerOpponent`, so reading it here is free — and it means the
   // imminent opponent has CURRENT intel even on round 1, before any settle has recorded any.
   const foeIntel: SeatIntel | undefined = next ? boardIntel(next.board, lobby.round) : undefined;
-  const dmg = lastRoundDamage(lobby);
   const living = lobby.seats.filter((s) => s.alive);
   const maxHp = lobby.rules.startingResolve + lobby.rules.startingArmor;
   // YOUR OWN row reads the RUN's health, not the seat's. The seat is only re-synced when the table settles (at
@@ -208,7 +213,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           const isGhost = isFoe && !!next?.ghost;
           const live = hpOf(seat);
           const hp = live.resolve + live.armor;
-          const d = dmg[seat.id];
           const intel = isFoe ? foeIntel : seat.intel;
           return (
             <div
@@ -242,12 +246,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
               <span className="lobbynameline">
                 <span className="lobbyname">{seat.label}</span>
-              </span>
-              {/* What last round cost this seat. The cell always renders — an omitted one would reflow the row
-                  and leave the health column jittering between seats — but it stays blank at 0, because a
-                  column of zeroes is noise and "no number" already reads as unscathed. */}
-              <span className="lobbydmg" key={`d${lobby.round}`}>
-                {seat.alive && d && d.taken > 0 ? `−${d.taken}` : ''}
               </span>
               {seat.alive ? (
                 <span className="lobbyhp">
@@ -307,7 +305,7 @@ function readScoutVariant(): number {
   try { const v = Number(localStorage.getItem(SCOUT_VARIANT_KEY)); return v >= 1 && v <= SCOUT_VARIANTS ? v : 1; }
   catch { return 1; }
 }
-const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DRAW' };
+const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DREW' };
 
 /**
  * The hover read on one opponent: what they are playing, and how their last three fights went.

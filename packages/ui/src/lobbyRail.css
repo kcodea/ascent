@@ -128,10 +128,6 @@
 :root:not([data-lobby-rail="classic"]) .lobbyhp { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.32); line-height: 1.1; }
 :root:not([data-lobby-rail="classic"]) .lobbyhp > svg { width: 0.9em; height: 0.9em; }
 :root:not([data-lobby-rail="classic"]) .lobbyplace { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.1); }
-:root:not([data-lobby-rail="classic"]) .lobbydmg {
-  grid-column: 3; grid-row: 2; justify-self: end; min-height: 0;
-  font-size: calc(9 * var(--lfont) * var(--lby-dmg-size, 1.35) * 1.3);
-}
 
 /* ── Seats: the paint ──────────────────────────────────────────────────────────────────────────────────────── */
 /* A resting seat: a darker inset panel on the plate with a faint hairline and top light. */
@@ -185,7 +181,6 @@
   color: var(--ui-armor-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 :root:not([data-lobby-rail="classic"]) .lobbyarmor svg { width: 0.95em; height: 0.95em; color: var(--ui-armor-icon); }
-:root:not([data-lobby-rail="classic"]) .lobbydmg { color: var(--ui-warn); }
 
 /* ── Health bar: a clean bar across the row under the stats, at 80% of Classic's thickness. ───────────────────── */
 :root:not([data-lobby-rail="classic"]) .lobbybar {
@@ -199,15 +194,15 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--ui-heart) 62%, #fff) 0%, var(--ui-heart) 55%, color-mix(in srgb, var(--ui-heart) 80%, #000) 100%);
 }
 
-/* ── KNOCKOUT (both looks; owner ask 2026-10-02) ───────────────────────────────────────────────────────────────
-   The row of a seat that just fell, while the `lobby-knockout` Pixi smoke plays over it (lobbyKnockoutFx.ts): it
-   swells a touch at full strength, then fades to its dead look. No `100%` frame, so it lands on the row's own
-   computed dead opacity in either look. One-shot, transform + opacity only. */
-.lobbyseat.dead.ko { animation: lobbyko 850ms cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+/* ── KNOCKOUT (both looks; owner ask 2026-10-02, calmed 2026-10-03) ──────────────────────────────────────────────
+   The row of a seat that just fell, while the `lobby-knockout` Pixi veil drifts up over it (lobbyKnockoutFx.ts): it
+   holds full strength for a beat, then eases down to its dead look. No swell and no bounce (owner 2026-10-03: the
+   first cut was "ugly and jarring"). No `100%` frame, so it lands on the row's own computed dead opacity in either
+   look. One-shot, opacity only. The length is LOBBY_KO_MS. */
+.lobbyseat.dead.ko { animation: lobbyko 1400ms cubic-bezier(0.45, 0, 0.55, 1) both; }
 @keyframes lobbyko {
-  0% { opacity: 1; transform: scale(1); }
-  22% { opacity: 1; transform: scale(1.035); }
-  60% { transform: scale(0.985); }
+  0% { opacity: 1; }
+  18% { opacity: 1; }
 }
 
 /* ── GHOST OPPONENT (owner ask 2026-10-02: "if the player is facing a ghost, make the target highlight greenish

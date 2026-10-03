@@ -23,6 +23,8 @@ import { questObjectiveText, questProgressText, questRewardText, questRewardLive
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { getEquipFxConfig } from './equipFxConfig';
 import { getEquipSlotConfig } from './equipSlotConfig';
+import { useEquipLook } from './equipLookConfig';
+import { EquipNamePlate } from './EquipNamePlate';
 import { DiscountWindowReadout } from './DiscountWindowReadout';
 import { sfx } from './sfx';
 import { canPlayDefs, playDef } from './fx/playDef';
@@ -232,6 +234,8 @@ export function StatusBar() {
     ? equipmentText(selectedEquipDef, selectedEquip.version, { amplified: equipAmplified > 0 })
     : '';
   const equipArt = equipmentArtFor(selectedEquipDef?.id);
+  // The HOUSING look (owner ask 2026-10-03): Classic draws the bronze bitmap frame; the CSS looks need no image.
+  const equipLook = useEquipLook();
 
   /**
    * THE LEAVING FADE (owner ask 2026-08-28: "can you add a brief fade in/fade out for the equipment so it
@@ -1136,8 +1140,10 @@ export function StatusBar() {
              `aria-hidden` because a screen reader should not be told about something already gone. */
           <div className="heropanel equipslot leaving" aria-hidden="true">
             <div className="hpwrap">
-              <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
-                   alt="" aria-hidden="true" draggable={false} />
+              {equipLook === 'classic' && (
+                <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                     alt="" aria-hidden="true" draggable={false} />
+              )}
               <button type="button" className="heropowerbtn" disabled tabIndex={-1}>
                 <span className="hpb-glow" aria-hidden="true" />
                 {equipSnap.art
@@ -1146,19 +1152,23 @@ export function StatusBar() {
               </button>
               <span className={`hpcost${equipSnap.discounted ? ' discounted' : ''}`}><span className="costn">{equipSnap.cost}</span></span>
             </div>
-            <div className="hplabel">{equipSnap.name}</div>
+            <EquipNamePlate name={equipSnap.name} look={equipLook} />
           </div>
         )}
         {hasEquip && selectedEquip && selectedEquipDef && (
-          <div className={`heropanel equipslot entering${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}>
+          <div className={`heropanel equipslot entering${equipArmed ? ' armed' : equipReady ? ' ready' : ''}${equipUses === 0 ? ' spent' : ''}`}>
             <div className="hpwrap">
               {/* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). A sibling
                   of the button rather than a background ON it: the button is a square box whose art is
                   clipped to a circle, and a frame painted as its background would be clipped with it. As a
                   sibling it can also be sent BEHIND the icon or left in front of it, which is a dial.
-                  `aria-hidden` + no pointer events — it is chrome, and must never eat the click that arms. */}
-              <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
-                   alt="" aria-hidden="true" draggable={false} />
+                  `aria-hidden` + no pointer events — it is chrome, and must never eat the click that arms.
+                  CLASSIC ONLY since the housing rebuild (owner ask 2026-10-03): the CSS looks draw their socket from
+                  the theme tokens in equipSlot.css (`.hpwrap::before` / `::after`), so they skip the bitmap. */}
+              {equipLook === 'classic' && (
+                <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                     alt="" aria-hidden="true" draggable={false} />
+              )}
               <button
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
@@ -1205,7 +1215,7 @@ export function StatusBar() {
                 data-fx={equipAmplified > 0 ? 'equipment-amplified' : undefined}
               >{equipUses}</span>
             </div>
-            <div className="hplabel">{selectedEquipDef.name}</div>
+            <EquipNamePlate name={selectedEquipDef.name} look={equipLook} />
             {/* A clock-window discount in flight (Thymepiece): "−1 Gold · 6s", counting on the turn clock. Its own
                 leaf so the per-second subscription never reaches this component (see DiscountWindowReadout). */}
             {run.cardDiscountWindow && <DiscountWindowReadout window={run.cardDiscountWindow} mode={run.mode} />}

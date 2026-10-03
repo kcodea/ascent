@@ -25,7 +25,7 @@ import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
-import { instantiate, type CardIndex } from './minion';
+import { addedSecondTribe, instantiate, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 
@@ -896,6 +896,7 @@ export function simulate(
     cardId: m.cardId,
     name: m.name,
     tribe: m.tribe,
+    ...(addedSecondTribe(m, cards) ? { tribe2: m.tribe2 } : {}), // a folded added tribe (Rune of Drakko)
     attack: m.attack,
     health: m.health,
     keywords: [...m.keywords],
@@ -1846,8 +1847,10 @@ export function simulate(
   function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
+    // Rune of Drakko: a card the side's run re-typed (`cardTribes`) arrives with those types, like its board copies.
+    const runTribes = (side === 'player' ? playerState : enemyState).cardTribes?.[card.id];
     const minion = instantiate(
-      { cardId: card.id, attack: card.attack * (golden ? 2 : 1), health: card.health * (golden ? 2 : 1), golden },
+      { cardId: card.id, attack: card.attack * (golden ? 2 : 1), health: card.health * (golden ? 2 : 1), golden, ...(runTribes?.length ? { addedTribes: [...runTribes] } : {}) },
       side, cards, mkUid,
     );
     // Mirrorhide Rhino — an EXACT copy: override to the SOURCE's current combat body (stats + shield/reborn),

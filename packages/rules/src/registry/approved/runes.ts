@@ -1867,4 +1867,28 @@ export const RUNES_RULES: GameRule[] = [
       + 'forge could still leave a player unable to buy, which is not separately guarded.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeforgeNoSkip.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-RUNE-35',
+    title: 'Rune of Drakko: get a Drakko, and every Drakko is a Dragon AND a Spirit for the rest of the game',
+    statement:
+      "Rune of Drakko (Epic, 4 Gold, Set 2 and Set 3) grants a regular Drakko and makes EVERY Drakko of the run a "
+      + "Dragon and a Spirit, on top of its own type: Shop offers, hand, board, Gilded copies, Discover options and "
+      + "combat bodies, including Drakkos already held and ones gained later. It is the same card, so it triples with "
+      + "regular Drakkos and the Gilded copy keeps the types. It counts for every tribe check, tally, aura and synergy "
+      + "in every phase, and recorded boards keep it. A second copy changes no types. The forge offers it when EITHER "
+      + "Dragon or Spirit is one of the run's tribes, and it is categorised under both tribes.",
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rune ask 2026-10-03', quote: 'add this rune to set 2 and 3: All Drakko - 4 cost: Get a Drakko with Dragon/Spirit type.' },
+      { kind: 'owner-chat', ref: 'Owner follow-up 2026-10-03 (gate)', quote: 'if either tribe is in a set it should be offered. categorize it as a dragon and/or spirit rune' },
+      { kind: 'owner-chat', ref: 'Owner follow-up 2026-10-03 (pool, name)', quote: 'Epic. Rune of Drakko' },
+      { kind: 'owner-chat', ref: 'Owner rework 2026-10-03', quote: "for drakko - it SHOULD triple with regular drakkos. sorry, reword the rune a bit. It should be Get a Drakko. Drakko is a Dragon/Spirit this game. this makes all drakkos in shop and everywhere a dragon/spirit. it isnt a new minion, it's just a drakko that has new types." },
+      { kind: 'code', ref: 'packages/sim/src/state.ts RunState.cardTribes; packages/sim/src/recruit.ts defIsTribe / hasRunTribe / syncRunTribes; packages/core/src/combat/minion.ts foldTribes' },
+    ],
+    contentIds: ['rune_drakko', 'drummer'],
+    cardText: 'Get a **Drakko**. **Drakko** is a **Dragon** and a **Spirit** this game.',
+    currentBehaviour: 'Conforms (built with the rune, 2026-10-03).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeDrakko.test.ts'], lastVerifiedAt: '2026-10-03' },
+  },
 ];

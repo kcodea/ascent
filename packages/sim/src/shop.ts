@@ -171,7 +171,7 @@ function rollShopRow(state: RunState, slots: number): void {
     // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
     // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
     const candled = lockTier === undefined ? pool : candlePool.filter((c) => (state.pool[c.id] ?? 0) > 0);
-    const narrowed = rollTribe ? candled.filter((c) => !c.spell && !c.ruby && defIsTribe(c, rollTribe)) : candled;
+    const narrowed = rollTribe ? candled.filter((c) => !c.spell && !c.ruby && defIsTribe(c, rollTribe, state)) : candled;
     const id = drawOfferId(rng, narrowed.length > 0 ? narrowed : pool, state.pool);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;

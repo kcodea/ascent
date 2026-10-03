@@ -31,7 +31,7 @@ import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacks
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies } from './equipment';
-import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural } from './recruit';
+import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -121,7 +121,7 @@ function spendGold(s: RunState, amount: number): void {
  *  the right-hand spell slot, a Spell-Cart shop spell, a held-Displacement restore, and the normal buy. */
 function tiffBuyDiscount(s: RunState, card: CardDef): void {
   if (!hasPower(s, 'dragonTamer')) return;
-  if (card.spell || card.tribe === 'dragon' || card.tribe2 === 'dragon' || card.universalTribe) {
+  if (card.spell || card.tribe === 'dragon' || card.tribe2 === 'dragon' || hasRunTribe(s, card.id, 'dragon') || card.universalTribe) {
     s.tiffDiscount = (s.tiffDiscount ?? 0) + 1;
   }
 }
@@ -278,11 +278,11 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
   const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
   // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
-  const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit') ? (s.spiritDiscount ?? 0) : 0;
+  const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
   // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
-  const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe) ? runeStacksOf(s, 'rune_trade_in') : 0;
+  const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
   // Set 3 Dwarves — Thymepiece: "all cards cost −N Gold for the next 8 seconds" (a clock window the UI's tick
   // closes via `discountWindowExpired`). Every non-held CARD, spells included (`spellCostReduction`).
   const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
@@ -362,7 +362,7 @@ export function nextRefreshCostOf(s: RunState): number {
 function appendDominantTypeOffer(s: RunState): void {
   const tribe = dominantBoardTribe(s);
   if (!tribe) return;
-  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe));
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(s, c.id, tribe)));
   if (pool.length === 0) return;
   const rng = makeRng(s.rngCursor);
   const pick = pool[rng.int(pool.length)]!;
@@ -934,6 +934,7 @@ export function reduce(state: RunState, action: Action): RunState {
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
     // action boundary, whichever writer raised it (a Lantern, a Deathswarmer, a combat carry-back at settle).
     syncSoulFurnace(next);
+    syncRunTribes(next); // RUNE OF DRAKKO: every board / hand copy carries the run's type overrides (a Discover, a buy, a triple …)
     syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
@@ -1191,7 +1192,7 @@ export function reduce(state: RunState, action: Action): RunState {
       // RUNE OF DRACONIC CURIOSITY (balance 9/23: "when you buy a Dragon get a random spell") — moved here from
       // the Discover pick. A random Shop spell from the run's pool at or below the shop tier (never an Ale), one
       // per copy held (recurring family, owner 2026-08-27). All-types bodies count as Dragons.
-      if (next.runeDraconicCuriosity && boughtMinion && (bdef.tribe === 'dragon' || bdef.tribe2 === 'dragon' || bdef.universalTribe)) {
+      if (next.runeDraconicCuriosity && boughtMinion && (bdef.tribe === 'dragon' || bdef.tribe2 === 'dragon' || hasRunTribe(next, bdef.id, 'dragon') || bdef.universalTribe)) {
         procRuneId(next, 'rune_draconic_curiosity');
         conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier && !ALE_IDS.includes(c.id)), runeStacksOf(next, 'rune_draconic_curiosity'), true);
       }
@@ -1233,7 +1234,7 @@ export function reduce(state: RunState, action: Action): RunState {
         if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier), runeStacksOf(next, 'rune_structure')); }
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
-      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
+      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || hasRunTribe(next, pdef.id, 'beast') || pdef.universalTribe)) {
         for (const c of next.board) {
           if (c.cardId === 'trailforager' && c.uid !== action.uid) c.sellBonus = (c.sellBonus ?? 0) + (c.golden ? 2 : 1);
         }
@@ -1603,7 +1604,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.friedCircuitsBuys = (s.friedCircuitsBuys ?? 0) + 1;
           const aAtk = (s.friedCircuitsStepAtk ?? 0) * s.friedCircuitsBuys;
           const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
-          for (const o of s.shop) if (defIsTribe(CARD_INDEX[o.cardId], 'mech')) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
+          for (const o of s.shop) if (defIsTribe(CARD_INDEX[o.cardId], 'mech', s)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
         fireOnBuyWatchers(s, standIn);
         drakkoQuestBuy(s, card);
@@ -1683,7 +1684,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech' || d.universalTribe)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech' || hasRunTribe(s, d.id, 'mech') || d.universalTribe)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -1934,7 +1935,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // cast: every cast that lands on a Kobold lands AGAIN on the same minion (+ its on-Ruby watchers) and
         // counts as a Ruby cast of its own for every tally below — but never ripples a third time. The action
         // riders (Gold / bounce / devour) resolve once per cast on the direct target (`applyRubyRiderAction`).
-        const riderKobold = !!def.rubyRider && (boardTarget ? isTribe(boardTarget, 'kobold') : offer ? defIsTribe(CARD_INDEX[offer.cardId], 'kobold') : false);
+        const riderKobold = !!def.rubyRider && (boardTarget ? isTribe(boardTarget, 'kobold') : offer ? defIsTribe(CARD_INDEX[offer.cardId], 'kobold', s) : false);
         const ripple = riderKobold && def.rubyRider === 'ripple';
         const landings = ripple ? casts * 2 : casts; // resolved Ruby casts — Ripple's echo is one per cast
         const riderTargetUid = boardTarget?.uid ?? offer?.uid;
@@ -3336,7 +3337,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // `defIsTribe`, not a hand-rolled tribe/tribe2 pair: an All-types card counts as EVERY tribe, so
             // archiving a type the SET does not carry (Undead / Mech) still offers Paragon / Standard Bearer
             // rather than silently returning nothing (owner report 2026-08-20).
-            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe));
+            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe, s));
             if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
           }
           s.rngCursor = rng.state();
@@ -4548,6 +4549,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     beastsPlayed,
     spiritsPlayed,
     tribesPlayed,
+    ...(s.cardTribes ? { cardTribes: s.cardTribes } : {}), // Rune of Drakko: a mid-fight summon of a re-typed card keeps its types
     cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
     magneticAtk: s.magneticBuyAtk ?? 0,
     magneticHp: s.magneticBuyHp ?? 0,
@@ -6000,7 +6002,7 @@ function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): voi
 /** Conjure `reps` random minions of `tribe` (≤ current tier) into the hand — the quest-reward draw (Grave
  *  Toll's "random Undead", Trail Rations' "random Beast"). Shares `conjureToHand`'s seeded pick + hand cap. */
 function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number, overflow = false): void {
-  const pool = poolOf(s).buyable.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= s.tier);
+  const pool = poolOf(s).buyable.filter((c) => (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(s, c.id, tribe)) && c.tier <= s.tier);
   conjureToHand(s, pool, reps, overflow);
 }
 
@@ -6506,7 +6508,7 @@ function withQuestRewardBeat(s: RunState, key: string | undefined, label: string
  */
 function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void {
   const pool = poolOf(s).all.filter((c) =>
-    !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe));
+    !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe || hasRunTribe(s, c.id, drip.tribe)));
   if (pool.length === 0) return;
   conjureToHand(s, pool, drip.count, true);
   procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
@@ -7244,6 +7246,15 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       starformSoulScriptBake(s); // a token already out inherits the standing Undead Aura at once
       break;
     case 'runeBroodmaster': s.runeBroodmaster = true; break;
+    case 'cardTribes': {
+      // Rune of Drakko: a RUN-LEVEL type override, union-only (a second copy is a no-op). Stamped onto every copy
+      // already in hand / on the board at once; Shop offers and pools read it through `defIsTribe(def, t, state)`.
+      const cur = s.cardTribes?.[r.cardId] ?? [];
+      const next = [...cur, ...r.tribes.filter((t) => !cur.includes(t))];
+      s.cardTribes = { ...(s.cardTribes ?? {}), [r.cardId]: next };
+      syncRunTribes(s);
+      break;
+    }
     // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes) ──────────────────────────────────
     // Amount-carrying rewards ACCUMULATE (a duplicate doubles the output); boolean flags multiply at their site.
     case 'runeChosenVessel': s.runeChosenVessel = { attack: (s.runeChosenVessel?.attack ?? 0) + r.attack, health: (s.runeChosenVessel?.health ?? 0) + r.health }; break;

@@ -149,6 +149,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Practice still earns 60% of the Ranked amount: 150 for a win, 96 for a Top 4.',
         ],
       },
+      { category: 'Systems', text: 'Kobe now shows its Pummel progress.' },
     ],
   },
   {

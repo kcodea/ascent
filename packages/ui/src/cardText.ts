@@ -1206,11 +1206,14 @@ export function stepProgress(
   // fraction in the text (owner 2026-09-11). The READING is core's `damageMeterReading` (owner rule 2026-09-19,
   // reaffirmed with the carry-over ruling 2026-09-21): the tally is LIFETIME and the badge prints progress toward
   // the NEXT payout, `total mod X`, on every surface — 47 reads 7/40 in the shop and in combat, a crossing lands
-  // on 0/40, and nothing clamps at X/X (the count keeps growing past this fight's one payout). Han Gover (40) +
-  // Goldvein (6): the `DAMAGE_METER_DOS` family, spelled out as literals here so the rendered-text lanes (which
-  // scrape `e.do === '…'` from this file) list both bodies as subjects.
-  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn' || e.do === 'dealtDamageGrantRandomTribe' || e.do === 'dealtDamageGetRandomSpell');
-  if (dmgMeter) return damageMeterReading(p.damageDealt ?? 0, damageMeterOf(def)!);
+  // on 0/40, and nothing clamps at X/X (the count keeps growing past this fight's one payout).
+  // DERIVED from core's `DAMAGE_METER_MARKERS` via `damageMeterOf` — never a hand-kept list of factory ids. The
+  // list this replaced named three of the four markers and silently dropped Kobe's `dealtDamageGetRandomRuby`, so
+  // Kobe's badge never showed (fix 2026-10-03, R-PUMMEL-BADGE-01). Any card whose marker joins the registry now
+  // gets its badge on every surface with no edit here. The rendered-text lane mirrors this gate structurally
+  // (`renderedText.test.tsx`'s `structuralSubject`), and `pummelBadge.test.ts` guards every printed Pummel.
+  const dmgMeter = damageMeterOf(def);
+  if (dmgMeter) return damageMeterReading(p.damageDealt ?? 0, dmgMeter);
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
   // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's
   // SHAPE (a `spellCast` watcher with an `every` cadence and a `tribe` payout) rather than its factory id on

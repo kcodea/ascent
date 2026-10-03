@@ -284,6 +284,27 @@ export const KEYWORDS_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/wardBreakContact.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
   {
+    id: 'R-PUMMEL-BADGE-01',
+    title: 'Every Pummel card shows its live n/X progress badge, in the shop and in combat',
+    statement:
+      'Any minion that prints "Pummel (X)" shows a progress badge reading its lifetime damage tally modulo X, over X '
+      + '(R-PUMMEL-01), on the board in the shop (a fresh 0/X included) and in combat, ticking on the beat each hit '
+      + 'lands. Which cards get the badge is DERIVED from the damage-meter registry (core `DAMAGE_METER_MARKERS` via '
+      + '`damageMeterOf`), never a hand-kept list, so a new Pummel card shows its badge with no UI edit.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (Kobe Pummel badge fix approval)', quote: 'yes' },
+      { kind: 'code', ref: "Finding 2026-10-03: Kobe's Pummel progress badge never showed, because packages/ui/src/cardText.ts stepProgress gated the badge on a hand-kept list of three damage-meter factory ids that left out Kobe's dealtDamageGetRandomRuby" },
+    ],
+    contentIds: ['k_kobe', 'dw3_hangover', 'k3_goldvein', 'ce3_starcharter'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-03: stepProgress now keys on damageMeterOf(def); Kobe reads 0/15 fresh in the shop and '
+      + '0/15, 5/15, 10/15, 0/15 across three 5-damage hits in combat. The guard test re-derives every printed Pummel '
+      + 'from card text and fails if any lacks a registered meter or a badge on either surface.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pummelBadge.test.ts', 'packages/ui/src/damageMeterBadge.test.ts'], lastVerifiedAt: '2026-10-03' },
+  },
+  {
     id: 'R-PUMMEL-03',
     title: 'Tauntbreaker: Rally strips Taunt and Rise from its target; Pummel (25) gets a random Shop Spell, once per combat',
     statement:

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX, META_METRIC, RUN_METRICS, RUN_METRIC_KEYS, SERVER_METRICS,
+  ACHIEVEMENTS, ACHIEVEMENTS_150, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX, META_METRIC, RUN_METRICS, RUN_METRIC_KEYS, SERVER_METRICS,
   achievementCatalogHash, achievementCatalogPayload, achievementGatePasses, achievementXpOf, divisionName, evaluateAchievements, sanitizeRunMetrics,
   type AchievementDef, type AchievementSettlement,
 } from './achievements';
 import { factsAsV1, sanitizeProgressionFacts, type ProgressionRunFactsV2 } from './rules';
-import { cosmeticOf, heroMasterTitleId, heroTitleId } from './cosmetics';
+import { COSMETICS, cosmeticOf, heroMasterTitleId, heroTitleId } from './cosmetics';
 
 /**
  * ACHIEVEMENTS batch 1 (owner 2026-09-28: "let's just get the normal xp related achievements in for now though").
@@ -17,14 +17,15 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 296 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(296);
+  it('ships 446 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(446);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 180, economy: 15, mechanics: 7, runes: 5, set2: 44,
+      career: 17, ranked: 28, heroes: 222, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 1550, ranked: 4300, heroes: 21600, economy: 1925, mechanics: 1125, runes: 675, set2: 6400,
+      career: 1550, ranked: 4300, heroes: 31750, economy: 1925, mechanics: 1125, runes: 675, set2: 22350, combat: 13175, milestones: 22100,
     });
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(98_950);
   });
 
   it('every reward pays XP; ONLY the hero Titled and Mastery tiers carry a title (owner 2026-09-29), each a real catalog title', () => {
@@ -56,7 +57,8 @@ describe('the batch 1 registry', () => {
       expect(a.id.length).toBeLessThanOrEqual(64);
       expect(known.has(a.metric), `${a.id}: ${a.metric}`).toBe(true);
       expect(a.target, a.id).toBeGreaterThan(0);
-      if (a.metric in RUN_METRICS) expect(a.target, a.id).toBeLessThanOrEqual(RUN_METRICS[a.metric as keyof typeof RUN_METRICS].cap);
+      // The cap bounds ONE game's value: a one-game (max) target must fit under it; a lifetime (sum) total may not.
+      if (a.metric in RUN_METRICS && a.agg === 'max') expect(a.target, a.id).toBeLessThanOrEqual(RUN_METRICS[a.metric as keyof typeof RUN_METRICS].cap);
     }
     expect(ACHIEVEMENT_INDEX['s2.kobold.rubies_turn_8']!.name).toBe('Cut and Set');
   });
@@ -77,7 +79,7 @@ describe('the batch 1 registry', () => {
     const set2 = ACHIEVEMENTS.filter((a) => a.category === 'set2');
     expect(set2.every((a) => a.setId === 'set2')).toBe(true);
     const groups = set2.reduce<Record<string, number>>((m, a) => ({ ...m, [a.group!]: (m[a.group!] ?? 0) + 1 }), {});
-    expect(groups).toEqual({ kobold: 8, dwarf: 6, dragon: 7, beast: 6, demon: 7, cross: 5, rune: 5 });
+    expect(groups).toEqual({ kobold: 16, dwarf: 13, dragon: 14, beast: 13, demon: 16, cross: 5, rune: 5 });
     expect(ACHIEVEMENTS.filter((a) => a.category !== 'set2').every((a) => a.setId === null)).toBe(true);
   });
 
@@ -91,6 +93,9 @@ describe('the batch 1 registry', () => {
       expect([debut!.rewards.xp, top!.rewards.xp, win!.rewards.xp, titled!.rewards.xp, mastery!.rewards.xp]).toEqual([25, 75, 100, 150, 250]);
       expect([top!.placementMax, win!.placementMax, titled!.placementMax, mastery!.placementMax]).toEqual([4, 1, 1, 1]);
       expect(debut!.heroId).toBe(h.id);
+      // the 2026-10-03 sixth tier: 25 games of any eligible kind
+      const devoted = ACHIEVEMENT_INDEX[`hero.${h.id}.devoted`]!;
+      expect([devoted.mode, devoted.target, devoted.rewards.xp, devoted.placementMax, devoted.heroId]).toEqual(['any', 25, 200, null, h.id]);
     }
   });
 
@@ -113,6 +118,52 @@ describe('the batch 1 registry', () => {
 
   it('achievementXpOf sums known ids and ignores unknown ones', () => {
     expect(achievementXpOf(['career.games.1', 'ranked.first_win', 'nope.nope'])).toBe(125);
+  });
+});
+
+describe('the 2026-10-03 150 (owner: "add 150 more achievements"; themes Tribes & cards, Heroes deeper, Combat feats, Long-term grind)', () => {
+  const theme = (a: AchievementDef): string => (a.category === 'set2' ? 'tribes' : a.category === 'heroes' ? 'heroes' : a.category);
+  it('150 new, by theme: 38 / 42 / 36 / 34, 61,375 XP, XP only, never hidden', () => {
+    expect(ACHIEVEMENTS_150).toHaveLength(150);
+    const by = ACHIEVEMENTS_150.reduce<Record<string, number>>((m, a) => ({ ...m, [theme(a)]: (m[theme(a)] ?? 0) + 1 }), {});
+    expect(by).toEqual({ tribes: 38, heroes: 42, combat: 36, milestones: 34 });
+    expect(ACHIEVEMENTS_150.reduce((s, a) => s + a.rewards.xp, 0)).toBe(61_375);
+    for (const a of ACHIEVEMENTS_150) {
+      expect(a.rewards.titleId, a.id).toBeNull();
+      expect(a.hidden, a.id).toBe(false);
+      expect(ACHIEVEMENTS, a.id).toContain(a);
+    }
+  });
+
+  it('XP scales steeply with difficulty (owner: "some of the larger longer term ones should easily be 500+ xp")', () => {
+    const band = (lo: number, hi: number): number => ACHIEVEMENTS_150.filter((a) => a.rewards.xp >= lo && a.rewards.xp <= hi).length;
+    expect([band(25, 100), band(101, 300), band(301, 499), band(500, 749), band(750, 1500)]).toEqual([10, 77, 13, 24, 26]);
+    expect(Math.max(...ACHIEVEMENTS_150.map((a) => a.rewards.xp))).toBe(1500);
+    // the biggest milestones sit clearly above 500
+    for (const id of ['career.games.1000', 'ranked.games.1000', 'career.firsts.250', 'career.top_four.500', 'combat.kills_life_5000']) {
+      expect(ACHIEVEMENT_INDEX[id]!.rewards.xp, id).toBeGreaterThanOrEqual(1000);
+    }
+  });
+
+  it('names are unique across achievements and the cosmetic catalog (titles included)', () => {
+    const lower = (s: string): string => s.toLowerCase();
+    expect(new Set(ACHIEVEMENTS.map((a) => lower(a.name))).size).toBe(ACHIEVEMENTS.length);
+    const cosmetics = new Set(COSMETICS.map((c) => lower(c.name)));
+    expect(ACHIEVEMENTS_150.filter((a) => cosmetics.has(lower(a.name))).map((a) => a.name)).toEqual([]);
+  });
+
+  it('a lifetime tier of a batch 1 family keeps that family and its metric (so the family reads as one ladder)', () => {
+    for (const [id, family] of [['career.games.1000', 'career.games'], ['career.firsts.250', 'career.firsts'], ['career.top_four.500', 'career.top_four'], ['ranked.promotions_25', 'ranked.promotions'], ['career.achievements.200', 'career.achievements'], ['career.comebacks.25', 'career.comebacks']] as const) {
+      const a = ACHIEVEMENT_INDEX[id]!;
+      const first = ACHIEVEMENTS.find((x) => x.family === family)!;
+      expect([a.family, a.metric, a.mode, a.placementMax], id).toEqual([first.family, first.metric, first.mode, first.placementMax]);
+    }
+  });
+
+  it('the new run metrics are the 11 the observer counts (trust O, like every run metric)', () => {
+    const fresh = ['heroPowerUses', 'flawlessWins', 'lastStandWins', 'combatWinStreakMax', 'undefeated', 'knockouts', 'heroDamageCombatMax', 'heroDamageDealt', 'enemyKillsCombatMax', 'enemyKills', 'brink'];
+    for (const k of fresh) expect(RUN_METRIC_KEYS, k).toContain(k);
+    for (const a of ACHIEVEMENTS.filter((x) => fresh.includes(x.metric))) expect(a.trust, a.id).toBe('O');
   });
 });
 

@@ -37,6 +37,11 @@ export interface AchTally {
   aleKinds: string[];
   /** An Epic Rune was just forged for a tribe with 3+ minions on the board: the next combat decides `epicFitWin`. */
   epicFitPending: boolean;
+  /** Achievements 150 (2026-10-03): the current run of combat wins, combats fought, and whether one was lost.
+   *  Optional: a tally saved before these existed reads them as 0 / false. */
+  winStreak?: number;
+  combatsFought?: number;
+  lostCombat?: boolean;
 }
 
 export const emptyAchTally = (): AchTally => ({
@@ -59,6 +64,11 @@ export function observeAchAction(t: AchTally, before: RunState, action: Action, 
   if (!sameTurn) {
     t.rollsThisTurn = 0; t.playsThisTurn = 0; t.frozenBuysThisTurn = 0; t.consumesThisTurn = 0;
   }
+
+  // ── Hero power uses (an accepted action: the reducer returns the same state for a refused one).
+  if (action.type === 'heroPower' && after !== before) add(t, 'heroPowerUses', 1);
+  // ── On the brink: Health at 5 or less while still alive (achievements 150, 2026-10-03).
+  if (after.resolve > 0 && after.resolve <= 5) bump(t, 'brink', 1);
 
   // ── Shop actions the RunState does not tally per turn.
   if (action.type === 'roll' && sameTurn) bump(t, 'refreshesTurnMax', ++t.rollsThisTurn);
@@ -167,6 +177,7 @@ export function observeAchCombat(t: AchTally, lc: CombatResult, wave: number): v
   let summons = 0; let beastSummons = 0; let echoes = 0; let beastEchoes = 0; let wards = 0; let rubies = 0; let friendlyDeaths = 0;
   const poisoned = new Set<string>();
   let executeKills = 0;
+  let enemyKills = 0;
   for (const e of lc.events) {
     switch (e.type) {
       case 'summon': {
@@ -190,6 +201,7 @@ export function observeAchCombat(t: AchTally, lc: CombatResult, wave: number): v
       case 'death': {
         if (e.side === 'player' || player.has(e.target)) friendlyDeaths++;
         if (e.rise) break; // a Rise's first death is not a kill and not an Echo (it returns)
+        if (e.side !== 'player' && !player.has(e.target)) enemyKills++;
         if (player.has(e.target)) {
           const def = CARD_INDEX[cardOf.get(e.target) ?? ''];
           if (def?.effects.some((x) => x.on === 'onDeath')) { echoes++; if (isBeast(def.id)) beastEchoes++; }
@@ -221,6 +233,17 @@ export function observeAchCombat(t: AchTally, lc: CombatResult, wave: number): v
   if (won && wave >= 10 && friendlyDeaths === 0) bump(t, 'cleanWinLate', 1);
   if (won && wave >= 8 && theirStats > 0 && myStats * 10 <= theirStats * 7) bump(t, 'underdogWinLate', 1);
   if (t.epicFitPending) { if (won) bump(t, 'epicFitWin', 1); t.epicFitPending = false; }
+
+  // ── Achievements 150 (2026-10-03): combat feats.
+  bump(t, 'enemyKillsCombatMax', enemyKills);
+  add(t, 'enemyKills', enemyKills);
+  t.combatsFought = (t.combatsFought ?? 0) + 1;
+  if (lc.result === 'lose') t.lostCombat = true;
+  t.winStreak = won ? (t.winStreak ?? 0) + 1 : 0;
+  bump(t, 'combatWinStreakMax', t.winStreak);
+  if (won && friendlyDeaths === 0) add(t, 'flawlessWins', 1);
+  // The survivors behind the winning blow (one entry per surviving friendly minion).
+  if (won && lc.enemyDamageBreakdown?.survivorTiers.length === 1) add(t, 'lastStandWins', 1);
 }
 
 const isBeast = (cardId: string): boolean => defIsTribe(CARD_INDEX[cardId], 'beast');
@@ -262,6 +285,26 @@ export function finalAchMetrics(t: AchTally, final: RunState): Partial<Record<Ru
   const tribesOf = (id: string): readonly string[] => RUNE_INDEX[id]?.tribes ?? [];
   const basicTribes = new Set(owned.filter((id) => !EPIC_RUNE_IDS.has(id)).flatMap(tribesOf));
   set('tribalRunePair', owned.some((id) => EPIC_RUNE_IDS.has(id) && tribesOf(id).some((tr) => basicTribes.has(tr))) ? 1 : 0);
+  // Achievements 150 (2026-10-03): the unbeaten flag, and the lobby reads (knockouts, damage dealt to opponents).
+  set('undefeated', (t.combatsFought ?? 0) >= 5 && !t.lostCombat ? 1 : 0);
+  const lobby = final.lobby;
+  const me = lobby?.seats[0];
+  // Defensive (a hand-built or partial lobby must never break a run-end): no encounter list reads as no fights.
+  if (lobby && me && Array.isArray(lobby.encounters)) {
+    let knockouts = 0; let dealt = 0; let best = 0;
+    for (const e of lobby.encounters) {
+      if (!e.fought || (e.a !== me.id && e.b !== me.id)) continue;
+      const opp = e.a === me.id ? e.b : e.a;
+      const dmg = Math.max(0, e.a === me.id ? e.damageToB : e.damageToA);
+      dealt += dmg; best = Math.max(best, dmg);
+      // A knockout: the opponent fell in the round you hit them (a ghost stand-in was already out, so never counts).
+      const seat = lobby.seats.find((x) => x.id === opp);
+      if (dmg > 0 && seat && !seat.alive && seat.eliminatedRound === e.round) knockouts++;
+    }
+    set('knockouts', knockouts);
+    set('heroDamageDealt', dealt);
+    set('heroDamageCombatMax', best);
+  }
   for (const k of Object.keys(out) as RunMetric[]) if (!(out[k]! > 0)) delete out[k];
   return out;
 }

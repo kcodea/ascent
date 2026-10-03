@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-03',
+    changes: [
+      {
+        category: 'Systems',
+        text: '150 new achievements to chase.',
+        details: [
+          'Set 2 tribes: crown a win with 7 of one tribe, and build lifetime totals of Rubies, Ales, spells and consumes.',
+          'Heroes: a new Devoted tier for every hero (25 games), plus hero power and many-heroes goals.',
+          'A new Combat category: flawless wins, last-minion wins, win streaks, knockouts, big damage and comebacks from low Health.',
+          'A new Milestones category for the long haul: games, Top 4s, 1sts, Gold, Gilds, runes and more.',
+          'The longer and harder the goal, the bigger the XP. The biggest milestones pay up to 1,500 XP.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-02',
     changes: [
       {

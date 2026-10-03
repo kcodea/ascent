@@ -630,6 +630,18 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   place: it replaces a worn base title the moment it is earned, and the Collection shows one entry per hero title (the
   master once owned). Hero titles are achievement rewards, granted inside `settle_progression` with the completion,
   and never drop from a crate. The Heroes category is now 165 achievements; the registry 281 and 35,775 XP.
+- **Achievements 150 (2026-10-03, R-ACH-05).** Owner: "add 150 more achievements", themes Tribes & cards, Heroes
+  deeper, Combat feats, Long-term grind, and "some of the larger longer term ones should easily be 500+ xp". The
+  registry is now **446 achievements, 98,950 XP** (the 150 add 61,375; XP only). Set 2 gains 38 tribe feats (a
+  Ranked 1st with 7 of a tribe, lifetime tribe totals on Top 4 and 1st boards, lifetime Rubies / Ales / spells /
+  consumes). Heroes gains a sixth tier per hero, **Devoted** (25 games, 200 XP), and an **All heroes** group (hero
+  power uses, more distinct heroes played and won with). Two new categories: **Combat** (36: flawless wins, wins with
+  1 minion left, win streaks, knockouts, damage to opponents, enemy kills, finishing well after falling to 5 or less
+  Health, an unbeaten Ranked 1st) and **Milestones** (34: games, Ranked games, Top 4s, 1sts, lifetime Gold, Gilds,
+  runes, promotions, achievements completed, Ascendant and Brutal wins, streaks). XP climbs with difficulty: 25 to
+  100 for one-game feats, up to 1,500 for the biggest milestones. A **knockout** is an opponent who fell in the round
+  your own fight hit them. The new counters are run metrics (ordinary trust). No SQL: `submit-progression` syncs the
+  catalog on its next cold start.
 - **Guests.** An anonymous session is a real account id and the email upgrade keeps it, so guests earn XP from
   their first game. Reaching Level 2 as a guest shows a gentle "Save your progress" prompt (never a gate). With
   no session at all, a game earns nothing.

@@ -2606,7 +2606,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
       + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
       + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
-      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'Ranked 1sts, 250 XP, 400 since the 2026-10-03 re-tune) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
       + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
       + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
       + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
@@ -2622,6 +2622,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-09-29. Live once the owner runs supabase/migrations/2026-09-29-hero-titles.sql and redeploys submit-progression and progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/heroTitles.db.test.ts', 'packages/progression/src/achievements.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+  },
+  {
+    id: 'R-ACH-05',
+    title: 'Achievements 150: 150 more XP-only achievements (tribes, heroes, combat, milestones); XP scales steeply with difficulty, the biggest at 750 to 1500',
+    statement:
+      'The registry grows by 150 achievements to 446, all paying Account XP only (61,375 XP added; the hero Titled and '
+      + 'Mastery tiers stay the only title rewards). Tribes & cards (38, Set 2, by tribe): a Ranked 1st with 7 of a tribe on '
+      + 'the final board, lifetime totals of a tribe on Top 4 and 1st boards, lifetime Rubies / Ales / Shop spells / consumes, '
+      + 'and bigger one-game feats. Heroes deeper (42): a sixth tier per hero, Devoted (25 games with that hero, 200 XP), hero '
+      + 'power uses (50 / 250 / 1,000), and more distinct heroes played (25, 30) and won with (25). Combat feats (36, a new '
+      + 'Combat category): flawless wins (no friendly minion died), wins with 1 minion left, win streaks in one game, knockouts '
+      + '(the opponent fell in the round you hit them), damage dealt to opponents, enemy minions destroyed, a Top 4 or Ranked 1st '
+      + 'after falling to 5 or less Health, a Ranked 1st without losing a combat, and bigger board / summon / Echo / Ward '
+      + 'feats. Long-term grind (34, a new Milestones category): higher tiers of games, Ranked games, Top 4s, 1sts, lifetime '
+      + 'Gold, Gilds, runes, promotions, achievements completed, Ascendant and Brutal wins, demotion escapes and streaks. XP '
+      + 'follows difficulty: one-game and easy feats 25 to 100, medium 101 to 300, hard 301 to 499, long-term 500 to 749, the '
+      + 'biggest milestones 750 to 1,500. The 11 new run metrics (heroPowerUses, flawlessWins, lastStandWins, '
+      + 'combatWinStreakMax, undefeated, knockouts, heroDamageCombatMax, heroDamageDealt, enemyKillsCombatMax, enemyKills, '
+      + 'brink) are counted by the run observer from data the client holds at settle and carry ordinary trust, like every run '
+      + 'metric. The batch 1 long-term tiers move onto the same curve (owner-approved): Veteran (100 games) 300, Mainstay (50 '
+      + 'Top 4s) 300, Conqueror (25 1sts) 500, Back from the Brink (10 comebacks) 250, Many Faces (15 heroes played) 250, '
+      + 'Master of Many (15 heroes won) 600, Completionist (25 achievements) 200, Gem Hoarder (500 Rubies) 200, and every hero '
+      + 'Mastery 400; the registry totals 105,950 XP. XP is paid at completion and recorded on the completion, so a re-tune '
+      + 'pays the new amount only on completions after it: one already completed keeps what it paid, with no backfill.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150)', quote: 'add 150 more achievements' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, themes chosen)', quote: 'Tribes & cards, Heroes deeper, Combat feats, Long-term grind' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, XP)', quote: 'make longer term / more difficult achievements grant significantly more xp. some of the larger longer term ones should easily be 500+ xp' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (the batch 1 long-term re-tune)', quote: 'yes apply these achievement changes' },
+      { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS_150, RUN_METRICS); packages/sim/src/achievementMetrics.ts (the new counters); packages/ui/src/progression/AchievementsTab.tsx (Combat + Milestones categories)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-03. Live once the owner redeploys submit-progression (its cold start syncs the catalog; no SQL).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/achievements.test.ts', 'packages/sim/src/achievementMetrics.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
     id: 'R-PROG-TITLE-04',

@@ -60,6 +60,26 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: '150 new achievements to chase.',
+        details: [
+          'Set 2 tribes: crown a win with 7 of one tribe, and build lifetime totals of Rubies, Ales, spells and consumes.',
+          'Heroes: a new Devoted tier for every hero (25 games), plus hero power and many-heroes goals.',
+          'A new Combat category: flawless wins, last-minion wins, win streaks, knockouts, big damage and comebacks from low Health.',
+          'A new Milestones category for the long haul: games, Top 4s, 1sts, Gold, Gilds, runes and more.',
+          'The longer and harder the goal, the bigger the XP. The biggest milestones pay up to 1,500 XP.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Several long-term achievements now give more XP.',
+        details: [
+          'Veteran 300, Mainstay 300, Conqueror 500, Back from the Brink 250, Many Faces 250.',
+          'Master of Many 600, Completionist 200, Gem Hoarder 200, and every hero Mastery 400.',
+          'Achievements you already completed keep the XP they paid.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Top 4 and 1st place now give 50% more bonus XP.',
         details: [
           'Ranked: Top 4 now adds 60 XP (was 40) and 1st adds 90 more (was 60).',

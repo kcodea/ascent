@@ -558,13 +558,13 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
 - **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..04).** A cosmetic ring that replaces the default ring
-  around a player's hero portrait. 45 frames, all from crates at the rarity of the folder their master sits in
+  around a player's hero portrait. 52 frames, all from crates at the rarity of the folder their master sits in
   (`Skins/Portraits/<Common|Rare|Epic|Legendary|Ancient>/`; the folder IS the rarity, except that a rarity Mike set in batch 4
   wins over the folder, owner 2026-10-02): Common Honey, Ale, Ruby, Steel, Wood, Dark Scale, Burnished, Sterling,
   Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, Shard, Prism; Epic Aura, Amethyst,
   Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, Crackling Ruby, Topaz, Jade, Cherry
-  Blossom; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained Glass, Wind; Ancient (2026-10-02)
-  Bonds, Death, Fortune, Genesis, Time, War. A rarity
+  Blossom, Cream, Crystal, Disco, Econ, Snare; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained
+  Glass, Wind, Chromatic Scale; Ancient (2026-10-02) Bonds, Death, Fortune, Genesis, Time, War, Reflective. A rarity
   change only moves crate odds: an owned frame stays owned. A frame's name is just its name, with
   no "Frame" or "Portrait" on it (owner 2026-10-01); the names avoid the ranked medal words so a crate frame never reads
   as a Ranked reward.

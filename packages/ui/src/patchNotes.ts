@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: '11 new hero skins and 7 new portrait frames in crates. Two skins are now Ancient.',
+        details: [
+          'Hero skins: Young Tradesman (Rare); Author Quillen, Goth Rayse, Lord of Death and Midas and Melon (Legendary); Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja Sweeney and Rayse Sweeney (Ancient).',
+          'Portrait frames: Cream, Crystal, Disco, Econ and Snare (Epic), Chromatic Scale (Legendary) and Reflective (Ancient).',
+          'Leg Day Darah and Dance Night Hunch are now Ancient. Skins you already own stay yours.',
+          'Bonds, Death, Fortune, Genesis, War and Gilt Scale have refreshed art.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'End of Turn effects that lower your Shop upgrade cost now show an effect on the Tier button.',
         details: [
           'Rune of Shopkeep now bursts on the Tier button at End of Turn, and the price drops right then.',

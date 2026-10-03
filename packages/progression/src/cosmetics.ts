@@ -306,10 +306,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_frank_2', 'hero_skin', 'Black Friday Frank', 'epic', 'frank', 'BlackFridayFrank.jpg'),
   skin('skin_frank_3', 'hero_skin', 'Coaster Frank', 'common', 'frank', 'CoasterFrank.png'),
   skin('skin_bram_1', 'hero_skin', 'Treasure Hoard Braum', 'rare', 'bram', 'BraumSkinRare.png'),
-  skin('skin_darah_1', 'hero_skin', 'Leg Day Darah', 'legendary', 'darah', 'DarahSkinEpic.png'),
+  // Skins batch 8 (owner 2026-10-03): the owner moved DarahSkinEpic and HunchSkinRare into Hero Skins/Ancient/; the
+  // folder is the rarity, so both are Ancient now (owned copies stay owned, R-PROG-SKINS-11).
+  skin('skin_darah_1', 'hero_skin', 'Leg Day Darah', 'ancient', 'darah', 'DarahSkinEpic.png'),
   skin('skin_darah_2', 'hero_skin', 'Rose Vortex Darah', 'rare', 'darah', 'DarahSkinRare.png'),
   skin('skin_emeraldwarden_1', 'hero_skin', 'Birdsong Emerald', 'epic', 'emeraldwarden', 'EmeraldWardenSkinRare.png'),
-  skin('skin_hunch_1', 'hero_skin', 'Dance Night Hunch', 'legendary', 'hunch', 'HunchSkinRare.png'),
+  skin('skin_hunch_1', 'hero_skin', 'Dance Night Hunch', 'ancient', 'hunch', 'HunchSkinRare.png'),
   skin('skin_keshi_1', 'hero_skin', 'Keshi the Cityguard', 'common', 'keshi', 'KeshiTheCityguard.png'),
   skin('skin_keshi_2', 'hero_skin', 'Pop Star Keshi', 'epic', 'keshi', 'PopStarKeshi.png'),
   skin('skin_soren_1', 'hero_skin', 'King Soren', 'epic', 'soren', 'KingSorenEpic.png'),
@@ -324,6 +326,21 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_merrin_1', 'hero_skin', 'Goth Merrin', 'epic', 'merrin', 'GothMerrin.png'),
   skin('skin_runeguard_1', 'hero_skin', 'Iron Guardian', 'epic', 'runeguard', 'IronGuardian.png'),
   skin('skin_robin_2', 'hero_skin', 'Robin Hood', 'rare', 'robin', 'RobinHood.png'),
+  // Skins batch 8 (owner 2026-10-03: "ive also added many skins to the game's collections. can you add those all in").
+  // Rarity = the Hero Skins rarity folder. Names come from the filenames. LordOfDeath and LordCallen are Lord of the
+  // Risen (id risen): both wear his crown, his purple-and-gold armour and his blue-flame sword (checked against the
+  // hero art). Young Tradesman is the Tradesman (id hermithank); Auctioneer Sweeney is the Auctioneer (id myra).
+  skin('skin_hermithank_1', 'hero_skin', 'Young Tradesman', 'rare', 'hermithank', 'YoungTradesman.png'),
+  skin('skin_quillen_1', 'hero_skin', 'Author Quillen', 'legendary', 'quillen', 'AuthorQuillen.png'),
+  skin('skin_rayse_1', 'hero_skin', 'Goth Rayse', 'legendary', 'rayse', 'GothRayse.png'),
+  skin('skin_risen_1', 'hero_skin', 'Lord of Death', 'legendary', 'risen', 'LordOfDeath.png'),
+  skin('skin_midas_1', 'hero_skin', 'Midas and Melon', 'legendary', 'midas', 'Midas and Melon.png'),
+  skin('skin_myra_1', 'hero_skin', 'Auctioneer Sweeney', 'ancient', 'myra', 'AuctioneerSweeney.png'),
+  skin('skin_nadja_1', 'hero_skin', 'Goth Nadja', 'ancient', 'nadja', 'GothNadja.png'),
+  skin('skin_risen_2', 'hero_skin', 'Lord Callen', 'ancient', 'risen', 'LordCallen.png'),
+  skin('skin_merrin_2', 'hero_skin', 'Merrin Sweeney', 'ancient', 'merrin', 'MerrinSweeney.png'),
+  skin('skin_nadja_2', 'hero_skin', 'Nadja Sweeney', 'ancient', 'nadja', 'NadjaSweeney.png'),
+  skin('skin_rayse_2', 'hero_skin', 'Rayse Sweeney', 'ancient', 'rayse', 'RayseSweeney.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
@@ -490,6 +507,15 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_wind', 'Wind', 'legendary', 'Legendary/WindPortrait.png'),
   // Portrait frames batch 6 (Kevin 2026-10-02: "i added more frames"): rarity = the Portraits rarity folder.
   portraitFrame('frame_cherry_blossom', 'Cherry Blossom', 'epic', 'Epic/CherryBlossom.png'),
+  // Portrait frames batch 7 (owner 2026-10-03: "ive also added many skins"): rarity = the Portraits rarity folder.
+  // Epic/DragonGem.png and Epic/ElectricBlue.png are still byte-identical to CracklingRuby.png and BlueEnergy.png, so
+  // they stay unwired (the disk check's "every master is wired" case still lists those two and nothing else).
+  portraitFrame('frame_cream', 'Cream', 'epic', 'Epic/Cream.png'),
+  portraitFrame('frame_crystal', 'Crystal', 'epic', 'Epic/Crystal.png'),
+  portraitFrame('frame_disco', 'Disco', 'epic', 'Epic/Disco.png'),
+  portraitFrame('frame_econ', 'Econ', 'epic', 'Epic/Econ.png'),
+  portraitFrame('frame_snare', 'Snare', 'epic', 'Epic/Snare.png'),
+  portraitFrame('frame_chromatic_dragonscale', 'Chromatic Scale', 'legendary', 'Legendary/ChromaticDragonscale.png'),
   // The first ANCIENT frames (owner 2026-10-02: "i added a new rarity -> Ancient"): rarity = the Portraits/Ancient folder.
   portraitFrame('frame_bonds', 'Bonds', 'ancient', 'Ancient/Bonds.png'),
   portraitFrame('frame_death', 'Death', 'ancient', 'Ancient/Death.png'),
@@ -497,6 +523,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_genesis', 'Genesis', 'ancient', 'Ancient/Genesis.png'),
   portraitFrame('frame_time', 'Time', 'ancient', 'Ancient/Time.png'),
   portraitFrame('frame_war', 'War', 'ancient', 'Ancient/War.png'),
+  portraitFrame('frame_reflective', 'Reflective', 'ancient', 'Ancient/Reflective.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

@@ -13,6 +13,7 @@
 import { parseGauntletClearResult, type GauntletClearResult } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
+import { fetchAllRows } from '../supabaseRows';
 
 const SUBMIT_TIMEOUT_MS = 15_000;
 const READ_TIMEOUT_MS = 4_000;
@@ -63,7 +64,7 @@ export async function fetchGauntletProgress(userId: string): Promise<number[] | 
   if (!c || !userId) return undefined;
   try {
     const res = await Promise.race([
-      Promise.resolve(c.from('gauntlet_progress').select('stage').eq('user_id', userId)),
+      fetchAllRows((from, to) => c.from('gauntlet_progress').select('stage').eq('user_id', userId).order('stage', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
     if (!res) return undefined;

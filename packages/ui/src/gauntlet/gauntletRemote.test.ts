@@ -25,7 +25,9 @@ vi.mock('@supabase/supabase-js', () => ({
       select: (columns: string) => {
         selects.push({ table, columns });
         const res = (): Promise<Res> => Promise.resolve(tableImpl(table, columns));
-        return { eq: () => ({ order: res, then: (f: (r: Res) => unknown, r?: (e: unknown) => unknown) => res().then(f, r) }) };
+        // A thenable builder: filters and orders chain; `.range()` (the paged read, R-NET-01) or awaiting runs it.
+        const chain = { eq: () => chain, order: () => chain, range: res, then: (f: (r: Res) => unknown, r?: (e: unknown) => unknown) => res().then(f, r) };
+        return chain;
       },
     }),
   }),

@@ -134,6 +134,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Damage taken now pops up briefly on the lobby rail after each fight instead of staying there. Hover a player to see their last fight.',
+        details: [
+          'Each player who lost Health shows the number once as you return to the shop. It rises and fades in about a second and a half.',
+          'Hovering a player lists their last three fights with the damage of each.',
+          'The smoke when a player is knocked out is now a softer, slightly slower veil that stays on their row.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Fixed Rune of the Choir and other Shout effects not working on triggered Shouts, like the Auctioneer's Pulse.",
         details: [
           "A Shout triggered by anything now counts as a Shout: the Auctioneer's Pulse, Echoing Roar, Resonance, Ryme, Parting Cry and runes.",

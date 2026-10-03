@@ -1,20 +1,40 @@
 import { stageHost, toStage } from './stage';
 /**
- * The damage YOU dealt, floated over the seat that took it (owner ask 2026-07-29).
+ * The round's damage, floated over each seat that took it (owner asks 2026-07-29 and 2026-10-03).
  *
- * The rail already prints what each seat lost last round, but that number is a static readout you have to go
- * looking for. Winning a fight is the moment the mode is about, and it deserves to be announced on the seat you
- * hurt — otherwise a win reads exactly like a draw until you scan the table.
+ * The rail used to print every seat's last-round loss as a static "-N" that stayed all shop phase. The owner asked
+ * for it gone from the rail: instead, as the rail comes back after a fight, each seat that lost Health this round
+ * shows its number once, popping on the row, rising a little and fading out. The lasting record is the seat's hover
+ * card (its last fights, with the damage of each).
  *
  * Built on the same one-shot WAAPI float the spell-power and ruby-power cues use, rather than a CSS class on the
  * row: the number has to outlive its element (rows re-sort by health the instant the round settles) and it must
- * never loop — see `docs/performance.md` on animating paint properties.
+ * never loop. Transform + opacity only; see `docs/performance.md` on animating paint properties.
  */
-const HOLD_MS = 620;
-const FADE_MS = 420;
-const RISE_PX = 26;
+const HOLD_MS = 900;
+const FADE_MS = 600;
+const RISE_PX = 22;
+/** The whole float, pop to gone (1.5s). */
+export const LOBBY_DMG_FLOAT_MS = HOLD_MS + FADE_MS;
 
-/** Float `-N` over a screen point. `amount <= 0` is a no-op, so a draw or a loss says nothing. */
+/**
+ * Which seats announce a loss this round, and how much: every seat still standing whose last-round `taken` is above
+ * 0 (the rule the old static number used, so a draw, a win, or a fight that hit only a fallen ghost shows nothing,
+ * and a seat that was knocked out gets the knockout effect instead). In table order. Pure.
+ */
+export function roundDamageFloats(
+  seats: readonly { id: string; alive: boolean }[],
+  dmg: Readonly<Record<string, { taken: number } | undefined>>,
+): { id: string; amount: number }[] {
+  const out: { id: string; amount: number }[] = [];
+  for (const s of seats) {
+    const taken = dmg[s.id]?.taken ?? 0;
+    if (s.alive && taken > 0) out.push({ id: s.id, amount: taken });
+  }
+  return out;
+}
+
+/** Float `-N` over a screen point. `amount <= 0` is a no-op, so an unhurt seat says nothing. */
 export function floatLobbyDamage(x: number, y: number, amount: number): void {
   if (amount <= 0 || typeof document === 'undefined') return;
   const el = document.createElement('div');
@@ -25,13 +45,16 @@ export function floatLobbyDamage(x: number, y: number, amount: number): void {
   stageHost().appendChild(el);
   const total = HOLD_MS + FADE_MS;
   try {
+    // Easing is PER SEGMENT (a keyframe's `easing` shapes the hop to the next one), with a linear timeline: one
+    // ease-out over the whole run front-loaded it so hard that the number was mostly faded by the middle.
+    // Pop in (~180ms), settle, hold readable while drifting up, then fade over the last FADE_MS.
     const anim = el.animate([
-      { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0 },
-      { transform: 'translate(-50%, -50%) scale(1.25)', opacity: 1, offset: 0.2 },
-      { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.34 },
-      { transform: `translate(-50%, calc(-50% - ${RISE_PX * 0.6}px)) scale(1)`, opacity: 1, offset: HOLD_MS / total },
+      { transform: 'translate(-50%, -50%) scale(0.55)', opacity: 0, easing: 'cubic-bezier(0.22, 0.9, 0.3, 1)' },
+      { transform: 'translate(-50%, -50%) scale(1.2)', opacity: 1, offset: 0.12, easing: 'ease-in-out' },
+      { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.22, easing: 'ease-in-out' },
+      { transform: `translate(-50%, calc(-50% - ${RISE_PX * 0.6}px)) scale(1)`, opacity: 1, offset: HOLD_MS / total, easing: 'ease-in' },
       { transform: `translate(-50%, calc(-50% - ${RISE_PX}px)) scale(0.94)`, opacity: 0 },
-    ], { duration: total, easing: 'cubic-bezier(0.22, 0.9, 0.3, 1)', fill: 'backwards' });
+    ], { duration: total, easing: 'linear', fill: 'backwards' });
     anim.onfinish = () => el.remove();
     anim.oncancel = () => el.remove();
   } catch {
@@ -67,10 +90,10 @@ export function whenCurtainDown(fn: () => void): () => void {
 /** Float the hit over a seat row, if that row is on screen. Returns whether it fired. */
 export function floatLobbyDamageOnSeat(seatId: string, amount: number): boolean {
   if (amount <= 0 || typeof document === 'undefined') return false;
-  const el = document.querySelector(`[data-seat="${seatId}"]`);
+  const el = document.querySelector(`.lobbyrail [data-seat="${seatId.replace(/["\\]/g, '\\$&')}"]`);
   if (!el) return false;
   const r = el.getBoundingClientRect();
   if (r.width < 4 || r.height < 4) return false; // laid out but not visible — don't fire into nowhere
-  floatLobbyDamage(r.left + r.width * 0.72, r.top + r.height * 0.5, amount);
+  floatLobbyDamage(r.left + r.width * 0.84, r.top + r.height * 0.5, amount); // the right end, where the old number sat
   return true;
 }

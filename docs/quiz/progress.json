@@ -5,48 +5,48 @@
   "focus": "ARCHITECTURE ONLY — how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 51,
+  "totalQuizzes": 52,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "deterministic-sim": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "seeded-rng": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "sim-ui-decoupling": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "monorepo-packages": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "pure-functions": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "data-vs-code": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "event-log-replay": {
-      "asked": 25,
-      "lastAsked": "2026-10-01"
+      "asked": 26,
+      "lastAsked": "2026-10-03"
     },
     "eslint-rules": {
-      "asked": 24,
-      "lastAsked": "2026-10-01"
+      "asked": 25,
+      "lastAsked": "2026-10-03"
     },
     "performance-memo": {
-      "asked": 24,
-      "lastAsked": "2026-10-01"
+      "asked": 25,
+      "lastAsked": "2026-10-03"
     },
     "reducer-run-state": {
       "asked": 25,
@@ -1167,6 +1167,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike (51 quizzes in) — mastery/difficulty remain untouched at 1, so this continues the even two-day rotation: today's 10 topics were the half last asked 2026-09-30 (one day stalest), bringing the whole curriculum back to parity (all 20 topics now at 25 asks). Re-grounded every question in a fresh, concrete source fact read directly from the files rather than reusing prior framings: reducer.ts's spendGold mutating its RunState draft directly as the clone-then-mutate pattern (reducer-run-state); store.ts's own CareerView/CombatQuestDelta shapes as the concrete 'presentation-only state' example, contrasted with the RunState it only imports (zustand-store); events.ts's CombatBus doc comment on Deathrattle-summon cascades and the simulator's iteration guard (event-bus); sets.ts's SET3_SHARED_SPELLS lookup throwing when a spell id isn't found, as a fail-loud example (cards-in-sets); store.ts importing createRun/CARD_INDEX from the '@game/sim'/'@game/content' package names rather than a deep path (package-boundaries); schema.ts's EffectFactoryIdSchema zod enum as the literal whitelist of effect factories (effects-as-subscriptions); a Battlecry stat buff (baked pre-combat) vs. a Deathrattle (live combat-time event) as the two concrete cases (effect-timing-pipeline); the repo's actual 'determinism' describe blocks (e.g. productionBots/bots.test.ts) as the concrete test example (testing-vitest); the CombatEvent union in types.ts, contrasted against a common union-vs-intersection beginner mix-up (types-basics); and reducer.ts's own PERF comment on sharing lastCombat by reference vs. CardDef cloning, to teach 'never mutate shared state' rather than 'never share a reference' (immutability). Verified the embedded QUESTIONS array parses as valid JS via node (10 questions, 4 choices each, in-range answer index, 10 unique topics), caught a run of 4 consecutive B answers on the first pass, reshuffled choice order on two questions to break it, and re-verified the final correct-letter sequence (C,A,D,B,C,D,A,B,D,C — no consecutive repeats) before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-10-02.html."
+    },
+    {
+      "date": "2026-10-03",
+      "quizNumber": 52,
+      "difficulty": 1,
+      "topics": [
+        "what-is-a-function",
+        "deterministic-sim",
+        "seeded-rng",
+        "sim-ui-decoupling",
+        "monorepo-packages",
+        "pure-functions",
+        "data-vs-code",
+        "event-log-replay",
+        "eslint-rules",
+        "performance-memo"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (52 quizzes in) — mastery/difficulty remain untouched at 1. Continued the even two-day rotation: today took the half last asked 2026-10-01 (one day stalest vs. the other half last asked 2026-10-02), bringing the whole curriculum back to parity (all 20 topics now at 26 asks). Re-grounded every question in a fresh, concrete source fact verified directly against origin/main (the quiz branch checkout lags main on several of these files) rather than reusing prior framings from the 2026-09-29/2026-10-01 archives on this same topic group: simulate()’s default parameters (playerState = EMPTY_SIDE, enemyState = EMPTY_SIDE, config = {}) as the concrete example of a function with optional inputs (what-is-a-function); ITERATION_GUARD/REATTACK_GUARD hard caps on the combat loop as proof determinism means reproducible, not unbounded (deterministic-sim); rng.ts’s Math.imul in next() as the 32-bit-safe multiplication mulberry32 needs since JS numbers are 64-bit floats (seeded-rng); the in-combat speed slider (useCombatReplay.ts) changing only animation timing, never the computed outcome (sim-ui-decoupling); packages/progression being dependency-free so its XP/level logic can be generated into Deno (supabase/functions/_shared) without a cross-runtime import, read live off origin/main since this package doesn’t exist on the quiz branch snapshot (monorepo-packages); runDerive.ts’s “a run is a pure function of (seed, heroId, action log, content)” as why telemetry can be computed retroactively instead of instrumented live (pure-functions); a real quest object (q_forest_grove) from quests.ts as a plain data literal read by shared generic engine code, no per-quest function (data-vs-code); useCombatReplay.ts’s computeFrame as a pure fold of (initial, events, upto) — backed by computeFrame.purity.test.ts — as why seeking to any beat index is always safe (event-log-replay); eslint.config.mjs’s banTitleTooltips custom rule (owner 2026-09-24) tying directly to CLAUDE.md’s UI-conventions no-native-tooltip rule (eslint-rules); and docs/performance.md’s 2026-08-01 shop-phase audit (pixiFx.enableAutoIdle(), worst frame 8.5ms to 4.3ms) showing an idle loop presenting empty frames still costs real frame time (performance-memo). Verified every fact by reading the live source directly, several against origin/main specifically (packages/core/src/combat/simulate.ts, packages/core/src/rng.ts, packages/ui/src/useCombatReplay.ts, packages/sim/src/runDerive.ts, packages/content/src/quests.ts, eslint.config.mjs, docs/performance.md, and origin/main:packages/progression/package.json + origin/main:CLAUDE.md for the progression package, which is absent from the quiz branch checkout). Verified the embedded QUIZ.questions array parses as valid JS via a node script (10 questions, 4 choices each, in-range answer index, 10 unique topicIds), and checked the correct-answer letter sequence (B,D,A,C,B,A,D,C,B,A — 3xA, 3xB, 2xC, 2xD, no consecutive repeats) before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-10-03.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike — removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

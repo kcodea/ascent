@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ascent Quiz #52</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a single centered "quest card" — progress rail up top, one question
+     at a time below, a file-path "scroll tag" styling nods to the codebase it quizzes on. */
+  :root {
+    --bg: #f5f3ee;
+    --bg-deep: #ece8df;
+    --surface: #ffffff;
+    --surface-2: #faf8f3;
+    --ink: #221c14;
+    --ink-dim: #6b6354;
+    --line: #ddd5c4;
+    --accent: #b9772f;
+    --accent-ink: #5c3a14;
+    --good: #2f7a4f;
+    --good-bg: #e4f3e8;
+    --bad: #b5402f;
+    --bad-bg: #fbe8e3;
+    --font-display: 'Sora', system-ui, sans-serif;
+    --font-body: 'Public Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f;
+      --bg-deep: #100e0a;
+      --surface: #221d16;
+      --surface-2: #2a2419;
+      --ink: #f3ece0;
+      --ink-dim: #b2a890;
+      --line: #3c3426;
+      --accent: #e0a24c;
+      --accent-ink: #f6d9a3;
+      --good: #6fcb94;
+      --good-bg: #1c3426;
+      --bad: #e08573;
+      --bad-bg: #3a2019;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f;
+    --bg-deep: #100e0a;
+    --surface: #221d16;
+    --surface-2: #2a2419;
+    --ink: #f3ece0;
+    --ink-dim: #b2a890;
+    --line: #3c3426;
+    --accent: #e0a24c;
+    --accent-ink: #f6d9a3;
+    --good: #6fcb94;
+    --good-bg: #1c3426;
+    --bad: #e08573;
+    --bad-bg: #3a2019;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: radial-gradient(ellipse at top, var(--bg-deep), var(--bg) 60%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    min-height: 100%;
+    padding: 28px 16px 48px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(22px, 5vw, 28px);
+    margin: 6px 0 2px;
+    text-wrap: balance;
+  }
+  .sub { color: var(--ink-dim); font-size: 14px; margin: 0; }
+
+  .rail {
+    display: flex;
+    gap: 5px;
+    margin: 18px 0 22px;
+  }
+  .rail .seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .rail .seg i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .25s ease;
+  }
+  .rail .seg.correct i { width: 100%; background: var(--good); }
+  .rail .seg.wrong i { width: 100%; background: var(--bad); }
+  .rail .seg.current i { width: 100%; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .qmeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .qnum {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .topic-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2px 7px;
+  }
+  .qtext {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.45;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 14px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--ink);
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>') 0 0, pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .choice:disabled { cursor: default; }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.correct .letter { background: var(--good); border-color: var(--good); color: #fff; }
+  .choice.wrong { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.wrong .letter { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .choice.dim { opacity: 0.55; }
+
+  .result-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .result-line.correct { color: var(--good); }
+  .result-line.wrong { color: var(--bad); }
+
+  .explain {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .explain code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 18px; }
+  button.next, button.restart {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 11px 20px;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>') 0 0, pointer;
+  }
+  button.next:hover, button.restart:hover { filter: brightness(1.08); }
+  button.next:focus-visible, button.restart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .scoreboard { text-align: center; padding: 10px 6px 4px; }
+  .scoreboard .big {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(40px, 12vw, 56px);
+    font-variant-numeric: tabular-nums;
+    margin: 6px 0 2px;
+  }
+  .scoreboard .line { color: var(--ink-dim); font-size: 14px; margin: 0 0 18px; }
+  .scoreboard .pep {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+  .recap {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .recap .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .recap .row .mark { font-weight: 700; width: 18px; text-align: center; }
+  .recap .row.correct .mark { color: var(--good); }
+  .recap .row.wrong .mark { color: var(--bad); }
+  .recap .row .qn { font-family: var(--font-mono); color: var(--ink-dim); flex: 0 0 auto; }
+  .recap .row .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer.hint {
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 12px;
+    margin-top: 22px;
+    line-height: 1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rail .seg i, .choice { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <span class="kicker">Daily Ascent Code Quiz</span>
+      <h1 id="quizTitle">Ascent Quiz #52</h1>
+      <p class="sub" id="quizSub">October 3, 2026 · 10 questions on how the engine is built</p>
+    </div>
+  </header>
+
+  <div class="rail" id="rail"></div>
+
+  <main class="card" id="card"></main>
+
+  <footer class="hint">Grounded in the real Ascent source — every explanation names the file to go read.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var QUIZ = {
+    number: 52,
+    dateLabel: "October 3, 2026",
+    questions: [
+      {
+        topicId: "what-is-a-function",
+        topicLabel: "what a function is",
+        question: "packages/core/src/combat/simulate.ts's `simulate()` is declared as `simulate(player, enemy, rng, cards, playerState = EMPTY_SIDE, enemyState = EMPTY_SIDE, config = {})`. Because of those `= EMPTY_SIDE` / `= {}` parts, what happens if you call it as just `simulate(player, enemy, rng, cards)` — leaving the last three arguments out?",
+        choices: [
+          "It throws a TypeError, since functions always need every parameter supplied.",
+          "It runs fine — the omitted parameters just take their declared default values (EMPTY_SIDE, EMPTY_SIDE, {}) instead of being left `undefined`.",
+          "JavaScript passes `undefined` for the missing arguments, and the function crashes the first time it reads a field off `playerState`.",
+          "It silently reuses whatever `playerState` happened to equal the last time the function ran."
+        ],
+        answer: 1,
+        explanation: "A function parameter can declare a default value (<code>= EMPTY_SIDE</code>), so when a caller leaves that argument out, the parameter gets the default instead of <code>undefined</code> — that's exactly why the doc comment says a bare <code>simulate(player, enemy, rng, cards)</code> call \"behaves exactly as it always did,\" so old callers never break when a new parameter gets added later. Without a default, the missing argument really would be <code>undefined</code>, which is what would make the function crash reading a field off it. And functions don't retain memory between calls on their own — there's no \"last time\" a parameter remembers; that would need some separate stored state, not a parameter default."
+      },
+      {
+        topicId: "deterministic-sim",
+        topicLabel: "deterministic sim",
+        question: "packages/core/src/combat/simulate.ts defines `const ITERATION_GUARD = 300;` and `const REATTACK_GUARD = 50;` — hard caps on how many times combat's main loops can repeat. Combat is fully deterministic: the same inputs always produce the same output. So why does it still need numeric safety caps like these?",
+        choices: [
+          "The caps exist only because the seeded `rng` occasionally produces an invalid number that has to be re-rolled.",
+          "Determinism requires every combat to run for exactly 300 steps, so the cap sets that fixed length.",
+          "The caps are purely a performance optimization and have nothing to do with correctness.",
+          "Determinism only guarantees the same inputs always produce the same output — it says nothing about the computation being bounded. Without a cap, a chain reaction (a kill triggering a summon that can itself die and summon again) could loop for an enormous or unbounded number of steps; the guard stops that regardless of how reproducible the eventual result would be."
+        ],
+        answer: 3,
+        explanation: "Determinism only guarantees \"same inputs → same output\" — it says nothing about whether that computation is bounded. A chain of cards that keep re-triggering each other (a kill spawning a summon that can itself die and summon again) could, in principle, run for an enormous number of steps; <code>ITERATION_GUARD</code> / <code>REATTACK_GUARD</code> cap that so the engine always terminates, while the eventual output stays exactly as reproducible as it would've been without the cap. Most real fights finish in far fewer steps — the guard is a safety ceiling, not a required running length, and it isn't about the rng or about raw speed."
+      },
+      {
+        topicId: "seeded-rng",
+        topicLabel: "seeded RNG (mulberry32)",
+        question: "packages/core/src/rng.ts's `next()` computes `Math.imul(a ^ (a >>> 15), 1 | a)` instead of writing that multiplication with a plain `*`. Why does this seeded RNG need `Math.imul` specifically?",
+        choices: [
+          "JavaScript numbers are 64-bit floats with no real 32-bit integer type, so a plain `*` on two large ~32-bit values can lose precision bits; `Math.imul` multiplies as true 32-bit integers and wraps the result correctly, which the algorithm needs to reproduce the exact same stream for a given seed.",
+          "`Math.imul` is simply faster than `*`, and raw speed is the only reason it's used here.",
+          "`Math.imul` is required because `a` is a BigInt, and BigInt values can't use the `*` operator.",
+          "`Math.imul` rounds its result to the nearest integer, which `*` does not do."
+        ],
+        answer: 0,
+        explanation: "JavaScript has no native 32-bit integer type — every number is a 64-bit float — so multiplying two large ~32-bit values with a plain <code>*</code> can land outside the range where float math stays bit-exact. <code>Math.imul</code> performs the multiplication as if both operands were real 32-bit integers and returns the correctly wrapped 32-bit result, which is exactly what mulberry32 needs so the same seed always produces the identical stream of numbers. It's a correctness requirement for the algorithm, not a speed trick, and <code>a</code> is a plain number here, never a BigInt."
+      },
+      {
+        topicId: "sim-ui-decoupling",
+        topicLabel: "sim/UI split",
+        question: "The in-combat speed slider lets you watch an already-resolved fight play back at, say, 0.5x or 2x. Looking at how packages/ui/src/useCombatReplay.ts uses that speed value, what does moving the slider actually change?",
+        choices: [
+          "It re-runs `simulate()` internally at a different tick rate, which can shift combat outcomes at extreme speeds.",
+          "It changes how much of the seeded `rng` the replay consumes, since faster playback skips some randomness.",
+          "Only the TIMING of the animation — every beat delay, hold, and lunge duration gets divided by the speed value. The events being replayed, and the outcome they encode, never change.",
+          "It swaps which `CombatEvent`s get animated, skipping less important ones at higher speeds."
+        ],
+        answer: 2,
+        explanation: "<code>useCombatReplay</code> only replays a combat that <code>simulate()</code> already fully resolved before the slider was ever touched; the slider scales presentation-layer waits — \"every beat delay / float lifetime / final hold is divided by it.\" Nothing about the fight's outcome, order, or randomness changes, because the UI sits strictly downstream of the sim (CLAUDE.md: the UI animates the event log; it never computes outcomes). Every event still plays at every speed — faster playback doesn't skip any of them, it just shortens the waits between them."
+      },
+      {
+        topicId: "monorepo-packages",
+        topicLabel: "monorepo packages",
+        question: "CLAUDE.md notes that `packages/progression` is dependency-free, and that it also has a generated Deno copy at `supabase/functions/_shared/progression*` that must never be hand-edited. Why go to the trouble of generating a separate copy instead of just importing the package directly from Supabase's code?",
+        choices: [
+          "It's dependency-free so it loads faster in the browser; the Deno copy is purely a performance cache.",
+          "Being dependency-free means the same XP/level/crate logic carries no runtime-specific baggage, so it can run unmodified in two different JavaScript runtimes — the Node-based monorepo and the Deno runtime Supabase functions use — by generating a copy into the Deno project instead of needing a shared module system between two incompatible runtimes.",
+          "Supabase functions can't execute TypeScript at all, so the generated copy is a transpiled, JavaScript-only fallback.",
+          "The Deno copy is just a backup in case the npm package is ever deleted by accident."
+        ],
+        answer: 1,
+        explanation: "Node (the monorepo) and Deno (what Supabase Edge Functions run on) are different JavaScript runtimes that can't simply import each other's workspace packages across that boundary. Keeping <code>packages/progression</code> free of dependencies means its XP/level/crate logic carries no runtime-specific baggage, so <code>npm run progression:shared</code> can safely generate a copy into the Deno project and have it behave identically — which is also exactly why that generated copy must never be hand-edited: an edit there would drift from the one real source of truth. Deno actually runs TypeScript natively, so there's no transpiled-JS-only story here."
+      },
+      {
+        topicId: "pure-functions",
+        topicLabel: "pure functions",
+        question: "packages/sim/src/runDerive.ts's doc comment explains an owner decision: \"a run is already a pure function of `(seed, heroId, action log, content)`, so we do NOT instrument the game to emit telemetry. We replay the log through the real reducer and OBSERVE.\" What does being a pure function of just those 4 inputs let the team do?",
+        choices: [
+          "It lets them add a brand-new metric LATER and compute it retroactively over runs already banked, just by writing one new function — because the same 4 inputs will always re-derive the exact same run, so nothing was lost by not tracking that metric live.",
+          "It makes the game run faster, since pure functions always execute in less time than impure ones.",
+          "It means the reducer never needs to be tested, since purity guarantees correctness automatically.",
+          "It lets the UI skip animating combat entirely, since pure functions don't need a visual replay."
+        ],
+        answer: 0,
+        explanation: "If a run's entire outcome is fully determined by just those four recorded inputs, replaying them through the same (unchanged) reducer will always reproduce the exact same run — so any metric nobody thought to track live can be computed afterward, from data already banked, with zero drift from what the game actually did. That's the real payoff spelled out in the file: \"a metric we didn't think of is one function away.\" Purity has nothing to do with execution speed or with how well-tested the reducer is, and it says nothing about the UI's own animation needs."
+      },
+      {
+        topicId: "data-vs-code",
+        topicLabel: "data-driven quests",
+        question: "packages/content/src/quests.ts defines an entire quest as one plain object literal: `{ id: 'q_forest_grove', name: 'Forest Grove', tribe: 'beast', tier: 'lesser', objective: { event: 'summon', count: 8, tribe: 'beast' }, reward: { kind: 'grant', randomTribe: 'beast', randomCount: 1 }, repeatable: true }`. There's no function anywhere written specifically to check THIS quest. What does that tell you about how the quest system works?",
+        choices: [
+          "Every quest secretly has its own hidden handler function; `q_forest_grove` is just missing one because it's a simplified example.",
+          "Quests are compiled into executable code at build time, so the object literal shown is really just a stand-in for generated code.",
+          "This quest can only be understood by reading the reducer, since the object itself carries no real information about what it does.",
+          "A shared, generic piece of engine code reads the `objective` and `reward` fields off ANY quest object the same way (count `summon` events matching `tribe`, then apply a `grant` reward) — so adding a new quest means writing a new data object, never new code."
+        ],
+        answer: 3,
+        explanation: "The whole point of \"cards (and quests) are data, not code\" is that one small, shared piece of engine logic can read the <code>objective</code>/<code>reward</code> fields off every quest the same way — matching <code>summon</code> events against <code>tribe</code> and <code>count</code>, then applying a <code>grant</code> reward — so a brand-new quest is authored by writing a new object, never a new function. The object genuinely is the complete specification; nothing hidden in the reducer separately defines what this particular quest is counting. There's no per-quest handler and no build step turning data into bespoke code — it's read generically, at runtime, exactly as written."
+      },
+      {
+        topicId: "event-log-replay",
+        topicLabel: "event log & replay",
+        question: "packages/ui/src/useCombatReplay.ts's dev seek feature lets you jump the replay to ANY beat index, and its comment says this is safe \"because the board is a pure fold of `(initial, events, upto)`\" — backed by a test file literally named `computeFrame.purity.test.ts`. What does being a \"pure fold\" mean here, and why does it make jumping to an arbitrary index safe?",
+        choices: [
+          "`computeFrame` keeps a running, mutable copy of the board that it updates incrementally as the replay plays forward, so jumping backward means undoing changes step by step.",
+          "`computeFrame` is only safe to call once per combat, so the seek feature secretly restarts the whole fight from the original seed every time you jump.",
+          "`computeFrame` recomputes the board state FROM SCRATCH every time, replaying `events` up to `upto` against the untouched `initial` state — so jumping to any index just means calling it with a different `upto`, with no stale, partially-updated state left behind.",
+          "The \"fold\" in the name means the board data gets compressed before being displayed, to save memory."
+        ],
+        answer: 2,
+        explanation: "A \"fold\" over a sequence means deriving one result by processing it from the start every single time, rather than carrying forward a running, mutated copy. <code>computeFrame(initial, events, upto)</code> always begins from the untouched <code>initial</code> state and replays <code>events</code> only up to <code>upto</code> — so seeking to any index is just calling it with a different <code>upto</code>, never undoing or redoing anything on an existing copy. The combat itself was already fully resolved once by <code>simulate()</code>; seeking around the replay never re-runs that simulation, and \"fold\" here is a data-processing term, unrelated to compressing memory."
+      },
+      {
+        topicId: "eslint-rules",
+        topicLabel: "ESLint rules",
+        question: "eslint.config.mjs has a custom `banTitleTooltips` rule that fails the build if code sets a `title` attribute/prop on a rendered DOM element, an SVG `<title>`, or `el.title = ...`. Based on CLAUDE.md's UI-conventions rule about this, why enforce it with a LINT RULE instead of just asking developers to remember not to do it?",
+        choices: [
+          "A `title` attribute is technically invalid HTML, so browsers refuse to render the whole page if it's present.",
+          "A native `title` attribute makes the browser paint its own OS tooltip, which breaks the game's immersive, custom-cursor presentation — and a lint rule catches every occurrence automatically across the whole codebase, rather than relying on every developer remembering a style rule by hand forever.",
+          "`title` attributes measurably slow down rendering, so ESLint blocks them to protect frame rate.",
+          "The rule exists to replace TypeScript's own JSX attribute checking, since TypeScript can't catch `title` misuse on its own."
+        ],
+        answer: 1,
+        explanation: "A hand-written house rule like \"never use <code>title=</code>\" only works if every developer remembers it on every PR, forever; an ESLint rule turns that into an automatic, zero-effort check that fails the build the moment the pattern appears anywhere in the codebase, including places someone simply forgot about. The real problem it guards against — matching CLAUDE.md's UI-conventions rule — is that a native <code>title</code> paints the browser's own OS tooltip, breaking the game's custom-cursor, immersive feel. <code>title</code> is valid HTML and isn't a meaningful performance cost; the rule is about design intent and consistent enforcement, not markup validity or speed."
+      },
+      {
+        topicId: "performance-memo",
+        topicLabel: "performance architecture",
+        question: "docs/performance.md's 2026-08-01 shop-phase audit found the FX app's Pixi ticker was presenting an empty full-viewport WebGL frame ~240 times a second through the ENTIRE idle shop phase — worst frame 8.5ms with the ticker running vs. 4.3ms once it was stopped. The fix, `pixiFx.enableAutoIdle()`, stops that ticker whenever nothing is animating. What's the general lesson here?",
+        choices: [
+          "A loop that's rendering 'nothing' still isn't free — a ticker that clears-and-presents an empty frame every cycle keeps costing real frame time, so idle work has to be actively stopped, not just made cheaper.",
+          "WebGL is inherently too slow for a 2D card game and should be replaced with Canvas 2D everywhere.",
+          "The fix proves `box-shadow` and `filter` were the real culprits, matching the general CSS paint-property rule.",
+          "240 Hz is an unrealistic target, so the team should have measured against 60 Hz instead and ignored this result."
+        ],
+        answer: 0,
+        explanation: "Even an \"empty\" draw call still costs the GPU and compositor a clear-and-present every tick — the whole point of the audit was that doing nothing, 240 times a second, was still eating real frame budget (8.5ms worst-frame with the ticker running, vs. 4.3ms once it was stopped). The fix wasn't to make the empty frame cheaper; it was to stop presenting it at all once nothing is mounted (<code>enableAutoIdle</code>). The finding isn't an indictment of WebGL as a technology, it has nothing to do with CSS paint properties, and the team deliberately measures against real high-refresh hardware rather than lowering the bar to 60Hz."
+      }
+    ]
+  };
+
+  var state = {
+    idx: 0,
+    answered: new Array(QUIZ.questions.length).fill(null), // index of choice picked, or null
+    score: 0
+  };
+
+  var railEl = document.getElementById("rail");
+  var cardEl = document.getElementById("card");
+
+  try {
+    var saved = JSON.parse(localStorage.getItem("ascentQuiz52") || "null");
+    if (saved && Array.isArray(saved.answered) && saved.answered.length === QUIZ.questions.length) {
+      state = saved;
+    }
+  } catch (e) { /* ignore — fresh start */ }
+
+  function persist() {
+    try { localStorage.setItem("ascentQuiz52", JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }
+
+  function buildRail() {
+    railEl.innerHTML = "";
+    QUIZ.questions.forEach(function (q, i) {
+      var seg = document.createElement("div");
+      seg.className = "seg";
+      var picked = state.answered[i];
+      if (picked !== null) {
+        seg.className += picked === q.answer ? " correct" : " wrong";
+      } else if (i === state.idx) {
+        seg.className += " current";
+      }
+      var fill = document.createElement("i");
+      seg.appendChild(fill);
+      railEl.appendChild(seg);
+    });
+  }
+
+  var LETTERS = ["A", "B", "C", "D"];
+
+  function renderQuestion(i) {
+    var q = QUIZ.questions[i];
+    var picked = state.answered[i];
+
+    var html = '';
+    html += '<div class="qmeta"><span class="qnum">Question ' + (i + 1) + ' / ' + QUIZ.questions.length + '</span>' +
+            '<span class="topic-tag">' + q.topicLabel + '</span></div>';
+    html += '<p class="qtext">' + q.question + '</p>';
+    html += '<div class="choices" id="choices"></div>';
+    if (picked !== null) {
+      var correct = picked === q.answer;
+      html += '<div class="result-line ' + (correct ? "correct" : "wrong") + '">' +
+              (correct ? "Correct." : "Not quite.") + '</div>';
+      html += '<div class="explain">' + q.explanation + '</div>';
+      html += '<div class="nextrow"><button class="next" id="nextBtn">' +
+              (i + 1 === QUIZ.questions.length ? "See results" : "Next question") +
+              '</button></div>';
+    }
+    cardEl.innerHTML = html;
+
+    var choicesEl = document.getElementById("choices");
+    q.choices.forEach(function (choiceText, ci) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.type = "button";
+      var letter = document.createElement("span");
+      letter.className = "letter";
+      letter.textContent = LETTERS[ci];
+      var label = document.createElement("span");
+      label.textContent = choiceText;
+      btn.appendChild(letter);
+      btn.appendChild(label);
+
+      if (picked !== null) {
+        btn.disabled = true;
+        if (ci === q.answer) btn.className += " correct";
+        else if (ci === picked) btn.className += " wrong";
+        else btn.className += " dim";
+      } else {
+        btn.addEventListener("click", function () { answer(i, ci); });
+      }
+      choicesEl.appendChild(btn);
+    });
+
+    var nextBtn = document.getElementById("nextBtn");
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        if (i + 1 === QUIZ.questions.length) {
+          showResults();
+        } else {
+          state.idx = i + 1;
+          persist();
+          buildRail();
+          renderQuestion(state.idx);
+        }
+      });
+    }
+  }
+
+  function answer(i, ci) {
+    if (state.answered[i] !== null) return;
+    state.answered[i] = ci;
+    if (ci === QUIZ.questions[i].answer) state.score++;
+    persist();
+    buildRail();
+    renderQuestion(i);
+  }
+
+  function pepTalk(score, total) {
+    var pct = score / total;
+    if (pct === 1) return "Perfect run — every one of those stuck.";
+    if (pct >= 0.8) return "Strong showing. The pattern's clicking.";
+    if (pct >= 0.5) return "Solid progress — the misses are exactly what tomorrow will re-ask.";
+    return "That's alright — this stuff takes repetition, and the curriculum is built to circle back.";
+  }
+
+  function showResults() {
+    railEl.style.display = "none";
+    var total = QUIZ.questions.length;
+    var html = '<div class="scoreboard">';
+    html += '<p class="sub" style="margin:0;">You scored</p>';
+    html += '<div class="big">' + state.score + ' / ' + total + '</div>';
+    html += '<p class="pep">' + pepTalk(state.score, total) + '</p>';
+    html += '<div class="recap">';
+    QUIZ.questions.forEach(function (q, i) {
+      var picked = state.answered[i];
+      var correct = picked === q.answer;
+      html += '<div class="row ' + (correct ? "correct" : "wrong") + '">' +
+              '<span class="mark">' + (correct ? "✓" : "✕") + '</span>' +
+              '<span class="qn">Q' + (i + 1) + '</span>' +
+              '<span class="tt">' + q.topicLabel + '</span></div>';
+    });
+    html += '</div>';
+    html += '<button class="restart" id="restartBtn">Retake this quiz</button>';
+    html += '</div>';
+    cardEl.innerHTML = html;
+    document.getElementById("restartBtn").addEventListener("click", function () {
+      state = { idx: 0, answered: new Array(QUIZ.questions.length).fill(null), score: 0 };
+      persist();
+      railEl.style.display = "";
+      buildRail();
+      renderQuestion(0);
+    });
+  }
+
+  var allAnswered = state.answered.every(function (a) { return a !== null; });
+  if (allAnswered) {
+    showResults();
+  } else {
+    buildRail();
+    renderQuestion(state.idx);
+  }
+})();
+</script>
+</body>
+</html>

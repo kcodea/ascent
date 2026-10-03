@@ -69,6 +69,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'The longer and harder the goal, the bigger the XP. The biggest milestones pay up to 1,500 XP.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Several long-term achievements now give more XP.',
+        details: [
+          'Veteran 300, Mainstay 300, Conqueror 500, Back from the Brink 250, Many Faces 250.',
+          'Master of Many 600, Completionist 200, Gem Hoarder 200, and every hero Mastery 400.',
+          'Achievements you already completed keep the XP they paid.',
+        ],
+      },
     ],
   },
   {

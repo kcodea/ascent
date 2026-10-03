@@ -267,31 +267,31 @@ function def(d: DefInput): AchievementDef {
 // Career ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const CAREER: AchievementDef[] = [
   def({ id: 'tutorial.complete_course', name: 'Ready to Ascend', requirement: 'Complete the Learn Ascent course.', category: 'career', mode: 'tutorial', metric: 'game', target: 1, xp: 100, trust: 'S' }),
-  ...([[1, 'First Steps', 25], [10, 'Regular', 50], [50, 'Seasoned', 75], [100, 'Veteran', 100]] as const).map(([n, name, xp]) => def({
+  ...([[1, 'First Steps', 25], [10, 'Regular', 50], [50, 'Seasoned', 75], [100, 'Veteran', 300]] as const).map(([n, name, xp]) => def({
     id: `career.games.${n}`, name, requirement: n === 1 ? 'Complete a game.' : `Complete ${n} games.`, category: 'career', family: 'career.games',
     mode: 'any', metric: 'game', agg: 'sum', target: n, xp, trust: 'S',
   })),
-  ...([[10, 'Contender', 50], [50, 'Mainstay', 100]] as const).map(([n, name, xp]) => def({
+  ...([[10, 'Contender', 50], [50, 'Mainstay', 300]] as const).map(([n, name, xp]) => def({
     id: `career.top_four.${n}`, name, requirement: `Finish Top 4 in ${n} Ranked games.`, category: 'career', family: 'career.top_four',
     mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 4, target: n, xp, trust: 'S',
   })),
-  ...([[5, 'Victor', 100], [25, 'Conqueror', 200]] as const).map(([n, name, xp]) => def({
+  ...([[5, 'Victor', 100], [25, 'Conqueror', 500]] as const).map(([n, name, xp]) => def({
     id: `career.firsts.${n}`, name, requirement: `Finish 1st in ${n} Ranked games.`, category: 'career', family: 'career.firsts',
     mode: 'ranked', metric: 'game', agg: 'sum', placementMax: 1, target: n, xp, trust: 'S',
   })),
-  ...([[1, 'Never Out', 50], [10, 'Back from the Brink', 100]] as const).map(([n, name, xp]) => def({
+  ...([[1, 'Never Out', 50], [10, 'Back from the Brink', 250]] as const).map(([n, name, xp]) => def({
     id: `career.comebacks.${n}`, name, requirement: n === 1 ? 'Earn the comeback bonus: win a combat right after 4 losses in a row.' : `Earn the comeback bonus ${n} times.`,
     category: 'career', family: 'career.comebacks', mode: 'any', metric: 'comeback', agg: 'sum', target: n, xp, trust: 'S',
   })),
-  ...([[5, 'Well Traveled', 50], [15, 'Many Faces', 100]] as const).map(([n, name, xp]) => def({
+  ...([[5, 'Well Traveled', 50], [15, 'Many Faces', 250]] as const).map(([n, name, xp]) => def({
     id: `career.heroes_played.${n}`, name, requirement: `Complete games with ${n} different heroes.`, category: 'career', family: 'career.heroes_played',
     mode: 'account', metric: 'heroesPlayed', target: n, xp, trust: 'S',
   })),
-  ...([[5, 'Versatile', 100], [15, 'Master of Many', 200]] as const).map(([n, name, xp]) => def({
+  ...([[5, 'Versatile', 100], [15, 'Master of Many', 600]] as const).map(([n, name, xp]) => def({
     id: `career.hero_wins.${n}`, name, requirement: `Finish 1st in Ranked with ${n} different heroes.`, category: 'career', family: 'career.hero_wins',
     mode: 'account', metric: 'heroesWon', target: n, xp, trust: 'S',
   })),
-  ...([[10, 'Collector', 50], [25, 'Completionist', 100]] as const).map(([n, name, xp]) => def({
+  ...([[10, 'Collector', 50], [25, 'Completionist', 200]] as const).map(([n, name, xp]) => def({
     id: `career.achievements.${n}`, name, requirement: `Complete ${n} achievements.`, category: 'career', family: 'career.achievements',
     mode: 'account', metric: 'achievementsCompleted', target: n, xp, trust: 'S',
   })),
@@ -360,7 +360,7 @@ function heroDefs(h: { id: string; name: string }): AchievementDef[] {
     def({ ...base, id: `hero.${h.id}.top_four`, family: 'hero.top_four', name: `${h.name}: Contender`, requirement: `Finish Top 4 in 5 games as ${h.name}.`, mode: 'any', placementMax: 4, target: 5, xp: 75 }),
     def({ ...base, id: `hero.${h.id}.victory`, family: 'hero.victory', name: `${h.name}: Victory`, requirement: `Finish 1st in a Ranked game as ${h.name}.`, mode: 'ranked', placementMax: 1, target: 1, xp: 100 }),
     def({ ...base, id: `hero.${h.id}.titled`, family: 'hero.titled', name: `${h.name}: Titled`, requirement: `Finish 1st in ${HERO_TITLE_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_TITLE_WINS, xp: 150, titleId: heroTitleId(h.id) }),
-    def({ ...base, id: `hero.${h.id}.mastery`, family: 'hero.mastery', name: `${h.name}: Mastery`, requirement: `Finish 1st in ${HERO_MASTERY_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_MASTERY_WINS, xp: 250, titleId: heroMasterTitleId(h.id) }),
+    def({ ...base, id: `hero.${h.id}.mastery`, family: 'hero.mastery', name: `${h.name}: Mastery`, requirement: `Finish 1st in ${HERO_MASTERY_WINS} Ranked games as ${h.name}.`, mode: 'ranked', placementMax: 1, target: HERO_MASTERY_WINS, xp: 400, titleId: heroMasterTitleId(h.id) }),
   ];
 }
 const HERO_ACHIEVEMENTS: AchievementDef[] = ACHIEVEMENT_HEROES.flatMap(heroDefs);
@@ -411,7 +411,7 @@ const s2 = (group: string, d: Omit<DefInput, 'category' | 'group' | 'setId'>): A
 const SET2: AchievementDef[] = [
   // Kobolds (Rubies)
   s2('kobold', { id: 's2.kobold.rubies_turn_8', name: 'Cut and Set', requirement: 'Play 8 Rubies in one turn.', mode: 'any', metric: 'rubyPlaysTurnMax', target: 8, xp: 100 }),
-  s2('kobold', { id: 's2.kobold.rubies_life_500', name: 'Gem Hoarder', requirement: 'Play 500 Rubies across all your Set 2 games.', mode: 'any', metric: 'rubyPlays', agg: 'sum', target: 500, xp: 100 }),
+  s2('kobold', { id: 's2.kobold.rubies_life_500', name: 'Gem Hoarder', requirement: 'Play 500 Rubies across all your Set 2 games.', mode: 'any', metric: 'rubyPlays', agg: 'sum', target: 500, xp: 200 }),
   s2('kobold', { id: 's2.kobold.ruby_strength_5', name: 'Master Cut', requirement: 'Raise your Rubies to a +5/+5 bonus in one game.', mode: 'any', metric: 'rubyStrength', target: 5, xp: 150 }),
   s2('kobold', { id: 's2.kobold.every_facet', name: 'Every Facet', requirement: 'Play a Warding, Golden, Splintered, Ripple and Dark Ruby on a Kobold in one game.', mode: 'any', metric: 'rubyFacetsOnKobolds', target: 5, xp: 100 }),
   s2('kobold', { id: 's2.kobold.gemstorm_15', name: 'Gemstorm', requirement: 'Have 15 Rubies land on your minions in one combat.', mode: 'any', metric: 'rubiesLandedCombatMax', target: 15, xp: 150 }),
@@ -621,6 +621,11 @@ const MILESTONES: AchievementDef[] = [
   ms({ id: 'ranked.top_four_streak_20', name: 'Rock Steady', requirement: 'Finish Top 4 in 20 Ranked games in a row.', mode: 'ranked', metric: 'topFourStreak', target: 20, xp: 750, trust: 'S' }),
   ms({ id: 'ranked.win_streak_5', name: 'Five Crowns', requirement: 'Finish 1st in 5 Ranked games in a row.', mode: 'ranked', metric: 'firstStreak', target: 5, xp: 1000, trust: 'S' }),
 ];
+
+// Owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers re-tuned onto the same curve
+// (career.games.100 300, career.top_four.50 300, career.firsts.25 500, career.comebacks.10 250,
+// career.heroes_played.15 250, career.hero_wins.15 600, career.achievements.25 200, s2.kobold.rubies_life_500 200,
+// hero.<id>.mastery 400). Completions already paid keep the XP they paid (achievement_completions.xp_awarded).
 
 /** The 150 added 2026-10-03, in display order. */
 export const ACHIEVEMENTS_150: readonly AchievementDef[] = Object.freeze([...SET2_MORE, ...HERO_DEVOTED, ...HEROES_ALL, ...COMBAT, ...MILESTONES]);

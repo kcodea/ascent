@@ -2603,7 +2603,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Every playable hero has a title (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student", ...). A new hero '
       + 'achievement tier, Titled (hero.<id>.titled, 150 XP), completes at 3 Ranked 1st-place finishes with that hero and '
       + 'grants the title (title_hero_<id>, Epic, the normal title look). The existing Mastery tier (hero.<id>.mastery, 10 '
-      + 'Ranked 1sts, 250 XP) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
+      + 'Ranked 1sts, 250 XP, 400 since the 2026-10-03 re-tune) now grants the master version (title_hero_<id>_master): the SAME name, shown as a golden plate '
       + 'with embroidered text. Victory (1 Ranked 1st, 100 XP) stays XP only. Practice never counts toward either (Ranked '
       + 'only, like Victory). The grant happens inside settle_progression, in the same transaction as the completion: the '
       + 'title is owned (player_cosmetics, keyed, never twice) and listed in the result\x27s unlockedTitles. The master '
@@ -2638,13 +2638,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'biggest milestones 750 to 1,500. The 11 new run metrics (heroPowerUses, flawlessWins, lastStandWins, '
       + 'combatWinStreakMax, undefeated, knockouts, heroDamageCombatMax, heroDamageDealt, enemyKillsCombatMax, enemyKills, '
       + 'brink) are counted by the run observer from data the client holds at settle and carry ordinary trust, like every run '
-      + 'metric. Existing achievements keep their XP.',
+      + 'metric. The batch 1 long-term tiers move onto the same curve (owner-approved): Veteran (100 games) 300, Mainstay (50 '
+      + 'Top 4s) 300, Conqueror (25 1sts) 500, Back from the Brink (10 comebacks) 250, Many Faces (15 heroes played) 250, '
+      + 'Master of Many (15 heroes won) 600, Completionist (25 achievements) 200, Gem Hoarder (500 Rubies) 200, and every hero '
+      + 'Mastery 400; the registry totals 105,950 XP. XP is paid at completion and recorded on the completion, so a re-tune '
+      + 'pays the new amount only on completions after it: one already completed keeps what it paid, with no backfill.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150)', quote: 'add 150 more achievements' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, themes chosen)', quote: 'Tribes & cards, Heroes deeper, Combat feats, Long-term grind' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (achievements 150, XP)', quote: 'make longer term / more difficult achievements grant significantly more xp. some of the larger longer term ones should easily be 500+ xp' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (the batch 1 long-term re-tune)', quote: 'yes apply these achievement changes' },
       { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS_150, RUN_METRICS); packages/sim/src/achievementMetrics.ts (the new counters); packages/ui/src/progression/AchievementsTab.tsx (Combat + Milestones categories)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-03. Live once the owner redeploys submit-progression (its cold start syncs the catalog; no SQL).',

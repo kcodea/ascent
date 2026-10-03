@@ -22,7 +22,7 @@ longer term ones should easily be 500+ xp". Oracle R-ACH-05.
 | Heroes deeper | 42 | 10,150 | Heroes (a Devoted tier per hero + an "All heroes" group) |
 | Combat feats | 36 | 13,175 | new Combat category |
 | Long-term grind | 34 | 22,100 | new Milestones category |
-| **Total** | **150** | **61,375** | registry now 446 / 98,950 XP |
+| **Total** | **150** | **61,375** | registry now 446 / 105,950 XP (after the re-tune below) |
 
 XP bands for the 150: 25 to 100 (10), 101 to 300 (77), 301 to 499 (13), 500 to 749 (24), 750 to 1,500 (26).
 
@@ -44,12 +44,19 @@ groups skip layout and paint (Heroes is 222 tiles in 37 groups).
 - An Ancient pairing per hero: Ancients are Scene Builder / Set 3 only, not live in Ranked or Practice.
 - "100+ damage in one fight": hero damage tops out near 50, so the single-fight tiers are 10 / 15 / 20 / 30.
 
-## Proposed (NOT applied) re-tunes of the batch 1 long-term tiers
+## The batch 1 long-term re-tune (owner: "yes apply these achievement changes")
 
-Changing these moves XP for settled players' future completions only (already-paid completions keep their XP), but
-it is an owner call: career.games.100 100 -> 300, career.top_four.50 100 -> 300, career.firsts.25 200 -> 500,
-career.comebacks.10 100 -> 250, career.heroes_played.15 100 -> 250, career.hero_wins.15 200 -> 600,
-career.achievements.25 100 -> 200, s2.kobold.rubies_life_500 100 -> 200, hero.<id>.mastery 250 -> 400.
+career.games.100 100 -> 300, career.top_four.50 100 -> 300, career.firsts.25 200 -> 500, career.comebacks.10 100 -> 250,
+career.heroes_played.15 100 -> 250, career.hero_wins.15 200 -> 600, career.achievements.25 100 -> 200,
+s2.kobold.rubies_life_500 100 -> 200, hero.<id>.mastery 250 -> 400 (x36). +7,000 XP; the registry is 105,950 XP.
+
+Retroactivity: NOT retroactive. The XP lives in code; `sync_achievement_catalog` copies it into
+`achievement_catalog.xp`, and `settle_progression` pays `d.xp` at completion, recording it in
+`achievement_completions.xp_awarded` and the ledger row. A completed achievement never progresses or pays again, so
+players who already completed one keep what they were paid; only completions after the deploy pay the new amount. No
+backfill was added. One side effect: if a client RETRIES a settlement that completed a re-tuned achievement before
+the deploy, the server returns the original result (old XP) and the Edge Function's `parity` check (which re-derives
+from the new code values) logs `parity: false` for that one dedupe. It is a log flag only; nothing is re-paid.
 
 ## Verification
 

@@ -17,15 +17,21 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 446 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP)', () => {
+  it('ships 446 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP)', () => {
     expect(ACHIEVEMENTS).toHaveLength(446);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
       career: 17, ranked: 28, heroes: 222, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 1550, ranked: 4300, heroes: 31750, economy: 1925, mechanics: 1125, runes: 675, set2: 22350, combat: 13175, milestones: 22100,
+      career: 3050, ranked: 4300, heroes: 37150, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100,
     });
-    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(98_950);
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(105_950);
+    // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
+    expect(Object.fromEntries(['career.games.100', 'career.top_four.50', 'career.firsts.25', 'career.comebacks.10', 'career.heroes_played.15', 'career.hero_wins.15', 'career.achievements.25', 's2.kobold.rubies_life_500', 'hero.warden.mastery']
+      .map((id) => [id, ACHIEVEMENT_INDEX[id]!.rewards.xp]))).toEqual({
+      'career.games.100': 300, 'career.top_four.50': 300, 'career.firsts.25': 500, 'career.comebacks.10': 250, 'career.heroes_played.15': 250,
+      'career.hero_wins.15': 600, 'career.achievements.25': 200, 's2.kobold.rubies_life_500': 200, 'hero.warden.mastery': 400,
+    });
   });
 
   it('every reward pays XP; ONLY the hero Titled and Mastery tiers carry a title (owner 2026-09-29), each a real catalog title', () => {
@@ -90,7 +96,7 @@ describe('the batch 1 registry', () => {
       expect([debut!.mode, top!.mode, win!.mode, titled!.mode, mastery!.mode]).toEqual(['any', 'any', 'ranked', 'ranked', 'ranked']);
       // owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is after 10 wins"
       expect([debut!.target, top!.target, win!.target, titled!.target, mastery!.target]).toEqual([3, 5, 1, 3, 10]);
-      expect([debut!.rewards.xp, top!.rewards.xp, win!.rewards.xp, titled!.rewards.xp, mastery!.rewards.xp]).toEqual([25, 75, 100, 150, 250]);
+      expect([debut!.rewards.xp, top!.rewards.xp, win!.rewards.xp, titled!.rewards.xp, mastery!.rewards.xp]).toEqual([25, 75, 100, 150, 400]); // Mastery 250 -> 400 (owner 2026-10-03)
       expect([top!.placementMax, win!.placementMax, titled!.placementMax, mastery!.placementMax]).toEqual([4, 1, 1, 1]);
       expect(debut!.heroId).toBe(h.id);
       // the 2026-10-03 sixth tier: 25 games of any eligible kind

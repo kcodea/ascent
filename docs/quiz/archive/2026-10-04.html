@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ascent Quiz #53</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a single centered "quest card" — progress rail up top, one question
+     at a time below, a file-path "scroll tag" styling nods to the codebase it quizzes on. */
+  :root {
+    --bg: #f5f3ee;
+    --bg-deep: #ece8df;
+    --surface: #ffffff;
+    --surface-2: #faf8f3;
+    --ink: #221c14;
+    --ink-dim: #6b6354;
+    --line: #ddd5c4;
+    --accent: #b9772f;
+    --accent-ink: #5c3a14;
+    --good: #2f7a4f;
+    --good-bg: #e4f3e8;
+    --bad: #b5402f;
+    --bad-bg: #fbe8e3;
+    --font-display: 'Sora', system-ui, sans-serif;
+    --font-body: 'Public Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f;
+      --bg-deep: #100e0a;
+      --surface: #221d16;
+      --surface-2: #2a2419;
+      --ink: #f3ece0;
+      --ink-dim: #b2a890;
+      --line: #3c3426;
+      --accent: #e0a24c;
+      --accent-ink: #f6d9a3;
+      --good: #6fcb94;
+      --good-bg: #1c3426;
+      --bad: #e08573;
+      --bad-bg: #3a2019;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f;
+    --bg-deep: #100e0a;
+    --surface: #221d16;
+    --surface-2: #2a2419;
+    --ink: #f3ece0;
+    --ink-dim: #b2a890;
+    --line: #3c3426;
+    --accent: #e0a24c;
+    --accent-ink: #f6d9a3;
+    --good: #6fcb94;
+    --good-bg: #1c3426;
+    --bad: #e08573;
+    --bad-bg: #3a2019;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: radial-gradient(ellipse at top, var(--bg-deep), var(--bg) 60%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    min-height: 100%;
+    padding: 28px 16px 48px;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(22px, 5vw, 28px);
+    margin: 6px 0 2px;
+    text-wrap: balance;
+  }
+  .sub { color: var(--ink-dim); font-size: 14px; margin: 0; }
+
+  .rail {
+    display: flex;
+    gap: 5px;
+    margin: 18px 0 22px;
+  }
+  .rail .seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .rail .seg i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .25s ease;
+  }
+  .rail .seg.correct i { width: 100%; background: var(--good); }
+  .rail .seg.wrong i { width: 100%; background: var(--bad); }
+  .rail .seg.current i { width: 100%; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .qmeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .qnum {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .topic-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2px 7px;
+  }
+  .qtext {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.45;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 14px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--ink);
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>') 0 0, pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice:active:not(:disabled) { transform: scale(0.99); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .choice:disabled { cursor: default; }
+  .choice.correct { background: var(--good-bg); border-color: var(--good); }
+  .choice.correct .letter { background: var(--good); border-color: var(--good); color: #fff; }
+  .choice.wrong { background: var(--bad-bg); border-color: var(--bad); }
+  .choice.wrong .letter { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .choice.dim { opacity: 0.55; }
+
+  .result-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .result-line.correct { color: var(--good); }
+  .result-line.wrong { color: var(--bad); }
+
+  .explain {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .explain code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 18px; }
+  button.next, button.restart {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 11px 20px;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>') 0 0, pointer;
+  }
+  button.next:hover, button.restart:hover { filter: brightness(1.08); }
+  button.next:focus-visible, button.restart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .scoreboard { text-align: center; padding: 10px 6px 4px; }
+  .scoreboard .big {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(40px, 12vw, 56px);
+    font-variant-numeric: tabular-nums;
+    margin: 6px 0 2px;
+  }
+  .scoreboard .line { color: var(--ink-dim); font-size: 14px; margin: 0 0 18px; }
+  .scoreboard .pep {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+  .recap {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .recap .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .recap .row .mark { font-weight: 700; width: 18px; text-align: center; }
+  .recap .row.correct .mark { color: var(--good); }
+  .recap .row.wrong .mark { color: var(--bad); }
+  .recap .row .qn { font-family: var(--font-mono); color: var(--ink-dim); flex: 0 0 auto; }
+  .recap .row .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer.hint {
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 12px;
+    margin-top: 22px;
+    line-height: 1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rail .seg i, .choice { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <span class="kicker">Daily Ascent Code Quiz</span>
+      <h1 id="quizTitle">Ascent Quiz #53</h1>
+      <p class="sub" id="quizSub">October 4, 2026 · 10 questions on how the engine is built</p>
+    </div>
+  </header>
+
+  <div class="rail" id="rail"></div>
+
+  <main class="card" id="card"></main>
+
+  <footer class="hint">Grounded in the real Ascent source — every explanation names the file to go read.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var QUIZ = {
+    number: 53,
+    dateLabel: "October 4, 2026",
+    questions: [
+      {
+        topicId: "reducer-run-state",
+        topicLabel: "reducer + run state",
+        question: "packages/sim/src/reducer.ts's helper `spendGold(s, amount)` contains the line `s.embers -= amount;`. What is `s` at that point in the code?",
+        choices: [
+          "A fresh copy of the run state that gets thrown away once the function returns.",
+          "The mutable \"draft\" of the run state that this one dispatch is building up before it gets returned as the new state.",
+          "A read-only snapshot of a past turn, kept only for display in the UI.",
+          "The Zustand store object that React components subscribe to directly."
+        ],
+        answer: 1,
+        explanation: "A reducer dispatch starts by cloning a fresh working draft of <code>RunState</code> once, and helper functions like <code>spendGold</code> are then free to mutate that one draft directly (<code>s.embers -= amount</code>) — that's the whole point of doing the clone up front, so nothing before this dispatch is touched. The UI never reaches into this draft directly; it only ever receives the finished, returned state. A read-only snapshot is the tempting-sounding wrong answer here, but <code>s</code> is actively being written to in this line, which a true read-only snapshot could never allow."
+      },
+      {
+        topicId: "zustand-store",
+        topicLabel: "Zustand store",
+        question: "packages/ui/src/store.ts has a `rollHeroChoices()` function that shuffles hero ids with `Math.floor(Math.random() * (i + 1))` — and its own comment calls this \"fine.\" CLAUDE.md says Math.random is banned, so why is this particular call allowed?",
+        choices: [
+          "It's a bug that ESLint simply failed to catch.",
+          "store.ts is treated as a test file, and the ban only applies to production code paths.",
+          "Math.random() here only affects what's shown on screen and never affects which hero the player can actually pick.",
+          "The ESLint ban only covers packages/core, packages/content, and packages/sim — packages/ui isn't in that scope, and this particular shuffle happens before any seeded run even exists."
+        ],
+        answer: 3,
+        explanation: "The <code>Math.random</code> ban is scoped to the deterministic engine (core/content/sim) because that's exactly the code a replay or shared seed has to reproduce bit-for-bit; which 3 heroes get offered in the picker is a one-time meta decision made before any seeded run exists, so store.ts's own comment calls it fine for precisely that reason. The \"only affects display\" option is the tempting wrong pick — it actually does decide what the player can choose from, it's just that the choice itself was never part of what a replay needs to reproduce."
+      },
+      {
+        topicId: "event-bus",
+        topicLabel: "event bus",
+        question: "packages/core/src/events.ts's `CombatBus.emit()` loops with `for (const handler of [...list])` rather than `for (const handler of list)` directly. Why make that extra array copy first?",
+        choices: [
+          "A handler running mid-loop might register a brand-new handler (e.g. a Deathrattle summoning a minion that registers its own effects) — mutating `list` while it's being iterated would be unsafe, so the copy freezes the set this one emit() call runs over.",
+          "It's needed to sort the handlers by priority before running them.",
+          "Arrays in TypeScript can't be iterated with a for-of loop unless they're copied first.",
+          "It's a micro-optimization that avoids repeated array index lookups."
+        ],
+        answer: 0,
+        explanation: "The class's own comment warns that handlers may themselves cause emits that register new handlers, and that the simulator's iteration guard bounds any resulting cascade — looping over a live array while something is pushing onto it mid-loop is a classic bug, so <code>emit()</code> snapshots <code>list</code> into a new array first. \"Arrays can't be iterated without copying\" is the tempting but false claim here — plain <code>for...of list</code> works fine in JavaScript; the copy exists purely for safety against mutation during iteration, not because the language requires it."
+      },
+      {
+        topicId: "cards-in-sets",
+        topicLabel: "cards in sets",
+        question: "In packages/content/src/sets.ts, Set 2's Dragon list is built with `DRAGONS.filter((d) => d.id === 'karwind')` — pulling Karwind straight out of Set 1's own DRAGONS array, rather than a second Karwind definition written for Set 2. What does this pattern show about how sets are organized?",
+        choices: [
+          "Every set is required to duplicate the full definition of every card it includes, for safety.",
+          "Karwind appearing in two sets is actually a bug the code doesn't intend.",
+          "A set manifest can opt a card IN by id, reusing the exact same `CardDef` object instead of copy-pasting a second one.",
+          "Sets are stored in a database table at runtime, not as TypeScript source files."
+        ],
+        answer: 2,
+        explanation: "sets.ts uses this \"opt-in by id\" pattern repeatedly — for shared neutrals, for Karwind, and for the whole Set-3 shared-spell list — specifically so one <code>CardDef</code> lives in exactly one place and other sets just reference its id, meaning a stat change to that card updates everywhere it's used automatically. \"Every set must duplicate every card\" is the opposite of what this code actually does, which is what makes it the tempting wrong answer for anyone who hasn't yet seen a set manifest filter an existing array by id."
+      },
+      {
+        topicId: "package-boundaries",
+        topicLabel: "package boundaries",
+        question: "packages/ui/src/store.ts imports `createRun` and `reduce` with `import { ... } from '@game/sim'` — never a deeper path like `from '@game/sim/src/reducer'`. Why does that distinction actually matter?",
+        choices: [
+          "It's purely a style preference with no real functional consequence.",
+          "'@game/sim' resolves to the package's declared public entrypoint (its package.json \"exports\", pointing at src/index.ts); reaching into an internal file path instead would bypass that entrypoint and tie the UI to sim's internal file layout.",
+          "Importing through a deep file path is measurably slower at runtime than importing by package name.",
+          "TypeScript's module resolution doesn't permit deep imports between workspace packages at all."
+        ],
+        answer: 1,
+        explanation: "packages/sim's package.json declares a single \"exports\" entry pointing at src/index.ts — that file IS the package's public surface, and importing by package name only ever sees whatever index.ts chooses to re-export. Reaching past that into an internal path would mean ui breaks the moment sim reorganizes its internals, which is exactly the \"boundary leaked\" problem CLAUDE.md warns about for a reason beyond pure style. \"TypeScript doesn't permit it\" is the tempting-but-false option — deep imports are technically allowed by the language; this is a project convention backed by the entrypoint design, not a hard language rule."
+      },
+      {
+        topicId: "effects-as-subscriptions",
+        topicLabel: "effects as subscriptions",
+        question: "packages/content/src/schema.ts's `EffectDefSchema` is shaped `{ on: GameEventSchema, do: EffectFactoryIdSchema, params }`. In plain English, what does one `EffectDef` entry actually say?",
+        choices: [
+          "\"Run this exact block of custom JavaScript code every frame.\"",
+          "\"Construct a brand-new class instance to represent this card's behavior.\"",
+          "\"Overwrite the card's base stats with these specific values.\"",
+          "\"On this named game event, run the effect factory with this name, passing these parameters\" — a data description of a subscription, not a function body written specifically for this card."
+        ],
+        answer: 3,
+        explanation: "`on` names a `GameEvent` (a death, a summon, etc.) and `do` names one factory from a fixed, whitelisted set (`EffectFactoryIdSchema`) — the card supplies no code of its own, just data pointing at one of a known menu of reusable behaviors. That's the concrete shape of \"cards are data + effect subscriptions, never bespoke classes.\" \"Run this exact block of custom code\" is the tempting wrong answer because that's how some other, non-data-driven effect systems actually work — which is precisely the pattern this content schema is built to avoid."
+      },
+      {
+        topicId: "effect-timing-pipeline",
+        topicLabel: "effect timing",
+        question: "packages/sim/src/reducer.ts has a comment describing a past bug: a recruit-phase stat buff (Fleeting Vigor) was baked silently into the combat board before Start-of-Combat, with \"no source-attributed event anywhere\" — making it look like \"the minions just have those stats.\" The fix pushes a `buff` CombatEvent onto the front of the log instead. Why did that actually matter?",
+        choices: [
+          "Without a logged event, the event-log/replay architecture had nothing to animate or attribute the stat change to — a change that never became an event was effectively invisible to the system whose whole job is to explain every change on screen.",
+          "It made the buff numerically stronger than before.",
+          "It let the buff skip the recruit phase and apply during the shop phase instead.",
+          "CombatEvents are required for the TypeScript compiler to accept the code."
+        ],
+        answer: 0,
+        explanation: "Ascent's architecture is \"combat is a pure function → event log → replay\" — anything that changes a minion's stats is supposed to show up as a moment in that log so the UI can display exactly where it came from. A buff applied with no corresponding event bypassed that contract entirely, which is why the fix was to emit one rather than to touch any numbers. \"Required for TypeScript to compile\" is the tempting-but-false technical-sounding option — this is an architectural rule the team enforces on itself, not something the compiler checks."
+      },
+      {
+        topicId: "testing-vitest",
+        topicLabel: "testing (vitest)",
+        question: "Determinism-flavored tests aren't confined to packages/core or packages/sim — packages/ui/src/fx/poolDeterminism.test.ts tests it on the UI side too. In general, what does a test with \"determinism\" in its name check for?",
+        choices: [
+          "That the UI finishes rendering in under 16 milliseconds.",
+          "That the code passes every ESLint rule with zero warnings.",
+          "That running the exact same inputs (like a seed) twice produces the exact same result both times, with no leftover unseeded randomness sneaking in anywhere.",
+          "That the test file's own source has no spelling mistakes."
+        ],
+        answer: 2,
+        explanation: "Determinism tests exist because the entire replay/shareable-seed system rests on \"same inputs → same outputs, every time\" — pool shuffling and FX selection on the UI side need that same guarantee as combat itself, which is why Ascent tests for it even outside the core engine package. \"Renders in under 16ms\" describes a real but different category of check in this repo (a performance test, run via `npm run perf`), not what the word \"determinism\" in a test's name is actually verifying."
+      },
+      {
+        topicId: "types-basics",
+        topicLabel: "TypeScript types",
+        question: "packages/core/src/types.ts's `CombatEvent` union includes a variant `{ type: 'sc'; source: string; text: string; cast?: true; side?: Side }` sitting in the same array alongside a totally different-shaped variant like `{ type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }`. What TypeScript feature lets one array safely hold both shapes?",
+        choices: [
+          "Both variants secretly share the exact same underlying fields, just under different names.",
+          "A discriminated union — code can check the `type` field first, and TypeScript then knows exactly which other fields are legal to read for that specific variant.",
+          "TypeScript doesn't actually check object shapes at runtime, so mixing shapes in one array never causes an error either way.",
+          "Generics — a single generic type is standing in for whichever shape is needed at the moment."
+        ],
+        answer: 1,
+        explanation: "<code>type</code> is the \"discriminant\": once code checks <code>event.type === 'sc'</code>, TypeScript narrows the type and allows safely reading <code>.text</code> and <code>.cast</code> — fields that simply don't exist on the <code>'attack'</code> variant. \"Generics\" is the tempting wrong answer because it's also a real TypeScript feature associated with \"handling many shapes,\" but generics parameterize ONE shape over a variable type; they aren't how a fixed menu of genuinely different-shaped variants like this union gets modeled."
+      },
+      {
+        topicId: "immutability",
+        topicLabel: "immutability",
+        question: "packages/sim/src/reducer.ts's `conjurePlainCopy(s, cardId)` looks up the shared card definition (`const def = CARD_INDEX[cardId]`) and pushes a brand-new object onto the hand — `{ uid, cardId: def.id, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false }` — rather than pushing `def` itself. Why the `[...def.keywords]` instead of just reusing `def.keywords` directly?",
+        choices: [
+          "It's unnecessary busywork — JavaScript automatically copies arrays whenever they're assigned to a new variable.",
+          "It makes the array noticeably faster to read later in combat.",
+          "It's required only because `keywords` has a `readonly` TYPE at compile time, with no actual effect once the code runs.",
+          "`def.keywords` is the SAME array object shared by every card instance drawn from that one definition — copying it into a fresh array means later changes to this particular hand card's keywords can never accidentally mutate the shared CardDef or every other copy of that card."
+        ],
+        answer: 3,
+        explanation: "This is the concrete shape of \"never mutate shared CardDefs\": <code>CARD_INDEX</code> holds exactly one definition object per card id, reused everywhere that card shows up, so anything that might later push or splice onto a keywords list has to start from its own array, not a shared reference. \"JavaScript copies arrays automatically on assignment\" is the common beginner misconception this question is built to catch — it does not; <code>const keywords = def.keywords</code> would be the exact same array, not a copy, which is exactly why the explicit <code>[...]</code> spread is needed here."
+      }
+    ]
+  };
+
+  var state = {
+    idx: 0,
+    answered: new Array(QUIZ.questions.length).fill(null), // index of choice picked, or null
+    score: 0
+  };
+
+  var railEl = document.getElementById("rail");
+  var cardEl = document.getElementById("card");
+
+  try {
+    var saved = JSON.parse(localStorage.getItem("ascentQuiz53") || "null");
+    if (saved && Array.isArray(saved.answered) && saved.answered.length === QUIZ.questions.length) {
+      state = saved;
+    }
+  } catch (e) { /* ignore — fresh start */ }
+
+  function persist() {
+    try { localStorage.setItem("ascentQuiz53", JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }
+
+  function buildRail() {
+    railEl.innerHTML = "";
+    QUIZ.questions.forEach(function (q, i) {
+      var seg = document.createElement("div");
+      seg.className = "seg";
+      var picked = state.answered[i];
+      if (picked !== null) {
+        seg.className += picked === q.answer ? " correct" : " wrong";
+      } else if (i === state.idx) {
+        seg.className += " current";
+      }
+      var fill = document.createElement("i");
+      seg.appendChild(fill);
+      railEl.appendChild(seg);
+    });
+  }
+
+  var LETTERS = ["A", "B", "C", "D"];
+
+  function renderQuestion(i) {
+    var q = QUIZ.questions[i];
+    var picked = state.answered[i];
+
+    var html = '';
+    html += '<div class="qmeta"><span class="qnum">Question ' + (i + 1) + ' / ' + QUIZ.questions.length + '</span>' +
+            '<span class="topic-tag">' + q.topicLabel + '</span></div>';
+    html += '<p class="qtext">' + q.question + '</p>';
+    html += '<div class="choices" id="choices"></div>';
+    if (picked !== null) {
+      var correct = picked === q.answer;
+      html += '<div class="result-line ' + (correct ? "correct" : "wrong") + '">' +
+              (correct ? "Correct." : "Not quite.") + '</div>';
+      html += '<div class="explain">' + q.explanation + '</div>';
+      html += '<div class="nextrow"><button class="next" id="nextBtn">' +
+              (i + 1 === QUIZ.questions.length ? "See results" : "Next question") +
+              '</button></div>';
+    }
+    cardEl.innerHTML = html;
+
+    var choicesEl = document.getElementById("choices");
+    q.choices.forEach(function (choiceText, ci) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.type = "button";
+      var letter = document.createElement("span");
+      letter.className = "letter";
+      letter.textContent = LETTERS[ci];
+      var label = document.createElement("span");
+      label.textContent = choiceText;
+      btn.appendChild(letter);
+      btn.appendChild(label);
+
+      if (picked !== null) {
+        btn.disabled = true;
+        if (ci === q.answer) btn.className += " correct";
+        else if (ci === picked) btn.className += " wrong";
+        else btn.className += " dim";
+      } else {
+        btn.addEventListener("click", function () { answer(i, ci); });
+      }
+      choicesEl.appendChild(btn);
+    });
+
+    var nextBtn = document.getElementById("nextBtn");
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        if (i + 1 === QUIZ.questions.length) {
+          showResults();
+        } else {
+          state.idx = i + 1;
+          persist();
+          buildRail();
+          renderQuestion(state.idx);
+        }
+      });
+    }
+  }
+
+  function answer(i, ci) {
+    if (state.answered[i] !== null) return;
+    state.answered[i] = ci;
+    if (ci === QUIZ.questions[i].answer) state.score++;
+    persist();
+    buildRail();
+    renderQuestion(i);
+  }
+
+  function pepTalk(score, total) {
+    var pct = score / total;
+    if (pct === 1) return "Perfect run — every one of those stuck.";
+    if (pct >= 0.8) return "Strong showing. The pattern's clicking.";
+    if (pct >= 0.5) return "Solid progress — the misses are exactly what tomorrow will re-ask.";
+    return "That's alright — this stuff takes repetition, and the curriculum is built to circle back.";
+  }
+
+  function showResults() {
+    railEl.style.display = "none";
+    var total = QUIZ.questions.length;
+    var html = '<div class="scoreboard">';
+    html += '<p class="sub" style="margin:0;">You scored</p>';
+    html += '<div class="big">' + state.score + ' / ' + total + '</div>';
+    html += '<p class="pep">' + pepTalk(state.score, total) + '</p>';
+    html += '<div class="recap">';
+    QUIZ.questions.forEach(function (q, i) {
+      var picked = state.answered[i];
+      var correct = picked === q.answer;
+      html += '<div class="row ' + (correct ? "correct" : "wrong") + '">' +
+              '<span class="mark">' + (correct ? "✓" : "✕") + '</span>' +
+              '<span class="qn">Q' + (i + 1) + '</span>' +
+              '<span class="tt">' + q.topicLabel + '</span></div>';
+    });
+    html += '</div>';
+    html += '<button class="restart" id="restartBtn">Retake this quiz</button>';
+    html += '</div>';
+    cardEl.innerHTML = html;
+    document.getElementById("restartBtn").addEventListener("click", function () {
+      state = { idx: 0, answered: new Array(QUIZ.questions.length).fill(null), score: 0 };
+      persist();
+      railEl.style.display = "";
+      buildRail();
+      renderQuestion(0);
+    });
+  }
+
+  var allAnswered = state.answered.every(function (a) { return a !== null; });
+  if (allAnswered) {
+    showResults();
+  } else {
+    buildRail();
+    renderQuestion(state.idx);
+  }
+})();
+</script>
+</body>
+</html>

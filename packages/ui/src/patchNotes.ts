@@ -62,6 +62,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Brunni\'s End of Turn ale bubbles no longer play twice.',
       },
+      {
+        category: 'Systems',
+        text: 'End of Turn eats and Ruby gains no longer replay as combat begins.',
+        details: ['Abyssal Feeder and Feasting Bogrot no longer eat their Fodder a second time.', 'Kobold Alchemist\'s Rubies no longer roll the numbers up twice.'],
+      },
+      {
+        category: 'Systems',
+        text: 'A spell-power gain now only pops the spells in your hand it actually makes stronger.',
+      },
     ],
   },
   {

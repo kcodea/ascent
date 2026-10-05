@@ -1,4 +1,5 @@
 import { CARD_INDEX } from '@game/content';
+import { effectFoldsSpellPower, spellDisplayText } from '@game/sim';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { cascade, scheduleLands } from './fx/land';
 import { RUBY_GAP_MS } from './choreo/channels/rubyLanded';
@@ -82,9 +83,31 @@ export function clearAllHandBuffs(): void {
 /** A hand card, reduced to what these helpers need. */
 interface HandLike { uid: string; cardId: string }
 
-/** Pop every SPELL in hand — the cards whose printed value moves when SPELL POWER rises. */
+const scalesCache = new Map<string, boolean>();
+
+/**
+ * Does this spell's printed value move when SPELL POWER rises? A cast effect that folds spell power (the sim's
+ * own rule, Choose One branches included), or a printed text that changes at +1/+1. Lasso, Mend, a Gift, Tower
+ * Shield and the other ~100 spells that grant no stats (or grant flat ones) do not — popping them read as a buff
+ * that never happened (R-HANDFX-01, owner report 2026-10-05).
+ */
+export function spellScalesWithSpellPower(cardId: string): boolean {
+  let v = scalesCache.get(cardId);
+  if (v === undefined) {
+    const def = CARD_INDEX[cardId];
+    v = !!def?.spell && !def.ruby && (
+      def.effects.some(effectFoldsSpellPower)
+      || !!def.chooseOne?.some((b) => b.effects.some(effectFoldsSpellPower))
+      || spellDisplayText(cardId, 0, 0, 0) !== spellDisplayText(cardId, 1, 0, 1)
+    );
+    scalesCache.set(cardId, v);
+  }
+  return v;
+}
+
+/** Pop every SPELL in hand whose printed value moves when SPELL POWER rises — and only those. */
 export function fireHandBuffOnHandSpells(hand: readonly HandLike[]): void {
-  fireHandBuff(hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.uid));
+  fireHandBuff(hand.filter((c) => spellScalesWithSpellPower(c.cardId)).map((c) => c.uid));
 }
 
 /** Pop every RUBY in hand — the cards whose printed value moves when RUBY STRENGTH rises.

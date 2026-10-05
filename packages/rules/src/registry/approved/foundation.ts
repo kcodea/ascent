@@ -4428,6 +4428,26 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'phase, and only the damage you dealt floated (over your foe).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRoundDamage.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
+  {
+    id: 'R-GAUNTLET-07',
+    title: 'Stage Builder: its own styles always outrank the Scene Builder skin, so each Run buffs row stays one compact line',
+    statement:
+      'The Stage Builder panel wears the Scene Builder skin and adds its own layout on top. Its own layout must always '
+      + 'win over the skin, whatever order the stylesheets load in: a Run buffs row reads as one line (name, then the '
+      + 'number box or Attack / Health pair, then "from round N" or the clear button), the number boxes stay small, and '
+      + 'narrowing the panel only shortens the names, never stacks the boxes under them. The panel cannot be dragged '
+      + 'narrower than that layout needs.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-04 (Stage Builder Run buffs screenshot)', quote: 'the changes to the UI made this section very unusable. this is the editor for the stage builder' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-04', quote: 'when the tuner is made thinner, it is very poor' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (STAGE BUILDER block, every rule scoped .scenebuilder.stagebuilder; .stb-buff grid); packages/ui/src/sceneBuilder.css (the skin, loaded after styles.css since #1937)' },
+    ],
+    example: 'With the panel at its narrowest, "Beasts played this turn" shortens to "Beasts played th…" and its box stays 44 units wide on the same line.',
+    currentBehaviour: 'Conforms as of 2026-10-04. #1937 (2026-10-03) moved the Scene Builder skin into sceneBuilder.css, which loads after styles.css, so its equally specific .sb-search { width: 100% } and .sb-row { flex-wrap: wrap } beat the Stage Builder rules: every buff box went full width under its name. Every Stage Builder rule is now scoped one class higher, the buff row is a name/inputs/tail grid, and the panel has a minimum width.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stageBuilder/stageBuilderSkin.test.ts'], lastVerifiedAt: '2026-10-04' },
+  },
   // ── An End-of-Turn effect's FX plays once, on its beat (owner report 2026-10-05) ──────────────────────────
   {
     id: 'R-ALEFX-01',

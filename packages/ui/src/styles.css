@@ -9061,60 +9061,62 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ---- STAGE BUILDER (DEV, 2026-09-29) — the Gauntlet stage authoring panel. It wears the Scene Builder skin
    (`.scenebuilder` on the same root) and adds only its own pieces here. No cursor rules: every control is a
    <button>/<select>/<input>, so the global game-cursor rule paints them. Static styles only, no loops. */
-.scenebuilder.stagebuilder { width: calc(360 * var(--u)); }
-.stagebuilder .stb-grid { display: grid; gap: calc(3 * var(--u)); }
-.stagebuilder .stb-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.stagebuilder .stb-grid-10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
-.stagebuilder .stb-stage { padding: calc(4 * var(--u)) calc(3 * var(--u)); font-size: calc(10 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stagebuilder .stb-stage b { color: var(--sb-brass); margin-right: calc(2 * var(--u)); }
-.stagebuilder .sb-btn.on { border-color: var(--sb-brass); color: #f6e3b4; background: linear-gradient(180deg, #3b2f17, #2a2212); }
-.stagebuilder .stb-round { position: relative; padding: calc(5 * var(--u)) 0; text-align: center; }
-.stagebuilder .stb-round.err { border-color: #b0402e; color: #ffb3a3; }
-.stagebuilder .stb-round.drift { box-shadow: inset 0 -2px 0 #e0a866; }
+.sfxmix.scenebuilder.stagebuilder:not(.collapsed) { width: calc(360 * var(--u)); min-width: calc(280 * var(--u)); }
+.scenebuilder.stagebuilder .stb-grid { display: grid; gap: calc(3 * var(--u)); }
+.scenebuilder.stagebuilder .stb-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.scenebuilder.stagebuilder .stb-grid-10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.scenebuilder.stagebuilder .stb-stage { padding: calc(4 * var(--u)) calc(3 * var(--u)); font-size: calc(10 * var(--u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scenebuilder.stagebuilder .stb-stage b { color: var(--sb-brass); margin-right: calc(2 * var(--u)); }
+.scenebuilder.stagebuilder .sb-btn.on { border-color: var(--sb-brass); color: #f6e3b4; background: linear-gradient(180deg, #3b2f17, #2a2212); }
+.scenebuilder.stagebuilder .stb-round { position: relative; padding: calc(5 * var(--u)) 0; text-align: center; }
+.scenebuilder.stagebuilder .stb-round.err { border-color: #b0402e; color: #ffb3a3; }
+.scenebuilder.stagebuilder .stb-round.drift { box-shadow: inset 0 -2px 0 #e0a866; }
 /* the unsaved dot: a round's top-right corner, or beside a section title */
-.stagebuilder .stb-dot { display: inline-block; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%; background: #f4be35; box-shadow: 0 0 0 1px #241a08; }
-.stagebuilder .stb-round .stb-dot { position: absolute; top: calc(2 * var(--u)); right: calc(2 * var(--u)); }
-.stagebuilder .stb-status { overflow-wrap: anywhere; }
-.stagebuilder .stb-tier { flex-wrap: nowrap; }
-.stagebuilder .stb-tier .sb-mini { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
-.stagebuilder .stb-tierin { width: calc(110 * var(--u)); }
-.stagebuilder .stb-board { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
-.stagebuilder .stb-minion { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding: calc(5 * var(--u)) calc(6 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); }
-.stagebuilder .stb-mrow { gap: calc(4 * var(--u)); }
-.stagebuilder .stb-mname { flex: 1; min-width: 0; font-size: calc(12 * var(--u)); font-weight: 800; color: var(--sb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stagebuilder .stb-mname.err { color: #ff8a78; }
-.stagebuilder .stb-drift { color: #e0a866; }
-.stagebuilder .stb-ico { padding: calc(2 * var(--u)) calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
-.stagebuilder .stb-x:hover:not(:disabled) { border-color: #b0402e; color: #ffb3a3; }
-.stagebuilder .uned-kwbtn { padding: calc(2 * var(--u)) calc(5 * var(--u)); font-size: calc(10 * var(--u)); }
-.stagebuilder .uned-kwbtn.locked { opacity: 0.55; }
-.stagebuilder .stb-gold.on { background: #f4be35; border-color: #f4be35; }
-.stagebuilder .stb-result { display: flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)) calc(2 * var(--u)) calc(7 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(7 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); color: var(--sb-ink2); font-size: calc(12 * var(--u)); }
-.stagebuilder .stb-add { padding: calc(2 * var(--u)) calc(7 * var(--u)); font-size: calc(10 * var(--u)); }
-.stagebuilder .stb-noeffect { color: var(--sb-ink3); }
-.stagebuilder option.stb-noeffect { color: #7d7262; }
-.stagebuilder .stb-runepick { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; justify-content: space-between; text-align: left; }
-.stagebuilder .stb-runepick .sb-name { flex: 1; }
-.stagebuilder .stb-runes { max-height: calc(220 * var(--u)); }
-.stagebuilder .stb-runerow.on { border-color: var(--sb-brass); color: var(--sb-ink); }
-.stagebuilder .stb-runerow:focus-visible { border-color: var(--sb-brass); outline: none; }
-.stagebuilder .sb-tag.stb-noeffect { opacity: 0.8; }
-.stagebuilder .stb-buffonly { gap: calc(6 * var(--u)); }
-.stagebuilder .stb-buffgroup { display: flex; flex-direction: column; gap: calc(2 * var(--u)); margin-top: calc(4 * var(--u)); }
-.stagebuilder .stb-buffgh { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; color: var(--sb-brass); }
-.stagebuilder .stb-buff { flex-wrap: nowrap; gap: calc(5 * var(--u)); }
-.stagebuilder .stb-buffname { flex: 1; min-width: 0; font-size: calc(11 * var(--u)); color: var(--sb-ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stagebuilder .stb-buff.set .stb-buffname { color: var(--sb-ink); font-weight: 800; }
-.stagebuilder .stb-buffpair { display: inline-flex; align-items: center; gap: calc(2 * var(--u)); flex: none; }
-.stagebuilder .stb-buffslash { color: var(--sb-ink3); font-size: calc(10 * var(--u)); }
-.stagebuilder .stb-buffin { width: calc(46 * var(--u)); flex: none; padding: calc(2 * var(--u)) calc(4 * var(--u)); font-variant-numeric: tabular-nums; text-align: right; }
-.stagebuilder .stb-buff.inherited .stb-buffin { opacity: 0.55; }
-.stagebuilder .stb-buff.inherited.zero .stb-buffin { opacity: 0.35; }
-.stagebuilder .stb-buff.set .stb-buffin { border-color: var(--sb-brass); }
-.stagebuilder .stb-bufftail { flex: none; width: calc(62 * var(--u)); display: inline-flex; justify-content: flex-end; }
-.stagebuilder .stb-bufffrom { font-size: calc(9 * var(--u)); color: var(--sb-ink3); white-space: nowrap; }
-.stagebuilder .stb-confirm { flex-wrap: wrap; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
-.stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
+.scenebuilder.stagebuilder .stb-dot { display: inline-block; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%; background: #f4be35; box-shadow: 0 0 0 1px #241a08; }
+.scenebuilder.stagebuilder .stb-round .stb-dot { position: absolute; top: calc(2 * var(--u)); right: calc(2 * var(--u)); }
+.scenebuilder.stagebuilder .stb-status { overflow-wrap: anywhere; }
+.scenebuilder.stagebuilder .stb-tier { flex-wrap: nowrap; }
+.scenebuilder.stagebuilder .stb-tier .sb-mini { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+.scenebuilder.stagebuilder .stb-tierin { width: calc(110 * var(--u)); }
+.scenebuilder.stagebuilder .stb-board { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.scenebuilder.stagebuilder .stb-minion { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding: calc(5 * var(--u)) calc(6 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); }
+.scenebuilder.stagebuilder .stb-mrow { gap: calc(4 * var(--u)); }
+.scenebuilder.stagebuilder .stb-mname { flex: 1; min-width: 0; font-size: calc(12 * var(--u)); font-weight: 800; color: var(--sb-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scenebuilder.stagebuilder .stb-mname.err { color: #ff8a78; }
+.scenebuilder.stagebuilder .stb-drift { color: #e0a866; }
+.scenebuilder.stagebuilder .stb-ico { padding: calc(2 * var(--u)) calc(6 * var(--u)); font-size: calc(10 * var(--u)); }
+.scenebuilder.stagebuilder .stb-x:hover:not(:disabled) { border-color: #b0402e; color: #ffb3a3; }
+.scenebuilder.stagebuilder .uned-kwbtn { padding: calc(2 * var(--u)) calc(5 * var(--u)); font-size: calc(10 * var(--u)); }
+.scenebuilder.stagebuilder .uned-kwbtn.locked { opacity: 0.55; }
+.scenebuilder.stagebuilder .stb-gold.on { background: #f4be35; border-color: #f4be35; }
+.scenebuilder.stagebuilder .stb-result { display: flex; align-items: center; gap: calc(7 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)) calc(2 * var(--u)) calc(7 * var(--u)); border: 1px solid var(--sb-line); border-radius: calc(7 * var(--u)); background: linear-gradient(180deg, #24201a, #1c1812); color: var(--sb-ink2); font-size: calc(12 * var(--u)); }
+.scenebuilder.stagebuilder .stb-add { padding: calc(2 * var(--u)) calc(7 * var(--u)); font-size: calc(10 * var(--u)); }
+.scenebuilder.stagebuilder .stb-noeffect { color: var(--sb-ink3); }
+.scenebuilder.stagebuilder option.stb-noeffect { color: #7d7262; }
+.scenebuilder.stagebuilder .stb-runepick { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; justify-content: space-between; text-align: left; }
+.scenebuilder.stagebuilder .stb-runepick .sb-name { flex: 1; }
+.scenebuilder.stagebuilder .stb-runes { max-height: calc(220 * var(--u)); }
+.scenebuilder.stagebuilder .stb-runerow.on { border-color: var(--sb-brass); color: var(--sb-ink); }
+.scenebuilder.stagebuilder .stb-runerow:focus-visible { border-color: var(--sb-brass); outline: none; }
+.scenebuilder.stagebuilder .sb-tag.stb-noeffect { opacity: 0.8; }
+.scenebuilder.stagebuilder .stb-buffonly { gap: calc(6 * var(--u)); }
+.scenebuilder.stagebuilder .stb-buffgroup { display: flex; flex-direction: column; gap: calc(2 * var(--u)); margin-top: calc(4 * var(--u)); }
+.scenebuilder.stagebuilder .stb-buffgh { font-size: calc(9 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; color: var(--sb-brass); }
+/* A buff row is a 3-column grid (name · input(s) · tail) so a thin panel only clips the NAME (ellipsis):
+   the inputs keep their size and the tail never wraps under them. */
+.scenebuilder.stagebuilder .stb-buff { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: calc(5 * var(--u)); }
+.scenebuilder.stagebuilder .stb-buffname { flex: 1; min-width: 0; font-size: calc(11 * var(--u)); color: var(--sb-ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scenebuilder.stagebuilder .stb-buff.set .stb-buffname { color: var(--sb-ink); font-weight: 800; }
+.scenebuilder.stagebuilder .stb-buffpair { display: inline-flex; align-items: center; gap: calc(2 * var(--u)); flex: none; }
+.scenebuilder.stagebuilder .stb-buffslash { color: var(--sb-ink3); font-size: calc(10 * var(--u)); }
+.scenebuilder.stagebuilder .stb-buffin { width: calc(44 * var(--u)); height: calc(24 * var(--u)); flex: none; padding: 0 calc(4 * var(--u)); font-variant-numeric: tabular-nums; text-align: right; }
+.scenebuilder.stagebuilder .stb-buff.inherited .stb-buffin { opacity: 0.55; }
+.scenebuilder.stagebuilder .stb-buff.inherited.zero .stb-buffin { opacity: 0.35; }
+.scenebuilder.stagebuilder .stb-buff.set .stb-buffin { border-color: var(--sb-brass); }
+.scenebuilder.stagebuilder .stb-bufftail { width: calc(58 * var(--u)); min-width: 0; display: inline-flex; justify-content: flex-end; overflow: hidden; }
+.scenebuilder.stagebuilder .stb-bufffrom { font-size: calc(9 * var(--u)); color: var(--sb-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scenebuilder.stagebuilder .stb-confirm { flex-wrap: wrap; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
+.scenebuilder.stagebuilder .stb-confirm .sb-warn { display: inline; margin: 0; }
 /* ---- STAGE BOARD CANVAS (dev, `stageBuilder/StageBoardCanvas.tsx`) ----
    While the Stage Builder is open this covers the whole stage, opaque, with the COMBAT board art and only the
    opponent's warband: the recruit UI beneath is neither visible nor reachable. Below the builder panel (a draggable

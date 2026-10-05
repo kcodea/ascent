@@ -190,6 +190,7 @@ import { commitFlipDeltas, type CommitSweep } from './commitFlip';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
+import { aleBubbleSources } from './fx/aleBubbleSources';
 import { resourceFxFor } from './choreographer/resourceFx';
 import { amplifiedIdsOf, equipmentFxFor, setEotAmplified } from './choreographer/equipmentFx';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
@@ -1294,13 +1295,15 @@ export function Recruit() {
   // (on Gold spent), Doubletap Brewer (Shout). Burst `ale-bubbles` from the generating unit's warband card.
   // One-shot, keyed off `aleGrantSeq` (inits to current so a restored save doesn't fire); the rect is read one
   // frame late so React has committed. Combat-generated ales are fired by the choreographer (score.ts), not here.
+  // End-of-Turn ales (Brunni) are fired by the beat (`cardGranted`); `aleBubbleSources` skips the commit's stamp.
   const prevAleSeq = useRef(run.aleGrantSeq);
   useEffect(() => {
     const seq = run.aleGrantSeq;
     if (seq === prevAleSeq.current) return;
     prevAleSeq.current = seq;
-    if (!canPlayDefs() || run.aleGranted.length === 0) return;
-    const sources = Array.from(new Set(run.aleGranted.map((e) => e.sourceUid))); // one burst per generating unit
+    if (!canPlayDefs()) return;
+    const sources = aleBubbleSources(run);
+    if (sources.length === 0) return;
     const raf = requestAnimationFrame(() => {
       for (const uid of sources) {
         const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
@@ -6733,6 +6736,16 @@ export function Recruit() {
         // per-uid pre-fired set is not enough when one body fires twice (Chronos, or two runes on the same
         // Echo) — the second stamp would still replay at the flip. Advance the stamp tracker like the rest.
         prevShopFxSeq.current = committed.shopFxSeq;
+        // R-EOTFX-01 (owner 2026-10-05: "it goes off a second time when it shouldnt"): the rest of the channels
+        // End of Turn bumps. Fodder eats (Abyssal Feeder, Feasting Bogrot) crumbled on their `fodderEaten` beat and
+        // replayed the whole eat + hold here; Rubies (Kobold Alchemist) cascaded on their beat and the commit
+        // re-held every number to roll it a second time; Brunni's Ale bubbled on its `cardGranted` beat.
+        // `eotCommitSeqs.test.ts` fails when an End-of-Turn card bumps a channel that is neither listed here
+        // nor recorded as safe there.
+        prevFodderSeq.current = committed.fodderEatenSeq;
+        prevFodderHoldSeq.current = committed.fodderEatenSeq;
+        prevRubyLandedSeq.current = committed.rubyLandedFxSeq;
+        prevAleSeq.current = committed.aleGrantSeq;
         setEotConsumedUids(new Set());
         }, EOT_COMBAT_PAD_MS + lassoTail);
       },

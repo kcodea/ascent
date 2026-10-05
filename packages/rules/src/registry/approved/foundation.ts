@@ -4428,4 +4428,27 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'phase, and only the damage you dealt floated (over your foe).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRoundDamage.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
+  // ── An End-of-Turn effect's FX plays once, on its beat (owner report 2026-10-05) ──────────────────────────
+  {
+    id: 'R-ALEFX-01',
+    title: 'Brunni\x27s End-of-Turn Ale bubbles play exactly once, on his End-of-Turn beat',
+    statement:
+      'When a minion gets you a Dwarven Ale at End of Turn (Brunni), its ale-bubbles burst plays once, from that '
+      + 'minion, on its End-of-Turn beat. It never plays a second time as the shop hands over to combat. An Ale a '
+      + 'minion gets you during the shop (Tapkeeper on Gold spent, Doubletap Brewer\x27s Shout) still bursts once, '
+      + 'from that minion, when it happens.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-05', quote: 'when brunni end of turn happens, his bubble effect goes off, but for some reason, it goes off a second time when it shouldnt' },
+      { kind: 'fix-pr', ref: 'fix/brunni-ale-bubbles-double: packages/ui/src/fx/aleBubbleSources.ts (the aleGrantSeq watcher in Recruit.tsx skips the faceOmen commit, which lands in combat phase)' },
+    ],
+    example: 'Brunni on the board, press End Turn: bubbles rise from Brunni once on his beat, and nothing more as combat begins.',
+    currentBehaviour:
+      'Conforms as of 2026-10-05. Before it, the End-of-Turn beat played the burst and then the reactive '
+      + '`aleGrantSeq` watcher played it again when the End-of-Turn commit (`faceOmen`) stamped `aleGranted`, '
+      + 'because the warband was still on screen under the combat wipe. The watcher now ignores any stamp outside '
+      + 'the recruit phase, the same guard its spell-power / ruby-power / fodder neighbours use.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/aleBubbleSources.test.ts'], lastVerifiedAt: '2026-10-05' },
+  },
 ];

@@ -190,6 +190,7 @@ import { commitFlipDeltas, type CommitSweep } from './commitFlip';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
+import { aleBubbleSources } from './fx/aleBubbleSources';
 import { resourceFxFor } from './choreographer/resourceFx';
 import { amplifiedIdsOf, equipmentFxFor, setEotAmplified } from './choreographer/equipmentFx';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
@@ -1294,13 +1295,15 @@ export function Recruit() {
   // (on Gold spent), Doubletap Brewer (Shout). Burst `ale-bubbles` from the generating unit's warband card.
   // One-shot, keyed off `aleGrantSeq` (inits to current so a restored save doesn't fire); the rect is read one
   // frame late so React has committed. Combat-generated ales are fired by the choreographer (score.ts), not here.
+  // End-of-Turn ales (Brunni) are fired by the beat (`cardGranted`); `aleBubbleSources` skips the commit's stamp.
   const prevAleSeq = useRef(run.aleGrantSeq);
   useEffect(() => {
     const seq = run.aleGrantSeq;
     if (seq === prevAleSeq.current) return;
     prevAleSeq.current = seq;
-    if (!canPlayDefs() || run.aleGranted.length === 0) return;
-    const sources = Array.from(new Set(run.aleGranted.map((e) => e.sourceUid))); // one burst per generating unit
+    if (!canPlayDefs()) return;
+    const sources = aleBubbleSources(run);
+    if (sources.length === 0) return;
     const raf = requestAnimationFrame(() => {
       for (const uid of sources) {
         const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);

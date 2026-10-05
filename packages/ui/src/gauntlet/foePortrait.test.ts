@@ -7,12 +7,17 @@ import { gauntletStage } from '@game/content';
 import { artFor } from '../art';
 import { foePortrait } from './foePortrait';
 
-/** Stage 1 wears a portrait card here regardless of what the shipped stage file carries (the test owns its fixture). */
+/** Stage 1 wears a portrait card and stage 2 has none, regardless of what the shipped stage files carry (the test owns its fixture). */
 vi.mock('@game/content', async (importOriginal) => {
   const m = await importOriginal<typeof import('@game/content')>();
   return {
     ...m,
-    gauntletStage: (n: number) => (n === 1 ? { ...m.gauntletStage(1)!, portraitCardId: 'dm_grobbus' } : m.gauntletStage(n)),
+    gauntletStage: (n: number) => {
+      const s = m.gauntletStage(n);
+      if (n === 1) return { ...s!, portraitCardId: 'dm_grobbus' };
+      if (n === 2) return { ...s!, portraitCardId: undefined }; // stage 2 has no portrait card -> tribe-emblem fallback
+      return s;
+    },
   };
 });
 

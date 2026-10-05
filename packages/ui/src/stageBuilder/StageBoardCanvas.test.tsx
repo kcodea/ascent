@@ -50,7 +50,7 @@ vi.mock('./stageBuilderApi', () => ({
 import { mount, type Mounted } from '../renderedText.mount';
 import { useGame } from '../store';
 import { StageBuilder } from './StageBuilder';
-import { StageBoardCanvas } from './StageBoardCanvas';
+import { StageBoardCanvas, roundCardViews } from './StageBoardCanvas';
 import { useStageBuilder } from './stageBuilderStore';
 
 let ui: Mounted | null = null;
@@ -234,5 +234,17 @@ describe('the Stage Board canvas', () => {
   it('the panel no longer offers "Test this round"', () => {
     const labels = qa<HTMLButtonElement>('.stagebuilder button').map((b) => b.textContent ?? '');
     expect(labels.some((t) => /Test this round/.test(t))).toBe(false);
+  });
+});
+
+describe('the Stage Board canvas: run buffs in card text', () => {
+  it("a card whose text reads a run buff prints the round's value (Chef Raag x Imp aura), carried forward", () => {
+    const raag = CARD_INDEX.chefraag!;
+    const s = fixture();
+    s.rounds[2] = { board: [{ cardId: raag.id, attack: raag.attack, health: raag.health, cardVersion: cardRevision(raag) }] };
+    expect(roundCardViews(s, 3)[0]!.text).toBe(raag.text); // no aura: the printed text stands
+    s.rounds[1] = { ...s.rounds[1]!, buffs: { impAura: { attack: 3, health: 4 } } }; // set on round 2, inherited by 3
+    expect(roundCardViews(s, 3)[0]!.text).toContain('+3/+4');
+    expect(roundCardViews(s, 3)[0]!.text).not.toBe(raag.text);
   });
 });

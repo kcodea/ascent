@@ -2,6 +2,7 @@
   "number": 3,
   "name": "Dragons",
   "opponentName": "The Dragon Roost",
+  "portraitCardId": "d2_warflame",
   "tribe": "dragon",
   "status": "draft",
   "runes": {},

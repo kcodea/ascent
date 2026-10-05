@@ -1,4 +1,5 @@
 import type { Keyword, Tribe } from '@game/core';
+import type { GauntletBuffs } from './buffs';
 
 /** Rounds in every Gauntlet stage. */
 export const GAUNTLET_ROUNDS = 10;
@@ -25,6 +26,9 @@ export interface GauntletRound {
   /** Opponent tavern tier this round (1–6). Absent = `GAUNTLET_DEFAULT_TIERS` in @game/sim. */
   tier?: number;
   board: GauntletMinion[];
+  /** Run-wide buffs the author SET on this round (Ruby strength, spell power, auras, counters, …). Values not set
+   *  here carry forward from the latest earlier round that set them — see `effectiveBuffs` in `./buffs`. */
+  buffs?: Partial<GauntletBuffs>;
 }
 
 export interface GauntletStage {

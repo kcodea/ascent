@@ -141,7 +141,7 @@ Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board st
 ## Gauntlet
 
 Single-player stages, each a 10-round duel against one hand-built opponent whose board grows every round
-(R-GAUNTLET-01, R-GAUNTLET-02, R-GAUNTLET-03, R-GAUNTLET-05).
+(R-GAUNTLET-01, R-GAUNTLET-02, R-GAUNTLET-03, R-GAUNTLET-05, R-GAUNTLET-06).
 
 - **Win a stage** by still standing after round 10's combat, even if you lose or tie that round.
 - **Lose** the moment your Resolve (after Armor) hits 0. The opponent never takes damage and can't be knocked out.
@@ -149,6 +149,9 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
 - **The shop is the normal game's** (economy, tiers, tribes, a random shop every attempt), with any hero at their
   normal Resolve and Armor. You can't see the opponent's next board before combat.
 - **Opponent runes:** one from round 6, a second from round 9 (both active from then on). Only their combat effects act.
+- **Opponent run buffs:** a stage can give the opponent the run-wide values a real run builds up (Ruby strength, spell
+  power, auras, counters like Grim's Deathrattles). A value set on a round lasts for every later round until changed,
+  and the opponent's cards use it in combat just as yours use your own.
 - **Stages:** 1 Demons · 2 Kobolds · 3 Dragons · 4 Dwarves · 5 Beasts; 6–10 are unique stages still to come.
   Clearing a stage unlocks the next.
 - **Progress is saved to your account** when you're signed in, so it follows you to any device.

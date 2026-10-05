@@ -41,7 +41,7 @@ export interface StageBuilderState {
   save(): Promise<void>;
   /** Refused (status set) while the draft is dirty, unless `force`. */
   close(force?: boolean): void;
-  /** Rounds whose board/tier differ from `saved`; stage-level fields (name, runes, …) count as round 0. */
+  /** Rounds whose board/tier/run-buff overrides differ from `saved`; stage-level fields (name, runes, …) count as round 0. */
   dirtyRounds(): number[];
 }
 

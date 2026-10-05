@@ -6,6 +6,7 @@ import s4 from './stages/04-dwarves.json';
 import s5 from './stages/05-beasts.json';
 
 export * from './types';
+export * from './buffs';
 export { validateStage } from './schema';
 export { stageDrift, type GauntletDrift } from './drift';
 

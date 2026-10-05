@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-05',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Brunni\'s End of Turn ale bubbles no longer play twice.',
+      },
+    ],
+  },
+  {
     date: '2026-10-03',
     changes: [
       {

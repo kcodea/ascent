@@ -4,10 +4,373 @@
   "opponentName": "The Dragon Roost",
   "portraitCardId": "d2_warflame",
   "tribe": "dragon",
-  "status": "draft",
-  "runes": {},
+  "status": "ready",
+  "runes": {
+    "round6": "rune_basic_dragon",
+    "round9": "rune_dragonscale"
+  },
   "rounds": [
-    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] },
-    { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }, { "board": [] }
+    {
+      "board": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 1,
+          "health": 3,
+          "cardVersion": "4eaeef13"
+        }
+      ]
+    },
+    {
+      "board": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 1,
+          "health": 3,
+          "cardVersion": "4eaeef13"
+        }
+      ]
+    },
+    {
+      "board": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 2,
+          "health": 4,
+          "cardVersion": "4eaeef13"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 2,
+          "health": 4,
+          "cardVersion": "f7fb8433"
+        }
+      ]
+    },
+    {
+      "tier": 2,
+      "board": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4eaeef13"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "f7fb8433"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 3,
+          "health": 5,
+          "cardVersion": "f7fb8433"
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        }
+      ]
+    },
+    {
+      "tier": 3,
+      "board": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4eaeef13"
+        },
+        {
+          "cardId": "d2_mirrorwing",
+          "attack": 3,
+          "health": 4,
+          "cardVersion": "057b7b13"
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "f7fb8433"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 3,
+          "health": 5,
+          "cardVersion": "f7fb8433"
+        }
+      ]
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4eaeef13"
+        },
+        {
+          "cardId": "d2_mirrorwing",
+          "attack": 7,
+          "health": 12,
+          "cardVersion": "057b7b13"
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "f7fb8433"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 3,
+          "health": 5,
+          "cardVersion": "f7fb8433"
+        }
+      ]
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 18,
+          "cardVersion": "f55c9dfd",
+          "addedKeywords": [
+            "W"
+          ]
+        },
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4eaeef13"
+        },
+        {
+          "cardId": "d2_mirrorwing",
+          "attack": 7,
+          "health": 12,
+          "cardVersion": "057b7b13"
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "f7fb8433"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 3,
+          "health": 5,
+          "cardVersion": "f7fb8433"
+        },
+        {
+          "cardId": "d2_flutterdrake",
+          "attack": 4,
+          "health": 3,
+          "cardVersion": "bb800a6b"
+        }
+      ]
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "d2_chorus",
+          "attack": 3,
+          "health": 4,
+          "cardVersion": "f676b9b9"
+        },
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 18,
+          "cardVersion": "f55c9dfd",
+          "addedKeywords": [
+            "W"
+          ]
+        },
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 5,
+          "cardVersion": "f55c9dfd"
+        },
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4eaeef13"
+        },
+        {
+          "cardId": "d2_mirrorwing",
+          "attack": 7,
+          "health": 12,
+          "cardVersion": "057b7b13"
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 11,
+          "health": 15,
+          "cardVersion": "f7fb8433",
+          "golden": true
+        }
+      ],
+      "buffs": {
+        "spellPower": {
+          "attack": 1,
+          "health": 1
+        }
+      }
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "d2_chorus",
+          "attack": 3,
+          "health": 14,
+          "cardVersion": "f676b9b9",
+          "addedKeywords": [
+            "W"
+          ]
+        },
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 18,
+          "cardVersion": "f55c9dfd",
+          "addedKeywords": [
+            "W"
+          ]
+        },
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 5,
+          "cardVersion": "f55c9dfd"
+        },
+        {
+          "cardId": "d2_mirrorwing",
+          "attack": 7,
+          "health": 12,
+          "cardVersion": "057b7b13"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 11,
+          "health": 15,
+          "cardVersion": "f7fb8433",
+          "golden": true
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        },
+        {
+          "cardId": "b2_dawnclaw",
+          "attack": 5,
+          "health": 3,
+          "cardVersion": "0e5cd60b"
+        }
+      ],
+      "buffs": {
+        "spellPower": {
+          "attack": 1,
+          "health": 2
+        }
+      }
+    },
+    {
+      "tier": 5,
+      "board": [
+        {
+          "cardId": "d2_chorus",
+          "attack": 3,
+          "health": 14,
+          "cardVersion": "f676b9b9",
+          "addedKeywords": [
+            "W"
+          ]
+        },
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 18,
+          "cardVersion": "f55c9dfd",
+          "addedKeywords": [
+            "W"
+          ]
+        },
+        {
+          "cardId": "d2_flamebeat",
+          "attack": 6,
+          "health": 5,
+          "cardVersion": "f55c9dfd"
+        },
+        {
+          "cardId": "d2_skald",
+          "attack": 11,
+          "health": 15,
+          "cardVersion": "f7fb8433",
+          "golden": true
+        },
+        {
+          "cardId": "d2_warflame",
+          "attack": 5,
+          "health": 8,
+          "cardVersion": "7f371a9f"
+        },
+        {
+          "cardId": "d2_broodfire",
+          "attack": 4,
+          "health": 6,
+          "cardVersion": "4a7432b7"
+        },
+        {
+          "cardId": "b2_dawnclaw",
+          "attack": 5,
+          "health": 3,
+          "cardVersion": "0e5cd60b"
+        }
+      ],
+      "buffs": {
+        "spellPower": {
+          "attack": 1,
+          "health": 4
+        }
+      }
+    }
   ]
 }

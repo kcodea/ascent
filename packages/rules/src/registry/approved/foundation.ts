@@ -4448,4 +4448,72 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-04. #1937 (2026-10-03) moved the Scene Builder skin into sceneBuilder.css, which loads after styles.css, so its equally specific .sb-search { width: 100% } and .sb-row { flex-wrap: wrap } beat the Stage Builder rules: every buff box went full width under its name. Every Stage Builder rule is now scoped one class higher, the buff row is a name/inputs/tail grid, and the panel has a minimum width.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/stageBuilder/stageBuilderSkin.test.ts'], lastVerifiedAt: '2026-10-04' },
   },
+  // ── An End-of-Turn effect's FX plays once, on its beat (owner report 2026-10-05) ──────────────────────────
+  {
+    id: 'R-ALEFX-01',
+    title: 'Brunni\x27s End-of-Turn Ale bubbles play exactly once, on his End-of-Turn beat',
+    statement:
+      'When a minion gets you a Dwarven Ale at End of Turn (Brunni), its ale-bubbles burst plays once, from that '
+      + 'minion, on its End-of-Turn beat. It never plays a second time as the shop hands over to combat. An Ale a '
+      + 'minion gets you during the shop (Tapkeeper on Gold spent, Doubletap Brewer\x27s Shout) still bursts once, '
+      + 'from that minion, when it happens.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-05', quote: 'when brunni end of turn happens, his bubble effect goes off, but for some reason, it goes off a second time when it shouldnt' },
+      { kind: 'fix-pr', ref: 'fix/brunni-ale-bubbles-double: packages/ui/src/fx/aleBubbleSources.ts (the aleGrantSeq watcher in Recruit.tsx skips the faceOmen commit, which lands in combat phase)' },
+    ],
+    example: 'Brunni on the board, press End Turn: bubbles rise from Brunni once on his beat, and nothing more as combat begins.',
+    currentBehaviour:
+      'Conforms as of 2026-10-05. Before it, the End-of-Turn beat played the burst and then the reactive '
+      + '`aleGrantSeq` watcher played it again when the End-of-Turn commit (`faceOmen`) stamped `aleGranted`, '
+      + 'because the warband was still on screen under the combat wipe. The watcher now ignores any stamp outside '
+      + 'the recruit phase, the same guard its spell-power / ruby-power / fodder neighbours use.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/aleBubbleSources.test.ts'], lastVerifiedAt: '2026-10-05' },
+  },
+  // ── Every End-of-Turn effect plays its FX once, on its beat (owner ask 2026-10-05, R-ALEFX-01 widened) ──────
+  {
+    id: 'R-EOTFX-01',
+    title: 'Every End-of-Turn effect plays its animation once, on its beat, and never again as combat begins',
+    statement:
+      'Whatever an End-of-Turn effect shows (a minion eating Fodder or a Shop minion, Rubies landing, an Ale '
+      + 'arriving, a stat climb, a cast), it plays once, on that effect\x27s End-of-Turn beat. Nothing replays when the '
+      + 'shop hands over to combat, for any card, rune, quest or hero, including ones not written yet.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-05 (after the Brunni fix, R-ALEFX-01)', quote: 'can you ensure no other cards are having that issue?' },
+      { kind: 'fix-pr', ref: 'fix/eot-fx-audit: packages/ui/src/Recruit.tsx (the End-of-Turn commit block now also advances the Fodder-eat, Ruby-hold and Ale channels)' },
+    ],
+    example: 'Abyssal Feeder at End of Turn: the Fodder ghost crumbles into it once, on its beat. As combat begins, no second ghost.',
+    currentBehaviour:
+      'Conforms as of 2026-10-05. A sweep of every End-of-Turn card in every set found three channels the commit '
+      + 'bumped without advancing its shop watcher: Fodder eats (Abyssal Feeder, Feasting Bogrot replayed the whole '
+      + 'eat), Ruby holds (Kobold Alchemist: the numbers jumped back and rolled a second time) and the Ale bubbles '
+      + '(Brunni, R-ALEFX-01). All three are advanced now. Starform creation (Orbitkeeper) still plays only at the '
+      + 'commit, once, because no beat presents it; that is late, not doubled.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eotCommitSeqs.test.ts'], lastVerifiedAt: '2026-10-05' },
+  },
+  // ── A spell-power gain pops only the spells it changes (owner report 2026-10-05) ────────────────────────────
+  {
+    id: 'R-HANDFX-01',
+    title: 'A spell-power gain plays the hand-buff cue only on the held spells whose printed value it raises',
+    statement:
+      'When spell power rises (at End of Turn, in the Shop or mid-combat), the hand-buff cue plays on every held spell '
+      + 'whose printed value goes up, and on no other card. A spell that grants no stats, or flat stats that ignore '
+      + 'spell power (Lasso, Mend, Tower Shield, a Gift), does not react.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-05', quote: 'sometimes i see certain effects buffing cards in hand at end of turn when they arent actually buffing them' },
+      { kind: 'fix-pr', ref: 'fix/eot-fx-audit: packages/ui/src/handBuffFx.ts (spellScalesWithSpellPower filters fireHandBuffOnHandSpells)' },
+    ],
+    example: 'Hold a Growth and a Lasso, and an Aeon Guard raises spell power at End of Turn: Growth pops, Lasso does not.',
+    currentBehaviour:
+      'Conforms as of 2026-10-05. Before, every spell in hand popped on any spell-power gain (about 100 spells whose '
+      + 'value never moves), on the End-of-Turn beat, mid-combat and on a Front to Back improvement. PARTIAL against '
+      + 'the owner report: this is the false hand cue an End-of-Turn sweep could find. No End-of-Turn stat buff aims at '
+      + 'a hand card it does not change (checked across the Doc Bot corpus), so a different card may still be involved.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/handBuffSpellScaling.test.ts'], lastVerifiedAt: '2026-10-05' },
+  },
 ];

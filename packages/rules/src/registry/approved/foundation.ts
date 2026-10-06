@@ -712,11 +712,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'versioned reference set of ~30 real boards of its wave (two seeded fights each, the board once on each side, '
       + 'both sides fought through the recorded-seat combat side), stored permanently with the board. Its PERCENTILE '
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
-      + 'derived, never stored. A run\'s strength is its FINAL board\'s percentile, used directly (R-LOBBY-12, owner '
-      + '2026-10-03; from 2026-09-30 to 2026-10-03 it was the round-weighted average of the boards\' percentiles ranked '
-      + 'among runs, still kept as the diagnostic pool_runs.strength_avg). A RATED lobby draws its '
-      + 'recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze 0-30, Silver '
-      + '10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 since 2026-10-03 (Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 before); every division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + 'derived, never stored. A run\'s strength is the round-weighted average of its boards\' percentiles ranked '
+      + 'among runs (R-LOBBY-12; restored 2026-10-06 after the final-board formula of 2026-10-03 to 2026-10-06). A RATED '
+      + 'lobby draws its recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze '
+      + '0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100; from 2026-10-03 to '
+      + '2026-10-06 Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 for the final-board scale; every '
+      + 'division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -771,7 +772,12 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner pick of the band thresholds for PR #1928, relayed verbatim by the coordinator, 2026-10-03 (final-board scale)',
         quote: 'make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100',
       },
-      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision relayed verbatim by the coordinator, 2026-10-06 (revert #1928: the weighted strength and its bands come back)',
+        quote: 'matchmaking algorithm -> backtrack to the weighted version.',
+      },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts + strengthBands.ts + strengthReference.v1.json; packages/sim/src/lobby/runLobby.ts createRunLobby (strengthBand); packages/ui/src/boardStrength/ (background scorer); packages/ui/src/opponentPool/poolFetch.ts (band + widening); supabase/migrations/2026-09-30-board-strength.sql + 2026-09-30-weighted-strength.sql (round weights), restored by 2026-10-06-weighted-strength-again.sql' },
     ],
     currentBehaviour:
       'Built 2026-09-30. The bands switch on by themselves once the owner has run the SQL and the backfill: before, '
@@ -779,7 +785,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'so selection is exactly R-LOBBY-08\'s. Round weighting built the same day: new games freeze the weighted '
       + 'number, numbers already frozen in history stay as they were, and the pool\'s run strengths switch when the '
       + 'owner runs the weighted-strength SQL (it recomputes every run). 2026-10-03: the run\'s strength became its final '
-      + 'board (R-LOBBY-12).',
+      + 'board and the bands were retuned (R-LOBBY-12). 2026-10-06: both reverted in code (the #1871 bands, the weighted '
+      + 'number frozen at run end); the pool\'s run strengths flip back when the owner runs '
+      + '2026-10-06-weighted-strength-again.sql (it recomputes every run). Until then the client bands are the old ones '
+      + 'but pool_runs.strength still holds final-board numbers.',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -789,22 +798,23 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/boardStrength/boardStrength.test.ts',
         'packages/ui/src/boardStrength/runEndStrength.test.ts',
       ],
-      lastVerifiedAt: '2026-09-30',
+      lastVerifiedAt: '2026-10-06',
     },
   },
-  // ── Run strength = the final board (owner 2026-10-03, after the Rooks / Albus report) ─────────────────────────────
+  // ── Run strength: the round-weighted average ranked among runs (final board 2026-10-03 to 2026-10-06, reverted) ───
   {
     id: 'R-LOBBY-12',
-    title: 'A run\'s strength, for matchmaking and for "Game strength", is its final board\'s percentile',
+    title: 'A run\'s strength, for matchmaking and for "Game strength", is its round-weighted board average ranked among runs (not its final board)',
     statement:
-      'A run\'s strength is the percentile of its FINAL board within that board\'s own reference wave (the same per-board '
-      + 'percentile as R-LOBBY-09: its place among every scored board seen at that round, ties half), used directly, not '
-      + 'averaged over the run and not re-ranked among runs. The final board is the run\'s latest round with a score; two '
-      + 'boards for that round are averaged, rounded half up; a last round that was never scored falls back to the latest '
-      + 'scored one. That one number drives the rated matchmaking bands (pool_runs.strength) and the "Game strength" a '
-      + 'player sees in the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, an '
-      + 'opponent seat as the pool delivered it). Numbers frozen before the change keep their old value. The round '
-      + 'percentiles in Match details are unchanged.',
+      'A run\'s strength is the ROUND-WEIGHTED average of its boards\' percentiles (the per-board percentile of '
+      + 'R-LOBBY-09; rounds 1-5 share 20% of the weight, 6-9 35%, 10+ 45%, split evenly over the run\'s boards in each '
+      + 'group, a group the run never reached dropping out), rounded half up to 1..100, then RANKED among every run of '
+      + 'the set by the same tie-halving percentile rule. It is NOT the final board\'s percentile on its own: that rule '
+      + 'was tried from 2026-10-03 to 2026-10-06 and reverted by the owner. That one number drives the rated matchmaking '
+      + 'bands (pool_runs.strength, with the average in pool_runs.strength_avg) and the "Game strength" a player sees in '
+      + 'the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, ranked against the '
+      + 'pool\'s run averages; an opponent seat as the pool delivered it). Numbers frozen earlier keep their value. The '
+      + 'round percentiles in Match details are unchanged.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -818,23 +828,32 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner decision on the strength audit, relayed verbatim by the coordinator, 2026-10-03',
         quote: 'i think we basically only care about the final board strength as an indicator for matchmaking. can we try swapping out our algorithm for simply caring about the snapshots final round board strength?',
       },
-      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts runFinalStrengthOf / finalFromSum / runStrengthFromScores; supabase/migrations/2026-10-03-final-board-strength.sql (pool_strength_refresh, board_strength_final); packages/ui/src/store.ts run-end freeze; packages/ui/src/matchDetails/matchDetailsText.ts GAME_STRENGTH_TIP' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner decision relayed verbatim by the coordinator, 2026-10-06 (after the live-pool strength audit: revert #1928)',
+        quote: 'matchmaking algorithm -> backtrack to the weighted version.',
+      },
+      { kind: 'fix-pr', ref: 'PR fix/strength-back-to-weighted (2026-10-06): reverts the #1928 formula and bands, keeps its R-NET-01 paging' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts runWeightedAverageOf / runPercentileOf / runStrengthFromScores / RUN_STRENGTH_FORMULA; supabase/migrations/2026-10-06-weighted-strength-again.sql (pool_strength_refresh); packages/ui/src/remoteBoards.ts runStrengthHistogram; packages/ui/src/store.ts run-end freeze; packages/ui/src/matchDetails/matchDetailsText.ts GAME_STRENGTH_TIP' },
     ],
-    example: 'Rooks / Albus (2026-10-02): rounds 3-9 at the 73rd-98th percentile, round 13 at the 12th. Game strength 83 before, 12 after.',
+    example: 'Why the final board was reverted (live-pool audit, 2026-10-06): under it a run\'s strength correlated only ~0.03-0.19 with its board percentile in rounds 3-7 (0.26-0.62 for the weighted number), and Bronze lobbies dealt round-7 boards at the 88th percentile labelled "Game strength 2".',
     currentBehaviour:
-      'Conforms in code as of 2026-10-03. New games freeze the final-board number at once; the pool\'s run strengths (the '
-      + 'bands) switch when the owner runs 2026-10-03-final-board-strength.sql (it recomputes every run). On the final-board '
-      + 'scale the old thresholds left Platinum (uncapped) below Gold (37 vs 41), so the owner retuned them the same day '
-      + '(Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100; R-LOBBY-09). Live pool, 200 lobbies per medal: '
-      + 'mean seat 12, 22, 36, 49, 58, 62 from Bronze to Ascendant, 0 widenings.',
+      'History: 2026-09-30 to 2026-10-03 the weighted number (#1890); 2026-10-03 to 2026-10-06 the final board\'s '
+      + 'percentile with retuned bands (#1928); reverted 2026-10-06. Conforms in code as of 2026-10-06: new games freeze '
+      + 'the weighted, ranked number (the client reads run_strength_histogram again, paged per R-NET-01) and the bands are '
+      + 'the #1871 ones. The pool\'s run strengths (pool_runs.strength, what the bands filter) stay final-board numbers '
+      + 'until the owner runs supabase/migrations/2026-10-06-weighted-strength-again.sql, which recomputes every run; '
+      + 'until then rated lobbies filter final-board strengths through the restored bands. The SQL function '
+      + 'board_strength_final stays in the database, unused; runFinalStrengthOf stays as a diagnostic for the measure tool.',
     enforcement: {
       kind: 'scenario',
       refs: [
         'packages/sim/src/lobby/boardStrength.test.ts',
         'packages/sim/src/lobby/boardStrength.db.test.ts',
         'packages/ui/src/boardStrength/runEndStrength.test.ts',
+        'packages/sim/src/lobby/strengthBands.test.ts',
       ],
-      lastVerifiedAt: '2026-10-03',
+      lastVerifiedAt: '2026-10-06',
     },
   },
   // ── No Supabase read is cut silently at 1,000 rows (owner 2026-10-03, the histogram bug) ────────────────────────────

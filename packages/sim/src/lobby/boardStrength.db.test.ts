@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeRng } from '@game/core';
-import { finalFromSum, pctFromCounts, percentileOf, runFinalStrengthOf, runWeightedAverageOf, weightedAvgFromGroups, type StrengthHistogramEntry } from './boardStrength';
+import { finalFromSum, pctFromCounts, percentileOf, runFinalStrengthOf, runPercentileOf, runWeightedAverageOf, weightedAvgFromGroups, type StrengthHistogramEntry } from './boardStrength';
 import LIVE from './strengthLiveScores.fixture.json';
 
 /**
@@ -11,10 +11,11 @@ import LIVE from './strengthLiveScores.fixture.json';
  * and then `supabase/migrations/2026-09-30-board-strength.sql` on a stub `boards` table, and checks:
  *  - `board_strength_pct` equals the TS `pctFromCounts` on every count triple, and `board_strength_weighted_avg` the
  *    TS `weightedAvgFromGroups` on every group shape, and `board_strength_final` the TS `finalFromSum`; a run's
- *    `strength_avg` equals the round-weighted `runWeightedAverageOf(percentileOf(...))` (a diagnostic since
- *    2026-10-03) and its `strength` equals `runFinalStrengthOf` (its FINAL board's percentile, used directly;
- *    2026-10-03-final-board-strength.sql), both computed in TS from the same boards, on synthetic runs and on the REAL
- *    live pool's scores (`strengthLiveScores.fixture.json`);
+ *    `strength_avg` equals the round-weighted `runWeightedAverageOf(percentileOf(...))` and its `strength` equals
+ *    `runPercentileOf` (that average ranked among the runs; R-LOBBY-12, restored by
+ *    2026-10-06-weighted-strength-again.sql after the 2026-10-03 final-board formula), both computed in TS from the
+ *    same boards, on synthetic runs and on the REAL live pool's scores (`strengthLiveScores.fixture.json`), and the
+ *    2026-10-06 migration flips a pool that was on the final-board formula back to the weighted one;
  *  - uploads with a score refresh their run through the trigger (insert and the backfill's update);
  *  - `pool_runs_sample` honours a band, counts an unscored run as inside every band, keeps whole runs and the
  *    own-run exclusion, is uniform inside the band, and still answers the old four-argument call;
@@ -26,6 +27,7 @@ const POOL = readFileSync(join(root, 'supabase/migrations/2026-09-29-pool-whole-
 const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-09-30-board-strength.sql'), 'utf8');
 const WEIGHTED = readFileSync(join(root, 'supabase/migrations/2026-09-30-weighted-strength.sql'), 'utf8');
 const FINAL = readFileSync(join(root, 'supabase/migrations/2026-10-03-final-board-strength.sql'), 'utf8');
+const AGAIN = readFileSync(join(root, 'supabase/migrations/2026-10-06-weighted-strength-again.sql'), 'utf8');
 
 const STUB = `
   create role anon; create role authenticated;
@@ -87,14 +89,15 @@ beforeAll(async () => {
   await db.exec(MIGRATION);
   await db.exec(WEIGHTED);
   await db.exec(FINAL);
+  await db.exec(AGAIN);
 }, 60_000);
 
 const runKey = (s: RunSpec): string => `${s.author}|${s.hero}|${s.seed}`;
 
 /** The client's numbers for these runs, computed in TS from the same boards: each board's percentile among its
- *  reference wave (itself in the population), the run's round-weighted average (diagnostic), and its strength: the
- *  FINAL board's percentile (owner 2026-10-03). */
-function tsRunNumbers(specs: readonly RunSpec[]): { avgs: Map<string, number | null>; strengths: Map<string, number | null> } {
+ *  reference wave (itself in the population), the run's round-weighted average, that average ranked among runs (the
+ *  run's strength, restored 2026-10-06), and the final board's percentile (`finals`, the retired 2026-10-03 rule). */
+function tsRunNumbers(specs: readonly RunSpec[]): { avgs: Map<string, number | null>; strengths: Map<string, number | null>; finals: Map<string, number | null> } {
   const byWave = new Map<number, number[]>();
   const refOf = (s: RunSpec, i: number): number => s.refWaves?.[i] ?? s.waves?.[i] ?? i + 1;
   for (const s of specs) s.raws.forEach((r, i) => { if (r !== null) byWave.set(refOf(s, i), [...(byWave.get(refOf(s, i)) ?? []), Number(r.toFixed(4))]); });
@@ -105,13 +108,22 @@ function tsRunNumbers(specs: readonly RunSpec[]): { avgs: Map<string, number | n
     return [...m].map(([raw, count]) => ({ raw, count }));
   };
   const avgs = new Map<string, number | null>();
-  const strengths = new Map<string, number | null>();
+  const finals = new Map<string, number | null>();
   for (const s of specs) {
     const rounds = s.raws.map((r, i) => ({ round: s.waves?.[i] ?? i + 1, value: r === null ? null : percentileOf(Number(r.toFixed(4)), hist(refOf(s, i), Number(r.toFixed(4))), true) }));
     avgs.set(runKey(s), runWeightedAverageOf(rounds));
-    strengths.set(runKey(s), runFinalStrengthOf(rounds));
+    finals.set(runKey(s), runFinalStrengthOf(rounds));
   }
-  return { avgs, strengths };
+  const all = [...avgs.values()].filter((a): a is number => a !== null);
+  const strengths = new Map<string, number | null>();
+  for (const [k, a] of avgs) {
+    if (a === null) { strengths.set(k, null); continue; }
+    const others = new Map<number, number>();
+    let skipped = false;
+    for (const x of all) { if (!skipped && x === a) { skipped = true; continue; } others.set(x, (others.get(x) ?? 0) + 1); }
+    strengths.set(k, runPercentileOf(a, [...others].map(([avg, count]) => ({ avg, count })), true));
+  }
+  return { avgs, strengths, finals };
 }
 
 const sqlAverages = async (): Promise<Map<string, number | null>> =>
@@ -152,7 +164,7 @@ describe('the SQL percentile equals the TS percentile', () => {
     rows.forEach((r, i) => expect(r.p, cases[i]!.join('/')).toBe(finalFromSum(...cases[i]!)));
   });
 
-  it("a run's weighted average and its strength (its final board's percentile) are the numbers the client computes", async () => {
+  it("a run's weighted average and its strength (the average ranked among runs) are the numbers the client computes", async () => {
     const rng = makeRng(930);
     const specs: RunSpec[] = [];
     // Raw scores on a 1/120 grid, as a 60-fight score is, so ties are common. Runs of 4..15 rounds cover every group
@@ -165,10 +177,9 @@ describe('the SQL percentile equals the TS percentile', () => {
     const sqlAvg = await sqlAverages();
     for (const [k, a] of avgs) expect(sqlAvg.get(k), k).toBe(a);
     for (const [k, v] of tsStrengths) expect(await strengthOf(k), k).toBe(v);
-    // The Dup run's last round (7) has two boards (0.3 and 0.95): its strength is their two percentiles averaged.
-    expect(await strengthOf('Dup|d|1999')).toBe(tsStrengths.get('Dup|d|1999'));
-    // The runs whose third round is unscored still take their LAST round.
-    expect(tsStrengths.get(runKey(specs[0]!))).not.toBeNull();
+    const strengths = await Promise.all([...avgs.keys()].map((k) => strengthOf(k)));
+    expect(Math.min(...(strengths as number[]))).toBeLessThanOrEqual(5); // ranked: spans the scale
+    expect(Math.max(...(strengths as number[]))).toBeGreaterThanOrEqual(95);
   });
 });
 
@@ -176,7 +187,7 @@ describe('keeping pool_runs.strength current', () => {
   it('an upload with scores refreshes its run; an unscored upload stays unscored', async () => {
     await upload({ author: 'Fresh', hero: 'f', seed: 5001, raws: [0.9, 0.95, 0.9, 1] });
     await upload({ author: 'Old', hero: 'o', seed: 5002, raws: [null, null, null, null] });
-    expect(await strengthOf('Fresh|f|5001')).toBeGreaterThan(80); // its final board (raw 1.0) tops its wave
+    expect(await strengthOf('Fresh|f|5001')).toBeGreaterThan(90); // the strongest run of the set
     expect(await strengthOf('Old|o|5002')).toBeNull();
   });
 
@@ -184,7 +195,7 @@ describe('keeping pool_runs.strength current', () => {
     await db.exec(`update public.boards set strength_raw = 0, strength_ref = '${REF}', strength_wave = wave where author = 'Old' and strength_raw is null`);
     const s = await strengthOf('Old|o|5002');
     expect(s).not.toBeNull();
-    expect(s!).toBeLessThan(10); // its final board (raw 0) is the weakest of its wave
+    expect(s!).toBeLessThan(10); // the weakest run of the set
   });
 });
 
@@ -260,14 +271,15 @@ describe('the histogram and grants', () => {
     await db.exec(MIGRATION);
     await db.exec(WEIGHTED);
     await db.exec(FINAL);
-    await db.exec(FINAL);
+    await db.exec(AGAIN);
+    await db.exec(AGAIN);
     expect(await q<{ s: string | null }>('select strength::text as s from public.pool_runs order by id')).toEqual(before);
     expect((await sample(10, 'again')).length).toBe(2);
   });
 });
 
-describe('parity on the REAL live pool (2026-09-30 scores; final board since 2026-10-03)', () => {
-  it("every live run's weighted average and final-board strength in SQL are the TS numbers", async () => {
+describe('parity on the REAL live pool (2026-09-30 scores; weighted and ranked, restored 2026-10-06)', () => {
+  it("every live run's weighted average and strength in SQL are the TS numbers, and the 2026-10-06 SQL flips a final-board pool back", async () => {
     await db.exec('delete from public.boards');
     await db.exec('delete from public.pool_runs');
     const runs = (LIVE as unknown as { runs: [number, number, number][][] }).runs;
@@ -277,8 +289,17 @@ describe('parity on the REAL live pool (2026-09-30 scores; final board since 202
     }));
     expect(specs.length).toBeGreaterThan(150);
     for (const s of specs) await upload(s);
-    await db.exec(FINAL); // what the owner runs: the migration's own closing refresh recomputes every run
-    const { avgs, strengths } = tsRunNumbers(specs);
+    const { avgs, strengths, finals } = tsRunNumbers(specs);
+    // The live pool as it stood 2026-10-03 to 2026-10-06: the final-board SQL, run by the owner.
+    await db.exec(FINAL);
+    let differ = 0;
+    for (const s of specs) {
+      const k = runKey(s);
+      expect(await strengthOf(k), k).toBe(finals.get(k));
+      if (finals.get(k) !== strengths.get(k)) differ++;
+    }
+    expect(differ).toBeGreaterThan(50); // the two formulas really disagree on the live pool
+    await db.exec(AGAIN); // what the owner runs: the migration's own closing refresh recomputes every run
     const sqlAvg = await sqlAverages();
     let late = 0;
     for (const s of specs) {

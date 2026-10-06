@@ -152,7 +152,7 @@ export interface LobbyPoolStats {
    *  Stamped by the UI after creation; the sim never reads it. Absent headless. */
   source?: string;
   /** MATCHMAKING BAND (R-LOBBY-09, 2026-09-30): the strength band asked for (the player's rank), the band the
-   *  seats were finally drawn from, and how many widening steps that took. Absent = no band (no rank,
+   *  seats were finally drawn from, and how many widening steps that took. Absent = no band (Platinum, no rank,
    *  Practice, headless). Bookkeeping for telemetry only, like the rest of this record. */
   band?: { requested: StrengthBand; used: StrengthBand | null; widenings: number };
   /** Widening steps the POOL FETCH took to find enough runs for the band (stamped by the UI, like `source`). */

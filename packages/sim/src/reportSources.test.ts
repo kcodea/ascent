@@ -276,7 +276,8 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
     expect(currentRegime(null)).toMatchObject({ band: null, bandUsed: null });
     // TRIPWIRE: the newest inference era must match the code. When the band table or the strength formula changes,
     // add an era (cut-over time + version) to reportSources.ts in the same PR, then move this line to it.
-    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V2, 'final']);
+    // 2026-10-06: the owner reverted #1928, so the newest era is the weighted strength on the #1871 bands again.
+    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V1, 'weighted']);
   });
 
   it('a stamped row is "stamped"; old rows infer from the build first, then the date', () => {
@@ -289,6 +290,10 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
     expect(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-02T00:00:00Z' }))).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'weighted' });
     expect(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-09-29T00:00:00Z' }))).toMatchObject({ basis: 'inferredFromDate', key: 'no bands' });
     expect(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-03T16:00:00Z' }))).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'final', bandsVersion: BANDS_V2 });
+    // After the 2026-10-06 revert: weighted on the #1871 bands, the same filter key as the 2026-10-01 era.
+    const again = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-07T00:00:00Z' }));
+    expect(again).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'weighted', bandsVersion: BANDS_V1 });
+    expect(again.key).toBe(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-02T00:00:00Z' })).key);
     expect(resolveRegime(row({ patch: null, createdAt: null }))).toMatchObject({ basis: 'unknown' });
     // The band itself comes from the row's lobbyPool when the run recorded one.
     const pool = { strengthBand: '0-30', strengthBandUsed: '0-30' } as RunTelemetryRow['lobbyPool'];

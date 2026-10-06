@@ -27,14 +27,14 @@ afterEach(() => { OPPONENT_POOL.length = 0; });
 it('has enough distinct heroes for these tables', () => { expect(HEROES.length).toBeGreaterThanOrEqual(20); });
 
 describe('the bands', () => {
-  it('every division of a medal shares its band: Bronze 0-30, Silver 10-40, Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 (owner 2026-10-03)', () => {
+  it('every division of a medal shares its band: Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100 (restored with the weighted strength, owner 2026-10-06)', () => {
     for (let d = 0; d < rankDivisionCount(); d++) expect(strengthBandForDivision(d), `division ${d}`).toEqual(STRENGTH_BANDS[medalOf(d)]);
     expect(STRENGTH_BANDS.Bronze).toEqual({ min: 0, max: 30 });
     expect(STRENGTH_BANDS.Silver).toEqual({ min: 10, max: 40 });
-    expect(STRENGTH_BANDS.Gold).toEqual({ min: 15, max: 65 });
-    expect(STRENGTH_BANDS.Platinum).toEqual({ min: 15, max: 100 });
-    expect(STRENGTH_BANDS.Diamond).toEqual({ min: 25, max: 100 });
-    expect(STRENGTH_BANDS.Ascendant).toEqual({ min: 35, max: 100 });
+    expect(STRENGTH_BANDS.Gold).toEqual({ min: 20, max: 65 });
+    expect(STRENGTH_BANDS.Platinum).toBeNull();
+    expect(STRENGTH_BANDS.Diamond).toEqual({ min: 10, max: 100 });
+    expect(STRENGTH_BANDS.Ascendant).toEqual({ min: 20, max: 100 });
     expect(RANK_MEDALS).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ascendant']);
   });
 
@@ -45,7 +45,7 @@ describe('the bands', () => {
     // Diamond and Ascendant have only a floor: widening lowers it by 10 a step.
     expect(bandSteps({ min: 20, max: 100 })).toEqual([{ min: 20, max: 100 }, { min: 10, max: 100 }, null]);
     expect(bandSteps({ min: 10, max: 100 })).toEqual([{ min: 10, max: 100 }, null]);
-    // The 2026-10-03 bands: Gold 15-65, and the floor-only Platinum / Diamond / Ascendant.
+    // Other shapes (the retired 2026-10-03 final-board bands): an odd floor, and longer floor-only ladders.
     expect(bandSteps({ min: 15, max: 65 })).toEqual([{ min: 15, max: 65 }, { min: 5, max: 75 }, { min: 0, max: 85 }, { min: 0, max: 95 }, null]);
     expect(bandSteps({ min: 15, max: 100 })).toEqual([{ min: 15, max: 100 }, { min: 5, max: 100 }, null]);
     expect(bandSteps({ min: 35, max: 100 })).toEqual([{ min: 35, max: 100 }, { min: 25, max: 100 }, { min: 15, max: 100 }, { min: 5, max: 100 }, null]);

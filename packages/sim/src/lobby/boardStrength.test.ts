@@ -3,6 +3,7 @@ import type { BoardSnapshot } from '../snapshot';
 import {
   STRENGTH_REF_VERSION, createStrengthProbe, loadStrengthReference, parseBoardStrength, pctFromCounts, percentileOf,
   referenceWaveOf, runAverageOf, runFinalStrengthOf, finalFromSum, runPercentileOf, runStrengthFromScores, runWeightedAverageOf, scoreBoard, strengthRoundGroup,
+  RUN_STRENGTH_FORMULA,
   STRENGTH_ROUND_GROUPS, weightedAvgFromGroups, type StrengthReference, type StrengthScore,
 } from './boardStrength';
 
@@ -165,7 +166,7 @@ describe('the percentile', () => {
     }
   });
 
-  it('legacy (2026-09-30 to 2026-10-03, kept for the measure tool): runPercentileOf ranks averages among runs', () => {
+  it("a run's strength is its average RANKED among the runs (owner-approved 2026-09-30, restored 2026-10-06): averages near 50 spread to 1-100", () => {
     // 100 runs whose averages all sit between 35 and 64 (the squeeze toward 50): ranked, they span the whole scale,
     // and each band holds its nominal share.
     const runs = Array.from({ length: 30 }, (_, i) => ({ avg: 35 + i, count: i % 3 === 0 ? 4 : 3 }));
@@ -183,23 +184,30 @@ describe('the percentile', () => {
     expect(runPercentileOf(60, [], false)).toBeNull();
   });
 
-  it("the player's own rounds are placed against the pool's boards; the game's strength is the FINAL board (owner 2026-10-03)", () => {
+  it("the player's own rounds are placed against the pool's boards, and the run against the pool's runs (weighted, restored 2026-10-06)", () => {
+    // The owner reverted the final-board formula (#1928) on 2026-10-06: "matchmaking algorithm -> backtrack to the
+    // weighted version". The regime stamp names the formula the build computes.
+    expect(RUN_STRENGTH_FORMULA).toBe('weighted');
     const score = (wave: number, raw: number): StrengthScore => ({ raw, wave, ref: STRENGTH_REF_VERSION, fights: 60 });
     const hist = { '1': [{ raw: 0.2, count: 3 }, { raw: 0.8, count: 1 }], '2': [{ raw: 0.5, count: 4 }] };
-    const out = runStrengthFromScores([[2, score(2, 0.9)], [1, score(1, 0.5)], [3, score(3, 0.5)]], hist)!;
+    const runs = [{ avg: 40, count: 5 }, { avg: 80, count: 2 }, { avg: 90, count: 2 }];
+    const out = runStrengthFromScores([[2, score(2, 0.9)], [1, score(1, 0.5)], [3, score(3, 0.5)]], hist, runs)!;
     expect(out.rounds).toEqual([{ round: 1, value: 70 }, { round: 2, value: 90 }]); // round 3: no pool boards yet
-    // The game's number is round 2 (the latest round with a percentile), used directly: no averaging, no ranking.
-    expect(out.value).toBe(90);
-    // The Rooks shape (2026-10-02): dominant early, weak at the end. The game reads as its last board.
-    const h13 = { ...hist, '13': [{ raw: 0.1, count: 1 }, { raw: 0.5, count: 7 }] };
-    const rooks = runStrengthFromScores([[1, score(1, 0.8)], [2, score(2, 0.9)], [13, score(13, 0.2)]], h13)!;
-    expect(rooks.value).toBe(rooks.rounds.at(-1)!.value);
-    expect(rooks.value).toBeLessThan(30);
-    expect(runStrengthFromScores([[1, score(1, 0.5)]], null)).toBeNull();
-    expect(runStrengthFromScores([[1, { ...score(1, 0.5), ref: 'old' }]], hist)!.value).toBeNull();
+    expect(out.average).toBe(80);
+    // The frozen game number is round-weighted too: round 1 = 70 and round 10 = 90 -> (20 * 70 + 45 * 90) / 65 = 83.8.
+    const late = runStrengthFromScores([[1, score(1, 0.5)], [10, score(10, 0.9)]], { ...hist, '10': [{ raw: 0.5, count: 4 }] }, runs)!;
+    expect(late.rounds).toEqual([{ round: 1, value: 70 }, { round: 10, value: 90 }]);
+    expect(late.average).toBe(84);
+    expect(out.value).toBe(65); // (5 below + (2 + itself) / 2) / 10 = 6.5 / 10
+    // NOT the final board: a run's strength is not its last round's percentile (the 2026-10-03 to 2026-10-06 rule).
+    expect(out.value).not.toBe(runFinalStrengthOf(out.rounds));
+    // No run histogram yet: the rounds stand, the run has no strength (nothing is shown for it).
+    expect(runStrengthFromScores([[1, score(1, 0.5)]], hist, null)!.value).toBeNull();
+    expect(runStrengthFromScores([[1, score(1, 0.5)]], null, runs)).toBeNull();
+    expect(runStrengthFromScores([[1, { ...score(1, 0.5), ref: 'old' }]], hist, runs)!.value).toBeNull();
   });
 
-  it('runFinalStrengthOf: the latest scored round, duplicates averaged half up, unscored rounds skipped', () => {
+  it('runFinalStrengthOf (a diagnostic since 2026-10-06): the latest scored round, duplicates averaged half up, unscored rounds skipped', () => {
     expect(runFinalStrengthOf([{ round: 1, value: 90 }, { round: 5, value: 12 }, { round: 3, value: 99 }])).toBe(12);
     expect(runFinalStrengthOf([{ round: 7, value: 40 }, { round: 7, value: 41 }, { round: 2, value: 99 }])).toBe(41); // 40.5 -> 41
     // The final round never got a score (run-end wait timed out): the latest scored round stands in.

@@ -46,19 +46,28 @@ export const BANDS_AT = '2026-09-30T16:53:17Z';
 export const WEIGHTED_AT = '2026-10-01T13:05:45Z';
 /** #1928 merged: run strength = the final board's percentile, and the bands retuned for it. */
 export const FINAL_AT = '2026-10-03T15:34:02Z';
+/** The owner reverted #1928 (2026-10-06, R-LOBBY-12): run strength = the round-weighted average ranked among runs
+ *  again, and the #1871 band table back. APPROXIMATE: the revert PR's merge day (its exact merge time was not known
+ *  when this was written). Only an UNSTAMPED row ever reads it, and every build since #1938 stamps its rows, so it
+ *  only places old builds that upload late. The pool side flips when the owner runs
+ *  2026-10-06-weighted-strength-again.sql, which can lag the client by hours. */
+export const WEIGHTED_AGAIN_AT = '2026-10-06T12:00:00Z';
 
 /** The band table #1871 shipped (`STRENGTH_BANDS_VERSION` at that commit), and the retune #1928 shipped. */
 export const BANDS_V1 = 'B0-30 S10-40 G20-65 P* D10-100 A20-100';
 export const BANDS_V2 = 'B0-30 S10-40 G15-65 P15-100 D25-100 A35-100';
 
-/** A matchmaking era. `preBands` = no strength bands at all. */
-export type RegimeEra = 'preBands' | 'bandsAverage' | 'bandsWeighted' | 'bandsFinal';
+/** A matchmaking era. `preBands` = no strength bands at all. `bandsWeightedAgain` is the same regime as
+ *  `bandsWeighted` (same formula, same bands, so the same filter key); it is its own era only to keep the cut-overs in
+ *  date order. */
+export type RegimeEra = 'preBands' | 'bandsAverage' | 'bandsWeighted' | 'bandsFinal' | 'bandsWeightedAgain';
 
 const ERA_REGIME: Record<RegimeEra, { bandsVersion: string | null; strengthFormula: StrengthFormula | null }> = {
   preBands: { bandsVersion: null, strengthFormula: null },
   bandsAverage: { bandsVersion: BANDS_V1, strengthFormula: 'average' },
   bandsWeighted: { bandsVersion: BANDS_V1, strengthFormula: 'weighted' },
   bandsFinal: { bandsVersion: BANDS_V2, strengthFormula: 'final' },
+  bandsWeightedAgain: { bandsVersion: BANDS_V1, strengthFormula: 'weighted' },
 };
 
 /**
@@ -122,7 +131,8 @@ export function resolveRegime(row: RegimeRow): ResolvedRegime {
   if (fromBuild) return { ...ERA_REGIME[fromBuild], ...band, basis: 'inferredFromBuild', key: regimeKeyOf(ERA_REGIME[fromBuild]) };
   const at = row.createdAt ? Date.parse(row.createdAt) : NaN;
   if (Number.isFinite(at)) {
-    const era: RegimeEra = at < Date.parse(BANDS_AT) ? 'preBands' : at < Date.parse(WEIGHTED_AT) ? 'bandsAverage' : at < Date.parse(FINAL_AT) ? 'bandsWeighted' : 'bandsFinal';
+    const era: RegimeEra = at < Date.parse(BANDS_AT) ? 'preBands' : at < Date.parse(WEIGHTED_AT) ? 'bandsAverage' : at < Date.parse(FINAL_AT) ? 'bandsWeighted'
+      : at < Date.parse(WEIGHTED_AGAIN_AT) ? 'bandsFinal' : 'bandsWeightedAgain';
     return { ...ERA_REGIME[era], ...band, basis: 'inferredFromDate', key: regimeKeyOf(ERA_REGIME[era]) };
   }
   return { bandsVersion: null, strengthFormula: null, ...band, basis: 'unknown', key: UNKNOWN_REGIME };

@@ -1,6 +1,7 @@
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import { activePowers, getHero } from '../heroes';
 import { offerBuyPrice, refreshCostOf, upgradeCostOf } from '../reducer';
+import { ancientEnchantedSpellCut } from '../ancients';
 import { effectiveTargetTribe, isTribe, offerBuyStats, spellAttackBonus, spellCostReduction, spellHealthBonus } from '../recruit';
 import { equipmentChargesOf, equipmentCostOf, equipmentState } from '../equipment';
 import type { BoardCard, RunState, ShopCard } from '../state';
@@ -58,7 +59,7 @@ const offerView = (s: RunState, o: ShopCard): BotOfferView => {
   // The price actually payable now, not the printed one — Lazarus, Tradesman, Layaway, Cadence, Trade-In, the
   // Starform's ticking price and a free first buy all move it. `offerBuyPrice` is the reducer's own source.
   const cost = spell
-    ? Math.max(0, (def?.cost ?? 0) - spellCostReduction(s, def))
+    ? Math.max(0, (def?.cost ?? 0) - spellCostReduction(s, def) - ancientEnchantedSpellCut(s, o))
     : offerBuyPrice(s, o).cost;
   return {
     uid: o.uid,

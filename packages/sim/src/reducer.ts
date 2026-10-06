@@ -1,6 +1,7 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
+import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -264,7 +265,7 @@ export interface OfferBuyPrice {
   /** Thymepiece's clock-window discount ("all cards cost −N for 8 seconds"), while the window is open. */
   windowOff: number;
 }
-export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true }): OfferBuyPrice {
+export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true; enchanted?: boolean }): OfferBuyPrice {
   // THE STARFORM (owner rule A, 2026-09-13) carries its LIVE price on `cost` (6 at creation, −1 per refresh) and
   // takes every regular discount below exactly like any minion — there is deliberately no special case here.
   // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
@@ -292,7 +293,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
   // ANCIENT OF BONDS × Robin: a minion of a type marked by a sale is set to the Bonds price (never raised above its own).
   const bondsPrice = ancientRobinBondsPrice(s, offer.cardId);
-  const caps = [ancientTimePrice(s), bondsPrice].filter((c): c is number => c !== undefined);
+  // ANCIENT OF FORTUNE × Ayse: an Enchanted offer is set to the Fortune price (never raised above its own).
+  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
   const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
@@ -938,6 +940,7 @@ export function reduce(state: RunState, action: Action): RunState {
     syncSoulFurnace(next);
     syncRunTribes(next); // RUNE OF DRAKKO: every board / hand copy carries the run's type overrides (a Discover, a buy, a triple …)
     syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
+    ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -1168,6 +1171,12 @@ export function reduce(state: RunState, action: Action): RunState {
           const had = new Set([...state.hand, ...state.board].map((c) => c.uid));
           const body = adef.spell || offer?.starform ? undefined : [...next.hand, ...next.board].find((c) => !had.has(c.uid) && c.cardId === adef.id);
           ancientOnBuy(next, adef.id, !!offer?.starform, body);
+          // AYSE (Lucky Seat): an Enchanted buy. `completed` = it was the cycle's 3rd (`ciaBuyEnchanted` paid the prize);
+          // Rune of Wishbone makes the power trigger twice.
+          const bought = offer ?? (state.spell?.uid === action.uid ? state.spell : undefined);
+          if (bought?.enchanted && hasPower(state, 'luckySeat')) {
+            ancientOnEnchantedBuy(next, adef.id, body, (state.ciaEnchantedBought ?? 0) + 1 >= 3, wishboneReps(next));
+          }
         }
       }
       const boughtMinion = !!bdef && !bdef.spell && !bdef.ruby;
@@ -1531,7 +1540,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         const spellDef = CARD_INDEX[s.spell.cardId];
         if (!spellDef) return state;
         const spellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages: "your next card costs 0" — spells included
-        const cost = spellFree ? 0 : Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef)); // `spellDef` is load-bearing: Rune of Thrift keys on it
+        // ANCIENT OF FORTUNE × Ayse: an Enchanted spell's printed cost is capped first (`ancientEnchantedSpellCut`).
+        const cost = spellFree ? 0 : Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef) - ancientEnchantedSpellCut(s, s.spell)); // `spellDef` is load-bearing: Rune of Thrift keys on it
         if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
         spendFreeCard(s, spellFree);
@@ -1546,6 +1556,10 @@ function reduceCore(state: RunState, action: Action): RunState {
           keywords: [...spellDef.keywords],
           golden: false,
         });
+        // Croupier Ayse: an Enchanted slot spell advances her prize counter too (owner 2026-08-22: the slot rolls for the
+        // mark). It never did: the slot was the one buy path without this call (R-LUCKYSEAT-01). After the push, so a
+        // prize that lands in hand sees the real hand.
+        ciaBuyEnchanted(s, s.spell);
         s.spell = null; // bought — the slot stays empty until the next roll
         tiffBuyDiscount(s, spellDef); // Tiff: a spell buy banks a Dragon Tamer discount
         applySpellBought(s, spellDef.id); // Set 2 — fires `spellBought` (Moonhowl Mentor mints a Mage-Pup taught this spell)
@@ -1561,7 +1575,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
         const rowSpellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages (see the spell-slot buy above)
-        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card)); // pass the def — see the spell-slot buy above
+        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card) - ancientEnchantedSpellCut(s, offer)); // pass the def — see the spell-slot buy above
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         spendFreeCard(s, rowSpellFree);

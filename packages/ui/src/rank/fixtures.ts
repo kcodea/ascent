@@ -72,6 +72,11 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 1, before: pos(8, 100), after: pos(9, 10), baseDelta: 40, appliedDelta: 10, cappedPoints: 0, wasPromotionGame: true, promotionKind: 'medal', requiredFinish: 1, promoted: true }),
   },
   {
+    id: 'promo-silver', label: 'Silver promotion (shop timer notice)', expect: 'Bronze III 100 → Silver I 10: medal transition, then the "New at Silver: the standard shop timer" notice (R-TIMER-BRONZE-01)',
+    placement: 1, submission: 'confirmed', current: null,
+    result: base({ placement: 1, before: pos(2, 100), after: pos(3, 10), baseDelta: 40, appliedDelta: 10, cappedPoints: 0, wasPromotionGame: true, promotionKind: 'medal', requiredFinish: 1, promoted: true }),
+  },
+  {
     id: 'promo-failed', label: 'Promotion failed', expect: 'Gold II 100 → 60: bar retreats from full, −40 MMR, "Promotion unsuccessful"',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(7, 100), after: pos(7, 60), baseDelta: -40, wasPromotionGame: true, promotionKind: 'division', requiredFinish: 4 }),

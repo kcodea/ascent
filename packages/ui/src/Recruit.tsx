@@ -80,7 +80,7 @@ import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
-import { GAUNTLET_CLOCK_GOLD, GAUNTLET_CLOCK_WAITING, gauntletClockState, gauntletClockWaiting, gauntletTurnClock } from './gauntlet/gauntletClock';
+import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -420,36 +420,38 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: boolean; gauntlet?: boolean }) {
+const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: boolean; goldGoal?: number | null }) {
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
-  // A Gauntlet round has no clock until 30 Gold is spent: the clock sits parked on its waiting value until then.
-  const gauntletWaiting = !!gauntlet && gauntletClockWaiting(s);
-  // …and while it waits, a bar fills with the Gold spent this round toward that threshold (owner ask 2026-09-30).
-  const goldSpent = useGame((st) => (gauntlet ? Math.min(st.run.goldSpentThisTurn ?? 0, GAUNTLET_CLOCK_GOLD) : 0));
+  // A GOLD-SPEND clock turn (a Gauntlet round: 30 Gold; a Bronze rated lobby: 20, R-TIMER-BRONZE-01) has no clock
+  // until `goldGoal` Gold is spent: the clock sits parked on its waiting value until then (see goldClock.ts).
+  const goal = goldGoal ?? 0;
+  const goldWaiting = goal > 0 && goldClockWaiting(s);
+  // …and while it waits, a bar fills with the Gold spent this turn toward that threshold (owner ask 2026-09-30).
+  const goldSpent = useGame((st) => (goal > 0 ? Math.min(st.run.goldSpentThisTurn ?? 0, goal) : 0));
   return (
-    <div className={`statcell time${s <= 5 ? ' low' : ''}${gauntletWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
+    <div className={`statcell time${s <= 5 ? ' low' : ''}${goldWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
       {/* Two faces, one shown per HUD look (healthPills.css): the flat Classic glyph and the Gem plate gold clock. */}
       <span className="sc-ic"><Icon name="clock" /><Icon name="timerClock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
-      {gauntletWaiting ? (
-        <span className="gclock" aria-label={`${goldSpent} of ${GAUNTLET_CLOCK_GOLD} Gold spent`}>
+      {goldWaiting ? (
+        <span className="gclock" aria-label={`${goldSpent} of ${goal} Gold spent`}>
           <span className="gclock-bar">
-            <span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} />
+            <span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / goal})` }} />
             {/* SPARKS off the growing tip (owner ask 2026-09-30): a one-shot burst, re-keyed on every spend so each
                 purchase fires it once. Transform/opacity only; nothing loops. */}
             {/* The GLOW only while the bar moves (owner ask 2026-09-30): a one-shot halo over the fill, re-keyed per spend. */}
             {goldSpent > 0 && (
-              <span key={`g${goldSpent}`} className="gclock-glow" style={{ transform: `scaleX(${goldSpent / GAUNTLET_CLOCK_GOLD})` }} aria-hidden="true" />
+              <span key={`g${goldSpent}`} className="gclock-glow" style={{ transform: `scaleX(${goldSpent / goal})` }} aria-hidden="true" />
             )}
             {goldSpent > 0 && (
-              <span key={goldSpent} className="gclock-sparks" style={{ left: `${(goldSpent / GAUNTLET_CLOCK_GOLD) * 100}%` }} aria-hidden="true">
+              <span key={goldSpent} className="gclock-sparks" style={{ left: `${(goldSpent / goal) * 100}%` }} aria-hidden="true">
                 {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className="gclock-spark" style={{ ['--i' as string]: i }} />)}
               </span>
             )}
           </span>
-          <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{GAUNTLET_CLOCK_GOLD}</span>
+          <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{goal}</span>
         </span>
       ) : (
         <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
@@ -472,8 +474,8 @@ const ShopTimer = memo(function ShopTimer({ practice, gauntlet }: { practice?: b
       <span className="sbtip">
         {practice
           ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
-          : gauntletWaiting
-            ? `A countdown begins once you've spent ${GAUNTLET_CLOCK_GOLD} Gold in a single turn.`
+          : goldWaiting
+            ? `A countdown begins once you've spent ${goal} Gold in a single turn.`
             : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>
@@ -1184,11 +1186,17 @@ export function Recruit() {
   // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
   const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
-  // THE GAUNTLET (spec §1): each round OPENS with no clock, parked on its waiting value; the countdown starts once
-  // 30 Gold is spent in the round (see gauntlet/gauntletClock.ts and the effect beside the clock reset below).
-  // `gauntletClockWaits` flips at most once per turn (goldSpentThisTurn only rises within a wave).
-  const gauntletClockWaits = run.mode === 'gauntlet' && gauntletClockState(run.goldSpentThisTurn ?? 0) === 'waiting';
-  const turnSeconds = run.mode === 'gauntlet' ? GAUNTLET_CLOCK_WAITING : infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
+  // THE GOLD-SPEND CLOCK (goldClock.ts): a GAUNTLET round (spec §1, R-GAUNTLET-04) and a BRONZE rated lobby turn
+  // (R-TIMER-BRONZE-01) OPEN with no clock, parked on its waiting value; the countdown starts once the config's Gold
+  // is spent in the turn (30 / 20; see the effect beside the clock reset below). `goldClockOf` is the ONE predicate
+  // every surface asks (this, the plaque, the store's Thymepiece stamp, the Discount readout). Primitive reads so the
+  // effects below key on values, not a fresh object per render. `goldClockWaits` flips at most once per turn
+  // (goldSpentThisTurn only rises within a wave).
+  const goldClock = goldClockOf(run);
+  const goldClockGold = goldClock?.gold ?? null;
+  const goldClockSeconds = goldClock?.seconds ?? null;
+  const goldClockWaits = !!goldClock && goldClockState(goldClock, run.goldSpentThisTurn ?? 0) === 'waiting';
+  const turnSeconds = goldClock ? GOLD_CLOCK_WAITING : infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -4621,15 +4629,16 @@ export function Recruit() {
     }
   }, [run.wave, turnSeconds, heroSelecting, showTitle]);
 
-  // THE GAUNTLET CLOCK STARTS once 30 Gold is spent in the round: move the parked clock to 60. Declared AFTER the
+  // THE GOLD-SPEND CLOCK STARTS once its Gold is spent in the turn (Gauntlet 30 → 60 s; Bronze ranked 20 → 60 s, 90 s from
+  // turn 9): move the parked clock to the config's seconds. Declared AFTER the
   // reset above so, on any commit where both run, it sees the value the reset (or a Continue's resume) left — a
-  // countdown already running, including seconds restored by Continue, is never restarted (`gauntletTurnClock`).
+  // countdown already running, including seconds restored by Continue, is never restarted (`goldTurnClock`).
   // Layout effect, like the reset, so the plaque never paints the parked value once the threshold is met.
   useLayoutEffect(() => {
-    if (run.mode !== 'gauntlet' || showTitle) return;
-    const next = gauntletTurnClock({ goldSpent: run.goldSpentThisTurn ?? 0, current: turnClock.get() });
+    if (goldClockGold == null || goldClockSeconds == null || showTitle) return;
+    const next = goldTurnClock({ clock: { gold: goldClockGold, seconds: goldClockSeconds }, goldSpent: run.goldSpentThisTurn ?? 0, current: turnClock.get() });
     if (next != null) turnClock.set(next);
-  }, [run.mode, gauntletClockWaits, run.wave, heroSelecting, showTitle]);
+  }, [goldClockGold, goldClockSeconds, goldClockWaits, run.wave, heroSelecting, showTitle]);
 
   /**
    * REPLAY PACING for the shop clock (owner report 2026-08-30: *"speed doesnt change the time's speed"*).
@@ -4680,7 +4689,7 @@ export function Recruit() {
       // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
       settingsOpen,
-      clockWaiting: gauntletClockWaits, // a Gauntlet round before 30 Gold is spent: no clock yet
+      clockWaiting: goldClockWaits, // a gold-clock turn (Gauntlet / Bronze ranked) before its Gold is spent: no clock yet
     })) return;
     let id = 0;
     const tick = (): void => {
@@ -4706,7 +4715,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, gauntletClockWaits]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7563,7 +7572,7 @@ export function Recruit() {
       <CombatOpponent />
 
       <ShopControls
-        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox}
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} goldClockGold={goldClockGold}
         replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
@@ -7906,9 +7915,11 @@ const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
-  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
+  /** The gold-spend clock's threshold this turn (`goldClockOf(run)?.gold`), null for the standard clock. */
+  goldClockGold: number | null;
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
@@ -7935,7 +7946,7 @@ const ShopControls = memo(function ShopControls({
             (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
         {mode !== 'tutorial' && (
           <div className="statstrip">
-            <ShopTimer practice={mode === 'practice' && !sandbox} gauntlet={mode === 'gauntlet'} />
+            <ShopTimer practice={mode === 'practice' && !sandbox} goldGoal={goldClockGold} />
           </div>
         )}
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by

@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Bronze ranked games now use the Gauntlet-style shop timer: no clock until you spend 20 Gold in a turn.',
+        details: [
+          'In a ranked game you start in Bronze, each shop turn begins with no timer. A bar fills as you spend Gold.',
+          'Once you have spent 20 Gold in the turn, a 60 second countdown starts. From turn 9 it is 90 seconds.',
+          'A game you start in Bronze keeps this timer to the end, even if you rank up before you finish it.',
+          'From Silver up, the shop timer starts at the beginning of every turn as usual. The Silver promotion screen tells you when it changes.',
+          'Practice, unrated games, the tutorial and the Gauntlet keep their own timers.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Game strength looks at your whole game again, not just your final board.',
         details: [
           'Every round counts again, with later rounds counting more: rounds 1-5 count least, rounds 6-9 more, round 10 onward the most.',

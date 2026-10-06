@@ -27,6 +27,7 @@ import { getEquipSlotConfig } from './equipSlotConfig';
 import { useEquipLook } from './equipLookConfig';
 import { EquipNamePlate } from './EquipNamePlate';
 import { DiscountWindowReadout } from './DiscountWindowReadout';
+import { goldClockOf } from './goldClock';
 import { sfx } from './sfx';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { useAmplifiedSlotFx } from './useAmplifiedSlotFx';
@@ -1238,7 +1239,7 @@ export function StatusBar() {
             <EquipNamePlate name={selectedEquipDef.name} look={equipLook} />
             {/* A clock-window discount in flight (Thymepiece): "−1 Gold · 6s", counting on the turn clock. Its own
                 leaf so the per-second subscription never reaches this component (see DiscountWindowReadout). */}
-            {run.cardDiscountWindow && <DiscountWindowReadout window={run.cardDiscountWindow} mode={run.mode} />}
+            {run.cardDiscountWindow && <DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run)?.seconds ?? null} />}
             <div className="herotip" role="tooltip">
               <b>{selectedEquipDef.name}</b>{selectedEquip.version === 'gilded' ? ' · gilded' : ''}
               <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(equipRule) }} />

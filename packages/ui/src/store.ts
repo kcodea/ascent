@@ -88,7 +88,7 @@ import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { flushGauntletAccount, isStagePlayable, recordClear, refreshGauntletAccount, settleGauntletClear, type GauntletReward } from './gauntlet/gauntletProgress';
 import { installGauntletClearRetryTriggers, type PendingGauntletClear } from './gauntlet/gauntletClearQueue';
 import type { GauntletSubmitOutcome } from './gauntlet/gauntletRemote';
-import { gauntletClockReading } from './gauntlet/gauntletClock';
+import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { boardStrengthScorer, lobbyBandFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
@@ -2298,8 +2298,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // replayed. RAW `turnClock` seconds: Practice's multiplier and the sandbox's frozen clock only change how
     // many real seconds a clock-second lasts; the window is 8 clock-seconds in every mode.
     if (action.type === 'activateEquipment' && action.clockSeconds === undefined && prev.phase === 'recruit') {
-      // A parked Gauntlet clock (no clock until 30 Gold is spent) reads as the 60 it starts from — see gauntletClock.ts.
-      action = { ...action, clockSeconds: gauntletClockReading(prev.mode, turnClock.get()) };
+      // A parked gold-spend clock (Gauntlet: no clock until 30 Gold is spent; a Bronze rated lobby: 20) reads as the
+      // seconds it starts from (60, or 90 from a Bronze game's turn 9) — see goldClock.ts.
+      action = { ...action, clockSeconds: goldClockReading(goldClockOf(prev), turnClock.get()) };
     }
     set((s) => {
       // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
@@ -2464,6 +2465,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
       if (mode === 'lobby' && !stage) run.runId = mintRunId(); // a Gauntlet stage is never rated
+      // BRONZE SHOP CLOCK (R-TIMER-BRONZE-01): pin the medal this rated game starts in, once; the gold-spend clock reads it.
+      pinMedalAtStart(run, s.profile);
       // POOL TELEMETRY (fix 2026-09-28): note where the live pool came from when this table was seated.
       if (run.lobby?.poolAtStart) {
         const poolState = opponentPoolLoader()?.state();
@@ -2484,6 +2487,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // A lobby run, like pickHero's (R-PERSIST-01) — never the retired course.
       const run = recordRunCosmetics(createLobbyRun(seed ?? randomSeed(), heroId ?? DEFAULT_HERO_ID, {}, 'lobby', undefined, undefined,
         { strengthBand: lobbyBandFor(s.profile) })); // R-LOBBY-09 band; own runs seat like anyone's (owner 2026-09-30)
+      pinMedalAtStart(run, s.profile); // R-TIMER-BRONZE-01: the medal this game starts in
       warmLobbyDrivers(run);
       writeSave(run, []);
       return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };

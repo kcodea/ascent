@@ -82,6 +82,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Baby Gastrid\'s text keeps saying "a friendly Dwarf" after you spend Gold, instead of changing to "a friendly minion". It only ever targeted Dwarves.',
+      },
+      {
+        category: 'Systems',
+        text: 'Choosing a target for a Shout now says "Shout" instead of "Battlecry".',
+      },
+      {
+        category: 'Systems',
         text: 'Runesmith and Guardian: the rune from your hero power\'s Runeforge now sits in your hero power slot, and no longer shows a loose extra rune beside your rune slots.',
         details: [
           'Guardian\'s turn 8 rune stays in the hero power slot. The turn 9 Runeforge no longer replaces it.',

@@ -1137,7 +1137,11 @@ export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, gold
   if (goldSpentThisTurn <= 0) return null; // nothing spent yet — the printed rate is already accurate
   const per = Number((eff.params as { health?: number })?.health ?? 1) * (golden ? 2 : 1);
   const total = per * goldSpentThisTurn;
-  return `**Shout:** give a friendly minion **{{+${total} Health}}** (+${per} per Gold spent this turn).`;
+  // Name the target the way the printed text does: a `targetTribe` card can only aim at that tribe (Gastrid: Dwarves
+  // only, owner 2026-08-04), so the live text must not widen it back to "a friendly minion" (owner report 2026-10-06).
+  const tribe = def.targetTribe;
+  const noun = tribe ? `**${tribe.charAt(0).toUpperCase()}${tribe.slice(1)}**` : 'minion';
+  return `**Shout:** give a friendly ${noun} **{{+${total} Health}}** (+${per} per Gold spent this turn).`;
 }
 
 /**

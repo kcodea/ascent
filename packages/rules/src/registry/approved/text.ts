@@ -390,4 +390,43 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Two branches both prepend a 2026-09-28 block and the merge keeps both: patchNotes.test.ts fails until they are one.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/patchNotes.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
+  {
+    id: 'R-TEXT-TARGETTRIBE-01',
+    title: 'A card that can only target one tribe names that tribe in its text, live values included',
+    statement:
+      'When a card can only target minions of one tribe, its text names that tribe ("a friendly Dwarf", never "a '
+      + 'friendly minion") on every surface and in every state: the printed text and every live rewrite of it that '
+      + 'folds in a current number (Gold spent, spells cast, cards played, spell power), plain and golden alike.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Baby Gastrid live text)', quote: 'this should say friendly Dwarf as it can only target dwarfs' },
+      { kind: 'fix-pr', ref: 'fix/gastrid-dwarf-shout-prompt: packages/ui/src/cardText.ts perGoldSpentText (names def.targetTribe)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-06: Baby Gastrid printed "a friendly Dwarf", but its live helper rewrote it to "a '
+      + 'friendly minion" as soon as any Gold had been spent. The test sweeps every targetTribe card whose printed text '
+      + 'names its tribe through several live states.',
+    example: 'Baby Gastrid after spending 9 Gold: "Shout: give a friendly Dwarf +18 Health (+2 per Gold spent this turn)."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/targetTribeLiveText.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-TEXT-SHOUT-01',
+    title: 'On-screen text calls the on-play trigger "Shout", never "Battlecry"',
+    statement:
+      'Every player-facing string in the game UI (prompts, labels, buttons, tooltips) names the on-play trigger '
+      + '"Shout". "Battlecry" survives only in code identifiers and comments, never on screen.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (targeted Shout prompt)', quote: 'the screen when selecting a unit says battlecry, it should say shout' },
+      { kind: 'fix-pr', ref: 'fix/gastrid-dwarf-shout-prompt: packages/ui/src/Recruit.tsx (.targetprompt)' },
+    ],
+    currentBehaviour:
+      'Conforms in the UI\'s JSX as of 2026-10-06: the targeted-Shout prompt read "Choose a minion for X\'s Battlecry". '
+      + 'PARTIAL as a general check: the test scans rendered JSX text runs in packages/ui; strings assembled in .ts '
+      + 'modules are not scanned.',
+    example: 'Playing Baby Gastrid shows "Choose a minion for Baby Gastrid\'s Shout".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/shoutTerminology.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

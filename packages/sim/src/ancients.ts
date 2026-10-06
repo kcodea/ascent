@@ -235,6 +235,33 @@
  *                                 MINIONS among those buys gain +X/+X permanently wherever they are now (hand or board;
  *                                 a spell, the Starform, or a body that left gets nothing); X starts at `amount` and
  *                                 improves by `amount` per payout (`gorrBondsGain`). (Bonds)
+ *  BRAUM (hero id `bram`, Investment, `investment`, 1 Gold; owner pairings 2026-10-06). Investment = "Invest 1 Gold.
+ *  After investing 5, get a random Gilded minion, then reset." (once per turn; the bank is `RunState.bramInvested`). The
+ *  reducer's `investment` branch reads the shape hooks (`ancientInvestmentPassive`, `ancientInvestmentTime`,
+ *  `ancientInvestmentDiscovers`). "A random Gilded minion" is Investment's own payout everywhere (`bramGildedPayout`: the
+ *  run's buyable minions up to your Shop tier, conjured to hand and gilded; a full hand gets none).
+ *  · `deathsGetGildedMinion`      Investment turns passive (`power`). ONE running count of friendly deaths across BOTH
+ *                                 phases (`bramDeaths`, the Rune of Body Counting meter shape: "When N friendly minions
+ *                                 die" is NOT an Avenge, so Rune of Fury does not repeat it). SHOP: `fireOnFriendDeath`
+ *                                 (`ancientBramShopDeath`); COMBAT: `QuestCombatMods.ancientBramDeaths` (carried in, a
+ *                                 live random minion `toHand` whose index rides `ShoutCarry.handGilds`, so settle gilds
+ *                                 it), and settle adds the fight's deaths. Every Nth death pays, repeating. (Death)
+ *  · `tripleRewardGold`           Investment costs 0 (`power`; it still banks one count per use, 5 to pay out). Every
+ *                                 Triple Reward you GET (`grantGoldenDiscover`, the one chokepoint every triple / Keshi /
+ *                                 fortress reward walks; Corrupted Tome's extras each count) gains `gold` Gold right then
+ *                                 (`ancientOnTripleReward`). A reward the hand cap drops pays nothing. (Fortune)
+ *  · `socBuffPerGildedPlayed`     COMBAT: `QuestCombatMods.ancientSocBuffAll`, Start of Combat: every friendly minion gains
+ *                                 +a/+h x the Gilded minions PLAYED from hand this game (`bramGildedPlays`, ticked at
+ *                                 `playCard` via `ancientOnPlay` while Ancients are on, whatever is picked), a combat
+ *                                 buff. Plays only happen in the Shop. (War)
+ *  · `investmentDiscoverCurrentTier` the payout is a Discover of a Gilded minion of EXACTLY your current Shop tier
+ *                                 (`queueDiscover` golden + exactTier) instead of a random one; the bank is unchanged. (Genesis)
+ *  · `investmentDiscoverTierCopies` Investment is replaced (`power`: once per game, still 1 Gold): Discover a minion of
+ *                                 Tier `tier`. The pick is remembered (`bramTimeCardId`, marked by `bramTimePending` until
+ *                                 `ancientOnDiscoverPick`); every Start of Turn after (`ancientStartOfTurn`, its own beat)
+ *                                 gets a plain copy of it to hand. Hand full: none that turn. (Time)
+ *  · `gildedPlayBuffsAll`         SHOP: `ancientOnPlay`: playing a Gilded minion from hand gives every board minion (the
+ *                                 played one included) +a/+h, permanently, in real time. Combat has no play. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -247,6 +274,8 @@ import { hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
 import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
+import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
+import { poolOf } from './cardPool';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -449,7 +478,20 @@ export type AncientEffect =
   /** End of Turn: a plain copy of a random minion you bought this turn. */
   | { do: 'eotCopyThisTurnBuy' }
   /** Every `every` cards bought: those minions gain +X/+X; X starts at `amount`, improves by `amount` per payout. */
-  | { do: 'buysBuffImproves'; every: number; amount: number };
+  | { do: 'buysBuffImproves'; every: number; amount: number }
+  // ── Braum (Investment) ──
+  /** Investment is passive; every `every` friendly deaths (Shop AND combat, one running count): a random Gilded minion. */
+  | { do: 'deathsGetGildedMinion'; every: number }
+  /** Every Triple Reward you get also gains `gold` Gold (the cost-0 Investment rides the pairing's `power`). */
+  | { do: 'tripleRewardGold'; gold: number }
+  /** Start of Combat: your minions gain +a/+h for every Gilded minion you have played this game. */
+  | { do: 'socBuffPerGildedPlayed'; attack: number; health: number }
+  /** Investment's payout is a Discover of a Gilded minion of your current tier. */
+  | { do: 'investmentDiscoverCurrentTier' }
+  /** Investment becomes: Discover a Tier `tier` minion (once per game, via `power`); Start of Turn: a plain copy of it. */
+  | { do: 'investmentDiscoverTierCopies'; tier: number }
+  /** Playing a Gilded minion gives your minions +a/+h, permanently. */
+  | { do: 'gildedPlayBuffsAll'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -469,7 +511,10 @@ export interface AncientPairing {
    *  they would bank; `{charges}` = Genesis' Copy Machine uses left; `{bond}` = Bonds' live bond state. Soren: `{reclaimGain}` = War's
    *  live +X/+X. Robin: `{spoils}` / `{spoilA}` / `{spoilH}` = this turn's Spoils count and the summon gain it gives right
    *  now; `{refreshLeft}` / `{copyLeft}` = sales still needed for Fortune's next free Refresh / Genesis' next copy;
-   *  `{maxGold}` = Time's max Gold so far; `{bondsTypes}` = Bonds' marked types. */
+   *  `{maxGold}` = Time's max Gold so far; `{bondsTypes}` = Bonds' marked types. Braum: `{bDeathLeft}` = friendly deaths
+   *  still needed for Death's next payout (live through a fight); `{bTripleGold}` = Gold Fortune's Triple Rewards have
+   *  given; `{bGildPlays}` / `{bWarA}` / `{bWarH}` = Gilded minions played and War's Start-of-Combat grant right now;
+   *  `{bTier}` = the Shop tier Genesis' Discover draws from; `{bTimeCard}` = the minion Time copies (empty before). */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -479,7 +524,7 @@ export interface AncientPairing {
 }
 
 /** The hero-power fields a pairing may override. */
-export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost'>>;
+export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame'>>;
 
 /** Shown for a hero × Ancient with no written pairing. Has no effect. */
 export const ANCIENT_NOT_WRITTEN = 'Not written yet.';
@@ -1025,6 +1070,50 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'buysBuffImproves', every: 3, amount: 2 }],
     },
   },
+  // BRAUM (hero id `bram`; owner pairings 2026-10-06, quoted above each entry). Investment (1 Gold, once per turn) =
+  // "Invest 1 Gold. After investing 5, get a random Gilded minion, then reset."
+  bram: {
+    death: {
+      // "Investment becomes: When 16 friendly minions die, get a random Gilded minion." Passive; repeats every 16.
+      offerText: 'Investment becomes: when **16** friendly minions die, get a random **Gilded** minion.',
+      powerText: 'When **16** friendly minions die, get a random **Gilded** minion (**{bDeathLeft}** more to go).',
+      power: { passive: true },
+      effects: [{ do: 'deathsGetGildedMinion', every: 16 }],
+    },
+    fortune: {
+      // "Investment is free. Triple rewards also grant 3 gold."
+      offerText: 'Investment is **free**. Triple Rewards also give you **3 Gold**.',
+      powerText: 'Invest for free. After investing **5** times, get a random **Gilded** minion, then reset. Triple Rewards also give you **3 Gold** (**{bTripleGold} Gold** so far).',
+      power: { cost: 0 },
+      effects: [{ do: 'tripleRewardGold', gold: 3 }],
+    },
+    war: {
+      // "Start of Combat: Give your minions +8/+8 for every Gilded minion you've played this game."
+      offerText: '**Start of Combat:** give your minions **+8/+8** for every **Gilded** minion you have played this game.',
+      powerText: '{base} **Start of Combat:** give your minions **+8/+8** for every **Gilded** minion you have played this game (**{bGildPlays}** played: **+{bWarA}/+{bWarH}**).',
+      effects: [{ do: 'socBuffPerGildedPlayed', attack: 8, health: 8 }],
+    },
+    genesis: {
+      // "Discover the minion from Investment. It is always of your current tier."
+      offerText: 'Investment lets you **Discover** its **Gilded** minion instead, always from your current Tier.',
+      powerText: 'Invest **1 Gold**. After investing **5**, **Discover** a **Gilded** minion from your current Tier (Tier **{bTier}**), then reset.',
+      effects: [{ do: 'investmentDiscoverCurrentTier' }],
+    },
+    time: {
+      // "Investment becomes: Discover a Tier 5 minion. Start of Turn: Get another copy." Read as: a once-per-game 1 Gold
+      // Discover, then a plain copy of the pick every Start of Turn for the rest of the run (flagged for the owner).
+      offerText: 'Investment becomes: **Discover** a **Tier 5** minion. **Start of Turn:** get another copy of it.',
+      powerText: '**Discover** a **Tier 5** minion. Once per game. **Start of Turn:** get a plain copy of it.{bTimeCard}',
+      power: { oncePerGame: true },
+      effects: [{ do: 'investmentDiscoverTierCopies', tier: 5 }],
+    },
+    bonds: {
+      // "When you play a Gilded minion, give your minions +8/+8."
+      offerText: 'Whenever you play a **Gilded** minion, give your minions **+8/+8**.',
+      powerText: '{base} Whenever you play a **Gilded** minion, give your minions **+8/+8**.',
+      effects: [{ do: 'gildedPlayBuffsAll', attack: 8, health: 8 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1164,6 +1253,17 @@ export interface AncientsState {
   gorrBondsWindow?: (string | null)[];
   /** GORR × BONDS: the live +X/+X the next payout gives (set at the pick, improved after each payout). */
   gorrBondsGain?: number;
+  /** BRAUM × DEATH: friendly deaths since the last payout (Shop + combat), the running count toward 16. */
+  bramDeaths?: number;
+  /** BRAUM × FORTUNE: Gold Triple Rewards have given this run (printed live). */
+  bramTripleGold?: number;
+  /** BRAUM × WAR: Gilded minions PLAYED from hand this game. Ticked while Ancients are on, whatever is picked, so plays
+   *  made before the pick count. */
+  bramGildedPlays?: number;
+  /** BRAUM × TIME: Investment's Discover is open and its pick is not taken yet (the next pick is Time's). */
+  bramTimePending?: boolean;
+  /** BRAUM × TIME: the minion Investment Discovered (copied every Start of Turn). */
+  bramTimeCardId?: string;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1347,6 +1447,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{gBoughtNow}', String(gorrBuysOn(state, state.wave).length))
     .split('{gBondsGain}').join(String(gb ? a?.gorrBondsGain ?? gb.amount : 0))
     .replace('{gBondsLeft}', String(gb ? Math.max(1, gb.every) - ((a?.gorrBondsWindow?.length ?? 0) % Math.max(1, gb.every)) : 0));
+  text = bramPowerText(state, text, combat);
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1543,6 +1644,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (gd) out.ancientGorrAvenge = { every: gd.every, tick: live(state)?.gorrDeaths ?? 0, ids: [...gorrBuysOn(state, state.wave - 1)], label: ANCIENTS.death.name };
   const gw = effectOf(state, 'pummelCopyWarband');
   if (gw) out.ancientPummelCopy = { every: gw.every, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
+  Object.assign(out, bramCombatMods(state));
   return out;
 }
 
@@ -1673,6 +1775,9 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // XEROX × DEATH: the fight's friendly deaths join the running Avenge count (its copies already landed mid-fight).
   const xd = effectOf(state, 'avengeCopyTopAttack');
   if (xd) a.xeroxDeaths = ((a.xeroxDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, xd.every);
+  // BRAUM × DEATH: the fight's friendly deaths join the running count (its payouts already flew to hand mid-fight).
+  const bd = effectOf(state, 'deathsGetGildedMinion');
+  if (bd) a.bramDeaths = ((a.bramDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, bd.every);
   // TRADESMAN × DEATH: the fight's deaths join the running count (its free Refreshes already came home through
   // `playerFreeRolls`, the Gryphon carry-back). WAR: the Gold the fight's Rallies banked (one flag per fire) is
   // recorded for the live text; the Gold itself came home through `playerBonusGold`.
@@ -1759,6 +1864,7 @@ export function ancientStartOfTurn(state: RunState): void {
   albusStartOfTurn(state);
   xeroxStartOfTurn(state);
   sorenStartOfTurn(state);
+  bramStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -1837,6 +1943,7 @@ export function ancientOnEmpowerPick(state: RunState, def: CardDef, offer?: Shop
 /** BONDS, Shop: a minion was PLAYED from hand. Every OTHER board minion of the same tier parity (odd / even) gains
  *  +a/+h, permanently, in real time. The played minion is not included. */
 export function ancientOnPlay(state: RunState, played: BoardCard): void {
+  bramOnPlay(state, played); // BRAUM: War's Gilded-play count, Bonds' grant
   const e = effectOf(state, 'playParityBuff');
   if (!e) return;
   const tier = CARD_INDEX[played.cardId]?.tier;
@@ -2687,5 +2794,157 @@ export function ancientRunGorrEotCopy(state: RunState): void {
   if (!ancientGorrEotCopyLive(state)) return;
   const id = pickId(state, gorrBuysOn(state, state.wave));
   if (id) gorrCopyToHand(state, id);
+}
+
+// ── Braum (Investment) hooks ─────────────────────────────────────────────────────────────────────────────────
+/**
+ * BRAUM: "a random Gilded minion", Investment's own payout: a random buyable minion up to your Shop tier (seeded off the
+ * run cursor), conjured to hand and gilded. Returns false when nothing landed (a full hand, an empty pool).
+ */
+export function bramGildedPayout(state: RunState): boolean {
+  if (state.hand.length >= handCap(state)) return false;
+  const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier);
+  if (pool.length === 0) return false;
+  const rng = makeRng(state.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  state.rngCursor = rng.state();
+  const before = state.hand.length;
+  conjureToHand(state, [pick], 1);
+  if (state.hand.length === before) return false;
+  gildMinion(state.hand[state.hand.length - 1]!, state);
+  return true;
+}
+
+/** BRAUM × DEATH: Investment is passive (its half is the death count). */
+export function ancientInvestmentPassive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'deathsGetGildedMinion');
+}
+
+/** BRAUM × DEATH: friendly deaths still needed for the next payout (the carried count plus `deaths` so far in the fight
+ *  on screen). Null when Death is not picked. */
+export function ancientBramDeathsLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'deathsGetGildedMinion') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.bramDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/** BRAUM × DEATH, Shop half: a friendly minion died in the Shop (`fireOnFriendDeath`, every Shop death path once). The
+ *  running count ticks; every `every`th death pays a random Gilded minion (a full hand: none, the count still resets). */
+export function ancientBramShopDeath(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'deathsGetGildedMinion') : undefined;
+  if (!a || !e) return;
+  a.bramDeaths = ((a.bramDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.bramDeaths === 0) bramGildedPayout(state);
+}
+
+/** BRAUM × FORTUNE: a Triple Reward was just GOT (`grantGoldenDiscover`, after the card landed): gain the Gold now. */
+export function ancientOnTripleReward(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'tripleRewardGold') : undefined;
+  if (!a || !e || e.gold <= 0) return;
+  gainGold(state, e.gold);
+  a.bramTripleGold = (a.bramTripleGold ?? 0) + e.gold;
+}
+
+/** BRAUM × GENESIS: Investment's payout is a Discover instead. */
+export function ancientInvestmentDiscovers(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'investmentDiscoverCurrentTier');
+}
+
+/** BRAUM × GENESIS: open the payout Discover: a Gilded minion of exactly your Shop tier. False when it could not open. */
+export function ancientRunInvestmentGenesis(state: RunState): boolean {
+  queueDiscover(state, { kind: 'minion', tier: state.tier, exactTier: state.tier, golden: true });
+  return !!state.discover;
+}
+
+/** BRAUM × TIME: Investment is replaced by its Discover. */
+export function ancientInvestmentTime(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'investmentDiscoverTierCopies');
+}
+
+/**
+ * BRAUM × TIME: the replaced Investment: Discover a minion of the pairing's tier and remember that the next pick is
+ * Time's (the hero power never fires while a modal is open, so the Discover opens at once and its pick is the next one).
+ * False (no charge) on a full hand or when the Discover could not open.
+ */
+export function ancientRunInvestmentTime(state: RunState): boolean {
+  const a = live(state);
+  const e = a ? effectOf(state, 'investmentDiscoverTierCopies') : undefined;
+  if (!a || !e || state.hand.length >= handCap(state)) return false;
+  queueDiscover(state, { kind: 'minion', tier: e.tier, exactTier: e.tier });
+  if (!state.discover) return false;
+  a.bramTimePending = true;
+  return true;
+}
+
+/** A Discover pick resolved (`takeDiscoverPick`). BRAUM × TIME: Investment's pick becomes the minion copied each Start
+ *  of Turn (recorded even when a full hand forfeits the pick itself). */
+export function ancientOnDiscoverPick(state: RunState, cardId: string): void {
+  const a = live(state);
+  if (!a?.bramTimePending) return;
+  a.bramTimePending = undefined;
+  a.bramTimeCardId = cardId;
+}
+
+/** BRAUM × TIME: Start of Turn, a plain copy of Investment's Discovered minion to hand, its own beat (R-SOT-BEAT-01). */
+function bramStartOfTurn(state: RunState): void {
+  const a = live(state);
+  if (!a || !effectOf(state, 'investmentDiscoverTierCopies') || !a.bramTimeCardId) return;
+  const def = CARD_INDEX[a.bramTimeCardId];
+  if (!def || def.spell || state.hand.length >= handCap(state)) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    grantMinionToHandOrBoard(state, def, false);
+  });
+}
+
+/** A minion was PLAYED from hand (`ancientOnPlay`). BRAUM: a Gilded play ticks War's count (always, while Ancients are
+ *  on); BONDS gives every board minion, the played one included, +a/+h, permanently, from the hero-power button. */
+function bramOnPlay(state: RunState, played: BoardCard): void {
+  const a = live(state);
+  if (!a || !played.golden) return;
+  a.bramGildedPlays = (a.bramGildedPlays ?? 0) + 1;
+  const e = effectOf(state, 'gildedPlayBuffsAll');
+  if (!e || state.board.length === 0) return;
+  const all = [...state.board];
+  const from = state.recruitBuffFx.length;
+  captureBuffFx(state, undefined, 'spell', () => { for (const c of all) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+}
+
+/** BRAUM: the combat halves (Death's running count, War's Start-of-Combat grant, frozen for the fight). */
+function bramCombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  const d = effectOf(state, 'deathsGetGildedMinion');
+  if (d) out.ancientBramDeaths = { every: d.every, tick: a?.bramDeaths ?? 0, label: ANCIENTS.death.name };
+  const w = effectOf(state, 'socBuffPerGildedPlayed');
+  const n = a?.bramGildedPlays ?? 0;
+  if (w && n > 0) out.ancientSocBuffAll = { attack: w.attack * n, health: w.health * n, label: ANCIENTS.war.name };
+  return out;
+}
+
+/** BRAUM: fold the live values into the power text (see `AncientPairing.powerText`). */
+function bramPowerText(state: RunState, text: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  const w = effectOf(state, 'socBuffPerGildedPlayed');
+  const n = a?.bramGildedPlays ?? 0;
+  const timeName = a?.bramTimeCardId ? CARD_INDEX[a.bramTimeCardId]?.name : undefined;
+  return text.replace('{bDeathLeft}', String(ancientBramDeathsLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .replace('{bTripleGold}', String(a?.bramTripleGold ?? 0))
+    .replace('{bGildPlays}', String(n)).replace('{bWarA}', String((w?.attack ?? 0) * n)).replace('{bWarH}', String((w?.health ?? 0) * n))
+    .replace('{bTier}', String(state.tier))
+    .replace('{bTimeCard}', timeName ? ` Copying: **${timeName}**.` : '');
+}
+
+/** BRAUM: the hero-power tally (StatusBar) while a pairing reshapes Investment: Death's count toward 16 (`deaths` = so far
+ *  in the fight on screen), null for Time (no bank). Undefined = keep Investment's own `n/5` bank. */
+export function ancientInvestmentTally(state: RunState, deaths = 0): string | null | undefined {
+  if (!live(state)) return undefined;
+  const d = effectOf(state, 'deathsGetGildedMinion');
+  if (d) return `${Math.max(1, d.every) - (ancientBramDeathsLeft(state, deaths) ?? 0)}/${d.every}`;
+  if (effectOf(state, 'investmentDiscoverTierCopies')) return null;
+  return undefined;
 }
 

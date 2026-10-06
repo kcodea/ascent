@@ -1,5 +1,6 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
+import { ancientBramShopDeath } from './ancients'; // Braum
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -10716,6 +10717,7 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   ancientXeroxShopDeath(state, dead);
   ancientTradesShopDeath(state); // TRADESMAN × DEATH: the Shop half of the running Avenge (3)
   ancientGorrShopDeath(state); // GORR × DEATH: the Shop half of the running Avenge (6)
+  ancientBramShopDeath(state); // BRAUM × DEATH: the Shop half of the running "when 16 friendly minions die"
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {

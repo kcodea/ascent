@@ -1,5 +1,6 @@
 import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
+import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -577,6 +578,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   const id = s.discover?.[index];
   const def = id ? CARD_INDEX[id] : undefined;
   if (!def) return false;
+  ancientOnDiscoverPick(s, def.id); // ANCIENT OF TIME × Braum: Investment's pick is the minion copied each Start of Turn
   // Albus (Empowerment): this pick REPLACES a Shop offer instead of joining the hand — the offer "turns into"
   // the chosen card. Handled before the hand path because none of the hand-only modifiers (locks, borrowed,
   // gilded, set-stats) mean anything to a Shop offer: it is still unbought, and gets its treatment on purchase.
@@ -3348,20 +3350,32 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Bram: bank 1 Gold a turn; the 5th invested pays out a random GILDED minion (up to your Shop tier,
         // owner ruling 2026-08-16) and resets the bank. Untargeted; the 1-Gold cost is spent by the shared
         // block. A full hand blocks the payout, so the bank is only advanced when it can actually pay.
-        const invested = (s.bramInvested ?? 0) + reps; // Wishbone: two counts banked per use
-        if (invested >= 5) {
-          if (s.hand.length >= handCap(s)) return state; // no room for the payout → no charge, bank untouched
-          const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
-          if (pool.length === 0) return state;
-          const rng = makeRng(s.rngCursor);
-          const pick = pool[rng.int(pool.length)]!;
-          s.rngCursor = rng.state();
-          conjureToHand(s, [pick], 1);
-          const granted = s.hand[s.hand.length - 1];
-          if (granted) gildMinion(granted, s); // the payout arrives already Gilded, like a golden Discover
-          s.bramInvested = 0;
+        // ANCIENTS × Braum (owner pairings 2026-10-06; no-ops unless the run has them): DEATH makes Investment passive
+        // (its half is the death count), TIME replaces it with a once-per-game Discover, GENESIS makes the payout a
+        // Discover of your current tier. FORTUNE's free Investment rides the power's `cost` (the shared block).
+        if (ancientInvestmentPassive(s)) return state;
+        if (ancientInvestmentTime(s)) {
+          if (!ancientRunInvestmentTime(s)) return state; // full hand / nothing to Discover → no charge
         } else {
-          s.bramInvested = invested;
+          const invested = (s.bramInvested ?? 0) + reps; // Wishbone: two counts banked per use
+          if (invested >= 5) {
+            if (s.hand.length >= handCap(s)) return state; // no room for the payout → no charge, bank untouched
+            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
+            if (pool.length === 0) return state;
+            if (ancientInvestmentDiscovers(s)) {
+              if (!ancientRunInvestmentGenesis(s)) return state; // nothing at the current tier → no charge
+            } else {
+              const rng = makeRng(s.rngCursor);
+              const pick = pool[rng.int(pool.length)]!;
+              s.rngCursor = rng.state();
+              conjureToHand(s, [pick], 1);
+              const granted = s.hand[s.hand.length - 1];
+              if (granted) gildMinion(granted, s); // the payout arrives already Gilded, like a golden Discover
+            }
+            s.bramInvested = 0;
+          } else {
+            s.bramInvested = invested;
+          }
         }
       } else if (power.kind === 'buyout') {
         // Harlan: take the WHOLE Shop, then reroll it. The price falls 1 a turn and re-bases on use, so it is
@@ -3948,6 +3962,7 @@ function grantGoldenDiscover(s: RunState): void {
     golden: false,
     grantedTier: s.tier, // freeze "peek one tier up" at the tier it was granted — taverning up later can't inflate it
   });
+  ancientOnTripleReward(s); // ANCIENT OF FORTUNE × Braum: a Triple Reward got also gains 3 Gold (a no-op unless picked)
 }
 
 /**
@@ -4884,6 +4899,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
     // Crypt Broker (R-REALTIME-03): the grants at these indices arrived mid-fight; their Echo fires now, out of
     // combat, on the arrived card (the Shop half's "trigger it"). A grant the hand cap refused triggers nothing.
     const echoAt = new Set(result.playerShoutCarry?.handEchoes ?? []);
+    // ANCIENT OF DEATH × Braum: the grants at these indices are "a random GILDED minion" (gilded as they land).
+    const gildAt = new Set(result.playerShoutCarry?.handGilds ?? []);
     result.playerHandGrants.forEach((cardId, i) => {
       const def = CARD_INDEX[cardId];
       if (!def || s.hand.length >= handCap(s)) return;
@@ -4898,6 +4915,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       };
       s.hand.push(card);
       takeFromPool(s, cardId);
+      if (gildAt.has(i) && !def.spell) gildMinion(card, s);
       if (echoAt.has(i)) fireHandCardEcho(s, card);
     });
   }

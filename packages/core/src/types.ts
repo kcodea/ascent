@@ -1979,6 +1979,16 @@ export interface QuestCombatMods {
    *  but REPEATING: every multiple of `every` crossed sends a plain copy of a random LIVING friendly minion to hand
    *  (`grantToHand`, a live `toHand`). The tally comes home as `CombatCarryBacks.ancientPummelDealt`. Player-only. */
   ancientPummelCopy?: { every: number; dealt: number; label: string };
+  /** ANCIENT OF DEATH × Braum (owner 2026-10-06): "Investment becomes: When 16 friendly minions die, get a random Gilded
+   *  minion." ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Rune of Body
+   *  Counting meter shape: "when N die" is NOT an Avenge, so Rune of Fury does not repeat it). Every `every`th death sends
+   *  a random minion (the side's pool, at or below its tier: `grantRandomMinion`) to hand, a live `toHand`; its index rides
+   *  `ShoutCarry.handGilds` so settle hands it over GILDED. Player-only; never snapshotted. */
+  ancientBramDeaths?: { every: number; tick: number; label: string };
+  /** ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
+   *  played this game." The grant, already multiplied by the run's Gilded-play count (fixed for the fight: nothing is
+   *  played mid-combat). Start of Combat: every living friendly minion gains it, a combat buff. Player-only. */
+  ancientSocBuffAll?: { attack: number; health: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
@@ -3571,6 +3581,8 @@ export interface ShoutCarry {
   runShopBuffs?: { source: string; cardId?: string; attack: number; health: number }[];
   /** Crypt Broker: indices into `handGrants` whose arrived card's Echo fires out of combat at settle. */
   handEchoes?: number[];
+  /** Ancient of Death × Braum: indices into `handGrants` whose arrived card is GILDED at settle (a random Gilded minion). */
+  handGilds?: number[];
   /** Gravetwin (R-TARGET-06): a combat re-fire copied a random friendly Echo. Keyed by the body's run card
    *  (`sourceUid`); settle sets that card's `copiedEcho` (the last copy wins, as in the Shop). */
   copiedEchoes?: { uid: string; effects: EffectDef[]; name?: string }[];

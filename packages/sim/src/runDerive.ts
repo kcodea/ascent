@@ -3,6 +3,7 @@ import { createRun, isPlayerAction, runRecord, type Action, type BoardCard, type
 import { reduce, upgradeCostOf } from './reducer';
 import type { Replay } from './snapshot';
 import type { RunRegime, TelemetryCapture, TelemetrySource } from './runTelemetry';
+import type { RankAtStart } from './rankAtStart';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { setIdOf } from './cardPool';
 import { comebackAfterLosses, PROGRESSION_FACTS_VERSION, type ProgressionMode, type ProgressionRunFactsV2 } from '@game/progression';
@@ -185,6 +186,9 @@ export interface DerivedRun {
    *  and `RunTelemetry.regime`. Stamped by the UI at upload; absent on earlier payloads. */
   capture?: TelemetryCapture;
   regime?: RunRegime;
+  /** The player's rank at game start (2026-10-06, R-TELEMETRY-RANK-01) -- see `RunTelemetry.rankAtStart`. Stamped by
+   *  the UI at upload on a RATED lobby only; absent on earlier payloads (= unknown rank). */
+  rankAtStart?: RankAtStart;
 }
 
 // ── Derivation ─────────────────────────────────────────────────────────────────────────────────────────────

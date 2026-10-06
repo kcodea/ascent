@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -1859,7 +1859,11 @@ function commitResolvedAction(
               // THE REGIME STAMP (2026-10-03): the band table and strength formula this build matched under, plus
               // the run's own band, so the report can separate regimes. Rides in `derived` like `lobbyPool`.
               const regime = currentRegime(lobbyPool);
-              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource, lobbyPool, regime };
+              // RANK AT GAME START (owner 2026-10-06, R-TELEMETRY-RANK-01): the medal / division / rating pinned when
+              // this RATED game started, so the real Bronze top-4 rate is measurable (`npm run newcomer:rate`).
+              // Undefined on an unrated table (and on every non-lobby run). Rides in `derived` like `regime`.
+              const rankAtStart = rankAtStartForTelemetry(next);
+              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource, lobbyPool, regime, ...(rankAtStart ? { rankAtStart } : {}) };
               // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
               // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
               // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
@@ -1867,7 +1871,7 @@ function commitResolvedAction(
               const derivedBase = finishDerive(deriveState, next, {
                 heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
               });
-              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime };
+              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime, ...(rankAtStart ? { rankAtStart } : {}) };
               // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
               // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
               // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).

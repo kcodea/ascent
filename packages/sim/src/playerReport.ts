@@ -36,6 +36,7 @@ import { HEROES } from './heroes';
 import { upgradeShape, wilson, SAMPLE_GATES, type DerivedRun, type GoldEvent, type UpgradeWaveRow } from './runDerive';
 import { aggregatePlayerReport, type PlayerReport, type RunTelemetry, type TelemetrySource } from './runTelemetry';
 import { buildOf, withBestSources, type ResolvedRegime, type RowSources } from './reportSources';
+import type { RankAtStart } from './rankAtStart';
 import {
   accountKey, adjustedAssociation, buildsOf, cardCohorts, dataQuality, epochsOf, regimesOf, evidenceLabel, inScope, sanitizeRows, segmentByWave, tQuantile975,
   tierDecisions, uniquePlayers, usableDerived, validPlacement, welchInterval, ALL_EPOCHS, EPOCH_MIN_RUNS, EVIDENCE_GATES, WELCH_MIN_N,
@@ -911,6 +912,9 @@ export interface ExportedRun {
   build: string;
   /** The matchmaking regime with its basis: stamped at upload, or inferred from the build or the date. */
   regime: ResolvedRegime | null;
+  /** The player's rank when the game started (2026-10-06, R-TELEMETRY-RANK-01). Null = unknown (a row uploaded
+   *  before the stamp, or an unrated table). */
+  rankAtStart: RankAtStart | null;
   /** Where `wins`, `tierByWave` and the quest / rune fields came from, the as-uploaded values, the live final wave
    *  and the old-row flags (`reportSources.ts`). Null on a row that was not passed through `applyReportFilters`. */
   sources: RowSources | null;
@@ -1017,7 +1021,7 @@ export function toExportedRun(r: RunTelemetryRow, player: string | null): Export
     offeredCards: r.offeredCards, boughtCards: r.boughtCards,
     discoverOfferedCards: r.discoverOfferedCards ?? [], discoverBoughtCards: r.discoverBoughtCards ?? [],
     tierByWave: r.tierByWave, buyEvents: r.buyEvents ?? [],
-    build: buildOf(r.patch), regime: r.regimeInfo ?? null, sources: r.sources ?? null,
+    build: buildOf(r.patch), regime: r.regimeInfo ?? null, rankAtStart: r.rankAtStart ?? r.derived?.rankAtStart ?? null, sources: r.sources ?? null,
   };
 }
 
@@ -1102,6 +1106,7 @@ export function exportReadme(quality?: DataQuality): BalanceExport['readme'] {
       buyEvents: 'Every acquisition with the wave it happened on and its source (shop or discover).',
       build: 'The client build the run was played on: the commit after the + in patch.',
       regime: 'The matchmaking regime: bandsVersion (the rank band table, e.g. B0-30 S10-40 G20-65 P* D10-100 A20-100, * = uncapped; null = no bands yet), strengthFormula (how a run\'s strength was computed: average = plain mean of board percentiles, weighted = round-weighted 20/35/45, final = the final board; null = no bands), band and bandUsed (the band asked for and the one the seats were finally drawn from, null with no band), key (the meta.regimes key) and basis: stamped (written at upload, from 2026-10-03), inferredFromBuild (the build is a known pre-stamp build, classified by git ancestry), inferredFromDate (the run\'s date against the cut-over merges, the weakest), unknown.',
+      rankAtStart: 'The rank of the player when the game started (uploads from 2026-10-06, rated lobbies only): medal (Bronze ... Ascendant), divisionIndex (0 = Bronze I ... 17 = Ascendant III), division (e.g. Bronze II), points (inside the division), rating (100 x divisionIndex + points) and seasonId. A run resumed from an older save may carry the medal alone. Null = unknown: an older row, or an unrated table.',
       sources: 'Where the corrected fields came from: wins (live, derivedWins, derivedCombats, replay), tierByWave (live, derived, replay), choices (the quest and rune fields: live or replay), storedWins and storedTierWaves (the values as uploaded), finalWave (the live final wave the series are clamped to), flags (winsExcludeCalibration = a pre-2026-09-21 count that skips rounds 1 and 2 because its combat rows were unusable; combatsStacked = the derived combat rows carried an earlier run of the session, before 2026-09-23, and were not used; tierClamped; tierShort; choicesReplay; choicesDiverged = the replay that produced the quests and runes went off course).',
     },
     derived: {
@@ -1128,6 +1133,7 @@ export function exportReadme(quality?: DataQuality): BalanceExport['readme'] {
       lobbyPool: 'The opponent pool and seat mix at lobby creation (from 2026-09-28): pool size, seat kinds, and the matchmaking band asked for and used.',
       capture: 'Which flat fields were captured live (from 2026-10-03): v, tierByWave, choices.',
       regime: 'The matchmaking regime stamped at upload (from 2026-10-03): bandsVersion, strengthFormula, band, bandUsed.',
+      rankAtStart: 'The rank of the player when the game started (from 2026-10-06, rated lobbies only): v, medal, divisionIndex, division, points, rating, seasonId. Absent = unknown.',
     },
   };
 }

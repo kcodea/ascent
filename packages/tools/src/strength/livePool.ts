@@ -46,8 +46,9 @@ async function get<T>(path: string): Promise<T> {
 }
 
 /** EVERY row of a GET (R-NET-01): PostgREST answers at most 1,000 rows per request and says nothing when it stops
- *  there, so page with limit/offset until a short page. `path` must carry a stable `order`. */
-async function getAll<T>(path: string): Promise<T[]> {
+ *  there, so page with limit/offset until a short page. `path` must carry a stable `order`. Also used by
+ *  `npm run newcomer:rate` (anon GETs only). */
+export async function getAll<T>(path: string): Promise<T[]> {
   const PAGE = 1000;
   const out: T[] = [];
   for (;;) {

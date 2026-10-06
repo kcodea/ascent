@@ -473,8 +473,8 @@ export function simulate(
   /** ANCIENT OF WAR × Albus: the side-wide hero-Pummel tally (seeded LIFETIME, like the keyword) and its
    *  once-per-combat latch. Only read for a side whose mods carry `ancientPummel`. */
   const ancientPummelDealt: Record<Side, number> = {
-    player: modsFor('player').ancientPummel?.dealt ?? modsFor('player').ancientPummelCopy?.dealt ?? 0,
-    enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? 0,
+    player: modsFor('player').ancientPummel?.dealt ?? modsFor('player').ancientPummelCopy?.dealt ?? modsFor('player').ancientPummelCharge?.dealt ?? 0,
+    enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? 0,
   };
   const ancientPummelPaid: Record<Side, boolean> = { player: false, enemy: false };
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
@@ -2863,7 +2863,8 @@ export function simulate(
   function noteAncientPummel(dealer: Minion, amount: number): void {
     const ap = modsFor(dealer.side).ancientPummel;
     const pc = modsFor(dealer.side).ancientPummelCopy;
-    if ((!ap && !pc) || amount <= 0) return;
+    const pch = modsFor(dealer.side).ancientPummelCharge;
+    if ((!ap && !pc && !pch) || amount <= 0) return;
     const side = dealer.side;
     const heavy = modsFor(side).runeHeavyHand ? flagCopiesOf(side, 'runeHeavyHand') : 0;
     const before = ancientPummelDealt[side];
@@ -2880,6 +2881,12 @@ export function simulate(
         if (band.length === 0) break;
         ctx.grantToHand(band[draw.int(band.length)]!.cardId, side, dealer.uid);
       }
+    }
+    // ANCIENT OF WAR × Darah: "Pummel (140): Get a charge of Swap. (Once per combat.)" Albus' latch exactly: the first
+    // crossing this fight pays ONE charge (a flagged `questTrigger`, live; settle banks it), later crossings are spent.
+    if (pch && !ancientPummelPaid[side] && Math.floor(after / Math.max(1, pch.every)) - Math.floor(before / Math.max(1, pch.every)) > 0) {
+      ancientPummelPaid[side] = true;
+      fireTrigger(pch.flag, side);
     }
     if (!ap) return;
     if (ancientPummelPaid[side]) return;
@@ -5894,7 +5901,7 @@ export function simulate(
       wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
       rises: modsFor(side).ancientCountRises ? riseLog[side] : undefined,
       summonsMade: modsFor(side).ancientCountSummons ? summonLog[side] : undefined,
-      ancientPummelDealt: modsFor(side).ancientPummel || modsFor(side).ancientPummelCopy ? ancientPummelDealt[side] : undefined,
+      ancientPummelDealt: modsFor(side).ancientPummel || modsFor(side).ancientPummelCopy || modsFor(side).ancientPummelCharge ? ancientPummelDealt[side] : undefined,
       ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
       ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
     };

@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally } from '@game/sim';
+import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -171,7 +171,9 @@ export function StatusBar() {
   // TRADESMAN × DEATH / WAR, LIVE (R-REALTIME-01): free Refreshes and Rally Gold fires so far this fight.
   const combatFreeRefreshes = useGame((s) => s.combatQuestDelta?.freeRefreshes);
   const combatRallyFires = useGame((s) => s.combatQuestDelta?.rallyFires);
-  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires]);
+  // DARAH × WAR, LIVE (R-REALTIME-01): Swap charges its Pummel gained so far this fight. Undefined outside a fight.
+  const combatSwapCharges = useGame((s) => s.combatQuestDelta?.swapCharges);
+  const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires, swapCharges: combatSwapCharges }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires, combatSwapCharges]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
   const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
@@ -485,9 +487,11 @@ export function StatusBar() {
   // FRANK × ANCIENT OF WAR: each Clearance stack an Avenge gains MID-FIGHT pops the power with the one-shot
   // 'hero-power-spark' as it happens (the red uses count re-keys and bumps alongside). One rect read per gain, never
   // per frame; a new fight resets the delta to 0, which is not a gain.
-  const prevClearanceStacks = useRef(clearanceStacks ?? 0);
+  // DARAH × ANCIENT OF WAR rides the same pop: a Swap charge its Pummel pays mid-fight.
+  const liveHeroStacks = (clearanceStacks ?? 0) + (combatSwapCharges ?? 0);
+  const prevClearanceStacks = useRef(liveHeroStacks);
   useEffect(() => {
-    const now = clearanceStacks ?? 0;
+    const now = liveHeroStacks;
     const was = prevClearanceStacks.current;
     prevClearanceStacks.current = now;
     if (now <= was) return;
@@ -496,7 +500,7 @@ export function StatusBar() {
     const r = el.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     playDef('hero-power-spark', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
-  }, [clearanceStacks]);
+  }, [liveHeroStacks]);
   const [dieRoll, setDieRoll] = useState<{ result: DieFace; anchor: { x: number; y: number }; seed: number; settled: boolean } | null>(null);
   const prevDiceLock = useRef(run.heroDiceLockUntil);
   useEffect(() => {
@@ -600,7 +604,7 @@ export function StatusBar() {
     withinUses &&
     // ANCIENT OF WAR × Frantic Frank: a banked Clearance stack re-arms a spent Clearance (the reducer's `stackUse`).
     // ANCIENT OF GENESIS × Xerox: a banked Copy Machine charge re-arms the spent once-per-game use (the reducer's `chargeUse`).
-    (power.oncePerGame ? !run.heroPowerSpent || (power.kind === 'copyMachine' && ancientCopyCharges(run) > 0) : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0)) &&
+    (power.oncePerGame ? !run.heroPowerSpent || (power.kind === 'copyMachine' && ancientCopyCharges(run) > 0) : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0) || (power.kind === 'displace' && ancientSwapCharges(run) > 0)) &&
     // ONE price, checked once. A shrinking power (Dragon Tamer / Dynamite Dig / Hunch / Buyout) used to be
     // gated by its DISCOUNTED cost *and* its printed base cost, so between the two you could see the real,
     // payable price on the coin while the button read as unaffordable — and the art dimmed to 10% (the
@@ -614,8 +618,11 @@ export function StatusBar() {
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
   // FRANK × ANCIENT OF WAR (owner 2026-09-30): the Clearance uses available right now (the turn's own + banked stacks +
   // stacks gained so far in the fight on screen), shown as a RED count at the top centre of the power while it is 2+.
-  const clearanceUses = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceUsesBadge(run, clearanceStacks ?? 0) : null;
-  const clearanceStackCount = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceStacks(run) : 0;
+  // DARAH × ANCIENT OF WAR: banked Swap charges read through the same red uses count and "N uses left" line.
+  const clearanceUses = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceUsesBadge(run, clearanceStacks ?? 0)
+    : power.kind === 'displace' && run.ancientsEnabled ? ancientSwapUsesBadge(run, combatSwapCharges ?? 0) : null;
+  const clearanceStackCount = power.kind === 'clearance' && run.ancientsEnabled ? ancientClearanceStacks(run)
+    : power.kind === 'displace' && run.ancientsEnabled ? ancientSwapCharges(run) : 0;
   const powerTally: string | null = (grantQuest && grantQuestDef)
     // A granted QUEST owns the slot while it runs: its objective tracker is the useful number.
     ? questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed)

@@ -2,6 +2,7 @@ import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, in
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
+import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1156,13 +1157,15 @@ export interface HeroPowerLive {
   freeRefreshes?: number;
   /** Tradesman × Ancient of War's Rally graft fires SO FAR in the fight; undefined outside a fight. */
   rallyFires?: number;
+  /** Darah × Ancient of War: Swap charges its Pummel gained SO FAR in the fight; undefined outside a fight. */
+  swapCharges?: number;
 }
 
 export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = {}): string {
   const base = baseHeroPowerText(state, which, live);
   // ANCIENTS (owner ruling 2026-09-25): an awakened Ancient's pairing prints the COMBINED power on the main slot.
   // `ancientPowerText` is undefined unless the run has Ancients on and a written pairing is picked.
-  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires }) : undefined) ?? base;
+  return (which === 0 ? ancientPowerText(state, base, { combatSummons: live.summons, friendlyDamage: live.friendlyDamage, clearanceStacks: live.clearanceStacks, friendlyDeaths: live.friendlyDeaths, freeRefreshes: live.freeRefreshes, rallyFires: live.rallyFires, swapCharges: live.swapCharges }) : undefined) ?? base;
 }
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
@@ -13521,6 +13524,7 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientRobinMaxGold') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientGorrEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientAyseTime') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientDarahEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -14092,6 +14096,8 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...(ancientGorrEotCopyLive(state) ? ['ancientGorrEotCopy' as const] : []),
     // ANCIENT OF TIME × Ayse: "End of Turn: Give your minions +3/+3 for every Enchanted card purchased this turn."
     ...(ancientAyseTimeLive(state) ? ['ancientAyseTime' as const] : []),
+    // ANCIENT OF TIME × Darah: "End of Turn: Get a copy of the minion you swapped." The same virtual entry.
+    ...(ancientDarahEotCopyLive(state) ? ['ancientDarahEotCopy' as const] : []),
   ];
 }
 
@@ -14143,6 +14149,8 @@ function runRecurringEndOfTurn(
     ancientRunGorrEotCopy(state);
   } else if (effect === 'ancientAyseTime') {
     ancientRunAyseTime(state, step);
+  } else if (effect === 'ancientDarahEotCopy') {
+    ancientRunDarahEotCopy(state);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14737,6 +14745,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientRobinMaxGold: 'Ancient of Time',
   ancientGorrEotCopy: 'Ancient of Time',
   ancientAyseTime: 'Ancient of Time',
+  ancientDarahEotCopy: 'Ancient of Time',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

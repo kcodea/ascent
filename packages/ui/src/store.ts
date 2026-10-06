@@ -74,6 +74,8 @@ export interface CombatQuestDelta {
   freeRefreshes?: number;
   /** Tradesman × Ancient of War: its Rally graft's fires so far this fight (`questTrigger` flags), live. */
   rallyFires?: number;
+  /** Darah × Ancient of War: Swap charges its Pummel gained so far this fight (`questTrigger` flags), live. */
+  swapCharges?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';

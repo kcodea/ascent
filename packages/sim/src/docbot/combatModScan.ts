@@ -89,6 +89,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientPummelCopy: { every: 1, dealt: 0, label: 'Ancient of War' }, // Gorr x War: Pummel (1) so the staged hits send copies to hand
   ancientBramDeaths: { every: 1, tick: 0, label: 'Ancient of Death' }, // Braum x Death: every (1) staged death sends a random (gilded-at-settle) minion to hand
   ancientSocBuffAll: { attack: 8, health: 8, label: 'Ancient of War' }, // Braum x War: the pre-multiplied Start-of-Combat grant to every friendly minion
+  ancientPummelCharge: { every: 1, dealt: 0, flag: 'ancientSwapCharge', label: 'Ancient of War' }, // Darah x War: Pummel (1) so the first staged hit pays a flagged Swap charge
   ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
 };
 

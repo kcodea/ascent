@@ -2,6 +2,7 @@ import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, be
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
+import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -310,6 +311,12 @@ function spendFreeCard(s: RunState, wasFree: boolean): void {
 
 export function minionCostOf(s: RunState): number {
   return hasPower(s, 'cheapMinions') ? 2 : CONFIG.minionCost;
+}
+
+/** The price a HELD (displaced) offer buys back at: the flat `minionCostOf`, never discounted, or 0 for a minion Swap
+ *  sent to the Shop under Darah × Ancient of Fortune. One source for the reducer's held re-buy and the UI's cost coin. */
+export function heldOfferPrice(s: RunState, offer: Pick<ShopCard, 'swapFree' | 'held'>): number {
+  return ancientSwapFree(s, offer) ? 0 : minionCostOf(s);
 }
 
 /** The Gold a tavern-up costs right now: the running `upgradeCost` plus Hermit Hank's +2 surcharge (his
@@ -1634,7 +1641,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
       // (deliberately NO applyOnBuy: it's a restoration, not a fresh purchase, so Broker & co. don't re-bake).
       if (offer.held) {
-        const heldCost = minionCostOf(s);
+        const heldCost = heldOfferPrice(s, offer); // ANCIENT OF FORTUNE × Darah: a swapped-away minion buys back for 0
         if (s.embers < heldCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
@@ -3108,7 +3115,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       const stackUse = !readyNow && slot === 0 && power.kind === 'clearance' && ancientClearanceStacks(s) > 0;
       // ANCIENT OF GENESIS × Xerox: a spent (once-per-game) Copy Machine fires again on a banked charge.
       const chargeUse = !readyNow && !stackUse && slot === 0 && power.kind === 'copyMachine' && ancientCopyCharges(s) > 0;
-      const available = readyNow || stackUse || chargeUse;
+      // ANCIENT OF WAR × Darah: once the turn's own Swap is spent, a banked Swap charge (from its Pummel) pays for one more.
+      const swapChargeUse = !readyNow && !stackUse && !chargeUse && slot === 0 && power.kind === 'displace' && ancientSwapCharges(s) > 0;
+      const available = readyNow || stackUse || chargeUse || swapChargeUse;
       if (!available) return state;
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
@@ -3242,7 +3251,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Darah: swap a friendly board minion with a random tavern minion. No-op (no charge spent) on a
         // missing target, a golden minion (can't trade away a triple — enforced in swapWithTavern), or an
         // empty tavern.
-        if (!card || !swapWithTavern(s, card)) return state;
+        // ANCIENTS × Darah (no-ops unless picked): DEATH fires an Echo first; after the swap, TIME records the minion sent
+        // away, BONDS trades stats, FORTUNE makes it free to buy back, GENESIS copies the minion brought in. A failed swap
+        // returns `state`, so a Death Echo that fired before it is discarded with the rest of the action.
+        if (!card) return state;
+        ancientBeforeSwap(s, card);
+        if (!swapWithTavern(s, card)) return state;
+        ancientAfterSwap(s);
       } else if (power.kind === 'grantReborn') {
         // Lord of the Risen: give a friendly board minion Rise for the NEXT combat only. The 'R' keyword
         // shows immediately (pill + snapshot); `tempReborn` marks it so settleCombat strips it after the
@@ -3603,6 +3618,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (stackUse) ancientSpendClearanceStack(s); // WAR: the extra use takes a stack (the turn's charge is already spent)
       else if (chargeUse) ancientSpendCopyCharge(s); // GENESIS × Xerox: the extra use takes the banked charge
+      else if (swapChargeUse) ancientSpendSwapCharge(s); // WAR × Darah: the extra Swap takes a banked charge
       else if (power.usesPerTurn) {
         // Fibbsy: count this turn's use; heroReady stays TRUE until the last charge is spent, so the button is
         // still armed for the second press. On the final use it flips false, which is how every "used" UI cue

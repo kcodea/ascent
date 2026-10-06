@@ -1995,6 +1995,18 @@ export interface QuestCombatMods {
    *  `questTrigger` with `flag` (the replay counts it live; settle banks it as a Swap charge). The tally comes home as
    *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
   ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string };
+  /** ANCIENT OF DEATH × Nadja (owner 2026-10-06): "Goldspring becomes: Avenge (6): Gain 1 max gold." A hero Avenge on ONE
+   *  running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each fire
+   *  logs a `maxGold` event (+`gold`, the float) and a `questTrigger` with `flag`; the fires come home as
+   *  `CombatCarryBacks.ancientMaxGoldFires` and the run pays `gold` max Gold per fire at settle. Rune of Fury fires it
+   *  again. Settle advances the run's count by the fight's deaths. Player-only; never snapshotted. */
+  ancientMaxGoldAvenge?: { every: number; tick: number; gold: number; flag: string; label: string };
+  /** ANCIENT OF WAR × Nadja (owner 2026-10-06): "Start of Combat: Your left-most minion gains Rally: give your minions +3
+   *  attack per gold spent this turn." `attack` = the Rally's Attack, already multiplied by the Gold spent in the Shop
+   *  turn that just ended (fixed for the fight). At Start of Combat the left-most living minion gains Rally and a grafted
+   *  `rallyBuff` (every friendly minion, itself included; `fixed`, so a Gilded body gives the same), a combat buff on the
+   *  combat body only. Player-only; never snapshotted. */
+  ancientSocRally?: { attack: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
@@ -3259,6 +3271,8 @@ export interface CombatCarryBacks {
   ancientSpellImproved?: { attack: number; health: number };
   /** ANCIENTS (Frank's War): Clearance stacks this fight's Avenges gained (only when `ancientClearanceStacks`). */
   ancientClearanceStacks?: number;
+  /** ANCIENTS (Nadja's Death): max-Gold Avenge fires this fight (Rune of Fury's included; only when `ancientMaxGoldAvenge`). */
+  ancientMaxGoldFires?: number;
 }
 
 /** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
@@ -3548,6 +3562,8 @@ export interface CombatResult {
   playerAncientSpellImproved?: { attack: number; health: number };
   /** ANCIENTS (Frank's War): the player's `CombatCarryBacks.ancientClearanceStacks`. */
   playerAncientClearanceStacks?: number;
+  /** ANCIENTS (Nadja's Death): the player's `CombatCarryBacks.ancientMaxGoldFires`. */
+  playerAncientMaxGoldFires?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

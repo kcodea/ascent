@@ -1408,4 +1408,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. Added (not exchanged): pending owner confirmation.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-ANCNADJA-01',
+    title: 'Nadja × Ancient of Death: Goldspring turns passive; Avenge (6) on one running count across Shop and combat gives +1 max Gold',
+    statement:
+      "With the Ancient of Death, Nadja's Goldspring becomes passive (a click does nothing and spends nothing). It is a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat (carried into each fight, advanced at settle by the fight's deaths). Each fire gives +1 max Gold, permanently (the maxGoldBonus channel: above the natural cap, no ceiling): a Shop death pays right then; a combat fire shows a +1 max Gold float the moment it happens and pays at settle. Rune of Fury fires the combat half again. The power and the shared Avenge disc print the deaths left and the max Gold given so far, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'Death: Goldspring becomes: Avenge (6): Gain 1 max gold.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeMaxGold / ancientNadjaShopDeath / ancientAfterCombat; packages/core/src/combat/simulate.ts ancientMaxGoldAvenge' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "no cap" and "Shop deaths count" readings await owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCNADJA-02',
+    title: 'Nadja × Ancient of Fortune: Goldspring costs 2 Gold and can be used twice each turn',
+    statement:
+      'With the Ancient of Fortune, Goldspring costs 2 Gold and can be used twice each turn (a per-turn budget that refills every turn); each use gives its own +1 max Gold. A third use in a turn is refused. The power prints the uses left this turn.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'Fortune: Goldspring can be used twice per turn and costs 2 gold.' },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts the nadja fortune `power` override (cost 2, usesPerTurn 2); packages/sim/src/reducer.ts the heroPower usesPerTurn gate" },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCNADJA-03',
+    title: "Nadja × Ancient of War: Start of Combat, the left-most minion gains Rally: give your minions +3 Attack per Gold spent this turn",
+    statement:
+      "With the Ancient of War, at Start of Combat the left-most living minion gains Rally and \"give your minions +3 Attack for each Gold you spent this turn\", where this turn is the Shop turn that just ended (the Gold-spent tally a combat Shout reads). The amount is fixed for the fight. Each Rally fire gives every friendly minion, the Rallying one included, the Attack as a combat buff; Rally doublers repeat it; a Gilded body gives the same. The grant lives on the combat body only and is gone after the fight. Nothing spent: no Rally. The power prints the Gold spent and the Attack it gives, live.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'War: Start of Combat: Your left-most minion gains Rally: give your minions +3 attack per gold spent this turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socRallyPerGoldSpent / ancientNadjaRallyAttack; packages/core/src/combat/simulate.ts ancientSocRally; packages/core/src/effects/arena.ts rallyBuff self / fixed' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "itself included", "combat only" and "the Shop turn just ended" readings await owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCNADJA-04',
+    title: 'Nadja × Ancient of Genesis: Goldspring also gets a random minion of your Shop tier or lower',
+    statement:
+      "With the Ancient of Genesis, every Goldspring use gives its +1 max Gold and also puts a random minion in hand: the run's pool, your Shop tier or lower, your types (the random-minion Shout pick), seeded off the run. Hand full: no minion. Rune of Wishbone / Empowerment repeat it along with the Gold.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'Genesis: Goldspring also grants a random minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts goldspringGrantsMinion / ancientAfterGoldspring; packages/sim/src/reducer.ts gainMaxMana branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "Shop tier or lower, to hand" reading awaits owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCNADJA-05',
+    title: 'Nadja × Ancient of Time: Goldspring turns passive; End of Turn, +1 max Gold',
+    statement:
+      "With the Ancient of Time, Goldspring becomes passive and at every End of Turn (its own beat, the virtual recurring End-of-Turn entry Robin's Time uses) Nadja gains +1 max Gold, permanently, with no cap. The power prints the total so far.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'Time: Goldspring becomes: End of Turn: Gain +1 max gold.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotMaxGold (reused) / ancientRunRobinMaxGold; packages/sim/src/recruit.ts recurringEotEffects' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCNADJA-06',
+    title: 'Nadja × Ancient of Bonds: every Gold spend gives 2 random friendly minions +2/+4',
+    statement:
+      'With the Ancient of Bonds, every spend of 1 or more Gold (a buy, a Refresh, an upgrade, a hero power, any spend through the one Gold-spend chokepoint) gives 2 different random board minions +2/+4, permanently, seeded off the run. It pays once per spend, never once per Gold. A free action spends nothing and pays nothing. Empty board: nothing.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Nadja Ancients)', quote: 'Bonds: Give 2 random minions +2/+4 whenever you spend gold.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts spendGoldBuffsRandom / ancientOnSpendGold; packages/sim/src/reducer.ts spendGold' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "per spend, not per Gold" and "board minions only" readings await owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

@@ -481,6 +481,8 @@ export function simulate(
   const ancientSpellImproved: Record<Side, { attack: number; health: number }> = { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
   /** ANCIENT OF WAR × Frantic Frank: Clearance stacks this fight's hero Avenge gained, per side. */
   const clearanceStacksGained: Record<Side, number> = { player: 0, enemy: 0 };
+  /** ANCIENT OF DEATH × Nadja: max-Gold Avenge fires this fight, per side (carried back, paid at settle). */
+  const maxGoldAvengeFires: Record<Side, number> = { player: 0, enemy: 0 };
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -4416,6 +4418,23 @@ export function simulate(
         for (let r = 0; r < drakkoRepeats(ctx, scSide); r++) fireShout(ctx, m, m);
       }
     }
+    // ANCIENT OF WAR × Nadja (owner 2026-10-06): "Start of Combat: Your left-most minion gains Rally: give your minions +3
+    // attack per gold spent this turn." The left-most living minion gains Rally and a grafted `rallyBuff` (the Attack
+    // already folded from the Gold spent, every friendly minion itself included, `fixed`: a hero grant, so a Gilded body
+    // gives the same). Registered explicitly (Contract Rewrite's shape: effects were registered at combat start), so
+    // the Rally doublers re-run it like any printed Rally. The combat body only: the run card never carries it.
+    if (smods.ancientSocRally && smods.ancientSocRally.attack > 0) {
+      const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
+      if (lead) {
+        nextStep();
+        emit({ type: 'sc', source: lead.uid, text: `${smods.ancientSocRally.label}: ${lead.name} gains Rally`, side: scSide, heroPower: true });
+        const eff: EffectDef = { on: 'onAttack', do: 'rallyBuff', params: { attack: smods.ancientSocRally.attack, health: 0, self: true, fixed: true } };
+        lead.effects = [...lead.effects, eff];
+        registerEffect(lead, eff);
+        if (!lead.keywords.includes('RL')) lead.keywords.push('RL');
+        emit({ type: 'keyword', target: lead.uid, keyword: 'RL', source: lead.uid });
+      }
+    }
     // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).
     if (smods.doubleLeftmostAttack) {
       const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
@@ -5292,6 +5311,21 @@ export function simulate(
       fireTrigger(cs.flag, side);
     }
   });
+  // ANCIENT OF DEATH × Nadja (owner 2026-10-06): "Goldspring becomes: Avenge (6): Gain 1 max gold." A hero Avenge on ONE
+  // running count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire is shown right then (a
+  // `maxGold` float on the death that paid it + a `questTrigger`); the max Gold itself is paid at settle from the
+  // carried-back fire count. Rune of Fury fires it again, like every hero Avenge.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const mg = modsFor(side).ancientMaxGoldAvenge;
+    if (!mg || (mg.tick + count) % Math.max(1, mg.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      maxGoldAvengeFires[side] += 1;
+      if (side === 'player' && victim) emit({ type: 'maxGold', target: victim.uid, side, amount: mg.gold });
+      fireTrigger(mg.flag, side);
+    }
+  });
   // ANCIENT OF DEATH × Xerox (owner 2026-10-02): "Avenge (5): Summon a copy of your highest attack minion." A hero Avenge
   // on ONE running count across Shop and combat (`tick` carried in: the Rune of Body Counting meter shape). Each fire
   // summons an exact copy of the highest-Attack living minion (ties: the left-most) beside it, room permitting; Rune of
@@ -5904,6 +5938,7 @@ export function simulate(
       ancientPummelDealt: modsFor(side).ancientPummel || modsFor(side).ancientPummelCopy || modsFor(side).ancientPummelCharge ? ancientPummelDealt[side] : undefined,
       ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
       ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
+      ancientMaxGoldFires: modsFor(side).ancientMaxGoldAvenge ? maxGoldAvengeFires[side] : undefined,
     };
   };
   const pc = carryBacksFor('player');
@@ -5982,6 +6017,7 @@ export function simulate(
     ...(pc.ancientPummelDealt !== undefined ? { playerAncientPummelDealt: pc.ancientPummelDealt } : {}),
     ...(pc.ancientSpellImproved !== undefined ? { playerAncientSpellImproved: pc.ancientSpellImproved } : {}),
     ...(pc.ancientClearanceStacks !== undefined ? { playerAncientClearanceStacks: pc.ancientClearanceStacks } : {}),
+    ...(pc.ancientMaxGoldFires !== undefined ? { playerAncientMaxGoldFires: pc.ancientMaxGoldFires } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

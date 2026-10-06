@@ -1319,13 +1319,16 @@ export const ARENA_EFFECTS = {
 
   /** Rally — when THIS minion attacks, buff friendly minions (+atk/+hp). No extra params = every other living
    *  friend; `tribe` restricts (dual-types count) and `count` caps how many are hit, a random pick when more
-   *  are eligible (Supporter: 2 friendly Dragons). Golden doubles the magnitude. */
+   *  are eligible (Supporter: 2 friendly Dragons). Golden doubles the magnitude. `self: true` counts the Rallying minion
+   *  too ("give your minions"); `fixed: true` = a hero-granted Rally, so a Gilded body gives the same (the rune-graft
+   *  rule; Nadja × Ancient of War's graft, 2026-10-06). Both default off, so every printed card is unchanged. */
   rallyBuff(arena: EffectArena, params: Record<string, unknown>): void {
-    const g = gold(arena);
+    const g = params.fixed ? 1 : gold(arena);
     const attack = num(params.attack, 1) * g;
     const health = num(params.health, 1) * g;
     const tribe = str(params.tribe);
-    let friends = arena.friends().filter((m) => m.uid !== arena.self.uid && (!tribe || arena.isTribe(m, tribe)));
+    const withSelf = params.self === true;
+    let friends = arena.friends().filter((m) => (withSelf || m.uid !== arena.self.uid) && (!tribe || arena.isTribe(m, tribe)));
     const cap = num(params.count, 0); // 0 = all eligible friends
     if (cap > 0 && friends.length > cap) {
       const pickable = [...friends];

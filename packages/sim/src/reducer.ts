@@ -3,6 +3,7 @@ import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources,
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
+import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -57,6 +58,9 @@ function spendGold(s: RunState, amount: number): void {
   }
   applyGoldSpent(s, amount);
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
+  // ANCIENT OF BONDS × Nadja (a no-op unless picked): every spend of 1+ Gold gives 2 random minions +2/+4. Placed above
+  // Rune of Bulk Order's early `return`, so it hears every spend.
+  ancientOnSpendGold(s, amount);
   // Food for Gold: every `per` Gold spent queues a Fodder into the next shop + bumps the run-wide Fodder aura.
   if (s.foodForGold) {
     s.foodForGoldTick = (s.foodForGoldTick ?? 0) + amount;
@@ -3573,7 +3577,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         // she stopped (owner report 2026-07-22: powered turns 1–4 → stuck at 10, a normal player catches up).
         // `maxGoldBonus` sits above the base 10 that maxEmbers still climbs to on its own, so powering turns 1–4
         // reads 11/12/13/14 across turns 5–8 — the lead persists. Untargeted; falls through to the shared spend.
+        // ANCIENTS × Nadja (no-ops unless picked): DEATH and TIME make Goldspring passive (the pairing's `power`
+        // override; its work is the Avenge / the End-of-Turn entry), so it is never activatable. FORTUNE's 2 Gold and
+        // twice-a-turn ride the override's `cost` / `usesPerTurn` (the gate above and the shared spend below).
+        if (power.passive) return state;
         s.maxGoldBonus = (s.maxGoldBonus ?? 0) + reps;
+        ancientAfterGoldspring(s, reps); // GENESIS: each fire also gets a random minion
       } else if (power.kind === 'preparation') {
         // Aster the Guide (tutorial-only): +1/+1 to a friendly board minion. Recharges every OTHER turn — the
         // `preparationLockUntil` wave is the REAL gate here, mirroring Gambler's Dice lock: `heroReady` resets

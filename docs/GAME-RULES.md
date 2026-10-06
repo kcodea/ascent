@@ -239,8 +239,8 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   the standard timeout. The medal is fixed when the game starts (`RunState.medalAtStart`), so a game begun in Bronze
   keeps this clock to its end (Save & Quit and Continue included), and a brand-new account (Bronze I) gets it. From
   **Silver** up, and in unrated lobbies, Practice, the tutorial and every other mode, the shop uses its usual timer.
-  The **Bronze → Silver promotion** screen says so: *"New at Silver: the standard shop timer. Your shop timer now
-  starts at the beginning of every turn, like other ranked players."* (R-TIMER-BRONZE-02; never on a division step
+  The **Bronze → Silver promotion** screen says so: *"Shop Timer Adjusted: At Silver rank and above, the round timer begins at the
+  start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!"* (R-TIMER-BRONZE-02; never on a division step
   or another medal). Source: `packages/ui/src/goldClock.ts` (shared with the Gauntlet's 30 Gold / 60 second clock).
 - **Leaving a rated game early costs nothing** (owner 2026-10-02, verbatim: *"oh i didnt know there was an
   abandon penalty in. can we remove that for now?"*; R-RANK-05, switched off). Giving up an unfinished rated game

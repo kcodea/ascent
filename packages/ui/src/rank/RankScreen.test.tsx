@@ -251,7 +251,7 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
  * Bronze → Silver promotion prints it, and only once the sequence has settled.
  */
 describe('the Silver shop-timer notice', () => {
-  const NOTICE = 'Your shop timer now starts at the beginning of every turn, like other ranked players.';
+  const NOTICE = 'At Silver rank and above, the round timer begins at the start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!';
   const promo = (before: number, after: number, promotionKind: 'division' | 'medal'): RankFixture => {
     const f = fixtureById('promo-silver')!;
     return {
@@ -263,7 +263,7 @@ describe('the Silver shop-timer notice', () => {
   it('shows on the Bronze → Silver promotion, in the game plaque and the live region', () => {
     render(fixtureById('promo-silver')!);
     expect(text('.rankbar-label')).toBe('Silver I');
-    expect(text('.rankend-notice-title')).toBe('New at Silver: the standard shop timer');
+    expect(text('.rankend-notice-title')).toBe('Shop Timer Adjusted');
     expect(text('.rankend-notice-body')).toBe(NOTICE);
     expect(text('.rankend-live')).toContain(NOTICE);
     expect(ui!.container.querySelector('.rankend-notice [title]')).toBeNull();

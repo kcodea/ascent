@@ -644,8 +644,9 @@ export const PERSISTENCE_RULES: GameRule[] = [
     ],
     currentBehaviour:
       'Conforms from 2026-10-06 for new uploads. Every row uploaded before it has no rank stamp: on 2026-10-06 the live '
-      + 'table held 192 rows, none stamped, of which 28 were rated non-developer games (4 readable as Bronze from their '
-      + 'band, 24 unknown). No backend change: the stamp rides inside the existing derived jsonb.',
+      + 'table held 193 rows, none stamped, of which 26 were rated non-developer games (4 readable as Bronze from their '
+      + 'band, 22 unknown; developers = LazerLemon, Orangez, LEMON). No backend change: the stamp rides inside the '
+      + 'existing derived jsonb.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/telemetryRankAtStart.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/tools/src/newcomer/newcomerRate.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
 ];

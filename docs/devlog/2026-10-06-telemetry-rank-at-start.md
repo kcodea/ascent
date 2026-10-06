@@ -34,15 +34,15 @@ Rule: **R-TELEMETRY-RANK-01** (persistence).
 ## `npm run newcomer:rate`
 
 Read-only (anon GETs, paged past 1,000 rows per R-NET-01, via the strength tools' `getAll`). Keeps rated lobby games
-with a placement, drops developers (`DEVELOPER_AUTHORS = ['LazerLemon', 'Orangez']`, matched on the handle before any
+with a placement, drops developers (`DEVELOPER_AUTHORS = ['LazerLemon', 'Orangez', 'LEMON']`, matched on the handle before any
 `#tag` and widened to every account key those handles uploaded under), keeps games whose rank at start is Bronze, and
 prints the top-4 rate with a Wilson 95% interval, games and distinct players, overall and per regime. Rows without a
 stamp read as Bronze only from Bronze's band in their band table (`0-30` / `0-20`), labelled approximate; rows with
 neither are counted as unknown and left out.
 
-First run (2026-10-06, before any stamped upload): 192 rows, 164 developer games excluded (161 by handle, 3 by shared
-account), 28 rated non-developer games: 4 approximate Bronze (3 of 4 top 4, one player), 24 unknown. Nothing to read
+First run (2026-10-06, before any stamped upload, LEMON included): 193 rows, 167 developer games excluded (165 by
+handle, 2 by shared account), 26 rated non-developer games: 4 approximate Bronze (3 of 4 top 4, one player), 22 unknown. Nothing to read
 yet; the number becomes meaningful as stamped Bronze games from real newcomers come in.
 
-Not handled: a `LEMON` handle on a different account key than the developers' (2 rows) is not excluded; add it to
-`DEVELOPER_AUTHORS` if it is a developer account.
+`LEMON` is in the list too (owner 2026-10-06: "LEMON is mine, add it to the list"), which also excludes the LEMON
+handle on its second account key.

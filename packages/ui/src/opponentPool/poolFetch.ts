@@ -13,6 +13,13 @@
  * every run against the wave count the listing saw (`isWholeRun`).
  *
  * The api is injected so the tests drive both paths without a network.
+ *
+ * SPLIT EARLY / LATE BANDS (R-LOBBY-13, 2026-10-06): a band with an early weight is sent as (`p_early_weight`,
+ * `p_strength_min`, `p_strength_max`) and the server filters each run's blended score
+ * (supabase/migrations/2026-10-06-early-late-strength.sql). Before the owner runs that SQL the RPC has no
+ * `p_early_weight`, PostgREST answers "function not found", and the session drops ONLY the weight
+ * (`PoolFetchSession.splitBandsMissing`): the same min/max is sent the 2026-09-30 way and filters the weighted
+ * `strength`, and seat selection agrees (those rows carry no early/late, so `matchScoreOf` reads `strength`).
  */
 import { MIN_RUN_WAVES, OPPONENT_SEATS, bandSteps, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
@@ -30,11 +37,17 @@ export const FALLBACK_RUNS_PER_REQUEST = 40;
 
 export interface SampleRow { run_key: string; author: string; user_id: string | null; wave_count: number; boards: BoardSnapshot[] | null;
   /** The run's strength percentile (R-LOBBY-09); absent before the 2026-09-30 SQL, null = unscored. */
-  strength?: number | string | null }
+  strength?: number | string | null;
+  /** The run's EARLY / LATE ratings (R-LOBBY-13); absent before the 2026-10-06 early/late SQL, null = unscored. */
+  strength_early?: number | string | null;
+  strength_late?: number | string | null }
 export interface SampleArgs {
   p_limit: number; p_set: string; p_patch_prefix: string; p_exclude_user: string | null;
   /** The matchmaking band (R-LOBBY-09). Only sent once the server has it (`PoolFetchSession.bandsMissing`). */
   p_strength_min?: number; p_strength_max?: number;
+  /** The band's early weight (R-LOBBY-13): min/max then filter the blended score. Only sent once the server has it
+   *  (`PoolFetchSession.splitBandsMissing`). */
+  p_early_weight?: number;
 }
 export interface LightRow { author: string | null; hero_id: string; seed: number | null; wave: number; user_id: string | null; set_id: string | null }
 export interface ApiError { code?: string; message: string }
@@ -58,8 +71,10 @@ export interface PoolFetchOptions {
 }
 
 /** Session memory: once the RPC answered "not found", go straight to the fallback. `bandsMissing`: the RPC exists
- *  but does not take a band yet (the 2026-09-30 SQL has not been run), so the band is not sent this session. */
-export interface PoolFetchSession { rpcMissing: boolean; bandsMissing?: boolean }
+ *  but does not take a band yet (the 2026-09-30 SQL has not been run), so the band is not sent this session.
+ *  `splitBandsMissing`: the RPC takes a band but no early weight yet (the 2026-10-06 early/late SQL has not been run),
+ *  so the band's min/max is sent without the weight (it then filters the weighted strength) this session. */
+export interface PoolFetchSession { rpcMissing: boolean; bandsMissing?: boolean; splitBandsMissing?: boolean }
 
 /** PostgREST's "no such function" (schema cache miss), Postgres' undefined_function, or a bare 404. */
 export function isMissingFunction(error: ApiError | null | undefined): boolean {
@@ -109,8 +124,16 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
     let widenings = 0;
     for (let i = 0; i < steps.length; i++) {
       const band = session.bandsMissing ? null : steps[i]!;
-      const args: SampleArgs = band ? { ...base, p_strength_min: band.min, p_strength_max: band.max } : base;
+      const plainBand: SampleArgs | null = band ? { ...base, p_strength_min: band.min, p_strength_max: band.max } : null;
+      const split = !!band && typeof band.earlyWeight === 'number' && !session.splitBandsMissing;
+      const args: SampleArgs = plainBand ? (split ? { ...plainBand, p_early_weight: band!.earlyWeight } : plainBand) : base;
       let res = await api.sample(args, signal);
+      if (res.error && split && isMissingFunction(res.error)) {
+        // The RPC takes a band but not an early weight yet (R-LOBBY-13 SQL not run): drop the weight for the session
+        // and send the same min/max the 2026-09-30 way (it filters the weighted strength).
+        session.splitBandsMissing = true;
+        res = await api.sample(plainBand!, signal);
+      }
       if (res.error && band && isMissingFunction(res.error)) {
         // The RPC exists but not with a band yet: drop the band for the session and ask the plain way.
         session.bandsMissing = true;
@@ -125,9 +148,12 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
       for (const r of res.data ?? []) {
         if (byKey.has(r.run_key)) continue;
         const strength = strengthOfRow(r.strength);
+        const early = strengthOfRow(r.strength_early);
+        const late = strengthOfRow(r.strength_late);
         byKey.set(r.run_key, {
           key: r.run_key, ownerId: r.user_id, waves: r.wave_count, snaps: Array.isArray(r.boards) ? r.boards : [],
           ...(strength !== undefined ? { strength } : {}),
+          ...(early !== undefined ? { early } : {}), ...(late !== undefined ? { late } : {}),
         });
       }
       // Enough runs to seat a table (or nothing narrower to ask for): stop widening.

@@ -28,6 +28,9 @@ import { mixSeed } from '../state';
  *    player sees. From 2026-10-03 to 2026-10-06 it was the FINAL board's percentile instead (`runFinalStrengthOf`,
  *    #1928); the owner reverted that on 2026-10-06 ("matchmaking algorithm -> backtrack to the weighted version")
  *    after a live-pool audit found it barely tracked how strong a run's boards were in rounds 3-7.
+ *  - Since 2026-10-06 (R-LOBBY-13) MATCHMAKING reads two more ratings per run instead: EARLY (rounds 1-9) and LATE
+ *    (10+), each a plain board-percentile mean ranked among runs (`earlyLateStrengthOf`, `rankAmongRuns`), blended per
+ *    medal by `matchScoreOf` (strengthBands.ts). The weighted strength above stays the "Game strength" players see.
  *
  * The reference set lives in `strengthReference.v1.json`, generated ONCE by `npm run strength -- ref` from the
  * live pool. It is loaded lazily (`loadStrengthReference`): it is ~0.5 MB of boards, and nothing on the menu or
@@ -211,13 +214,15 @@ export const STRENGTH_ROUND_GROUPS: readonly { readonly from: number; readonly t
  * WHICH RUN-STRENGTH FORMULA THIS BUILD COMPUTES (2026-10-03, the Balance Report regime stamp). Stamped into every
  * uploaded run's `derived.regime` so the report can tell runs matched under one strength regime from another:
  * `'average'` = the plain mean of board percentiles (#1871, 2026-09-30), `'weighted'` = the round-weighted mean above
- * (#1890, 2026-10-01), `'final'` = the final board's percentile, used directly (#1928, 2026-10-03), and `'weighted'`
- * again since 2026-10-06 (the owner reverted #1928). CHANGE THIS IN THE SAME PR that changes how a
- * run's strength is computed (`runStrengthFromScores` / the SQL twin) -- it is the only way a row can say which rule
- * it was matched under.
+ * (#1890, 2026-10-01), `'final'` = the final board's percentile, used directly (#1928, 2026-10-03), `'weighted'`
+ * again from 2026-10-06 (the owner reverted #1928), and `'earlyLate'` since the split bands (R-LOBBY-13, 2026-10-06):
+ * the bands filter a per-medal blend of the run's EARLY and LATE ratings (`matchScoreOf`), while the "Game strength" a
+ * player sees stays the weighted number. It names the score MATCHMAKING filters on. CHANGE THIS IN THE SAME PR that
+ * changes how matchmaking scores a run (`runStrengthFromScores`, `matchScoreOf` / the SQL twins) -- it is the only way
+ * a row can say which rule it was matched under.
  */
-export type StrengthFormula = 'average' | 'weighted' | 'final';
-export const RUN_STRENGTH_FORMULA: StrengthFormula = 'weighted';
+export type StrengthFormula = 'average' | 'weighted' | 'final' | 'earlyLate';
+export const RUN_STRENGTH_FORMULA: StrengthFormula = 'earlyLate';
 
 /** The index into `STRENGTH_ROUND_GROUPS` of a round (anything below 1 counts with the first group). */
 export function strengthRoundGroup(round: number): number {
@@ -290,9 +295,65 @@ export function runFinalStrengthOf(rounds: Iterable<{ round: number; value: numb
 /** The mean of `n` whole percentiles summing to `sum`, rounded half up and clamped to 1..100 (null for n = 0), in
  *  exact integer arithmetic (the SQL `board_strength_final` computes the same expression). */
 export function finalFromSum(sum: number, n: number): number | null {
+  return meanFromSum(sum, n);
+}
+
+/** The mean of `n` whole percentiles summing to `sum`, rounded half up as floor((2 sum + n) / (2 n)) and clamped to
+ *  1..100 (null for n = 0). Exact integer arithmetic; SQL twin `board_strength_mean`
+ *  (supabase/migrations/2026-10-06-early-late-strength.sql), the same body as `board_strength_final`. */
+export function meanFromSum(sum: number, n: number): number | null {
   if (!(n > 0)) return null;
   return Math.min(100, Math.max(1, Math.floor((2 * sum + n) / (2 * n))));
 }
+
+// ── EARLY / LATE strength (owner design 2026-10-06, R-LOBBY-13) ─────────────────────────────────────────────
+
+/**
+ * The last round of the EARLY game (owner 2026-10-06: "ima just break it down between early and late / early is 1-9 /
+ * late is 10+"). Rounds 1..9 are early, 10 and later are late.
+ */
+export const EARLY_LAST_ROUND = 9;
+
+/**
+ * A run's EARLY and LATE averages (R-LOBBY-13): the PLAIN mean of its board percentiles in rounds 1-9 (`early`) and in
+ * rounds 10+ (`late`), each rounded half up to 1..100 (`meanFromSum`). Null for a side with no scored board (a run
+ * that ended before round 10 has `late: null`). Every scored board counts once, so a round with two boards counts
+ * twice (the convention of every run average). Like the weighted average these pull toward 50, so they are not yet
+ * a run's ratings: `rankAmongRuns` ranks each among the runs of the set (`pool_runs.strength_early` / `_late`).
+ * SQL twin: `pool_strength_refresh` in supabase/migrations/2026-10-06-early-late-strength.sql
+ * (`pool_runs.strength_early_avg` / `strength_late_avg`).
+ */
+export function earlyLateStrengthOf(rounds: Iterable<{ round: number; value: number | null | undefined }>): { early: number | null; late: number | null } {
+  let es = 0; let en = 0; let ls = 0; let ln = 0;
+  for (const r of rounds) {
+    if (typeof r.value !== 'number' || !Number.isFinite(r.value)) continue;
+    const v = Math.round(r.value);
+    if (r.round <= EARLY_LAST_ROUND) { es += v; en++; } else { ls += v; ln++; }
+  }
+  return { early: meanFromSum(es, en), late: meanFromSum(ls, ln) };
+}
+
+/**
+ * Rank values among each other (R-LOBBY-13, the same rule as `runPercentileOf` and the SQL rank window): each value's
+ * 1..100 percentile among every non-null value of the population, itself included, ties counted half. Null stays
+ * null. Used for a run's EARLY and LATE ratings (each average ranked among the set's runs).
+ */
+export function rankAmongRuns<K>(values: Iterable<readonly [K, number | null | undefined]>): Map<K, number | null> {
+  const entries = [...values];
+  const counts = new Map<number, number>();
+  let n = 0;
+  for (const [, v] of entries) if (typeof v === 'number' && Number.isFinite(v)) { counts.set(v, (counts.get(v) ?? 0) + 1); n++; }
+  const sorted = [...counts.keys()].sort((a, b) => a - b);
+  const below = new Map<number, number>();
+  let acc = 0;
+  for (const v of sorted) { below.set(v, acc); acc += counts.get(v)!; }
+  const out = new Map<K, number | null>();
+  for (const [k, v] of entries) out.set(k, typeof v === 'number' && Number.isFinite(v) ? pctFromCounts(below.get(v)!, counts.get(v)!, n) : null);
+  return out;
+}
+
+/** A run's MATCH SCORE for a rank (`matchScoreOf`) lives in strengthBands.ts, next to the bands it is checked
+ *  against (it is pure arithmetic over the ratings above; keeping it out of this module avoids an import cycle). */
 
 /** How many runs of the set hold each average (the server's `run_strength_histogram`). */
 export interface RunStrengthHistogramEntry { avg: number; count: number }

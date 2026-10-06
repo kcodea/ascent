@@ -3,7 +3,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeRng } from '@game/core';
-import { finalFromSum, pctFromCounts, percentileOf, runFinalStrengthOf, runPercentileOf, runWeightedAverageOf, weightedAvgFromGroups, type StrengthHistogramEntry } from './boardStrength';
+import { earlyLateStrengthOf, finalFromSum, meanFromSum, pctFromCounts, percentileOf, rankAmongRuns, runFinalStrengthOf, runPercentileOf, runWeightedAverageOf, weightedAvgFromGroups, type StrengthHistogramEntry } from './boardStrength';
+import { STRENGTH_BANDS, matchScoreOf, runInStrengthBand } from './strengthBands';
 import LIVE from './strengthLiveScores.fixture.json';
 
 /**
@@ -20,7 +21,12 @@ import LIVE from './strengthLiveScores.fixture.json';
  *  - `pool_runs_sample` honours a band, counts an unscored run as inside every band, keeps whole runs and the
  *    own-run exclusion, is uniform inside the band, and still answers the old four-argument call;
  *  - `board_strength_histogram` counts what the client needs; anon may call it and the sample, nothing else;
- *  - the migration is idempotent.
+ *  - the migration is idempotent;
+ *  - EARLY / LATE (R-LOBBY-13, 2026-10-06-early-late-strength.sql): `board_strength_mean` is `meanFromSum`,
+ *    `pool_match_score` is `matchScoreOf`, every run's `strength_early_avg` / `strength_late_avg` and
+ *    `strength_early` / `strength_late` are the TS `earlyLateStrengthOf` + `rankAmongRuns` numbers (synthetic runs and
+ *    the real live pool), the weighted `strength` is untouched by it, and `pool_runs_sample` filters the BLENDED score
+ *    with `p_early_weight` and the weighted strength without it (clients from before the split).
  */
 const root = join(__dirname, '../../../..');
 const POOL = readFileSync(join(root, 'supabase/migrations/2026-09-29-pool-whole-runs.sql'), 'utf8');
@@ -28,6 +34,7 @@ const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-09-30-board-
 const WEIGHTED = readFileSync(join(root, 'supabase/migrations/2026-09-30-weighted-strength.sql'), 'utf8');
 const FINAL = readFileSync(join(root, 'supabase/migrations/2026-10-03-final-board-strength.sql'), 'utf8');
 const AGAIN = readFileSync(join(root, 'supabase/migrations/2026-10-06-weighted-strength-again.sql'), 'utf8');
+const EARLY_LATE = readFileSync(join(root, 'supabase/migrations/2026-10-06-early-late-strength.sql'), 'utf8');
 
 const STUB = `
   create role anon; create role authenticated;
@@ -77,7 +84,7 @@ const strengthOf = async (key: string): Promise<number | null> => {
   return rows[0]?.s == null ? null : Number(rows[0].s);
 };
 
-interface SampleRow { run_key: string; strength: string | null; wave_count: number; boards: unknown[] }
+interface SampleRow { run_key: string; strength: string | null; strength_early: string | null; strength_late: string | null; wave_count: number; boards: unknown[] }
 const sample = (limit: number, seed: string | null, band: { min?: number | null; max?: number | null } = {}, exclude: string | null = null): Promise<SampleRow[]> =>
   q<SampleRow>('select * from public.pool_runs_sample(p_limit => $1, p_set => $2, p_patch_prefix => $3, p_exclude_user => $4::uuid, p_seed => $5, p_strength_min => $6, p_strength_max => $7)',
     [limit, 'set2', '0.1.0+', exclude, seed, band.min ?? null, band.max ?? null]);
@@ -90,6 +97,7 @@ beforeAll(async () => {
   await db.exec(WEIGHTED);
   await db.exec(FINAL);
   await db.exec(AGAIN);
+  await db.exec(EARLY_LATE);
 }, 60_000);
 
 const runKey = (s: RunSpec): string => `${s.author}|${s.hero}|${s.seed}`;
@@ -97,7 +105,10 @@ const runKey = (s: RunSpec): string => `${s.author}|${s.hero}|${s.seed}`;
 /** The client's numbers for these runs, computed in TS from the same boards: each board's percentile among its
  *  reference wave (itself in the population), the run's round-weighted average, that average ranked among runs (the
  *  run's strength, restored 2026-10-06), and the final board's percentile (`finals`, the retired 2026-10-03 rule). */
-function tsRunNumbers(specs: readonly RunSpec[]): { avgs: Map<string, number | null>; strengths: Map<string, number | null>; finals: Map<string, number | null> } {
+function tsRunNumbers(specs: readonly RunSpec[]): {
+  avgs: Map<string, number | null>; strengths: Map<string, number | null>; finals: Map<string, number | null>;
+  earlyAvgs: Map<string, number | null>; lateAvgs: Map<string, number | null>; early: Map<string, number | null>; late: Map<string, number | null>;
+} {
   const byWave = new Map<number, number[]>();
   const refOf = (s: RunSpec, i: number): number => s.refWaves?.[i] ?? s.waves?.[i] ?? i + 1;
   for (const s of specs) s.raws.forEach((r, i) => { if (r !== null) byWave.set(refOf(s, i), [...(byWave.get(refOf(s, i)) ?? []), Number(r.toFixed(4))]); });
@@ -109,10 +120,15 @@ function tsRunNumbers(specs: readonly RunSpec[]): { avgs: Map<string, number | n
   };
   const avgs = new Map<string, number | null>();
   const finals = new Map<string, number | null>();
+  const earlyAvgs = new Map<string, number | null>();
+  const lateAvgs = new Map<string, number | null>();
   for (const s of specs) {
     const rounds = s.raws.map((r, i) => ({ round: s.waves?.[i] ?? i + 1, value: r === null ? null : percentileOf(Number(r.toFixed(4)), hist(refOf(s, i), Number(r.toFixed(4))), true) }));
     avgs.set(runKey(s), runWeightedAverageOf(rounds));
     finals.set(runKey(s), runFinalStrengthOf(rounds));
+    const el = earlyLateStrengthOf(rounds);
+    earlyAvgs.set(runKey(s), el.early);
+    lateAvgs.set(runKey(s), el.late);
   }
   const all = [...avgs.values()].filter((a): a is number => a !== null);
   const strengths = new Map<string, number | null>();
@@ -123,8 +139,16 @@ function tsRunNumbers(specs: readonly RunSpec[]): { avgs: Map<string, number | n
     for (const x of all) { if (!skipped && x === a) { skipped = true; continue; } others.set(x, (others.get(x) ?? 0) + 1); }
     strengths.set(k, runPercentileOf(a, [...others].map(([avg, count]) => ({ avg, count })), true));
   }
-  return { avgs, strengths, finals };
+  return { avgs, strengths, finals, earlyAvgs, lateAvgs, early: rankAmongRuns(earlyAvgs), late: rankAmongRuns(lateAvgs) };
 }
+
+/** Every run's early / late averages and ratings as the SQL stored them. */
+const sqlEarlyLate = async (): Promise<Map<string, { ea: number | null; la: number | null; e: number | null; l: number | null }>> => {
+  const num = (v: string | null): number | null => (v === null ? null : Number(v));
+  const rows = await q<{ k: string; ea: string | null; la: string | null; e: string | null; l: string | null }>(
+    `select author || '|' || hero_id || '|' || seed as k, strength_early_avg::text as ea, strength_late_avg::text as la, strength_early::text as e, strength_late::text as l from public.pool_runs`);
+  return new Map(rows.map((r) => [r.k, { ea: num(r.ea), la: num(r.la), e: num(r.e), l: num(r.l) }]));
+};
 
 const sqlAverages = async (): Promise<Map<string, number | null>> =>
   new Map((await q<{ k: string; a: string | null }>(`select author || '|' || hero_id || '|' || seed as k, strength_avg::text as a from public.pool_runs`)).map((r) => [r.k, r.a === null ? null : Number(r.a)]));
@@ -156,6 +180,29 @@ describe('the SQL percentile equals the TS percentile', () => {
     });
   });
 
+  it('board_strength_mean is meanFromSum on every (sum, count)', async () => {
+    const cases: [number, number][] = [[0, 0], [1, 1], [3, 2], [199, 2], [100, 1], [600, 6], [250, 3]];
+    for (let n = 1; n <= 9; n++) for (let sum = 0; sum <= 100 * n; sum += 7) cases.push([sum, n]);
+    const rows = await q<{ p: number | null }>(`select public.board_strength_mean(t.s, t.n) as p from unnest($1::bigint[], $2::bigint[]) with ordinality as t(s, n, i) order by t.i`,
+      [cases.map((c) => c[0]), cases.map((c) => c[1])]);
+    rows.forEach((r, i) => expect(r.p, cases[i]!.join('/')).toBe(meanFromSum(...cases[i]!)));
+  });
+
+  it('pool_match_score is matchScoreOf on every rating shape and every band weight', async () => {
+    const vals = [null, 1, 13, 20, 30, 47, 50, 99, 100];
+    const weights = [null, 1, 0.8, 0.6, 0, 0.35];
+    const cases: { s: number | null; e: number | null; l: number | null; w: number | null }[] = [];
+    for (const s of [null, 25, 70]) for (const e of vals) for (const l of vals) for (const w of weights) cases.push({ s, e, l, w });
+    const rows = await q<{ p: string | null }>(`select public.pool_match_score(t.s, t.e, t.l, t.w)::text as p
+      from unnest($1::numeric[], $2::numeric[], $3::numeric[], $4::numeric[]) with ordinality as t(s, e, l, w, i) order by t.i`,
+    [cases.map((c) => c.s), cases.map((c) => c.e), cases.map((c) => c.l), cases.map((c) => c.w)]);
+    rows.forEach((r, i) => {
+      const c = cases[i]!;
+      const ts = matchScoreOf({ strength: c.s, early: c.e, late: c.l }, c.w);
+      expect(r.p === null ? null : Number(r.p), JSON.stringify(c)).toBe(ts);
+    });
+  });
+
   it('board_strength_final is finalFromSum on every (sum, count)', async () => {
     const cases: [number, number][] = [[0, 0], [1, 1], [3, 2], [199, 2], [100, 1], [600, 6], [250, 3]];
     for (let n = 1; n <= 5; n++) for (let sum = 0; sum <= 100 * n; sum += 13) cases.push([sum, n]);
@@ -173,10 +220,19 @@ describe('the SQL percentile equals the TS percentile', () => {
     specs.push({ author: 'Dup', hero: 'd', seed: 1999, raws: [0.5, 0.2, 0.9, 0.9, 0.1, 0.4, 0.3, 0.95], waves: [1, 2, 3, 4, 5, 6, 7, 7] });
     for (const s of specs) await upload(s);
     await db.exec('select public.pool_strength_refresh(null, null, null)');
-    const { avgs, strengths: tsStrengths } = tsRunNumbers(specs);
+    const ts = tsRunNumbers(specs);
+    const { avgs, strengths: tsStrengths } = ts;
     const sqlAvg = await sqlAverages();
     for (const [k, a] of avgs) expect(sqlAvg.get(k), k).toBe(a);
     for (const [k, v] of tsStrengths) expect(await strengthOf(k), k).toBe(v);
+    // EARLY / LATE (R-LOBBY-13): the plain round 1-9 / 10+ means, each ranked among runs.
+    const el = await sqlEarlyLate();
+    for (const s of specs) {
+      const k = runKey(s);
+      expect(el.get(k), k).toEqual({ ea: ts.earlyAvgs.get(k), la: ts.lateAvgs.get(k), e: ts.early.get(k), l: ts.late.get(k) });
+    }
+    expect([...el.values()].some((x) => x.l === null), 'runs that ended before round 10 have no late rating').toBe(true);
+    expect([...el.values()].some((x) => x.l !== null), 'runs that reached round 10 have one').toBe(true);
     const strengths = await Promise.all([...avgs.keys()].map((k) => strengthOf(k)));
     expect(Math.min(...(strengths as number[]))).toBeLessThanOrEqual(5); // ranked: spans the scale
     expect(Math.max(...(strengths as number[]))).toBeGreaterThanOrEqual(95);
@@ -238,6 +294,43 @@ describe('the sample with a band', () => {
     expect(chi / inBand).toBeLessThan(1.5); // ~1 for a uniform draw
   }, 120_000);
 
+  it('with an early weight, the band filters the BLENDED score; without one it filters the weighted strength (R-LOBBY-13)', async () => {
+    await db.exec('delete from public.pool_runs');
+    // 40 runs: early 1..40 (x2 = 2..80), late 100 - early, weighted strength = early. Run 40 has no late (ended at 9);
+    // runs 37-39 have no ratings at all but a weighted strength; run 0 is fully unscored.
+    await db.exec(`
+      insert into public.pool_runs (author, hero_id, seed, set_id, patch_prefix, boards, wave_count, first_wave, last_wave, max_gap, tiers_ok, eligible, strength, strength_early, strength_late)
+      select 'W' || g, 'h', g, 'set2', '0.1.0+', 8, 8, 1, 8, 0, true, true,
+             case when g = 0 then null else 2 * g end,
+             case when g = 0 or g between 37 and 39 then null else 2 * g end,
+             case when g = 0 or g >= 37 then null else 100 - 2 * g end
+      from generate_series(0, 40) g;`);
+    const runs = await q<{ k: string; s: string | null; e: string | null; l: string | null }>(`select author || '|' || hero_id || '|' || seed as k, strength::text as s, strength_early::text as e, strength_late::text as l from public.pool_runs`);
+    const num = (v: string | null): number | null => (v === null ? null : Number(v));
+    const sampleW = (band: { earlyWeight?: number; min: number; max: number }): Promise<SampleRow[]> =>
+      q<SampleRow>('select * from public.pool_runs_sample(p_limit => 300, p_set => $1, p_patch_prefix => $2, p_seed => $3, p_strength_min => $4, p_strength_max => $5, p_early_weight => $6)',
+        ['set2', '0.1.0+', 'w', band.min, band.max, band.earlyWeight ?? null]);
+    for (const band of [STRENGTH_BANDS.Bronze!, STRENGTH_BANDS.Silver!, STRENGTH_BANDS.Gold!, { min: 10, max: 30 }]) {
+      const got = (await sampleW(band)).map((r) => r.run_key).sort();
+      const want = runs.filter((r) => runInStrengthBand({ strength: num(r.s), early: num(r.e), late: num(r.l) }, band)).map((r) => r.k).sort();
+      expect(got, JSON.stringify(band)).toEqual(want);
+      expect(got).toContain('W0|h|0'); // unscored: inside every band
+    }
+    // Silver (0.8 early): run 10 = 0.8 x 20 + 0.2 x 80 = 32, outside 10-30; run 9 = 0.8 x 18 + 0.2 x 82 = 30.8, outside;
+    // run 8 = 0.8 x 16 + 0.2 x 84 = 29.6, inside. The boundary is exact (no float drift either side).
+    const silver = (await sampleW(STRENGTH_BANDS.Silver!)).map((r) => r.run_key);
+    expect(silver).toContain('W8|h|8');
+    expect(silver).not.toContain('W9|h|9');
+    // Bronze (early only, 0-20): runs 1-10 by early; run 40 (no late) by its early 80 -> out; runs 37-39 by weighted -> out.
+    expect((await sampleW(STRENGTH_BANDS.Bronze!)).map((r) => r.run_key).sort()).toEqual(['W0|h|0', ...Array.from({ length: 10 }, (_, i) => `W${i + 1}|h|${i + 1}`)].sort());
+    // A client from before the split sends no weight: the band filters the weighted strength, as before.
+    const old = (await sample(300, 'w', { min: 0, max: 20 })).map((r) => r.run_key).sort();
+    expect(old).toEqual(runs.filter((r) => r.s === null || Number(r.s) <= 20).map((r) => r.k).sort());
+    // The rows carry the ratings for client-side seat selection.
+    const row = (await sampleW({ min: 0, max: 100, earlyWeight: 1 })).find((r) => r.run_key === 'W5|h|5')!;
+    expect([num(row.strength_early), num(row.strength_late)]).toEqual([10, 90]);
+  });
+
   it('still answers the old four-argument call (clients deployed before this change)', async () => {
     const rows = await q<SampleRow>(`select * from public.pool_runs_sample(p_limit => 5, p_set => 'set2', p_patch_prefix => '0.1.0+', p_exclude_user => null)`);
     expect(rows.length).toBe(5);
@@ -273,6 +366,8 @@ describe('the histogram and grants', () => {
     await db.exec(FINAL);
     await db.exec(AGAIN);
     await db.exec(AGAIN);
+    await db.exec(EARLY_LATE);
+    await db.exec(EARLY_LATE);
     expect(await q<{ s: string | null }>('select strength::text as s from public.pool_runs order by id')).toEqual(before);
     expect((await sample(10, 'again')).length).toBe(2);
   });
@@ -309,5 +404,21 @@ describe('parity on the REAL live pool (2026-09-30 scores; weighted and ranked, 
       if (s.waves!.some((w) => w >= 10)) late++;
     }
     expect(late).toBeGreaterThan(50); // the 45% group is exercised on real runs
+
+    // R-LOBBY-13: the early / late SQL fills both ratings with the TS numbers and leaves the weighted strength alone.
+    const { earlyAvgs, lateAvgs, early, late: lateRank } = tsRunNumbers(specs);
+    await db.exec(EARLY_LATE);
+    const el = await sqlEarlyLate();
+    let noLate = 0;
+    for (const s of specs) {
+      const k = runKey(s);
+      expect(await strengthOf(k), k).toBe(strengths.get(k));
+      expect(el.get(k), k).toEqual({ ea: earlyAvgs.get(k), la: lateAvgs.get(k), e: early.get(k), l: lateRank.get(k) });
+      if (el.get(k)!.l === null) noLate++;
+    }
+    expect(noLate).toBeGreaterThan(20); // real runs that ended before round 10: their score is EARLY alone
+    // Bronze on the real pool: the early-only band holds runs whose early rating is 20 or less, and they are many.
+    const bronze = specs.filter((s) => runInStrengthBand({ early: el.get(runKey(s))!.e, late: el.get(runKey(s))!.l }, STRENGTH_BANDS.Bronze!));
+    expect(bronze.length).toBeGreaterThan(20);
   }, 120_000);
 });

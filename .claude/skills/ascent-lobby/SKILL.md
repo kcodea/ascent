@@ -59,8 +59,13 @@ behaviour from a legacy symbol.**
   sends `p_exclude_user: null`, and `excludeOwnerId` is gone).
 - **Board strength + rank bands** (R-LOBBY-09, 2026-09-30): a board's raw strength is its seeded win rate against the
   frozen reference set (`lobby/boardStrength.ts`, `strengthReference.v1.json`), stored with the board; percentiles and
-  a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. A RATED lobby passes `strengthBand` (Bronze 0-30,
-  Silver 10-40, Gold 20-65, Platinum none, Diamond 10-100, Ascendant 20-100) to both the pool fetch and `createRunLobby`; unscored runs are in every
+  a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. Since 2026-10-06 (R-LOBBY-13) each run
+  also has EARLY (rounds 1-9) and LATE (10+) ratings (`pool_runs.strength_early` / `_late`, stamped on boards as
+  `runStrengthEarly` / `runStrengthLate`), and a band carries an `earlyWeight`: the band filters `matchScoreOf` =
+  w x EARLY + (1 - w) x LATE (EARLY alone without LATE; the weighted strength without either). "Game strength" stays the
+  weighted number. A RATED lobby passes `strengthBand` (Bronze 0-20 w1.0, Silver 10-30 w0.8, Gold 10-50 w0.6, none from
+  Platinum) to both the pool fetch (`p_early_weight`, dropped for the session when the RPC lacks it) and
+  `createRunLobby` (`runInStrengthBand`); unscored runs are in every
   band, and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
   selection is R-LOBBY-08's, seat for seat. Your own boards are scored in idle slices from capture
   (`ui/src/boardStrength/`), never on an interaction path; the run-end freeze reads them. Never read `runStrength`

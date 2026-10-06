@@ -11,7 +11,7 @@ import {
 } from './runTelemetry';
 import { applyReportFilters, buildBalanceExport, heroImpact, scopeReport, tierImpact, type RunTelemetryRow } from './playerReport';
 import { ALL_EPOCHS, dataQuality } from './reportCohorts';
-import { BANDS_V1, BANDS_V2, bestSources, combatsStacked, resolveRegime, tierFromDerived, withBestSources } from './reportSources';
+import { BANDS_V1, BANDS_V2, BANDS_V3, bestSources, combatsStacked, resolveRegime, tierFromDerived, withBestSources } from './reportSources';
 
 /**
  * THE EXPORT FIX (2026-10-03, owner "yes fix these issues"; R-REPORT-04). A report field comes from LIVE
@@ -272,12 +272,14 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
   it('currentRegime reads the band table and formula from the code, the band from the run', () => {
     const g = currentRegime({ strengthBand: '0-30', strengthBandUsed: '10-40' });
     expect(g).toEqual({ bandsVersion: STRENGTH_BANDS_VERSION, strengthFormula: RUN_STRENGTH_FORMULA, band: '0-30', bandUsed: '10-40' });
-    expect(STRENGTH_BANDS_VERSION).toMatch(/^B\d+-\d+ S\d+-\d+ G\d+-\d+ P(\*|\d+-\d+) D(\*|\d+-\d+) A(\*|\d+-\d+)$/);
+    const band = String.raw`(\*|\d+-\d+(/e\d+)?)`;
+    expect(STRENGTH_BANDS_VERSION).toMatch(new RegExp(`^B${band} S${band} G${band} P${band} D${band} A${band}$`));
     expect(currentRegime(null)).toMatchObject({ band: null, bandUsed: null });
     // TRIPWIRE: the newest inference era must match the code. When the band table or the strength formula changes,
     // add an era (cut-over time + version) to reportSources.ts in the same PR, then move this line to it.
-    // 2026-10-06: the owner reverted #1928, so the newest era is the weighted strength on the #1871 bands again.
-    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V1, 'weighted']);
+    // 2026-10-06: the owner reverted #1928 (weighted strength on the #1871 bands again), then the same day split the
+    // bands into early / late blends (R-LOBBY-13): the newest era is `bandsEarlyLate`.
+    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V3, 'earlyLate']);
   });
 
   it('a stamped row is "stamped"; old rows infer from the build first, then the date', () => {
@@ -291,9 +293,13 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
     expect(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-09-29T00:00:00Z' }))).toMatchObject({ basis: 'inferredFromDate', key: 'no bands' });
     expect(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-03T16:00:00Z' }))).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'final', bandsVersion: BANDS_V2 });
     // After the 2026-10-06 revert: weighted on the #1871 bands, the same filter key as the 2026-10-01 era.
-    const again = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-07T00:00:00Z' }));
+    const again = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-06T18:00:00Z' }));
     expect(again).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'weighted', bandsVersion: BANDS_V1 });
     expect(again.key).toBe(resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-02T00:00:00Z' })).key);
+    // After the split bands (R-LOBBY-13): the early / late blend on the split table, a new filter key.
+    const split = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-10-08T00:00:00Z' }));
+    expect(split).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'earlyLate', bandsVersion: BANDS_V3 });
+    expect(split.key).not.toBe(again.key);
     expect(resolveRegime(row({ patch: null, createdAt: null }))).toMatchObject({ basis: 'unknown' });
     // The band itself comes from the row's lobbyPool when the run recorded one.
     const pool = { strengthBand: '0-30', strengthBandUsed: '0-30' } as RunTelemetryRow['lobbyPool'];

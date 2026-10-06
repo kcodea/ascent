@@ -52,15 +52,23 @@ export const FINAL_AT = '2026-10-03T15:34:02Z';
  *  only places old builds that upload late. The pool side flips when the owner runs
  *  2026-10-06-weighted-strength-again.sql, which can lag the client by hours. */
 export const WEIGHTED_AGAIN_AT = '2026-10-06T12:00:00Z';
+/** The split early / late bands (R-LOBBY-13, owner 2026-10-06): the bands filter a per-medal blend of a run's EARLY
+ *  (rounds 1-9) and LATE (10+) ratings, Bronze 0-20 early only, Silver 10-30 at 80% early, Gold 10-50 at 60% early, no
+ *  band from Platinum. APPROXIMATE, like `WEIGHTED_AGAIN_AT`: the PR's expected merge (its exact time was not known
+ *  when this was written); only unstamped rows read it. The pool side switches when the owner runs
+ *  2026-10-06-early-late-strength.sql (until then the client sends the same min/max against the weighted strength). */
+export const EARLY_LATE_AT = '2026-10-07T00:00:00Z';
 
-/** The band table #1871 shipped (`STRENGTH_BANDS_VERSION` at that commit), and the retune #1928 shipped. */
+/** The band table #1871 shipped (`STRENGTH_BANDS_VERSION` at that commit), the retune #1928 shipped, and the split
+ *  early / late table (R-LOBBY-13; `/eN` = the early weight in percent). */
 export const BANDS_V1 = 'B0-30 S10-40 G20-65 P* D10-100 A20-100';
 export const BANDS_V2 = 'B0-30 S10-40 G15-65 P15-100 D25-100 A35-100';
+export const BANDS_V3 = 'B0-20/e100 S10-30/e80 G10-50/e60 P* D* A*';
 
 /** A matchmaking era. `preBands` = no strength bands at all. `bandsWeightedAgain` is the same regime as
  *  `bandsWeighted` (same formula, same bands, so the same filter key); it is its own era only to keep the cut-overs in
  *  date order. */
-export type RegimeEra = 'preBands' | 'bandsAverage' | 'bandsWeighted' | 'bandsFinal' | 'bandsWeightedAgain';
+export type RegimeEra = 'preBands' | 'bandsAverage' | 'bandsWeighted' | 'bandsFinal' | 'bandsWeightedAgain' | 'bandsEarlyLate';
 
 const ERA_REGIME: Record<RegimeEra, { bandsVersion: string | null; strengthFormula: StrengthFormula | null }> = {
   preBands: { bandsVersion: null, strengthFormula: null },
@@ -68,6 +76,7 @@ const ERA_REGIME: Record<RegimeEra, { bandsVersion: string | null; strengthFormu
   bandsWeighted: { bandsVersion: BANDS_V1, strengthFormula: 'weighted' },
   bandsFinal: { bandsVersion: BANDS_V2, strengthFormula: 'final' },
   bandsWeightedAgain: { bandsVersion: BANDS_V1, strengthFormula: 'weighted' },
+  bandsEarlyLate: { bandsVersion: BANDS_V3, strengthFormula: 'earlyLate' },
 };
 
 /**
@@ -132,7 +141,7 @@ export function resolveRegime(row: RegimeRow): ResolvedRegime {
   const at = row.createdAt ? Date.parse(row.createdAt) : NaN;
   if (Number.isFinite(at)) {
     const era: RegimeEra = at < Date.parse(BANDS_AT) ? 'preBands' : at < Date.parse(WEIGHTED_AT) ? 'bandsAverage' : at < Date.parse(FINAL_AT) ? 'bandsWeighted'
-      : at < Date.parse(WEIGHTED_AGAIN_AT) ? 'bandsFinal' : 'bandsWeightedAgain';
+      : at < Date.parse(WEIGHTED_AGAIN_AT) ? 'bandsFinal' : at < Date.parse(EARLY_LATE_AT) ? 'bandsWeightedAgain' : 'bandsEarlyLate';
     return { ...ERA_REGIME[era], ...band, basis: 'inferredFromDate', key: regimeKeyOf(ERA_REGIME[era]) };
   }
   return { bandsVersion: null, strengthFormula: null, ...band, basis: 'unknown', key: UNKNOWN_REGIME };

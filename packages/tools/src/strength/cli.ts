@@ -9,7 +9,10 @@
  *  measure   the distribution of scores, runs per rank band today, and how often each band would need widening.
  *            A run's strength is its round-weighted average ranked among runs (R-LOBBY-12, restored 2026-10-06); the
  *            measure prints the retired final-board percentile (`runFinalStrengthOf`, 2026-10-03 to 2026-10-06)
- *            beside it for comparison.
+ *            beside it for comparison. Since the split bands (R-LOBBY-13, 2026-10-06) it also prints each run's EARLY
+ *            (rounds 1-9) and LATE (10+) ratings, and per medal the runs, players and seats under the 4-per-player cap
+ *            each split band holds (old weighted bands beside them), and the mean early rating of the runs a band
+ *            seats.
  *
  * Nothing here writes to the backend.
  */
@@ -21,7 +24,8 @@ import {
   opponentBoard, sideFromSnapshot, STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
   OPPONENT_POOL, registerOpponentRuns, createRunLobby, resetLobbyDrivers, playableHeroes, strengthBandForDivision,
   runAverageOf, runWeightedAverageOf, runPercentileOf, runFinalStrengthOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
-  bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS,
+  bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS, type RankMedal,
+  earlyLateStrengthOf, rankAmongRuns, runInStrengthBand, matchScoreOf, bandVersionLabel, type RunStrengths,
 } from '@game/sim';
 import { loadLivePool, type LivePool, type LiveRun } from './livePool';
 
@@ -219,9 +223,9 @@ async function measure(): Promise<void> {
   }
   const bandCount = (m: Map<string, number | null>, lo: number, hi: number): number => [...m.values()].filter((v) => typeof v === 'number' && v >= lo && v <= hi).length;
   for (const medal of RANK_MEDALS) {
-    const b = STRENGTH_BANDS[medal];
+    const b = WEIGHTED_BANDS[medal];
     const [lo, hi] = b ? [b.min, b.max] : [0, 100];
-    console.log(`  ${medal} ${fmtBand(b)}: weighted ${bandCount(weighted, lo, hi)} runs, final board ${bandCount(final, lo, hi)} runs`);
+    console.log(`  ${medal} ${fmtBand(b)} (weighted-era bands): weighted ${bandCount(weighted, lo, hi)} runs, final board ${bandCount(final, lo, hi)} runs`);
   }
   // Before / after the round weighting: the runs whose strength moves most, with their per-group means.
   const groupMeans = (key: string): string => {
@@ -253,37 +257,86 @@ round weighting: mean |change| ${(moved.reduce((a, m) => a + Math.abs(m.after - 
     const raws = scored.filter((s) => s.refWave === w).map((s) => s.raw).sort((a, b) => a - b);
     console.log(`  ref wave ${w}: ${raws.length} boards, raw p10 ${raws[Math.floor(raws.length * 0.1)]} median ${raws[Math.floor(raws.length / 2)]} p90 ${raws[Math.floor(raws.length * 0.9)]}, distinct values ${new Set(raws).size}`);
   }
-  // Bands: runs in band per medal, seats fillable under the 4-per-player cap, and the widening a lobby needs.
+  // EARLY / LATE (R-LOBBY-13): each run's rounds 1-9 and 10+ means, ranked among the set's runs (the SQL population:
+  // every pool_runs row of the set with that average).
+  const elAvg = new Map(pool.runs.filter((r) => r.setId === SET).map((r) => [r.key, earlyLateStrengthOf(pctByRun.get(r.key) ?? [])] as const));
+  const earlyRank = rankAmongRuns([...elAvg].map(([k, v]) => [k, v.early] as const));
+  const lateRank = rankAmongRuns([...elAvg].map(([k, v]) => [k, v.late] as const));
+  const ratingsOf = (key: string): RunStrengths => ({ strength: strength.get(key) ?? null, early: earlyRank.get(key) ?? null, late: lateRank.get(key) ?? null });
+  const earlyValues = runs.map((r) => earlyRank.get(r.key)).filter((x): x is number => typeof x === 'number').sort((a, b) => a - b);
+  const lateValues = runs.map((r) => lateRank.get(r.key)).filter((x): x is number => typeof x === 'number').sort((a, b) => a - b);
+  console.log(`\nEARLY rating (rounds 1-9 mean, ranked): ${earlyValues.length} runs, median ${q(0.5, earlyValues)}; LATE rating (rounds 10+): ${lateValues.length} runs (${runs.length - lateValues.length} ended before round 10), median ${q(0.5, lateValues)}`);
+  const corr = (xs: number[], ys: number[]): number => {
+    const n = xs.length; const mx = xs.reduce((a, b) => a + b, 0) / n; const my = ys.reduce((a, b) => a + b, 0) / n;
+    let sxy = 0; let sxx = 0; let syy = 0;
+    for (let i = 0; i < n; i++) { sxy += (xs[i]! - mx) * (ys[i]! - my); sxx += (xs[i]! - mx) ** 2; syy += (ys[i]! - my) ** 2; }
+    return sxy / Math.sqrt(sxx * syy);
+  };
+  const both = runs.filter((r) => typeof earlyRank.get(r.key) === 'number' && typeof lateRank.get(r.key) === 'number');
+  if (both.length > 2) console.log(`correlation EARLY vs LATE over ${both.length} runs: ${corr(both.map((r) => earlyRank.get(r.key)!), both.map((r) => lateRank.get(r.key)!)).toFixed(2)}`);
+
+  // Bands: runs in band per medal, seats fillable under the 4-per-player cap, and the widening a lobby needs. The
+  // split bands (current) first, the weighted-era bands beside them.
   const owners = new Map(runs.map((r) => [r.key, r.userId ? `id:${r.userId}` : `name:${r.author.toLowerCase()}`]));
   const authorOf = new Map(runs.map((r) => [r.key, r.author]));
+  const meanOf = (xs: number[]): string => (xs.length ? (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(1) : '-');
+  console.log('\nSPLIT BANDS (R-LOBBY-13) vs the weighted-era bands: runs in band / players / seats fillable under the cap; mean EARLY rating of the in-band runs');
+  for (const medal of RANK_MEDALS) {
+    const fill = (inBand: typeof runs): { players: number; seats: number } => {
+      const per = new Map<string, number>();
+      for (const r of inBand) per.set(owners.get(r.key)!, (per.get(owners.get(r.key)!) ?? 0) + 1);
+      return { players: per.size, seats: [...per.values()].reduce((a, n) => a + Math.min(MAX_SEATS_PER_PLAYER, n), 0) };
+    };
+    const cur = STRENGTH_BANDS[medal];
+    const old = WEIGHTED_BANDS[medal];
+    const inCur = runs.filter((r) => runInStrengthBand(ratingsOf(r.key), cur));
+    const inOld = runs.filter((r) => inStrengthBand(strength.get(r.key), old));
+    const fc = fill(inCur); const fo = fill(inOld);
+    const early = (rs: typeof runs): string => meanOf(rs.map((r) => earlyRank.get(r.key)).filter((x): x is number => typeof x === 'number'));
+    const late = (rs: typeof runs): string => meanOf(rs.map((r) => lateRank.get(r.key)).filter((x): x is number => typeof x === 'number'));
+    const steps = bandSteps(cur);
+    let widen = 0;
+    for (const [si, b] of steps.entries()) { widen = si; if (fill(runs.filter((r) => runInStrengthBand(ratingsOf(r.key), b))).seats >= 7) break; }
+    console.log(`  ${medal.padEnd(9)} split ${bandVersionLabel(cur).padEnd(10)}: ${inCur.length} runs, ${fc.players} players, ${fc.seats} seats, mean early ${early(inCur)} late ${late(inCur)}, widenings to seat 7: ${widen}`
+      + `   | weighted ${fmtBand(old).padEnd(8)}: ${inOld.length} runs, ${fo.seats} seats, mean early ${early(inOld)} late ${late(inOld)}`);
+  }
   for (const medal of RANK_MEDALS) {
     const band = STRENGTH_BANDS[medal];
     const steps = bandSteps(band);
     const report: string[] = [];
     for (const [si, b] of steps.entries()) {
-      const inBand = runs.filter((r) => inStrengthBand(strength.get(r.key), b));
+      const inBand = runs.filter((r) => runInStrengthBand(ratingsOf(r.key), b));
       const perOwner = new Map<string, number>();
       for (const r of inBand) perOwner.set(owners.get(r.key)!, (perOwner.get(owners.get(r.key)!) ?? 0) + 1);
       const fillable = [...perOwner.values()].reduce((a, n) => a + Math.min(MAX_SEATS_PER_PLAYER, n), 0);
       const authors = new Map<string, number>();
       for (const r of inBand) authors.set(authorOf.get(r.key)!, (authors.get(authorOf.get(r.key)!) ?? 0) + 1);
-      report.push(`step ${si} ${fmtBand(b)}: ${inBand.length} runs, ${perOwner.size} players, fillable seats ${fillable} [${[...authors.entries()].sort((a, c) => c[1] - a[1]).map(([a, n]) => `${a} ${n}`).join(', ')}]`);
+      report.push(`step ${si} ${b ? bandVersionLabel(b) : 'uncapped'}: ${inBand.length} runs, ${perOwner.size} players, fillable seats ${fillable} [${[...authors.entries()].sort((a, c) => c[1] - a[1]).map(([a, n]) => `${a} ${n}`).join(', ')}]`);
       if (fillable >= 7) break;
     }
     console.log(`\n${medal}:\n  ${report.join('\n  ')}`);
   }
-  simulateLobbies(pool, strength);
+  simulateLobbies(pool, strength, earlyRank, lateRank);
 }
 
 const fmtBand = (b: StrengthBand | null): string => (b ? `${b.min}-${b.max}` : 'uncapped');
 
+/** The weighted-era band table (#1871, restored 2026-10-06, replaced the same day by the split bands): printed beside
+ *  the split bands for comparison. */
+const WEIGHTED_BANDS: Readonly<Record<RankMedal, StrengthBand | null>> = {
+  Bronze: { min: 0, max: 30 }, Silver: { min: 10, max: 40 }, Gold: { min: 20, max: 65 }, Platinum: null, Diamond: { min: 10, max: 100 }, Ascendant: { min: 20, max: 100 },
+};
+
 /** Real lobbies over the live pool with every run's strength stamped: how often seat selection widens, per medal,
  *  with everyone's runs eligible, your own included (owner 2026-09-30). */
-function simulateLobbies(pool: LivePool, strength: Map<string, number | null>): void {
+function simulateLobbies(pool: LivePool, strength: Map<string, number | null>, early: Map<string, number | null>, late: Map<string, number | null>): void {
   OPPONENT_POOL.length = 0;
+  const num = (m: Map<string, number | null>, k: string): number | undefined => { const v = m.get(k); return typeof v === 'number' ? v : undefined; };
   const runs = eligibleRuns(pool).map((r) => r.boards.map((b) => ({
     ...b.snapshot, wave: b.wave, remote: true as const, ...(r.userId ? { ownerId: r.userId } : {}),
-    ...(typeof strength.get(r.key) === 'number' ? { runStrength: strength.get(r.key)! } : {}),
+    ...(num(strength, r.key) !== undefined ? { runStrength: num(strength, r.key)! } : {}),
+    ...(num(early, r.key) !== undefined ? { runStrengthEarly: num(early, r.key)! } : {}),
+    ...(num(late, r.key) !== undefined ? { runStrengthLate: num(late, r.key)! } : {}),
   })));
   registerOpponentRuns(runs);
   const heroes = playableHeroes().map((h) => h.id);
@@ -294,6 +347,8 @@ function simulateLobbies(pool: LivePool, strength: Map<string, number | null>): 
     for (const [medal, division] of [['Bronze', 0], ['Silver', 3], ['Gold', 6], ['Platinum', 9], ['Diamond', 12], ['Ascendant', 15]] as const) {
       const hist = new Map<number, number>();
       let generated = 0; let meanStrength = 0; let n = 0; let top = 0; let bottom = 0; let tables = 0; let ll = 0; let oz = 0;
+      let earlySum = 0; let earlyN = 0; let scoreSum = 0; let scoreN = 0;
+      const band = strengthBandForDivision(division);
       const LOBBIES = 200;
       for (let i = 0; i < LOBBIES; i++) {
         const lobby = createRunLobby(1000 + i, heroes[i % heroes.length]!, {}, SET, { strengthBand: strengthBandForDivision(division) });
@@ -304,9 +359,15 @@ function simulateLobbies(pool: LivePool, strength: Map<string, number | null>): 
         for (const st of lobby.seats) { if (st.runKey?.startsWith('LazerLemon|')) ll++; if (st.runKey?.startsWith('Orangez|')) oz++; }
         const seated: number[] = [];
         for (const s of lobby.seats) { const v = s.runKey ? strength.get(s.runKey) : null; if (typeof v === 'number') { meanStrength += v; n++; seated.push(v); } }
+        for (const s of lobby.seats) {
+          if (!s.runKey) continue;
+          const e = early.get(s.runKey); if (typeof e === 'number') { earlySum += e; earlyN++; }
+          const sc = matchScoreOf({ strength: strength.get(s.runKey), early: e, late: late.get(s.runKey) }, band?.earlyWeight);
+          if (typeof sc === 'number') { scoreSum += sc; scoreN++; }
+        }
         if (seated.length) { top += Math.max(...seated); bottom += Math.min(...seated); tables++; }
       }
-      out.push(`${medal}: widenings ${[...hist.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}x${v}`).join(' ')}, generated seats/lobby ${(generated / LOBBIES).toFixed(2)}, mean seat strength ${(meanStrength / Math.max(1, n)).toFixed(1)}, strongest seat ${(top / Math.max(1, tables)).toFixed(1)}, weakest seat ${(bottom / Math.max(1, tables)).toFixed(1)}, LazerLemon seats ${(ll / LOBBIES).toFixed(2)}, Orangez seats ${(oz / LOBBIES).toFixed(2)}`);
+      out.push(`${medal}: widenings ${[...hist.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}x${v}`).join(' ')}, generated seats/lobby ${(generated / LOBBIES).toFixed(2)}, mean seat strength ${(meanStrength / Math.max(1, n)).toFixed(1)}, mean seat EARLY ${(earlySum / Math.max(1, earlyN)).toFixed(1)}, mean seat match score ${(scoreSum / Math.max(1, scoreN)).toFixed(1)}, strongest seat ${(top / Math.max(1, tables)).toFixed(1)}, weakest seat ${(bottom / Math.max(1, tables)).toFixed(1)}, LazerLemon seats ${(ll / LOBBIES).toFixed(2)}, Orangez seats ${(oz / LOBBIES).toFixed(2)}`);
     }
     console.log(`\nlobbies as ${who} (200 per medal):\n  ${out.join('\n  ')}`);
   }

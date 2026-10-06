@@ -84,6 +84,12 @@ export interface BoardSnapshot {
    *  the shared pool (board strength, R-LOBBY-09, 2026-09-30). Read by seat selection for the matchmaking band and by
    *  Match details. Never part of an upload (a local capture has none); absent = unscored. */
   runStrength?: number;
+  /** The RUN's EARLY and LATE ratings (1-100, `pool_runs.strength_early` / `strength_late`: its rounds 1-9 and 10+
+   *  board averages, each ranked among runs), stamped like `runStrength` (split bands, R-LOBBY-13, 2026-10-06). Read
+   *  only by seat selection for the matchmaking band. Absent = unknown (a server or cache from before the early/late
+   *  SQL; the band then reads `runStrength`) or unscored. */
+  runStrengthEarly?: number;
+  runStrengthLate?: number;
   /** The skins its owner wore (skins v1, 2026-09-28): the run's recorded `cosmetics`, SCOPED to this board's
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
    *  matchmaking. Absent on every board from before skins = default art. */

@@ -82,16 +82,36 @@ medal + division — see *Ranked ladder* below).
     instead (#1928); the owner reverted it on 2026-10-06 (*"matchmaking algorithm -> backtrack to the weighted
     version"*) after a live-pool audit showed it barely tracked how strong a run's boards were in rounds 3-7. Numbers
     frozen in match history keep the value they were frozen with.
-  - **Bands by medal** (every division of a medal shares it): Bronze **0-30**, Silver **10-40**, Gold **20-65**,
-    Platinum **uncapped** (average opponent ~50), Diamond **10-100** (~55), Ascendant **20-100** (~60) (owner
-    2026-09-30: *"maybe plat should be 50 and then diamond is like 55 average and ascendant is 60 average? i dont want every game to just be insanely sweaty and unwinnable"*;
-    from 2026-10-03 to 2026-10-06 they were retuned for the final-board scale to Gold 15-65, Platinum 15-100, Diamond
-    25-100, Ascendant 35-100, and went back with the weighted strength). A rated lobby's recorded seats come only from runs inside the band (the
-    server samples inside it, and seat selection filters to it), still whole runs, still at most 4 seats per player
-    (your own runs included, under the same cap). A run with **no score yet counts as inside every band**. When the band cannot fill the table
-    it **widens by 10 on each capped side**, one step at a time (each step logged to the pool telemetry), until it is
-    uncapped; for Diamond and Ascendant, which only have a floor, that means the floor drops 10 a step. Only then do
-    generated seats fill the rest. Practice and the tutorial have no band.
+  - **Early and late ratings** (owner 2026-10-06, R-LOBBY-13: *"perhaps we have multiple ratings like the weighted
+    system / and we lean into those different ratings depending on the rank / ... early is 1-9 / late is 10+"*). Each
+    run also has an **EARLY** rating (the plain mean of its board percentiles in rounds **1-9**) and a **LATE** rating
+    (rounds **10+**), each rounded half up and then ranked among the set's runs by the same rule as its strength
+    (`pool_runs.strength_early` / `strength_late`, averages in `strength_early_avg` / `strength_late_avg`). A run with
+    no scored board at round 10+ has no LATE rating. These two are for **matchmaking only**: the "Game strength" players
+    see stays the weighted number above.
+  - **Bands by medal** (every division of a medal shares it; owner 2026-10-06: *"for bronze we should have a near 100%
+    focus on making sure that the early board strength stat is 0-20 or w/e / then silver is like 10-30 with an 80%
+    weight / etc / then gold is 10-50 with 60% weight"*, then *"Blend, then band"* and *"Open from Platinum"*). A
+    run's **score** for a medal is **weight x EARLY + (1 - weight) x LATE** (EARLY alone when it has no LATE), and the
+    band filters that score:
+
+    | Medal | Early weight | Band |
+    |---|---|---|
+    | Bronze | 100% | 0-20 |
+    | Silver | 80% | 10-30 |
+    | Gold | 60% | 10-50 |
+    | Platinum, Diamond, Ascendant | - | none (anything goes) |
+
+    Before 2026-10-06 the bands filtered the weighted strength directly: Bronze 0-30, Silver 10-40, Gold 20-65,
+    Platinum uncapped, Diamond 10-100, Ascendant 20-100 (owner 2026-09-30: *"maybe plat should be 50 and then diamond
+    is like 55 average and ascendant is 60 average?"*), retuned from 2026-10-03 to 2026-10-06 for the final-board scale
+    to Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100. A rated lobby's recorded seats come only from runs
+    inside the band (the server samples inside it, and seat selection filters to it), still whole runs, still at most
+    4 seats per player (your own runs included, under the same cap). A run with **no score yet counts as inside every
+    band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
+    logged to the pool telemetry), until it is uncapped. Only then do generated seats fill the rest. Practice and the
+    tutorial have no band. Until the owner runs `supabase/migrations/2026-10-06-early-late-strength.sql` the pool has no
+    early / late ratings, and the same bands filter the weighted strength instead.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
     and upload with their scores. The pool's strength table is read whole, every page (R-NET-01). When the game ends,
     each round's board percentile and the run's strength (its round-weighted average ranked against the pool's run

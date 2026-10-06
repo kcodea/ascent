@@ -16,7 +16,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'ward',
     topic: 'keywords',
     q: 'What does Ward do?',
-    a: "It **blocks the first hit** the minion would take (the damage is completely ignored), and then the Ward breaks. If you've played Hearthstone, it's Divine Shield.",
+    a: "It **blocks the first hit** the minion would take (the damage is completely ignored), and then the Ward breaks.",
     aliases: ['divine shield', 'bubble', 'shield', 'block'],
     seeAlso: ['resilient-ward'],
     covers: [{ keyword: 'ward', fp: '7855e365' }],

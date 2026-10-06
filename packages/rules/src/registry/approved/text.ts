@@ -423,10 +423,34 @@ export const TEXT_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'fix/gastrid-dwarf-shout-prompt: packages/ui/src/Recruit.tsx (.targetprompt)' },
     ],
     currentBehaviour:
-      'Conforms in the UI\'s JSX as of 2026-10-06: the targeted-Shout prompt read "Choose a minion for X\'s Battlecry". '
-      + 'PARTIAL as a general check: the test scans rendered JSX text runs in packages/ui; strings assembled in .ts '
-      + 'modules are not scanned.',
+      'Conforms as of 2026-10-06: the targeted-Shout prompt reads "Choose a minion for X\'s Shout". Now subsumed by '
+      + 'R-TEXT-KEYWORD-RETIRE-01, whose test scans both rendered JSX text runs and the Rules wiki prose for every '
+      + 'retired keyword name.',
     example: 'Playing Baby Gastrid shows "Choose a minion for Baby Gastrid\'s Shout".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/shoutTerminology.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-TEXT-KEYWORD-RETIRE-01',
+    title: 'On-screen text uses the ASCENT keyword names, never the retired classic ones',
+    statement:
+      'Every player-facing string shows a keyword by its ASCENT name, never its retired classic name: '
+      + 'Shout (not Battlecry), Echo (not Deathrattle), Ward (not Divine Shield), Flurry (not Windfury), '
+      + 'Execute (not Venomous), Rise (not Reborn). Card and rune bodies are auto-renamed by terms.ts (renameTerms); '
+      + 'this rule covers the surfaces that bypass it — hardcoded JSX (prompts/labels/tooltips) and the Rules wiki '
+      + 'prose. Retired names survive only in code identifiers, comments, and the lower-case search aliases that let '
+      + 'a player who types the classic word still find the right entry.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06', quote: 'please scan for any outward facing instances of Battlecry and replace it with shout. same goes for Deathrattle to replace with Echo, Reborn to replace with Rise, Windfury to replace with Flurry, and Divine Shield to replace with Ward. Also Poison to replace with Execute' },
+      { kind: 'fix-pr', ref: 'fix/retire-hearthstone-wiki-terms: packages/ui/src/rulesWiki/{keywords,kwCombat,kwTriggers}.ts (dropped the Hearthstone cross-references)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-06. Card/rune text was already renamed at display time by terms.ts; the last visible '
+      + 'leaks were the Rules wiki\'s "if you know Hearthstone, it\'s X" onboarding lines, now removed (the lower-case '
+      + 'search aliases are kept). "Poison" is not a player-facing keyword — the classic name was Venomous (renamed to '
+      + 'Execute); "poison" persists only as an internal event/effect id.',
+    example: 'The Rules wiki entry for Ward reads "…and then the Ward breaks." with no mention of Divine Shield.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/shoutTerminology.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
 ];

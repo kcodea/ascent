@@ -2552,7 +2552,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS skin rarities); packages/tools/src/wire-art.ts (SKIN_RARITY_DIRS)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-01; the Ancient folder since 2026-10-02. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    currentBehaviour: 'Conforms, built 2026-10-01; the Ancient folder since 2026-10-02. Since 2026-10-06 the disk check tolerates a partial art folder (a master not on this machine is skipped; one that is present must still sit in exactly one rarity folder at its rarity, and every file there must be wired). Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {
@@ -4234,13 +4234,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 52 frames (10 Common, 8 Rare, 18 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 53 frames (10 Common, 8 Rare, 19 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 52 crate items, one per master in '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 53 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
       + 'Wood, Dark Scale, Burnished, Sterling, Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, '
       + 'Shard, Prism; Epic Aura, Amethyst, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, '
-      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom, Cream, Crystal, Disco, Econ, Snare; Legendary Gilt Scale, Dark Cloud, '
+      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom, Cream, Crystal, Disco, Econ, Snare, Cosmic Glass; Legendary Gilt Scale, Dark Cloud, '
       + 'Venom, Fire, Reaper, Water, Stained Glass, Wind, Chromatic Scale; Ancient (2026-10-02) Bonds, Death, Fortune, '
       + 'Genesis, Time, War, Reflective (a frame\x27s display name '
       + 'is the bare name, never "<name> Frame" or "<name> Portrait" (owner 2026-10-01); ids keep the master '
@@ -4257,6 +4257,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 6, Kevin)', quote: 'i added more frames, please put them in the game' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (frames batch 7)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (frames batch 8, Mike)', quote: 'i added a skin just to test to make sure this process works. lets wire it up' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
@@ -4309,7 +4310,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'The folder is the frame\x27s rarity: every frame\x27s assets.master in packages/progression/src/cosmetics.ts names '
       + 'its folder, and its catalog rarity equals that folder. npm run art:frames reads the master at that path. Where the '
       + 'art folder exists (the owner\x27s machine; CI skips this half) each master must sit in exactly one rarity folder '
-      + 'and every PNG in the rarity folders must be wired. On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
+      + 'and every PNG in the rarity folders must be wired; a machine holding only SOME masters checks only the ones present '
+      + '(2026-10-06: the shipped art already lives in the repo as webp, so a partial folder is normal). On 2026-10-01 the folders held 21 frames (1 Common, 7 Rare, 8 '
       + 'Epic, 5 Legendary); the first 13 already matched their folders, and 8 were added at their folder rarity. Batch 3 '
       + '(the same day) added 10 more at their folder rarity: Ale, Ruby, Steel, Wood, Dark Scale and Gilt Scale (Common), '
       + 'Magic (Rare), and Dark Cloud, Venom and Wedding (Epic), 31 in all. Batch 4 (Mike, the same day; his masters are loose '
@@ -4335,7 +4337,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'War and Gilt Scale: Bonds (0.715) and Death (0.625 at y 0.457) are ordinary rings now, and Genesis\x27s crescent '
       + 'curls along the bottom, so its hole is centred left-right but sits high (y 0.390), allowed by name in the frame '
       + 'geometry test (with Wedding and Simple Ring). Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired: on '
-      + '2026-10-03 they were still byte-identical (md5) to CracklingRuby.png and BlueEnergy.png.',
+      + '2026-10-03 they were still byte-identical (md5) to CracklingRuby.png and BlueEnergy.png. Batch 8 (Mike, 2026-10-06) '
+      + 'added Cosmic Glass (Epic; master \x27Epic/Cosmic Glass Frame.png\x27, the first frame master with spaces in its name, '
+      + 'which the catalog test now allows as skins do): 53 in all (10 Common, 8 Rare, 19 Epic, 9 Legendary, 7 Ancient).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4346,7 +4350,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items); packages/tools/src/wire-portrait-frames.ts' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01. Reaches the database on the next deploy of progression-inventory (the catalog sync).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/portraitFrame/portraitFrameCosmetic.test.tsx'], lastVerifiedAt: '2026-10-03' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/portraitFrame/portraitFrameCosmetic.test.tsx'], lastVerifiedAt: '2026-10-06' },
   },
   {
     id: 'R-PROG-RARITY-01',

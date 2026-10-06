@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-06',
     changes: [
       {
+        category: 'Systems',
+        text: 'A new Epic portrait frame in crates: Cosmic Glass.',
+      },
+      {
         category: 'Balance',
         text: 'Bronze ranked games now use the Gauntlet-style shop timer: no clock until you spend 20 Gold in a turn.',
         details: [

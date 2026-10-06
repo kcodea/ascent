@@ -47,6 +47,12 @@
     "holeCx": 0.5034,
     "holeCy": 0.4891
   },
+  "frame_cosmic_glass": {
+    "aspect": 1,
+    "holeD": 0.8222,
+    "holeCx": 0.4985,
+    "holeCy": 0.4881
+  },
   "frame_crackling_ruby": {
     "aspect": 1,
     "holeD": 0.7912,

@@ -7,8 +7,9 @@
  *  backfill  score every pool board against the committed reference and write a SQL file of UPDATEs
  *            (supabase/backfill/2026-09-30-board-strength-backfill.sql) for the OWNER to run. Never writes to the DB.
  *  measure   the distribution of scores, runs per rank band today, and how often each band would need widening.
- *            Since 2026-10-03 a run's strength is its FINAL board's percentile (`runFinalStrengthOf`); the measure
- *            prints the retired weighted-and-ranked number beside it as "before".
+ *            A run's strength is its round-weighted average ranked among runs (R-LOBBY-12, restored 2026-10-06); the
+ *            measure prints the retired final-board percentile (`runFinalStrengthOf`, 2026-10-03 to 2026-10-06)
+ *            beside it for comparison.
  *
  * Nothing here writes to the backend.
  */
@@ -203,22 +204,24 @@ async function measure(): Promise<void> {
     return { averages, strength };
   };
   const plain = strengthBy((rs) => runAverageOf(rs.map((r) => r.value)));
+  // THE RUN'S STRENGTH (R-LOBBY-12, restored 2026-10-06, owner: "matchmaking algorithm -> backtrack to the weighted
+  // version"): the round-weighted average ranked among runs. `final` is the retired 2026-10-03 to 2026-10-06 rule (the
+  // final board's percentile, used directly), printed beside it for comparison.
   const { averages, strength: weighted } = strengthBy((rs) => runWeightedAverageOf(rs));
-  // THE RUN'S STRENGTH since 2026-10-03: its final board's percentile, used directly (owner: "simply caring about the
-  // snapshots final round board strength"). `weighted` (the 2026-09-30 number, ranked among runs) is the "before".
-  const strength = new Map(runs.map((r) => [r.key, runFinalStrengthOf(pctByRun.get(r.key) ?? [])] as const));
+  const strength = weighted;
+  const final = new Map(runs.map((r) => [r.key, runFinalStrengthOf(pctByRun.get(r.key) ?? [])] as const));
   const WATCH = [/^Rooks\|albus\|1018031655$/, /^Orangez\|/];
-  console.log('\nfinal board (after) vs weighted average ranked among runs (before):');
+  console.log('\nweighted average ranked among runs (current) vs final board (retired 2026-10-06):');
   for (const r of runs.filter((x) => WATCH.some((re) => re.test(x.key)))) {
     const rs = pctByRun.get(r.key) ?? [];
     const last = rs.length ? Math.max(...rs.map((x) => x.round)) : null;
-    console.log(`  ${r.key}: before ${weighted.get(r.key)} -> after ${strength.get(r.key)} (last round ${last})`);
+    console.log(`  ${r.key}: weighted ${weighted.get(r.key)}, final board ${final.get(r.key)} (last round ${last})`);
   }
   const bandCount = (m: Map<string, number | null>, lo: number, hi: number): number => [...m.values()].filter((v) => typeof v === 'number' && v >= lo && v <= hi).length;
   for (const medal of RANK_MEDALS) {
     const b = STRENGTH_BANDS[medal];
     const [lo, hi] = b ? [b.min, b.max] : [0, 100];
-    console.log(`  ${medal} ${fmtBand(b)}: before ${bandCount(weighted, lo, hi)} runs, after ${bandCount(strength, lo, hi)} runs`);
+    console.log(`  ${medal} ${fmtBand(b)}: weighted ${bandCount(weighted, lo, hi)} runs, final board ${bandCount(final, lo, hi)} runs`);
   }
   // Before / after the round weighting: the runs whose strength moves most, with their per-group means.
   const groupMeans = (key: string): string => {
@@ -242,7 +245,7 @@ round weighting: mean |change| ${(moved.reduce((a, m) => a + Math.abs(m.after - 
   const q = (p: number, xs = values): number => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;
   console.log(`\neligible runs ${runs.length}, scored ${values.length}`);
   console.log(`run AVERAGE of board percentiles: min ${avgValues[0]} p10 ${q(0.1, avgValues)} median ${q(0.5, avgValues)} p90 ${q(0.9, avgValues)} max ${avgValues[avgValues.length - 1]}`);
-  console.log(`run strength (FINAL board percentile): min ${values[0]} p10 ${q(0.1)} p25 ${q(0.25)} median ${q(0.5)} p75 ${q(0.75)} p90 ${q(0.9)} max ${values[values.length - 1]}`);
+  console.log(`run strength (weighted average ranked among runs): min ${values[0]} p10 ${q(0.1)} p25 ${q(0.25)} median ${q(0.5)} p75 ${q(0.75)} p90 ${q(0.9)} max ${values[values.length - 1]}`);
   const deciles = Array.from({ length: 10 }, (_, i) => values.filter((v) => v > i * 10 && v <= (i + 1) * 10).length);
   console.log('runs per decile (1-10, 11-20, ... 91-100):', deciles.join(' '));
   // Raw win rate by wave (the per-board spread the percentile sits on).

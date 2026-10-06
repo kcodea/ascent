@@ -8,15 +8,17 @@ import { MAX_SEATS_PER_PLAYER } from './snapshotSeats';
  * early ranks meet weaker boards and are easier to climb. Every division of a medal shares the medal's band.
  *
  * The upper ranks (owner 2026-09-30: "maybe plat should be 50 and then diamond is like 55 average and ascendant is 60
- * average? i dont want every game to just be insanely sweaty and unwinnable"). RETUNED 2026-10-03 for the final-board
- * strength scale (R-LOBBY-12), owner: "make gold 15-65, platinum 15-100, diamond 25-100, and ascendant 35-100".
- * Platinum, Diamond and Ascendant only have a FLOOR, so widening lowers the floor by 10 a step.
+ * average? i dont want every game to just be insanely sweaty and unwinnable"): Platinum draws from everyone (average
+ * ~50), Diamond from 10-100 (average ~55), Ascendant from 20-100 (average ~60). Those only have a FLOOR, so widening
+ * lowers the floor by 10 a step. (From 2026-10-03 to 2026-10-06 the bands were retuned for the final-board strength
+ * scale -- Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 -- and went back with the weighted strength
+ * when the owner reverted it, R-LOBBY-12.)
  *
  * - A run with no strength yet (not scored, not backfilled) is IN every band, so nothing changes until the
  *   scores exist.
  * - When a band cannot fill the table, it widens by `BAND_WIDEN_STEP` on each capped side, step by step, until it
  *   is uncapped; only then do generated seats fill what is left (`bandSteps`).
- * - Unrated modes (Practice, the tutorial) have no band.
+ * - Unrated modes (Practice, the tutorial) and Platinum have no band.
  *
  * Shaped for a second pool later (owner: "dont worry about the ancients and plat separation just yet"): the band
  * is one input to selection, next to the pool id the server sample takes (`pool_runs_sample(p_pool)`).
@@ -26,14 +28,14 @@ export interface StrengthBand { min: number; max: number }
 export const STRENGTH_BANDS: Readonly<Record<RankMedal, StrengthBand | null>> = Object.freeze({
   Bronze: { min: 0, max: 30 },
   Silver: { min: 10, max: 40 },
-  Gold: { min: 15, max: 65 },
-  Platinum: { min: 15, max: 100 },
-  Diamond: { min: 25, max: 100 },
-  Ascendant: { min: 35, max: 100 },
+  Gold: { min: 20, max: 65 },
+  Platinum: null,
+  Diamond: { min: 10, max: 100 },
+  Ascendant: { min: 20, max: 100 },
 });
 
 /** The band TABLE as a version string, read off `STRENGTH_BANDS` itself (2026-10-03, the Balance Report regime
- *  stamp): `"B0-30 S10-40 G15-65 P15-100 D25-100 A35-100"` today (`*` = an uncapped null band). Any threshold change changes the
+ *  stamp): `"B0-30 S10-40 G20-65 P* D10-100 A20-100"` today (`*` = an uncapped null band). Any threshold change changes the
  *  string, so a run stamped with it names the exact bands it was matched under, with no version number to forget. */
 export const STRENGTH_BANDS_VERSION: string = (Object.entries(STRENGTH_BANDS) as [RankMedal, StrengthBand | null][])
   .map(([medal, b]) => `${medal.charAt(0)}${b ? `${b.min}-${b.max}` : '*'}`)

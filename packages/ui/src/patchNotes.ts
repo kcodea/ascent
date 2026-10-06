@@ -56,6 +56,29 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-06',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Game strength looks at your whole game again, not just your final board.',
+        details: [
+          'Every round counts again, with later rounds counting more: rounds 1-5 count least, rounds 6-9 more, round 10 onward the most.',
+          'Your game is then compared with everyone else\'s games.',
+          'Games you already played keep the number they showed.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Ranked opponents are picked the way they were before October 3.',
+        details: [
+          'Ranked matchmaking uses the same whole-game number, so your opponents\' boards should match your rank more closely, round by round.',
+          'Gold meets games between 20 and 65, Platinum meets everyone, Diamond 10 and up, Ascendant 20 and up.',
+          'Bronze and Silver are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-05',
     changes: [
       {

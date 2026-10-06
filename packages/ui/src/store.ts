@@ -91,7 +91,7 @@ import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced,
 import { perfMonitor } from './perfMonitor';
 import { boardStrengthScorer, lobbyBandFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { runStrengthFromScores, type StrengthScore } from '@game/sim';
-import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
@@ -1663,9 +1663,10 @@ function commitResolvedAction(
         : Promise.resolve(new Map<number, StrengthScore>() as ReadonlyMap<number, StrengthScore>);
       setTimeout(() => { void scoring.then((strengthScores) => {
         boardStrengthScorer().forget(strengthSeed);
-        // The frozen numbers: each round's percentile against the pool's boards as it stands now, and the game's
-        // strength: its FINAL board's percentile (owner 2026-10-03, the same number the matchmaking bands use).
-        const boardStrength = lobbyBoards ? runStrengthFromScores(strengthScores, strengthHistogram()) : null;
+        // The frozen numbers: each round's percentile against the pool's boards as it stands now, and the run's
+        // strength (their round-weighted average ranked among the pool's runs; R-LOBBY-12, restored 2026-10-06, the
+        // same number the matchmaking bands use).
+        const boardStrength = lobbyBoards ? runStrengthFromScores(strengthScores, strengthHistogram(), runStrengthHistogram()) : null;
         const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author, next.cosmetics);
         set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
         void uploadBoards(fresh.map((b) => {

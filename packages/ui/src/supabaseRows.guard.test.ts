@@ -176,4 +176,19 @@ describe('the board-strength histogram arrives whole (the 2026-10-03 bug)', () =
     const rpc = () => ({ range: async () => (++n === 1 ? { data: Array.from({ length: 1000 }, () => ({ wave: 1, raw: 0.5, n: 1 })), error: null } : { data: null, error: { message: 'timeout' } }) });
     expect(await fetchStrengthHistogramRows(rpc)).toBeNull();
   });
+
+  it('the run-average histogram (read again since 2026-10-06, R-LOBBY-12) is paged too, for the asked set', async () => {
+    const { fetchRunStrengthHistogramRows, runHistogramOf } = await import('./remoteBoards');
+    const rows = Array.from({ length: 100 }, (_, i) => ({ avg: i + 1, n: 2 }));
+    const asked: Array<[string, Record<string, unknown>, number, number]> = [];
+    const rpc = (fn: string, args: Record<string, unknown>) => ({
+      range: async (from: number, to: number) => { asked.push([fn, args, from, to]); return { data: rows.slice(from, to + 1), error: null }; },
+    });
+    const got = await fetchRunStrengthHistogramRows(rpc, 'set2');
+    expect(asked).toEqual([['run_strength_histogram', { p_set: 'set2' }, 0, 999]]);
+    expect(runHistogramOf(got!)).toHaveLength(100);
+    expect(runHistogramOf([{ avg: '40', n: '3' }, { avg: 'x', n: 1 }, { avg: 50, n: 0 }])).toEqual([{ avg: 40, count: 3 }]);
+    const failing = () => ({ range: async () => ({ data: null, error: { message: 'timeout' } }) });
+    expect(await fetchRunStrengthHistogramRows(failing, 'set2')).toBeNull();
+  });
 });

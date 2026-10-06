@@ -518,6 +518,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_disco', 'Disco', 'epic', 'Epic/Disco.png'),
   portraitFrame('frame_econ', 'Econ', 'epic', 'Epic/Econ.png'),
   portraitFrame('frame_snare', 'Snare', 'epic', 'Epic/Snare.png'),
+  // Portrait frames batch 8 (Mike 2026-10-06: "i added a skin just to test to make sure this process works. lets wire
+  // it up"): the first frame Mike wired from his own art folder. Rarity = the Portraits rarity folder.
+  portraitFrame('frame_cosmic_glass', 'Cosmic Glass', 'epic', 'Epic/Cosmic Glass Frame.png'),
   portraitFrame('frame_chromatic_dragonscale', 'Chromatic Scale', 'legendary', 'Legendary/ChromaticDragonscale.png'),
   // The first ANCIENT frames (owner 2026-10-02: "i added a new rarity -> Ancient"): rarity = the Portraits/Ancient folder.
   portraitFrame('frame_bonds', 'Bonds', 'ancient', 'Ancient/Bonds.png'),

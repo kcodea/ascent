@@ -13,7 +13,12 @@ const regimeV3 = { bandsVersion: V3, strengthFormula: 'earlyLate', band: '0-20',
 
 describe('newcomer top-4 rate (R-TELEMETRY-RANK-01)', () => {
   it('the developer list is a named constant with both developers', () => {
-    expect(DEVELOPER_AUTHORS).toEqual(['LazerLemon', 'Orangez']);
+    expect(DEVELOPER_AUTHORS).toEqual(['LazerLemon', 'Orangez', 'LEMON']);
+  });
+
+  it('LEMON is a developer handle on ANY account key (owner 2026-10-06: "LEMON is mine, add it to the list")', () => {
+    const rows = [row({ author: 'LEMON', player_key: 'k-lemon-2' }), row({ author: 'lemon#77', player_key: 'k-lemon-3' }), row({ author: 'Newbie', player_key: 'k-lemon-2' }), row({ author: 'Lemonade', player_key: 'k-other' })];
+    expect(rows.map(developerFilter(rows))).toEqual(['name', 'name', 'account', null]);
   });
 
   it('only rated lobby games with a placement count', () => {

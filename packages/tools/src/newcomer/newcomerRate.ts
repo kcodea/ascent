@@ -16,9 +16,10 @@
  */
 import { RANK_MEDALS, resolveRegime, wilson, parseRankAtStart, type RankMedal, type LobbyPoolTelemetry, type RunRegime } from '@game/sim';
 
-/** The developers' handles (owner 2026-10-06: "developers excluded"). Matched case-insensitively on the handle
+/** The developers' handles (owner 2026-10-06: "developers excluded"; LEMON added the same day: "LEMON is mine, add it
+ *  to the list"). Matched case-insensitively on the handle
  *  before any `#tag`, and widened to every account key those handles uploaded under. */
-export const DEVELOPER_AUTHORS: readonly string[] = Object.freeze(['LazerLemon', 'Orangez']);
+export const DEVELOPER_AUTHORS: readonly string[] = Object.freeze(['LazerLemon', 'Orangez', 'LEMON']);
 
 /** The owner's newcomer target (top-4 rate in Bronze). */
 export const NEWCOMER_TOP4_TARGET = 0.4;

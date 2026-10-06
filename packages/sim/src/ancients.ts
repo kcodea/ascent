@@ -304,10 +304,32 @@
  *                                 to hand. Hand full, or no Swap this turn: nothing. (Time)
  *  · `swapExchangeStats`          `ancientAfterSwap`: the incoming minion gains the outgoing minion's stats and the
  *                                 outgoing (held) body gains the incoming's, both read before either gain. (Bonds)
+ *  NADJA (Goldspring, `gainMaxMana`, 3 Gold, untargeted; owner pairings 2026-10-06). Goldspring = "Gain 1 maximum Gold."
+ *  ("max Gold" is `maxGoldBonus` everywhere below: the Gold Font / Shop License channel, above the natural 10, NO cap.)
+ *  · `avengeMaxGold`              Goldspring turns passive (`power`). A hero Avenge (N) on ONE running count of friendly
+ *                                 deaths across BOTH phases (`nadjaDeaths`, the Gorr / Xerox Death shape): SHOP deaths tick it
+ *                                 at `fireOnFriendDeath` (`ancientNadjaShopDeath`, +gold max Gold right then); COMBAT carries
+ *                                 it in (`QuestCombatMods.ancientMaxGoldAvenge`, a `maxGold` event per fire, Rune of Fury
+ *                                 repeats) and the fires come home as `CombatCarryBacks.ancientMaxGoldFires`, paid at settle
+ *                                 (`ancientAfterCombat`). (Death)
+ *  · (Fortune)                    no primitive: the pairing's `power` override alone (`cost: 2`, `usesPerTurn: 2`, Fibbsy's
+ *                                 per-turn budget, `heroUsesThisTurn`). Each use still gives its own +1 max Gold.
+ *  · `socRallyPerGoldSpent`       COMBAT: `QuestCombatMods.ancientSocRally`, Start of Combat: the left-most living minion
+ *                                 gains Rally and a grafted `rallyBuff` (+attack x the Gold spent in the Shop turn that just
+ *                                 ended, `goldSpentThisTurn`, the Baby Gastrid read; every friendly minion, itself included;
+ *                                 `fixed`: a Gilded body gives the same). Combat body only: it is gone after the fight. (War)
+ *  · `goldspringGrantsMinion`     the reducer's `gainMaxMana` branch, after the +max Gold: `count` random minions (the run's
+ *                                 pool, your Shop tier or lower, your types: Haven Drake's pick) to hand, per Goldspring
+ *                                 fire (Rune of Wishbone / Empowerment repeat it with the Gold). (Genesis)
+ *  · `eotMaxGold`                 Robin's Time primitive, reused: Goldspring turns passive (`power`) and the virtual
+ *                                 recurring End-of-Turn entry (`ancientRobinMaxGold`) gives +gold max Gold. (Time)
+ *  · `spendGoldBuffsRandom`       the reducer's `spendGold` (THE Gold-spend chokepoint: buys, Refreshes, upgrades, hero
+ *                                 powers, runes): every spend of 1+ Gold (one transaction, never per Gold; Rune of Bulk
+ *                                 Order's un-`per` rule) gives `count` random board minions +a/+h, permanently. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
-import { makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
+import { inRunTribes, makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { handCap, mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
@@ -559,7 +581,16 @@ export type AncientEffect =
   /** End of Turn: a plain copy of the last minion Swap sent to the Shop this turn. */
   | { do: 'eotCopySwapped' }
   /** The two minions Swap exchanges gain each other's stats. */
-  | { do: 'swapExchangeStats' };
+  | { do: 'swapExchangeStats' }
+  // ── Nadja (Goldspring) ──
+  /** Avenge (`every`), Shop AND combat (one running count): gain `gold` max Gold, permanently. */
+  | { do: 'avengeMaxGold'; every: number; gold: number }
+  /** Start of Combat: your left-most minion gains "Rally: give your minions +`attack` Attack per Gold spent this turn." */
+  | { do: 'socRallyPerGoldSpent'; attack: number }
+  /** Goldspring also gives `count` random minions (your Shop tier or lower) to hand. */
+  | { do: 'goldspringGrantsMinion'; count: number }
+  /** Whenever you spend Gold (each spend, never per Gold), `count` random friendly minions gain +a/+h, permanently. */
+  | { do: 'spendGoldBuffsRandom'; count: number; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -587,7 +618,10 @@ export interface AncientPairing {
    *  `{ayTimeN}` / `{ayTimeA}` / `{ayTimeH}` = Enchanted cards bought this turn and the End-of-Turn grant they give now.
    *  Darah: `{dPummelNow}` / `{dPummelEvery}` =
    *  War's live Pummel progress (live through a fight) and its X; `{dCharges}` = War's banked Swap charges (plus those
-   *  gained so far in the fight on screen); `{dSwapped}` = Time's minion swapped away this turn. */
+   *  gained so far in the fight on screen); `{dSwapped}` = Time's minion swapped away this turn.
+   *  Nadja: `{nDeathLeft}` / `{nDeathGold}` =
+   *  Death's deaths still needed and the max Gold it has given (both live through a fight); `{nUsesLeft}` = Fortune's
+   *  Goldspring uses left this turn; `{nSpent}` / `{nRally}` = War's Gold spent this turn and the Attack its Rally gives. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -597,7 +631,7 @@ export interface AncientPairing {
 }
 
 /** The hero-power fields a pairing may override. */
-export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame'>>;
+export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>>;
 
 /** Shown for a hero × Ancient with no written pairing. Has no effect. */
 export const ANCIENT_NOT_WRITTEN = 'Not written yet.';
@@ -1268,6 +1302,48 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'swapExchangeStats' }],
     },
   },
+  // NADJA (owner pairings 2026-10-06, quoted above each entry). Goldspring = "Gain 1 maximum Gold." (3 Gold, once per turn).
+  nadja: {
+    death: {
+      // "Goldspring becomes: Avenge (6): Gain 1 max gold."
+      offerText: 'Goldspring becomes passive. **Avenge (6):** gain **+1 max Gold**.',
+      powerText: '**Avenge (6):** gain **+1 max Gold** (**{nDeathLeft}** more to go). **+{nDeathGold}** so far.',
+      power: { passive: true },
+      effects: [{ do: 'avengeMaxGold', every: 6, gold: 1 }],
+    },
+    fortune: {
+      // "Goldspring can be used twice per turn and costs 2 gold."
+      offerText: 'Goldspring costs **2 Gold** and can be used **twice** each turn.',
+      powerText: '{base} Use it **twice** each turn (**{nUsesLeft}** left this turn).',
+      power: { cost: 2, usesPerTurn: 2 },
+      effects: [],
+    },
+    war: {
+      // "Start of Combat: Your left-most minion gains Rally: give your minions +3 attack per gold spent this turn."
+      offerText: '**Start of Combat:** your left-most minion gains "**Rally:** give your minions **+3 Attack** for each Gold you spent this turn."',
+      powerText: '{base} **Start of Combat:** your left-most minion gains "**Rally:** give your minions **+3 Attack** for each Gold you spent this turn." (**{nSpent}** spent: **+{nRally}** Attack.)',
+      effects: [{ do: 'socRallyPerGoldSpent', attack: 3 }],
+    },
+    genesis: {
+      // "Goldspring also grants a random minion."
+      offerText: 'Goldspring also gets you a random minion.',
+      powerText: '{base} Also get a random minion.',
+      effects: [{ do: 'goldspringGrantsMinion', count: 1 }],
+    },
+    time: {
+      // "Goldspring becomes: End of Turn: Gain +1 max gold."
+      offerText: 'Goldspring becomes passive. **End of Turn:** gain **+1 max Gold**.',
+      powerText: '**End of Turn:** gain **+1 max Gold**. **+{maxGold}** so far.',
+      power: { passive: true },
+      effects: [{ do: 'eotMaxGold', gold: 1 }],
+    },
+    bonds: {
+      // "Give 2 random minions +2/+4 whenever you spend gold."
+      offerText: 'Whenever you spend Gold, give **2** random friendly minions **+2/+4**.',
+      powerText: '{base} Whenever you spend Gold, give **2** random friendly minions **+2/+4**.',
+      effects: [{ do: 'spendGoldBuffsRandom', count: 2, attack: 2, health: 4 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1431,6 +1507,10 @@ export interface AncientsState {
   /** DARAH × TIME: the LAST friendly minion Swap sent to the Shop on `wave` (its cardId). Ticked while Ancients are on,
    *  whatever is picked, so a Swap made before the pick that turn counts. A new wave reads nothing. */
   darahSwapped?: { wave: number; cardId: string };
+  /** NADJA × DEATH: friendly deaths since the last max Gold (Shop + combat), the running Avenge (6) count. */
+  nadjaDeaths?: number;
+  /** NADJA × DEATH: max Gold its Avenge has given this run (printed live). */
+  nadjaDeathGold?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1631,6 +1711,11 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{dPummelEvery}', String(dp?.every ?? 0))
     .replace('{dCharges}', String(ancientSwapCharges(state) + Math.max(0, combat.swapCharges ?? 0)))
     .replace('{dSwapped}', darahSwappedText(state));
+  // NADJA: Death's countdown + max Gold so far (both live through a fight), Fortune's uses left, War's live Rally.
+  text = text.replace('{nDeathLeft}', String(ancientNadjaAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .replace('{nDeathGold}', String(nadjaDeathGoldLive(state, combat.friendlyDeaths ?? 0)))
+    .replace('{nUsesLeft}', String(Math.max(0, (a?.powerOverride?.usesPerTurn ?? 1) - (state.heroUsesThisTurn ?? 0))))
+    .replace('{nSpent}', String(Math.max(0, state.goldSpentThisTurn ?? 0))).replace('{nRally}', String(ancientNadjaRallyAttack(state)));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1687,7 +1772,7 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
   return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths)
-    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths);
+    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths) ?? ancientNadjaAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1832,6 +1917,12 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   // `questTrigger`, banked at settle).
   const dw = effectOf(state, 'pummelSwapCharge');
   if (dw) out.ancientPummelCharge = { every: dw.every, dealt: live(state)?.pummelDealt ?? 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: ANCIENTS.war.name };
+  // NADJA: Death's running Avenge (carried in; each fire +max Gold, paid at settle); War's Start-of-Combat Rally, its
+  // Attack fixed for the fight (the Shop turn that just ended is over: nothing more is spent mid-combat).
+  const nd = effectOf(state, 'avengeMaxGold');
+  if (nd) out.ancientMaxGoldAvenge = { every: nd.every, tick: live(state)?.nadjaDeaths ?? 0, gold: nd.gold, flag: ANCIENT_MAX_GOLD_AVENGE_FLAG, label: ANCIENTS.death.name };
+  const rallyAtk = ancientNadjaRallyAttack(state);
+  if (rallyAtk > 0) out.ancientSocRally = { attack: rallyAtk, label: ANCIENTS.war.name };
   return out;
 }
 
@@ -1949,6 +2040,14 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // GORR × DEATH: the fight's friendly deaths join the running Avenge count (its copies already flew to hand mid-fight).
   const gd = effectOf(state, 'avengeCopyLastTurnBuy');
   if (gd) a.gorrDeaths = ((a.gorrDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, gd.every);
+  // NADJA × DEATH: the fight's deaths join the running Avenge count, and its fires (each shown live as a `maxGold`
+  // event) pay their max Gold now, for next turn's Gold.
+  const nd = effectOf(state, 'avengeMaxGold');
+  if (nd) {
+    a.nadjaDeaths = ((a.nadjaDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, nd.every);
+    const fires = result.playerAncientMaxGoldFires ?? 0;
+    if (fires > 0 && nd.gold > 0) nadjaGainMaxGold(state, a, fires * nd.gold, false);
+  }
   // HUNCH x DEATH: bank the improvement this fight's Avenges granted (the spell power itself settles through
   // `playerSpellPower`, like every combat spell-power gain).
   const imp = result.playerAncientSpellImproved;
@@ -3336,5 +3435,80 @@ export function ancientRunDarahEotCopy(state: RunState): void {
   if (!ancientDarahEotCopyLive(state)) return;
   const id = darahSwappedThisTurn(state);
   if (id) gorrCopyToHand(state, id);
+}
+
+// ── Nadja (Goldspring) hooks ─────────────────────────────────────────────────────────────────────────────────
+/** The `questTrigger` flag Death's combat Avenge emits once per fire (beside its `maxGold` event). */
+export const ANCIENT_MAX_GOLD_AVENGE_FLAG = 'ancientMaxGoldAvenge';
+
+/** NADJA: +`gold` max Gold, permanently (`maxGoldBonus`, Goldspring's own channel: above the natural 10, no cap), and the
+ *  Death tally the power prints. `shopFx`: a Shop gain bumps the Gold pill's coin burst (Hunch Fortune's presentation
+ *  counter; a combat gain already floated its `maxGold` event mid-fight). */
+function nadjaGainMaxGold(state: RunState, a: AncientsState, gold: number, shopFx: boolean): void {
+  if (gold <= 0) return;
+  state.maxGoldBonus = (state.maxGoldBonus ?? 0) + gold;
+  a.nadjaDeathGold = (a.nadjaDeathGold ?? 0) + gold;
+  if (shopFx) a.bookGoldFxSeq = (a.bookGoldFxSeq ?? 0) + 1;
+}
+
+/** NADJA × DEATH: friendly deaths still needed for the next max Gold (the carried count plus `deaths` so far in the fight
+ *  on screen). Null when Death is not picked. */
+export function ancientNadjaAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeMaxGold') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.nadjaDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/** NADJA × DEATH: max Gold the Avenge has given, LIVE through a fight (R-REALTIME-01): the banked total plus what this
+ *  fight's fires have already earned (`deaths` so far on screen, Rune of Fury's extra fires, the simulator's own rule). */
+function nadjaDeathGoldLive(state: RunState, deaths: number): number {
+  const a = live(state);
+  const e = a ? effectOf(state, 'avengeMaxGold') : undefined;
+  if (!a || !e) return 0;
+  const every = Math.max(1, e.every);
+  const crossed = Math.floor(((a.nadjaDeaths ?? 0) + Math.max(0, deaths)) / every);
+  const fury = state.questFlags?.runeFury ? Math.max(1, state.flagCopies?.runeFury ?? 1) : 0;
+  return (a.nadjaDeathGold ?? 0) + crossed * (1 + fury) * e.gold;
+}
+
+/** NADJA × DEATH, Shop half: a friendly minion died in the Shop (`fireOnFriendDeath`, every Shop death path once; a sale
+ *  never). The running count ticks; every `every`th death gives +gold max Gold right then. */
+export function ancientNadjaShopDeath(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'avengeMaxGold') : undefined;
+  if (!a || !e) return;
+  a.nadjaDeaths = ((a.nadjaDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.nadjaDeaths === 0) nadjaGainMaxGold(state, a, e.gold, true);
+}
+
+/** NADJA × WAR: the Attack the Start-of-Combat Rally gives right now (+attack per Gold spent this turn; 0 when War is not
+ *  picked or nothing was spent). In combat this is the Shop turn that just ended (the per-turn reset runs after it). */
+export function ancientNadjaRallyAttack(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'socRallyPerGoldSpent') : undefined;
+  return e ? e.attack * Math.max(0, state.goldSpentThisTurn ?? 0) : 0;
+}
+
+/** NADJA × GENESIS: Goldspring fired `reps` times (the reducer's `gainMaxMana` branch, after the max Gold). Each fire also
+ *  gets `count` random minions to hand: the run's pool, your Shop tier or lower, your types (Haven Drake's pick), through
+ *  `conjureToHand` (the run cursor, the pool take, the `onGainCard` watchers). Hand full: none. */
+export function ancientAfterGoldspring(state: RunState, reps: number): void {
+  const e = live(state) ? effectOf(state, 'goldspringGrantsMinion') : undefined;
+  if (!e || e.count <= 0) return;
+  const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier && inRunTribes(c, state.tribes));
+  conjureToHand(state, pool, e.count * Math.max(1, reps));
+}
+
+/** NADJA × BONDS: Gold was spent (the reducer's `spendGold`, every spend path once). One spend of 1+ Gold (never per Gold)
+ *  gives `count` distinct random board minions +a/+h, permanently, seeded off the run cursor. Empty board: nothing. */
+export function ancientOnSpendGold(state: RunState, amount: number): void {
+  const e = live(state) && amount > 0 ? effectOf(state, 'spendGoldBuffsRandom') : undefined;
+  if (!e || state.board.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const picks = [...state.board];
+  const chosen: BoardCard[] = [];
+  for (let i = 0; i < e.count && picks.length > 0; i++) chosen.push(picks.splice(rng.int(picks.length), 1)[0]!);
+  state.rngCursor = rng.state();
+  captureBuffFx(state, undefined, 'spell', () => { for (const c of chosen) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
 }
 

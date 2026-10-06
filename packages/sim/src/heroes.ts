@@ -1064,7 +1064,7 @@ interface PowerCarrier {
    *  it an untargeted 2 Gold power). Stamped at the pick (`AncientsState.powerOverride`); read only when the run has
    *  Ancients on, and never over an adopted power (the pairing belongs to the hero's own power). */
   ancientsEnabled?: boolean;
-  ancients?: { powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame'>> };
+  ancients?: { powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>> };
 }
 
 /** The power(s) this run is wielding RIGHT NOW — one for everyone, one adopted for Mimic, two for a

@@ -1324,4 +1324,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-ANCDARAH-01',
+    title: 'Darah × Ancient of Death: Swapping a minion with an Echo fires its Echo first',
+    statement:
+      'With the Ancient of Death, when Swap targets a friendly minion that has an Echo, that Echo fires in the Shop (the Shop Echo ritual: Echo multipliers and the Echo tally apply) while the minion is still on the board, then the swap happens. Its summons stay on the board. A swap that cannot happen (no Shop minion, a Gilded target) does nothing at all, the Echo included, and the power stays ready.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Death: Swapping an Echo minion triggers its effect first.' },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts swapEchoFirst / ancientBeforeSwap; packages/sim/src/reducer.ts heroPower 'displace' branch" },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). "Its effect" read as its Echo, fired once: pending owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCDARAH-02',
+    title: 'Darah × Ancient of Fortune: the minion Swap sends to the Shop buys back for 0 Gold',
+    statement:
+      "With the Ancient of Fortune, the friendly minion Swap sends to the Shop (a held offer) costs 0 Gold to buy back, intact. The price is one function (heldOfferPrice) shared by the buy and the Shop's cost coin. Swap itself was already free.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Fortune: Swapped minions are free.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts swapFree / ancientAfterSwap / ancientSwapFree; packages/sim/src/reducer.ts heldOfferPrice; packages/ui/src/Recruit.tsx shop cost coin' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. "Swapped minions" read as the minion sent to the Shop: pending owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCDARAH-03',
+    title: 'Darah × Ancient of War: a once-per-combat hero Pummel (140) banks a charge of Swap',
+    statement:
+      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Rune of the Heavy Hand's share). The first multiple of 140 crossed in a fight banks ONE charge of Swap, shown live mid-fight; later crossings that fight are spent. A charge is one more Swap once the turn's own is used, kept across turns until used. The power prints the Pummel progress and the banked charges, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'War: Pummel (140): Get a charge of Swap. (Once per combat.)' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts pummelSwapCharge / ancientSwapCharges; packages/core/src/combat/simulate.ts noteAncientPummel ancientPummelCharge; packages/sim/src/reducer.ts swapChargeUse' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. Charges carrying across turns: pending owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCDARAH-04',
+    title: 'Darah × Ancient of Genesis: Swap also gives a plain copy of the minion it brings in',
+    statement:
+      'With the Ancient of Genesis, every Swap also gives a plain copy of the Shop minion it brought onto the board, hand first, the board when the hand is full. The copy can complete a triple.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Genesis: Swap grants a copy of the minion swapped with.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts swapCopyIncoming / ancientAfterSwap' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. "The minion swapped with" read as the Shop minion brought in, copy PLAIN: pending owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCDARAH-05',
+    title: 'Darah × Ancient of Time: End of Turn gives a plain copy of the minion Swap sent away this turn',
+    statement:
+      'With the Ancient of Time, End of Turn (its own beat) gives a plain copy of the friendly minion Swap sent to the Shop this turn (the last one, when there were two), to hand. No Swap this turn, or a full hand: nothing. The power prints which minion it will copy.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Time: End of Turn: Get a copy of the minion you swapped.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotCopySwapped / ancientRunDarahEotCopy; packages/sim/src/recruit.ts recurringEotEffects' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. Plain copy, hand only, this turn only: pending owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCDARAH-06',
+    title: "Darah × Ancient of Bonds: the two minions Swap trades gain each other's stats",
+    statement:
+      "With the Ancient of Bonds, after a Swap the minion brought onto the board gains the Attack and Health of the minion sent away, and the minion sent away (held in the Shop, kept when bought back) gains the Attack and Health of the one brought in. Both read their stats before either gain, and the gains are added, not exchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Bonds: Swapped minions gain each others stats.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts swapExchangeStats / ancientAfterSwap' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. Added (not exchanged): pending owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

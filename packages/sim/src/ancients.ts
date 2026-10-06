@@ -283,6 +283,27 @@
  *                                 Enchanted card bought this turn (`ayseBuys`), one itemized step per card. (Time)
  *  · `luckySeatBuffsEdges`        each Lucky Seat trigger: your left-most and right-most minions gain +a/+h, permanently
  *                                 (once when they are the same minion; Rune of Wishbone fires it again). (Bonds)
+ *  DARAH (Swap, `displace`; owner pairings 2026-10-06). Swap = "Swap a friendly minion with a random minion in the Shop."
+ *  (free, once per turn). It resolves in the reducer's `displace` branch through `swapWithTavern` (shared with the
+ *  Displacement spell, which NONE of these pairings hear: they are Swap's). Two hooks wrap it: `ancientBeforeSwap` (the
+ *  friendly minion is still on the board) and `ancientAfterSwap` (the incoming minion is on the board, the friendly one
+ *  is the HELD Shop offer, found by `swapFxBoardUid` / `swapFxShopUid`). A failed swap discards the whole action, so
+ *  nothing a hook did survives it.
+ *  · `swapEchoFirst`              `ancientBeforeSwap`: a friendly minion with an Echo fires it (the Shop Echo ritual,
+ *                                 `fireShopEchoOf`: Echo multipliers and the Echo tally apply) before it leaves. (Death)
+ *  · `swapFree`                   `ancientAfterSwap` stamps the held offer `ShopCard.swapFree`; `heldOfferPrice` (the
+ *                                 reducer's held re-buy and the UI coin) reads it as 0 Gold. (Fortune)
+ *  · `pummelSwapCharge`           COMBAT: `QuestCombatMods.ancientPummelCharge`, a HERO-level Pummel on Albus' lifetime
+ *                                 tally (`pummelDealt`), once per combat: the payout is a `questTrigger` with
+ *                                 `ANCIENT_SWAP_CHARGE_FLAG` (live), banked at settle into `AncientsState.darahCharges`.
+ *                                 The reducer's `swapChargeUse` spends one once the turn's own Swap is gone. (War)
+ *  · `swapCopyIncoming`           `ancientAfterSwap`: a plain copy of the minion Swap brought in, hand first, the board
+ *                                 when the hand is full (`grantMinionToHandOrBoard`; the branch's `checkTriples`). (Genesis)
+ *  · `eotCopySwapped`             `ancientAfterSwap` records the LAST minion sent to the Shop this turn (`darahSwapped`);
+ *                                 a virtual recurring End-of-Turn entry (`ancientDarahEotCopy`) gives a plain copy of it
+ *                                 to hand. Hand full, or no Swap this turn: nothing. (Time)
+ *  · `swapExchangeStats`          `ancientAfterSwap`: the incoming minion gains the outgoing minion's stats and the
+ *                                 outgoing (held) body gains the incoming's, both read before either gain. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -525,7 +546,20 @@ export type AncientEffect =
   /** End of Turn: your minions gain +a/+h for every Enchanted card bought this turn. */
   | { do: 'eotBuffPerEnchantedBuy'; attack: number; health: number }
   /** Each Lucky Seat trigger gives your left-most and right-most minions +a/+h. */
-  | { do: 'luckySeatBuffsEdges'; attack: number; health: number };
+  | { do: 'luckySeatBuffsEdges'; attack: number; health: number }
+  // ── Darah (Swap) ──
+  /** Swapping a friendly minion with an Echo fires its Echo first (the Shop Echo ritual). */
+  | { do: 'swapEchoFirst' }
+  /** The friendly minion Swap sends to the Shop costs 0 Gold to buy back. */
+  | { do: 'swapFree' }
+  /** Hero-level Pummel (`every`), once per combat: bank a charge of Swap (one more use, kept until used). */
+  | { do: 'pummelSwapCharge'; every: number }
+  /** Swap also gives a plain copy of the minion it brings in from the Shop. */
+  | { do: 'swapCopyIncoming' }
+  /** End of Turn: a plain copy of the last minion Swap sent to the Shop this turn. */
+  | { do: 'eotCopySwapped' }
+  /** The two minions Swap exchanges gain each other's stats. */
+  | { do: 'swapExchangeStats' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -550,7 +584,10 @@ export interface AncientPairing {
    *  given; `{bGildPlays}` / `{bWarA}` / `{bWarH}` = Gilded minions played and War's Start-of-Combat grant right now;
    *  `{bTier}` = the Shop tier Genesis' Discover draws from; `{bTimeCard}` = the minion Time copies (empty before).
    *  Ayse: `{ayWarGain}` = War's live +X/+X;
-   *  `{ayTimeN}` / `{ayTimeA}` / `{ayTimeH}` = Enchanted cards bought this turn and the End-of-Turn grant they give now. */
+   *  `{ayTimeN}` / `{ayTimeA}` / `{ayTimeH}` = Enchanted cards bought this turn and the End-of-Turn grant they give now.
+   *  Darah: `{dPummelNow}` / `{dPummelEvery}` =
+   *  War's live Pummel progress (live through a fight) and its X; `{dCharges}` = War's banked Swap charges (plus those
+   *  gained so far in the fight on screen); `{dSwapped}` = Time's minion swapped away this turn. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -1190,6 +1227,47 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'luckySeatBuffsEdges', attack: 5, health: 6 }],
     },
   },
+  // DARAH (owner pairings 2026-10-06, quoted above each entry). Swap = "Swap a friendly minion with a random minion in the
+  // Shop." (free, once per turn). "The minion you swap" is the friendly one Swap sends to the Shop; "the minion swapped
+  // with" is the Shop minion it brings in.
+  darah: {
+    death: {
+      // "Swapping an Echo minion triggers its effect first."
+      offerText: 'Swapping a minion with an **Echo** triggers its **Echo** first.',
+      powerText: '{base} If it has an **Echo**, its **Echo** triggers first.',
+      effects: [{ do: 'swapEchoFirst' }],
+    },
+    fortune: {
+      // "Swapped minions are free."
+      offerText: 'Minions you Swap into the Shop are free to buy back.',
+      powerText: '{base} The minion you send to the Shop costs **0 Gold** to buy back.',
+      effects: [{ do: 'swapFree' }],
+    },
+    war: {
+      // "Pummel (140): Get a charge of Swap. (Once per combat.)"
+      offerText: '**Pummel (140):** get a charge of Swap. Once per combat. Counts damage dealt by all your minions. Each charge is one more Swap, kept until used.',
+      powerText: '{base} **Pummel (140):** get a charge of Swap. Once per combat. Counts damage dealt by all your minions (**{dPummelNow}/{dPummelEvery}**). Each charge is one more Swap (**{dCharges}** banked).',
+      effects: [{ do: 'pummelSwapCharge', every: 140 }],
+    },
+    genesis: {
+      // "Swap grants a copy of the minion swapped with."
+      offerText: 'Swap also gets you a plain copy of the minion it brings in from the Shop.',
+      powerText: '{base} You also get a plain copy of the minion it brings in.',
+      effects: [{ do: 'swapCopyIncoming' }],
+    },
+    time: {
+      // "End of Turn: Get a copy of the minion you swapped."
+      offerText: '**End of Turn:** get a plain copy of the minion you sent to the Shop with Swap this turn.',
+      powerText: '{base} **End of Turn:** get a plain copy of the minion you sent to the Shop this turn.{dSwapped}',
+      effects: [{ do: 'eotCopySwapped' }],
+    },
+    bonds: {
+      // "Swapped minions gain each others stats."
+      offerText: "The two minions Swap trades gain each other's stats.",
+      powerText: "{base} The two minions gain each other's stats.",
+      effects: [{ do: 'swapExchangeStats' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1348,6 +1426,11 @@ export interface AncientsState {
   ayseWindow?: string[];
   /** AYSE × WAR: the live +X/+X the next Enchanted minion bought gains (set at the pick, improved after each trigger). */
   ayseWarGain?: number;
+  /** DARAH × WAR: banked Swap charges (each = one more Swap once the turn's own is spent). Kept across turns until used. */
+  darahCharges?: number;
+  /** DARAH × TIME: the LAST friendly minion Swap sent to the Shop on `wave` (its cardId). Ticked while Ancients are on,
+   *  whatever is picked, so a Swap made before the pick that turn counts. A new wave reads nothing. */
+  darahSwapped?: { wave: number; cardId: string };
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1466,6 +1549,9 @@ export interface AncientPowerLive {
   /** TRADESMAN × WAR: the Rally graft's fires SO FAR in the fight on screen (the replay's `questTrigger` events for
    *  `ANCIENT_RALLY_GOLD_FLAG`, one per fire); the text multiplies by the pairing's Gold. */
   rallyFires?: number;
+  /** DARAH × WAR: Swap charges the fight on screen has gained SO FAR (the replay's `questTrigger` events for
+   *  `ANCIENT_SWAP_CHARGE_FLAG`), added to the banked count so the readout ticks with the payout. */
+  swapCharges?: number;
 }
 
 /** The resolved hero-power text, or undefined when no pairing is active (the caller keeps its base text). */
@@ -1539,6 +1625,12 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   const ayT = effectOf(state, 'eotBuffPerEnchantedBuy');
   text = text.split('{ayWarGain}').join(String(ancientAyseWarGain(state)))
     .replace('{ayTimeN}', String(ayN)).replace('{ayTimeA}', String((ayT?.attack ?? 0) * ayN)).replace('{ayTimeH}', String((ayT?.health ?? 0) * ayN));
+  // DARAH: War's Pummel progress (live through a fight) + banked charges (plus the fight's so far), Time's swapped minion.
+  const dp = effectOf(state, 'pummelSwapCharge');
+  text = text.replace('{dPummelNow}', String(dp ? ((a?.pummelDealt ?? 0) + (combat.friendlyDamage ?? 0)) % Math.max(1, dp.every) : 0))
+    .replace('{dPummelEvery}', String(dp?.every ?? 0))
+    .replace('{dCharges}', String(ancientSwapCharges(state) + Math.max(0, combat.swapCharges ?? 0)))
+    .replace('{dSwapped}', darahSwappedText(state));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1736,6 +1828,10 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const gw = effectOf(state, 'pummelCopyWarband');
   if (gw) out.ancientPummelCopy = { every: gw.every, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
   Object.assign(out, bramCombatMods(state));
+  // DARAH × WAR: a once-per-combat hero Pummel on the same lifetime tally; each payout is a Swap charge (a flagged
+  // `questTrigger`, banked at settle).
+  const dw = effectOf(state, 'pummelSwapCharge');
+  if (dw) out.ancientPummelCharge = { every: dw.every, dealt: live(state)?.pummelDealt ?? 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: ANCIENTS.war.name };
   return out;
 }
 
@@ -1844,7 +1940,12 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // RISEN × TIME: the count the next Start of Turn pays on.
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
-  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  // DARAH × WAR: the Swap charge the fight's Pummel paid (one flag per payout, already shown live) joins the bank.
+  if (effectOf(state, 'pummelSwapCharge')) {
+    const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
+    if (got > 0) a.darahCharges = (a.darahCharges ?? 0) + got;
+  }
   // GORR × DEATH: the fight's friendly deaths join the running Avenge count (its copies already flew to hand mid-fight).
   const gd = effectOf(state, 'avengeCopyLastTurnBuy');
   if (gd) a.gorrDeaths = ((a.gorrDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, gd.every);
@@ -3141,5 +3242,99 @@ export function ancientRunAyseTime(state: RunState, apply: (run: () => void) => 
   if (!e || n <= 0 || state.board.length === 0) return;
   const minions = [...state.board];
   for (let i = 0; i < n; i++) apply(() => { for (const c of minions) addBuff(c, ANCIENTS.time.name, e.attack, e.health); });
+}
+
+// ── Darah (Swap) hooks ───────────────────────────────────────────────────────────────────────────────────────
+/** The `questTrigger` flag War's combat Pummel emits once per Swap charge (the replay + settle count them). */
+export const ANCIENT_SWAP_CHARGE_FLAG = 'ancientSwapCharge';
+
+/** DARAH × WAR: banked Swap charges (0 unless the pairing is live). */
+export function ancientSwapCharges(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number {
+  const s = state as RunState;
+  return live(s) && effectOf(s, 'pummelSwapCharge') ? Math.max(0, live(s)?.darahCharges ?? 0) : 0;
+}
+
+/** DARAH × WAR: a Swap past the turn's own use spends one banked charge. */
+export function ancientSpendSwapCharge(state: RunState): void {
+  const a = live(state);
+  if (a && (a.darahCharges ?? 0) > 0) a.darahCharges = a.darahCharges! - 1;
+}
+
+/**
+ * DARAH × WAR: the Swaps available right now = the turn's own (while unspent) + the banked charges + `gained` (charges
+ * gained so far in the fight on screen). Shown in the power's red uses badge (Frank's) only when it is 2 or more; null =
+ * no badge (War not picked, or a single use needs none).
+ */
+export function ancientSwapUsesBadge(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'heroReady'>, gained = 0): number | null {
+  if (!effectOf(state as RunState, 'pummelSwapCharge')) return null;
+  const uses = (state.heroReady ? 1 : 0) + ancientSwapCharges(state) + Math.max(0, gained);
+  return uses >= 2 ? uses : null;
+}
+
+/** DARAH × FORTUNE: does this held offer (a minion Swap sent to the Shop) buy back for 0 Gold? */
+export function ancientSwapFree(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>, offer: Pick<ShopCard, 'swapFree' | 'held'>): boolean {
+  return !!offer.held && !!offer.swapFree && !!live(state as RunState) && !!effectOf(state as RunState, 'swapFree');
+}
+
+/**
+ * Swap is about to resolve on `card` (the reducer's `displace` branch, before `swapWithTavern`). DEATH: a minion with an
+ * Echo fires it now, through the Shop Echo ritual (multipliers, the Echo tally), while it is still on the board, so its
+ * summons land beside it. A swap that then fails discards the whole action.
+ */
+export function ancientBeforeSwap(state: RunState, card: BoardCard): void {
+  if (!live(state) || !effectOf(state, 'swapEchoFirst')) return;
+  if (!state.board.includes(card) || !instanceEffects(card).some((e) => e.on === 'onDeath')) return;
+  captureBuffFx(state, card, 'minion', () => fireShopEchoOf(state, card));
+}
+
+/**
+ * Swap just resolved (`swapWithTavern` returned true): `swapFxBoardUid` is the minion it brought in, `swapFxShopUid` the
+ * held offer carrying the friendly minion it sent away. TIME records the minion sent away (always, while Ancients are on);
+ * BONDS gives each the other's stats (read before either gain); FORTUNE stamps the held offer free; GENESIS gives a plain
+ * copy of the minion brought in.
+ */
+export function ancientAfterSwap(state: RunState): void {
+  const a = live(state);
+  if (!a) return;
+  const incoming = state.board.find((c) => c.uid === state.swapFxBoardUid);
+  const offer = state.shop.find((o) => o.uid === state.swapFxShopUid);
+  const held = offer?.held;
+  if (held) a.darahSwapped = { wave: state.wave, cardId: held.cardId };
+  if (effectOf(state, 'swapExchangeStats') && incoming && held) {
+    const inA = Math.max(0, incoming.attack), inH = Math.max(0, incoming.health);
+    const outA = Math.max(0, held.attack), outH = Math.max(0, held.health);
+    if (outA > 0 || outH > 0) captureBuffFx(state, undefined, 'spell', () => addBuff(incoming, ANCIENTS.bonds.name, outA, outH));
+    if (inA > 0 || inH > 0) addBuff(held, ANCIENTS.bonds.name, inA, inH);
+  }
+  if (offer && held && effectOf(state, 'swapFree')) offer.swapFree = true;
+  if (incoming && effectOf(state, 'swapCopyIncoming')) {
+    const def = CARD_INDEX[incoming.cardId];
+    if (def && !def.spell) grantMinionToHandOrBoard(state, def, false);
+  }
+}
+
+/** DARAH × TIME: the minion Swap sent away this turn (its cardId), else undefined. */
+function darahSwappedThisTurn(state: RunState): string | undefined {
+  const sw = live(state)?.darahSwapped;
+  return sw && sw.wave === state.wave ? sw.cardId : undefined;
+}
+
+/** DARAH × TIME: the live line the power prints (which minion End of Turn will copy). */
+function darahSwappedText(state: RunState): string {
+  if (!live(state) || !effectOf(state, 'eotCopySwapped')) return '';
+  const id = darahSwappedThisTurn(state);
+  return id ? ` This turn: **${CARD_INDEX[id]?.name ?? id}**.` : ' Nothing swapped this turn.';
+}
+
+/** DARAH × TIME: is the End-of-Turn copy live (the `ancientDarahEotCopy` recurring entry)? */
+export function ancientDarahEotCopyLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotCopySwapped');
+}
+
+/** DARAH × TIME: End of Turn, a plain copy of the minion Swap sent away this turn, to hand (hand full / no Swap: none). */
+export function ancientRunDarahEotCopy(state: RunState): void {
+  if (!ancientDarahEotCopyLive(state)) return;
+  const id = darahSwappedThisTurn(state);
+  if (id) gorrCopyToHand(state, id);
 }
 

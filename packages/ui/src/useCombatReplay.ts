@@ -45,7 +45,7 @@ import { canPlayDefs, playDef } from './fx/playDef';
 import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
-import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, isRuneBuffSource } from '@game/sim';
+import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
@@ -3305,6 +3305,7 @@ export function useCombatReplay(
       friendlyDeaths: 0,
       freeRefreshes: 0,
       rallyFires: 0,
+      swapCharges: 0,
     };
     // Friendly damage landed so far (Albus × War's hero Pummel readout): a `dmg` whose dealer is a player body. The
     // player's bodies are the starting board plus every player-side summon replayed so far.
@@ -3319,6 +3320,7 @@ export function useCombatReplay(
         else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CLEARANCE_STACK_FLAG) d.clearanceStacks += 1;
         else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_REFRESH_AVENGE_FLAG) d.freeRefreshes += 1;
         else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG) d.rallyFires += 1;
+        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG) d.swapCharges += 1;
         else if (e.type === 'death' && e.side === 'player' && !e.rise) d.friendlyDeaths += 1;
       }
     }

@@ -1989,6 +1989,12 @@ export interface QuestCombatMods {
    *  played this game." The grant, already multiplied by the run's Gilded-play count (fixed for the fight: nothing is
    *  played mid-combat). Start of Combat: every living friendly minion gains it, a combat buff. Player-only. */
   ancientSocBuffAll?: { attack: number; health: number; label: string };
+  /** ANCIENT OF WAR × Darah (owner 2026-10-06): "Pummel (140): Get a charge of Swap. (Once per combat.)" A HERO-level
+   *  Pummel on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's
+   *  share), with Albus' once-per-combat latch: the first crossing of a multiple of `every` in the fight emits ONE
+   *  `questTrigger` with `flag` (the replay counts it live; settle banks it as a Swap charge). The tally comes home as
+   *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
+  ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

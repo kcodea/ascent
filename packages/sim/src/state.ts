@@ -63,6 +63,9 @@ export interface ShopCard {
   /** ANCIENT OF DEATH × Frantic Frank: this Clearance offer is on the "first one bought is free" price (cost 0). The
    *  first buy from the set re-prices the rest back to 2 Gold and clears the flag. */
   clearanceFree?: boolean;
+  /** ANCIENT OF FORTUNE × Darah: this HELD offer is a minion Swap sent to the Shop, and it buys back for 0 Gold
+   *  (`heldOfferPrice`). Read only while that pairing is live. */
+  swapFree?: boolean;
   /** Buffs applied to this offer while it's in the tavern (e.g. the hero power targeting
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
@@ -2418,7 +2421,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

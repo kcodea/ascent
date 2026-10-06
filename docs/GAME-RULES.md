@@ -150,6 +150,8 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
 - **Loss cap:** at most 5 per lost round on rounds 1–3, 10 on 4–6, 15 on 7–8, no cap on 9–10. Ties cost nothing.
 - **The shop is the normal game's** (economy, tiers, tribes, a random shop every attempt), with any hero at their
   normal Resolve and Armor. You can't see the opponent's next board before combat.
+- **Shop timer:** no clock until you spend 30 Gold in a round, then 60 seconds (R-GAUNTLET-04). The same gold-spend
+  clock runs Bronze ranked games at 20 Gold (see the Ranked ladder, R-TIMER-BRONZE-01).
 - **Opponent runes:** one from round 6, a second from round 9 (both active from then on). Only their combat effects act.
 - **Opponent run buffs:** a stage can give the opponent the run-wide values a real run builds up (Ruby strength, spell
   power, auras, counters like Grim's Deathrattles). A value set on a round lasts for every later round until changed,
@@ -208,6 +210,18 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   from the seat kinds (`lobbyIsUnrated`), the end screen reads **"Unrated · No opponents reached"**, and the
   client submits no rank request. The server enforces it too: `submit-rating` refuses to settle a request whose
   seat keys are all generated (`bot:…`, `allSeatsGenerated`). A lobby with at least one real run is rated as usual.
+- **Bronze plays on the gold-spend shop timer** (owner 2026-10-06, verbatim: *"the system we implemented for the gold
+  spend timer in gauntlet. i want to make that the experience for all players who are bronze ranked. once you become
+  silver, it should transfer over to the standard timer experience"*, *"lets do 20 gold."*, *"can we up it to a 90
+  second timer on turns 9+?"*; R-TIMER-BRONZE-01). In a rated lobby started while **Bronze**, each Shop turn opens
+  with **no clock**; a bar fills with the Gold spent that turn, and at **20 Gold** a countdown starts: **60 seconds**
+  on turns 1-8, **90 seconds** from turn 9. It never restarts within the turn, and at 0 the Shop locks exactly like
+  the standard timeout. The medal is fixed when the game starts (`RunState.medalAtStart`), so a game begun in Bronze
+  keeps this clock to its end (Save & Quit and Continue included), and a brand-new account (Bronze I) gets it. From
+  **Silver** up, and in unrated lobbies, Practice, the tutorial and every other mode, the shop uses its usual timer.
+  The **Bronze → Silver promotion** screen says so: *"New at Silver: the standard shop timer. Your shop timer now
+  starts at the beginning of every turn, like other ranked players."* (R-TIMER-BRONZE-02; never on a division step
+  or another medal). Source: `packages/ui/src/goldClock.ts` (shared with the Gauntlet's 30 Gold / 60 second clock).
 - **Leaving a rated game early costs nothing** (owner 2026-10-02, verbatim: *"oh i didnt know there was an
   abandon penalty in. can we remove that for now?"*; R-RANK-05, switched off). Giving up an unfinished rated game
   (**Clear** on the title, starting any new game over it, or a cloud copy of another run adopted over it) simply

@@ -1,5 +1,6 @@
 import type { RunCosmeticSnapshot } from '@game/progression';
 import type { AncientId, AncientsState } from './ancients';
+import type { RankMedal } from './rank';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
 import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -751,6 +752,11 @@ export interface RunState {
    *  sim itself creates — `createRun`/`createLobbyRun` never mint one, so seeds stay the only determinism
    *  input); `rankedRunIdOf` then falls back to `String(seed)`, the pre-medal identity. */
   runId?: string;
+  /** BRONZE SHOP CLOCK (owner 2026-10-06, R-TIMER-BRONZE-01): the player's medal when this RATED lobby started,
+   *  stamped by the UI beside `runId` and never changed. Presentation only (the UI's gold-spend shop clock reads it);
+   *  nothing in the sim reads it. Pinned so a game started in Bronze keeps its clock to the end, through Save & Quit
+   *  and cloud resume, even after a rank change elsewhere. Absent on unrated / practice / older runs. */
+  medalAtStart?: RankMedal;
   /** Game mode — see `RunMode`.
    *  'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
    *  3× shop timer — so it reads identically to Ascent; ends at `courseRounds` regardless of W/L, unscored).

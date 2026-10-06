@@ -244,3 +244,56 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
     expect(wasRankPresented('run:a')).toBe(false);
   });
 });
+
+/**
+ * THE SILVER SHOP-TIMER NOTICE (R-TIMER-BRONZE-01, owner 2026-10-06: "once you become silver, it should transfer over
+ * to the standard timer experience. we should have that as a notification on the silver rank up screen"). Only the
+ * Bronze → Silver promotion prints it, and only once the sequence has settled.
+ */
+describe('the Silver shop-timer notice', () => {
+  const NOTICE = 'Your shop timer now starts at the beginning of every turn, like other ranked players.';
+  const promo = (before: number, after: number, promotionKind: 'division' | 'medal'): RankFixture => {
+    const f = fixtureById('promo-silver')!;
+    return {
+      ...f, id: `p${before}-${after}`,
+      result: { ...f.result!, runId: `p${before}-${after}`, before: { divisionIndex: before, points: 100 }, after: { divisionIndex: after, points: 10 }, promotionKind },
+    };
+  };
+
+  it('shows on the Bronze → Silver promotion, in the game plaque and the live region', () => {
+    render(fixtureById('promo-silver')!);
+    expect(text('.rankbar-label')).toBe('Silver I');
+    expect(text('.rankend-notice-title')).toBe('New at Silver: the standard shop timer');
+    expect(text('.rankend-notice-body')).toBe(NOTICE);
+    expect(text('.rankend-live')).toContain(NOTICE);
+    expect(ui!.container.querySelector('.rankend-notice [title]')).toBeNull();
+  });
+
+  it('no other fixture prints it', () => {
+    for (const f of RANK_FIXTURES.filter((x) => x.id !== 'promo-silver')) {
+      render(f);
+      expect(ui!.container.querySelector('.rankend-notice'), f.id).toBeNull();
+      ui!.unmount(); ui = null;
+    }
+  });
+
+  it('not on a division step inside Bronze or Silver, a higher medal step, or a demotion to Bronze', () => {
+    for (const f of [promo(0, 1, 'division'), promo(1, 2, 'division'), promo(3, 4, 'division'), promo(5, 6, 'medal')]) {
+      render(f);
+      expect(ui!.container.querySelector('.rankend-notice'), f.id).toBeNull();
+      ui!.unmount(); ui = null;
+    }
+    const down = fixtureById('promo-silver')!;
+    render({ ...down, placement: 8, result: { ...down.result!, runId: 'down', before: { divisionIndex: 3, points: 0 }, after: { divisionIndex: 2, points: 60 }, promoted: false, demoted: true, wasDemotionGame: true } });
+    expect(ui!.container.querySelector('.rankend-notice')).toBeNull();
+  });
+
+  it('waits for the sequence to settle, so it never spoils the medal transition', () => {
+    render(fixtureById('promo-silver')!, { reducedMotion: false });
+    const c = ui!.container;
+    expect(c.querySelector('.rankend-panel')!.className).toContain('playing');
+    expect(c.querySelector('.rankend-notice')).toBeNull();
+    act(() => { (c.querySelector('.rankend-rank') as HTMLElement).click(); });
+    expect(text('.rankend-notice-body')).toBe(NOTICE);
+  });
+});

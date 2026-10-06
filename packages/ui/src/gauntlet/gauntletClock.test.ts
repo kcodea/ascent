@@ -9,6 +9,7 @@ import {
 import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from '@game/sim';
 import { turnClockMayTick } from '../turnClock';
+import { goldClockOf } from '../goldClock';
 
 /**
  * THE GAUNTLET SHOP TIMER: no clock until the player has spent 30 Gold in the round, then a 60-second countdown
@@ -75,23 +76,28 @@ describe('the countdown gate while the Gauntlet clock is waiting', () => {
   });
 });
 
+// Since 2026-10-06 Recruit wires the SHARED gold-spend clock (`goldClockOf`, R-TIMER-BRONZE-01); the Gauntlet is one
+// config of it. These source checks pin that the Gauntlet still goes through it.
 describe('Recruit wires the Gauntlet clock', () => {
   const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'Recruit.tsx'), 'utf8');
 
   it('opens every Gauntlet turn parked, and leaves the other modes on their normal formula', () => {
-    expect(src).toMatch(/const turnSeconds = run\.mode === 'gauntlet' \? GAUNTLET_CLOCK_WAITING : infiniteClock \? 99999 :/);
+    expect(src).toMatch(/const goldClock = goldClockOf\(run\);/);
+    expect(src).toMatch(/const turnSeconds = goldClock \? GOLD_CLOCK_WAITING : infiniteClock \? 99999 :/);
+    expect(goldClockOf({ mode: 'gauntlet', wave: 1, lobby: undefined })).toEqual({ gold: GAUNTLET_CLOCK_GOLD, seconds: GAUNTLET_CLOCK_SECONDS });
+    expect(goldClockOf({ mode: 'gauntlet', wave: 12, lobby: undefined }), 'no late-turn change for the Gauntlet').toEqual({ gold: 30, seconds: 60 });
   });
 
   it('holds the countdown while waiting, and re-runs the gate when that flips', () => {
     const at = src.indexOf('if (!turnClockMayTick({');
     const call = src.slice(at, src.indexOf('})) return;', at));
-    expect(call).toMatch(/clockWaiting: gauntletClockWaits,/);
-    expect(src).toMatch(/wipe, sotPlaying, gauntletClockWaits\]\);/);
+    expect(call).toMatch(/clockWaiting: goldClockWaits,/);
+    expect(src).toMatch(/wipe, sotPlaying, goldClockWaits\]\);/);
   });
 
   it('starts the clock AFTER the turn reset, and the plaque knows the mode', () => {
-    expect(src.indexOf('gauntletTurnClock({')).toBeGreaterThan(src.indexOf('turnClockReset({'));
-    expect(src).toContain("gauntlet={mode === 'gauntlet'}");
+    expect(src.indexOf('goldTurnClock({')).toBeGreaterThan(src.indexOf('turnClockReset({'));
+    expect(src).toContain('goldGoal={goldClockGold}');
   });
 });
 
@@ -125,8 +131,8 @@ describe('a Thymepiece window opened before the Gauntlet clock starts', () => {
 
   it('the store stamps and the readout counts through the Gauntlet reading', () => {
     const read = (f: string): string => readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', f), 'utf8');
-    expect(read('store.ts')).toContain('clockSeconds: gauntletClockReading(prev.mode, turnClock.get())');
-    expect(read('DiscountWindowReadout.tsx')).toContain('gauntletClockReading(mode, useTurnSeconds())');
-    expect(read('StatusBar.tsx')).toContain('<DiscountWindowReadout window={run.cardDiscountWindow} mode={run.mode} />');
+    expect(read('store.ts')).toContain('clockSeconds: goldClockReading(goldClockOf(prev), turnClock.get())');
+    expect(read('DiscountWindowReadout.tsx')).toContain('goldClockReading(goldClockSeconds == null ? null : { seconds: goldClockSeconds }, useTurnSeconds())');
+    expect(read('StatusBar.tsx')).toContain('<DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run)?.seconds ?? null} />');
   });
 });

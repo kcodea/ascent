@@ -4535,4 +4535,56 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'a hand card it does not change (checked across the Doc Bot corpus), so a different card may still be involved.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handBuffSpellScaling.test.ts'], lastVerifiedAt: '2026-10-05' },
   },
+  // ── The Bronze ranked shop clock (owner 2026-10-06) ─────────────────────────────────────────────────────────
+  {
+    id: 'R-TIMER-BRONZE-01',
+    title: 'A ranked game started in Bronze: no shop clock until 20 Gold is spent in a turn, then 60 seconds (90 from turn 9)',
+    statement:
+      'In a rated (ranked) lobby that the player started while Bronze, each Shop turn opens with no clock. Once the player '
+      + 'has spent 20 Gold in that turn, a countdown starts: 60 seconds on turns 1 to 8, 90 seconds from turn 9. It never '
+      + 'restarts for more Gold spent later in the turn, and at 0 the Shop locks exactly as the standard timeout does. The '
+      + 'medal is fixed when the game starts, so a game started in Bronze keeps this clock to its end (Save & Quit and '
+      + 'resume included) and a game started in Silver or above uses the standard timer. Unrated lobbies, Practice, the '
+      + 'tutorial and every other mode keep their own timers; the Gauntlet keeps its own 30 Gold / 60 second clock. A '
+      + 'time-limited discount window opened while the clock is still waiting keeps its full length once the clock starts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer)', quote: 'the system we implemented for the gold spend timer in gauntlet. i want to make that the experience for all players who are bronze ranked. once you become silver, it should transfer over to the standard timer experience' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer threshold)', quote: 'lets do 20 gold.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer, late turns)', quote: 'can we up it to a 90 second timer on turns 9+?' },
+      { kind: 'code', ref: 'packages/ui/src/goldClock.ts (goldClockOf, the shared predicate; BRONZE_CLOCK_*; pinMedalAtStart); packages/ui/src/store.ts pickHero / newRun (pin beside runId) + the Thymepiece clock stamp; packages/ui/src/Recruit.tsx (turnSeconds, the start effect, the clockWaiting gate, the ShopTimer plaque); packages/ui/src/DiscountWindowReadout.tsx; packages/sim/src/state.ts RunState.medalAtStart' },
+      { kind: 'fix-pr', ref: 'feat/bronze-gold-clock (the Bronze ranked gold-spend clock + the Silver rank-up notice)' },
+    ],
+    example: 'A Bronze II player starts a ranked game. On turn 3 the shop shows a Gold bar at 0/20; buying a few cards fills it, and at 20 a 60-second countdown starts. On turn 9 the same 20 Gold starts a 90-second countdown. The player is promoted to Silver in another game before resuming this one: it still uses the Bronze clock.',
+    currentBehaviour:
+      'Conforms as of 2026-10-06. The medal is pinned on the run (RunState.medalAtStart) where a rated lobby is minted, '
+      + 'only when the table is rated (an all-generated table is unrated, R-LOBBY-06); a brand-new account starts at Bronze I '
+      + 'and counts. Pinned by the gold-clock tests: the predicate (Bronze rated 20/60, 90 from turn 9; Silver and above, '
+      + 'unrated, Practice, tutorial and sandbox standard; Gauntlet 30/60 unchanged), waiting below 20 and starting at 20, '
+      + 'no restart, Save & Quit keeping the parked value, the pin surviving a save round trip and a later rank change, and '
+      + 'the store pinning where the rated lobby is minted. PARTIAL pin: the 0-second lock is the shared timeout path '
+      + '(R-TIMER-LOCK-01), and the Recruit wiring is pinned by source checks in the Gauntlet clock test. Presentation-only: '
+      + 'the engine is untimed. Announcer note: the clock-based lines (TimeRunningOut, Idle, FastTurn) only hear a turn once '
+      + 'its countdown runs.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts', 'packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-TIMER-BRONZE-02',
+    title: 'The Bronze to Silver promotion screen tells the player the shop timer now starts every turn',
+    statement:
+      'When a ranked game promotes the player from Bronze to Silver, the post-game rank screen shows a notice, once the '
+      + 'promotion has played, that their shop timer now starts at the beginning of every turn like other ranked players. '
+      + 'It appears only on that promotion: never on a division step inside Bronze or Silver, a higher medal step, or a demotion.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer)', quote: 'we should have that as a notification on the silver rank up screen' },
+      { kind: 'code', ref: 'packages/ui/src/rank/rankFormat.ts (SILVER_CLOCK_NOTICE, silverClockNoticeOf, announcement); packages/ui/src/rank/RankScreen.tsx (.rankend-notice); packages/ui/src/rank/fixtures.ts promo-silver' },
+      { kind: 'fix-pr', ref: 'feat/bronze-gold-clock (the Bronze ranked gold-spend clock + the Silver rank-up notice)' },
+    ],
+    example: 'Bronze III 100, a 1st place wins the medal promotion game: the crest turns Silver I, then the notice "New at Silver: the standard shop timer. Your shop timer now starts at the beginning of every turn, like other ranked players." appears. Silver I to Silver II shows nothing.',
+    currentBehaviour: 'Conforms as of 2026-10-06. Pinned by the rank screen tests: shown on the Bronze to Silver promotion (and read in the live region), absent on every other fixture, on division steps in Bronze and Silver, a higher medal step and a demotion to Bronze, and held until the sequence settles.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

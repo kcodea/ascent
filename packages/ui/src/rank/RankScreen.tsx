@@ -2,7 +2,7 @@ import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, us
 import { sfx } from '../sfx';
 import { Icon } from '../Icon';
 import { RankBar, type RankBarAnimRefs } from './RankBar';
-import { announcement, deltaText, ordinal, outcomeText, placementText } from './rankFormat';
+import { announcement, deltaText, ordinal, outcomeText, placementText, silverClockNoticeOf } from './rankFormat';
 import { markRankPresented, wasRankPresented } from './presented';
 import { planRankSequence } from './rankSequence';
 import { buildRankTimeline } from './rankTimeline';
@@ -178,6 +178,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
   const shownPos: RankPosition | null = result ? (settled ? result.after : result.before) : current;
   const delta = result ? deltaText(result) : null;
   const outcome = result ? outcomeText(result) : null;
+  const clockNotice = silverClockNoticeOf(result);
   const deltaTone = result ? (result.promoted || result.appliedDelta > 0 ? 'up' : result.appliedDelta < 0 ? 'down' : 'flat') : 'flat';
 
   return (
@@ -229,6 +230,18 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
       )}
       {submission === 'unrated' && (
         <div className="rankend-status unrated">Unrated{unratedReason ? ` · ${unratedReason}` : ''}</div>
+      )}
+
+      {/* THE SILVER SHOP-TIMER NOTICE (R-TIMER-BRONZE-01): only on the Bronze → Silver promotion, and only once the
+          sequence has settled so it never spoils the medal transition. A one-shot entrance (transform/opacity). */}
+      {settled && clockNotice && (
+        <div className="rankend-notice" role="note">
+          <span className="rankend-notice-ic" aria-hidden="true"><Icon name="clock" /></span>
+          <span className="rankend-notice-text">
+            <span className="rankend-notice-title">{clockNotice.title}</span>
+            <span className="rankend-notice-body">{clockNotice.body}</span>
+          </span>
+        </div>
       )}
 
       {extra?.(settled)}

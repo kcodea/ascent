@@ -1224,4 +1224,104 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). Including the played minion is a judgement call flagged for the owner in the PR.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-LUCKYSEAT-01',
+    title: 'Ayse: every Enchanted card bought counts toward Lucky Seat, from every buy path (the right-hand spell slot included)',
+    statement:
+      'Buying an Enchanted card advances Lucky Seat by one, whichever way it was bought: a minion from the Shop row, a spell offered in the row, a restored (held) minion, the Starform, and a spell bought from the right-hand spell slot. The 3rd pays the queued reward and resets the count. A card that is not Enchanted never counts.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Time: End of Turn: Give your minions +3/+3 for every Enchanted card purchased this turn.' },
+      { kind: 'card-text', ref: 'packages/sim/src/heroes.ts (cia, Lucky Seat)', quote: 'Buy **3** Enchanted cards for a reward.' },
+      { kind: 'card-text', ref: 'packages/ui/src/patchNotes.ts (Ayse, 2026-08-22)', quote: 'Spells can now be enchanted too.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts buy (spell slot) -> ciaBuyEnchanted; packages/sim/src/shop.ts rollCiaEnchants (the slot rolls for the mark)' },
+    ],
+    currentBehaviour: 'Conforms, FIXED 2026-10-06: since the slot started rolling for the mark (2026-08-22) an Enchanted slot spell could be bought but never counted, because the slot was the one buy path without the Lucky Seat call.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCAYSE-01',
+    title: 'Ayse × Ancient of Death: every Echo card in the Shop is Enchanted',
+    statement:
+      'With the Ancient of Death, every Shop offer that prints an Echo wears the Enchanted mark, however it reached the Shop (a refresh, a frozen carry-over, a Discover or Restock into the Shop, or the moment the Ancient is picked). It is checked after every action, so it is always marked before it can be bought, and buying it counts toward Lucky Seat. A friend-death watcher that prints no Echo is not an Echo card. The normal random enchant roll is unchanged.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Death: Echo cards are always enchanted.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts echoAlwaysEnchanted / ancientSyncEchoEnchants; packages/sim/src/reducer.ts reduce (the every-action sync block)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCAYSE-02',
+    title: 'Ayse × Ancient of Fortune: Enchanted cards cost 2 Gold',
+    statement:
+      'With the Ancient of Fortune, an Enchanted card is priced at most 2 Gold (never raised: a cheaper card keeps its own price), minions and spells alike, from the Shop row and the spell slot. Other discounts still apply on top. The cost coin, the bots and the charge read the same price. A restored (held) minion keeps its own fixed price.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Fortune: Enchanted cards cost 2g' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts enchantedCost / ancientEnchantedPrice / ancientEnchantedSpellCut; packages/sim/src/reducer.ts offerBuyPrice + both spell buy paths' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCAYSE-03',
+    title: 'Ayse × Ancient of War: an Enchanted minion bought gains +X/+X (X starts at 3, +3 per trigger, kept across turns)',
+    statement:
+      'With the Ancient of War, every Enchanted minion bought gains +X/+X permanently as it lands (when the buy completes a triple, the golden gains it). X starts at 3 and improves by 3 after each trigger, across turns. An Enchanted spell or the Starform has no body: no gain and no improve. The power prints the live X.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'War: When you buy an Enchanted minion, give it +3/+3 and improve this.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts enchantedBuyBuffImproves / ancientOnEnchantedBuy / ayseWarGain' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCAYSE-04',
+    title: 'Ayse × Ancient of Genesis: completing Lucky Seat gets a plain copy of one of the Enchanted minions bought for it',
+    statement:
+      'With the Ancient of Genesis, the buy that completes Lucky Seat (its 3rd Enchanted card) also gets a plain copy of a random minion among the Enchanted cards bought in that cycle, picked with the seeded run RNG, hand first, the board when the hand is full. Spells and the Starform are never copied; a cycle with no minion gets nothing. Each extra Lucky Seat trigger (Rune of the Wishbone) gets one more copy, picked again.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Genesis: When you complete Lucky Seat, get a copy of one of the minions purchased.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts luckySeatCopyPurchased / ancientOnEnchantedBuy / ayseWindow' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCAYSE-05',
+    title: 'Ayse × Ancient of Time: End of Turn, your minions gain +3/+3 for every Enchanted card bought this turn',
+    statement:
+      'With the Ancient of Time, every Enchanted card bought this turn counts (minions, spells from the row or the slot, the Starform), including buys made earlier in the turn the Ancient was picked. At End of Turn every board minion gains +3/+3 per card, permanently, one step per card. It is a virtual recurring End-of-Turn entry, so it gets its own beat and follows End-of-Turn repeats. The count resets each turn; the power prints the count and the grant it gives right now.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Time: End of Turn: Give your minions +3/+3 for every Enchanted card purchased this turn.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotBuffPerEnchantedBuy / ancientRunAyseTime / ayseBuys; packages/sim/src/recruit.ts recurringEotEffects (ancientAyseTime)' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCAYSE-06',
+    title: 'Ayse × Ancient of Bonds: each Lucky Seat trigger gives your left-most and right-most minions +5/+6',
+    statement:
+      'With the Ancient of Bonds, each time Lucky Seat triggers (its 3rd Enchanted buy) the left-most and right-most board minions gain +5/+6 permanently, once when they are the same minion; an empty board gets nothing. Each extra Lucky Seat trigger (Rune of the Wishbone) fires it again.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Bonds: Triggering Lucky Seat grants your left and right-most minions +5/+6.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts luckySeatBuffsEdges / ancientOnEnchantedBuy' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

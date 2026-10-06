@@ -262,6 +262,27 @@
  *                                 gets a plain copy of it to hand. Hand full: none that turn. (Time)
  *  · `gildedPlayBuffsAll`         SHOP: `ancientOnPlay`: playing a Gilded minion from hand gives every board minion (the
  *                                 played one included) +a/+h, permanently, in real time. Combat has no play. (Bonds)
+ *  AYSE (hero id `cia`, Lucky Seat, `luckySeat`, PASSIVE; owner pairings 2026-10-06). Lucky Seat = "Buy 3 Enchanted cards
+ *  for a reward." Each Shop roll may mark an offer Enchanted (`ShopCard.enchanted`, `rollCiaEnchants`); buying one ticks
+ *  `ciaEnchantedBought`, and the 3rd pays the queued suit (`ciaBuyEnchanted`, every buy path, the spell slot included).
+ *  "Completing" / "triggering" Lucky Seat is that 3rd buy. The buy-keyed pairings hear every Enchanted buy through ONE
+ *  hook, `ancientOnEnchantedBuy`, in the reducer's post-buy block (after the bought card has landed), which keeps the
+ *  per-turn count (`ayseBuys`) and the cycle's purchases (`ayseWindow`) while Ancients are on, whatever is picked.
+ *  · `echoAlwaysEnchanted`        every Shop offer with an **Echo** wears the Enchanted mark: `ancientSyncEchoEnchants` at
+ *                                 the reducer's every-action boundary, so every path that puts an offer in the Shop (a
+ *                                 refresh, a Discover into the Shop, a Restock, a frozen carry-over) is covered. (Death)
+ *  · `enchantedCost`              an Enchanted offer costs at most `price`: minions through `offerBuyPrice`'s caps
+ *                                 (`ancientEnchantedPrice`), spells through the extra cut `ancientEnchantedSpellCut` on
+ *                                 both spell buy paths (and the coins / bots that read them). Discounts apply on top. (Fortune)
+ *  · `enchantedBuyBuffImproves`   each Enchanted MINION bought gains +X/+X permanently (the body as it landed, a triple's
+ *                                 golden included); X starts at `amount` and improves by `amount` per trigger (`ayseWarGain`). (War)
+ *  · `luckySeatCopyPurchased`     completing Lucky Seat gets a plain copy of a random MINION among that cycle's Enchanted
+ *                                 buys (`ayseWindow`; spells / the Starform never), hand first. Once per Lucky Seat
+ *                                 trigger (Rune of Wishbone: one more, re-rolled). (Genesis)
+ *  · `eotBuffPerEnchantedBuy`     a virtual recurring End-of-Turn entry (`ancientAyseTime`): your minions gain +a/+h per
+ *                                 Enchanted card bought this turn (`ayseBuys`), one itemized step per card. (Time)
+ *  · `luckySeatBuffsEdges`        each Lucky Seat trigger: your left-most and right-most minions gain +a/+h, permanently
+ *                                 (once when they are the same minion; Rune of Wishbone fires it again). (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -272,7 +293,7 @@ import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
 import { hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold } from './recruit';
+import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
 import { poolOf } from './cardPool';
@@ -491,7 +512,20 @@ export type AncientEffect =
   /** Investment becomes: Discover a Tier `tier` minion (once per game, via `power`); Start of Turn: a plain copy of it. */
   | { do: 'investmentDiscoverTierCopies'; tier: number }
   /** Playing a Gilded minion gives your minions +a/+h, permanently. */
-  | { do: 'gildedPlayBuffsAll'; attack: number; health: number };
+  | { do: 'gildedPlayBuffsAll'; attack: number; health: number }
+  // ── Ayse (Lucky Seat) ──
+  /** Every Shop offer with an Echo is Enchanted. */
+  | { do: 'echoAlwaysEnchanted' }
+  /** Enchanted cards cost at most `price` Gold (other discounts still apply on top). */
+  | { do: 'enchantedCost'; price: number }
+  /** Buying an Enchanted minion gives it +X/+X; X starts at `amount` and improves by `amount` per trigger. */
+  | { do: 'enchantedBuyBuffImproves'; amount: number }
+  /** Completing Lucky Seat gets a plain copy of one of the Enchanted minions bought for it. */
+  | { do: 'luckySeatCopyPurchased' }
+  /** End of Turn: your minions gain +a/+h for every Enchanted card bought this turn. */
+  | { do: 'eotBuffPerEnchantedBuy'; attack: number; health: number }
+  /** Each Lucky Seat trigger gives your left-most and right-most minions +a/+h. */
+  | { do: 'luckySeatBuffsEdges'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -514,7 +548,9 @@ export interface AncientPairing {
    *  `{maxGold}` = Time's max Gold so far; `{bondsTypes}` = Bonds' marked types. Braum: `{bDeathLeft}` = friendly deaths
    *  still needed for Death's next payout (live through a fight); `{bTripleGold}` = Gold Fortune's Triple Rewards have
    *  given; `{bGildPlays}` / `{bWarA}` / `{bWarH}` = Gilded minions played and War's Start-of-Combat grant right now;
-   *  `{bTier}` = the Shop tier Genesis' Discover draws from; `{bTimeCard}` = the minion Time copies (empty before). */
+   *  `{bTier}` = the Shop tier Genesis' Discover draws from; `{bTimeCard}` = the minion Time copies (empty before).
+   *  Ayse: `{ayWarGain}` = War's live +X/+X;
+   *  `{ayTimeN}` / `{ayTimeA}` / `{ayTimeH}` = Enchanted cards bought this turn and the End-of-Turn grant they give now. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -1114,6 +1150,46 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'gildedPlayBuffsAll', attack: 8, health: 8 }],
     },
   },
+  // AYSE (hero id `cia`; owner pairings 2026-10-06, quoted above each entry). Lucky Seat (passive) = "Buy 3 Enchanted
+  // cards for a reward." Completing / triggering Lucky Seat = the 3rd Enchanted buy, which pays the queued suit.
+  cia: {
+    death: {
+      // "Echo cards are always enchanted."
+      offerText: '**Echo** cards in your Shop are always **Enchanted**.',
+      powerText: '{base} **Echo** cards in your Shop are always **Enchanted**.',
+      effects: [{ do: 'echoAlwaysEnchanted' }],
+    },
+    fortune: {
+      // "Enchanted cards cost 2g"
+      offerText: '**Enchanted** cards cost **2 Gold**.',
+      powerText: '{base} **Enchanted** cards cost **2 Gold**.',
+      effects: [{ do: 'enchantedCost', price: 2 }],
+    },
+    war: {
+      // "When you buy an Enchanted minion, give it +3/+3 and improve this."
+      offerText: 'When you buy an **Enchanted** minion, give it **+3/+3** and improve this by **+3/+3**.',
+      powerText: '{base} When you buy an **Enchanted** minion, give it **+{ayWarGain}/+{ayWarGain}** and improve this by **+3/+3**.',
+      effects: [{ do: 'enchantedBuyBuffImproves', amount: 3 }],
+    },
+    genesis: {
+      // "When you complete Lucky Seat, get a copy of one of the minions purchased."
+      offerText: 'When you complete Lucky Seat, get a plain copy of one of the **Enchanted** minions you bought for it.',
+      powerText: '{base} When you complete it, get a plain copy of one of the **Enchanted** minions you bought for it.',
+      effects: [{ do: 'luckySeatCopyPurchased' }],
+    },
+    time: {
+      // "End of Turn: Give your minions +3/+3 for every Enchanted card purchased this turn."
+      offerText: '**End of Turn:** give your minions **+3/+3** for each **Enchanted** card you bought this turn.',
+      powerText: '{base} **End of Turn:** give your minions **+3/+3** for each **Enchanted** card you bought this turn (**{ayTimeN}** bought: **+{ayTimeA}/+{ayTimeH}**).',
+      effects: [{ do: 'eotBuffPerEnchantedBuy', attack: 3, health: 3 }],
+    },
+    bonds: {
+      // "Triggering Lucky Seat grants your left and right-most minions +5/+6."
+      offerText: 'Whenever Lucky Seat triggers, give your left and right-most minions **+5/+6**.',
+      powerText: '{base} Whenever it triggers, give your left and right-most minions **+5/+6**.',
+      effects: [{ do: 'luckySeatBuffsEdges', attack: 5, health: 6 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1264,6 +1340,14 @@ export interface AncientsState {
   bramTimePending?: boolean;
   /** BRAUM × TIME: the minion Investment Discovered (copied every Start of Turn). */
   bramTimeCardId?: string;
+  /** AYSE × TIME: Enchanted cards bought on `wave` (every card: spells and the Starform too). Ticked while Ancients are
+   *  on, whatever is picked, so buys made before the pick count this turn. A new wave reads 0. */
+  ayseBuys?: { wave: number; n: number };
+  /** AYSE × GENESIS: the cardIds of the Enchanted cards bought in the current Lucky Seat cycle (cleared when it
+   *  completes). Ticked while Ancients are on, whatever is picked. */
+  ayseWindow?: string[];
+  /** AYSE × WAR: the live +X/+X the next Enchanted minion bought gains (set at the pick, improved after each trigger). */
+  ayseWarGain?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1342,6 +1426,8 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   if (rWar) a.repeteWarGain = rWar.amount; // RE-PETE × WAR: starts at the printed amount
   const gBonds = effectOf(state, 'buysBuffImproves');
   if (gBonds) a.gorrBondsGain = gBonds.amount; // GORR × BONDS: starts at the printed amount
+  const aWar = effectOf(state, 'enchantedBuyBuffImproves');
+  if (aWar) a.ayseWarGain = aWar.amount; // AYSE × WAR: starts at the printed amount
   return true;
 }
 
@@ -1448,6 +1534,11 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .split('{gBondsGain}').join(String(gb ? a?.gorrBondsGain ?? gb.amount : 0))
     .replace('{gBondsLeft}', String(gb ? Math.max(1, gb.every) - ((a?.gorrBondsWindow?.length ?? 0) % Math.max(1, gb.every)) : 0));
   text = bramPowerText(state, text, combat);
+  // AYSE: War's live +X/+X (printed twice), Time's Enchanted buys this turn and the grant they give right now.
+  const ayN = ayseBuysThisTurn(state);
+  const ayT = effectOf(state, 'eotBuffPerEnchantedBuy');
+  text = text.split('{ayWarGain}').join(String(ancientAyseWarGain(state)))
+    .replace('{ayTimeN}', String(ayN)).replace('{ayTimeA}', String((ayT?.attack ?? 0) * ayN)).replace('{ayTimeH}', String((ayT?.health ?? 0) * ayN));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -2946,5 +3037,109 @@ export function ancientInvestmentTally(state: RunState, deaths = 0): string | nu
   if (d) return `${Math.max(1, d.every) - (ancientBramDeathsLeft(state, deaths) ?? 0)}/${d.every}`;
   if (effectOf(state, 'investmentDiscoverTierCopies')) return null;
   return undefined;
+}
+
+// ── Ayse (Lucky Seat) hooks ──────────────────────────────────────────────────────────────────────────────────
+/** AYSE × TIME: Enchanted cards bought this turn (0 on a new turn, or without Ancients). */
+export function ayseBuysThisTurn(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'wave'>): number {
+  const b = state.ancientsEnabled ? state.ancients?.ayseBuys : undefined;
+  return b && b.wave === state.wave ? b.n : 0;
+}
+
+/** AYSE × WAR: the live +X/+X the next Enchanted minion bought gains (0 unless War is picked). */
+export function ancientAyseWarGain(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'enchantedBuyBuffImproves') : undefined;
+  return e ? live(state)?.ayseWarGain ?? e.amount : 0;
+}
+
+/** AYSE × DEATH: does this card print an Echo? A Deathrattle factory (the shared `hasDeathrattle`, which skips the
+ *  friend-death watchers that also sit on `onDeath`), or an Echo whose factory is named otherwise (Runesnout Archivist,
+ *  Mossmemory Colossus, the Brewer, the Anvilshade): their printed `**Echo:**` is the rule. Spells never have one. */
+function printsEcho(cardId: string): boolean {
+  const def = CARD_INDEX[cardId];
+  return !!def && !def.spell && !def.ruby && (hasDeathrattle(def) || /\*\*Echo:\*\*/.test(def.text ?? ''));
+}
+
+/**
+ * AYSE × DEATH: every Shop offer with an Echo wears the Enchanted mark. Called at the reducer's every-action boundary
+ * (the `sync*` block), so an offer that reaches the Shop by ANY path (a refresh, a Discover into the Shop, a Restock, a
+ * frozen carry-over, the pick itself) is marked before the next action can buy it. Never touches the RNG: the per-card
+ * enchant roll (`rollCiaEnchants`) still draws once per offer, so the stream is unchanged.
+ */
+export function ancientSyncEchoEnchants(state: RunState): void {
+  if (!live(state) || !effectOf(state, 'echoAlwaysEnchanted')) return;
+  for (const o of state.shop) if (!o.enchanted && !o.starform && printsEcho(o.cardId)) o.enchanted = true;
+}
+
+/** AYSE × FORTUNE: the set price an Enchanted MINION offer buys at (undefined = not Enchanted, or Fortune is not live).
+ *  Folded into `offerBuyPrice`'s caps, so it never raises a price that is already lower. */
+export function ancientEnchantedPrice(state: RunState, offer: { enchanted?: boolean }): number | undefined {
+  if (!offer.enchanted || !live(state)) return undefined;
+  return effectOf(state, 'enchantedCost')?.price;
+}
+
+/** AYSE × FORTUNE, spells: the EXTRA Gold cut an Enchanted spell offer takes so its printed cost is capped at the
+ *  Fortune price before the regular spell discounts (`spellCostReduction`) come off. 0 when nothing applies. */
+export function ancientEnchantedSpellCut(state: RunState, offer: { cardId: string; enchanted?: boolean } | null | undefined): number {
+  const price = offer ? ancientEnchantedPrice(state, offer) : undefined;
+  if (!offer || price === undefined) return 0;
+  return Math.max(0, (CARD_INDEX[offer.cardId]?.cost ?? 0) - price);
+}
+
+/**
+ * AYSE: an Enchanted card was bought (the reducer's post-buy block, every buy path once, after the bought card landed).
+ * `cardId` = what was bought; `body` = the bought minion as it stands now (undefined for a spell, the Starform, or a
+ * body that already left); `completed` = this buy was Lucky Seat's 3rd (its prize just paid); `reps` = how many times
+ * Lucky Seat triggered on it (Rune of Wishbone: "Your Hero Power triggers twice").
+ * Bookkeeping (always, while Ancients are on): the per-turn count (Time) and the cycle's purchases (Genesis).
+ * WAR: the body gains the current +X/+X, then X improves. GENESIS / BONDS: on completion, once per trigger.
+ */
+export function ancientOnEnchantedBuy(state: RunState, cardId: string, body: BoardCard | undefined, completed: boolean, reps = 1): void {
+  const a = live(state);
+  if (!a) return;
+  a.ayseBuys = { wave: state.wave, n: ayseBuysThisTurn(state) + 1 };
+  const win = [...(a.ayseWindow ?? []), cardId];
+  a.ayseWindow = completed ? [] : win;
+  const war = effectOf(state, 'enchantedBuyBuffImproves');
+  if (war && body) {
+    const x = a.ayseWarGain ?? war.amount;
+    if (x > 0) captureBuffFx(state, undefined, 'spell', () => addBuff(body, ANCIENTS.war.name, x, x));
+    a.ayseWarGain = x + war.amount;
+  }
+  if (!completed) return;
+  const triggers = Math.max(1, reps);
+  if (effectOf(state, 'luckySeatCopyPurchased')) {
+    // Minions only: a spell or the Starform has no body to copy. A random pick per trigger (seeded off the run cursor).
+    const minions = win.filter((id) => { const d = CARD_INDEX[id]; return !!d && !d.spell && !d.ruby && id !== STARFORM_ID; });
+    for (let r = 0; r < triggers && minions.length > 0; r++) {
+      const def = CARD_INDEX[pickId(state, minions)!];
+      if (def) grantMinionToHandOrBoard(state, def, false);
+    }
+  }
+  const edges = effectOf(state, 'luckySeatBuffsEdges');
+  if (edges) {
+    for (let r = 0; r < triggers; r++) {
+      const first = state.board[0];
+      const last = state.board[state.board.length - 1];
+      if (!first || !last) break;
+      const targets = first === last ? [first] : [first, last];
+      captureBuffFx(state, undefined, 'spell', () => { for (const c of targets) addBuff(c, ANCIENTS.bonds.name, edges.attack, edges.health); });
+    }
+  }
+}
+
+/** AYSE × TIME: is the End-of-Turn grant live (the `ancientAyseTime` recurring entry)? */
+export function ancientAyseTimeLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotBuffPerEnchantedBuy');
+}
+
+/** AYSE × TIME: End of Turn, every board minion gains +a/+h per Enchanted card bought this turn, permanently. One
+ *  `apply` step per card (the recurring runner's itemized "+x/+y per z" beat, owner ruling 2026-07-17). */
+export function ancientRunAyseTime(state: RunState, apply: (run: () => void) => void): void {
+  const e = ancientAyseTimeLive(state) ? effectOf(state, 'eotBuffPerEnchantedBuy') : undefined;
+  const n = ayseBuysThisTurn(state);
+  if (!e || n <= 0 || state.board.length === 0) return;
+  const minions = [...state.board];
+  for (let i = 0; i < n; i++) apply(() => { for (const c of minions) addBuff(c, ANCIENTS.time.name, e.attack, e.health); });
 }
 

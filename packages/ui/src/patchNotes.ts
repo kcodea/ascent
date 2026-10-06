@@ -76,6 +76,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'Bronze and Silver are unchanged.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Ayse: an Enchanted spell bought from the spell slot now counts toward Lucky Seat.',
+      },
     ],
   },
   {

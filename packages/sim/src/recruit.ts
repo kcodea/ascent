@@ -1,6 +1,7 @@
 import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
+import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -13519,6 +13520,7 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientTradesUpgrade') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientRobinMaxGold') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientGorrEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientAyseTime') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -14088,6 +14090,8 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...(ancientRobinMaxGoldLive(state) ? ['ancientRobinMaxGold' as const] : []),
     // ANCIENT OF TIME × Gorr: "End of Turn: Get a random copy of a minion you bought this turn." The same virtual entry.
     ...(ancientGorrEotCopyLive(state) ? ['ancientGorrEotCopy' as const] : []),
+    // ANCIENT OF TIME × Ayse: "End of Turn: Give your minions +3/+3 for every Enchanted card purchased this turn."
+    ...(ancientAyseTimeLive(state) ? ['ancientAyseTime' as const] : []),
   ];
 }
 
@@ -14137,6 +14141,8 @@ function runRecurringEndOfTurn(
     ancientRunRobinMaxGold(state);
   } else if (effect === 'ancientGorrEotCopy') {
     ancientRunGorrEotCopy(state);
+  } else if (effect === 'ancientAyseTime') {
+    ancientRunAyseTime(state, step);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14730,6 +14736,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientTradesUpgrade: 'Ancient of Time',
   ancientRobinMaxGold: 'Ancient of Time',
   ancientGorrEotCopy: 'Ancient of Time',
+  ancientAyseTime: 'Ancient of Time',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

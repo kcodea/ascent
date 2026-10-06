@@ -1576,4 +1576,33 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-RUNESLOT-01',
+    title: "A runeforge hero's own forge pick sits in the hero-power slot, and only there",
+    statement:
+      "The rune a hero's OWN Runeforge sells (Runesmith's turn-5 forge, Guardian's turn-8 Epic forge) is shown in the "
+      + "hero-power slot for the rest of the run, and that slot is never re-stamped by a later forge: the universal "
+      + "turn-6 Basic and turn-9 Epic forges, quest/rune-opened forges, and any Epic forge before turn 8 (Rune of the "
+      + "Ornate Clock) leave it alone. The rune rack beside the hero shows every OTHER owned rune and leaves out one "
+      + "copy of the power-slot rune, so no rune is drawn twice and no badge ever sits outside the rack's three "
+      + "sockets. A second copy of that rune (Rune of Duplication's copy, or the same rune bought again) is a rune of "
+      + "its own and keeps a rack socket. Rune FX that start from or land on a rune (procs, End-of-Turn tendrils, "
+      + "cast flourishes, the lock-in arrival) use the power slot when that is where the rune sits.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-06 (runeforge heroes UI)', quote: "the hero power runeforge selection should sit in the hero power slot. this is currently broken - there is a floating copy of the rune that was selected on turn 9's runeforge." },
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-06 (runeforge heroes UI)', quote: "we need to change the text to say copy the first epic rune you select and remove the extra ui element floating without a rune slot." },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts buyRune (guardianForge / GUARDIAN_FORGE_WAVE); packages/ui/src/heroSlotRune.ts rackRunes / runeNodeEl; packages/ui/src/QuestBadges.tsx; packages/ui/src/StatusBar.tsx data-hero-rune' },
+    ],
+    contentIds: ['rune_duplication'],
+    currentBehaviour:
+      "Conforms since 2026-10-06. Before: every Epic forge stamped Guardian's power slot, so the turn-9 pick replaced "
+      + "the turn-8 rune there, and the rack drew all owned runes, so Guardian or Runesmith with Rune of Duplication "
+      + "showed a 4th badge floating beside the 3rd socket. PARTIAL: a Guardian who leaves his turn-8 forge without "
+      + "buying has the turn-9 pick land in the power slot; the opponent duel frame still draws every rune of a "
+      + "snapshot (it carries no power-slot grant); and a Runesmith holding Duplication AND Rune of the Epic Forge can "
+      + "still own more rack runes than the three sockets.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgePowerSlot.test.ts', 'packages/ui/src/heroSlotRune.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

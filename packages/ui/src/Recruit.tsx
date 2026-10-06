@@ -227,6 +227,7 @@ import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFo
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { TAP_SLOP } from './touchInput';
+import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -2349,12 +2350,17 @@ export function Recruit() {
    * `occurrence` is which copy of this rune id the new badge is — the LAST one, since a bought rune is
    * appended. Rune of Duplication makes that distinction real: it can put the same id in the tray twice, and
    * only the copy just bought should be holding anything back.
+   *
+   * Counted against the RACK, not `ownedRunes`: the hero-power forge's rune sits in the power slot and is left
+   * out of the rack (R-RUNESLOT-01). When the rack holds no copy at all the occurrence is 0 with no badge to
+   * match, so nothing is held back and `badgeCenterOf` lands the implosion on the power slot instead.
    */
   const cueRuneArrival = useCallback((cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived'): void => {
     const chosen = cards?.find((c) => c.chosen);
     if (!chosen) return;
-    const owned = useGame.getState().run.ownedRunes ?? [];
-    const occurrence = Math.max(0, owned.filter((r) => r === chosen.rune.id).length - 1);
+    const run = useGame.getState().run;
+    const rack = rackRunes(run.ownedRunes ?? [], heroSlotRuneId(run));
+    const occurrence = Math.max(0, rack.filter((r) => r === chosen.rune.id).length - 1);
     useGame.getState().setRuneArrival({ runeId: chosen.rune.id, occurrence, phase });
   }, []);
   const startRuneLockIn = useCallback((el: HTMLElement | null, chosenIndex: number): void => {
@@ -5088,7 +5094,8 @@ export function Recruit() {
       document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
       ?? document.querySelector<HTMLElement>('.statusbar .heropowerbtn');
     const badge = (id: string, rune: boolean): Element | null =>
-      document.querySelector(`${rune ? '.runebadge' : '.questbadge'}[data-source-id="${CSS.escape(id)}"]`);
+      // A rune resolves through `runeNodeEl`: its rack badge, or the hero-power slot it sits in (R-RUNESLOT-01).
+      rune ? runeNodeEl(id) : document.querySelector(`.questbadge[data-source-id="${CSS.escape(id)}"]`);
     const slotEl = (): Element | null => document.querySelector('.equipslot .heropowerbtn');
     const unitEl = (uid: string): HTMLElement | null => document.querySelector<HTMLElement>(`.card[data-uid="${CSS.escape(uid)}"]`);
     /** Where a beat's source stands on screen (the tendril's origin). A Gift has no standing node: sourceless. */
@@ -5924,7 +5931,7 @@ export function Recruit() {
       from = centre(document.querySelector('.equipslot .heropowerbtn'));
     } else if (ev.origin.startsWith('rune:')) {
       // ANY OTHER RUNE that casts Lasso (Recurrence, a repeat rune): out of THAT rune's badge (owner 2026-09-24).
-      from = centre(document.querySelector(`.questbadges [data-source-id="${ev.origin.slice('rune:'.length)}"]`))
+      from = centre(runeNodeEl(ev.origin.slice('rune:'.length)))
         ?? centre(document.querySelector('.questbadges .runebadge'));
     } else if (ev.origin === 'rune') {
       // RUNE OF LASSOING: out of the rune's own badge in the HUD tray — the rune is the actor, as the
@@ -5932,7 +5939,7 @@ export function Recruit() {
       // `data-source-id`, the way the quest-tendril lookups below already do it: the opponent frame renders
       // its own `.runebadge` nodes EARLIER in the document, so a bare `.runebadge` threw the rope out of the
       // opponent's tray whenever the previewed seat held a rune (fixed 2026-09-22).
-      from = centre(document.querySelector('.questbadges [data-source-id="rune_lassoing"]'))
+      from = centre(runeNodeEl('rune_lassoing'))
         ?? centre(document.querySelector('.questbadges .runebadge'))
         ?? centre(document.querySelector('.questbadges'));
     } else {
@@ -6588,7 +6595,8 @@ export function Recruit() {
         // Anchored by the rune/quest ID (`data-source-id`, added alongside this) rather than by the effect
         // name legacy matched on — so EVERY rune/quest reward that lands on a unit draws its ribbon, not the
         // two effects that were spelled out in the UI.
-        const nodeEl = document.querySelector(`.questbadges [data-source-id="${sourceId}"]`);
+        // …or the hero-power slot, when the rune is the one the hero's forge sold (R-RUNESLOT-01).
+        const nodeEl = document.querySelector(`.questbadges [data-source-id="${sourceId}"]`) ?? runeNodeEl(sourceId);
         const unitEl = document.querySelector(`[data-uid="${targetUid}"]`);
         if (!nodeEl || !unitEl) return;
         const nr = nodeEl.getBoundingClientRect();
@@ -6930,7 +6938,8 @@ export function Recruit() {
           : b.eotEffect === 'triggerLeftmostEcho'
             ? run.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'))?.uid
             : undefined;
-        const nodeEl = document.querySelector(`.questbadges [data-eot-effect="${b.eotEffect}"]`);
+        const nodeEl = document.querySelector(`.questbadges [data-eot-effect="${b.eotEffect}"]`)
+          ?? document.querySelector(`.statusbar .heropowerbtn[data-eot-effect="${b.eotEffect}"]`); // the hero-slot rune (R-RUNESLOT-01)
         const unitEl = targetUid ? document.querySelector(`[data-uid="${targetUid}"]`) : null;
         if (nodeEl && unitEl) {
           const nr = nodeEl.getBoundingClientRect();

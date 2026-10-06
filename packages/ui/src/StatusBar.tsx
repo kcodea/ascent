@@ -20,6 +20,7 @@ import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { gatherRunBuffs } from './runBuffs';
 import { questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
+import { runeTally } from './runeTally';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { getEquipFxConfig } from './equipFxConfig';
 import { getEquipSlotConfig } from './equipSlotConfig';
@@ -628,6 +629,9 @@ export function StatusBar() {
   const powerTally: string | null = (grantQuest && grantQuestDef)
     // A granted QUEST owns the slot while it runs: its objective tracker is the useful number.
     ? questProgressText(grantQuest.progress, grantQuestDef.objective, grantQuest.completed)
+    // A granted RUNE (Runesmith / Guardian's forge pick) sits HERE, not in the rack (R-RUNESLOT-01), so the slot
+    // carries the live x/N meter its rack badge used to show.
+    : grantRuneDef ? runeTally(run, grantRuneDef.id)
     : heroPowerTallyOf(power, run, { spent: !!run.heroPowerSpent, uses: run.heroPowerUses ?? 0, combatEnemyDeaths, diceLock });
   // A live MAGNITUDE printed on the power art itself (the pill above it carries progress). Odelle only, for
   // now — the slot exists because "how much is this giving me" and "how close is the next step" are two
@@ -859,6 +863,10 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
+              // The forge rune this slot wears (R-RUNESLOT-01): it has no rack badge, so the rune FX anchors
+              // (`runeNodeEl`, `badgeCenterOf`, the End-of-Turn tendril's `data-eot-effect`) find it here.
+              data-hero-rune={grantRuneDef?.id}
+              data-eot-effect={grantRuneDef?.reward.kind === 'recurringEndOfTurn' ? grantRuneDef.reward.effect : undefined}
               aria-label={`${grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}: ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).

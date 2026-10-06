@@ -80,6 +80,19 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: 'Ayse: an Enchanted spell bought from the spell slot now counts toward Lucky Seat.',
       },
+      {
+        category: 'Systems',
+        text: 'Runesmith and Guardian: the rune from your hero power\'s Runeforge now sits in your hero power slot, and no longer shows a loose extra rune beside your rune slots.',
+        details: [
+          'Guardian\'s turn 8 rune stays in the hero power slot. The turn 9 Runeforge no longer replaces it.',
+          'Your rune slots show your other runes. With Rune of Duplication, the copy takes a rune slot.',
+          'Runesmith and Guardian no longer open the third rune slot on their own, since their hero power rune has its own slot.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune of Duplication now reads "Copy the first Epic Rune you select." It works the same way.',
+      },
     ],
   },
   {

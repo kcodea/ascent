@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { getHero, type RunState } from '@game/sim';
+import type { RunState } from '@game/sim';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
@@ -9,6 +9,7 @@ import { questObjectiveLines, questObjectiveText, questProgressText, questReward
 import { questTally, runeCombatTally, runeTally } from './runeTally';
 import { useRuneTriggerFx, type RuneSlotPulse } from './runeTriggerFx';
 import { useRuneArrivalFx } from './useRuneArrivalFx';
+import { heroSlotRuneId, rackRunes } from './heroSlotRune';
 import { heldSotRuneProcs, sotRunKey, useSotRuneReleased } from './sotRuneHold';
 import { arrivalClasses } from './runeArrival';
 import { getRuneLockInConfig } from './runeLockInConfig';
@@ -48,23 +49,27 @@ function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
  * (or its tribe emblem as a fallback), and hovering floats the reward's LIVE ongoing state — Warm Embers'
  * Shouts remaining, Trail Rations' repeat countdown, else the reward it granted.
  */
-/** Runes that unlock a THIRD rune — Rune of the Epic Forge (schedules an extra turn-8 epic visit) and Rune of
+/** Runes that unlock a THIRD rack rune — Rune of the Epic Forge (schedules an extra turn-8 epic visit) and Rune of
  *  Duplication (a 3rd badge off the turn-9 epic). Owning either lifts the chains (owner ask 2026-08-19). */
 const THIRD_RUNE_UNLOCKERS = ['rune_epic_forge', 'rune_duplication'];
 
 /**
- * Can this run reach a THIRD rune? Most runs get exactly 2 (universal basic forge turn 6 + epic turn 9), so
+ * Can this run reach a THIRD rack rune? Most runs get exactly 2 (universal basic forge turn 6 + epic turn 9), so
  * the 3rd slot is LOCKED and wears the chains from the very start of the run. The chains lift only once the run
- * can actually earn a 3rd: a runeforge-native HERO — Runesmith (`runeforge`, turn 5) or Guardian
- * (`epicRuneforge`, turn 8) — or owning a RUNE that enables one (see `THIRD_RUNE_UNLOCKERS`). This is the state
- * flip the "chains unlock" FX will hook.
+ * owns a RUNE that enables a 3rd (see `THIRD_RUNE_UNLOCKERS`). This is the state flip the "chains unlock" FX hooks.
+ *
+ * The runeforge HEROES (Runesmith's turn-5 forge, Guardian's turn-8 Epic forge) used to lift the chains at run
+ * start, because their hero-power pick took a rack socket. That pick now sits in the HERO-POWER slot instead
+ * (R-RUNESLOT-01, owner report 2026-10-06), so their rack fills exactly like everyone else's and the hero no
+ * longer earns a 3rd socket on its own.
  */
 function canReachThirdRune(run: RunState): boolean {
-  const kind = getHero(run.heroId).power.kind;
-  if (kind === 'runeforge' || kind === 'epicRuneforge') return true;
   const owned = run.ownedRunes ?? [];
   return THIRD_RUNE_UNLOCKERS.some((id) => owned.includes(id));
 }
+
+/** The pulse-slot number of the hero-power slot's rune (see `runeSlots`) — past any real rack index. */
+const HERO_SLOT = 99;
 
 /** The chains shatter this long AFTER the 3rd-rune condition is met (owner ask 2026-08-19: 1000ms). */
 const RUNE_CHAINS_BREAK_MS = 1000;
@@ -128,7 +133,10 @@ export function QuestBadges() {
   const nodes = (run.activeQuests ?? [])
     .filter((aq) => QUEST_INDEX[aq.questId])
     .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
-  const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
+  // The hero-power forge's rune (Runesmith / Guardian) sits in the POWER SLOT, so the rack leaves out one copy of
+  // it (R-RUNESLOT-01) — drawing it here too put a 4th badge with no socket floating beside the 3rd.
+  const heroRune = heroSlotRuneId(run);
+  const runes = rackRunes(run.ownedRunes ?? [], heroRune).filter((id) => RUNE_INDEX[id]);
   // Indexed against the RENDERED list, not `ownedRunes` — an unknown id is filtered out above, and indexing
   // the two lists differently would shift every class by one from that point on.
   const arrivalCls = arrivalClasses(runes, runeArrival);
@@ -138,7 +146,13 @@ export function QuestBadges() {
   // return below — and `useMemo`'d so the effect's dep is stable across the row's frequent re-renders.
   const sotKey = sotRunKey(run);
   const sotReleased = useSotRuneReleased(sotKey);
-  const runeSlots = useMemo<RuneSlotPulse[]>(() => runes.map((id, slot) => {
+  // The HERO-SLOT rune bursts too, on the power button: it rides LAST, one occurrence of its id past the rack's
+  // copies, which `badgeCenterOf` resolves to the power slot (R-RUNESLOT-01). Same counters as a rack badge. Its
+  // slot number is a fixed `HERO_SLOT` rather than the next index, so a rune added to the rack later never
+  // inherits the power slot's previous count (a phantom burst).
+  const pulseIds = heroRune && RUNE_INDEX[heroRune] && (run.ownedRunes ?? []).includes(heroRune) ? [...runes, heroRune] : runes;
+  const runeSlots = useMemo<RuneSlotPulse[]>(() => pulseIds.map((id, i) => {
+    const slot = i < runes.length ? i : HERO_SLOT;
     const r = RUNE_INDEX[id]!.reward;
     // A recurring End-of-Turn reward proc'ing THIS action, stamped with the per-action seq so a re-proc of
     // the same effect still reads as a change. Mirrors the quest nodes' `procced` fold below.
@@ -155,7 +169,7 @@ export function QuestBadges() {
     // the burst lands on the rune's own beat instead of under the curtain (`sotRuneHold.ts`).
     const held = heldSotRuneProcs(sotKey, run.sotRuneProcs, id, sotReleased);
     return { slot, id, epic: !!RUNE_INDEX[id]?.epic, pulse: (triggered[id] ?? 0) + (run.runeProcs?.[id] ?? 0) - held, seq: procced };
-  }), [runes.join('|'), triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs, run.sotRuneProcs, sotReleased, sotKey]);
+  }), [pulseIds.join('|'), runes.length, triggered, run.questTendrilFx, run.questTendrilSeq, run.runeProcs, run.sotRuneProcs, sotReleased, sotKey]);
   useRuneTriggerFx(runeSlots);
   // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).
   // The badge row renders for the chains alone, even with no quests and no runes yet.

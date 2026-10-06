@@ -418,7 +418,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'runeProfitSharing':
       return `Whenever you gain Gold, give your ${TRIBE_PLURAL[r.tribe]} +${r.attack}/+${r.health}`;
     case 'runeDuplication':
-      return 'After you forge your Epic Rune, this transforms into a copy of it';
+      return 'Copy the first Epic Rune you select';
     case 'runeSharedTable':
       return `Your Dwarven Ale casts each give one friendly minion of each type +${r.attack}/+${r.health}`;
     case 'runeRedirection':

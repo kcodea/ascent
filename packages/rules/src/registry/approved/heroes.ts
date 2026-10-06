@@ -1140,4 +1140,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsGorr.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
+  {
+    id: 'R-ANCBRAUM-01',
+    title: 'Braum × Ancient of Death: Investment turns passive; every 16 friendly deaths (Shop and combat, one count) get a random Gilded minion',
+    statement:
+      "With the Ancient of Death, Investment can no longer be used. One running count of friendly deaths across the Shop and combat pays a random Gilded minion (Investment's own payout: up to your Shop tier) on every 16th death, repeating. In combat it flies to hand the moment the 16th minion dies and arrives Gilded. It is not an Avenge, so Rune of Fury does not repeat it. The power prints the deaths still needed, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: 'Death: Investment becomes: When 16 friendly minions die, get a random Gilded minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts deathsGetGildedMinion / ancientBramShopDeath / bramGildedPayout; packages/core/src/combat/simulate.ts ancientBramDeaths; packages/sim/src/reducer.ts handGilds' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). Repeating and not-an-Avenge are judgement calls flagged for the owner in the PR.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRAUM-02',
+    title: 'Braum × Ancient of Fortune: Investment costs 0 Gold; every Triple Reward you get also gains 3 Gold',
+    statement:
+      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (5 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Rune of the Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: 'Fortune: Investment is free. Triple rewards also grant 3 gold.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts tripleRewardGold / ancientOnTripleReward; packages/sim/src/reducer.ts grantGoldenDiscover' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). "On get, not on cast" is a judgement call flagged for the owner in the PR.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRAUM-03',
+    title: 'Braum × Ancient of War: Start of Combat, your minions gain +8/+8 for every Gilded minion played this game',
+    statement:
+      'With the Ancient of War, at Start of Combat every friendly minion gains +8/+8 for each Gilded minion you have played from hand this game, a combat buff. Plays made before the pick count. The power prints the count and the grant.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: "War: Start of Combat: Give your minions +8/+8 for every Gilded minion you've played this game." },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socBuffPerGildedPlayed / bramOnPlay / bramGildedPlays; packages/core/src/combat/simulate.ts ancientSocBuffAll' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRAUM-04',
+    title: "Braum × Ancient of Genesis: Investment's payout is a Discover of a Gilded minion from exactly your current tier",
+    statement:
+      'With the Ancient of Genesis, the 5th investment opens a Discover of minions of exactly your current Shop tier instead of a random one; the pick arrives Gilded. The bank and its cost are unchanged. The power prints the tier.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: 'Genesis: Discover the minion from Investment. It is always of your current tier.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts investmentDiscoverCurrentTier / ancientRunInvestmentGenesis; packages/sim/src/reducer.ts investment branch' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRAUM-05',
+    title: 'Braum × Ancient of Time: Investment becomes a once-per-game Discover of a Tier 5 minion; every Start of Turn after, a plain copy of it',
+    statement:
+      'With the Ancient of Time, Investment (still 1 Gold) becomes: Discover a Tier 5 minion, once per game. The minion picked from that Discover is remembered, and every Start of Turn after you get a plain copy of it in hand (a full hand gets none that turn). No other Discover is ever the remembered minion. The power prints the minion it copies.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: 'Time: Investment becomes: Discover a Tier 5 minion. Start of Turn: Get another copy.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts investmentDiscoverTierCopies / ancientRunInvestmentTime / ancientOnDiscoverPick / bramStartOfTurn' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). Once per game, still 1 Gold, and a copy every Start of Turn forever are judgement calls flagged for the owner in the PR.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRAUM-06',
+    title: 'Braum × Ancient of Bonds: playing a Gilded minion gives your minions +8/+8, permanently',
+    statement:
+      'With the Ancient of Bonds, playing a Gilded minion from hand gives every board minion, the played one included, +8/+8 permanently, right then. A plain play gives nothing. Combat has no play.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: 'Bonds: When you play a Gilded minion, give your minions +8/+8.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts gildedPlayBuffsAll / bramOnPlay; packages/sim/src/recruit.ts playCard ancientOnPlay' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). Including the played minion is a judgement call flagged for the owner in the PR.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

@@ -4385,6 +4385,16 @@ export function simulate(
       const src = xeroxTop(scSide, 'health');
       if (src) { nextStep(); emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` }); xeroxCopy(scSide, src); }
     }
+    // ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
+    // played this game." The grant arrives pre-multiplied; every living friendly minion gains it, a combat buff.
+    const socAll = smods.ancientSocBuffAll;
+    if (socAll && (socAll.attack > 0 || socAll.health > 0)) {
+      const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
+      if (band.length > 0) {
+        nextStep();
+        for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
+      }
+    }
     // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
     // Shouts. If you have only one Shout, trigger it once." The two edges are read once, up front; each fires through
     // the shared combat Shout path (`fireShout`: a counted `shout` event, the Shout's combat half, the
@@ -5302,6 +5312,18 @@ export function simulate(
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     const draw = grantRngFor(side);
     for (let k = 0; k < fires; k++) ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
+  });
+  // ANCIENT OF DEATH × Braum (owner 2026-10-06): "When 16 friendly minions die, get a random Gilded minion." The Rune of
+  // Body Counting shape (a running count carried in, NOT an Avenge, so Rune of Fury does not repeat it): every Nth death
+  // sends a random minion at or below the side's tier to hand, live; settle gilds it (`handGilds`).
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const bd = modsFor(side).ancientBramDeaths;
+    if (!bd || (bd.tick + count) % Math.max(1, bd.every) !== 0) return;
+    const idx = handGrants[side].length;
+    nextStep();
+    ctx.grantRandomMinion(1, undefined, side, undefined, victim?.uid);
+    if (handGrants[side].length > idx) (shoutCarry[side].handGilds ??= []).push(idx);
   });
   // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
   // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then

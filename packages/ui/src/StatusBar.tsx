@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge } from '@game/sim';
+import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -122,7 +122,10 @@ function heroPowerTallyOf(
     case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null; // Gambler / Aster
     case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete
     case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen
-    case 'investment': return `${run.bramInvested ?? 0}/5`; // Bram
+    case 'investment': { // Bram — an Ancient pairing may reshape it (Death: deaths toward 16, live; Time: no bank)
+      const ancient = run.ancientsEnabled ? ancientInvestmentTally(run, run.fxFriendlyDeathPreview ?? 0) : undefined;
+      return ancient !== undefined ? ancient : `${run.bramInvested ?? 0}/5`;
+    }
     case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia
     case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`; // Odelle
     case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal

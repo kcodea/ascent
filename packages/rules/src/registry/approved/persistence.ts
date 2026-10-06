@@ -625,4 +625,27 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'for them) and are flagged; regimes on those rows are inferred.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/reportSources.test.ts', 'packages/ui/src/balanceFetch.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
+  {
+    id: 'R-TELEMETRY-RANK-01',
+    title: 'Every rated game in telemetry records the rank the player started it at, beside the matchmaking regime',
+    statement:
+      'Each uploaded RATED lobby game records, in its public telemetry, the medal, division, points and rating the player '
+      + 'held when the game started (the rank pinned on the run at creation, so a rank change mid-game, Save & Quit or a '
+      + 'cloud resume never moves it), next to the matchmaking regime stamp (band table and strength formula). Practice, '
+      + 'the tutorial, the Gauntlet, sandboxes and unrated tables never carry it. A row without it reads as an UNKNOWN '
+      + 'rank, never as any particular medal, and every reader degrades instead of failing. The newcomer top-4 rate is '
+      + 'measured from these rows: rated games started in Bronze, developers excluded, with an interval and a sample size; '
+      + 'older rows read as Bronze only from the Bronze matchmaking band they asked for, labelled approximate.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner decision 2026-10-06 (the newcomer top-4 target, about 40% in Bronze)', quote: "Start recording each player's rank in game telemetry, so we can measure real newcomers' top-4 rate" },
+      { kind: 'code', ref: 'packages/sim/src/rankAtStart.ts (rankAtStartOf, parseRankAtStart, rankAtStartForTelemetry); packages/sim/src/state.ts RunState.rankAtStart; packages/ui/src/goldClock.ts pinMedalAtStart (one pin with medalAtStart); packages/ui/src/store.ts the lobby telemetry upload (derived.rankAtStart beside derived.regime); packages/ui/src/remoteBoards.ts BALANCE_DERIVED_SCALARS; packages/sim/src/playerReport.ts ExportedRun.rankAtStart; packages/tools/src/newcomer (npm run newcomer:rate, DEVELOPER_AUTHORS)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-06 for new uploads. Every row uploaded before it has no rank stamp: on 2026-10-06 the live '
+      + 'table held 192 rows, none stamped, of which 28 were rated non-developer games (4 readable as Bronze from their '
+      + 'band, 24 unknown). No backend change: the stamp rides inside the existing derived jsonb.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/telemetryRankAtStart.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/tools/src/newcomer/newcomerRate.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

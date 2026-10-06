@@ -21,7 +21,7 @@
  * Because "waiting" is encoded in the clock VALUE, Save & Quit needs nothing new: a turn quit while waiting saves
  * the parked value and resumes waiting; one quit mid-countdown saves (and resumes) its real seconds.
  */
-import { lobbyIsUnrated, medalOf, type PlayerProfile, type RunState } from '@game/sim';
+import { lobbyIsUnrated, medalOf, rankAtStartOf, type PlayerProfile, type RunState } from '@game/sim';
 
 /** One gold-spend clock: the Gold spent in a turn that starts it, and the countdown it starts. */
 export interface GoldClockConfig {
@@ -102,13 +102,20 @@ export function goldTurnClock(args: { clock: GoldClockConfig; goldSpent: number;
  * cloud resume and a rank change mid-game all keep the clock the game started with. Only a rated lobby is stamped
  * (an unrated all-generated table, Practice, a Gauntlet stage, the tutorial and the sandbox are left alone). A
  * brand-new account's profile starts at Bronze I, so it is stamped Bronze. Mutates and returns `run`.
+ *
+ * The same call, under the same gate, pins the FULLER rank snapshot `run.rankAtStart` (medal, division, points,
+ * rating, season; owner 2026-10-06, R-TELEMETRY-RANK-01) that the run's telemetry upload stamps into `derived`, so
+ * the real Bronze top-4 rate can be measured. One pin point means the clock and the telemetry can never disagree on
+ * the rank a game started at.
  */
-export function pinMedalAtStart<R extends Pick<RunState, 'mode' | 'sandbox' | 'lobby' | 'medalAtStart'>>(
+export function pinMedalAtStart<R extends Pick<RunState, 'mode' | 'sandbox' | 'lobby' | 'medalAtStart' | 'rankAtStart'>>(
   run: R,
   profile: Pick<PlayerProfile, 'rank'> | null | undefined,
 ): R {
-  const division = profile?.rank?.position?.divisionIndex;
-  if (run.mode !== 'lobby' || run.sandbox || !run.lobby || lobbyIsUnrated(run.lobby) || typeof division !== 'number') return run;
+  const rank = profile?.rank;
+  const division = rank?.position?.divisionIndex;
+  if (run.mode !== 'lobby' || run.sandbox || !run.lobby || lobbyIsUnrated(run.lobby) || !rank || typeof division !== 'number') return run;
   run.medalAtStart = medalOf(division);
+  run.rankAtStart = rankAtStartOf(rank);
   return run;
 }

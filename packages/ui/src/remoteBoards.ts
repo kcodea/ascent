@@ -17,7 +17,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
 import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
-import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, type TelemetryCapture, type RunRegime, type LobbyPoolTelemetry, isRankPosition, type RankPosition } from '@game/sim';
+import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, parseRankAtStart, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, type TelemetryCapture, type RunRegime, type LobbyPoolTelemetry, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
@@ -623,8 +623,9 @@ const BALANCE_BUYS = `${BALANCE_SPLIT}, buy_events`; // 2026-07-16
 const BALANCE_PLACE = `${BALANCE_BUYS}, placement`; // 2026-08-02
 /** 2026-10-03 (the export fix): small pieces of `derived` the report needs on EVERY row, read as JSON paths so a row
  *  past the derived cap (or before stage two lands) still knows its live final wave (to clamp its tier series),
- *  whether its flat fields were captured live, its regime stamp and its band. A path a payload lacks reads null. */
-const BALANCE_DERIVED_SCALARS = 'derived_final_wave:derived->finalWave, derived_capture:derived->capture, derived_regime:derived->regime, derived_lobby_pool:derived->lobbyPool';
+ *  whether its flat fields were captured live, its regime stamp and its band, and (2026-10-06, R-TELEMETRY-RANK-01)
+ *  the player's rank at game start. A path a payload lacks reads null (an old row's rank then reads as unknown). */
+const BALANCE_DERIVED_SCALARS = 'derived_final_wave:derived->finalWave, derived_capture:derived->capture, derived_regime:derived->regime, derived_lobby_pool:derived->lobbyPool, derived_rank_at_start:derived->rankAtStart';
 /** 2026-08-05: `content_revision` arrived in the same migration as the `derived` jsonb, so this rung ALSO reads
  *  the two stamps the client writes INSIDE derived (`derived->>setId`, `derived->>source`): two short scalars
  *  per row, never the payload. A row uploaded by a 2026-09-22 client to a table that still lacks the columns
@@ -720,6 +721,7 @@ export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number 
       const capture = isObj(r.derived_capture) ? (r.derived_capture as unknown as TelemetryCapture) : undefined;
       const regime = isObj(r.derived_regime) ? (r.derived_regime as unknown as RunRegime) : undefined;
       const lobbyPool = isObj(r.derived_lobby_pool) ? (r.derived_lobby_pool as unknown as LobbyPoolTelemetry) : undefined;
+      const rankAtStart = parseRankAtStart(r.derived_rank_at_start) ?? undefined; // absent / malformed = unknown rank
       return {
         id,
         createdAt: (r.created_at as string | null) ?? null,
@@ -751,6 +753,7 @@ export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number 
         ...(capture ? { capture } : {}),
         ...(regime ? { regime } : {}),
         ...(lobbyPool ? { lobbyPool } : {}),
+        ...(rankAtStart ? { rankAtStart } : {}),
       };
     });
     return { rows, fetched: rows.length, truncated, cap, pageSize, playerKeyBasis: select === BALANCE_PLAYER ? 'playerKey' : 'displayName' };

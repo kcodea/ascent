@@ -18,6 +18,7 @@ import type { Replay } from './snapshot';
 import type { LobbyPoolTelemetry } from './lobby/runLobby';
 import { RUN_STRENGTH_FORMULA, type StrengthFormula } from './lobby/boardStrength';
 import { STRENGTH_BANDS_VERSION } from './lobby/strengthBands';
+import type { RankAtStart } from './rankAtStart';
 
 /**
  * What PRODUCED a telemetry row (2026-09-22). `ladder` is a real, rated lobby run — the only thing the run-end
@@ -101,6 +102,11 @@ export interface RunTelemetry {
    *  band asked for / used. Stamped at upload inside `derived`; absent on older rows (the report then INFERS it
    *  from the build and labels it so, `reportSources.ts`). */
   regime?: RunRegime;
+  /** The player's rank when the game STARTED (owner 2026-10-06, R-TELEMETRY-RANK-01): medal, division, points,
+   *  rating and season, pinned on the run at creation (`RunState.rankAtStart`) and stamped at upload inside
+   *  `derived` (jsonb, no SQL). Present only on a RATED lobby row; absent on older rows, which every reader treats
+   *  as an UNKNOWN rank (`parseRankAtStart`). */
+  rankAtStart?: RankAtStart;
 }
 
 /** See `RunTelemetry.capture`. */

@@ -117,6 +117,13 @@ describe('buildBalanceExport', () => {
     expect(toExportedRun({ ...ROWS[0]!, playerKey: null }, null).player, 'no key stays null, never player 0').toBeNull();
   });
 
+  it('carries the rank at game start (R-TELEMETRY-RANK-01): the flat stamp, else the payload copy, else null = unknown', () => {
+    const rank = { v: 1 as const, medal: 'Bronze' as const, divisionIndex: 0, division: 'Bronze I', points: 20, rating: 20, seasonId: 3 };
+    expect(toExportedRun({ ...ROWS[0]!, rankAtStart: rank }, null).rankAtStart).toEqual(rank);
+    expect(toExportedRun({ ...ROWS[0]!, derived: { ...derivedFor(3), rankAtStart: rank } }, null).rankAtStart).toEqual(rank);
+    expect(toExportedRun(ROWS[0]!, null).rankAtStart, 'an old row: unknown').toBeNull();
+  });
+
   it('keys players by player_key: a rename is the same player, a shared name is two, and the display name is only the un-migrated fallback', () => {
     // Kev renames between runs; a second account picks the name "Mike".
     const rows = [

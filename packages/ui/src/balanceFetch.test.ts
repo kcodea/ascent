@@ -105,6 +105,20 @@ describe('fetchRunTelemetry — the select ladder', () => {
     expect(res.rows[1]!.regime).toBeUndefined();
   });
 
+  it('reads the rank at game start as a JSON path (R-TELEMETRY-RANK-01); an old or malformed row reads as unknown, never crashes', async () => {
+    const rank = { v: 1, medal: 'Bronze', divisionIndex: 1, division: 'Bronze II', points: 40, rating: 140, seasonId: 3 };
+    respond = () => ({ data: [
+      { ...FLAT[0], derived_rank_at_start: rank },
+      { ...FLAT[1], derived_rank_at_start: null },
+      { ...FLAT[1], id: 99, derived_rank_at_start: { medal: 'Tin', divisionIndex: 'x' } },
+    ], error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 500 });
+    expect(queries[0]!.select).toContain('derived_rank_at_start:derived->rankAtStart');
+    expect(res.rows[0]!.rankAtStart).toEqual(rank);
+    expect(res.rows[1]!.rankAtStart, 'an old row has no rank: unknown').toBeUndefined();
+    expect(res.rows[2]!.rankAtStart, 'a malformed rank is dropped, never guessed').toBeUndefined();
+  });
+
   it('a backend WITHOUT the 2026-09-22 columns errors the first rung and answers from the second, where a stamp written inside derived still reads', async () => {
     respond = (q) => (q.select!.includes('set_id') ? missingColumn('set_id') : { data: FLAT_RUNG2, error: null });
     const res = await (await load()).fetchRunTelemetry({ cap: 500 });

@@ -1232,6 +1232,8 @@ export const HEROES_RULES: GameRule[] = [
     domain: 'heroes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (owner ruling on the spell-slot fix shipped in #1953)', quote: 'keep the lucky seat fix' },
+      { kind: 'fix-pr', ref: '#1953 feat(sim,ui): Ayse\'s Ancient synergy + Lucky Seat counts the spell slot: packages/sim/src/reducer.ts (spell-slot buy -> ciaBuyEnchanted)' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Time: End of Turn: Give your minions +3/+3 for every Enchanted card purchased this turn.' },
       { kind: 'card-text', ref: 'packages/sim/src/heroes.ts (cia, Lucky Seat)', quote: 'Buy **3** Enchanted cards for a reward.' },
       { kind: 'card-text', ref: 'packages/ui/src/patchNotes.ts (Ayse, 2026-08-22)', quote: 'Spells can now be enchanted too.' },

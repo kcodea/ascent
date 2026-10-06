@@ -7741,7 +7741,7 @@ export function Recruit() {
           its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
       {pendingTarget && !inCombat && (
         <div className="targetprompt" aria-live="polite">
-          Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Battlecry
+          Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Shout
         </div>
       )}
 

@@ -92,6 +92,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientPummelCharge: { every: 1, dealt: 0, flag: 'ancientSwapCharge', label: 'Ancient of War' }, // Darah x War: Pummel (1) so the first staged hit pays a flagged Swap charge
   ancientMaxGoldAvenge: { every: 1, tick: 0, gold: 1, flag: 'ancientMaxGoldAvenge', label: 'Ancient of Death' }, // Nadja x Death: Avenge (1) so each staged death floats +1 max Gold
   ancientSocRally: { attack: 3, label: 'Ancient of War' }, // Nadja x War: the left-most staged body gains the Rally graft
+  ancientBrackusAvenge: { every: 1, tick: 0, attack: 6, health: 6, flag: 'ancientSummitAvenge', label: 'Ancient of Death' }, // Brackus x Death: Avenge (1) so the staged deaths pulse (the hand / Shop payout flag)
+  ancientSummitCopy: { label: 'Ancient of War' }, // Brackus x War: needs a Tier 7 on the board (staged via TIER7_STAGE_KEYS)
   ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
 };
 
@@ -121,6 +123,14 @@ export function namedCardsFor(key: string): string[] {
 const SHOUT_STAGE_KEYS = new Set(['warDrumExtra', 'shoutDoubleCharges', 'encoreExtra', 'shoutExtraAlways', 'warmEmbersFirst', 'shoutEdgeBuff', 'shoutEdgeTribeBuff', 'shoutMeters']);
 const shoutStageBodies = (): BoardMinion[] => [bm('alley', 'pW0', 1, 30), bm('ryme', 'pW1', 1, 1, ['T'])];
 
+/** Mods that only act on a TIER 7 minion (Brackus × War copies one); the generic fight has none. Stages one sturdy
+ *  Tier 7 body (the first in card order, so the pick is stable). */
+const TIER7_STAGE_KEYS = new Set(['ancientSummitCopy']);
+const tier7StageBodies = (): BoardMinion[] => {
+  const t7 = Object.values(CARD_INDEX).find((c) => c && !c.spell && !c.token && !c.ruby && c.tier === 7);
+  return t7 ? [bm(t7.id, 'pT7', Math.max(1, t7.attack), Math.max(10, t7.health))] : [];
+};
+
 export function combatModScan(keys: readonly string[]): ModScanResult {
   const baseline = fight({});
   const changed: string[] = [];
@@ -140,7 +150,13 @@ export function combatModScan(keys: readonly string[]): ModScanResult {
     if (verdict === 'inert') {
       // Second chance: stage the trigger the mod needs — a combat-triggered Shout for the carry-over pair,
       // else the cards the mod's own rune names — then re-test.
-      const named = SHOUT_STAGE_KEYS.has(key) ? [] : namedCardsFor(key);
+      const named = SHOUT_STAGE_KEYS.has(key) || TIER7_STAGE_KEYS.has(key) ? [] : namedCardsFor(key);
+      if (TIER7_STAGE_KEYS.has(key)) {
+        try {
+          const armedArm = key in OBJECT_ARMS ? OBJECT_ARMS[key] : true;
+          if (fightWith(tier7StageBodies(), { [key]: armedArm } as QuestCombatMods) !== fightWith(tier7StageBodies(), {})) verdict = 'staged';
+        } catch { /* keep inert */ }
+      }
       if (SHOUT_STAGE_KEYS.has(key)) {
         try {
           const armedArm = key in OBJECT_ARMS ? OBJECT_ARMS[key] : true;

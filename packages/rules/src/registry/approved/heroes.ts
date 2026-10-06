@@ -1492,4 +1492,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). The "per spend, not per Gold" and "board minions only" readings await owner confirmation.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-ANCBRACKUS-01',
+    title: 'Brackus × Ancient of Death: Avenge (3) on one running count across Shop and combat gives every Tier 7 minion +6/+6, in the warband, the hand and the Shop',
+    statement:
+      "With the Ancient of Death, Brackus has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gives EVERY Tier 7 minion +6/+6 permanently: the warband, the hand and the Shop offers. In combat the living Tier 7 bodies gain it the moment it fires (a permanent gain carried home), and each fire is counted so the hand and the Shop are paid at settle. Rune of Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Death: Avenge (3) Give all Tier 7 minions +6/+6. (this works in hand/shop)' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeBuffTier7 / ancientBrackusShopDeath / brackusAfterCombat; packages/core/src/combat/simulate.ts ancientBrackusAvenge' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). A combat fire reaches the Shop at settle, which is before the next turn rolls its Shop, so only a frozen Shop keeps that share.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRACKUS-02',
+    title: 'Brackus × Ancient of Fortune: every 50 Gold spent opens a Tier 7 Discover',
+    statement:
+      "With the Ancient of Fortune, every Gold Brackus spends (the one spend chokepoint that also drives Summit's own lock) adds to a running count from the pick. Every 50 opens a Discover of a Tier 7 minion (a fixed-tier Discover, so it needs no Tier 7 access). It repeats; one big spend that crosses 50 more than once queues one Discover per 50. The power prints the Gold still to spend.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Fortune: When you spend 50g, Discover a Tier 7 minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts goldSpentDiscoverTier7 / ancientOnGoldSpent; packages/sim/src/reducer.ts spendGold' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRACKUS-03',
+    title: 'Brackus × Ancient of War: Start of Combat, a copy of the left-most Tier 7, summoned as soon as there is room',
+    statement:
+      "With the Ancient of War, at Start of Combat Brackus summons an exact copy (its current combat stats and keywords) of his left-most living Tier 7 minion. With room it lands right away; on a full board it waits and lands the moment a slot opens, copied from the source as it stands then (or from its Start-of-Combat body if it has died). One copy per combat. No Tier 7 on the board: nothing. The power names the minion it would copy.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'War: Start of Combat: When you have space, summon a copy of your Tier 7 minion.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts socCopyTier7; packages/core/src/combat/simulate.ts ancientSummitCopy / pendingSummitCopies' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRACKUS-04',
+    title: 'Brackus × Ancient of Genesis: Summit needs 40 more Gold and the Tier 7 becomes Gilded when it unlocks (already unlocked: after 30 more Gold)',
+    statement:
+      "With the Ancient of Genesis, a Summit pick still locked when the Ancient is picked has 40 Gold added to its lock, and becomes Gilded the moment it unlocks. When Summit has already unlocked, the Tier 7 becomes Gilded after 30 more Gold spent. It happens once. The Gilded minion is the Summit pick when it is still yours and not Gilded, else another non-Gilded Tier 7 you hold (board first, then hand); holding no Tier 7 at all, you get a Gilded copy of the Summit pick instead. The power prints the lock as it stands and the Gold left until the Gild.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Genesis: Add 40 gold to Summit. When it triggers, it grants or makes your Tier 7 Gilded. (if it has triggered already, after 30 more gold, the Tier 7 becomes Gilded.)' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts summitGildTier7 / brackusOnPick / brackusGild / ancientOnGoldSpent' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRACKUS-05',
+    title: 'Brackus × Ancient of Time: three turns after the pick, Start of Turn Discovers a Tier 7 minion, once',
+    statement:
+      "With the Ancient of Time, the Start of Turn three turns after the turn of the pick opens one Discover of a Tier 7 minion, on its own Start-of-Turn beat. It happens once. The power counts the turns down, then reads done.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Time: Discover a Tier 7 minion in 3 turns.' },
+      { kind: 'code', ref: 'packages/sim/src/ancients.ts discoverTier7InTurns / brackusStartOfTurn' },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-ANCBRACKUS-06',
+    title: 'Brackus × Ancient of Bonds: playing a card gives your other Tier 7 minions +1/+1 per tier of the played card',
+    statement:
+      "With the Ancient of Bonds, every card played from hand (a minion, a spell or a Ruby: one per real play, after the choice of a Choose One) gives Brackus's OTHER Tier 7 minions, on the board and in hand, +1/+1 for each tier of the played card, permanently. A Tier 7 played does not buff itself. Combat has no plays. The power prints the total so far.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Bonds: Your Tier 7 cards gain +1/+1 per card tier when a card is played.' },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts playBuffsTier7PerTier / ancientOnCardPlayed; packages/sim/src/reducer.ts the play case's applyCardsPlayed" },
+    ],
+    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

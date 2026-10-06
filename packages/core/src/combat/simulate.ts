@@ -3479,6 +3479,22 @@ export function simulate(
   const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 }; // Rune of the Undertow's 4-Ward budget
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side; reclaim?: { gain?: number; bonds?: boolean; label: string } }[] = [];
+  // ANCIENT OF WAR × Brackus: Start-of-Combat Tier 7 copies waiting for room. Summoned from the source's body as it
+  // stands when the slot opens, or from its Start-of-Combat body (`kws` / `stats`) if it has died since.
+  const pendingSummitCopies: { side: Side; src: Minion; kws: Keyword[]; stats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } }[] = [];
+  function flushSummitCopies(): void {
+    for (let i = 0; i < pendingSummitCopies.length; ) {
+      const p = pendingSummitCopies[i]!;
+      if (occupied(p.side) >= 7) { i++; continue; }
+      pendingSummitCopies.splice(i, 1);
+      nextStep(); // the copy landing is its own moment
+      if (!p.src.dead && p.src.health > 0) xeroxCopy(p.side, p.src);
+      else {
+        const def = cards[p.src.cardId];
+        if (def) summonMinion(p.side, def, p.src.uid, p.kws, p.src.golden, false, p.stats);
+      }
+    }
+  }
   function flushResummons(): void {
     // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the
     // enemy side, exactly like the player's Reclaimer). FIFO within a side; player-only queues behave as before.
@@ -3515,6 +3531,7 @@ export function simulate(
         }
       }
     }
+    flushSummitCopies(); // Brackus × War's waiting copies, after Reclaim's (queued first, so they keep their place)
   }
 
   /**
@@ -4402,6 +4419,24 @@ export function simulate(
       if (band.length > 0) {
         nextStep();
         for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
+      }
+    }
+    // ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
+    // minion." The left-most living Tier 7; an exact copy (`xeroxCopy`) right now when there is room, else it waits in
+    // `pendingSummitCopies` for the first open slot (flushed with Reclaim's queue).
+    if (smods.ancientSummitCopy) {
+      const src = boards[scSide].find((m) => !m.dead && m.health > 0 && cards[m.cardId]?.tier === 7 && !cards[m.cardId]?.spell);
+      if (src) {
+        nextStep();
+        emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
+        if (occupied(scSide) < 7) xeroxCopy(scSide, src);
+        else {
+          pendingSummitCopies.push({
+            side: scSide, src,
+            kws: src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable)),
+            stats: { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable },
+          });
+        }
       }
     }
     // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
@@ -5365,6 +5400,26 @@ export function simulate(
     nextStep();
     ctx.grantRandomMinion(1, undefined, side, undefined, victim?.uid);
     if (handGrants[side].length > idx) (shoutCarry[side].handGilds ??= []).push(idx);
+  });
+  // ANCIENT OF DEATH × Brackus (owner 2026-10-06): "Avenge (3) Give all Tier 7 minions +6/+6." (owner: "this works in
+  // hand/shop"). The Xerox Death running count. Each fire: the living Tier 7 bodies gain it PERMANENTLY (`permaGain`, the
+  // Indy War carry-back), and a `questTrigger` pulse that settle counts to pay the hand and the Shop (so it pulses with
+  // no Tier 7 on the board too). Rune of Fury fires it again.
+  bus.on('avenge', (payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    const ba = modsFor(side).ancientBrackusAvenge;
+    if (!ba || (ba.tick + count) % Math.max(1, ba.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      nextStep();
+      fireTrigger(ba.flag, side);
+      for (const m of boards[side]) {
+        const d = cards[m.cardId];
+        if (m.dead || m.health <= 0 || !d || d.spell || d.tier !== 7) continue;
+        ctx.buff(m, ba.attack, ba.health, ba.label);
+        if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + ba.attack, health: (m.permaGain?.health ?? 0) + ba.health };
+      }
+    }
   });
   // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
   // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then

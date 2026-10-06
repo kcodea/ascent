@@ -326,6 +326,32 @@
  *  · `spendGoldBuffsRandom`       the reducer's `spendGold` (THE Gold-spend chokepoint: buys, Refreshes, upgrades, hero
  *                                 powers, runes): every spend of 1+ Gold (one transaction, never per Gold; Rune of Bulk
  *                                 Order's un-`per` rule) gives `count` random board minions +a/+h, permanently. (Bonds)
+ *  BRACKUS (Summit, `summitLock`, PASSIVE; owner pairings 2026-10-06). Summit = "At the start of the game, Discover a Tier
+ *  7 minion. It is locked until you spend 70 Gold." The lock is the pick's `lockedUntilGoldSpent` read against the run's
+ *  cumulative `goldSpent`, which only the reducer's `spendGold` moves: that is the one Gold-spent chokepoint, and it calls
+ *  `ancientOnGoldSpent`. "A Tier 7 minion" is any minion whose card is Tier 7 (Gilded or not, the Summit pick or not).
+ *  · `avengeBuffTier7`            a hero Avenge (N) on ONE running count of friendly deaths across the Shop
+ *                                 (`ancientBrackusShopDeath` at `fireOnFriendDeath`) and combat (`QuestCombatMods.
+ *                                 ancientBrackusAvenge`, real time). Each fire gives EVERY Tier 7 minion +a/+h,
+ *                                 permanently: the board, the hand AND the Shop offers (owner: "this works in
+ *                                 hand/shop"). In combat the living Tier 7 bodies gain it live (`permaGain` carries it
+ *                                 home) and each fire pulses a `questTrigger` that settle counts to pay the hand and the
+ *                                 Shop. Rune of Fury fires it again. (Death)
+ *  · `goldSpentDiscoverTier7`     every `every` Gold spent (one running count since the pick, `brackusGold`): a Discover
+ *                                 of a Tier 7 minion (`exactTier: 7`, honoured with no rift). Repeats. (Fortune)
+ *  · `socCopyTier7`               COMBAT: `QuestCombatMods.ancientSummitCopy`, Start of Combat: an exact copy of your
+ *                                 left-most living Tier 7 minion (Xerox's `xeroxCopy`), right away when there is room,
+ *                                 else queued until a slot opens (flushed beside Reclaim's queue). None: nothing. (War)
+ *  · `summitGildTier7`            at the pick: a Summit pick still locked has `addLock` Gold added to its lock, and
+ *                                 Gilds the moment it unlocks; an unlocked (or missing) one Gilds after `after` more
+ *                                 Gold spent. Once (`brackusGildAt`, checked in `ancientOnGoldSpent`). The target is
+ *                                 the Summit pick, else another non-Gilded Tier 7 you hold; holding none, you get a
+ *                                 Gilded copy of the Summit pick instead ("grants"). (Genesis)
+ *  · `discoverTier7InTurns`       at the pick: `brackusTimeWave = wave + turns`; that Start of Turn
+ *                                 (`ancientStartOfTurn`) queues one Tier 7 Discover on its own beat. Once. (Time)
+ *  · `playBuffsTier7PerTier`      the reducer's `play` case, right after the cards-played meter (`ancientOnCardPlayed`,
+ *                                 once per real play: minions, spells and Rubies): your OTHER Tier 7 minions (board and
+ *                                 hand) gain +a/+h per tier of the played card, permanently. Combat has no play. (Bonds)
  *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
@@ -336,7 +362,7 @@ import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
 import { hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
-import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
+import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
 import { poolOf } from './cardPool';
@@ -590,7 +616,21 @@ export type AncientEffect =
   /** Goldspring also gives `count` random minions (your Shop tier or lower) to hand. */
   | { do: 'goldspringGrantsMinion'; count: number }
   /** Whenever you spend Gold (each spend, never per Gold), `count` random friendly minions gain +a/+h, permanently. */
-  | { do: 'spendGoldBuffsRandom'; count: number; attack: number; health: number };
+  | { do: 'spendGoldBuffsRandom'; count: number; attack: number; health: number }
+  // ── Brackus (Summit) ──
+  /** Avenge (`every`), across the Shop and combat: every Tier 7 minion (board, hand, Shop) gains +a/+h. */
+  | { do: 'avengeBuffTier7'; every: number; attack: number; health: number }
+  /** Every `every` Gold spent (a running count): Discover a Tier 7 minion. */
+  | { do: 'goldSpentDiscoverTier7'; every: number }
+  /** Start of Combat: summon a copy of your left-most Tier 7 minion as soon as there is room. */
+  | { do: 'socCopyTier7' }
+  /** Summit's lock gains `addLock` Gold and the Tier 7 becomes Gilded when it unlocks (already unlocked: after `after`
+   *  more Gold spent). Once. */
+  | { do: 'summitGildTier7'; addLock: number; after: number }
+  /** `turns` turns after the pick, at Start of Turn: Discover a Tier 7 minion. Once. */
+  | { do: 'discoverTier7InTurns'; turns: number }
+  /** Whenever you play a card, your other Tier 7 minions gain +a/+h per tier of the played card. */
+  | { do: 'playBuffsTier7PerTier'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -621,7 +661,11 @@ export interface AncientPairing {
    *  gained so far in the fight on screen); `{dSwapped}` = Time's minion swapped away this turn.
    *  Nadja: `{nDeathLeft}` / `{nDeathGold}` =
    *  Death's deaths still needed and the max Gold it has given (both live through a fight); `{nUsesLeft}` = Fortune's
-   *  Goldspring uses left this turn; `{nSpent}` / `{nRally}` = War's Gold spent this turn and the Attack its Rally gives. */
+   *  Goldspring uses left this turn; `{nSpent}` / `{nRally}` = War's Gold spent this turn and the Attack its Rally gives.
+   *  Brackus: `{smDeathLeft}` = friendly deaths still needed for Death's next Avenge (live through a fight); `{smGoldLeft}` = Gold still to spend for Fortune's next
+   *  Discover; `{smWarCopy}` = the Tier 7 War would copy right now; `{smLock}` = the Summit lock as it stands (Genesis adds
+   *  40); `{smGenesis}` = Genesis' live Gild state; `{smTimeLeft}` = Time's countdown; `{smBondsTotal}` = what Bonds has
+   *  given each Tier 7 so far. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -1344,6 +1388,47 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'spendGoldBuffsRandom', count: 2, attack: 2, health: 4 }],
     },
   },
+  // BRACKUS (owner pairings 2026-10-06, quoted above each entry). Summit (passive) = "At the start of the game, Discover a
+  // Tier 7 minion. It is locked until you spend 70 Gold."
+  brackus: {
+    death: {
+      // "Avenge (3) Give all Tier 7 minions +6/+6." (owner: "this works in hand/shop")
+      offerText: '**Avenge (3):** give all Tier 7 minions **+6/+6**, in your warband, your hand and the Shop.',
+      powerText: '{base} **Avenge (3):** give all Tier 7 minions **+6/+6**, in your warband, your hand and the Shop (**{smDeathLeft}** more to go).',
+      effects: [{ do: 'avengeBuffTier7', every: 3, attack: 6, health: 6 }],
+    },
+    fortune: {
+      // "When you spend 50g, Discover a Tier 7 minion."
+      offerText: 'Every time you spend **50 Gold**, **Discover** a **Tier 7** minion.',
+      powerText: '{base} Every time you spend **50 Gold**, **Discover** a **Tier 7** minion (**{smGoldLeft}** Gold to go).',
+      effects: [{ do: 'goldSpentDiscoverTier7', every: 50 }],
+    },
+    war: {
+      // "Start of Combat: When you have space, summon a copy of your Tier 7 minion."
+      offerText: '**Start of Combat:** summon a copy of your Tier 7 minion as soon as you have room.',
+      powerText: '{base} **Start of Combat:** summon a copy of your left-most Tier 7 minion as soon as you have room.{smWarCopy}',
+      effects: [{ do: 'socCopyTier7' }],
+    },
+    genesis: {
+      // "Add 40 gold to Summit. When it triggers, it grants or makes your Tier 7 Gilded." (owner: "if it has triggered
+      // already, after 30 more gold, the Tier 7 becomes Gilded.")
+      offerText: 'Summit needs **40** more Gold. When it unlocks, your Tier 7 becomes **Gilded**. Already unlocked: it becomes **Gilded** after you spend **30** more Gold.',
+      powerText: 'At the start of the game, **Discover** a **Tier 7** minion. It is locked until you spend **{smLock} Gold**. {smGenesis}',
+      effects: [{ do: 'summitGildTier7', addLock: 40, after: 30 }],
+    },
+    time: {
+      // "Discover a Tier 7 minion in 3 turns."
+      offerText: '**Discover** a **Tier 7** minion in **3** turns.',
+      powerText: '{base} **Discover** a **Tier 7** minion in **3** turns ({smTimeLeft}).',
+      effects: [{ do: 'discoverTier7InTurns', turns: 3 }],
+    },
+    bonds: {
+      // "Your Tier 7 cards gain +1/+1 per card tier when a card is played."
+      offerText: 'Whenever you play a card, your Tier 7 minions gain **+1/+1** for each tier of that card.',
+      powerText: '{base} Whenever you play a card, your Tier 7 minions gain **+1/+1** for each tier of that card (**+{smBondsTotal}/+{smBondsTotal}** so far).',
+      effects: [{ do: 'playBuffsTier7PerTier', attack: 1, health: 1 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1511,6 +1596,22 @@ export interface AncientsState {
   nadjaDeaths?: number;
   /** NADJA × DEATH: max Gold its Avenge has given this run (printed live). */
   nadjaDeathGold?: number;
+  /** BRACKUS × DEATH: friendly deaths since the last fire (Shop + combat), the running Avenge (3) count. */
+  brackusDeaths?: number;
+  /** BRACKUS × FORTUNE: Gold spent since the last Discover (the running count, since the pick). */
+  brackusGold?: number;
+  /** BRACKUS × GENESIS: the Summit pick (run uid + card) found at the pick, the lock it stands at, the cumulative
+   *  `goldSpent` the Gild lands at (cleared once it has), and that it has landed. */
+  brackusSummitUid?: string;
+  brackusSummitCardId?: string;
+  brackusLock?: number;
+  brackusGildAt?: number;
+  brackusGilded?: boolean;
+  /** BRACKUS × TIME: the wave whose Start of Turn opens the Tier 7 Discover (cleared once it has: `brackusTimeDone`). */
+  brackusTimeWave?: number;
+  brackusTimeDone?: boolean;
+  /** BRACKUS × BONDS: the per-Tier 7 gain Bonds has given so far (printed live). */
+  brackusBondsTotal?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1591,6 +1692,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   if (gBonds) a.gorrBondsGain = gBonds.amount; // GORR × BONDS: starts at the printed amount
   const aWar = effectOf(state, 'enchantedBuyBuffImproves');
   if (aWar) a.ayseWarGain = aWar.amount; // AYSE × WAR: starts at the printed amount
+  brackusOnPick(state, a); // BRACKUS × GENESIS / TIME: the Summit lock grows, the countdown starts
   return true;
 }
 
@@ -1716,6 +1818,12 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{nDeathGold}', String(nadjaDeathGoldLive(state, combat.friendlyDeaths ?? 0)))
     .replace('{nUsesLeft}', String(Math.max(0, (a?.powerOverride?.usesPerTurn ?? 1) - (state.heroUsesThisTurn ?? 0))))
     .replace('{nSpent}', String(Math.max(0, state.goldSpentThisTurn ?? 0))).replace('{nRally}', String(ancientNadjaRallyAttack(state)));
+  // BRACKUS: Death's countdown (live through a fight), Fortune's Gold to go, War's copy source, Genesis' lock + Gild
+  // state, Time's countdown, Bonds' total so far.
+  text = text.replace('{smDeathLeft}', String(ancientBrackusAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .replace('{smGoldLeft}', String(brackusGoldLeft(state))).replace('{smWarCopy}', brackusWarText(state))
+    .replace('{smLock}', String(a?.brackusLock ?? SUMMIT_LOCK_GOLD)).replace('{smGenesis}', brackusGenesisText(state))
+    .replace('{smTimeLeft}', brackusTimeText(state)).split('{smBondsTotal}').join(String(a?.brackusBondsTotal ?? 0));
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1772,7 +1880,7 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
   return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths)
-    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths) ?? ancientNadjaAvengeLeft(state, deaths);
+    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths) ?? ancientNadjaAvengeLeft(state, deaths) ?? ancientBrackusAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1923,6 +2031,11 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (nd) out.ancientMaxGoldAvenge = { every: nd.every, tick: live(state)?.nadjaDeaths ?? 0, gold: nd.gold, flag: ANCIENT_MAX_GOLD_AVENGE_FLAG, label: ANCIENTS.death.name };
   const rallyAtk = ancientNadjaRallyAttack(state);
   if (rallyAtk > 0) out.ancientSocRally = { attack: rallyAtk, label: ANCIENTS.war.name };
+  // BRACKUS: Death's running Avenge (carried in; each fire buffs the living Tier 7 bodies and pulses the settle flag);
+  // War's Start-of-Combat copy of the left-most Tier 7.
+  const bd = effectOf(state, 'avengeBuffTier7');
+  if (bd) out.ancientBrackusAvenge = { every: bd.every, tick: live(state)?.brackusDeaths ?? 0, attack: bd.attack, health: bd.health, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: ANCIENTS.death.name };
+  if (effectOf(state, 'socCopyTier7')) out.ancientSummitCopy = { label: ANCIENTS.war.name };
   return out;
 }
 
@@ -2079,6 +2192,7 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
     const fires = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG).length;
     if (fires > 0) noteTradesRallyGold(state, fires * rg.gold);
   }
+  brackusAfterCombat(state, a, result); // BRACKUS × DEATH: the running count + the hand / Shop share of the fight's fires
   if (!effectOf(state, 'wardBreaksGetCopy')) return;
   a.wardBreaks = (a.wardBreaks ?? 0) + breaks.length;
   if (result.playerWardWindow) a.wardWindow = [...result.playerWardWindow];
@@ -2156,6 +2270,7 @@ export function ancientStartOfTurn(state: RunState): void {
   xeroxStartOfTurn(state);
   sorenStartOfTurn(state);
   bramStartOfTurn(state);
+  brackusStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -3510,5 +3625,182 @@ export function ancientOnSpendGold(state: RunState, amount: number): void {
   for (let i = 0; i < e.count && picks.length > 0; i++) chosen.push(picks.splice(rng.int(picks.length), 1)[0]!);
   state.rngCursor = rng.state();
   captureBuffFx(state, undefined, 'spell', () => { for (const c of chosen) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+}
+
+// ── Brackus (Summit) hooks ───────────────────────────────────────────────────────────────────────────────────
+/** Summit's native lock (`summitLock`: "locked until you spend 70 Gold"), the Genesis text's fallback. */
+const SUMMIT_LOCK_GOLD = 70;
+/** The `questTrigger` flag Death's combat Avenge emits once per fire (settle counts them to pay the hand and the Shop). */
+export const ANCIENT_SUMMIT_AVENGE_FLAG = 'ancientSummitAvenge';
+
+/** A Tier 7 MINION card (Gilded or not; never a spell or a Ruby). */
+function isTier7(cardId: string): boolean {
+  const d = CARD_INDEX[cardId];
+  return !!d && !d.spell && !d.ruby && d.tier === 7;
+}
+
+/** BRACKUS × GENESIS: the Summit pick: a Tier 7 card carrying Summit's Gold lock, the hand first, then the board. */
+function summitCard(state: RunState): BoardCard | undefined {
+  return [...state.hand, ...state.board].find((c) => c.lockedUntilGoldSpent !== undefined && isTier7(c.cardId));
+}
+
+/** BRACKUS: the pick. GENESIS: a Summit pick still locked gains `addLock` on its lock and Gilds when it unlocks;
+ *  otherwise the Gild lands after `after` more Gold. TIME: the countdown starts. */
+function brackusOnPick(state: RunState, a: AncientsState): void {
+  const gen = effectOf(state, 'summitGildTier7');
+  if (gen) {
+    const card = summitCard(state);
+    const spent = state.goldSpent ?? 0;
+    if (card) { a.brackusSummitUid = card.uid; a.brackusSummitCardId = card.cardId; }
+    if (card && state.hand.includes(card) && spent < card.lockedUntilGoldSpent!) {
+      card.lockedUntilGoldSpent = card.lockedUntilGoldSpent! + gen.addLock;
+      a.brackusLock = card.lockedUntilGoldSpent;
+      a.brackusGildAt = card.lockedUntilGoldSpent;
+    } else {
+      a.brackusLock = card?.lockedUntilGoldSpent ?? SUMMIT_LOCK_GOLD;
+      a.brackusGildAt = spent + gen.after;
+    }
+  }
+  const time = effectOf(state, 'discoverTier7InTurns');
+  if (time) a.brackusTimeWave = state.wave + Math.max(1, time.turns);
+}
+
+/** BRACKUS × DEATH: every Tier 7 minion (board, hand and Shop offers) gains +a/+h, permanently. `skip` = board uids
+ *  that are leaving (the dying body, the vacating slot); `board: false` leaves the board out (combat already paid it). */
+function brackusBuffTier7(state: RunState, attack: number, health: number, opts: { board?: boolean; skip?: readonly (string | undefined)[] } = {}): void {
+  const label = ANCIENTS.death.name;
+  const skip = new Set(opts.skip ?? []);
+  const board = opts.board === false ? [] : state.board.filter((c) => !skip.has(c.uid));
+  const bodies = [...board, ...state.hand].filter((c) => isTier7(c.cardId));
+  if (bodies.length > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of bodies) addBuff(c, label, attack, health); });
+  for (const o of state.shop) if (!o.held && isTier7(o.cardId)) addOfferBuff(o, label, attack, health);
+}
+
+/** BRACKUS × DEATH: friendly deaths still needed for the next fire (the carried count plus `deaths` so far in the fight
+ *  on screen). Null when Death is not picked. */
+export function ancientBrackusAvengeLeft(state: RunState, deaths = 0): number | null {
+  const e = live(state) ? effectOf(state, 'avengeBuffTier7') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.brackusDeaths ?? 0) + Math.max(0, deaths)) % every);
+}
+
+/** BRACKUS × DEATH, Shop half: a friendly minion died in the Shop (`fireOnFriendDeath`, every Shop death path once; a
+ *  sale never). The running count ticks; every `every`th death buffs every Tier 7 minion, right then. */
+export function ancientBrackusShopDeath(state: RunState, dead: BoardCard): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'avengeBuffTier7') : undefined;
+  if (!a || !e) return;
+  a.brackusDeaths = ((a.brackusDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.brackusDeaths === 0) brackusBuffTier7(state, e.attack, e.health, { skip: [dead.uid, state.vacatingUid] });
+}
+
+/** BRACKUS × DEATH, settle: the fight's deaths join the running count. Its fires already buffed the living Tier 7
+ *  bodies (carried home by `permaGain`); each one (a `questTrigger`) now pays the hand and the Shop. */
+function brackusAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  const e = effectOf(state, 'avengeBuffTier7');
+  if (!e) return;
+  a.brackusDeaths = ((a.brackusDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, e.every);
+  const fires = (result.events ?? []).filter((ev) => ev.type === 'questTrigger' && ev.side === 'player' && ev.flag === ANCIENT_SUMMIT_AVENGE_FLAG).length;
+  if (fires > 0) brackusBuffTier7(state, e.attack * fires, e.health * fires, { board: false });
+}
+
+/** BRACKUS × FORTUNE: Gold still to spend for the next Discover. */
+function brackusGoldLeft(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'goldSpentDiscoverTier7') : undefined;
+  if (!e) return 0;
+  const every = Math.max(1, e.every);
+  return every - ((live(state)?.brackusGold ?? 0) % every);
+}
+
+/**
+ * Gold was spent (the reducer's `spendGold`, the one chokepoint that moves `goldSpent`, so Summit's own lock reads the
+ * same total). FORTUNE: the running count; every `every` Gold opens a Tier 7 Discover (a big spend can open several).
+ * GENESIS: the Gild lands once `goldSpent` reaches `brackusGildAt`.
+ */
+export function ancientOnGoldSpent(state: RunState, amount: number): void {
+  const a = live(state);
+  if (!a || amount <= 0) return;
+  const f = effectOf(state, 'goldSpentDiscoverTier7');
+  if (f) {
+    const every = Math.max(1, f.every);
+    let n = (a.brackusGold ?? 0) + amount;
+    while (n >= every) { n -= every; queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7 }); }
+    a.brackusGold = n;
+  }
+  if (a.brackusGildAt !== undefined && effectOf(state, 'summitGildTier7') && (state.goldSpent ?? 0) >= a.brackusGildAt) {
+    a.brackusGildAt = undefined;
+    a.brackusGilded = true;
+    brackusGild(state, a);
+  }
+}
+
+/** BRACKUS × GENESIS: Gild "your Tier 7": the Summit pick when it is still yours and not Gilded, else your left-most
+ *  non-Gilded Tier 7 (board, then hand). Holding no Tier 7 at all, a Gilded copy of the Summit pick (hand first, then
+ *  the board). Holding only Gilded ones: nothing more. */
+function brackusGild(state: RunState, a: AncientsState): void {
+  const mine = [...state.board, ...state.hand];
+  const target = mine.find((c) => c.uid === a.brackusSummitUid && !c.golden && isTier7(c.cardId))
+    ?? mine.find((c) => !c.golden && isTier7(c.cardId));
+  if (target) {
+    captureBuffFx(state, undefined, 'spell', () => gildMinion(target, state));
+    return;
+  }
+  const def = a.brackusSummitCardId ? CARD_INDEX[a.brackusSummitCardId] : undefined;
+  if (def && !mine.some((c) => isTier7(c.cardId))) grantMinionToHandOrBoard(state, def, true);
+}
+
+/** BRACKUS × GENESIS: the live Gild sentence for the power text. */
+function brackusGenesisText(state: RunState): string {
+  const a = live(state);
+  if (a?.brackusGilded) return 'Your Tier 7 is **Gilded**.';
+  if (a?.brackusGildAt === undefined) return '';
+  const left = Math.max(0, a.brackusGildAt - (state.goldSpent ?? 0));
+  const summit = summitCard(state);
+  const pending = !!summit && summit.uid === a.brackusSummitUid && (state.goldSpent ?? 0) < (summit.lockedUntilGoldSpent ?? 0);
+  return pending
+    ? `When it unlocks, it becomes **Gilded** (**${left}** Gold to go).`
+    : `Your Tier 7 becomes **Gilded** after you spend **${left}** more Gold.`;
+}
+
+/** BRACKUS × WAR: the Tier 7 the Start-of-Combat copy would be made of right now (the left-most on the board). */
+function brackusWarText(state: RunState): string {
+  if (!live(state) || !effectOf(state, 'socCopyTier7')) return '';
+  const src = state.board.find((c) => isTier7(c.cardId));
+  return src ? ` Copies **${CARD_INDEX[src.cardId]?.name ?? src.cardId}**.` : ' No Tier 7 in your warband.';
+}
+
+/** BRACKUS × TIME: Start of Turn, the Tier 7 Discover opens on its own beat once its wave arrives (R-SOT-BEAT-01). */
+function brackusStartOfTurn(state: RunState): void {
+  const a = live(state);
+  if (!a || a.brackusTimeWave === undefined || state.wave < a.brackusTimeWave || !effectOf(state, 'discoverTier7InTurns')) return;
+  a.brackusTimeWave = undefined;
+  a.brackusTimeDone = true;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7 });
+  });
+}
+
+/** BRACKUS × TIME: the live countdown ("2 turns to go", "next turn", "done"). */
+function brackusTimeText(state: RunState): string {
+  const a = live(state);
+  if (a?.brackusTimeDone) return 'done';
+  if (a?.brackusTimeWave === undefined) return '';
+  const left = Math.max(0, a.brackusTimeWave - state.wave);
+  return left <= 1 ? '**next turn**' : `**${left}** turns to go`;
+}
+
+/** BRACKUS × BONDS: a card was PLAYED from hand (the reducer's `play` case, right after the cards-played meter: once per
+ *  real play, minions, spells and Rubies alike). Your OTHER Tier 7 minions, board and hand, gain +a/+h per tier of the
+ *  played card, permanently, in real time. */
+export function ancientOnCardPlayed(state: RunState, played: BoardCard): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'playBuffsTier7PerTier') : undefined;
+  const tier = CARD_INDEX[played.cardId]?.tier ?? 0;
+  if (!a || !e || tier <= 0) return;
+  const mates = [...state.board, ...state.hand].filter((c) => c.uid !== played.uid && isTier7(c.cardId));
+  a.brackusBondsTotal = (a.brackusBondsTotal ?? 0) + tier * e.attack;
+  if (mates.length === 0) return;
+  captureBuffFx(state, undefined, 'spell', () => { for (const c of mates) addBuff(c, ANCIENTS.bonds.name, e.attack * tier, e.health * tier); });
 }
 

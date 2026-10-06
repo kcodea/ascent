@@ -4,6 +4,7 @@ import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
+import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -10724,6 +10725,7 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   ancientGorrShopDeath(state); // GORR × DEATH: the Shop half of the running Avenge (6)
   ancientBramShopDeath(state); // BRAUM × DEATH: the Shop half of the running "when 16 friendly minions die"
   ancientNadjaShopDeath(state); // NADJA × DEATH: the Shop half of the running Avenge (6), +1 max Gold
+  ancientBrackusShopDeath(state, dead); // BRACKUS × DEATH: the Shop half of the running Avenge (3)
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {

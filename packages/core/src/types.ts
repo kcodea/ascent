@@ -2007,6 +2007,17 @@ export interface QuestCombatMods {
    *  `rallyBuff` (every friendly minion, itself included; `fixed`, so a Gilded body gives the same), a combat buff on the
    *  combat body only. Player-only; never snapshotted. */
   ancientSocRally?: { attack: number; label: string };
+  /** ANCIENT OF DEATH × Brackus (owner 2026-10-06): "Avenge (3) Give all Tier 7 minions +6/+6." (owner: "this works in
+   *  hand/shop"). A hero Avenge on ONE running count across the Shop and combat (`tick` carried in, the Xerox Death
+   *  shape). Each fire gives the side's living Tier 7 bodies +a/+h as a PERMANENT gain (`permaGain`, the Indy War
+   *  carry-back) and pulses a `questTrigger` of `flag`, which settle counts to pay the Tier 7 cards in hand and in the
+   *  Shop. It pulses even with no Tier 7 on the board. Rune of Fury fires it again. Player-only; never snapshotted. */
+  ancientBrackusAvenge?: { every: number; tick: number; attack: number; health: number; flag: string; label: string };
+  /** ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
+   *  minion." An exact copy of the left-most living Tier 7 (Xerox's `xeroxCopy`), right away when there is room, else
+   *  queued and summoned the moment a slot opens (from its body then, or its Start-of-Combat body if it has died). No
+   *  Tier 7: nothing. Player-only; never snapshotted. */
+  ancientSummitCopy?: { label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

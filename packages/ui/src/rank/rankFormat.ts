@@ -87,10 +87,10 @@ export function outcomeText(r: RankResult): string | null {
 
 /** THE SILVER SHOP-TIMER NOTICE (owner 2026-10-06, R-TIMER-BRONZE-01): a Bronze rated game's shop clock waits for 20
  *  Gold spent before it counts down; from Silver the standard timer applies, "and we should have that as a notification
- *  on the silver rank up screen". */
+ *  on the silver rank up screen". Wording is the owner's own (2026-10-06). */
 export const SILVER_CLOCK_NOTICE = Object.freeze({
-  title: 'New at Silver: the standard shop timer',
-  body: 'Your shop timer now starts at the beginning of every turn, like other ranked players.',
+  title: 'Shop Timer Adjusted',
+  body: 'At Silver rank and above, the round timer begins at the start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!',
 });
 
 /** The notice a result earns, or null. ONLY the Bronze → Silver promotion: not a division step inside Bronze or

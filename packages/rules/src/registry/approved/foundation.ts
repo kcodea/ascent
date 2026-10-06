@@ -4583,10 +4583,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer)', quote: 'we should have that as a notification on the silver rank up screen' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (the notice wording)', quote: 'change the silver promotion screen prompt to: Shop Timer Adjusted: At Silver rank and above, the round timer begins at the start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!' },
       { kind: 'code', ref: 'packages/ui/src/rank/rankFormat.ts (SILVER_CLOCK_NOTICE, silverClockNoticeOf, announcement); packages/ui/src/rank/RankScreen.tsx (.rankend-notice); packages/ui/src/rank/fixtures.ts promo-silver' },
       { kind: 'fix-pr', ref: 'feat/bronze-gold-clock (the Bronze ranked gold-spend clock + the Silver rank-up notice)' },
     ],
-    example: 'Bronze III 100, a 1st place wins the medal promotion game: the crest turns Silver I, then the notice "New at Silver: the standard shop timer. Your shop timer now starts at the beginning of every turn, like other ranked players." appears. Silver I to Silver II shows nothing.',
+    example: 'Bronze III 100, a 1st place wins the medal promotion game: the crest turns Silver I, then the notice "Shop Timer Adjusted: At Silver rank and above, the round timer begins at the start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!" appears. Silver I to Silver II shows nothing.',
     currentBehaviour: 'Conforms as of 2026-10-06. Pinned by the rank screen tests: shown on the Bronze to Silver promotion (and read in the live region), absent on every other fixture, on division steps in Bronze and Silver, a higher medal step and a demotion to Bronze, and held until the sequence settles.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx'], lastVerifiedAt: '2026-10-06' },
   },

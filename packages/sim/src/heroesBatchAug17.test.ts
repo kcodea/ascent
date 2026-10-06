@@ -279,7 +279,8 @@ describe('granted quest/rune art takes the hero-power slot', () => {
 
   it("Guardian's EPIC forge stamps his rune", () => {
     const s = {
-      ...createRun(5), phase: 'recruit', heroId: 'runeguard', embers: 30, runeforgeEpic: true,
+      // His forge opens on turn 8 (R-RUNESLOT-01: an Epic forge before turn 8 is not his).
+      ...createRun(5), phase: 'recruit', heroId: 'runeguard', wave: 8, embers: 30, runeforgeEpic: true,
       runeforgeOffer: ['rune_dawnclaw'], runeforgeDiscounts: [0],
     } as RunState;
     expect(reduce(s, { type: 'buyRune', index: 0 } as never).heroGrantArt)

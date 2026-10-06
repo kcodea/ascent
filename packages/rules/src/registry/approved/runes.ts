@@ -1891,4 +1891,23 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built with the rune, 2026-10-03).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeDrakko.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
+  {
+    id: 'R-RUNESLOT-02',
+    title: 'Rune of Duplication copies the first Epic rune you select, and says so',
+    statement:
+      'Rune of Duplication reads "Copy the first Epic Rune you select." The next Epic rune the player buys after '
+      + 'owning it is applied a second time and held as a second rune; Duplication is spent on that buy. A Basic buy '
+      + 'never spends it, and later Epic buys are not copied. The Duplication badge stays in the rack; it does not turn '
+      + 'into the copy.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-06 (runeforge heroes UI)', quote: "the basic runeforge selection was rune of duplication, which then duplicated guardian's turn 8 rune which is fine. but we need to change the text to say copy the first epic rune you select" },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_duplication; packages/ui/src/questText.ts runeDuplication; packages/sim/src/reducer.ts buyRune (runeDuplication && runeforgeEpic)' },
+    ],
+    contentIds: ['rune_duplication'],
+    cardText: 'Copy the **first Epic Rune** you select.',
+    currentBehaviour: 'Conforms. The mechanic was already "the first Epic bought after it" (GAME-RULES); the text changed 2026-10-06 from "After you forge your Epic Rune, this transforms into a copy of it".',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgePowerSlot.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

@@ -329,6 +329,10 @@ function recDiscover(s: string): Rec | null {
 }
 
 function recCopy(s: string): Rec | null {
+  // Rune of Duplication (R-RUNESLOT-02, owner text 2026-10-06): "Copy the first Epic Rune you select." — the copy
+  // names a FUTURE pick, not a card, so it is a named reference rather than a target phrase.
+  const firstEpic = /^[Cc]opy the first Epic Rune you select\b/.exec(s);
+  if (firstEpic) return { effect: { kind: 'copy', copyMode: 'unmarked', verb: 'copy', refName: 'the first Epic Rune you select' }, len: firstEpic[0].length };
   const m = new RegExp(`^(?:[Gg]ets?|[Aa]dds?|[Ss]ummons?|[Rr]esummons?|[Cc]op(?:y|ies)|[Cc]laim|[Pp]lay|[Rr]eturns?|attaches)\\s+(?:(${COUNT_RE}|another)\\s+)?(?:(exact|plain)\\s+)?cop(?:y|ies)?\\b`).exec(s);
   const m2 = /^[Cc]op(?:y|ies)\b/.exec(s);
   if (!m && !m2) return null;

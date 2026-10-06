@@ -337,7 +337,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_duplication',
     name: 'Rune of Duplication',
     cost: 4,
-    text: 'After you forge your **Epic Rune**, this transforms into a **copy of it**.',
+    // Owner text 2026-10-06 (R-RUNESLOT-02): "copy the first epic rune you select" — the old "this transforms into
+    // a copy" read as the Duplication badge turning INTO the copy, but the badge stays and the copy is a new rune.
+    text: 'Copy the **first Epic Rune** you select.',
     reward: { kind: 'runeDuplication' },
   },
   {

@@ -3015,8 +3015,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
       };
       applyRuneCopy((s.ownedRunes ?? []).includes(rune.id));
-      // Rune of Duplication: "after you forge your Epic Rune, this transforms into a copy of it" — the Epic's
-      // reward applies a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
+      // Rune of Duplication: "Copy the first Epic Rune you select" (R-RUNESLOT-02) — the NEXT Epic bought has its
+      // reward applied a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
       // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it. The copy
       // is always a DUPLICATE application, so a non-stacking Epic pays the sweetener instead of a silent no-op.
       if (s.runeDuplication && s.runeforgeEpic) {
@@ -3030,9 +3030,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       // hero-power charge alone for it.
       if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
       // The power button now wears this rune — but only when the forge was the HERO's, not a quest's.
+      // GUARDIAN (R-RUNESLOT-01): every Epic forge is `runeforgeEpic`, the universal turn-9 one included, so
+      // "any Epic forge" let the turn-9 pick overwrite his turn-8 rune in the power slot (owner report
+      // 2026-10-06). His forge is the FIRST Epic pick from turn 8 on: the slot is claimed once and never
+      // re-stamped, and an earlier Epic forge (Rune of the Ornate Clock's "next turn") is not his.
       {
         const kind = getHero(s.heroId).power.kind;
-        const mine = (kind === 'runeforge' && !s.runeforgeNoCharge) || (kind === 'epicRuneforge' && s.runeforgeEpic);
+        const guardianForge = kind === 'epicRuneforge' && !!s.runeforgeEpic && s.wave >= GUARDIAN_FORGE_WAVE
+          && s.heroGrantArt?.kind !== 'rune';
+        const mine = (kind === 'runeforge' && !s.runeforgeNoCharge) || guardianForge;
         if (mine) s.heroGrantArt = { kind: 'rune', id: rune.id };
       }
       closeRuneforge(s);
@@ -6307,6 +6313,10 @@ export function pendingEpicForges(s: Pick<RunState, 'pendingEpicRuneforge'>): nu
   return typeof v === 'number' ? v : v ? 1 : 0;
 }
 
+/** Guardian's own Epic Runeforge turn — the literal `createRun` books (`epicForgeWave = 8`). `buyRune` reads it to
+ *  tell his forge from an earlier Epic visit (Rune of the Ornate Clock), and an adopted Guardian books no earlier. */
+const GUARDIAN_FORGE_WAVE = 8;
+
 /** Book an Epic Runeforge for `wave`. A booking on top of one already held COUNTS a second forge for the held
  *  wave rather than overwriting it or sliding to the next turn (owner 2026-09-22, Guardian + Rune of the Epic
  *  Forge: "can we just book 2 runeforges here" — yes). The held wave is always ahead of the current turn (it is
@@ -6496,7 +6506,7 @@ function seedAdoptedPower(s: RunState, heroId: string, slot: 0 | 1): void {
   // Guardian: book the Epic Runeforge — turn 8 as authored when that is still ahead, else the next turn
   // (an adopted power must never schedule a visit into the past, which would simply never open). Booked
   // BESIDE any forge the run already holds for that turn (Rune of the Epic Forge), never in its place.
-  if (kind === 'epicRuneforge') bookEpicForge(s, Math.max(8, s.wave + 1));
+  if (kind === 'epicRuneforge') bookEpicForge(s, Math.max(GUARDIAN_FORGE_WAVE, s.wave + 1));
 }
 
 function openNextStartOfTurnModal(s: RunState): void {

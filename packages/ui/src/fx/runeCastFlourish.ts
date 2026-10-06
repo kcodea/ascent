@@ -23,6 +23,7 @@
  */
 import { getCastPreviewConfig, runeCastFlourishLook, type RuneCastFlourishLook } from '../castPreviewConfig';
 import { canPlayDefs, playDef } from './playDef';
+import { runeNodeEl } from '../heroSlotRune';
 
 type Point = { x: number; y: number };
 
@@ -33,10 +34,10 @@ export const RUNE_CAST_MOTE_AUTHORED_MS = 280;
 /** A mote shorter than this has nowhere to go (the effect lands on the node itself): skip it. */
 const MIN_MOTE_PX = 24;
 
-/** The rune's badge on the rail (`data-source-id`), or null. The first match: a duplicated rune pulses its first copy. */
+/** The rune's badge on the rail (`data-source-id`), or null. The first match: a duplicated rune pulses its first copy.
+ *  A rune the hero's forge sold sits in the hero-power slot instead, and anchors there (R-RUNESLOT-01). */
 export function nodeOf(runeId: string): Element | null {
-  if (typeof document === 'undefined') return null;
-  return document.querySelector(`.questbadges .runebadge[data-source-id="${runeId}"]`);
+  return runeNodeEl(runeId);
 }
 
 export function centreOf(el: Element | null): Point | null {

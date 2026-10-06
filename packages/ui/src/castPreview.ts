@@ -25,6 +25,7 @@
  * at mount (the clamp), never per frame; a fixed, pointer-events:none layer that never shifts layout.
  */
 
+import { runeNodeEl } from './heroSlotRune';
 import { CAST_PREVIEW_SOURCES, castPreviewCombatOncePerFight, castPreviewTimings, type CastPreviewContext, type CastPreviewSide } from './castPreviewConfig';
 
 /** Timings, size, side, offset and opacity are TUNED (the Cast Preview tuner, owner ask 2026-09-23 "far too
@@ -114,7 +115,7 @@ export function castSourceKey(source: CastPreviewSource): string {
  */
 export function castSourceElement(source: CastPreviewSource): Element | null {
   if (typeof document === 'undefined') return null;
-  if (source.kind === 'rune') return document.querySelector(`.questbadges .runebadge[data-source-id="${source.id}"]`);
+  if (source.kind === 'rune') return runeNodeEl(source.id); // its rack badge, or the hero-power slot (R-RUNESLOT-01)
   return document.querySelector(`[data-zone="warband"] .row .card[data-uid="${source.uid}"]`)
     ?? document.querySelector(`.row.hand .card[data-uid="${source.uid}"]`)
     ?? document.querySelector(`[data-uid="${source.uid}"]`);

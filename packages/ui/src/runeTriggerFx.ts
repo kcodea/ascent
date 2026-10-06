@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { bindingFor } from './choreo/bindings';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { heroSlotRuneEl } from './heroSlotRune';
 
 /**
  * The RUNE-TRIGGER flourish — a bound def fired on a rune's own badge each time that rune's effect goes off.
@@ -111,10 +112,12 @@ export function captureSlots(current: readonly RuneSlotPulse[], prev: Map<number
 }
 
 /** The badge element for a rune slot. `data-source-id` is not unique when a rune is duplicated, so the Nth
- *  MATCHING node is taken rather than the first — `occurrence` is which copy of this id the slot is. */
+ *  MATCHING node is taken rather than the first — `occurrence` is which copy of this id the slot is. An
+ *  occurrence past the rack's copies is the HERO-POWER slot's rune (R-RUNESLOT-01), anchored on the power button.
+ *  Scoped to `.questbadges`: the opponent frame renders its own `.runebadge` nodes earlier in the document. */
 export function badgeCenterOf(id: string, occurrence: number): { x: number; y: number } | null {
-  const nodes = document.querySelectorAll<HTMLElement>(`.runebadge[data-source-id="${CSS.escape(id)}"]`);
-  const el = nodes[occurrence] ?? nodes[0];
+  const nodes = document.querySelectorAll<HTMLElement>(`.questbadges .runebadge[data-source-id="${CSS.escape(id)}"]`);
+  const el = nodes[occurrence] ?? heroSlotRuneEl(id) ?? nodes[0];
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) return null; // unmounted / display:none — nothing to anchor to

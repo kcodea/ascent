@@ -54,6 +54,7 @@ import { anchorsForUnits } from './combatAnchors';
 import type { FxAnchors } from './anchors';
 import type { RectLike } from './boardAnchors';
 import { canPlayDefs, playDef } from './playDef';
+import { runeNodeEl } from '../heroSlotRune';
 import { afterMs, playRuneCastFlourish, runeCastRepeatGapMs, runeCastTrailLeadMs } from './runeCastFlourish';
 import { getCastPreviewConfig, runeCastFlourishLook } from '../castPreviewConfig';
 
@@ -106,7 +107,7 @@ export function resetSpellCastSoundGate(): void { lastSoundAt.clear(); }
  */
 export function runeNodeCentre(runeId: string | null | undefined): Point | null {
   if (!runeId || typeof document === 'undefined') return null;
-  const el = document.querySelector(`.questbadges .runebadge[data-source-id="${runeId}"]`);
+  const el = runeNodeEl(runeId); // the rack badge, or the hero-power slot the rune sits in (R-RUNESLOT-01)
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width === 0 && r.height === 0) return null; // unmounted / display:none: nothing to stem from

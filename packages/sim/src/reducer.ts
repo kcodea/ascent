@@ -4,6 +4,7 @@ import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTi
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
+import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -57,6 +58,7 @@ function spendGold(s: RunState, amount: number): void {
     }
   }
   applyGoldSpent(s, amount);
+  ancientOnGoldSpent(s, amount); // ANCIENTS × Brackus: Fortune's 50 Gold Discover, Genesis' Gild (a no-op unless picked)
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
   // ANCIENT OF BONDS × Nadja (a no-op unless picked): every spend of 1+ Gold gives 2 random minions +2/+4. Placed above
   // Rune of Bulk Order's early `return`, so it hears every spend.
@@ -1855,6 +1857,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // once, before the type branches — every branch below is a real play. A fizzle (no legal target) returns
       // the ORIGINAL `state`, so an increment on the draft is discarded with everything else, which is correct.
       applyCardsPlayed(s, 1);
+      // ANCIENT OF BONDS × Brackus (a no-op unless picked): the same one-per-real-play point, with the card's identity.
+      ancientOnCardPlayed(s, card);
 
       // Funeral on Loan: playing a BORROWED minion triggers its Echo out of combat, then it's destroyed.
       //

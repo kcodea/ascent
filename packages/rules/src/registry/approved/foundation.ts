@@ -714,10 +714,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '(1-100) is its place among every scored board at the same reference wave (ties half; 72 = stronger than 72%), '
       + 'derived, never stored. A run\'s strength is the round-weighted average of its boards\' percentiles ranked '
       + 'among runs (R-LOBBY-12; restored 2026-10-06 after the final-board formula of 2026-10-03 to 2026-10-06). A RATED '
-      + 'lobby draws its recorded seats uniformly at random from the runs inside the band of the player\'s medal (Bronze '
-      + '0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100; from 2026-10-03 to '
-      + '2026-10-06 Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100 for the final-board scale; every '
-      + 'division of a medal shares it; a floor-only band widens by lowering its floor), still whole runs, at '
+      + 'lobby draws its recorded seats uniformly at random from the runs inside the band of the player\'s medal. The '
+      + 'bands and the score they filter are R-LOBBY-13\'s (since 2026-10-06: a per-medal blend of the run\'s EARLY and '
+      + 'LATE ratings, Bronze 0-20 early only, Silver 10-30 at 80% early, Gold 10-50 at 60% early, no band from '
+      + 'Platinum; before, the weighted strength itself through Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, '
+      + 'Diamond 10-100, Ascendant 20-100, and from 2026-10-03 to 2026-10-06 Gold 15-65, Platinum 15-100, Diamond '
+      + '25-100, Ascendant 35-100 for the final-board scale); every division of a medal shares its band, still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
@@ -810,8 +812,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'R-LOBBY-09; rounds 1-5 share 20% of the weight, 6-9 35%, 10+ 45%, split evenly over the run\'s boards in each '
       + 'group, a group the run never reached dropping out), rounded half up to 1..100, then RANKED among every run of '
       + 'the set by the same tie-halving percentile rule. It is NOT the final board\'s percentile on its own: that rule '
-      + 'was tried from 2026-10-03 to 2026-10-06 and reverted by the owner. That one number drives the rated matchmaking '
-      + 'bands (pool_runs.strength, with the average in pool_runs.strength_avg) and the "Game strength" a player sees in '
+      + 'was tried from 2026-10-03 to 2026-10-06 and reverted by the owner. That number is pool_runs.strength (its average '
+      + 'in pool_runs.strength_avg); the rated matchmaking bands filtered it directly until the split early / late bands '
+      + '(R-LOBBY-13, 2026-10-06), and it stays the fallback score of a run with no early / late rating. It is the "Game strength" a player sees in '
       + 'the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, ranked against the '
       + 'pool\'s run averages; an opponent seat as the pool delivered it). Numbers frozen earlier keep their value. The '
       + 'round percentiles in Match details are unchanged.',
@@ -4586,5 +4589,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Bronze III 100, a 1st place wins the medal promotion game: the crest turns Silver I, then the notice "New at Silver: the standard shop timer. Your shop timer now starts at the beginning of every turn, like other ranked players." appears. Silver I to Silver II shows nothing.',
     currentBehaviour: 'Conforms as of 2026-10-06. Pinned by the rank screen tests: shown on the Bronze to Silver promotion (and read in the live region), absent on every other fixture, on division steps in Bronze and Silver, a higher medal step and a demotion to Bronze, and held until the sequence settles.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx'], lastVerifiedAt: '2026-10-06' },
+  },
+  // ── Split early / late matchmaking bands by medal (owner design 2026-10-06) ──────────────────────────────────
+  {
+    id: 'R-LOBBY-13',
+    title: 'Rated matchmaking blends two ratings per run, EARLY (rounds 1-9) and LATE (10+), with a per-medal weight and band; open from Platinum',
+    statement:
+      'Every pool run has two matchmaking ratings next to its weighted strength (R-LOBBY-12): EARLY = the plain mean of '
+      + 'its board percentiles (R-LOBBY-09) in rounds 1-9, and LATE = the same for rounds 10 and later, each rounded '
+      + 'half up and then RANKED among the set\'s runs by the tie-halving 1..100 rule of a run\'s strength. LATE is '
+      + 'empty for a run with no scored board at round 10+. A run\'s score for a medal is weight x EARLY + (1 - weight) '
+      + 'x LATE, or EARLY alone when LATE is empty; a run with neither is unscored and is inside every band. A rated '
+      + 'lobby seats recorded runs whose score is inside its medal\'s band (every division of a medal shares it): '
+      + 'Bronze weight 1.0, band 0-20; Silver 0.8, 10-30; Gold 0.6, 10-50; Platinum, Diamond and Ascendant have NO '
+      + 'band (anything goes: R-LOBBY-08\'s uniform selection). A band that cannot fill the table widens by 10 on '
+      + 'each capped side, step by step and logged, before generated seats; at most 4 seats per player. Practice and '
+      + 'the tutorial have no band. The "Game strength" players see (Career, Recent Games, Match details, frozen at run '
+      + 'end) stays the weighted number of R-LOBBY-12: only matchmaking reads EARLY and LATE.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner design relayed verbatim by the coordinator, 2026-10-06 (split ratings by rank)',
+        quote: 'perhaps we have multiple ratings like the weighted system / and we lean into those different ratings depending on the rank / and then open it up to anything goes after a certain rank / like early on i feel like we should focus on making sure the early game boards are weak / in bronze / ima just break it down between early and late / early is 1-9 / late is 10+ / for bronze we should have a near 100% focus on making sure that the early board strength stat is 0-20 or w/e / then silver is like 10-30 with an 80% weight / etc / then gold is 10-50 with 60% weight',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner answer to "blend the two ratings, or band each?", relayed by the coordinator, 2026-10-06',
+        quote: 'Blend, then band',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner answer to "where does anything-goes start?", relayed by the coordinator, 2026-10-06',
+        quote: 'Open from Platinum',
+      },
+      { kind: 'fix-pr', ref: 'PR feat/strength-early-late-bands (2026-10-06): split early / late bands, SQL + TS twins + client fallback' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/boardStrength.ts earlyLateStrengthOf / rankAmongRuns; packages/sim/src/lobby/strengthBands.ts STRENGTH_BANDS / matchScoreOf / runInStrengthBand; packages/sim/src/lobby/runLobby.ts createRunLobby; packages/ui/src/opponentPool/poolFetch.ts (p_early_weight + splitBandsMissing fallback); supabase/migrations/2026-10-06-early-late-strength.sql (pool_strength_refresh, pool_match_score, pool_runs_sample)' },
+    ],
+    example: 'A run with EARLY 10 and LATE 90 scores 10 in Bronze (in band), 26 in Silver (in band) and 42 in Gold (in band); a run with EARLY 30 that ended in round 8 scores 30 everywhere (out of Bronze, in Silver and Gold). Live-pool audit 2026-10-06 (181 eligible runs, npm run strength -- measure): every band fills without widening (Bronze 38 runs / 20 seats under the cap, Silver 33 / 17, Gold 76 / 21), and the mean EARLY rating of the runs Bronze draws from drops from ~24 (weighted 0-30) to ~11.',
+    currentBehaviour:
+      'Built 2026-10-06 in code: the client sends each medal\'s band with its early weight and seat selection filters the '
+      + 'blended score. The pool\'s EARLY / LATE ratings exist only once the owner runs '
+      + 'supabase/migrations/2026-10-06-early-late-strength.sql (it adds the columns, extends pool_strength_refresh and '
+      + 'pool_runs_sample, and recomputes every run). Until then the RPC rejects the early weight, the client drops it '
+      + 'for the session and sends the same min/max against the weighted strength, and seat selection agrees (those runs '
+      + 'carry no early / late, so their score is the weighted strength): Bronze 0-20, Silver 10-30 and Gold 10-50 on the '
+      + 'weighted number, open from Platinum. Clients from before this change keep their 2026-09-30 behaviour against '
+      + 'the new SQL (no weight sent = the weighted strength is filtered).',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/strengthBands.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/ui/src/boardStrength/boardStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-06',
+    },
   },
 ];

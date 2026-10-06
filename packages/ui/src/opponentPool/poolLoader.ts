@@ -51,6 +51,10 @@ export interface PoolRun {
   /** The run's strength percentile (`pool_runs.strength`); absent = unscored. Stamped on every board as
    *  `runStrength` at registration (matchmaking band, Match details). */
   strength?: number;
+  /** The run's EARLY / LATE ratings (`pool_runs.strength_early` / `strength_late`, R-LOBBY-13); absent = unknown or
+   *  unscored. Stamped on every board as `runStrengthEarly` / `runStrengthLate` (matchmaking band only). */
+  early?: number;
+  late?: number;
 }
 
 export interface PoolFetch {
@@ -200,6 +204,8 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
       remote: true as const, // live-shared-pool mark, as before
       ...(r.ownerId ? { ownerId: r.ownerId } : {}),
       ...(typeof r.strength === 'number' ? { runStrength: r.strength } : {}),
+      ...(typeof r.early === 'number' ? { runStrengthEarly: r.early } : {}),
+      ...(typeof r.late === 'number' ? { runStrengthLate: r.late } : {}),
     })));
     const res = deps.registerRuns(stamped);
     runs += res.runs;

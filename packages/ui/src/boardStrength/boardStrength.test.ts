@@ -102,18 +102,18 @@ describe('the background scorer', () => {
 });
 
 describe('the rank band', () => {
-  it('follows the medal: Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, Diamond 10-100, Ascendant 20-100', () => {
+  it('follows the medal: Bronze early-only 0-20, Silver 80% early 10-30, Gold 60% early 10-50, open from Platinum (R-LOBBY-13)', () => {
     const at = (divisionIndex: number) => lobbyBandFor({ rank: { position: { divisionIndex, points: 0 } } } as never);
-    expect(at(0)).toEqual({ min: 0, max: 30 });
-    expect(at(2)).toEqual({ min: 0, max: 30 });
-    expect(at(3)).toEqual({ min: 10, max: 40 });
-    expect(at(8)).toEqual({ min: 20, max: 65 });
+    expect(at(0)).toEqual({ min: 0, max: 20, earlyWeight: 1 });
+    expect(at(2)).toEqual({ min: 0, max: 20, earlyWeight: 1 });
+    expect(at(3)).toEqual({ min: 10, max: 30, earlyWeight: 0.8 });
+    expect(at(8)).toEqual({ min: 10, max: 50, earlyWeight: 0.6 });
     expect(at(9)).toBeNull();
     expect(at(11)).toBeNull();
-    expect(at(12)).toEqual({ min: 10, max: 100 });
-    expect(at(14)).toEqual({ min: 10, max: 100 });
-    expect(at(15)).toEqual({ min: 20, max: 100 });
-    expect(at(17)).toEqual({ min: 20, max: 100 });
+    expect(at(12)).toBeNull();
+    expect(at(14)).toBeNull();
+    expect(at(15)).toBeNull();
+    expect(at(17)).toBeNull();
     expect(lobbyBandFor(null)).toBeNull();
     expect(at(5)).toEqual(strengthBandForDivision(5));
   });
@@ -121,7 +121,7 @@ describe('the rank band', () => {
 
 describe('the pool fetch with a band', () => {
   /** A fake sample over runs of known strength: honours the band like the SQL (unscored = inside). */
-  function api(runs: Array<{ key: string; strength: number | null; user: string }>, opts: { bands: boolean }): PoolApi & { calls: SampleArgs[] } {
+  function api(runs: Array<{ key: string; strength: number | null; user: string; early?: number | null; late?: number | null }>, opts: { bands: boolean; split?: boolean }): PoolApi & { calls: SampleArgs[] } {
     const calls: SampleArgs[] = [];
     return {
       calls,
@@ -130,9 +130,17 @@ describe('the pool fetch with a band', () => {
         if (!opts.bands && (args.p_strength_min !== undefined || args.p_strength_max !== undefined)) {
           return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pool_runs_sample(p_exclude_user, p_limit, ...)' } };
         }
-        const inBand = runs.filter((r) => r.strength === null || ((args.p_strength_min ?? 0) <= r.strength && r.strength <= (args.p_strength_max ?? 100)));
+        // A server before the early/late SQL has no p_early_weight: PostgREST finds no function for the call.
+        if (!opts.split && args.p_early_weight !== undefined) {
+          return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pool_runs_sample(p_early_weight, p_exclude_user, ...)' } };
+        }
+        const w = args.p_early_weight;
+        const score = (r: typeof runs[number]): number | null => (w === undefined ? r.strength
+          : typeof r.early === 'number' && typeof r.late === 'number' ? w * r.early + (1 - w) * r.late : r.early ?? r.late ?? r.strength);
+        const inBand = runs.filter((r) => { const s = score(r); return s === null || ((args.p_strength_min ?? 0) <= s && s <= (args.p_strength_max ?? 100)); });
         return {
           data: inBand.map((r): SampleRow => ({
+            ...(opts.split ? { strength_early: r.early ?? null, strength_late: r.late ?? null } : {}),
             run_key: r.key, author: r.key.split('|')[0]!, user_id: r.user, wave_count: 1, strength: r.strength === null ? null : String(r.strength),
             boards: [{ v: 1, wave: 1, heroId: r.key.split('|')[1]!, author: r.key.split('|')[0]!, seed: Number(r.key.split('|')[2]), minions: [{ cardId: 'pack', attack: 1, health: 1 }] } as unknown as BoardSnapshot],
           })),
@@ -143,7 +151,7 @@ describe('the pool fetch with a band', () => {
       boardsForSeeds: async () => ({ data: [], error: null }),
     };
   }
-  const opts = (band: { min: number; max: number } | null) => ({ setId: 'set2' as const, patchPrefix: '0.1.0+', random: Math.random, band });
+  const opts = (band: { min: number; max: number; earlyWeight?: number } | null) => ({ setId: 'set2' as const, patchPrefix: '0.1.0+', random: Math.random, band });
   const runs = Array.from({ length: 20 }, (_, i) => ({ key: `P${i}|h${i}|${i}`, strength: (i + 1) * 5, user: `u${i}` }));
 
   it('asks for the band, and stops there when it can seat a table', async () => {
@@ -175,6 +183,33 @@ describe('the pool fetch with a band', () => {
     expect(a.calls.slice(2).every((c) => c.p_strength_min === undefined)).toBe(true); // not asked again
   });
 
+  it('sends a split band as (weight, min, max) and keeps each run\'s early / late ratings (R-LOBBY-13)', async () => {
+    // early 5..100, late reversed: the Bronze early-only band 0-20 holds the first four by EARLY.
+    const split = runs.map((r, i) => ({ ...r, strength: 50, early: (i + 1) * 5, late: 100 - i * 5 }));
+    const a = api(split, { bands: true, split: true });
+    const session = { rpcMissing: false };
+    const got = await fetchPoolRuns(a, opts({ min: 0, max: 20, earlyWeight: 1 }), new AbortController().signal, session);
+    expect(a.calls.map((c) => [c.p_early_weight, c.p_strength_min, c.p_strength_max])).toEqual([[1, 0, 20], [1, 0, 30], [1, 0, 40]]);
+    expect(got.runs.map((r) => r.early)).toEqual([5, 10, 15, 20, 25, 30, 35, 40]);
+    expect(got.runs[0]).toMatchObject({ strength: 50, early: 5, late: 100 });
+    expect(session).toEqual({ rpcMissing: false });
+  });
+
+  it('before the early/late SQL, drops ONLY the weight for the session: the same min/max filters the weighted strength', async () => {
+    const a = api(runs, { bands: true, split: false });
+    const session = { rpcMissing: false };
+    const got = await fetchPoolRuns(a, opts({ min: 0, max: 20, earlyWeight: 1 }), new AbortController().signal, session);
+    expect(got.path).toBe('rpc');
+    // weighted try, then the plain band (strengths 5..20 = 4 runs), widened to 0-30 (6) and 0-40 (8).
+    expect(a.calls.map((c) => [c.p_early_weight, c.p_strength_max])).toEqual([[1, 20], [undefined, 20], [undefined, 30], [undefined, 40]]);
+    expect(got.runs.length).toBe(8);
+    expect(got.widenings).toBe(2);
+    expect(got.runs.every((r) => r.early === undefined && r.late === undefined)).toBe(true);
+    expect(session).toEqual({ rpcMissing: false, splitBandsMissing: true });
+    await fetchPoolRuns(a, opts({ min: 0, max: 20, earlyWeight: 1 }), new AbortController().signal, session);
+    expect(a.calls.slice(4).every((c) => c.p_early_weight === undefined)).toBe(true); // not asked again
+  });
+
   it('treats unscored runs as inside the band', async () => {
     const a = api(runs.map((r) => ({ ...r, strength: null })), { bands: true });
     const got = await fetchPoolRuns(a, opts({ min: 0, max: 30 }), new AbortController().signal, { rpcMissing: false });
@@ -203,6 +238,18 @@ describe('the loader', () => {
     expect(s.bandWidenings).toBe(1);
     expect(registered[0]![0]!.runStrength).toBe(22);
     expect(registered[1]![0]!.runStrength).toBeUndefined();
+  });
+
+  it("stamps each run's early / late ratings on its boards (R-LOBBY-13)", async () => {
+    const registered: BoardSnapshot[][] = [];
+    const loader = createPoolLoader(base({
+      fetchRuns: async () => ({ runs: [{ ...run(1, 40), early: 12, late: 77 }, { ...run(2, 30), early: 9 }], path: 'rpc' }),
+      registerRuns: (rs) => { registered.push(...rs); return { runs: rs.length, boards: rs.length, dropped: 0 }; },
+    }));
+    await loader.load({ perRequestMs: 1000, attempts: 1, retryBaseMs: 0 });
+    expect(registered[0]![0]).toMatchObject({ runStrength: 40, runStrengthEarly: 12, runStrengthLate: 77 });
+    expect(registered[1]![0]).toMatchObject({ runStrength: 30, runStrengthEarly: 9 });
+    expect(registered[1]![0]!.runStrengthLate).toBeUndefined();
   });
 
   it('fetches again for a new band (a rank change) without holding the lobby up', async () => {

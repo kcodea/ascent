@@ -80,11 +80,13 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
-        text: 'Ranked opponents are picked the way they were before October 3.',
+        text: 'Bronze opponents now have weaker early-game boards, and ranked opponents are matched on how strong their early and late game were.',
         details: [
-          'Ranked matchmaking uses the same whole-game number, so your opponents\' boards should match your rank more closely, round by round.',
-          'Gold meets games between 20 and 65, Platinum meets everyone, Diamond 10 and up, Ascendant 20 and up.',
-          'Bronze and Silver are unchanged.',
+          'Every game now has an early rating (rounds 1-9) and a late rating (round 10 onward), each compared with everyone else\'s games.',
+          'Bronze meets games whose early rating is in the bottom 20%.',
+          'Silver mixes 80% early with 20% late and meets games scoring 10 to 30. Gold mixes 60% early with 40% late and meets games scoring 10 to 50.',
+          'Platinum, Diamond and Ascendant meet everyone.',
+          'The Game strength shown in your match history is unchanged.',
         ],
       },
       {

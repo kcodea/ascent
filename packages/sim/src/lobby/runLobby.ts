@@ -16,7 +16,7 @@ import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
-import { bandSteps, inStrengthBand, type StrengthBand } from './strengthBands';
+import { bandSteps, runInStrengthBand, type StrengthBand } from './strengthBands';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -333,7 +333,8 @@ function shuffleRuns<T>(runs: readonly T[], rng: { int: (n: number) => number })
 /** Who is asking for a lobby, for seat selection only (never stored on the lobby). Your own runs are seated like
  *  anyone else's (owner 2026-09-30), so there is no `excludeOwnerId`. */
 export interface LobbySeatOptions {
-  /** MATCHMAKING BAND (R-LOBBY-09): draw recorded seats only from runs whose strength is inside this band (an
+  /** MATCHMAKING BAND (R-LOBBY-09, split early / late since R-LOBBY-13): draw recorded seats only from runs whose
+   *  match score for the band (`matchScoreOf`: the band's early weight x EARLY + the rest x LATE) is inside it (an
    *  unscored run is inside every band), widening step by step (`bandSteps`) while the table cannot be filled.
    *  Null / absent = no band, exactly the selection of before. */
   strengthBand?: StrengthBand | null;
@@ -406,11 +407,11 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   for (let step = 0; step < steps.length && !tableFull(); step++) {
     const band = steps[step]!;
     // Nothing new inside the wider band: widening would add no candidate, so it is not counted.
-    if (step > 0 && !available.some((run) => !considered.has(run.key) && inStrengthBand(run.strength, band))) continue;
+    if (step > 0 && !available.some((run) => !considered.has(run.key) && runInStrengthBand(run, band))) continue;
     usedStep = step;
     for (let i = 0; i < available.length && !tableFull(); i++) {
       const run = available[i]!;
-      if (considered.has(run.key) || !inStrengthBand(run.strength, band)) continue;
+      if (considered.has(run.key) || !runInStrengthBand(run, band)) continue;
       considered.add(run.key);
       if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
       // UNIQUE HEROES PER LOBBY (owner 2026-09-13): all eight seats — the player included — wear different

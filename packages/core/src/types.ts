@@ -1546,7 +1546,7 @@ export type QuestReward =
   | { kind: 'runeLapidary' } // End of Turn: a Ruby on one friendly minion of each type
   | { kind: 'runeLastingCadence' } // End of Turn: trigger ALL your Rally effects (one beat each)
   | { kind: 'runeCombatProwess' } // your Start of Combat effects also trigger at End of Turn (one beat per effect)
-  | { kind: 'runeDeep'; tier: number } // each turn: a random minion of `tier`
+  | { kind: 'runeDeep'; tier: number; every?: number } // a random minion of `tier` now, then every `every` turn setups (absent = every turn)
   | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
   | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
@@ -1562,7 +1562,7 @@ export type QuestReward =
   | { kind: 'runeAftermarket' } // the first sell each turn feeds the current Shop
   | { kind: 'runeSpellhide' } // the turn's first stat spell on a Beast re-casts at Start of Combat
   | { kind: 'runeLastWord' } // selling a Dragon with a Shout triggers it first
-  | { kind: 'runeRunicHoard' } // a copied Shop spell gives your Dragons +1/+1
+  | { kind: 'runeRunicHoard'; attack?: number; health?: number } // each spell cast: 3 random Dragons +attack/+health (owner 2026-10-07: +3/+4)
   | { kind: 'runeBanquetHall' } // the turn's first buy hands its stats to 2 random friendly minions (owner 2026-09-23)
   | { kind: 'runeFiveBanners' } // End of Turn: one friendly minion of each type +5/+4 (owner 2026-09-23; was a Start-of-Combat flag)
   | { kind: 'runeLassoing' } // whenever Lasso is cast in the shop, your minions gain +2/+2 (owner 2026-09-23)
@@ -2450,8 +2450,10 @@ export interface QuestCombatMods {
   bankedKeywords?: { index: number; keyword: Keyword; critChance?: number; spellId?: string }[];
   /** Open the Gates: this many Imps join this side's starting board (room permitting, ×Twilight). */
   bankedImps?: number;
-  /** Pre-emptive Assault: CAPTURED ONLY. The player's own fight still reads `CombatConfig.playerAttacksFirst`;
-   *  nothing applies this for a served board until the owner rules what happens when BOTH sides hold it. */
+  /** Pre-emptive Assault: PLAYER ONLY (owner 2026-10-07: "pre-emptive assault is a player only carry. dont let
+   *  enemies cast this"; R-PREEMPTIVE-PLAYER-01). Present only on the player's own mods, for its Start of Combat
+   *  cast beat; the effect itself is `CombatConfig.playerAttacksFirst`. Never captured on a snapshot (`snapshotBoard`
+   *  omits it, `sideFromSnapshot` drops it), and an enemy side never announces or applies it. */
   attackFirstNext?: boolean;
   /** Emissary Vale (United Front): Start of Combat, one friendly of each type gains +N/+N (N = the hero's
    *  Tavern Tier when the fight began). Same "one banner per body" rule as Five Banners, just tier-scaled. */

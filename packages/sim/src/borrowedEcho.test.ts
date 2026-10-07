@@ -87,14 +87,14 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
     expect(after.rightmostSlotBuff?.attack ?? 0, 'the right-most slot accrued a permanent buff').toBeGreaterThan(0);
   });
 
-  it('Wolvie gives a Beast on the board +2/+4 and Rise (owner batch 2026-09-24)', () => {
+  it('Wolvie gives a Beast on the board Rise and no stats (owner batch 2026-10-07; was +2/+4 and Rise)', () => {
     const s: RunState = {
       ...createRun(11), embers: 30, shop: [], board: [body('a1', 'alley')], hand: [borrowed('w', 'b2_wolvie')],
     };
     const before = s.board[0]!;
     const after = playBorrowed(s, 'w', 1);
     const cat = after.board.find((c) => c.uid === 'a1')!;
-    expect([cat.attack - before.attack, cat.health - before.health], '+2/+4').toEqual([2, 4]);
+    expect([cat.attack - before.attack, cat.health - before.health], 'no stats').toEqual([0, 0]);
     expect(cat.keywords, 'and Rise').toContain('R');
   });
 

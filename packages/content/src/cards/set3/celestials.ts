@@ -238,11 +238,11 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // 2026-09-14 (owner): buff THIS shop first, then the token eats the highest-HEALTH offer (so the meal carries the
     // buff). "Buff the shop" in the handoff read as the current offers, not the permanent Staff-of-Guel channel.
     effects: [
-      { on: 'onPlay', do: 'buffThisShop', params: { attack: 4, health: 3 } },
+      { on: 'onPlay', do: 'buffThisShop', params: { attack: 3, health: 2 } }, // owner 2026-10-07 (was +4/+3)
       { on: 'onPlay', do: 'battlecryStarformConsumeShop', params: { pick: 'highestHealth' } },
     ],
-    text: '**Shout:** give **this shop +4/+3**. Your **Starform** consumes the highest-Health minion.',
-    goldenText: '**Shout:** give **this shop +8/+6**. Your **Starform** consumes the highest-Health minion and gains **double** its stats.',
+    text: '**Shout:** give **this shop +3/+2**. Your **Starform** consumes the highest-Health minion.',
+    goldenText: '**Shout:** give **this shop +6/+4**. Your **Starform** consumes the highest-Health minion and gains **double** its stats.',
   },
   {
     // T3: "give this shop +3/+3. Repeat for every Shop spell you cast this turn" — the REPEAT form (R-REPEAT-01):
@@ -276,7 +276,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Avenge (3):** get **2 Star Crashes**.',
   },
   {
-    // T5 (owner handoff 2026-09-18; was "EoT: the token eats the row / SoT: create one"): End of Turn CREATES the
+    // HISTORY until 2026-10-07 — T5 (owner handoff 2026-09-18; was "EoT: the token eats the row / SoT: create one"): End of Turn CREATES the
     // token when none is out (rule 1 — a full row eats its right-most minion) and gives it +10/+10 — with one
     // already out the create is the no-op it always is (rule 2) and the +10/+10 lands on it. Gilded: +20/+20.
     id: 'ce3_orbitkeeper',
@@ -286,9 +286,11 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 7,
     health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnCreateStarformThenBuff', params: { attack: 10, health: 10 } }],
-    text: '**End of Turn:** create a **Starform** and give it **+10/+10**.',
-    goldenText: '**End of Turn:** create a **Starform** and give it **+20/+20**.',
+    // Owner 2026-10-07: reworked to "End of Turn: give minions in the shop +6/+7 permanently". The Staff-of-Guel
+    // channel (`buffShopPermanent`, the permanent shop buff Shout cards like set 2's Demons use). Gilded doubles (+12/+14).
+    effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 6, health: 7 } }],
+    text: '**End of Turn:** give minions in the shop **+6/+7** permanently.',
+    goldenText: '**End of Turn:** give minions in the shop **+12/+14** permanently.',
   },
   {
     // T4 (rules v2 2026-09-13; 3 hits since 2026-09-18): COLLAPSE — the token leaves; 3 UNIQUE random friendly Celestials each gain HALF its
@@ -335,8 +337,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'stellar_lens' } }],
-    text: '**Equip Stellar Lens (2):** create a **Starform**, then give **this shop +7/+7**.',
-    goldenText: '**Equip Stellar Lens (2):** create a **Starform**, then give **this shop +14/+14**.',
+    text: '**Equip Stellar Lens (2):** create a **Starform**, then give **this shop +5/+5**.', // owner 2026-10-07 (was +7/+7)
+    goldenText: '**Equip Stellar Lens (2):** create a **Starform**, then give **this shop +10/+10**.',
   },
   {
     // T5 Echo, both phases (one arena body): a random OTHER friendly Celestial gains this minion's MAX stats —

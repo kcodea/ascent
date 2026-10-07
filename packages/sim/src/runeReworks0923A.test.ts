@@ -200,19 +200,19 @@ describe('Rune of Ancestral Roar — End of Turn: Dragons +6/+6 for every Shout 
   });
 });
 
-describe('Rune of the Runic Hoard — every spell cast gives 3 random Dragons +2/+3', () => {
-  it('an untargeted Shop spell: exactly three of four Dragons take +2/+3', () => {
+describe('Rune of the Runic Hoard — every spell cast gives 3 random Dragons +3/+4 (owner 2026-10-07; was +2/+3)', () => {
+  it('an untargeted Shop spell: exactly three of four Dragons take +3/+4', () => {
     const s = withRune('rune_runic_hoard', { board: [bc('d1', 'emissary'), bc('d2', 'cleric'), bc('d3', 'weaver'), bc('d4', 'frontdrake'), bc('b', 'stray')] });
     castSpell(s, CARD_INDEX['growth']!);
     const hit = s.board.filter((c) => buffsOf(c, 'Rune of the Runic Hoard').length > 0);
     expect(hit).toHaveLength(3);
-    for (const c of hit) expect(buffsOf(c, 'Rune of the Runic Hoard')).toEqual([[2, 3]]);
+    for (const c of hit) expect(buffsOf(c, 'Rune of the Runic Hoard')).toEqual([[3, 4]]);
     expect(buffsOf(s.board.find((c) => c.uid === 'b')!, 'Rune of the Runic Hoard'), 'never a non-Dragon').toEqual([]);
   });
   it('a Ruby is a spell too — it pays without the Spellstone', () => {
     let s = withRune('rune_runic_hoard', { board: [bc('d1', 'emissary'), bc('b', 'stray')], hand: [bc('r', RUBY_ID, 1, 1)] });
     s = reduce(s, { type: 'play', uid: 'r', targetUid: 'b' }) as RunState;
-    expect(buffsOf(s.board.find((c) => c.uid === 'd1')!, 'Rune of the Runic Hoard')).toEqual([[2, 3]]);
+    expect(buffsOf(s.board.find((c) => c.uid === 'd1')!, 'Rune of the Runic Hoard')).toEqual([[3, 4]]);
   });
   it('a copied spell no longer pays (the old trigger is gone)', () => {
     const s = withRune('rune_runic_hoard', { board: [bc('d1', 'emissary')] });

@@ -193,7 +193,7 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Echo:** summon a random **Beast** and set its stats to **14/14**.',
   },
   {
-    // Owner rework 2026-08-18: an ESCALATING summon buff — whenever you summon a Beast give it +3/+3, and the
+    // HISTORY — owner rework 2026-08-18: an ESCALATING summon buff — whenever you summon a Beast give it +3/+3, and the
     // grant improves +3/+3 every 3 Beasts summoned (per-instance tally in `summonBonus`, both phases). Golden
     // doubles both the grant and the step. The live grant is folded into the printed text.
     id: 'b2_beardsley',
@@ -202,10 +202,12 @@ export const SET2_BEASTS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 5,
-    keywords: ['DS'],
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 3, health: 3, improve: 3, every: 3 } }],
-    text: '**Ward.** Whenever you summon a **Beast**, give it **+3/+3**. Improves **+3/+3** every **3 Beasts** summoned.',
-    goldenText: '**Ward.** Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.',
+    // Owner 2026-10-07: "When you summon a Beast, give it +1/+1 and improve this." +1/+1 per Beast summoned (every 1).
+    // The owner text names no Ward, so Ward is DROPPED (was keywords ['DS']).
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 1, health: 1, improve: 1, every: 1 } }],
+    text: 'When you summon a **Beast**, give it **+1/+1** and improve this.',
+    goldenText: 'When you summon a **Beast**, give it **+2/+2** and improve this.',
   },
   {
     // Owner add 2026-08-12 (was: the next Beast summoned gets +2/+4). Owner batch 2026-09-24: "Taunt. Echo: Give a
@@ -219,9 +221,11 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'beast', attack: 2, health: 4, keyword: 'R', goldenTargets: 1 } }],
-    text: '**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.',
-    goldenText: '**Taunt. Echo:** give a **Beast** **+4/+8** and **Rise**.',
+    // Owner 2026-10-07: "Taunt. Echo: Give a friendly Beast Rise." No stats any more (0/0 skips the buff, so the
+    // log carries no empty +0/+0). Gilded follows the house keyword-grant gild: 2 different Beasts (no `goldenTargets`).
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'beast', attack: 0, health: 0, keyword: 'R' } }],
+    text: '**Taunt. Echo:** give a friendly **Beast** **Rise**.',
+    goldenText: '**Taunt. Echo:** give **2** friendly **Beasts** **Rise**.',
   },
   {
     // Owner add 2026-08-12. Echo: give all Friendly and summoned Beasts +2/+4 (R-AURA-03, same rule as Grim): combat-only in a fight
@@ -330,7 +334,7 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Avenge (4):** give **2** other **Beasts** **Execute**.',
   },
   {
-    // A summon payoff that pumps the whole pack, this one and the new arrival included. Its own arrival does
+    // HISTORY until 2026-10-07: a summon payoff that pumped the whole pack, this one and the new arrival included. Its own arrival does
     // not trigger it. Shop plays and combat summons both count (`onSummonBuffTribeAll`, one arena body).
     id: 'b2_florida',
     name: 'Flo Rida',
@@ -339,9 +343,12 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 7,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onSummonBuffTribeAll', params: { tribe: 'beast', attack: 4, health: 4 } }],
-    text: 'When you summon a **Beast**, give your **Beasts +4/+4**.',
-    goldenText: 'When you summon a **Beast**, give your **Beasts +8/+8**.',
+    // Owner 2026-10-07: "When you summon a Beast, give it +5/+5 and improve this." Each improve adds +5/+5, so the
+    // grant runs 5/5, 10/10, 15/15… (the Beardsley escalator, `onSummonTribeBuffFlat` with `improve` every 1 Beast).
+    // Gilded doubles the grant and the step. The live grant is folded into the printed text (`summonEscalatingText`).
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 5, health: 5, improve: 5, every: 1 } }],
+    text: 'When you summon a **Beast**, give it **+5/+5** and improve this.',
+    goldenText: 'When you summon a **Beast**, give it **+10/+10** and improve this.',
   },
   {
     // Any friendly Beast attacking (Beev itself included) buffs the attacker AND Beev. When Beev is the attacker

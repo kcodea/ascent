@@ -32,7 +32,7 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   // pair, On the House. Those seven carry a tribe and only appear when that tribe is a run tribe (`runSpells`).
   // Existing cards are NEVER re-specced from a sheet: the shipped card is the current truth (owner 2026-09-10).
   'apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone',
-  'manafont', 'growth', 'hourglassreserve', 'refreshtexts', 'tribeschoice',
+  'manafont', 'growth', /* hourglassreserve — archived everywhere 2026-10-07 (owner balance batch) */ 'refreshtexts', 'tribeschoice',
   /* commonground — removed from set 3 by the owner 2026-09-14 */ 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'turnabout',
   'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy',
   'devour', 'chronostaff', 'corpseboard', 'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
@@ -99,6 +99,11 @@ const SET1_NEUTRALS_IN_SET2: readonly CardDef[] = NEUTRAL.filter((c) =>
  *  clean fit for its Imp line, so it's shared rather than re-authored. */
 const SET1_DEMONS_IN_SET2: readonly CardDef[] = DEMONS.filter((c) => ['impoverseer'].includes(c.id));
 const SET1_TIER7_IN_SET2: readonly CardDef[] = TIER7.filter((c) => ['uron', 'salvatore', 'zyff'].includes(c.id));
+/** Owner adds 2026-10-07: Jewel (a set-3 Kobold) and Brood Matron (a set-1 Demon) join set 2 as SHARED definitions —
+ *  both keep their home set. Opted in by id and APPENDED at the end of set 2's `own`, so every existing set-2 pool
+ *  position (seeded picks) stays put. */
+const SET3_KOBOLDS_IN_SET2: readonly CardDef[] = SET3_CARDS.filter((c) => c.id === 'k3_jeweler');
+const SET1_DEMONS_LATE_IN_SET2: readonly CardDef[] = DEMONS.filter((c) => c.id === 'brood');
 /** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
 
@@ -313,7 +318,7 @@ export const SETS: Record<SetId, SetDef> = {
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET2_DRAGON_RUNE_MINIONS], // → packages/content/src/cards/set2/*.ts (WIP)
+    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) are APPENDED so no existing set-2 position moves.
   },
   set3: {
     id: 'set3',

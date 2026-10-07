@@ -128,12 +128,13 @@ describe('RALLY + WATCHERS (combat) — grants attributed to a body, never to it
     expect(r.events.some((e) => e.type === 'buff' && e.source === 'Ashen Heir'), 'no label-sourced grant').toBe(false);
   });
 
-  it("Wolvie (Echo → a Beast gets +2/+4 and Rise): the gift is sourced on the fallen Wolvie's UID", () => {
+  it("Wolvie (Echo → a friendly Beast gets Rise): the gift is sourced on the fallen Wolvie's UID", () => {
     const { r, uidOf } = fight([bm('b2_wolvie', { keywords: ['T'], health: 1 }), bm('pack', { health: 200 })], [foe(5, 200)]);
     const wolvie = uidOf('b2_wolvie');
     const pack = uidOf('pack');
     // Owner batch 2026-09-24: the grant lands on a random other Beast at once (was: the next Beast summoned).
-    expect(r.events.some((e) => e.type === 'buff' && e.source === wolvie && e.target === pack)).toBe(true);
+    // Since the owner batch 2026-10-07 it is Rise only: no stat buff (and no empty +0/+0) at all.
+    expect(r.events.some((e) => e.type === 'buff' && e.source === wolvie), 'no stat buff').toBe(false);
     expect(r.events.some((e) => e.type === 'keyword' && e.keyword === 'R' && e.source === wolvie && e.target === pack)).toBe(true);
     expect(r.events.some((e) => e.type === 'buff' && e.source === 'Wolvie'), 'no label-sourced grant').toBe(false);
   });

@@ -45,7 +45,7 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
       whetstone: 'rune_whetstone', // design pass tranche 3 (owner 2026-09-27)
     },
     epic: {
-      'epic dwarves': 'rune_epic_dwarf', bucky: 'rune_bucky', 'double fisting': 'rune_double_fisting', 'profit sharing': 'rune_profit_sharing',
+      'epic dwarves': 'rune_epic_dwarf', bucky: 'rune_bucky', 'double fisting': 'rune_double_fisting', /* 'profit sharing' archived everywhere 2026-10-07 (owner balance batch) */
       'dwarf king brill': 'rune_high_king', 'muster general': 'rune_muster_general', 'shared table': 'rune_shared_table', 'sellers market': 'rune_sellers_market',
       anvil: 'rune_anvil', satchel: 'rune_satchel', // design pass tranche 3 (owner 2026-09-27)
     },
@@ -162,8 +162,8 @@ const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
-    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204).
-    expect(LISTED).toHaveLength(204);
+    // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
+    expect(LISTED).toHaveLength(203);
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -187,9 +187,9 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
     expect([...offered].sort()).toEqual([...LISTED].sort());
   });
 
-  it('counts: 109 Basic / 94 Epic (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
+  it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
     expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(109);
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(95); // 94 → 95 on 2026-10-03 (Rune of Drakko)
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(94); // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

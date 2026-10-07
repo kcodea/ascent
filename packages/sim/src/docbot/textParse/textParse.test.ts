@@ -139,10 +139,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-07 (the Dragon rune batch): 118 → 119, CONSCIOUSLY. Rune of the Wise Armory's "Equip Spell Generator (2): give
 // your spells +1/+1 and get a random spell that gives stats." (the owner's wording; the grammar has no rule for a random
 // spell filtered by "that gives stats"). The other five runes and the Firebird parse fully.
-// 2026-10-07 (the Beast rune batch): 119 -> 120, CONSCIOUSLY. Rune of the Sunpony's "When a Beast attacks, give all of
-// your Beasts +1 Attack and this Rune's effect." (the owner's wording; the grammar has no rule for granting "this Rune's
-// effect"). Rune of Actioned Beasts and Rune of the Gator's Bite parse fully.
-const UNRESOLVED_CAP = 120;
+// 2026-10-07 (the Beast rune batch): no cap move. Rune of the Sunpony's "When a Beast attacks, give all of your Beasts
+// +1 Attack and this Rune's effect." does not parse (no rule for granting "this Rune's effect"), taking the live count
+// 115 → 116, but the same day's balance-batch archives had already brought it under the 119 cap. Rune of Actioned Beasts
+// and Rune of the Gator's Bite parse fully.
+const UNRESOLVED_CAP = 119;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A
@@ -421,9 +422,16 @@ describe('grammar families (2026-09-11) — sabotage: each new comparator convic
     expect(taxonomiesOf(withPlain(one('dw_billings'), (p) => { p.count = 3; }))).toContain('wrong-target-count');
   });
 
-  it('improvement step and countdown (Beardsley: "Improves +3/+3 every 3 Beasts summoned")', () => {
-    expect(taxonomiesOf(withPlain(one('b2_beardsley'), (p) => { p.improve = 5; }))).toContain('wrong-amount');
-    expect(taxonomiesOf(withPlain(one('b2_beardsley'), (p) => { p.every = 4; }))).toContain('wrong-threshold');
+  it('improvement step and countdown (Beardsley, pre-2026-10-07 text: "Improves +3/+3 every 3 Beasts summoned")', () => {
+    // Beardsley now prints "...and improve this" (owner 2026-10-07), which states no step or cadence, so no live card
+    // carries this shape. The comparator stays provably alive on the historical text + params, parsed explicitly.
+    const OLD = '**Ward.** Whenever you summon a **Beast**, give it **+3/+3**. Improves **+3/+3** every **3 Beasts** summoned.';
+    const OLD_G = '**Ward.** Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.';
+    const historical = withPlain(one('b2_beardsley'), (p) => { p.attack = 3; p.health = 3; p.improve = 3; p.every = 3; });
+    const sweep = (c: Contract): string[] => runTextSweep({ contracts: [c], parseOf: () => parseObjectText(OLD), goldenParseOf: () => parseObjectText(OLD_G) })
+      .mismatches.map((m) => m.taxonomy);
+    expect(sweep(withPlain(historical, (p) => { p.improve = 5; }))).toContain('wrong-amount');
+    expect(sweep(withPlain(historical, (p) => { p.every = 4; }))).toContain('wrong-threshold');
   });
 
   it('Ruby-cast count (Ruby Roach: "cast a Ruby on your minions")', () => {
@@ -523,7 +531,7 @@ describe('the Aura vocabulary — LG-SCOPE-01', () => {
       kennel: [1, 4], grim: [8, 8] /* owner ruling 2026-09-28 (R-AURA-03): flat "+8/+8 this combat", replacing the 2026-09-24 per-Echo tally */, trophystalker: [5, 5, 5, 5],
       deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [5], // Lantern +3 → +5 on 2026-09-14 (owner buff, not the rebrand)
       scrapherald: [2, 2], chorusengine: [4, 4, 2], b2_armadiyo: [2, 4],
-      rune_summoning: [2, 2], rune_cinder_ledger: [3, 6, 6],
+      rune_summoning: [3, 3] /* owner balance 2026-10-07: +2/+2 → +3/+3 (a buff, not the rebrand) */, rune_cinder_ledger: [3, 6, 6],
     };
     for (const [id, nums] of Object.entries(magnitudes)) {
       const row = corpus.find((r) => r.id === id);

@@ -80,6 +80,8 @@ const ART_PENDING = new Set<string>([
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
   // SET 2 DRAGONS (owner batch 2026-10-07): Firebird, Rune of the Flaming Dragon's forge-only body, ships ahead of its art.
   'd2_firebird',
+  // SET 2 DWARVES (owner balance batch 2026-10-07): Big Brain Billy ships ahead of its art (art is wired only on ask).
+  'dw_bigbrainbilly',
 ]);
 
 describe('art coverage for live cards', () => {

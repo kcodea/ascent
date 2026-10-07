@@ -35,6 +35,9 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
   // next-combat banks are dropped when this fight is not the round they were cast for (`snapshotBanksLive`).
   const mods = snap.questMods ?? {};
   const questMods = snapshotBanksLive(snap, fightRound) ? { ...mods } : stripNextCombatBanks(mods);
+  // Pre-emptive Assault is player-only (owner 2026-10-07, R-PREEMPTIVE-PLAYER-01). `snapshotBoard` no longer captures
+  // it; this drops it from any board recorded while #1969 still did, so a served board can never carry it.
+  delete questMods.attackFirstNext;
   return combatSide({
     tier: snap.tier ?? fallbackTier,
     poolIds,

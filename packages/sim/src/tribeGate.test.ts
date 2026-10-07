@@ -23,8 +23,9 @@ const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
 /** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
  *  the board — so this allowlist holds only owner-ruled exceptions. Adding an id here needs an owner call.
  *  Rune of Lazarus grants the Undead Lazarus but is NEUTRAL (owner ruling 2026-09-25 on the Set 3 rune list: remove its Undead gate),
- *  so any run can be offered it. */
-const BODY_GRANT_ONLY = new Set<string>(['rune_lazarus']);
+ *  so any run can be offered it.
+ *  Rune of Ascension grants the Dragon Skybound Ascendant but is NEUTRAL (owner 2026-10-07: "neutral, not a Dragon rune"). */
+const BODY_GRANT_ONLY = new Set<string>(['rune_lazarus', 'rune_ascension']);
 /** OWNER-RULED tags whose text names the tribe by its KEYWORD rather than by name. Rune of the Deathtouched Apple
  *  ("When a minion Rises, give it Rise") is Undead (owner 2026-09-23, Balance 9/23: "make deathtouched apple an
  *  undead rune, so it is not in set 2") — Rise is the Undead keyword, the way Imps are Demon content. Rune of

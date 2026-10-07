@@ -225,15 +225,15 @@ describe('The board-fit rule (owner 2026-09-22: "at least 2 of a tribe type" Bas
 
   it('1 Pup: no tag, so the guarantee does not fire and a Beast rune CAN carry the pivot discount', () => {
     let discountedBeast = false;
-    // 300 seeds (was 80 until 2026-10-07): the Dragon rune batch grew the Set 2 Basic pool, which reshuffled the
-    // seeded offers so the first discounted Beast-only offer now lands at seed 208; the rule under test is unchanged.
-    for (let seed = 1; seed <= 300 && !discountedBeast; seed++) {
+    // 80 → 300 (Dragon rune batch, 2026-10-07: grew the Set 2 Basic pool) → 400 seeds (owner balance batch, same day:
+    // 14 runes archived): each reshuffled the seeded forge offers. A sampling window, not a rule: the property is unchanged.
+    for (let seed = 1; seed <= 400 && !discountedBeast; seed++) {
       const s = openBasic(seed, [pup('a')]);
       if (!s.runeforgeOffer || !s.runeforgeDiscounts) continue;
       expect(boardSynergyTags(s).size, 'one vanilla Beast fits nothing').toBe(0);
       s.runeforgeOffer.forEach((id, i) => { if (beastOnly(id) && s.runeforgeDiscounts![i] !== undefined) discountedBeast = true; });
     }
-    expect(discountedBeast, '300 seeds never discounted a Beast rune on a 1-Beast board').toBe(true);
+    expect(discountedBeast, '400 seeds never discounted a Beast rune on a 1-Beast board').toBe(true);
   });
 
   it('2 Pups: a Beast rune follows the board, so it never carries the pivot discount', () => {

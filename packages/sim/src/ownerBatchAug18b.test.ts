@@ -46,8 +46,9 @@ describe('Vaultkeeper — gains base×(1+⌊spells/4⌋) whenever you play a Dra
   });
 });
 
-describe('Beardsley — escalating summon buff (+3/+3, improves +3/+3 every 3 Beasts)', () => {
-  it('the first three Beasts played get +3/+3 and the fourth gets +6/+6', () => {
+// RE-PINNED 2026-10-07 (owner batch): Beardsley is +1/+1 and improves +1/+1 on EVERY Beast (was +3/+3 every 3).
+describe('Beardsley — escalating summon buff (+1/+1, improves +1/+1 every Beast)', () => {
+  it('four Beasts played in a row get +1/+1, +2/+2, +3/+3, +4/+4', () => {
     // Recruit-phase: Beardsley on board, four DISTINCT Beasts with no play-time trigger (so nothing else
     // summons and no triple forms) played one at a time. Each arriver takes the grant; Beasts 1-3 are at step 0
     // (+3), the 4th crosses `every:3` to step 1 (+6). The grant is the delta over each card's printed stats.
@@ -64,8 +65,8 @@ describe('Beardsley — escalating summon buff (+3/+3, improves +3/+3 every 3 Be
       const base = CARD_INDEX[id]!;
       grants.push([m.attack - base.attack, m.health - base.health]);
     }
-    expect(grants, 'Beasts 1-3 land +3/+3, the 4th escalates to +6/+6')
-      .toEqual([[3, 3], [3, 3], [3, 3], [6, 6]]);
+    expect(grants, 'each Beast one step bigger than the last')
+      .toEqual([[1, 1], [2, 2], [3, 3], [4, 4]]);
   });
 });
 

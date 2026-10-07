@@ -203,7 +203,7 @@ describe('next-combat spells CARRY OVER — cast, End Turn, snapshot, serve as t
     sp_closedcasket: (_r, { minions }) => expect(minions.some((m) => m.closedCasket)).toBe(true),
   };
   for (const c of CASES) {
-    if (c.id === 'preemptive') continue; // captured, NOT applied for an opponent — see the next describe
+    if (c.id === 'preemptive') continue; // PLAYER-ONLY (owner 2026-10-07) — see below
     it(`${c.id}: applies on the ENEMY side, with its Start of Combat cast beat`, () => {
       const { snap } = castAndEndTurn(c);
       const { r, side, minions } = serveAsEnemy(snap);
@@ -212,14 +212,30 @@ describe('next-combat spells CARRY OVER — cast, End Turn, snapshot, serve as t
     });
   }
 
-  it('Pre-emptive Assault is CAPTURED but inert for an opponent (pending an owner ruling on both sides holding it)', () => {
+  // OWNER RULING 2026-10-07 (R-PREEMPTIVE-PLAYER-01): "pre-emptive assault is a player only carry. dont let enemies cast this".
+  it('Pre-emptive Assault is PLAYER-ONLY: never captured on a snapshot, never cast for an opponent', () => {
     const { snap } = castAndEndTurn({ id: 'preemptive' });
-    expect(snap.questMods?.attackFirstNext).toBe(true);
+    expect(snap.questMods?.attackFirstNext, 'not captured').toBeUndefined();
     const { r } = serveAsEnemy(snap);
     expect(casts(r, 'enemy')).not.toContain('preemptive');
-    const plain = simulate(ME(), opponentBoard(snap), makeRng(5), CARD_INDEX, combatSide({ tier: 3, poolIds: POOL }),
-      { ...sideFromSnapshot(snap, snap.tier, POOL, snap.wave), questMods: stripNextCombatBanks(snap.questMods ?? {}) });
-    expect(fightOf(r)).toEqual(fightOf(plain));
+  });
+
+  it('a board recorded while #1969 still captured it is served WITHOUT it, and the fight is the plain one', () => {
+    const { snap } = castAndEndTurn({ id: 'preemptive' });
+    const legacy: BoardSnapshot = { ...snap, questMods: { ...(snap.questMods ?? {}), attackFirstNext: true } };
+    expect(sideFromSnapshot(legacy, legacy.tier, POOL, legacy.wave).questMods?.attackFirstNext, 'dropped at serve').toBeUndefined();
+    const { r } = serveAsEnemy(legacy);
+    expect(casts(r, 'enemy')).not.toContain('preemptive');
+    expect(fightOf(r)).toEqual(fightOf(serveAsEnemy(snap).r));
+  });
+
+  it('even an enemy side handed the flag directly never announces it, and it changes nothing about the fight', () => {
+    const me: BoardMinion[] = [{ cardId: 'stray', attack: 2, health: 6 }];
+    const foe: BoardMinion[] = [{ cardId: 'stray', attack: 2, health: 6 }];
+    const armed = simulate(me, foe, makeRng(3), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 2, questMods: { attackFirstNext: true } }));
+    const plain = simulate(me, foe, makeRng(3), CARD_INDEX, combatSide({ tier: 2 }), combatSide({ tier: 2 }));
+    expect(casts(armed, 'enemy')).not.toContain('preemptive');
+    expect(fightOf(armed)).toEqual(fightOf(plain));
   });
 
   it('Marked Target is a real Start of Combat step for EITHER side: the holder\'s FOE\'s right-most gains Taunt', () => {

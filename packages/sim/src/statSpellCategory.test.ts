@@ -42,7 +42,7 @@ describe('the category: Set 2 membership, pinned per tier', () => {
     3: ['mightofaeon', 'patchjob', 'shatter', 'wo_attack', 'wo_champion', 'wo_health'],
     4: ['fronttoback', 'greatpot', 'hoardflame', 'sp_blessing', 'sp_flutter'],
     5: ['sp_dragonflame'],
-    6: ['sp_beefy', 'sparkplug'],
+    6: ['sparkplug'], // Beefy archived everywhere 2026-10-07 (Arnold still casts it; it is out of the pool)
   };
 
   it('is exactly the pinned table', () => {

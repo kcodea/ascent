@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /** Owner batch 4, tranche 4 (2026-08-07) — the five hard Epic runes. */
 
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
-const rune = (id: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.id === id)!;
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const rune = (id: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.id === id)!;
 
 const sim = (p: BoardMinion[], e: BoardMinion[], side = {}, seed = 5) =>
   simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, ...side } as never), combatSide());
@@ -29,7 +30,7 @@ describe('the five defs ship as specced', () => {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(rune(id).epic, `${id} should be Epic`).toBe(true);
     }
-    expect(rune('rune_ruby_shrapnel').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
+    expect(rune('rune_ruby_shrapnel').sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'])
     for (const id of ['rune_ancestral_roar', 'rune_shared_scripture', 'rune_banquet_hall', 'rune_crucible_choir']) {
       // Ancestral Roar (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
       expect(rune(id).sets, `${id} is scoped to set 1 + set 2`).toEqual(['set1', 'set2']); // Shared Scripture / Banquet Hall / Crucible Choir CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)

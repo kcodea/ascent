@@ -366,10 +366,15 @@ describe('board-and-hand recipients', () => {
     expect(spiritGains, 'exactly one board Spirit got the +6/+6').toBe(1);
   });
 
-  it('Dreamcurrent Mystic: a Shop spell cast → a random hand minion +4/+6', () => {
-    let s = run({ board: [body('dm', 'sp3_dreamcurrent')], hand: [body('h', 'sp3_kindled'), body('sp', 'growth')] });
+  // RE-PINNED 2026-10-07 (owner): Lullaby Lou now buffs a friendly Spirit ON BOARD (never itself), not the hand.
+  it('Lullaby Lou (was Dreamcurrent Mystic): a Shop spell cast → a friendly board Spirit +4/+6; the hand is untouched', () => {
+    let s = run({ board: [body('dm', 'sp3_dreamcurrent'), body('k', 'sp3_kindled')], hand: [body('h', 'sp3_kindled'), body('sp', 'emberpouch')] });
     s = reduce(s, { type: 'play', uid: 'sp' } as Action);
-    expect(stats(inHand(s, 'h'))).toEqual([1 + 4, 3 + 6]);
+    const k = s.board.find((c) => c.uid === 'k')!;
+    expect([k.attack, k.health]).toEqual([1 + 4, 3 + 6]);
+    expect(stats(inHand(s, 'h'))).toEqual([1, 3]);
+    const lou = s.board.find((c) => c.uid === 'dm')!;
+    expect([lou.attack, lou.health], 'never itself').toEqual([CARD_INDEX['sp3_dreamcurrent']!.attack, CARD_INDEX['sp3_dreamcurrent']!.health]);
   });
 
   it('Gathering Guide only Discovers with another Spirit on board', () => {

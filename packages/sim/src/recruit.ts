@@ -2276,14 +2276,18 @@ export function applyLorekeeping(state: RunState, target: BoardCard): void {
 }
 
 /**
- * Rune of the Runic Hoard (balance 9/23: "When you cast a Spell, give 3 random Dragons +2/+3"): per cast, up to
+ * Rune of the Runic Hoard (balance 9/23: "When you cast a Spell, give 3 random Dragons +2/+3"; owner 2026-10-07: +3/+4, read off the reward): per cast, up to
  * three DISTINCT friendly Dragons (fewer when fewer are out), drawn off the run cursor. Shop spells and Gifts
  * pay from `castSpell`'s tail; a Ruby pays from the reducer's Ruby path — "a spell" means every spell (Forsaken
- * Mage ruling 2026-09-09). +2/+3 per copy held (recurring family, owner 2026-08-27).
+ * Mage ruling 2026-09-09). The printed amount per copy held (recurring family, owner 2026-08-27).
  */
 export function fireRunicHoard(state: RunState, casts: number): void {
   if (!state.runeRunicHoard || casts <= 0) return;
   const rh = runeStacksOf(state, 'rune_runic_hoard');
+  // The printed numbers live on the reward (owner 2026-10-07: +3/+4), so the text and the payout share one source.
+  const hoard = RUNE_INDEX['rune_runic_hoard']?.reward;
+  const ha = hoard?.kind === 'runeRunicHoard' ? hoard.attack ?? 3 : 3;
+  const hh = hoard?.kind === 'runeRunicHoard' ? hoard.health ?? 4 : 4;
   for (let n = 0; n < casts; n++) {
     const dragons = state.board.filter((c) => isTribe(c, 'dragon'));
     if (dragons.length === 0) return;
@@ -2293,7 +2297,7 @@ export function fireRunicHoard(state: RunState, casts: number): void {
     const pool = [...dragons];
     while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
     state.rngCursor = rng.state();
-    captureBuffFx(state, undefined, 'spell', () => { for (const d of picks) addBuff(d, 'Rune of the Runic Hoard', 2 * rh, 3 * rh); });
+    captureBuffFx(state, undefined, 'spell', () => { for (const d of picks) addBuff(d, 'Rune of the Runic Hoard', ha * rh, hh * rh); });
   }
 }
 
@@ -12791,7 +12795,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
  */
 /** Rune of Summoning's printed per-cast Imp improvement. Lives here (not in the reward data) because the
  *  reward kind carries no amount; the card text is the contract — keep the two in lockstep. */
-const RUNE_SUMMONING_STEP = 2;
+const RUNE_SUMMONING_STEP = 3; // owner 2026-10-07 (was 2)
 
 /**
  * Can a spell cast this turn be handed back as a COPY by the spell-count runes? A Gift (a Clue, Tower Shield, a

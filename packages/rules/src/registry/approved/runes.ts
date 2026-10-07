@@ -370,10 +370,11 @@ export const RUNES_RULES: GameRule[] = [
       'A rune printed "Get X. Repeat at Start of Turn" hands over X the moment it is bought (the Runeforge opens '
       + 'partway through a shop turn, after that turn\'s setup has run) and then one more X at every turn setup for '
       + 'the rest of the run, one per copy held. Full Measure (Baby Gastrid), Open Appetite (Appetite Agent), the '
-      + 'Unbroken Vein (Veinbreaker), the Display Case (Market Tormentor) and the Deep (a random Tier 7 minion) all '
+      + 'Unbroken Vein (Veinbreaker) and the Display Case (Market Tormentor) all '
       + 'follow it, each keeping its second half (the Attack grant, the any-type aim, both Choose One effects, the '
       + 'left-most Shop enchant). The Muckbroker\'s "Get a Muckslinger. Repeat every 2 turns" is the same shape on '
-      + 'the 2-turn cadence: one now, then one every second turn setup. Rune of Copies copies at that same turn setup '
+      + 'the 2-turn cadence: one now, then one every second turn setup, and so is the Deep since 2026-10-07 (a random '
+      + 'Tier 7 minion; R-DEEP-EVERY-01). Rune of Copies copies at that same turn setup '
       + 'and is printed "Start of Turn".',
     domain: 'runes',
     status: 'approved',
@@ -1934,6 +1935,25 @@ export const RUNES_RULES: GameRule[] = [
       + 'pre-spent growth the player got anyway and looked like it had fired once (the Nadja 2026-07-22 class). It now '
       + 'writes `maxGoldBonus`, like Robin x Time, Gold Font and Nadja.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeCoffersEveryEot.test.ts', 'packages/ui/src/runeCoffersTally.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
+  {
+    id: 'R-DEEP-EVERY-01',
+    title: 'Rune of the Deep pays a Tier 7 minion on purchase, then again every 2 turns, with a live countdown',
+    statement:
+      'Rune of the Deep reads "Get a random Tier 7 minion. Repeat every 2 turns." The first minion lands the moment '
+      + 'the rune is bought; the next turn setup pays nothing, and the one after pays again (one per copy held). The '
+      + 'cadence is the `every` param on the reward, counted from the purchase; the Runeforge badge shows the x/2 turns '
+      + 'countdown. A run that armed the Deep before the cadence existed keeps paying every turn.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-07', quote: 'Get a random Tier 7 minion. Repeat every 2 turns.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_deep (every: 2); packages/sim/src/reducer.ts runeDeep reward + turn setup (runeDeepTick); packages/ui/src/runeTally.ts rune_deep' },
+    ],
+    contentIds: ['rune_deep'],
+    cardText: 'Get a random **Tier 7** minion. Repeat every **2 turns**.',
+    currentBehaviour: 'Conforms (2026-10-07). Was every Start of Turn (owner 2026-09-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1007.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {
     id: 'R-RUNE-EQUIP-01',

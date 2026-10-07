@@ -377,7 +377,10 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
     .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden, ...(handCardLocked(s, c) ? { locked: true as const } : {}) }));
   // The assembled quest/rune combat modifiers — so a served board reproduces its runes/quests in combat.
-  const qmods = questCombatMods(s);
+  // Pre-emptive Assault is a PLAYER-ONLY carry (owner 2026-10-07: "pre-emptive assault is a player only carry. dont
+  // let enemies cast this"; R-PREEMPTIVE-PLAYER-01): it is never captured, so no served board can hold it.
+  const { attackFirstNext: _playerOnly, ...qmods } = questCombatMods(s);
+  void _playerOnly;
   const hasQmods = Object.keys(qmods).length > 0;
   return {
     v: 1,

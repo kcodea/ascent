@@ -757,10 +757,11 @@ export interface RunState {
    *  sim itself creates — `createRun`/`createLobbyRun` never mint one, so seeds stay the only determinism
    *  input); `rankedRunIdOf` then falls back to `String(seed)`, the pre-medal identity. */
   runId?: string;
-  /** BRONZE SHOP CLOCK (owner 2026-10-06, R-TIMER-BRONZE-01): the player's medal when this RATED lobby started,
-   *  stamped by the UI beside `runId` and never changed. Presentation only (the UI's gold-spend shop clock reads it);
-   *  nothing in the sim reads it. Pinned so a game started in Bronze keeps its clock to the end, through Save & Quit
-   *  and cloud resume, even after a rank change elsewhere. Absent on unrated / practice / older runs. */
+  /** MEDAL AT GAME START (owner 2026-10-06): the player's medal when this RATED lobby started, stamped by the UI
+   *  beside `runId` and never changed, so it survives Save & Quit and cloud resume even after a rank change elsewhere.
+   *  Read for telemetry (`rankAtStartForTelemetry`, R-TELEMETRY-RANK-01); nothing in the sim reads it. It once chose
+   *  the Bronze-only shop clock (R-TIMER-BRONZE-01, retired 2026-10-07): every lobby now has the same Gold Fuse
+   *  (R-TIMER-FUSE-01) and the clock no longer reads it. Absent on unrated / practice / older runs. */
   medalAtStart?: RankMedal;
   /** RANK AT GAME START (owner 2026-10-06, R-TELEMETRY-RANK-01): the fuller snapshot pinned beside `medalAtStart`
    *  (medal, division, points, rating, season) by the same UI call, under the same gate, and never changed. Only the

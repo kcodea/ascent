@@ -37,7 +37,8 @@ export const ACTIONS_RULES: GameRule[] = [
       + 'rearranging the board / hand / Shop, swapping the shown Equipment and answering an open choice stay '
       + 'available. Passive powers and End of Turn triggers are not player actions and resolve as normal. The '
       + 'engine enforces it (one shared table, `SHOP_CLOCK_POLICY`), and the buttons render dead on the same tick. '
-      + 'Untimed runs (tutorial, God sandbox, Practice unlimited time) never reach 0:00.',
+      + 'Untimed runs (tutorial, God sandbox, Practice unlimited time) never reach 0:00, and neither does a Gold Fuse '
+      + 'turn (R-TIMER-FUSE-01, R-GAUNTLET-04) whose countdown never started.',
     domain: 'actions',
     status: 'approved',
     evidence: [

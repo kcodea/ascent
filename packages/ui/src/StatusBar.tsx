@@ -155,6 +155,8 @@ function heroPowerTallyOf(
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
   const run = useGame((s) => s.run);
+  // Practice's timer choice: the Gold Fuse's length (and so a parked fuse's Thymepiece reading) folds it in.
+  const practiceTimer = useGame((s) => s.practiceTimer);
   // GORUN'S COUNTER, LIVE (owner report 2026-08-31). `run.bladeAttacks` is banked at settle, so during a fight
   // the printed "improves in N attacks" was frozen for the whole combat — the one stretch anybody is watching
   // it. `combatQuestDelta.attack` is the friendly-attack tally the replay already keeps for quests; folding it
@@ -1239,7 +1241,7 @@ export function StatusBar() {
             <EquipNamePlate name={selectedEquipDef.name} look={equipLook} />
             {/* A clock-window discount in flight (Thymepiece): "−1 Gold · 6s", counting on the turn clock. Its own
                 leaf so the per-second subscription never reaches this component (see DiscountWindowReadout). */}
-            {run.cardDiscountWindow && <DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run)?.seconds ?? null} />}
+            {run.cardDiscountWindow && <DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run, practiceTimer)?.seconds ?? null} />}
             <div className="herotip" role="tooltip">
               <b>{selectedEquipDef.name}</b>{selectedEquip.version === 'gilded' ? ' · gilded' : ''}
               <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(equipRule) }} />

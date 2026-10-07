@@ -786,7 +786,8 @@ export const TRIGGERS_RULES: GameRule[] = [
     statement:
       'The Shop turn timer starts the moment the return-from-combat transition comes to rest (nothing is playable under '
       + 'the curtain). It does NOT wait for the Start of Turn beats: the Shop is playable while they play, so the clock '
-      + 'runs as normal. Offers raised at Start of Turn (a Discover, a quest offer, the Runeforge) still open after the '
+      + 'runs as normal. On a Gold Fuse turn (every lobby and Practice, R-TIMER-FUSE-01; the Gauntlet, R-GAUNTLET-04) the '
+      + 'countdown starts only once the fuse\'s Gold is spent, and never before the transition comes to rest. Offers raised at Start of Turn (a Discover, a quest offer, the Runeforge) still open after the '
       + 'beats. The timer is the local player presentation clock: the engine is untimed, so the recorded run, replays '
       + 'and the other seats are unchanged.',
     domain: 'triggers',

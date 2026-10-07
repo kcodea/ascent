@@ -212,10 +212,10 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'start-of-turn-timer',
     topic: 'keywords',
     q: 'Does my shop timer wait for Start of Turn effects to finish?',
-    a: "No. The timer starts as soon as the shop is back on screen, and **you can shop while the Start of Turn effects play**. Any pop-up they cause (like a Discover) still opens after they finish.",
+    a: "No. The timer can start as soon as the shop is back on screen, and **you can shop while the Start of Turn effects play**. (In a lobby or Practice it waits for the **Gold Fuse**: no clock until you've spent 10 Gold in the turn.) Any pop-up they cause (like a Discover) still opens after they finish.",
     aliases: ['timer start of turn', 'shop timer', 'turn clock'],
     seeAlso: ['start-of-turn', 'timer-runs-out'],
-    covers: [{ rule: 'R-SOT-TIMER-01', fp: '930e7931' }],
+    covers: [{ rule: 'R-SOT-TIMER-01', fp: '1c2bc9e9' }],
   },
   {
     id: 'end-of-turn',

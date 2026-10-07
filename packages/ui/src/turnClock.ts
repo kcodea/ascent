@@ -125,6 +125,29 @@ export function useTurnTimeUp(): boolean {
   );
 }
 
+/** Base round timer, before the per-wave ramp (owner 2026-07-16). */
+export const TURN_BASE_SECONDS = 18;
+/** The end-of-turn charge glyph's window. Every turn's clock starts ABOVE it (see `standardTurnSeconds`). */
+export const CHARGE_SECONDS = 20;
+
+/**
+ * THE STANDARD ROUND-BY-ROUND SCHEDULE: how long a Shop turn's clock runs on a wave, the ONE place it is computed.
+ * Recruit's normal clock and the Gold Fuse's countdown (`goldClock.ts`, R-TIMER-FUSE-01) both call it, so the two can
+ * never drift (owner 2026-10-07: "the round timer should follow the existing round by round time increase").
+ *
+ * +4 s a wave from 18 s, a flat +6 s from round 6, capped at 80 s, then a further +12 s ON TOP of the cap from round
+ * 12 (owner 2026-07-16 x2: late boards have the most to think about). Floored at CHARGE_SECONDS + 1 (21 s) so no turn
+ * ever STARTS inside the charge window: the glyph always lights by the clock ticking across the threshold. Rounds
+ * 1-15+: 21, 22, 26, 30, 34, 44, 48, 52, 56, 60, 64, 80, 84, 88, 92.
+ *
+ * `mult` is Practice's 1-4x timer choice (1 everywhere else; Practice's ∞ never reaches here, it has no clock). It
+ * multiplies the whole turn, floor included, exactly as the clock always has.
+ */
+export function standardTurnSeconds(wave: number, mult = 1): number {
+  const ramp = Math.min(80, TURN_BASE_SECONDS + (wave - 1) * 4 + (wave >= 6 ? 6 : 0)) + (wave >= 12 ? 12 : 0);
+  return Math.max(CHARGE_SECONDS + 1, ramp * mult);
+}
+
 /**
  * What the turn clock should be set to when the recruit screen (re)opens a turn — the decision behind
  * Recruit's clock-reset effect, extracted so it can be tested without a DOM.
@@ -172,8 +195,8 @@ export function turnClockReset(
  * the combat replay and gates other board work, and the ruling covers only the Shop clock. Closing the menu
  * resumes from the displayed second (a held clock is never reset).
  *
- * A GAUNTLET round's clock has not started yet (`clockWaiting`, see `gauntlet/gauntletClock.ts`): it holds, parked on
- * its waiting value, until the player has spent 30 Gold in the round.
+ * A GOLD FUSE turn's clock has not started yet (`clockWaiting`, see `goldClock.ts`): it holds, parked on its waiting
+ * value, until the player has spent the fuse's Gold in the turn (10 in every lobby and Practice, 30 in a Gauntlet).
  */
 export function turnClockMayTick(g: {
   recruitPhase: boolean;

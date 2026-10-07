@@ -159,6 +159,15 @@ export const PATCH_NOTES: PatchNote[] = [
           "Rune of the Sunpony (3 Gold): when a Beast attacks, give all of your Beasts +1 Attack for that fight, and the same spreading effect Sunmane Herald gives. Those Beasts then pass on what they have been given when they attack.",
         ],
       },
+      {
+        category: 'Systems',
+        text: 'New art for nine runes, two Equipment and two minions, plus a refreshed Brood Matron.',
+        details: [
+          "Runes: Echoing Shouts, the Whelps, the Voicekeeper, the Flaming Dragon, the Dragon's Egg, the Wise Armory, Actioned Beasts, the Gator's Bite and the Sunpony.",
+          "Equipment: Dragon's Egg and Spell Generator.",
+          'Minions: Firebird and Big Brain Billy.',
+        ],
+      },
     ],
   },
   {

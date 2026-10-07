@@ -812,7 +812,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Esc menu and the shop timer)', quote: 'yes, lets have it pause the shop timer for now' },
-      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (settingsOpen); packages/ui/src/Recruit.tsx (the countdown gate + ChargeGlyph paused read the store settingsOpen, kept out of overlayOpen)' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (settingsOpen); packages/ui/src/Recruit.tsx (the countdown gate reads the store settingsOpen, kept out of overlayOpen; the charge glyph follows the clock, R-TIMER-SYNC-01)' },
     ],
     currentBehaviour: 'Conforms (2026-09-29). Before this the Shop clock kept running behind the Esc menu.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escMenuPausesTimer.test.ts'], lastVerifiedAt: '2026-09-29' },
@@ -949,5 +949,29 @@ export const TRIGGERS_RULES: GameRule[] = [
       'Conforms as of 2026-10-07. Before, no Rally multiplier applied to a forced Rally in either phase: Uron, Law of Teeth, '
       + 'Rune of Adventuring and the Elderhorn modes boosted only a Rally fired by an attack.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-TIMER-SYNC-01',
+    title: 'The end-of-turn charge (glyph, motes, pulse and its build sound) stops whenever the Shop clock stops',
+    statement:
+      'The end-of-turn charge effect is a readout of the Shop turn timer and never runs on a clock of its own. Whenever '
+      + 'the timer is held mid-turn, for ANY reason (a Discover or other decision, an offer, an aim, the Esc menu, an '
+      + 'overlay, the Good Luck intro, the combat wipe, a Gold Fuse turn before its Gold is spent, or any hold added '
+      + 'later), the glyph fill, its pulse, its motes and the charge-build sound all stop with it, and on resume they '
+      + 'continue from exactly where the timer is. A hold keeps the part of the second already elapsed, so pausing '
+      + 'neither costs nor refunds time. The build sound always plays from the point that matches the timer (also when '
+      + 'the effect lights mid-window, such as after Save & Continue), so its peak and the explosion land on 0:00. At '
+      + '0:00 the timer is finished, not held: the completion flash and the tail of the sound play out.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (charge glyph out of sync after a pause)', quote: 'we just need to make sure it stops when the game is stopped in any way' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (charge glyph out of sync after a pause)', quote: 'i want the audio to stay the same and synced to the same timing at the end of each round' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts (running / hold / startSecond / secondProgress / chargeElapsed); packages/ui/src/Recruit.tsx (countdown holds on teardown; ChargeGlyph reads useTurnClockRunning); packages/ui/src/sfx.ts (turnCharge offset)' },
+    ],
+    currentBehaviour: 'Conforms (2026-10-07). Before, the 21 s build clip fired once on light and played through every pause, '
+      + 'the glyph paused off a private copy of the gate that missed several holds, the motes never paused, and each pause '
+      + 'restarted the current second of the clock.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/chargeGlyphHold.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
 ];

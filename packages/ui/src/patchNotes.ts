@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-07',
     changes: [
       {
+        category: 'Systems',
+        text: 'Fixed: the end-of-turn charge effect and its sound now pause whenever the Shop timer pauses, and stay in sync with it.',
+        details: [
+          'Pausing mid-turn (the menu, a Discover, an offer, any pick) now freezes the charging rune, its sparks and its build-up sound together with the timer.',
+          'When the timer resumes, the effect and the sound pick up exactly where they stopped, so the build-up still peaks as the timer hits 0.',
+          'Continuing a saved game in the last 20 seconds of a turn now plays the build-up from the right point instead of from the start.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Balance pass on Set 2 and Set 3 minions, plus a new Dwarf: Big Brain Billy.',
         details: [

@@ -216,7 +216,7 @@ import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGate
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
-import { turnClock, turnClockMayTick, turnClockReset, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { chargeElapsed, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
@@ -379,6 +379,7 @@ const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from roun
 const CHARGE_SECONDS = 20;
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
+const CHARGE_HOLD_FADE_MS = 120; // the charge-build sound's fade when the clock is held mid-turn (quick, so it reads as a stop, without a click)
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
  *  (per-Demon recast, read off the live board), and that whole count is MULTIPLIED by the run-wide spell-recast
@@ -489,19 +490,25 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
  *
  *  Timing is 100% synced to the turn clock: the charge window is the ACTUAL turn length (`min(CHARGE_SECONDS,
  *  turnSeconds)`, so short early-wave turns calibrate correctly, not a fixed 20s), and a rAF interpolates WITHIN
- *  each integer second from the wall-clock moment it began — so charge starts at 0 on the first lit second and hits
- *  1 EXACTLY as the clock reaches 0. Writes `--charge` (0→1) straight to the box ref each frame + the core-bloom
- *  opacity to its ref (no per-frame React render), only while lit + unpaused — the heavy card tree is never touched
- *  (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly custom-prop
- *  write; the mask does the both-sides-in fill. */
-const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCombat: boolean; window: number; paused: boolean; covered: boolean }) {
+ *  each integer second from the clock's own sub-second position (`turnClock.secondProgress`) — so charge starts at
+ *  0 on the first lit second and hits 1 EXACTLY as the clock reaches 0. Writes `--charge` (0→1) straight to the box
+ *  ref each frame + the core-bloom opacity to its ref (no per-frame React render) — the heavy card tree is never
+ *  touched (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly
+ *  custom-prop write; the mask does the both-sides-in fill.
+ *
+ *  HELD WITH THE CLOCK (owner 2026-10-07, R-TIMER-SYNC-01): whether time is passing is read from the clock itself
+ *  (`useTurnClockRunning`), never from a pause list of the glyph's own — that private list drifted from the real gate
+ *  (it missed the Ancients offer, the Good Luck intro, the wipe and the Gold Fuse wait), and nothing paused the sound
+ *  at all. While the clock is held mid-turn the fill, the pulse, the motes AND the charge-build sound all stop; on
+ *  resume they continue from exactly where the clock is, so the build still peaks as the clock hits 0. */
+const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, covered }: { inCombat: boolean; window: number; covered: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
+  const running = useTurnClockRunning();
   const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chargeRef = useRef(0);                  // the live charge (0→1), read by the motes loop each frame
-  const tickAtRef = useRef(0);
   // `covered` = a full-screen surface (title / hero select / career / compendium / leaderboard / balance) is
   // hiding the game — the glyph must not be lit behind it: Recruit stays mounted across EVERY phase, so on the
   // MAIN MENU the wave-1 clock (18s ≤ the 20s window) had it lighting invisibly and firing the ~30s charge-build
@@ -509,6 +516,11 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   // path's stopTurnCharge), the invisible paint, and the motes rAF. Mid-run POPUPS (Discover / quest / forge)
   // are NOT covered — the board stays visible behind them, so the glyph stays lit and merely pauses.
   const lit = preview != null || (!inCombat && !covered && seconds <= chargeWindow);
+  // Held = the clock has time left but is not moving (a decision, the Esc menu, the intro, the wipe, ...). A clock at
+  // 0 is FINISHED, not held: the completion flash, the motes' gather and the build's tail all play out over it.
+  const held = lit && preview == null && !running && seconds > 0;
+  const heldRef = useRef(held);
+  heldRef.current = held;
   // Keep the glyph mounted for a short fade-out when it stops being lit (End Turn pressed / timer ends → combat)
   // instead of snapping to null. `mounted` holds the DOM through the fade; `fading` drives the opacity→0 transition
   // (the paint/motes rAFs are gated on `lit`, so during the fade the glyph freezes at its last frame and just fades).
@@ -532,22 +544,22 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   // must die with it — the fade path above only runs while mounted.
   useEffect(() => () => stopTurnCharge(), []);
 
-  // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
-  // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
-  useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
-
-  // Fire the "charge begins" cue ONCE per LIGHT — edge-triggered on `lit` going false→true, which uniformly
-  // covers every entry: the clock ticking down into the window, a fresh turn resetting already inside it (short
-  // early waves), and a covering surface (title / hero select) closing onto an in-window clock. It can never fire
-  // behind the main menu (covered → unlit), and a mid-shop pause (Discover etc.) doesn't flip `lit`, so it never
-  // re-fires there. `seconds > 0` keeps a re-light at a dead clock (e.g. menu closed after time-up) silent, and
-  // the dev preview's forced light is excluded.
-  const prevLitRef = useRef(false);
+  // THE CHARGE-BUILD SOUND rides the clock (R-TIMER-SYNC-01). It sounds while the glyph is lit and the clock is
+  // moving, and always plays from the clip position that matches the clock: the 21 s `turncharge` build is cut so
+  // its peak lands on 0:00 when started with 20 s left, so it starts `elapsed` seconds in. That one rule covers every
+  // entry: the clock ticking into the window (offset 0), a resume from a hold (offset = where the clock froze), a
+  // Save & Continue or a covering surface closing onto an in-window clock (offset = the time already gone). A hold
+  // fades it out quickly; unlighting is the fade-out path's job above. A light at a dead clock (menu closed after
+  // time-up) stays silent, and reaching 0 does not flip `audible`, so the tail rings out over the completion flash.
+  const audible = lit && preview == null && !held;
   useEffect(() => {
-    const was = prevLitRef.current;
-    prevLitRef.current = lit;
-    if (lit && !was && preview == null && seconds > 0) sfx.turnCharge();
-  }, [lit, preview, seconds]);
+    if (!audible) {
+      if (held) stopTurnCharge(CHARGE_HOLD_FADE_MS);
+      return;
+    }
+    if (turnClock.get() <= 0) return;
+    sfx.turnCharge(chargeElapsed(chargeWindow, performance.now()));
+  }, [audible, held, chargeWindow]);
 
   useEffect(() => {
     if (!lit) return;
@@ -565,17 +577,18 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       }
     };
     if (preview != null) { paint(preview); return; } // dev preview: pin to the forced charge (no clock)
-    // Live: a rAF interpolates WITHIN each integer second so the fill hits 1 EXACTLY as the clock reaches 0.
+    // Live: the fill is a pure function of the clock (whole seconds gone + how far into this one), so it hits 1
+    // EXACTLY as the clock reaches 0, and a held clock reads the same value every call.
+    const chargeNow = (): number => (chargeWindow > 0 ? chargeElapsed(chargeWindow, performance.now()) / chargeWindow : 0);
+    if (held) { paint(chargeNow()); return; } // frozen where the clock stopped: one paint, no rAF while held
     let raf = 0;
     const draw = (): void => {
-      const within = paused ? 0 : Math.min(1, (performance.now() - tickAtRef.current) / 1000);
-      const elapsed = Math.min(chargeWindow, (chargeWindow - seconds) + within);
-      paint(chargeWindow > 0 ? Math.max(0, Math.min(1, elapsed / chargeWindow)) : 0);
+      paint(chargeNow());
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [lit, seconds, paused, chargeWindow, preview]);
+  }, [lit, held, chargeWindow, preview]);
 
   // Motes: a light 2D-canvas particle layer co-located with the glyph (z:0, behind the cards — the main Pixi canvas
   // is z110, the wrong layer). A continuous rAF (started once per charge session, keyed on `lit`) reads the live
@@ -593,7 +606,9 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     engine.reset();
     let raf = 0, last = performance.now();
     const loop = (t: number): void => {
-      engine.frame(chargeRef.current, glyphCssW, glyphCssH, t - last);
+      // Held with the clock (R-TIMER-SYNC-01): skip the step so every mote freezes in place, and keep `last` current
+      // so the resume does not hand the engine one giant catch-up step.
+      if (!heldRef.current) engine.frame(chargeRef.current, glyphCssW, glyphCssH, t - last);
       last = t;
       raf = requestAnimationFrame(loop);
     };
@@ -609,7 +624,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   if (!lit && !mounted) return null;
   return (
     <>
-      <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
+      <div className={`chargeglyph${fading ? ' fading' : ''}${held ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
         <div className="masked charge-base" />
         <div className="masked charge-fill" />
         <div className="masked charge-core" ref={coreRef} />
@@ -1119,8 +1134,8 @@ export function Recruit() {
   const showTitle = useGame((s) => s.showTitle);
   // The Esc / Settings menu holds the SHOP CLOCK only (owner 2026-09-29, R-TIMER-ESC-01: "yes, lets have it pause
   // the shop timer for now"). Deliberately NOT folded into `overlayOpen`: that one also pauses the combat replay and
-  // blanks the Choose-Both markers, which the ruling does not ask for. It feeds the countdown gate and the charge
-  // glyph's `paused` (so the glyph doesn't keep charging while the clock is held), nothing else.
+  // blanks the Choose-Both markers, which the ruling does not ask for. It feeds the countdown gate, nothing else (the
+  // charge glyph follows the clock's own running/held state, R-TIMER-SYNC-01).
   const settingsOpen = useGame((s) => s.settingsOpen);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
@@ -4700,7 +4715,7 @@ export function Recruit() {
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
-      if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
+      if (cur <= 0) { turnClock.halt(); return; } // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
       const next = cur - 1;
       if (next === 0) {
         sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
@@ -4717,11 +4732,17 @@ export function Recruit() {
       // recorded window plays back over the same clock-seconds it was lived in.
       const win = discountWindowRef.current;
       if (win && win.untilClock !== null && next <= win.untilClock) dispatch({ type: 'discountWindowExpired' });
-      id = window.setTimeout(tick, tickMs());
+      if (next <= 0) { turnClock.halt(); return; }
+      id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));
     };
-    id = window.setTimeout(tick, tickMs());
-    return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits]);
+    // A clock at 0 has nothing to run (a re-run of this effect after time-up must not report it as ticking).
+    if (turnClock.get() <= 0) { turnClock.halt(); return; }
+    // Resume a held second where it stopped (R-TIMER-SYNC-01): `startSecond` returns only what is left of it, and the
+    // cleanup's `hold` freezes it for every reason this effect tears down. The charge glyph, its motes and the
+    // charge-build sound all read this running/held state, so they stop and start with the clock, never on their own.
+    id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));
+    return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits, run.scoutedNextOpponent?.length]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -7554,7 +7575,6 @@ export function Recruit() {
       <ChargeGlyph
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
-        paused={!!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen || settingsOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
       {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is

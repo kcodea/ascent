@@ -1055,6 +1055,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'system:startOfCombat:fleetingVigor': { policy: 'ownBeat', family: 'startOfCombat' },
   'system:startOfCombat:pendingKeywords': { policy: 'ownBeat', family: 'startOfCombat' },
   'system:startOfCombat:pendingImps': { policy: 'ownBeat', family: 'startOfCombat' },
+  // A next-combat spell's Start of Combat CAST (2026-10-07): its own beat, the spell card first, the effect after.
+  'system:startOfCombat:bankedCast': { policy: 'ownBeat', family: 'startOfCombat' },
   // An End-of-Turn Discover that AUTO-resolves (Moira re-firing Black Belt Brian) grants a card at the combat
   // hand-off. Its own beat so the granted card coalesces into the hand DURING the End-of-Turn playback (like a
   // shop conjure) instead of snapping in at commit (owner report 2026-08-14).

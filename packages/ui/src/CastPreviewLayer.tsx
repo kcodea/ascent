@@ -17,7 +17,8 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { Card, type CardView } from './Card';
 import { useGame } from './store';
-import { conjuredView } from './Recruit';
+import { conjuredView, tokenRefView } from './Recruit';
+import { CARD_INDEX } from '@game/content';
 import { getCastPreviews, placeCastPreview, subscribeCastPreviews, type CastPreviewEntry, type OccupiedSpan } from './castPreview';
 import { castPreviewLook, castPreviewTimings, getCastPreviewConfig, subscribeCastPreviewConfig } from './castPreviewConfig';
 import { rectToStage, stageViewport, toStage } from './stage';
@@ -88,12 +89,12 @@ const CastPreviewCard = memo(function CastPreviewCard({ entry, view }: { entry: 
 });
 
 /** The pure layer: entries in, cards out. `viewOf` builds a spell's live card view (null → that entry is skipped). */
-export function CastPreviewLayerView({ entries, viewOf }: { entries: readonly CastPreviewEntry[]; viewOf: (spellId: string) => CardView | null }) {
+export function CastPreviewLayerView({ entries, viewOf }: { entries: readonly CastPreviewEntry[]; viewOf: (spellId: string, entry: CastPreviewEntry) => CardView | null }) {
   if (entries.length === 0) return null;
   return (
     <div className="castprev-layer" aria-hidden="true">
       {entries.map((e) => {
-        const view = viewOf(e.spellId);
+        const view = viewOf(e.spellId, e);
         return view ? <CastPreviewCard key={e.id} entry={e} view={view} /> : null;
       })}
     </div>
@@ -106,7 +107,12 @@ export function CastPreviewLayer() {
   // Views are memoised per (spell, run) — `Card` is memo'd on the view's VALUE, so a run change that leaves the
   // spell's live text alone re-renders nothing below this line.
   const cache = useMemo(() => new Map<string, CardView | null>(), [run]);
-  const viewOf = (spellId: string): CardView | null => {
+  const viewOf = (spellId: string, entry: CastPreviewEntry): CardView | null => {
+    // An OPPONENT's Start of Combat cast prints the OPPONENT's spell power, never the player's live run (2026-10-07).
+    if (entry.foe) {
+      const sp = entry.foe.spellPower;
+      return CARD_INDEX[spellId] ? tokenRefView(spellId, undefined, undefined, { a: sp.attack, h: sp.health, ftb: 0, ftbH: 0, goldSpent: 0 }) : null;
+    }
     if (!cache.has(spellId)) cache.set(spellId, conjuredView(spellId, run));
     return cache.get(spellId) ?? null;
   };

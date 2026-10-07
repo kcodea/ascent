@@ -65,6 +65,7 @@ export const FAMILY_BY_MOMENT: Record<MomentKind, string> = {
   questTrigger: 'quest',
   questComplete: 'quest',
   pummelTrigger: 'reaction', // a damage-meter crossing — a reaction inside the hit that crossed it
+  bankedCast: 'startOfCombat', // a next-combat spell cast as the fight opens (2026-10-07)
 };
 
 /**

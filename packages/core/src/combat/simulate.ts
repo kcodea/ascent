@@ -28,6 +28,7 @@ import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpell
 import { addedSecondTribe, instantiate, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
+import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
 
 /** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
 export const ENCHANTMENT_COMBAT = { attack: 6, health: 8 } as const;
@@ -116,6 +117,25 @@ export function simulate(
   config: CombatConfig = {},
 ): CombatResult {
   const { playerAttacksFirst = false, playerRallyDouble = false, forceEnemyFirstTargetCard } = config;
+  // PER-FIGHT MODS (owner ruling 2026-10-07, Problem B): the one-shot banks below are SPENT in place as the fight
+  // resolves (Solid Ground's countdown, Containment, Stolen Initiative, a pending quest's mods folded in mid-fight).
+  // The caller's `questMods` is shared — a served snapshot's object, or the side the deferred odds probe re-runs —
+  // so this fight spends its OWN shallow copy and the caller's stays exactly as armed.
+  const armedMods = { player: playerState.questMods ?? {}, enemy: enemyState.questMods ?? {} }; // as armed (read by the opening below)
+  playerState = { ...playerState, questMods: { ...playerState.questMods } };
+  enemyState = { ...enemyState, questMods: { ...enemyState.questMods } };
+  // NEXT-COMBAT SPELL BANKS, FOR WHICHEVER SIDE HOLDS THEM (Fleeting Vigor, the banked keywords, Open the Gates'
+  // Imps, Marked Target): the reducer's historical player pre-bake, run here on copies, before anything reads the
+  // boards (so `startCount` and every Start-of-Combat effect see them exactly as they did). See `bankedOpeners.ts`.
+  const inputBoards = { player, enemy };
+  const opened = applyBankedOpeners(
+    inputBoards,
+    armedMods,
+    { player: { attack: playerState.impAtk, health: playerState.impHp }, enemy: { attack: enemyState.impAtk, health: enemyState.impHp } },
+    cards,
+  );
+  player = opened.boards.player;
+  enemy = opened.boards.enemy;
   // TUTORIAL ONLY: consumed once, on the enemy's opening swing (see the target pick below).
   let forcedEnemyTargetPending = !!forceEnemyFirstTargetCard;
   // Per-side quest/rune combat modifiers: each side reads its OWN captured mods.
@@ -2707,7 +2727,9 @@ export function simulate(
     // The tribe-parameterised twin (War Council and friends). Kept beside `lawOfTeeth` rather than replacing it:
     // the Beast flag is load-bearing for existing runs and saved boards.
     if (mods.tribeRallySlaughterExtra && isTribeOf(attacker, mods.tribeRallySlaughterExtra, cards)) extra += 1;
-    if (attacker.side === 'player' && playerRallyDouble) extra += 1; // Rallying Offensive is a player-only one-fight override
+    // Rallying Offensive — per side since 2026-10-07 (owner: "rallying offensive … should work for opponents"). The
+    // legacy player-only config flag is OR-ed in, never added, so a caller passing both still doubles once.
+    if (mods.rallyDouble || (attacker.side === 'player' && playerRallyDouble)) extra += 1;
     extra += mods.rallyExtraAlways ?? 0;
     if (mods.rallyExtraAlways) fireTrigger('runeAdventuring', attacker.side);
     const first = mods.rallyFirstEachCombat ?? 0;
@@ -4816,6 +4838,9 @@ export function simulate(
     // Weaken (next-combat spell): set N random living ENEMIES (from this side's view) to 1 Health. Base pass only.
     const weaken = base ? (rmods.weakenTargets ?? 0) : 0;
     if (weaken > 0) {
+      // The Start of Combat cast beat, inline so the card shows right before the Health drops. No `nextStep()`:
+      // a pure presentation marker must not re-number the steps after it.
+      emit({ type: 'bankedCast', side: rside, spellId: BANKED_SPELL_OF.weakenTargets, ...(weaken > 1 ? { count: weaken } : {}), key: BANKED_CAST_KEY });
       const other: Side = rside === 'player' ? 'enemy' : 'player';
       const pool = boards[other].filter((m) => !m.dead && m.health > 1);
       for (let w = 0; w < weaken && pool.length > 0; w++) {
@@ -6114,6 +6139,19 @@ export function simulate(
     };
   };
   const pc = carryBacksFor('player');
+
+  // THE START OF COMBAT CAST BEATS (owner ask 2026-10-07): rewind the starting snapshots to the board before each
+  // banked next-combat spell and open the log with its cast + effect. Presentation only — the fight above already
+  // resolved from the banked board — and unshifted at the very end, exactly where `enterCombat` used to put
+  // Fleeting Vigor's surge, so no event the fight emitted moves relative to another.
+  const opening = openingEvents(
+    initial,
+    opened.records,
+    armedMods,
+    inputBoards,
+    playerAttacksFirst,
+  );
+  if (opening.length) events.unshift(...opening);
 
   return {
     events,

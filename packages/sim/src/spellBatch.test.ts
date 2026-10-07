@@ -3,6 +3,17 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type CombatResult } from '@game/core';
 import { createRun, maxTierFor, poolOf, reduce, type BoardCard, type RunState } from './index';
 import { offerBuyStats, spellDisplayText } from './recruit';
+import { socBoard } from './snapshot';
+
+/** The ENEMY board as Start of Combat leaves it (initial + the opening keyword grants, before the first swing). */
+function socEnemyBoard(r: CombatResult): { uid: string; keywords: string[] }[] {
+  const units = r.initial.enemy.map((m) => ({ uid: m.uid, keywords: [...m.keywords] as string[] }));
+  for (const e of r.events) {
+    if (e.type === 'attack') break;
+    if (e.type === 'keyword') units.find((u) => u.uid === e.target)?.keywords.push(e.keyword);
+  }
+  return units;
+}
 
 /**
  * The 2026-07-23 spell batch — tranche A (the straightforward ones). A spell lives in hand as a BoardCard
@@ -151,8 +162,13 @@ describe('spell batch — tranche B1 (next-combat keyword grants)', () => {
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' }), { type: 'resolveShopDeath' });
     expect(s.pendingCombatKeywords?.length).toBe(1);
     s = reduce(s, { type: 'faceOmen' });
-    expect(s.pendingCombatKeywords ?? []).toEqual([]); // spent
     expect(s.lastCombat).toBeTruthy();
+    // The grant lands as a Start of Combat cast + `keyword` beat (2026-10-07)…
+    expect(s.lastCombat!.events.slice(0, 2)).toMatchObject([{ type: 'bankedCast', side: 'player', spellId: 'laststand' }, { type: 'keyword', keyword: 'R' }]);
+    // …stays armed through the fight (the snapshot captured after End Turn carries it), and is spent at settle.
+    expect(s.pendingCombatKeywords?.length).toBe(1);
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.pendingCombatKeywords ?? []).toEqual([]); // spent
   });
 });
 
@@ -290,9 +306,11 @@ describe('spell batch — tranche B4 (transform / combat-pending)', () => {
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: undefined }), { type: 'resolveShopDeath' });
     expect(s.markEnemyRightmostTaunt).toBe(true);
     s = reduce(s, { type: 'faceOmen' });
-    const enemy = s.lastCombat!.initial.enemy;
+    const enemy = socEnemyBoard(s.lastCombat!);
     expect(enemy.length).toBeGreaterThan(0);
-    expect(enemy[enemy.length - 1]!.keywords).toContain('T'); // right-most got Taunt
+    expect(enemy[enemy.length - 1]!.keywords).toContain('T'); // right-most got Taunt (a Start of Combat step since 2026-10-07)
+    expect(s.lastCombat!.events.some((e) => e.type === 'bankedCast' && e.side === 'player' && e.spellId === 'markedtarget')).toBe(true);
+    s = reduce(s, { type: 'settleCombat' });
     expect(s.markEnemyRightmostTaunt).toBe(false); // spent by the fight
   });
 });
@@ -543,8 +561,10 @@ describe('spell batch — Open the Gates', () => {
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: undefined }), { type: 'resolveShopDeath' });
     expect(s.pendingSCImps).toBe(3);
     s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.initial.player.filter((m) => m.cardId === 'impscrap').length).toBe(3);
-    expect(s.pendingSCImps).toBe(0); // spent
+    // The Imps join at Start of Combat as `summon` beats behind the cast (2026-10-07), not in `initial`.
+    expect(socBoard(s.lastCombat!).filter((m) => m.cardId === 'impscrap').length).toBe(3);
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.pendingSCImps ?? 0).toBe(0); // spent
   });
 
   it('Open the Gates respects the 7-slot cap', () => {
@@ -553,7 +573,7 @@ describe('spell batch — Open the Gates', () => {
     let s: RunState = { ...createRun(1), board, hand: [mkSpell('sp', 'openthegates')] };
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: undefined }), { type: 'resolveShopDeath' });
     s = reduce(s, { type: 'faceOmen' });
-    expect(s.lastCombat!.initial.player.filter((m) => m.cardId === 'impscrap').length).toBe(1); // only 1 free slot
+    expect(socBoard(s.lastCombat!).filter((m) => m.cardId === 'impscrap').length).toBe(1); // only 1 free slot
   });
 });
 

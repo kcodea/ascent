@@ -845,11 +845,12 @@ export interface RunState {
   /** Quick Sale: extra Gold added to the NEXT minion sold this turn (added on top of its sell value, then
    *  cleared). Also cleared at turn end if unused ("this turn"). Stacks if cast twice. Absent = 0. */
   nextSellBonus?: number;
-  /** Marked Target: the enemy's RIGHT-MOST minion enters the next combat with Taunt (applied to the enemy
-   *  board in `faceOmen`, then cleared). One fight only. Absent = off. */
+  /** Marked Target: the FOE's RIGHT-MOST minion enters the next combat with Taunt. Rides
+   *  `questMods.markFoeRightmostTaunt` (so a served snapshot carries it too) and is applied by `simulate`; spent
+   *  in `settleCombat`. One fight only. Absent = off. */
   markEnemyRightmostTaunt?: boolean;
-  /** Open the Gates: Imps banked to enter the NEXT combat on the player's board (added in `faceOmen`, up to the
-   *  7-slot cap, then spent). Absent = 0. */
+  /** Open the Gates: Imps banked to enter the NEXT combat on this board (up to the 7-slot cap). Rides
+   *  `questMods.bankedImps`, applied by `simulate`; spent in `settleCombat`. Absent = 0. */
   pendingSCImps?: number;
   /** Farseer's Report: 3 scouted minions from the NEXT opponent's warband, shown in a read-only Discover-style
    *  reveal. Set on cast, cleared on close / at turn start. Stats are the opponent's actual (final, doubled-for-
@@ -1084,12 +1085,14 @@ export interface RunState {
    *  this parity gates the improvement step. Absent = 0. */
   frontToBackCasts?: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
-   *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
+   *  that fight at +this). Rides `questMods.fleetingVigor`, applied by `simulate`; spent in `settleCombat`, win or
+   *  lose. Absent = none. */
   fleetingVigor?: { attack: number; health: number };
   /** Banked "for the next combat only" keyword grants (Field Maneuvers → Ward/Flurry, Last Stand → Rise,
-   *  Executioner's Edge → Critical Strike). Each names a board minion by uid; `faceOmen` stamps the keyword
-   *  (and `critChance` for CR) onto that minion's COMBAT instance, then clears the list — so it's gone after
-   *  the fight, exactly like `fleetingVigor`. A grant whose minion is gone by combat simply no-ops. */
+   *  Executioner's Edge → Critical Strike). Each names a board minion by uid; `questCombatMods` turns it into a
+   *  board-index `questMods.bankedKeywords` entry and `simulate` stamps the keyword (and `critChance` for CR) onto
+   *  that minion's COMBAT instance, for whichever side holds it. Spent in `settleCombat`, exactly like
+   *  `fleetingVigor`. A grant whose minion is gone by combat simply no-ops. */
   pendingCombatKeywords?: { uid: string; keyword: Keyword; critChance?: number }[];
   /** Run-wide Undead attack bonus (Lantern of Souls): your Undead get this much Attack everywhere —
    *  on the board in the shop and in every combat (incl. summoned/Reborn ones). */
@@ -2656,9 +2659,11 @@ export interface PreparedCombatSide {
   board: BoardMinion[];
   state: CombatSideState;
   config: CombatConfig;
-  fleeting: { attack: number; health: number } | null;
-  fleetingCovered: number;
-  twilightMult: number;
+  /** RETIRED 2026-10-07 (Fleeting Vigor's surge is rewound inside `simulate` now). Optional so a run saved with a
+   *  parked deferred side from before still loads; nothing reads them. */
+  fleeting?: { attack: number; health: number } | null;
+  fleetingCovered?: number;
+  twilightMult?: number;
 }
 
 /** The landing payload of a deferred fight — see `Action` `resolveCombat`. */

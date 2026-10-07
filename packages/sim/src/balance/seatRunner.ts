@@ -18,7 +18,7 @@
  * `rules: 'shipped'` reproduces the served-board path a seat takes against the live player today.
  */
 import { CARD_INDEX } from '@game/content';
-import { makeRng, simulate, type BoardMinion, type CombatResult, type CombatSideState } from '@game/core';
+import { makeRng, simulate, stripNextCombatBanks, stripNextCombatMarks, type BoardMinion, type CombatResult, type CombatSideState } from '@game/core';
 import { sideFromSnapshot } from '../boardSide';
 import { poolOf } from '../cardPool';
 import { opponentBoard } from '../opponents';
@@ -227,7 +227,7 @@ export function prepareAndFight(a: RunState, b: RunState, seed: number, opts: Fi
   if (a.phase !== 'combat' || !prepA) throw new Error('prepareAndFight: side A has no deferred fight pending (end its turn with faceOmen { deferFight } first)');
   if (b.phase !== 'combat' || !prepB) throw new Error('prepareAndFight: side B has no deferred fight pending (end its turn with faceOmen { deferFight } first)');
 
-  // Private copies: `simulate` and Marked Target touch the boards, and the parked sides belong to the runs.
+  // Private copies: the parked sides belong to the runs.
   const boardA: BoardMinion[] = structuredClone(prepA.board);
   const poolIds = poolOf(a).all.map((c) => c.id);
   let boardB: BoardMinion[];
@@ -240,12 +240,9 @@ export function prepareAndFight(a: RunState, b: RunState, seed: number, opts: Fi
     boardB = opponentBoard(snap);
     sideB = sideFromSnapshot(snap, b.tier, poolIds);
   }
-  // Marked Target: the ARMING seat's foe enters with Taunt on its right-most body. Under `shipped` only the
-  // `player` seat's mark is honoured (the shipped enemy side has no such channel); `corrected` honours both.
-  markRightmost(a, boardB);
-  if (rules === 'corrected') markRightmost(b, boardA);
-  // NOTE (production limitation carried faithfully): `CombatConfig` is player-only — `b`'s one-fight
-  // overrides (attack-first-next, Rallying Offensive) have no enemy-side expression and are spent unused.
+  // Marked Target and Rallying Offensive ride each side's `questMods` (2026-10-07), so `simulate` honours BOTH
+  // seats' under either rule set — production does too now. Pre-emptive Assault is still player-only
+  // (`CombatConfig.playerAttacksFirst`): `b`'s is captured but spent unused, pending an owner ruling.
   const rng = makeRng(mixSeed(seed, opts.round, TAG.COMBAT));
   const result = simulate(boardA, boardB, rng, CARD_INDEX, prepA.state, sideB, prepA.config);
 
@@ -284,14 +281,15 @@ export function prepareAndFightGhost(a: RunState, ghost: GhostSide, seed: number
   let boardB: BoardMinion[];
   let sideB: CombatSideState;
   if (rules === 'corrected') {
-    boardB = structuredClone(ghost.prep.board);
-    sideB = ghost.prep.state;
+    // A ghost is its DYING fight's side re-fought later: its next-combat banks were spent in that fight and never
+    // re-cast (owner ruling 2026-10-07, the shipped table's `snapshotBanksLive`).
+    boardB = stripNextCombatMarks(ghost.prep.board);
+    sideB = { ...ghost.prep.state, questMods: stripNextCombatBanks(ghost.prep.state.questMods) };
   } else {
     const snap = snapshotBoard(ghost.run);
     boardB = opponentBoard(snap);
     sideB = sideFromSnapshot(snap, ghost.run.tier, poolOf(a).all.map((c) => c.id));
   }
-  markRightmost(a, boardB);
   const rng = makeRng(mixSeed(seed, opts.round, TAG.COMBAT));
   const result = simulate(boardA, boardB, rng, CARD_INDEX, prepA.state, sideB, prepA.config);
   const mult = opts.damageMult ?? 1;
@@ -299,12 +297,6 @@ export function prepareAndFightGhost(a: RunState, ghost: GhostSide, seed: number
   const aAfter = reduce(a, { type: 'resolveCombat', fight: { result, damageTaken: damageToA } });
   if (aAfter === a) throw new Error('prepareAndFightGhost: the bye seat refused the deferred result');
   return { result, aAfter, damageToA, damageToB: 0 };
-}
-
-function markRightmost(armer: RunState, foe: BoardMinion[]): void {
-  if (!armer.markEnemyRightmostTaunt || foe.length === 0) return;
-  const last = foe[foe.length - 1]!;
-  if (!(last.keywords ?? []).includes('T')) last.keywords = [...(last.keywords ?? []), 'T'];
 }
 
 /**

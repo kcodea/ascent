@@ -23,7 +23,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
-import { clearCastPreviews, showCombatCastPreviews } from './castPreview';
+import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, showCombatCastPreviews } from './castPreview';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
@@ -2511,6 +2511,13 @@ export function useCombatReplay(
       // burn its one preview for the fight. `Once per fight` is a Cast Preview tuner switch (default on).
       // OFF for now (owner 2026-09-24: runes only) — the gate lives in `showCombatCastPreviews`.
       onSpellCastPreviews: (casts) => { showCombatCastPreviews(casts, rectOf, castPreviewMemoryRef.current); },
+      // A NEXT-COMBAT SPELL cast at Start of Combat (owner ask 2026-10-07) → the rune-cast preview on the caster's
+      // side: the player's at the rune rack, an opponent's mirrored on the right. The cast sound rings with it (as a
+      // rune's Shop cast does), and the effect behind it lands on the beats that follow.
+      onBankedCasts: (casts) => {
+        for (const c of casts) playGenericCastSound(c.spellId);
+        showBankedCastPreviews(casts, bankedCastPlayerAnchor, typeof window === 'undefined' ? 0 : window.innerWidth, combat?.enemyScalers?.spellPower);
+      },
       sideOf: (uid) => unitSides.get(uid) ?? null,
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs),
       // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse

@@ -38,6 +38,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
   switch (ev.type) {
     case 'sc':
       return `  ⚡ ${ev.text}`;
+    case 'bankedCast':
+      return `  ✧ ${ev.side} casts ${ev.spellId}${ev.count && ev.count > 1 ? ` x${ev.count}` : ''} (banked for this fight)`;
     case 'tribeAura':
       return `  🌊 ${ev.side} ${ev.tribe} aura rises`;
     case 'spellcast':

@@ -4678,4 +4678,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-06. Root cause of the bug: `.lobbyrail > * { pointer-events: auto }` overrode `pointer-events: none` on the staged rail for its children, and the slid-away rail lands in the visible margin when the window is wider than the 16:9 `.app` box.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailStagedInert.test.tsx'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-LOBBY-14',
+    title: 'Every seat fight uses the seats\' full combat sides, never a bare tier',
+    statement:
+      'Every lobby fight builds each side from that seat\'s board snapshot through ONE builder (the same one the '
+      + 'player\'s own fight uses for its opponent): the seat\'s runes, quests, run-level scalers and banked next-combat '
+      + 'spells all apply, whether it fights the player, another opponent, or a ghost on a bye. Only a board with no '
+      + 'snapshot at all (a hand-built test board, an authored seat with no runes) fights from its tier alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Next-combat spell audit, 2026-10-07 (Problem A: opponent-vs-opponent fights got bare sides)', quote: 'is a significant issue that needs to be fixed.' },
+      { kind: 'code', ref: 'packages/sim/src/boardSide.ts seatCombatSide; packages/sim/src/lobby/runLobby.ts settleRunLobbyRound (the pair loop and the bye ghost fight); packages/sim/src/reducer.ts faceOmen (the lobby foe)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-07. Before, opponent-vs-opponent fights and an opponent\'s bye-vs-ghost fight built both '
+      + 'sides with `combatSide({ tier })`, so none of those fights had runes, quests, scalers or banked spells, while '
+      + 'the same board fought at full strength against the player.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

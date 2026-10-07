@@ -69,4 +69,27 @@ export const COMBAT_RULES: GameRule[] = [
       + 'buy-time slices). Pinned by the Rise-aura probe in temporalWindow.test.ts.',
     enforcement: { kind: 'oracle', refs: ['temporalWindow'], lastVerifiedAt: '2026-08-28' },
   },
+  {
+    id: 'R-NEXTCOMBAT-02',
+    title: 'Next-combat spells carry over to a served board and work for either side',
+    statement:
+      'A spell cast in the Shop for the next fight travels with the board snapshot and resolves for whichever side '
+      + 'holds it: Fleeting Vigor buffs that side\'s starting minions, the banked keywords (Field Maneuvers, Last Stand, '
+      + 'Executioner\'s Edge) stamp onto the same bodies, Open the Gates\' Imps join that side, Rallying Offensive '
+      + 'doubles that side\'s Rallies, and Marked Target gives the holder\'s FOE\'s right-most minion Taunt at Start of '
+      + 'Combat. The player\'s own fight resolves exactly as before. Pre-emptive Assault is the one exception for now: '
+      + 'it is captured on the snapshot but only the player\'s applies, until the owner rules on both sides holding it.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Next-combat spell audit, 2026-10-07 (the lost spells)', quote: 'these should carry over.' },
+      { kind: 'owner-chat', ref: 'Next-combat spell audit, 2026-10-07', quote: 'rallying offensive and marked target should work for opponents.' },
+      { kind: 'code', ref: 'packages/core/src/combat/bankedOpeners.ts applyBankedOpeners; packages/core/src/types.ts QuestCombatMods (rallyDouble, markFoeRightmostTaunt, fleetingVigor, bankedKeywords, bankedImps, attackFirstNext); packages/sim/src/reducer.ts nextCombatBankMods' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-07. Before, these six spells were player-only: pre-baked into the player\'s combat board '
+      + 'or a player-only CombatConfig flag, and spent before the snapshot was captured, so a served board lost them. '
+      + 'The guard test fails a new next-combat bank that has no snapshot capture or no enemy-side application.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

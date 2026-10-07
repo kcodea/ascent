@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "id": "next-combat-casts",
+  "source": "regression",
+  "title": "Start of Combat cast beats: the player and the opponent each open the fight by casting their banked next-combat spells (R-NEXTCOMBAT-02/03)",
+  "seed": 70707,
+  "setId": "set2",
+  "mode": "combat",
+  "state": "{\"seed\":70707,\"mode\":\"ascent\",\"wave\":1,\"history\":[],\"line\":9,\"phase\":\"recruit\",\"embers\":0,\"maxEmbers\":3,\"resolve\":30,\"maxResolve\":30,\"armor\":11,\"maxArmor\":11,\"tier\":3,\"upgradeCost\":5,\"frozen\":false,\"shop\":[],\"spell\":{\"uid\":\"s3\",\"cardId\":\"summonstone\"},\"spellsCast\":0,\"spellsThisTurn\":0,\"deathrattlesTriggered\":0,\"triplesMade\":0,\"goldSpent\":0,\"runDamage\":{},\"runProcs\":{},\"combatSettled\":false,\"freeRolls\":0,\"frontToBackBonus\":0,\"frontToBackBonusH\":0,\"undeadAttackBonus\":0,\"undeadHealthBonus\":0,\"undeadBuyAtk\":0,\"beastBuyAtk\":0,\"beastBuyHp\":0,\"magneticBuyAtk\":0,\"magneticBuyHp\":0,\"spellBonus\":{\"attack\":0,\"health\":0},\"tavernBuyBonus\":{\"atk\":0,\"hp\":0},\"drakkoBuys\":0,\"cassenKills\":0,\"keshiTierPoints\":0,\"turnStartPower\":0,\"servedBoards\":{},\"spellCostMod\":0,\"hand\":[],\"board\":[{\"uid\":\"a0\",\"cardId\":\"d2_cinderchef\",\"tribe\":\"dragon\",\"attack\":4,\"health\":9,\"keywords\":[\"RL\"],\"golden\":false},{\"uid\":\"a1\",\"cardId\":\"supporter\",\"tribe\":\"dragon\",\"attack\":3,\"health\":8,\"keywords\":[\"RL\"],\"golden\":false},{\"uid\":\"a2\",\"cardId\":\"alley\",\"tribe\":\"beast\",\"attack\":3,\"health\":7,\"keywords\":[],\"golden\":false}],\"activeQuests\":[],\"heroId\":\"warden\",\"heroReady\":true,\"heroPowerSpent\":false,\"threat\":\"iron\",\"tribes\":[\"beast\",\"kobold\",\"dragon\",\"demon\",\"dwarf\"],\"rngCursor\":-1919965498,\"pool\":{\"k_chipwick\":10,\"k_deepvein\":9,\"k_gemstorm\":6,\"k_gemline\":7,\"k_tunnelcharger\":8,\"k_veinbreaker\":7,\"k_crownvein\":6,\"k_faultline\":8,\"k_frenzied\":7,\"k_gemheart\":8,\"k_deepdelve\":6,\"k_gemgorge\":6,\"k_geode\":9,\"k_kobabyboldies\":6,\"k_alchemist\":6,\"k_stormchaser\":8,\"k_mineralmaster\":6,\"k_portsmith\":6,\"k_kobe\":7,\"k_boulderdash\":6,\"k_beggy\":10,\"k_blazer\":8,\"dw_orin\":10,\"dw_ironlung\":9,\"dw_brunni\":9,\"dw_wardkeeper\":8,\"dw_coinfire\":8,\"dw_brakka\":7,\"dw_dorrin\":7,\"dw_foreman\":6,\"dw_brewer\":6,\"dw_tapkeeper\":6,\"dw_runemaster\":6,\"dw_bladethrower\":7,\"dw_anvilshade\":6,\"dw_thane\":6,\"dw_pimm\":9,\"dw_edward\":6,\"dw_chef\":6,\"dw_mountainbond\":6,\"dw_billings\":6,\"dw_gangplank\":8,\"d2_embermouth\":10,\"d2_spellkeeper\":6,\"d2_chorus\":8,\"d2_grimoire\":6,\"d2_scalefeather\":7,\"d2_voicekeeper\":7,\"d2_chronicler\":8,\"d2_mirrorwing\":9,\"d2_scalechanter\":8,\"d2_skald\":9,\"d2_recaller\":7,\"d2_blazingkeeper\":6,\"d2_orivax\":6,\"d2_herzog\":6,\"d2_transcendence\":7,\"d2_broodfire\":9,\"d2_cinderchef\":10,\"d2_roarcollector\":7,\"d2_flamebeat\":6,\"d2_riverdrake\":8,\"d2_warflame\":6,\"d2_felconjurer\":6,\"d2_flutterdrake\":7,\"d2_humphry\":8,\"karwind\":7,\"b2_elderhorn\":6,\"b2_sunmane\":6,\"b2_oona\":6,\"b2_trex\":9,\"b2_echohorn\":7,\"b2_mammoth\":6,\"b2_solaris\":6,\"b2_dawnclaw\":7,\"b2_packstrider\":9,\"b2_bullseye\":8,\"b2_beardsley\":7,\"b2_wolvie\":9,\"b2_armadiyo\":8,\"b2_hawkus\":6,\"b2_spots\":6,\"b2_raven\":7,\"b2_tort\":6,\"b2_florida\":6,\"b2_beev\":8,\"kennel\":9,\"grim\":6,\"manasaber\":10,\"seaurchin\":7,\"beetle\":8,\"dm_butcher\":8,\"dm_agent\":9,\"dm_hungerling\":8,\"dm_tormentor\":7,\"dm_curator\":6,\"dm_glutton\":6,\"dm_gourmand\":8,\"dm_velvet\":7,\"dm_shepherd\":6,\"dm_maw\":6,\"dm_malphas\":6,\"dm_hank\":9,\"dm_grobbus\":7,\"dm_todd\":6,\"dm_knocked\":10,\"dm_grevlin\":6,\"dm_jumbo\":6,\"dm_leech\":10,\"dm_felspikes\":6,\"dm_chosenfiend\":7,\"impoverseer\":9,\"n2_spellsword\":9,\"n2_bellringer\":7,\"n2_conductor\":7,\"n2_lastlight\":8,\"k_pouchpincher\":9,\"n2_paragon\":6,\"n2_standardbearer\":8,\"n2_fatecarver\":6,\"buddy\":9,\"drummer\":6,\"sylus\":6,\"chronos\":6,\"yazzus\":6,\"joker\":6,\"venom\":8,\"tauntbreaker\":7,\"blackbelt\":6,\"jenkins\":6,\"stewardofspells\":6,\"arenaheckler\":7,\"ropewrangler\":7,\"nimbus\":6,\"wayfinder\":7,\"salvatore\":6,\"uron\":6,\"zyff\":6,\"dw_chickenbrawl\":9,\"dw_sharpshooter\":7,\"dw_arnold\":6},\"uidSeq\":4,\"pendingTavern\":[],\"cardBuffs\":{},\"fodderEatenSeq\":0,\"shopEatenSeq\":0,\"starformFxSeq\":0,\"recruitBuffFx\":[],\"recruitFxSeq\":0,\"aleGranted\":[],\"aleGrantSeq\":0,\"karwindFlashSeq\":0,\"rift\":null,\"setId\":\"set2\",\"fleetingVigor\":{\"attack\":2,\"health\":1},\"pendingWeaken\":1,\"markEnemyRightmostTaunt\":true,\"rallyDoubleNext\":true,\"pendingCombatKeywords\":[{\"uid\":\"a1\",\"keyword\":\"R\"}]}",
+  "combat": {
+    "opponent": {
+      "v": 1,
+      "wave": 1,
+      "heroId": "aster",
+      "resolve": 30,
+      "tier": 3,
+      "triples": 0,
+      "tribes": [],
+      "threat": "venom",
+      "seed": 1,
+      "power": 40,
+      "minions": [
+        {
+          "cardId": "d2_cinderchef",
+          "attack": 4,
+          "health": 9,
+          "keywords": [
+            "RL"
+          ],
+          "golden": false
+        },
+        {
+          "cardId": "stray",
+          "attack": 3,
+          "health": 8,
+          "keywords": [],
+          "golden": false
+        },
+        {
+          "cardId": "alley",
+          "attack": 3,
+          "health": 7,
+          "keywords": [],
+          "golden": false
+        }
+      ],
+      "marksCarried": true,
+      "setId": "set2",
+      "questMods": {
+        "fleetingVigor": {
+          "attack": 2,
+          "health": 2
+        },
+        "bankedImps": 2,
+        "markFoeRightmostTaunt": true,
+        "weakenTargets": 1,
+        "bankedKeywords": [
+          {
+            "index": 0,
+            "keyword": "DS"
+          }
+        ]
+      }
+    }
+  },
+  "expectations": [
+    {
+      "kind": "event-count",
+      "event": "bankedCast",
+      "count": 10
+    },
+    {
+      "kind": "event-count",
+      "event": "bankedCast",
+      "count": 5,
+      "where": {
+        "side": "player"
+      }
+    },
+    {
+      "kind": "event-count",
+      "event": "bankedCast",
+      "count": 5,
+      "where": {
+        "side": "enemy"
+      }
+    },
+    {
+      "kind": "summon-count",
+      "cardId": "impscrap",
+      "count": 2
+    }
+  ],
+  "ruleIds": [
+    "R-NEXTCOMBAT-02",
+    "R-NEXTCOMBAT-03"
+  ],
+  "contentIds": [
+    "fleetingvigor",
+    "weaken",
+    "markedtarget",
+    "rallyoffensive",
+    "laststand",
+    "openthegates",
+    "fieldmaneuvers"
+  ],
+  "metadata": {
+    "createdAt": "2026-10-07",
+    "notes": "Scene Builder: import file, then End Turn. Player casts show at the rune rack; the opponent's mirror on the right."
+  }
+}

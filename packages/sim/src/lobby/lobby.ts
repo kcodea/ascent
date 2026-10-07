@@ -1,4 +1,5 @@
-import { combatSide, makeRng, simulate, type Rng } from '@game/core';
+import { makeRng, simulate, type Rng } from '@game/core';
+import { seatCombatSide } from '../boardSide';
 import { CARD_INDEX } from '@game/content';
 import { roundLossCap } from '../reducer';
 import type { LobbyRules, LobbySeat, LobbyState, SeatDriver } from './types';
@@ -129,10 +130,11 @@ export function resolveRound(state: LobbyState): LobbyState {
       continue;
     }
 
-    const r = simulate(
-      boardA.minions, boardB.minions, rng, CARD_INDEX,
-      combatSide({ tier: boardA.tier }), combatSide({ tier: boardB.tier }),
-    );
+    // Full sides (R-LOBBY-14, owner 2026-10-07): the same seat builder the shipped table uses, so this headless
+    // lobby measures seats with their runes, quests, scalers and banked spells, not a bare tier.
+    const sideA = seatCombatSide(boardA, state.round);
+    const sideB = seatCombatSide(boardB, state.round);
+    const r = simulate(sideA.minions, sideB.minions, rng, CARD_INDEX, sideA.state, sideB.state);
     const cap = roundLossCap(state.rules, state.round);
     // COMBAT DAMAGE ONLY (owner ruling 2026-08-04). Stall pressure — an extra per-round hit on losers and on
     // both sides of a draw — used to be added here; `maxRounds` is now the only stalemate backstop, which does

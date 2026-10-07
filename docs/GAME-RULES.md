@@ -1634,6 +1634,26 @@ already multiplied only from hand (Rune of Resonance, Prismcaster); that is unch
 Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in
 combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle. There is no combat-only Aura.
 
+### Next-combat spells work for either side, and cast at Start of Combat (owner rulings 2026-10-07, R-NEXTCOMBAT-01..03, R-LOBBY-14)
+
+A spell cast in the Shop **for the next fight** (Weaken, Fleeting Vigor, Field Maneuvers, Last Stand, Executioner's
+Edge, Open the Gates, Marked Target, Rallying Offensive, Decoy Sigil, Summoning Bulwark, Solid Ground, Containment
+Rune, Stolen Initiative, Bloodlust, Parting Cry, Closed Casket) travels with the board snapshot and resolves for
+**whichever side holds it** (*"these should carry over"*; *"rallying offensive and marked target should work for
+opponents"*). Marked Target gives the holder's **foe's** right-most minion Taunt. **Pre-emptive Assault** is the one
+exception for now: captured on the snapshot, applied only for the player, pending a ruling on both sides holding it.
+
+- **Spent on its own round only** (*"this is probably okay as long as they are spent on the turn the player played
+  them"*): a snapshot's banks apply only in the fight for the round it was captured at (`snap.wave`). A recorded seat
+  serving its final board past its own end, a seat whose recording skipped a round, and a ghost all fight without
+  them. A fight never spends them on the shared snapshot. On the player's run they stay armed through the fight and
+  are spent at settle.
+- **Seat-vs-seat fights use full sides** (*"is a significant issue that needs to be fixed"*): opponent-vs-opponent and
+  opponent-bye-vs-ghost fights build each side through the same builder as the player's opponent, so runes, quests,
+  scalers and banked spells apply there too.
+- **The cast beat**: each one shows the spell card at Start of Combat (the same preview a rune's cast uses), then its
+  effect lands. The player's casts show on the player's side; an opponent's on the right side of the screen, mirrored.
+
 ### There is no Beast Aura: "Give all Friendly and summoned Beasts" works in both phases (owner rules 2026-09-28, R-AURA-03)
 
 Beasts do **not** work like the Undead Aura; there is no hidden run-wide Beast channel. Every Beast grant reads

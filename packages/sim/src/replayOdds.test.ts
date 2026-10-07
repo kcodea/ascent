@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { BoardMinion, CombatSideState, MinionSnapshot } from '@game/core';
-import { combatSide } from '@game/core';
+import { combatSide, makeRng, simulate } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { reduce, playerCombatSideState, playerBoardMinions, playerCombatConfig } from './reducer';
 import { DEFAULT_BOT } from './bots/index';
 import type { RunState } from './state';
@@ -202,12 +203,21 @@ describe('oddsInputFromCombatFrame — what the rebuilt input carries', () => {
     expect(input.player.map((m) => [m.cardId, m.attack, m.health])).toEqual([['lazarus', 5, 4], ['impscrap', 1, 1]]);
   });
 
-  it('puts a banked Fleeting Vigor back (enterCombat rewinds it out of `initial`), doubled under Rune of Twilight', () => {
+  it('carries a banked Fleeting Vigor in the side mods, where `simulate` re-applies it (×Rune of Twilight)', () => {
+    // 2026-10-07: the surge is no longer baked into the board — `initial` is the pre-surge board and the bank rides
+    // `questMods.fleetingVigor`, which `simulate` applies (doubled by Twilight) exactly as the real fight did.
     const board: RunState['board'] = [{ uid: 'b1', cardId: 'gnash', tribe: 'beast', attack: 6, health: 6, keywords: [], golden: false }];
-    const plain = oddsInputFromCombatFrame(frame([snap('gnash', 6, 6)], []), baseView({ board, fleetingVigor: { attack: 2, health: 3 } }));
-    expect(plain.player[0]).toMatchObject({ attack: 8, health: 9 });
-    const twilight = oddsInputFromCombatFrame(frame([snap('gnash', 6, 6)], []), baseView({ board, fleetingVigor: { attack: 2, health: 3 }, questFlags: { runeTwilight: true } }));
-    expect(twilight.player[0]).toMatchObject({ attack: 10, health: 12 });
+    const surgeOf = (input: ReturnType<typeof oddsInputFromCombatFrame>): { attack: number; health: number } | undefined => {
+      const r = simulate(input.player, input.enemy, makeRng(1), CARD_INDEX, input.playerState, input.enemyState, input.config);
+      const b = r.events.find((e) => e.type === 'buff');
+      return b && b.type === 'buff' ? { attack: b.attack, health: b.health } : undefined;
+    };
+    const plain = oddsInputFromCombatFrame(frame([snap('gnash', 6, 6)], [snap('alley', 2, 4)]), baseView({ board, fleetingVigor: { attack: 2, health: 3 } }));
+    expect(plain.player[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(plain.playerState.questMods.fleetingVigor).toEqual({ attack: 2, health: 3 });
+    expect(surgeOf(plain)).toEqual({ attack: 2, health: 3 });
+    const twilight = oddsInputFromCombatFrame(frame([snap('gnash', 6, 6)], [snap('alley', 2, 4)]), baseView({ board, fleetingVigor: { attack: 2, health: 3 }, questFlags: { runeTwilight: true } }));
+    expect(surgeOf(twilight)).toEqual({ attack: 4, health: 6 });
   });
 
   it('threads the frame\'s enemyScalers into the enemy side and tolerates an older recording\'s partial shape', () => {

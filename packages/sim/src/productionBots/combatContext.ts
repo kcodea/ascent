@@ -1,6 +1,5 @@
 import { CARD_INDEX } from '@game/content';
 import { combatSide, type BoardMinion, type CombatSideState } from '@game/core';
-import { CONFIG } from '../config';
 import { poolOf } from '../cardPool';
 import { alignmentsOf } from '../alignment';
 import { buildPendingCombatQuests, questCombatMods } from '../reducer';
@@ -29,7 +28,7 @@ import type { RunState } from '../state';
  */
 
 export interface FriendlyCombatPrep {
-  /** The board as combat instantiates it — per-instance state included, Start-of-Combat banks pre-baked. */
+  /** The board as combat instantiates it — per-instance state included (the Start-of-Combat banks ride `side.questMods`). */
   bodies: BoardMinion[];
   /** The run-level side context, WITHOUT `poolIds` (derivable from the set; kept out of the projection so the
    *  fingerprint does not carry a few hundred card ids per node). `fightScore` re-attaches them. */
@@ -78,27 +77,9 @@ function friendlyBodiesOf(s: RunState): BoardMinion[] {
     buffs: b.buffs,
   }));
 
-  // The banked Start-of-Combat payouts the reducer pre-bakes BEFORE `simulate` (Rune of Twilight doubles them).
-  const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
-  const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0) ? s.fleetingVigor : null;
-  if (fleeting) {
-    for (const m of player) { m.attack += fleeting.attack * twilightMult; m.health += fleeting.health * twilightMult; }
-  }
-  for (const grant of s.pendingCombatKeywords ?? []) {
-    const m = player.find((p) => p.sourceUid === grant.uid);
-    if (!m) continue;
-    m.keywords ??= [];
-    if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
-    if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
-  }
-  if (s.pendingSCImps) {
-    const impDef = CARD_INDEX['impscrap'];
-    const room = Math.max(0, CONFIG.boardMax - player.length);
-    const n = Math.min(s.pendingSCImps * twilightMult, room);
-    for (let k = 0; k < n && impDef; k++) {
-      player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
-    }
-  }
+  // The banked Start-of-Combat payouts (Fleeting Vigor, banked keywords, Open the Gates' Imps) are NOT pre-baked
+  // here any more: since 2026-10-07 they ride `questMods` (see `friendlySideOf`) and `simulate` applies them, for
+  // the real fight and this evaluator alike. Baking them here too would double them.
   return player;
 }
 

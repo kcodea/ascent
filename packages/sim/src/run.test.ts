@@ -2904,7 +2904,7 @@ describe('run loop (@game/sim)', () => {
     // Only the OPENING block (the narration + its buffs, unshifted ahead of the fight) — later in-combat
     // buffs target the same minion and would otherwise be counted as part of the surge.
     const events = s.lastCombat?.events ?? [];
-    const openingEnd = events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff');
+    const openingEnd = events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff' && e.type !== 'bankedCast');
     const surge = events.slice(0, openingEnd === -1 ? events.length : openingEnd).filter(
       (e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && e.target === startSandbag?.uid,
     );
@@ -2913,9 +2913,14 @@ describe('run loop (@game/sim)', () => {
       { attack: startSandbag!.attack, health: startSandbag!.health },
     );
     expect([fought.attack, fought.health]).toEqual([3, 2]); // 1/1 + Fleeting Vigor 2/1 — unchanged gameplay
-    expect(s.fleetingVigor).toEqual({ attack: 0, health: 0 }); // spent after the fight
-    // …and the narration still opens the sequence.
-    expect(s.lastCombat?.events[0]).toMatchObject({ type: 'sc', text: expect.stringContaining('Fleeting Vigor') });
+    // …the cast beat opens the sequence (2026-10-07), the narration right behind it…
+    expect(s.lastCombat?.events[0]).toMatchObject({ type: 'bankedCast', side: 'player', spellId: 'fleetingvigor' });
+    expect(s.lastCombat?.events[1]).toMatchObject({ type: 'sc', text: expect.stringContaining('Fleeting Vigor') });
+    // …and the bank stays ARMED through the fight (so the board snapshot captured after End Turn carries it,
+    // 2026-10-07), then is spent when the fight settles.
+    expect(s.fleetingVigor).toEqual({ attack: 2, health: 1 });
+    s = reduce(s, { type: 'settleCombat' });
+    expect(s.fleetingVigor).toBeUndefined();
   });
 
   it('undeadBuyBonus applies the run-wide undead Attack bonus to any new Undead (universalTribe counts)', () => {

@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -8,7 +8,7 @@ import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
-import { sideFromSnapshot } from './boardSide';
+import { seatCombatSide, sideFromSnapshot } from './boardSide';
 import { poolOf, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
@@ -3760,12 +3760,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         tier: s.tier,
       });
       const resolveCombatVs = (enemy: BoardMinion[], enemyState: CombatSideState): CombatResult => {
-        // Marked Target: the enemy's right-most minion enters with Taunt (applied to the enemy board that's
-        // actually fought — served or procedural — before the real fight and the odds sims all read it).
-        if (s.markEnemyRightmostTaunt && enemy.length > 0) {
-          const last = enemy[enemy.length - 1]!;
-          if (!(last.keywords ?? []).includes('T')) last.keywords = [...(last.keywords ?? []), 'T'];
-        }
+        // Marked Target is no longer applied here: it rides `questMods.markFoeRightmostTaunt` and `simulate` gives
+        // the holder's FOE's right-most minion Taunt as a Start of Combat step (core `bankedOpeners.ts`), for the
+        // real fight and every odds sim alike — and for a served board that holds it, against you.
         const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, playerState, enemyState, config);
         // PRACTICE BOTS bite harder (owner ask 2026-08-25: games ran far too long). The stock formula is
         // `opponent tier + 1 per surviving minion`, which tops out ~13 even at tier 6 with a full board — against
@@ -3780,7 +3777,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         combat.playerDamage = Math.min(combat.playerDamage, roundCap); // round cap
         // DEFERRED odds (perf audit 2026-08-01, owner call): the 200 Monte Carlo sims used to run right here —
         // ~10 ms on the End Turn click, feeding nothing but the Combat Summary's display bar. Stash the sim
-        // inputs instead (post-Marked-Target, so the probe sees the same enemy board the real fight did) and
+        // inputs instead (the banks ride the side mods, which `simulate` never mutates, so the probe sees them
+        // UN-SPENT and applies them exactly as the real fight did) and
         // let the UI run `computeCombatOdds` in idle time after the transition. Same seeds → identical odds.
         combat.oddsInput = { player, enemy, playerState, enemyState, config };
         return combat;
@@ -3813,14 +3811,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         // settles from that fight as if the paired seat had brought it, which is what keeps the table moving.
         const rigPinned = s.sandbox === true && s.sandboxFoeWave === s.wave && pinned && served !== null;
         const lobbyFoe = s.lobby && !rigPinned ? lobbyOpponentBoard(s.lobby) : null;
-        const e = lobbyFoe
-          ? { enemy: lobbyFoe.minions, tier: lobbyFoe.tier }
+        // A lobby seat goes through `seatCombatSide` — the SAME builder every seat-vs-seat fight uses, over the same
+        // `sideFromSnapshot` a served board uses — so it fights with its run's spell power, auras, fodder and
+        // quest/rune modifiers exactly as it would in Ascent, and its next-combat banks cast ONLY in the round they
+        // were cast for: a stale final board or a ghost re-served later does not repeat them (owner 2026-10-07).
+        const lobbySide = lobbyFoe ? seatCombatSide(lobbyFoe, s.lobby!.round, enemyPoolIds) : null;
+        const e = lobbySide
+          ? { enemy: lobbySide.minions, tier: lobbyFoe!.tier }
           : served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
-        // A lobby seat goes through the SAME enemy-side builder as a served board, so it fights with its run's
-        // spell power, auras, fodder and quest/rune modifiers exactly as it would in Ascent.
-        const enemyState = lobbyFoe?.snapshot
-          ? enemySideFrom(lobbyFoe.snapshot, e.tier)
-          : lobbyFoe || !served ? combatSide({ tier: e.tier, poolIds: enemyPoolIds }) : servedState;
+        const enemyState = lobbySide ? lobbySide.state : !served ? combatSide({ tier: e.tier, poolIds: enemyPoolIds }) : servedState;
         s.lastCombat = resolveCombatVs(e.enemy, enemyState);
       } catch {
         const e = proceduralEnemy();
@@ -4457,47 +4456,51 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
 
 /**
  * THE PLAYER'S FULL COMBAT SIDE — the board mapped into `BoardMinion`s with alignment locked and every
- * per-instance carry, the pending Start-of-Combat banks spent into it (Fleeting Vigor, banked keywords, Open
- * the Gates' Imps), the run-level `CombatSideState` (~45 scalers) and the player-only one-fight `CombatConfig`.
- * MUTATES `s` (the banks are spent), so it must run inside a reducer dispatch and exactly once per fight.
+ * per-instance carry, the run-level `CombatSideState` (~45 scalers) and the player-only one-fight `CombatConfig`.
+ *
+ * The pending next-combat banks (Fleeting Vigor, the banked keywords, Open the Gates' Imps, Marked Target,
+ * Rallying Offensive) are NOT baked into the board here any more (2026-10-07): they ride `questMods` and
+ * `simulate` applies them for whichever side holds them (core `bankedOpeners.ts`), which is what lets a served
+ * snapshot of this board carry them too. They stay armed on the run until `settleCombat` spends them, so the
+ * snapshot captured after End Turn still has them. This mutates only the display-only temp grants.
  *
  * Extracted from `faceOmen` (balance bot B1, 2026-09-15) so BOTH seats of a self-play fight are prepared by
- * the one builder the shipped player fight uses — the lobby's non-player seats otherwise enter combat through
- * `sideFromSnapshot` (fewer scalers, no alignment, no pending Start-of-Combat banks) or a bare tier-only side.
+ * the one builder the shipped player fight uses.
  */
 function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   const player = playerBoardMinions(s.board);
-  // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
-  // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
-  // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
-  // a pre-baked buff with no event reads as "nothing happened", so we narrate the surge below.
-  // Rune of Twilight doubles Start-of-Combat effects. These pending SoC effects (Fleeting Vigor's buff,
-  // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
-  // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
-  // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
-  // One extra pass per Twilight COPY (`socTwilightExtraFires`, the definition combat's pass consults) — a second
-  // copy used to triple minion effects in combat but only double these (reviewer 2026-09-21).
-  const twilightMult = 1 + socTwilightExtraFires({ runeTwilight: !!s.questFlags?.runeTwilight, flagCopies: s.flagCopies });
-  // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
-  // problem this project exists to fix: applied silently into the combat board here, before the
-  // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff
-  // that appeared already-baked into `lastCombat.initial` — indistinguishable, on screen, from "the
-  // minions just have those stats", which is exactly the owner's report that Fleeting Vigor's stats
-  // land before Start of Combat. Emitting them gives each a real moment to be scheduled against; the
-  // playback half (withholding the value until its beat) is the follow-up.
+  // CHOREOGRAPHER PR 7 — the pending Start-of-Combat payouts EMIT a source-attributed moment on the End Turn
+  // dispatch (Beat Lab / the beats audit read these). Gameplay moved into `simulate` (above), so this is now a
+  // PRESENTATION-ONLY preview: it runs the historical transform on a scratch copy of the board, purely to emit
+  // the same consequences with the same values and indices, and the copy is thrown away.
+  emitPendingSocBeats(s, player);
+  // The display-only temp grants (Last Stand's gold tag, …) end with the shop: combat is what they promised, and
+  // the real grant now rides `questMods.bankedKeywords`. Their 0/0 buff-list entries go with them.
+  for (const c of s.board) {
+    if (!c.tempGrants) continue;
+    c.buffs = c.buffs?.filter((b) => !c.tempGrants!.some((g) => `(${g.label})` === b.source));
+    c.tempGrants = undefined;
+  }
+  const playerState = playerCombatSideState(s);
+  const config = playerCombatConfig(s);
+  return { board: player, state: playerState, config };
+}
+
+/** The End Turn dispatch's Start-of-Combat moments for the banked payouts (see `preparePlayerCombatSide`). Reads
+ *  `s`, mutates only a scratch copy of `board`. */
+function emitPendingSocBeats(s: RunState, board: readonly BoardMinion[]): void {
   const socCollector = currentCollector();
+  if (!socCollector.enabled) return;
+  const player = board.map((m) => ({ ...m, keywords: [...(m.keywords ?? [])] }));
+  // One extra pass per Twilight COPY (`socTwilightExtraFires`, the definition combat's pass consults).
+  const twilightMult = 1 + socTwilightExtraFires({ runeTwilight: !!s.questFlags?.runeTwilight, flagCopies: s.flagCopies });
   const socBeat = (policyKey: string, id: string, label: string, run: () => void): void => {
-    if (!socCollector.enabled) { run(); return; }
     socCollector.withTrigger(
       { phase: 'startOfCombat', source: { kind: 'system', id, label, side: 'player' }, trigger: 'startOfCombat', ...beatIdentity(policyKey) },
       run,
     );
   };
-  const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)
-    ? { ...s.fleetingVigor } : null;
-  // How many combat minions the Vigor actually covered. Imps are pushed AFTER it, so they are not buffed —
-  // the presentation rewind below must not subtract from them.
-  const fleetingCovered = fleeting ? player.length : 0;
+  const fleeting = s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0) ? s.fleetingVigor : null;
   if (fleeting) {
     socBeat('system:startOfCombat:fleetingVigor', 'fleetingVigor', 'Fleeting Vigor', () => {
       const a = fleeting.attack * twilightMult;
@@ -4505,74 +4508,44 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
       for (const m of player) {
         m.attack += a;
         m.health += h;
-        // One consequence PER MINION, carrying the delta gameplay actually applied — so presentation can
-        // stagger the surge across the board and never has to subtract its way to the number.
-        if (socCollector.enabled) socCollector.emit({
+        socCollector.emit({
           type: 'statsChanged',
           target: { zone: 'board', uid: m.sourceUid, cardId: m.cardId, side: 'player' },
           attack: a, health: h, permanent: false, channel: 'ordinary',
         });
       }
     });
-    s.fleetingVigor = { attack: 0, health: 0 };
   }
-  // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
-  // keyword onto its minion's COMBAT instance only (matched by sourceUid), then spend the bank — gone
-  // after this fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply finds no match.
   if (s.pendingCombatKeywords?.length) {
     const grants = s.pendingCombatKeywords;
     socBeat('system:startOfCombat:pendingKeywords', 'pendingKeywords', 'Banked keywords', () => {
       for (const grant of grants) {
         const m = player.find((p) => p.sourceUid === grant.uid);
         if (!m) continue; // its minion was sold or died — nothing to grant, and nothing to narrate
-        m.keywords ??= [];
         if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
-        if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
-        if (socCollector.enabled) socCollector.emit({
+        socCollector.emit({
           type: 'keywordChanged',
           target: { zone: 'board', uid: grant.uid, cardId: m.cardId, side: 'player' },
           keyword: grant.keyword, gained: true,
         });
       }
     });
-    s.pendingCombatKeywords = [];
   }
-  // The display-only temp grants (Last Stand's gold tag, …) are consumed alongside the real keyword bank
-  // above — combat is what they promised. Their 0/0 buff-list entries go with them.
-  for (const c of s.board) {
-    if (!c.tempGrants) continue;
-    c.buffs = c.buffs?.filter((b) => !c.tempGrants!.some((g) => `(${g.label})` === b.source));
-    c.tempGrants = undefined;
-  }
-  // Open the Gates (Set 2): banked Imps enter this fight on the player board, as many as fit the 7-slot cap
-  // (the "whenever you have room" clause). Added before the odds sims so every sim sees them, then spent.
   if (s.pendingSCImps) {
     const impDef = CARD_INDEX['impscrap'];
     const room = Math.max(0, CONFIG.boardMax - player.length);
-    const n = Math.min(s.pendingSCImps * twilightMult, room); // Rune of Twilight doubles this SoC summon too
+    const n = Math.min(s.pendingSCImps * twilightMult, room);
     socBeat('system:startOfCombat:pendingImps', 'pendingImps', 'Open the Gates', () => {
       for (let k = 0; k < n && impDef; k++) {
-        // The Imp Aura is baked into a starting body (simulate re-adds it only to a from-base summon), so these
-        // banked Imps carry the run's `impBuff` in, like any Imp the shop summons.
         player.push({ cardId: 'impscrap', attack: impDef.attack + (s.impBuff?.attack ?? 0), health: impDef.health + (s.impBuff?.health ?? 0), keywords: [...impDef.keywords], golden: false });
-        // `summon.appear` is the staged marker the compiler anchors an arrival to, rather than the
-        // source's primary delivery — an Imp should be seen arriving, not simply be present.
-        if (socCollector.enabled) socCollector.emit({
+        socCollector.emit({
           type: 'cardSummoned',
           target: { zone: 'board', cardId: 'impscrap', index: player.length - 1, side: 'player' },
           cardId: 'impscrap', deliveryKey: 'summon.appear',
         });
       }
     });
-    s.pendingSCImps = 0;
   }
-  // Resolve the real combat + its win/draw/loss odds against one enemy board. Throws only if that board
-  // is unfightable (a served board referencing a card this build removed → `instantiate` throws) — caught
-  // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
-  // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
-  const playerState = playerCombatSideState(s);
-  const config = playerCombatConfig(s);
-  return { board: player, state: playerState, config, fleeting, fleetingCovered, twilightMult };
 }
 
 /**
@@ -4655,61 +4628,25 @@ export function playerCombatSideState(s: RunState): CombatSideState {
   });
 }
 
-/** Player-only one-fight rune overrides (Forthcoming strike, a doubled Rally, the tutorial's forced order). Pure. */
+/** Player-only one-fight overrides (Pre-emptive Assault's strike-first, the tutorial's forced order). Pure. */
 export function playerCombatConfig(s: RunState): CombatConfig {
   return {
     playerAttacksFirst:
       (s.attackFirstNext ?? false) || (s.mode === 'tutorial' && !!s.tutorialAttackFirst?.[s.wave - 1]), // Forthcoming strike, or a tutorial round that forces the player to swing first
     forceEnemyFirstTargetCard:
       s.mode === 'tutorial' ? (s.tutorialForceEnemyTarget?.[s.wave - 1] || undefined) : undefined,
-    playerRallyDouble: s.rallyDoubleNext ?? false,
+    // Rallying Offensive left this config on 2026-10-07: it is the per-side `questMods.rallyDouble` now, so a
+    // served snapshot of this board doubles its Rallies too. `simulate` still honours the legacy flag.
   };
 }
 
 /**
- * Enter the combat phase around a resolved `s.lastCombat`: spend Marked Target, rewind Fleeting Vigor's pre-baked
- * surge into real opening events (presentation of `initial` only — the fight is already resolved), and flip the
- * phase. The tail of `faceOmen`, shared with the deferred-fight landing in `resolveCombat`.
+ * Enter the combat phase around a resolved `s.lastCombat`: flip the phase. The tail of `faceOmen`, shared with the
+ * deferred-fight landing in `resolveCombat`. (Until 2026-10-07 this also spent Marked Target and rewound Fleeting
+ * Vigor's pre-baked surge into opening events; both moved into `simulate` — `bankedOpeners.ts` — so they apply to
+ * either side, and the banks are spent at `settleCombat`.)
  */
-function enterCombat(s: RunState, prep: PreparedCombatSide): void {
-  const { fleeting, fleetingCovered, twilightMult } = prep;
-  const combat = s.lastCombat!; // resolved by the caller (faceOmen's fight, or the deferred landing)
-  s.markEnemyRightmostTaunt = false; // Marked Target is a one-fight debuff — spent by the combat just resolved
-  // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
-  // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
-  if (fleeting) {
-    // CHOREOGRAPHER PR 8 — make the surge actually HAPPEN on screen instead of being pre-applied.
-    //
-    // The buff was baked into the combat board before `simulate`, so `initial` already held the buffed
-    // stats: combat opened with bigger minions and a banner explaining, after the fact, that they had
-    // been bigger all along. That is the owner's report — "Fleeting Vigor triggers the stats before the
-    // start of combat triggers" — and no timing tool could fix it, because the numbers were never
-    // animated at all.
-    //
-    // `initial` is PRESENTATION ONLY: the combat was already simulated from the buffed board, and the
-    // replay is a pure fold of `(initial, events, upto)`. So rewinding `initial` to the pre-buff stats and
-    // adding real `buff` events reconstructs the exact same board — it just shows the gain LANDING at its
-    // Start-of-Combat moment rather than being true from frame one. Gameplay, RNG and the outcome are
-    // untouched; `socBoard` still reads the buffed board because these events sit in the Start-of-Combat
-    // slice it folds through.
-    const a = fleeting.attack * twilightMult;
-    const h = fleeting.health * twilightMult;
-    const buffed = combat.initial.player.slice(0, fleetingCovered);
-    const opening: CombatEvent[] = [];
-    const firstUid = buffed[0]?.uid;
-    if (firstUid) {
-      opening.push({
-        type: 'sc', source: firstUid,
-        text: `Fleeting Vigor — your minions surge +${a}/+${h}`,
-      });
-    }
-    for (const m of buffed) {
-      m.attack -= a;   // rewind to the pre-Start-of-Combat board…
-      m.health -= h;
-      opening.push({ type: 'buff', target: m.uid, attack: a, health: h, source: m.uid }); // …and land it here
-    }
-    if (opening.length) combat.events.unshift(...opening);
-  }
+function enterCombat(s: RunState, _prep: PreparedCombatSide): void {
   s.combatSettled = false; // a fresh combat — its outcome hasn't been applied yet
   s.phase = 'combat';
 }
@@ -5394,6 +5331,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Pre-emptive Assault + Rallying Offensive are spent — each override covers exactly one fight.
   s.attackFirstNext = false;
   s.rallyDoubleNext = false;
+  // …and the Start-of-Combat banks, which until 2026-10-07 were spent at End Turn, BEFORE the board snapshot was
+  // captured (which is why a served board lost them). They now stay armed through the fight and lapse here.
+  s.markEnemyRightmostTaunt = false;
+  s.fleetingVigor = undefined;
+  s.pendingCombatKeywords = undefined;
+  s.pendingSCImps = undefined;
   s.combatSettled = true;
 }
 
@@ -7704,6 +7647,24 @@ function shoutMetersFor(s: RunState): QuestCombatMods['shoutMeters'] {
   return out.length > 0 ? out : undefined;
 }
 
+/** The run's armed next-combat banks as per-side combat mods (omitted when unarmed, so an unarmed board's mods and
+ *  snapshot are byte-identical to before). Keyword grants are keyed by RUN-BOARD INDEX: the player's combat board
+ *  (`playerBoardMinions`) and `snapshotBoard` both map `s.board` in order, so the index names the same body. */
+function nextCombatBankMods(s: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  if (s.rallyDoubleNext) out.rallyDouble = true;
+  if (s.markEnemyRightmostTaunt) out.markFoeRightmostTaunt = true;
+  if (s.fleetingVigor && (s.fleetingVigor.attack !== 0 || s.fleetingVigor.health !== 0)) out.fleetingVigor = { ...s.fleetingVigor };
+  const kws = (s.pendingCombatKeywords ?? [])
+    .map((g) => ({ g, index: s.board.findIndex((b) => b.uid === g.uid) }))
+    .filter(({ index }) => index >= 0) // its minion was sold or died — nothing to grant
+    .map(({ g, index }) => ({ index, keyword: g.keyword, ...(g.critChance !== undefined ? { critChance: g.critChance } : {}) }));
+  if (kws.length) out.bankedKeywords = kws;
+  if (s.pendingSCImps) out.bankedImps = s.pendingSCImps;
+  if (s.attackFirstNext) out.attackFirstNext = true; // captured only; see `QuestCombatMods.attackFirstNext`
+  return out;
+}
+
 export function questCombatMods(s: RunState): QuestCombatMods {
   const f = s.questFlags;
   // Pack Mentality's LIVE growth config, if a Beast + summon-in-combat scaling aura is armed — the combat engine
@@ -7831,6 +7792,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     solidGroundStat: s.solidGroundStat,
     containFirstEnemySummon: s.containFirstEnemySummon, // Containment Rune: pin the foe's first summon to 1/1
     stolenInitiative: s.stolenInitiative,         // Stolen Initiative: strike back after their opening swing
+    // The next-combat banks that used to be PLAYER-ONLY (owner 2026-10-07: "these should carry over"; "rallying
+    // offensive and marked target should work for opponents"). Here, they reach the player's own fight AND every
+    // snapshot of this board; `simulate` applies them for whichever side holds them (core `bankedOpeners.ts`).
+    // They stay armed on the run until `settleCombat`, so a snapshot taken after End Turn still carries them.
+    ...nextCombatBankMods(s),
 
     runeCenterline: f?.runeCenterline,       // Rune of the Centerline: SoC — middle minion Ward + Crit
     runeEmberline: f?.runeEmberline,         // Rune of Emberline: the first dead Imp feeds the next one

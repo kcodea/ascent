@@ -47,6 +47,9 @@ export interface CastPreviewEntry {
   leaving: boolean;
   /** Which knob group sizes and times it — the shop's or the combat replay's. */
   context: CastPreviewContext;
+  /** An OPPONENT's cast (a served board's next-combat spell at Start of Combat, 2026-10-07): the card prints the
+   *  opponent's values (`foeSpellPower`), never the player's live run. Absent = the player's own. */
+  foe?: { spellPower: { attack: number; health: number } };
 }
 
 let entries: readonly CastPreviewEntry[] = [];
@@ -74,17 +77,18 @@ function scheduleLeave(id: number, context: CastPreviewContext): void {
 }
 
 /** Show (or refresh) the preview of `spellId` beside `anchor`. `context` picks the knob group (default shop). */
-export function showCastPreview(input: { sourceKey: string; spellId: string; anchor: CastPreviewAnchor; context?: CastPreviewContext }): number {
+export function showCastPreview(input: { sourceKey: string; spellId: string; anchor: CastPreviewAnchor; context?: CastPreviewContext; count?: number; foe?: CastPreviewEntry['foe'] }): number {
   const context = input.context ?? 'shop';
+  const n = Math.max(1, input.count ?? 1);
   const live = entries.find((e) => e.sourceKey === input.sourceKey && !e.leaving);
   if (live) {
     // REPLACE, not stack: same caster, its preview still up → swap the card, count it, restart the linger.
-    commit(entries.map((e) => (e.id === live.id ? { ...e, spellId: input.spellId, anchor: input.anchor, count: e.count + 1, context } : e)));
+    commit(entries.map((e) => (e.id === live.id ? { ...e, spellId: input.spellId, anchor: input.anchor, count: e.count + n, context, ...(input.foe ? { foe: input.foe } : {}) } : e)));
     scheduleLeave(live.id, context);
     return live.id;
   }
   const id = nextId++;
-  commit([...entries, { id, sourceKey: input.sourceKey, spellId: input.spellId, anchor: input.anchor, count: 1, leaving: false, context }]);
+  commit([...entries, { id, sourceKey: input.sourceKey, spellId: input.spellId, anchor: input.anchor, count: n, leaving: false, context, ...(input.foe ? { foe: input.foe } : {}) }]);
   scheduleLeave(id, context);
   return id;
 }
@@ -169,6 +173,52 @@ export function showCombatCastPreviews(
     shown++;
   }
   return shown;
+}
+
+/**
+ * THE START OF COMBAT CAST BEAT's feeder (owner ask 2026-10-07: "can you use the spell preview that we use for runes
+ * except that can also be for start of combat spell casts? for opponents, they should cast on the right side of the
+ * screen opposite where the player's side is.") — what `useCombatReplay`'s `onBankedCasts` does with a moment's
+ * `bankedCast` markers. The SAME preview a rune's cast floats (shop look: the rune-cast size, side and timings),
+ * one card per spell, keyed per (side, spell) so a recast refreshes it with a ×N count. The PLAYER's sits on the
+ * player's anchor (the rune rack, where rune previews show); an OPPONENT's on that anchor mirrored across the
+ * screen (`bankedCastAnchor`). Not gated by the combat/minion preview switch: this is a rune-style source. Pure over
+ * its inputs (the anchor reader), so the placement rule is testable without a replay. Returns how many it showed.
+ */
+export function showBankedCastPreviews(
+  casts: readonly { side: 'player' | 'enemy'; spellId: string; count: number }[],
+  playerAnchor: () => CastPreviewAnchor | null,
+  viewportW: number,
+  foeSpellPower: { attack: number; health: number } = { attack: 0, health: 0 },
+): number {
+  if (!CAST_PREVIEW_SOURCES.rune) return 0;
+  const mine = playerAnchor();
+  if (!mine) return 0;
+  let shown = 0;
+  for (const c of casts) {
+    const anchor = c.side === 'player' ? mine : { ...mine, left: viewportW - mine.left - mine.width };
+    showCastPreview({
+      sourceKey: `banked:${c.side}:${c.spellId}`, spellId: c.spellId, anchor, count: c.count,
+      ...(c.side === 'enemy' ? { foe: { spellPower: foeSpellPower } } : {}),
+    });
+    shown++;
+  }
+  return shown;
+}
+
+/**
+ * The PLAYER's anchor for a Start of Combat cast: the rune rack (where a rune's cast preview shows), else the
+ * hero-power slot, else the player's board row. One layout read per beat, never per frame.
+ */
+export function bankedCastPlayerAnchor(): CastPreviewAnchor | null {
+  if (typeof document === 'undefined') return null;
+  for (const sel of ['.questbadges', '.statusbar .heropowerbtn', '[data-zone="warband"] .row']) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const a = anchorOfElement(el);
+    if (a.width > 0 && a.height > 0) return a;
+  }
+  return null;
 }
 
 /** A live preview's horizontal footprint, for the de-overlap pass. */

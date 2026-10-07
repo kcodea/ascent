@@ -31,7 +31,7 @@ function combatStats(s: RunState): { attack: number; health: number } {
   let attack = me.attack;
   let health = me.health;
   // Only the OPENING block (narration + its buffs); later in-combat buffs hit the same minion.
-  const end = lc.events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff');
+  const end = lc.events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff' && e.type !== 'bankedCast');
   for (const e of lc.events.slice(0, end === -1 ? lc.events.length : end)) {
     if (e.type === 'buff' && e.target === me.uid) { attack += e.attack; health += e.health; }
   }

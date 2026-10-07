@@ -109,4 +109,25 @@ export const ORDERING_RULES: GameRule[] = [
       + '(fix/immediate-interrupts-flurry): the summon strikes between the swings, not inside the lunge of swing 2.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/attackImmediatelyOrder.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-NEXTCOMBAT-03',
+    title: 'Every next-combat spell shows its cast at Start of Combat, on its caster\'s side',
+    statement:
+      'When a banked next-combat spell resolves, the fight shows it being CAST as a Start of Combat beat of its own: '
+      + 'the spell\'s card appears through the same cast preview a rune\'s cast uses, then its effect lands (the buff, '
+      + 'the keyword, the Imps, the Taunt, Weaken\'s Health drop); a spell that acts later in the fight (Decoy Sigil, '
+      + 'Solid Ground, Stolen Initiative) shows its cast as the fight opens. The player\'s casts show on the player\'s '
+      + 'side, where rune previews show; an opponent\'s show on the RIGHT side of the screen, mirrored opposite the '
+      + 'player\'s. The beat is part of the recorded combat log, so a replay shows it too.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Next-combat spell audit, 2026-10-07 (the cast beat)', quote: "we need to show these spells being cast in a start of combat beat. can you use the spell preview that we use for runes except that can also be for start of combat spell casts? for opponents, they should cast on the right side of the screen opposite where the player's side is." },
+      { kind: 'code', ref: 'packages/core/src/types.ts CombatEvent bankedCast; packages/core/src/combat/bankedOpeners.ts openingEvents; packages/ui/src/choreo/kinds.ts (bankedCast kind), score.ts (bankedCastFx), channels/bankedCast.ts; packages/ui/src/castPreview.ts showBankedCastPreviews' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-07. Before, only Fleeting Vigor had a Start of Combat moment (a narration line and its '
+      + 'buffs); the other banks were pre-baked into the starting board or acted silently.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/bankedCast.test.ts', 'packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

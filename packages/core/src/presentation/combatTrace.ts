@@ -77,6 +77,7 @@ export interface CombatTraceCoverage {
  *  without declaring its trace coverage is a TYPE error, not a silently-uncovered family. */
 export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCoverage> = {
   sc: { source: 'always', target: 'never', amount: 'never', note: 'source uid always; the narration string is deliberately dropped (§7.4) — magnitudes inside it are NOT derivable; a structured amount needs emit-site fields (future instrumentation)' },
+  bankedCast: { source: 'never', target: 'never', amount: 'sometimes', note: 'a next-combat spell resolving at Start of Combat (presentation marker): the caster is a SIDE (spellId + side in detail), amount = the cast count when more than one' },
   attack: { source: 'always', target: 'always', amount: 'always', note: 'attacker/defender uids + swing; crit in detail' },
   dmg: { source: 'sometimes', target: 'always', amount: 'always', note: 'source uid only when the emitter stamped one (truly sourceless damage omits it); after.remainingHp from the log' },
   proccrit: { source: 'always', target: 'never', amount: 'always', note: 'amount = the multiplier; the repeated effect itself is in the following buff events (step grouping links them)' },
@@ -122,6 +123,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
   switch (e.type) {
     case 'sc':
       return defined({ source: { uid: e.source }, detail: det({ cast: e.cast, side: e.side }) });
+    case 'bankedCast':
+      return defined({ amount: e.count, detail: det({ spellId: e.spellId, side: e.side }) });
     case 'attack':
       return defined({ source: { uid: e.attacker }, target: { uid: e.defender }, amount: e.swing, detail: det({ crit: e.crit }) });
     case 'dmg':

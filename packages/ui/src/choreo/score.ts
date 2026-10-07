@@ -25,6 +25,7 @@ import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor, sourceBuffDefFor } from './bindings';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
+import { bankedCastsIn, type BankedCast } from './channels/bankedCast';
 import { playCombatSpellCastFx } from '../fx/spellCastFx';
 
 /**
@@ -37,7 +38,7 @@ import { playCombatSpellCastFx } from '../fx/spellCastFx';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx' | 'bankedCastFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -224,6 +225,11 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // Plain BASE: the `pummelFx` scan plays it (the `fxDef` row stands down for this kind — the one-channel
   // rule below); NO `damageFx` (it is not a hit).
   pummelTrigger: [...BASE],
+  // A NEXT-COMBAT SPELL CAST at Start of Combat (owner ask 2026-10-07): `bankedCastFx` floats the spell's card on
+  // the CASTER's side of the screen (the player's where rune previews show, an opponent's mirrored on the right)
+  // with the rune-cast flourish, at the beat's start; the clock's `bankedCast` hold lets it read before the
+  // effect behind it lands. One-shot, transform/opacity only (the cast preview's own CSS).
+  bankedCast: [...BASE, { ch: 'bankedCastFx', at: 'start', offset: 0 }],
 };
 
 const KEY = 'ascent.choreoScore';
@@ -309,6 +315,9 @@ export interface CueContext {
   /** This moment's "X casts Y" announcements (`sc` + `spellId`), in order — the cast preview above each caster
    *  (owner ask 2026-09-23). Optional: older callers / tests build contexts without it. */
   onSpellCastPreviews?: (casts: CombatSpellCast[]) => void;
+  /** This moment's NEXT-COMBAT spell casts (`bankedCast` events), in order — the Start of Combat cast beat (owner
+   *  ask 2026-10-07). Optional: older callers / tests build contexts without it. */
+  onBankedCasts?: (casts: BankedCast[]) => void;
   /** Which side a combat uid fights on (the replay's initial boards + summons), or null when unknown. The
    *  `spellCastFx` cue plays an ENEMY caster's board-wide spell effect on the enemy's board. Optional: older
    *  callers / tests omit it, and the cue then reads the side off the body's row. */
@@ -577,6 +586,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'buffSelf') at(cue, () => {
       const selfBuffs = groupSelfBuffs(moment, ctx.events);
       if (selfBuffs.length) ctx.onSelfBuffs(selfBuffs);
+    });
+    else if (cue.ch === 'bankedCastFx') at(cue, () => {
+      const casts = bankedCastsIn(moment, ctx.events);
+      if (casts.length) ctx.onBankedCasts?.(casts);
     });
     else if (cue.ch === 'castPreviewFx') at(cue, () => {
       const casts = spellCastsIn(moment, ctx.events);

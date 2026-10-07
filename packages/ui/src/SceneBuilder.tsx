@@ -1,5 +1,3 @@
-import { RuneStyleSheet } from './RuneStyleSheet';
-import { getRuneStyle, setRuneStyle } from './runeStyleDev';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
@@ -297,10 +295,6 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const grantRune = (id: string): void => dispatch({ type: 'devGrant', kind: 'rune', id });
   // Enter a REAL Runeforge on this turn (owner ask 2026-10-07), rolled by the run's own forge openers through the
   // reducer, so the forge look can be iterated on without playing to turn 6 / 8. Refused while a modal is up.
-  // The rune card style sheet (DEV, owner 2026-10-07): owned here so it opens wherever this button is, forge or not.
-  const [stylesOpen, setStylesOpen] = useState(false);
-  const [runeStyle, setRuneStyleState] = useState(getRuneStyle);
-  const closeStyles = useCallback(() => setStylesOpen(false), []);
   const openForge = (epic: boolean): void => dispatch({ type: 'devOpenRuneforge', epic });
   const forgeBlocked = !run || run.phase !== 'recruit' || !!run.runeforgeOffer;
   const setTier = (tier: number): void => mutate((r) => ({ ...r, tier }));
@@ -451,19 +445,6 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(false)} aria-description="Open a Basic Runeforge on this turn">Enter Runeforge</button>
               <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(true)} aria-description="Open an Epic Runeforge on this turn (the turn-8 rules)">Enter Epic Runeforge</button>
             </div>
-            {/* RUNE STYLE (DEV, owner ask 2026-10-07): restyle every live rune card (the open forge included) in one of the
-                six candidate treatments; "–" is the current shipped look. Persists. */}
-            <div className="sb-row sb-tierrow sb-runestyle">
-              <span className="sb-mini">rune style</span>
-              <div className="sb-seg sb-seg-7" role="radiogroup" aria-label="Rune card style">
-                {[0, 1, 2, 3, 4, 5, 6].map((n) => (
-                  <button key={n} type="button" role="radio" aria-checked={runeStyle === n} className={`sb-seg-btn${runeStyle === n ? ' on' : ''}`}
-                    onClick={() => { setRuneStyle(n); setRuneStyleState(n); }}>{n === 0 ? '–' : n}</button>
-                ))}
-              </div>
-            </div>
-            <button className="sb-btn" onClick={() => setStylesOpen(true)} aria-description="Open the rune card style sheet: six candidate looks side by side">Rune card styles</button>
-            {stylesOpen && <RuneStyleSheet onClose={closeStyles} />}
             <div className="sb-row sb-tierrow">
               <span className="sb-mini">tier</span>
               <div className="sb-seg sb-seg-7" role="radiogroup" aria-label="Tavern tier">

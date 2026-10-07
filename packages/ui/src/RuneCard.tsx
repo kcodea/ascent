@@ -6,8 +6,6 @@ import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
-import './runeStyles.css';
-import './runeStyleDev';
 import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
@@ -44,9 +42,6 @@ export function runeAccentTribe(rune: Pick<RuneDef, 'tribes'>): Tribe {
   return t && t.length > 0 && t.length < 3 ? t[0]! : 'neutral';
 }
 
-/** Tribes with a painted card plate in `public/frames/cardplate-<tribe>.webp` (style sheet option 1). */
-const PLATED_TRIBES: ReadonlySet<Tribe> = new Set<Tribe>(['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'neutral', 'undead']);
-
 /** Runes carry no badge keywords — one stable empty list so `KeywordDefs`' memo key never churns. */
 const NO_KEYWORDS: Keyword[] = [];
 
@@ -68,7 +63,7 @@ function cardViewOf(id: string, golden = false): CardView | null {
  * the effect it grants for the run. Bought for its cost on click (greyed when you can't afford it). A rune that
  * grants a minion (Pillaging → a Pillager) floats a full preview of that card on hover, like QuestCard.
  */
-export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx, look }: {
+export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }: {
   rune: RuneDef;
   affordable: boolean;
   /** The clicked card's own element comes back with the call so the lock-in ceremony can read its rect at
@@ -83,8 +78,6 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx, 
   /** This card is a real PICK (the forge), so pressing it plays the pick cue instead of the click thock (see
    *  `sfx.pickPress`). Off everywhere a RuneCard is only shown — the Compendium, a preview, the ceremony's clones. */
   pickSfx?: boolean;
-  /** DEV style sheet only (owner 2026-10-07): which of the six candidate plate treatments to wear (runeStyles.css). */
-  look?: number;
 }) {
   const shownCost = cost ?? rune.cost;
   const discounted = shownCost < rune.cost;
@@ -129,7 +122,6 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx, 
     <button
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
       data-tribe={accent}
-      data-look={look}
       style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
@@ -138,24 +130,19 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx, 
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name}: buy for ${shownCost} Gold`}
     >
-      {/* THE RUNE CARD (owner reference 2026-10-07, built only from the game's UI primitives): a tall, tribe-tinted
-          Gem plate with a gold rim, its round medallion art in a glowing window at the top, the Gold coin centred on
-          the top edge, the name over a small divider, and the rules beneath (runeCard.css).
-          `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new <img>s; an
-          async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
-      {/* DEV style candidates 1 and 2 (painted frames, runeStyles.css); never in a player build. */}
-      {import.meta.env.DEV && <img className="rs-paint" src={`${import.meta.env.BASE_URL}frames/${PLATED_TRIBES.has(accent) ? `cardplate-${accent}` : 'cardplate'}.webp`} alt="" aria-hidden decoding="sync" />}
-      {import.meta.env.DEV && <img className="rs-arch" src={`${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`} alt="" aria-hidden decoding="sync" />}
+      {/* THE RUNE CARD (owner 2026-10-07, built only from the game's UI primitives): a tall tribe-tinted card in a gold
+          rim whose top half is the rune's FULL art ("i want the top half of this to be the full art, with it blurring
+          in a gradient downward"), blurring and fading into the body; then the name, a divider and the rules
+          (runeCard.css). `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new
+          <img>s; an async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
       <span className="runecard-face" aria-hidden>
-        {/* The art BLEED (owner 2026-10-07: "use more of the art and feather it out"): the rune's own art, large, behind
-            the window, feathered into the tribe tint before the rules text. Static (runeCard.css). */}
-        {art && <img className="runecard-bleed" src={art} alt="" decoding="sync" />}
+        <span className="runecard-hero">
+          {art
+            ? <><img className="rh-blur" src={art} alt="" decoding="sync" /><img className="rh-art" src={art} alt="" decoding="sync" /></>
+            : <span className="rh-noart"><Icon name="engrave" /></span>}
+        </span>
       </span>
-      <span className="runecard-window" aria-hidden>
-        {art
-          ? <img className="runecard-art" src={art} alt="" decoding="sync" />
-          : <span className="runecard-art runecard-noart"><Icon name="engrave" /></span>}
-      </span>
+      <span className="runecard-window" aria-hidden />
       <span className={`runecard-cost${discounted ? ' discounted gtip' : ''}`} aria-label={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`} data-tip={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : undefined}><span className="costn">{shownCost}</span></span>
       <div className="runecard-head">
         <div className="runecard-name">{rune.name}</div>

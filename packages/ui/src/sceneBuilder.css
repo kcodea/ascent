@@ -203,6 +203,3 @@
 .sbhp-anc.partial { color: var(--ui-hl); border-color: var(--ui-hl); font-size: 10px; }
 .sbhp-empty { padding: 18px; text-align: center; color: var(--ui-muted); font-size: 13px; }
 .sbhp-readout { min-height: 16px; font-size: 12px; font-weight: 600; color: var(--ui-muted); border-top: 1px solid var(--ui-divider); padding-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* RUNE STYLE picker (DEV, owner 2026-10-07): the TIER row's buttons, set apart under the Runeforge buttons. */
-.scenebuilder .sb-runestyle { margin-top: calc(4 * var(--u)); padding-top: calc(6 * var(--u)); border-top: 1px solid var(--ui-divider); }

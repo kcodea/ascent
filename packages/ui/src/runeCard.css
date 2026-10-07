@@ -1,134 +1,142 @@
-/* ══ THE RUNE CARD (owner reference 2026-10-07, built ONLY from the game's existing UI primitives: no drawn props). ══
+/* ══ THE RUNE CARD (owner 2026-10-07; built ONLY from the game's existing UI primitives, no drawn props). ════════════
 
-   A tall Gem plate tinted to the rune's tribe with the theme's gold rim (`--ui-edge`), the Gold coin (the shared skin,
-   #1971) centred on the top edge, the round medallion art in a window with a tribe-tinted glow, the name, a hairline
-   divider, and the rules beneath. A rune rack badge is a miniature of the art window.
+   A tall card tinted to the rune's tribe inside the theme's gold rim (`--ui-edge`). Its TOP is the rune's FULL art,
+   edge to edge inside the rounded top corners ("i want the top half of this to be the full art, with it blurring in
+   a gradient downward"), which blurs and fades into the tribe-tinted body with no edge anywhere:
+     1 · `.rh-art`  the crisp art, masked opaque at the top to transparent at the bottom of the art box;
+     2 · `.rh-blur` a blurred copy behind it, masked to show only in the transition band, so the lower edge reads as
+         progressively blurred rather than merely faded (wider than the card, so the blur's own transparent rim falls
+         outside the clip and never shows as a side seam);
+     3 · `.runecard-hero::after` a gradient from transparent into the body tint over the same band.
+   Below the art: the name (on a soft shadow where it overlaps the fade), a hairline divider, the rules. The shared
+   Gold coin (#1971) sits centred on the top edge, over the art. A rune rack badge is the round art with a gold rim.
      · `--rt`: the rune's accent tribe hue (RuneCard sets it from the tribe gate; neutral for ungated runes).
-     · `--rt-body`: the plate tint. It is `--rt`, except neutral (a warm stone-gold) and Dragon (whose tribe hue is
-       white, a crimson instead), which would otherwise tint grey.
-   The art is a 512px square with its medallion in the middle ~72% and stone in the corners, so it is masked to a
-   36%-radius circle and scaled 1.39x to fill the window.
-   EPIC: the same card with a second outer gold rim and a violet glow.
-   Static paint; nothing here animates (the hover is a one-shot transition). Nothing bobs (owner 2026-10-07). */
+     · `--rt-body`: the body tint. It is `--rt`, except neutral (the game's own violet) and Dragon (whose tribe hue is
+       white; a crimson instead), which would otherwise tint grey or muddy.
+   EPIC: the same card, a second outer gold rim with a thin violet line between the rims. Nothing around the art.
+   Static paint everywhere; the only motion is the one-shot hover lift and the opacity of a pre-rendered edge glow.
+   Nothing bobs (owner 2026-10-07). */
 
 .runecard {
   --c: var(--ui-edge-main);                            /* the accent the entrance FX + lock-in read */
   --runecard-text-scale: 1.2;                          /* owner 2026-10-07: rune text +20% */
   --rt-body: var(--rt, var(--t-neutral));
-  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.48);
+  --rc-body-top: color-mix(in srgb, var(--rt-body) 46%, #24113e);
+  --rc-body-mid: color-mix(in srgb, var(--rt-body) 30%, #1a0c30);
+  --rc-body-bot: color-mix(in srgb, var(--rt-body) 20%, #120822);
+  --rc-art-h: calc(var(--cw) * 0.86);                  /* the art box: the card's top half */
+  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.5);
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: calc(var(--cw) * 0.1) 16px 20px; border: none; background: none; overflow: visible; font-family: var(--font-ui);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.16s ease, filter 0.16s ease;
-  filter: drop-shadow(0 10px 14px rgba(10, 4, 24, 0.6));
+  padding: 0 16px 18px; border: none; background: none; overflow: visible; font-family: var(--font-ui);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+  outline: none;
 }
-.runecard[data-tribe="neutral"] { --rt-body: #b8955a; }
-.runecard[data-tribe="dragon"] { --rt-body: #c4462e; }
-.runecard:hover:not(:disabled) { transform: translateY(-8px); filter: drop-shadow(0 16px 18px rgba(10, 4, 24, 0.6)) drop-shadow(0 0 14px color-mix(in srgb, var(--rt-body) 60%, transparent)); }
-.runecard.cantafford { cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; filter: grayscale(0.55) brightness(0.72); }
+.runecard[data-tribe="neutral"] { --rt-body: #8a6fd6; }
+.runecard[data-tribe="dragon"] { --rt-body: #d0452c; }
 
-/* The plate: the tribe tint over the theme plate, inside the theme's gold edge. */
+/* HOVER + KEYBOARD FOCUS: a short whole-pixel lift (transform only, no scale, so text stays crisp) and a pre-rendered
+   edge glow faded in by opacity: a brightened gold rim and a tight tribe-tinted halo hugging the edge. No fog. */
+.runecard::after {
+  content: ''; position: absolute; inset: 0; border-radius: 18px; z-index: 5; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 2px var(--ui-edge-hi), 0 0 0 3px rgba(0, 0, 0, 0.35), 0 0 10px 2px color-mix(in srgb, var(--rt-body) 45%, transparent);
+  transition: opacity 0.18s ease;
+}
+.runecard:is(:hover, :focus-visible):not(:disabled) { transform: translateY(-6px); }
+.runecard:is(:hover, :focus-visible):not(:disabled)::after { opacity: 1; }
+.runecard.cantafford { cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
+.runecard.cantafford > :not(.runecard-lock) { opacity: 0.55; }
+
+/* The body: a clean, deep, saturated tribe tint over the game's violet (not near-black, which turned warm hues brown),
+   falling gently top to bottom, inside the theme's gold edge. It clips the art to its rounded corners. */
 .runecard-face {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none; border: 2px solid transparent; border-radius: 18px;
-  background:
-    var(--ui-sheen) padding-box,
-    radial-gradient(110% 55% at 50% 24%, color-mix(in srgb, var(--rt-body) 55%, transparent), rgba(0, 0, 0, 0) 75%) padding-box,
-    linear-gradient(180deg, color-mix(in srgb, var(--rt-body) 32%, var(--ui-plate-top)) 0%, color-mix(in srgb, var(--rt-body) 16%, var(--ui-plate-mid)) 60%, color-mix(in srgb, var(--rt-body) 10%, var(--ui-plate-bot)) 100%) padding-box,
-    var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring);
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  border: 2px solid transparent; border-radius: 18px;
+  background: linear-gradient(180deg, var(--rc-body-top) 0%, var(--rc-body-mid) 55%, var(--rc-body-bot) 100%) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 14px 26px -12px rgba(8, 3, 20, 0.85);
 }
+/* The inner ring + top highlight, drawn over the art. */
+.runecard-face::after { content: ''; position: absolute; inset: 0; border-radius: 16px; pointer-events: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 1px var(--ui-ring); }
 
-/* The cost gem: the shared coin skin, centred on the top edge. */
+/* ── The art ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.runecard-hero { position: absolute; left: 0; right: 0; top: 0; height: var(--rc-art-h); }
+.rh-art, .rh-blur { position: absolute; object-fit: cover; object-position: 50% 46%; }
+.rh-art {
+  inset: 0; width: 100%; height: 100%; z-index: 1;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 48%, rgba(0, 0, 0, 0.82) 60%, rgba(0, 0, 0, 0.5) 72%, rgba(0, 0, 0, 0.2) 84%, rgba(0, 0, 0, 0.05) 93%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 48%, rgba(0, 0, 0, 0.82) 60%, rgba(0, 0, 0, 0.5) 72%, rgba(0, 0, 0, 0.2) 84%, rgba(0, 0, 0, 0.05) 93%, rgba(0, 0, 0, 0) 100%);
+}
+.rh-blur {
+  left: -12%; top: 0; width: 124%; height: 104%; z-index: 0;
+  filter: blur(14px) saturate(1.25);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.7) 56%, #000 70%, rgba(0, 0, 0, 0.75) 84%, rgba(0, 0, 0, 0.25) 94%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.7) 56%, #000 70%, rgba(0, 0, 0, 0.75) 84%, rgba(0, 0, 0, 0.25) 94%, rgba(0, 0, 0, 0) 100%);
+}
+/* Into the body: a band of the body's own tint across the dissolve, itself feathered to nothing at both ends, so the
+   art box has no bottom edge (the masked art and blur reach zero there too). */
+.runecard-hero::after {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 44%, color-mix(in srgb, var(--rc-body-top) 34%, transparent) 62%, color-mix(in srgb, var(--rc-body-top) 52%, transparent) 76%, color-mix(in srgb, var(--rc-body-top) 30%, transparent) 90%, rgba(0, 0, 0, 0) 100%);
+}
+/* A rune with no art yet: the tribe tint with the engrave glyph. */
+.rh-noart { position: absolute; inset: 0; display: grid; place-items: center; }
+.rh-noart svg { width: 34%; height: 34%; color: #ffe3a0; opacity: 0.8; }
+/* The space the art occupies in the card's flow; the name rides the bottom of the fade. */
+.runecard-window { display: block; flex: none; width: 100%; height: calc(var(--rc-art-h) - 40px); }
+
+/* The cost coin: the shared coin skin, centred on the top edge, whole-pixel sized (no fractional scale on the
+   numeral), one consistent soft shadow. */
 .runecard-cost {
-  top: calc(-16px + var(--rfl-cost-y, 0) * 1px); left: calc(50% + var(--rfl-cost-x, 0) * 1px);
-  width: 40px; height: 40px; border-width: 3px; pointer-events: auto; /* the pivot-discount coin carries a hover tip */
-  transform: translateX(-50%) scale(var(--rfl-cost-scale, 1.18));
+  top: calc(-23px + var(--rfl-cost-y, 0) * 1px); left: calc(50% - 23px + var(--rfl-cost-x, 0) * 1px);
+  width: 46px; height: 46px; border-width: 2px; border-color: var(--ui-edge-deep); pointer-events: auto; /* the pivot-discount coin carries a hover tip */
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4);
+  transform: scale(var(--rfl-cost-scale, 1));
 }
-.runecard-cost .costn { font-size: 20px; }
+.runecard-cost .costn { font-size: 23px; }
 
-/* The art window: a round opening with a gold rim and a glow in the tribe tint. */
-.runecard-window {
-  position: relative; z-index: 1; display: block; width: 80%; aspect-ratio: 1; border-radius: 50%;
-  border: 3px solid transparent;
-  background: radial-gradient(circle, color-mix(in srgb, var(--rt-body) 40%, #120a16), #0c0710) padding-box, var(--ui-edge) border-box;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 18px 3px color-mix(in srgb, var(--rt-body) 75%, transparent), inset 0 0 14px 2px color-mix(in srgb, var(--rt-body) 70%, transparent);
-  overflow: hidden;
+/* ── Name, divider, rules ─────────────────────────────────────────────────────────────────────────────────────
+   Every card in a row lines up: the head reserves two title lines and sits the name on the divider, so the divider is
+   at the same height on every card and the rules start at the same height beneath it. TRIBE ACCENT: bold terms take
+   `--rt`. TEXT SCALE (owner 2026-10-07, +20%): the rules multiply by `--runecard-text-scale`, the name by the
+   Runeforge Look tuner's `--rfl-name-scale` (1.12 to 1.34). */
+.runecard-head {
+  position: relative; z-index: 1; width: 100%; min-height: calc(18px * var(--rfl-name-scale, 1.34) * 2.08 + 16px);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
 }
-.runecard-art {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  -webkit-mask-image: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0) 72%);
-  mask-image: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0) 72%);
-  transform: scale(1.39);
-}
-.runecard-noart { display: grid; place-items: center; transform: none; -webkit-mask-image: none; mask-image: none; }
-.runecard-noart svg { width: 42%; height: 42%; color: #ffe3a0; }
-
-/* Name, divider, rules. TRIBE ACCENT: bold terms take `--rt` (as a card's bold terms take its `--c`); TEXT SCALE
-   (owner 2026-10-07, +20%): the rules multiply by `--runecard-text-scale`, the name by the Runeforge Look tuner's
-   `--rfl-name-scale` (1.12 to 1.34). */
-.runecard-head { position: relative; z-index: 1; margin-top: 10px; display: flex; flex-direction: column; align-items: center; }
 .runecard-name {
-  font-family: var(--font-title); font-weight: 800; line-height: 1.04;
-  font-size: calc(18px * var(--rfl-name-scale, 1.34)); color: var(--ui-title); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-title); font-weight: 800; line-height: 1.04; letter-spacing: 0.005em;
+  font-size: calc(18px * var(--rfl-name-scale, 1.34)); color: var(--ui-title);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 12px rgba(0, 0, 0, 0.55);
 }
-.runecard-divider { position: relative; display: block; width: 62%; height: 10px; margin-top: 6px; }
+.runecard-divider { position: relative; display: block; flex: none; width: 62%; height: 10px; margin-top: 6px; }
 .runecard-divider::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: linear-gradient(90deg, rgba(0, 0, 0, 0), var(--ui-title) 40%, var(--ui-title) 60%, rgba(0, 0, 0, 0)); opacity: 0.7; }
 .runecard-divider::after { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; background: var(--ui-stud); transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4); }
-.runecard-body { position: relative; z-index: 1; margin-top: 8px; width: 100%; }
+.runecard-body { position: relative; z-index: 1; margin-top: 8px; width: 100%; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; }
 .runecard-sect { display: flex; flex-direction: column; align-items: center; }
-.runecard-txt { font-weight: 700; font-size: calc(13px * var(--runecard-text-scale, 1)); line-height: 1.26; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75); overflow-wrap: anywhere; text-align: center; }
+.runecard-txt { font-weight: 700; font-size: calc(13px * var(--runecard-text-scale, 1)); line-height: 1.3; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); overflow-wrap: anywhere; text-align: center; }
 .runecard-txt b { color: color-mix(in srgb, var(--rt, var(--t-neutral)) 80%, #fff); font-weight: 800; }
 /* Dragon's hue is white (= the body text), so its terms wear the cards' static pastel halo instead. */
 .runecard[data-tribe="dragon"] .runecard-txt b { text-shadow: -1px 0 2px rgba(255, 150, 190, 0.6), 1px 0 2px rgba(150, 200, 255, 0.6), 0 -1px 2px rgba(160, 255, 190, 0.55), 0 1px 2px rgba(255, 225, 150, 0.55), 0 0 7px rgba(210, 175, 255, 0.5); }
-/* Neutral's hue is a dull taupe; neutral terms take gold. */
+/* Neutral terms take the theme's gold. */
 .runecard[data-tribe="neutral"] .runecard-txt b { color: var(--ui-title); }
 .runecard-lock { position: relative; z-index: 1; margin-top: 8px; font-weight: 800; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-warn); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
 
-/* EPIC: a second outer gold rim and a violet glow; the window gets a violet ring. */
-.runecard-epic .runecard-face { box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 4px var(--ui-edge-main), 0 0 0 5px var(--ui-edge-deep); }
-.runecard-epic { filter: drop-shadow(0 10px 14px rgba(10, 4, 24, 0.6)) drop-shadow(0 0 12px rgba(196, 140, 255, 0.55)); }
-.runecard-epic .runecard-window { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(196, 140, 255, 0.6), 0 0 22px 4px color-mix(in srgb, var(--rt-body) 75%, transparent), inset 0 0 14px 2px color-mix(in srgb, var(--rt-body) 70%, transparent); }
+/* EPIC: a second outer gold rim, crisp, with a thin violet line between the rims. No fog, nothing around the art. */
+.runecard-epic .runecard-face { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 2px #9a62e0, 0 0 0 4px var(--ui-edge-main), 0 0 0 5px var(--ui-edge-deep), 0 14px 26px -12px rgba(8, 3, 20, 0.85); }
+.runecard-epic::after { inset: -5px; border-radius: 23px; }
 
-/* ── The rune rack badge: a miniature of the card's art window ─────────────────────────────────────────────── */
+/* ── The rune rack badge: the round art in a gold rim ──────────────────────────────────────────────────────── */
 .questbadge.runebadge {
   --rt-body: var(--rt, var(--t-neutral));
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   background: radial-gradient(circle, color-mix(in srgb, var(--rt-body) 40%, #120a16), #0c0710) padding-box, var(--ui-edge) border-box;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 10px 1px color-mix(in srgb, var(--rt-body) 75%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow);
 }
-.questbadge.runebadge[data-tribe="neutral"] { --rt-body: #b8955a; }
-.questbadge.runebadge[data-tribe="dragon"] { --rt-body: #c4462e; }
+.questbadge.runebadge[data-tribe="neutral"] { --rt-body: #8a6fd6; }
+.questbadge.runebadge[data-tribe="dragon"] { --rt-body: #d0452c; }
 .questbadge.runebadge .questbadge-art {
   -webkit-mask-image: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0) 72%);
   mask-image: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0) 72%);
   transform: scale(1.39);
 }
 .questbadge.runebadge .questbadge-emblem { color: #ffe3a0; }
-.questbadge.runebadge.runebadge-epic { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 3px rgba(196, 140, 255, 0.7), 0 0 12px 2px color-mix(in srgb, var(--rt-body) 75%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
-
-/* ── The ART BLEED (owner 2026-10-07: "can you improve the look of the plates a bit more? use more of the art and
-   feather it out maybe"). The card's own art, scaled up, fills the top of the plate behind the window, dimmed,
-   softly blurred and vignetted, and feathered (a static mask) into the tribe tint well before the rules text.
-   Two variants for the owner (`data-rune-plate` on <html>):
-     A (default): the blurred art glow behind a crisp round window;
-     B: no window ring; the crisp art itself fills the top of the card and feathers out, the medallion as the hero.
-   Static: the mask and the blur rasterize once with the card; nothing animates. */
-.runecard-face { overflow: hidden; }
-.runecard-bleed {
-  position: absolute; left: -12%; right: -12%; top: -8%; width: 124%; height: auto; aspect-ratio: 1; object-fit: cover;
-  opacity: 0.85; filter: blur(6px) saturate(1.3) brightness(0.95);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.85) 38%, rgba(0, 0, 0, 0.25) 62%, rgba(0, 0, 0, 0) 76%);
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.85) 38%, rgba(0, 0, 0, 0.25) 62%, rgba(0, 0, 0, 0) 76%);
-}
-/* A soft vignette over the bleed so the medallion pops and the edges stay calm. */
-.runecard-face::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(75% 50% at 50% 26%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.28) 100%);
-}
-/* The rules text sits in the middle of the space below the name, so a short rule does not leave a dead floor. */
-.runecard-body { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
-
-/* Variant B: no window; the art fills the top and feathers out. */
-:root[data-rune-plate="b"] .runecard-window { border-color: transparent; background: none; box-shadow: none; overflow: visible; width: 100%; margin-top: calc(var(--cw) * -0.06); }
-:root[data-rune-plate="b"] .runecard-art { transform: scale(1.12); -webkit-mask-image: radial-gradient(circle closest-side, #000 62%, rgba(0, 0, 0, 0) 100%); mask-image: radial-gradient(circle closest-side, #000 62%, rgba(0, 0, 0, 0) 100%); }
-:root[data-rune-plate="b"] .runecard-bleed { filter: blur(3px) saturate(1.25) brightness(0.85); opacity: 0.75; }
-:root[data-rune-plate="b"] .runecard-epic .runecard-window { box-shadow: none; }
+.questbadge.runebadge.runebadge-epic { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 2px #9a62e0, 0 0 0 3px var(--ui-edge-main), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }

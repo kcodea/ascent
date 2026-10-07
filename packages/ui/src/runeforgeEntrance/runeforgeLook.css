@@ -22,9 +22,9 @@
 .forge-ov {
   --rf-ember: 255, 178, 92;
   --rf-pool: 255, 214, 150;
-  background: rgba(26, 16, 52, 0.42);
-  -webkit-backdrop-filter: blur(26px) saturate(1.25);
-  backdrop-filter: blur(26px) saturate(1.25);
+  background: rgba(30, 18, 64, 0.55);
+  -webkit-backdrop-filter: blur(48px) saturate(1.05);
+  backdrop-filter: blur(48px) saturate(1.05);
 }
 .forge-ov.forge-epic { --rf-pool: 230, 190, 255; }
 .rf-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
@@ -32,8 +32,7 @@
 /* 1 · Deep violet (the default). */
 .rf-grade {
   background:
-    radial-gradient(120% 95% at 50% 48%, rgba(70, 44, 140, 0.28) 0%, rgba(34, 18, 74, 0.62) 58%, rgba(10, 5, 26, 0.92) 100%),
-    linear-gradient(180deg, rgba(60, 36, 130, 0.35), rgba(30, 14, 64, 0.35));
+    radial-gradient(110% 90% at 50% 50%, rgba(64, 40, 128, 0.35) 0%, rgba(36, 20, 80, 0.62) 55%, rgba(10, 5, 26, 0.94) 100%);
 }
 /* 2 · Warm forge: firelight from the bottom centre fading into deep violet. */
 :root[data-rf-bg="2"] .rf-grade {
@@ -122,6 +121,10 @@
 .forge-ov .forge-gold::before, .forge-ov .forge-reroll::before, .disc-toggle.forge-toggle::before { left: calc(-8 * var(--u)); }
 .forge-ov .forge-gold::after, .forge-ov .forge-reroll::after, .disc-toggle.forge-toggle::after { right: calc(-8 * var(--u)); }
 
+/* The entrance's one-shot ignite ring + light sweep: crisp and tight to the card's rounded edge, no fog. */
+.forge-ov .rfe-ignite { border-radius: 18px; box-shadow: 0 0 0 2px var(--ui-edge-hi), 0 0 12px 2px rgba(255, 214, 140, 0.45); }
+.forge-ov .rfe-sweep { border-radius: 18px; }
+
 /* THE ROW. */
 .forge-ov .forge-cards { position: relative; margin-top: calc(40 * var(--u) + var(--rfl-row-y, 0) * var(--u)); }
 
@@ -150,7 +153,8 @@
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.7);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   top: calc(75% + var(--rfl-toggle-y, 160) * var(--u));
-  transform: translateX(-50%) scale(var(--rfl-toggle-scale, 1.2));
+  font-size: calc(17 * var(--u)); padding: calc(10 * var(--u)) calc(28 * var(--u));
+  transform: translateX(-50%) scale(var(--rfl-toggle-scale, 1));
 }
 .disc-toggle.forge-toggle svg { color: var(--ui-icon); }
 .disc-toggle.forge-toggle:hover { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }

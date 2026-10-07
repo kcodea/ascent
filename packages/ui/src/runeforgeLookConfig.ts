@@ -69,7 +69,7 @@ const DEFAULTS: RuneforgeLookConfig = {
   cardGap: 26,
   cardScale: 1.29,
   nameScale: 1.34, // x1.2 (owner 2026-10-07: rune text +20%), was 1.12
-  costScale: 1.18,
+  costScale: 1,
   costX: 6,
   costY: 4,
 
@@ -77,7 +77,7 @@ const DEFAULTS: RuneforgeLookConfig = {
   footerScale: 1,
 
   toggleY: 160,
-  toggleScale: 1.2,
+  toggleScale: 1,
 
   bgOption: 1,
 };

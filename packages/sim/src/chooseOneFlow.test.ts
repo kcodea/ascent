@@ -169,7 +169,9 @@ describe('Choose One — clicking away cancels', () => {
 
 describe('(Both) — the prompt is skipped when every branch is already on', () => {
   it('the predicate covers all three sources, and only them', () => {
-    const orivax = CARD_INDEX['d2_orivax']!;
+    // `chooseBothWhenGolden` has no live card since Orivax became a board aura (owner 2026-10-07); the predicate
+    // still honours the flag, so pin it on a synthetic Choose One that carries it.
+    const orivax = { ...CARD_INDEX['facetwright']!, id: 'golden_both_probe', chooseBothWhenGolden: true };
     expect(chooseBothActive({}, { golden: true }, orivax)).toBe(true);
     expect(chooseBothActive({}, { golden: false }, orivax)).toBe(false);
     expect(chooseBothActive({ runeFacetwright: true }, undefined, CARD_INDEX['facetwright'])).toBe(true);
@@ -183,14 +185,13 @@ describe('(Both) — the prompt is skipped when every branch is already on', () 
     expect(chooseOneNeedsChoice({}, undefined, CARD_INDEX['alley'])).toBe(false);
   });
 
-  it('a GOLDEN Orivax plays straight through and installs both modes', () => {
+  it('Orivax (a board aura since 2026-10-07) plays straight through and installs NO run mode', () => {
     const s0: RunState = { ...set2({ hand: [hand('o', 'd2_orivax', { golden: true })] }) };
     const s = reduce(s0, { type: 'play', uid: 'o' });
-    expect(s.chooseOne, 'a (Both) card must never prompt').toBeUndefined();
+    expect(s.chooseOne, 'no Choose One any more').toBeUndefined();
     expect(s.board.map((c) => c.cardId)).toEqual(['d2_orivax']);
-    expect(s.board[0]!.chosenOption, 'it became neither branch — it gained them all').toBeUndefined();
-    expect(s.shoutExtraAlways ?? 0, 'branch A installed').toBeGreaterThan(0);
-    expect(s.spellFirstMultEachTurn ?? 1, 'branch B installed').toBeGreaterThan(1);
+    expect(s.shoutExtraAlways ?? 0, '"While on board": nothing permanent').toBe(0);
+    expect(s.spellFirstMultEachTurn ?? 1).toBe(1);
   });
 
   it('a Veinbreaker under the Rune of the Unbroken Vein plays straight through and does both', () => {

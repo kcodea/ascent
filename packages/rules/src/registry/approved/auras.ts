@@ -103,4 +103,57 @@ export const AURAS_RULES: GameRule[] = [
       + 'stats already carried it (a 4/4 Imp under a +3/+3 Aura fought as a 7/7).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/toddImpAura.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
+  {
+    id: 'R-AURA-ONBOARD-01',
+    title: "Elderhorn is a board aura: your Beasts' Rallies and Echoes trigger an additional time while it is on your board",
+    statement:
+      'Elderhorn: "Your Beasts\' Rallies and Echoes trigger an additional time." It is an AURA that works only while '
+      + 'Elderhorn is on your board, like normal card text; playing it installs nothing permanent, and selling it or its '
+      + 'death ends it. Each Rally (on attack) and each Echo of a BEAST on that side fires one more time; other tribes are '
+      + 'untouched. It is an additive "additional time" multiplier (owner vocabulary rule 2026-08-28): golden gives 2 '
+      + 'additional, every copy stacks, and it adds to Sylus, Uron and the run-wide Rally/Echo extras. It applies wherever '
+      + 'a Beast Echo fires (combat deaths, forced Echoes, Shop Echoes) and wherever a Beast Rally fires (on attack, and a '
+      + 'forced Rally in combat or the Shop, R-RALLY-FORCED-01). A served board '
+      + 'carries it with the body. SIMULTANEOUS DEATH: deaths resolve left to right, so an Elderhorn dying in the same '
+      + 'strike still doubles a Beast Echo that resolves before its own death, and not one after it (the Sylus precedent).',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Elderhorn rework)', quote: 'While on board' },
+      { kind: 'card-text', ref: 'packages/content/src/cards/set2/beasts.ts b2_elderhorn', quote: "Your Beasts' **Rallies** and **Echoes** trigger an additional time." },
+      { kind: 'code', ref: 'packages/core/src/types.ts extraTriggerFires (tribe-scoped TriggerMultiplierDef); packages/core/src/combat/simulate.ts playerEchoExtras + the Rally repeat loop; packages/sim/src/recruit.ts fireRecruitDeathrattles' },
+    ],
+    contentIds: ['b2_elderhorn', 'sylus', 'uron'],
+    currentBehaviour:
+      'Conforms as of 2026-10-07. Before, Elderhorn was a Choose One that installed a permanent run mode (`beastHuntExtra` '
+      + 'for Rallies or `beastRitualExtra` for Echoes). Those modes are still read so old saves and replays resolve, but no '
+      + 'card installs them any more. A forced Rally (fired without an attack, in the Shop or in combat) is boosted too, '
+      + 'as is every Rally doubler (R-RALLY-FORCED-01, owner 2026-10-07).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-AURA-ONBOARD-02',
+    title: 'Orivax is a board aura: your Shouts trigger 2 additional times while it is on your board, added to every other Shout extra',
+    statement:
+      'Orivax: "Your Shouts trigger 2 additional times." It is an AURA that works only while Orivax is on your board, like '
+      + 'normal card text; playing it installs nothing permanent, and selling it or its death ends it. Every Shout that '
+      + 'side triggers, played or triggered, in the Shop or in real time mid-combat (R-SHOUT-TRIGGER-01), fires 2 more '
+      + 'times. Golden gives 4, every copy stacks. It ADDS to the run-wide Shout extras (Rune of the Choir, Blasting '
+      + 'Voices, Hoardwake, Demand an Encore, the legacy Orivax Chorus mode): Orivax plus the Choir is 1 + 2 + 1 = 4 fires, '
+      + 'in both phases. Each fire is its own counted Shout for every listener. A served board carries it with the body.',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Orivax rework)', quote: 'While on board' },
+      { kind: 'card-text', ref: 'packages/content/src/cards/set2/dragons.ts d2_orivax', quote: 'Your **Shouts** trigger **2** additional times.' },
+      { kind: 'code', ref: 'packages/core/src/types.ts boardShoutExtras + CardDef.shoutExtraAura; packages/sim/src/recruit.ts shoutFireCount; packages/core/src/combat/simulate.ts shoutCarryExtras' },
+    ],
+    contentIds: ['d2_orivax', 'rune_choir'],
+    currentBehaviour:
+      'Conforms as of 2026-10-07. Before, Orivax was a Choose One (golden: both) that installed a permanent run mode: '
+      + '`shoutExtraAlways` +1 or the first-Shop-spell triple. Those modes are still read so old saves and replays resolve, '
+      + 'but no card installs them any more. Orivax folds into the SAME channel as the Choir (not the Drakko board '
+      + 'multiplier), which is what keeps it additive with the run-wide extras in combat too.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

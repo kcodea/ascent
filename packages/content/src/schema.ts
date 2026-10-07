@@ -659,12 +659,14 @@ export const CardDefSchema = z.object({
       families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
       extra: z.number().int().positive(),
       stacks: z.boolean().optional(),
+      tribe: TribeSchema.optional(), // tribe-scoped (Elderhorn: Beast Rallies + Echoes only)
     }).strict(),
     z.object({
       families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
       factor: z.number().int().min(2),
     }).strict(),
   ]).optional(),
+  shoutExtraAura: z.number().int().positive().optional(), // Orivax: board-aura Shout extras (see CardDef)
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   celestial: z.boolean().optional(), // alignment-bearing (Dawn/Dusk/Eclipse) — drives the alignment HUD

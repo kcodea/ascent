@@ -8,7 +8,7 @@
  * during combat, and every summon it produces is buffed by the summon payoffs.
  *  - Echohorn (T4 Rally): trigger your left-most Echo. Hawkus (T5): trigger the left-most Echo whenever ANY Rally
  *    fires. Spots (T6 Start of Combat): trigger the two left-most Echoes. Sylus (T5): every Echo triggers once
- *    more. Elderhorn (T7): Beast Rallies or Echoes an additional time.
+ *    more. Elderhorn (T7, aura): Beast Rallies and Echoes an additional time.
  *  - The Echo that goes LEFT: Menagerie Mammoth (T5: three random Beasts), Bullseye (T3: a random Beast set to
  *    7/7), Fel Spikes (T5: 4 damage to everything but Demons), T-Rex (T2: a Taunt baby), Armadiyo (T3: Beast Aura
  *    +2/+4), Wolvie (T2: the next Beast +2/+4), Dawnclaw (T4: an adjacent Shout again), Big Huggies.
@@ -42,7 +42,7 @@ const ROLES: Record<string, CardRole> = {
   b2_hawkus: R(3, 'every Rally triggers the left-most Echo', { fromWave: 8 }),
   b2_spots: R(3, 'Start of Combat: the two left-most Echoes', { fromWave: 10 }),
   sylus: R(3, 'every Echo once more', { fromWave: 8 }),
-  b2_elderhorn: R(3, 'Beast Rallies or Echoes an additional time', { fromWave: 12 }),
+  b2_elderhorn: R(3, 'Beast Rallies and Echoes an additional time while on board', { fromWave: 12 }),
   kennel: R(3, 'Kennelmaster: the Beast Aura at Start of Combat, improving per Avenge'),
   b2_beardsley: R(3, 'Beardsley: +3/+3 per summon, improving', { fromWave: 6 }),
   b2_oona: R(2, 'King Oona: summoned Beasts double', { fromWave: 8 }),

@@ -190,7 +190,7 @@ describe('set 2 — Sunmane Herald’s rally accumulates', () => {
   });
 });
 
-describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
+describe("set 2 — Elderhorn's LEGACY run modes multiply BEAST triggers only", () => {
   // A Deathrattle that summons, so extra Echo fires are countable as extra summons.
   const echoBeast: CardDef = { id: 'ehbeast', name: 'EB', tribe: 'beast', tier: 2, attack: 1, health: 1, keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'stray', count: 1 } }], text: '' };
@@ -214,23 +214,11 @@ describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
     expect(summonsWith({ beastRitualExtra: 1 }, 'ehdragon')).toBe(1); // unchanged
   });
 
-  it('the Choose-One installs the run-level mode (Hunt vs Ritual)', () => {
-    const eh = (uid: string): BoardCard => ({ uid, cardId: 'b2_elderhorn', tribe: 'beast', attack: 8, health: 10, keywords: [], golden: false });
-    let s: RunState = { ...createRun(7), tier: 7, phase: 'recruit', embers: 60, board: [], hand: [eh('e1')] };
-    s = reduce(s, { type: 'play', uid: 'e1' });
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // Hunt
-    expect(s.beastHuntExtra).toBe(1);
-    expect(s.beastRitualExtra ?? 0).toBe(0); // only the chosen mode installs
-
-    let s2: RunState = { ...createRun(7), tier: 7, phase: 'recruit', embers: 60, board: [], hand: [eh('e2')] };
-    s2 = reduce(s2, { type: 'play', uid: 'e2' });
-    s2 = reduce(s2, { type: 'chooseOne', index: 1 }); // Ritual
-    expect(s2.beastRitualExtra).toBe(1);
-    expect(s2.beastHuntExtra ?? 0).toBe(0);
-  });
+  // The card itself is a board aura since 2026-10-07 (no Choose One); these pin the LEGACY run modes, which old
+  // saves and replays still carry. The aura is covered in elderhornOrivaxAuras.test.ts.
 });
 
-describe("Elderhorn's Hunt is RALLIES only (owner 2026-07-31)", () => {
+describe("Elderhorn's legacy Hunt mode is RALLIES only (owner 2026-07-31)", () => {
   /**
    * The branch was narrowed from "Rallies and Slaughters" to "Rallies" in the card TEXT, but `beastHuntExtra`
    * was still read at the kill site too — so the card promised less than it did, which is the worse direction
@@ -239,7 +227,7 @@ describe("Elderhorn's Hunt is RALLIES only (owner 2026-07-31)", () => {
    */
   // NOTE: the RALLY half is not asserted here. An attack-path Rally emits no `sc` beat — only a FREE rally
   // (Rune of Rallying / the Hunting Bell) narrates — so there is no event to count, and a first cut of this test
-  // "passed" by comparing 0 to 0. The install is covered by the Choose-One test above; what needed pinning was
+  // "passed" by comparing 0 to 0. The mode is legacy-only since 2026-10-07; what needed pinning was
   // the Slaughter half, which is what silently kept firing.
   it('does NOT double Beast SLAUGHTERS any more', () => {
     const slaughter = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token

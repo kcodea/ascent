@@ -60,7 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: "Fixed the lobby rail's player card opening during combat.",
+        text: 'Fixed Rune of the Coffers only triggering once. It now triggers every End of Turn.',
+        details: [
+          'Near 10 max Gold, its raise was swallowed by your normal Gold growth, so it looked like it stopped working.',
+          'Each End of Turn now adds 1 max Gold on top of your normal growth, before and after 10.',
+          'Its badge shows the max Gold it has added so far.',
+          'The same fix applies to Bone Taxer, Souls Man and Rune of Soul Taxes.',
+        ],
       },
       {
         category: 'Systems',
@@ -125,6 +131,10 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Balance',
         text: 'Rune of Duplication now reads "Copy the first Epic Rune you select." It works the same way.',
+      },
+      {
+        category: 'Systems',
+        text: "Fixed the lobby rail's player card opening during combat.",
       },
     ],
   },

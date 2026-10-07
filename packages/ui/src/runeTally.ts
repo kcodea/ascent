@@ -190,6 +190,9 @@ export function runeTally(run: RunState, runeId: string): string | null {
     const reps = runeStacksOf(run, 'rune_held_strength');
     return `+${held.attack * reps}/+${held.health * reps}`;
   }
+  // RUNE OF THE COFFERS (owner report 2026-10-06, R-COFFERS-EVERY-EOT-01): the max Gold it has added so far, so each
+  // End of Turn's raise is visible on the badge (the live-value rule).
+  if (runeId === 'rune_coffers' && run.runeCoffers) return `+${run.runeCoffersGold ?? 0} max Gold`;
   if (runeId === 'rune_lapidary' && run.runeLapidary) {
     const n = (run.playedThisTurn ?? []).length;
     return `${n} card${n === 1 ? '' : 's'}`;

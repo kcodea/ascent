@@ -98,7 +98,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeGemGolem (Rune of the Gem Golem: "When a friendly Kobold dies, summon a Gemheart Golem with its Rubies.")
 - combat mod runeChef — Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`.
 - combat mod solidGroundStat — Solid Ground: the per-summon grant (so the number lives with the spell, not the engine).
-- combat mod attackFirstNext — Pre-emptive Assault: CAPTURED ONLY. The player's own fight still reads `CombatConfig.playerAttacksFirst`; nothing applies this for a served board until the owner rules what happens when BOTH sides hold it.
+- combat mod attackFirstNext — Pre-emptive Assault: PLAYER ONLY (owner 2026-10-07: "pre-emptive assault is a player only carry. dont let enemies cast this"; R-PREEMPTIVE-PLAYER-01). Present only on the player's own mods, for its Start of Combat cast beat; the effect itself is `CombatConfig.playerAttacksFirst`. Never captured on a snapshot (`snapshotBoard` omits it, `sideFromSnapshot` drops it), and an enemy side never announces or applies it.
 - combat mod runeCenterline — Rune of the Centerline: SoC — mismatched end types give the middle minion Ward + Critical Strike.
 - combat mod runeEmberline — Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned.
 - combat mod runeAshenPayroll (Rune of Ashen Payroll: "Gain 1 Gold next turn for each Imp you summon in combat.") — Rune of Ashen Payroll: Imps-summoned threshold (3) for its once-per-combat Gold payout. Read at settle.

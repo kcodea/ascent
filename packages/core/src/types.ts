@@ -2399,8 +2399,10 @@ export interface QuestCombatMods {
   bankedKeywords?: { index: number; keyword: Keyword; critChance?: number; spellId?: string }[];
   /** Open the Gates: this many Imps join this side's starting board (room permitting, ×Twilight). */
   bankedImps?: number;
-  /** Pre-emptive Assault: CAPTURED ONLY. The player's own fight still reads `CombatConfig.playerAttacksFirst`;
-   *  nothing applies this for a served board until the owner rules what happens when BOTH sides hold it. */
+  /** Pre-emptive Assault: PLAYER ONLY (owner 2026-10-07: "pre-emptive assault is a player only carry. dont let
+   *  enemies cast this"; R-PREEMPTIVE-PLAYER-01). Present only on the player's own mods, for its Start of Combat
+   *  cast beat; the effect itself is `CombatConfig.playerAttacksFirst`. Never captured on a snapshot (`snapshotBoard`
+   *  omits it, `sideFromSnapshot` drops it), and an enemy side never announces or applies it. */
   attackFirstNext?: boolean;
   /** Emissary Vale (United Front): Start of Combat, one friendly of each type gains +N/+N (N = the hero's
    *  Tavern Tier when the fight began). Same "one banner per body" rule as Five Banners, just tier-scaled. */

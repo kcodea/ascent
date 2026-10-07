@@ -51,9 +51,9 @@ const NEXT_COMBAT_BANKS: Record<string, Bank> = {
   stolenInitiative: { arm: { stolenInitiative: true }, modKey: 'stolenInitiative', spellId: 'sp_stoleninitiative' },
 };
 
-/** Banks that are captured but deliberately NOT applied for an opponent yet, each with its reason. */
-const CAPTURED_ONLY: Record<string, { modKey: keyof QuestCombatMods; why: string }> = {
-  attackFirstNext: { modKey: 'attackFirstNext', why: 'Pre-emptive Assault: AWAITING AN OWNER RULING on both sides holding it (who swings first?). Captured on the snapshot, applied for the player only (CombatConfig.playerAttacksFirst).' },
+/** PLAYER-ONLY banks: never captured on a snapshot, never applied or announced for an opponent, each with its ruling. */
+const PLAYER_ONLY: Record<string, { modKey: keyof QuestCombatMods; why: string }> = {
+  attackFirstNext: { modKey: 'attackFirstNext', why: 'Pre-emptive Assault: owner 2026-10-07, "pre-emptive assault is a player only carry. dont let enemies cast this" (R-PREEMPTIVE-PLAYER-01). The player\'s own fight reads CombatConfig.playerAttacksFirst.' },
 };
 
 /** Fields that match the name pattern but are not next-combat banks. */
@@ -92,12 +92,12 @@ describe('the next-combat bank guard', () => {
   it('every bank-shaped RunState field is classified (a new one fails until it is)', () => {
     const unclassified = runStateKeys()
       .filter((k) => LOOKS_LIKE_A_BANK.test(k))
-      .filter((k) => !(k in NEXT_COMBAT_BANKS) && !(k in CAPTURED_ONLY) && !(k in NOT_A_NEXT_COMBAT_BANK));
+      .filter((k) => !(k in NEXT_COMBAT_BANKS) && !(k in PLAYER_ONLY) && !(k in NOT_A_NEXT_COMBAT_BANK));
     expect(unclassified, `classify these in nextCombatBanks.guard.test.ts — a next-combat bank needs a snapshot capture AND an enemy-side application:\n  ${unclassified.join('\n  ')}`).toEqual([]);
   });
 
   it('the core bank-key list (stale-serve stripping) covers every captured bank', () => {
-    for (const b of [...Object.values(NEXT_COMBAT_BANKS), ...Object.values(CAPTURED_ONLY)]) {
+    for (const b of [...Object.values(NEXT_COMBAT_BANKS), ...Object.values(PLAYER_ONLY)]) {
       expect(NEXT_COMBAT_BANK_KEYS, `${b.modKey} must be in NEXT_COMBAT_BANK_KEYS so a stale re-serve drops it`).toContain(b.modKey);
     }
   });
@@ -127,10 +127,10 @@ describe('the next-combat bank guard', () => {
     });
   }
 
-  for (const [field, c] of Object.entries(CAPTURED_ONLY)) {
-    it(`${field}: captured on the snapshot, inert for an opponent (${c.why.split(':')[0]})`, () => {
+  for (const [field, c] of Object.entries(PLAYER_ONLY)) {
+    it(`${field}: PLAYER-ONLY, never captured on the snapshot (${c.why.split(':')[0]})`, () => {
       const snap = snapshotBoard(base({ [field]: true } as Partial<RunState>));
-      expect(snap.questMods?.[c.modKey]).toBeTruthy();
+      expect(snap.questMods?.[c.modKey]).toBeUndefined();
     });
   }
 });

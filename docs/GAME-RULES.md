@@ -1643,7 +1643,8 @@ Edge, Open the Gates, Marked Target, Rallying Offensive, Decoy Sigil, Summoning 
 Rune, Stolen Initiative, Bloodlust, Parting Cry, Closed Casket) travels with the board snapshot and resolves for
 **whichever side holds it** (*"these should carry over"*; *"rallying offensive and marked target should work for
 opponents"*). Marked Target gives the holder's **foe's** right-most minion Taunt. **Pre-emptive Assault** is the one
-exception for now: captured on the snapshot, applied only for the player, pending a ruling on both sides holding it.
+exception: a **player-only carry** (owner 2026-10-07: *"pre-emptive assault is a player only carry. dont let enemies
+cast this"*, R-PREEMPTIVE-PLAYER-01). It is never captured on a snapshot, so no opponent ever casts or applies it.
 
 - **Spent on its own round only** (*"this is probably okay as long as they are spent on the turn the player played
   them"*): a snapshot's banks apply only in the fight for the round it was captured at (`snap.wave`). A recorded seat

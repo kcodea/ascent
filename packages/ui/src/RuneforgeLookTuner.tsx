@@ -4,10 +4,9 @@ import { TunerPanel } from './TunerPanel';
 export { SPEC } from './runeforgeLookConfig';
 
 /**
- * DEV-only tuner for the RUNEFORGE OVERLAY's LOOK — the title plaque, the Gold pill, the rune-tablet row (name,
- * kicker, rules box, cost coin), the Re-roll/Leave footer, the minimize toggle, and the Epic
- * variant's own colours. Its sibling 🪨 Runeforge Backdrop tuner owns the illustrated art behind the panel; this
- * one owns everything painted on it. Applies live through `--rfl-*` vars on `:root`.
+ * DEV-only tuner for the RUNEFORGE OVERLAY's LOOK: placement and size of the title plate, the Gold pill, the rune
+ * tablet row (name size, cost coin), the Re-roll footer and the minimize toggle. Colours
+ * come from the 🎨 UI Theme since the 2026-10-07 redesign. Applies live through `--rfl-*` vars on `:root`.
  */
 export function RuneforgeLookTuner(): JSX.Element {
   return <TunerPanel spec={SPEC} />;

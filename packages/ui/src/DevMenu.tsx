@@ -99,7 +99,6 @@ import { PortraitFrameTuner } from './PortraitFrameTuner';
 import { TooltipTuner } from './TooltipTuner';
 import { ScreenWipeTuner } from './ScreenWipeTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
-import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
 import { OpponentsBackplateTuner } from './OpponentsBackplateTuner';
 import { RuneSheenTuner } from './RuneSheenTuner';
@@ -190,7 +189,6 @@ const GROUPS: Group[] = [
       { key: 'heroceremony', icon: '🎭', label: 'Hero Ceremony', C: HeroCeremonyTuner, hint: 'The hero-select ceremony timeline — every delay and duration from click to Start Game', alt: 'hero select ceremony timing' },
       { key: 'goodluckintro', icon: '🍀', label: 'Good Luck intro', C: GoodLuckIntroTuner, hint: 'The game-start intro after Start Game: the dim, the Good Luck words, the sparks and the shine, and how long each lasts. Has a ▶ replay button', alt: 'good luck intro game start dim text sparks shine clock' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
-      { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
       { key: 'runeforgelook', icon: '🔨', label: 'Runeforge Look', C: RuneforgeLookTuner, hint: 'The title plaque, Gold pill, rune tablets, footer buttons and minimize toggle — placement, size, and every colour, including the Epic variant', alt: 'rune forge tablet card kicker cost coin medallion epic' },
       { key: 'screenwipe', icon: '🌀', label: 'Screen wipe', C: ScreenWipeTuner, hint: 'The combat and shop transition: bloom and reveal durations, easing and tail speed, the wide-screen ellipse stretch, and the glowing edge (ring and leading halo). Has a ▶ Play button', alt: 'screen wipe curtain transition bloom combat shop ultrawide ellipse ring halo easing' },
       { key: 'runeforgeentrance', icon: '🔥', label: 'Runeforge entrance', C: RuneforgeEntranceTuner, hint: 'The forge opening: the rune tablets dropping in with dust, the shade and embers, the glow sweep, the Epic variant and the sound cues. Has ▶ Play (Basic) and ▶ Play (Epic) buttons', alt: 'rune forge entrance opening drop dust land squash embers glow sweep epic flare sound cue sim' },

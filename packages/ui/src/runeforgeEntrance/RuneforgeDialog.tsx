@@ -4,6 +4,7 @@ import { Icon } from '../Icon';
 import { RuneCard } from '../RuneCard';
 import { prefersReducedMotion, runEntrance, type EntranceHandle } from './entrance';
 import './runeforgeEntrance.css';
+import './runeforgeLook.css';
 
 /**
  * THE RUNEFORGE DIALOG — the forge overlay's panel (banner, Gold, rune tablets, re-roll), plus its ENTRANCE
@@ -51,6 +52,24 @@ function shouldPlay(key: string | null): boolean {
 export function resetRuneforgeEntranceMemoForTests(): void {
   openings.clear();
 }
+
+/**
+ * THE AMBIENT MOTES (owner ask 2026-10-07: "some moving dust/etc in there to make it feel a bit more alive"): a FIXED
+ * table, so the scene is identical every opening, and modest (18). Each is a CSS transform + opacity rise
+ * (runeforgeLook.css), compositor-only. `x` lane %, `t` rise seconds, `d` delay (negative: already mid-flight on
+ * open), `dx` sideways drift px, `sz` px, `o` peak opacity.
+ */
+const MOTES: readonly { x: number; t: number; d: number; dx: number; sz: number; o: number }[] = [
+  { x: 6, t: 15, d: -2, dx: 30, sz: 4, o: 0.7 }, { x: 13, t: 19, d: -11, dx: -24, sz: 3, o: 0.55 },
+  { x: 19, t: 13, d: -6, dx: 18, sz: 5, o: 0.8 }, { x: 26, t: 21, d: -15, dx: -36, sz: 3, o: 0.5 },
+  { x: 32, t: 16, d: -9, dx: 26, sz: 4, o: 0.65 }, { x: 38, t: 23, d: -3, dx: -14, sz: 2, o: 0.5 },
+  { x: 44, t: 14, d: -12, dx: 34, sz: 4, o: 0.75 }, { x: 50, t: 18, d: -7, dx: -28, sz: 3, o: 0.6 },
+  { x: 56, t: 20, d: -16, dx: 20, sz: 5, o: 0.7 }, { x: 61, t: 15, d: -4, dx: -32, sz: 3, o: 0.55 },
+  { x: 67, t: 22, d: -10, dx: 16, sz: 4, o: 0.65 }, { x: 73, t: 13, d: -1, dx: -20, sz: 3, o: 0.7 },
+  { x: 79, t: 19, d: -13, dx: 30, sz: 4, o: 0.6 }, { x: 85, t: 16, d: -8, dx: -26, sz: 5, o: 0.75 },
+  { x: 91, t: 21, d: -5, dx: 22, sz: 3, o: 0.5 }, { x: 96, t: 17, d: -14, dx: -18, sz: 4, o: 0.6 },
+  { x: 35, t: 25, d: -19, dx: 40, sz: 2, o: 0.45 }, { x: 64, t: 24, d: -21, dx: -40, sz: 2, o: 0.45 },
+];
 
 export interface RuneforgeDialogProps {
   offer: readonly string[];
@@ -119,12 +138,22 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
       // tablets are pointer-events: none), so it skips without buying; a landed tablet also takes its click.
       onPointerDownCapture={() => { if (handleRef.current?.isRunning()) handleRef.current.skip(); }}
     >
+      {/* The stage: the forge glow and the rising motes (runeforgeLook.css). Inert. */}
+      <div className="rf-stage" aria-hidden="true">
+        <div className="rf-glow" />
+        <div className="rf-motes">
+          {MOTES.map((m, i) => (
+            <span key={i} className="rf-mote" style={{ '--x': `${m.x}%`, '--t': `${m.t}s`, '--d': `${m.d}s`, '--dx': `${m.dx}px`, '--sz': `${m.sz}px`, '--o': m.o } as CSSProperties} />
+          ))}
+        </div>
+      </div>
       <div className="rfe-shade" aria-hidden="true" />
       <div className="disc-panel forge-panel">
         {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
         <div className="disc-banner forge-banner"><span className="disp">{epic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
         {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
             (owner ask 2026-07-16). Re-renders with every buy/re-roll. */}
+        <div className="forge-sub">Choose a Rune. It stays with you for the rest of the game.</div>
         <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{embers}</b> Gold</div>
         <div className="disc-cards forge-cards">
           {offer.map((id, i) => {

@@ -205,6 +205,7 @@ export function QuestBadges() {
               {art
                 ? <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
                 : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
+                <span className="rune-setting" aria-hidden><i className="rp rp-tl" /><i className="rp rp-tr" /><i className="rp rp-bl" /><i className="rp rp-br" /></span>
             </div>
             {/* LIVE METER (owner ask 2026-08-03) — a rune that fires on a threshold shows how close it is,
                 in the same `x/N` language as the Avenge counters on units. Keyed on the text so every change

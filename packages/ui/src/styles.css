@@ -2875,20 +2875,7 @@ body.modalup .statusbar .questbadges {
    root — harmless while a full-screen overlay is up, not something to leave on during normal play. */
 body.modalup .app { z-index: auto; }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
-/* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
-.forge-gold {
-  display: flex; align-items: center; gap: calc(6 * var(--u)); justify-content: center;
-  margin: calc(-4 * var(--u)) auto calc(10 * var(--u)); padding: calc(4 * var(--u)) calc(16 * var(--u));
-  width: fit-content; border-radius: 999px;
-  background: linear-gradient(180deg, var(--rfl-gold-bg, #29160f), var(--rfl-gold-bg-dk, #180906));
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  color: var(--rfl-gold-text, #ffffff); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
-  /* 🔨 Runeforge Look: x/y nudge + scale, scoped to this element alone (not a shared `.disc-*` class). */
-  transform: translate(calc(var(--rfl-gold-x, 0) * var(--u)), calc(var(--rfl-gold-y, 23) * var(--u))) scale(var(--rfl-gold-scale, 1.6));
-}
-.forge-gold svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--gold); }
-.forge-gold b { color: var(--gold); }
+/* Runeforge: the current-Gold pill lives in runeforgeEntrance/runeforgeLook.css (the 2026-10-07 redesign). */
 
 /* Discover — an ornate, gold-framed parchment panel with a banner title, blue gems, a flourished
    subtitle, and tier-coloured glows on the three cards. */
@@ -2963,53 +2950,9 @@ body.modalup .app { z-index: auto; }
 .quest-toggle svg { color: var(--gold); }
 .quest-toggle:hover { filter: brightness(1.12); }
 
-/* ── Runeforge (Runesmith, turn 6) — a STONE/ENGRAVED shop, deliberately cold + carved vs the warm gold Quest
-   panel: slate backdrop, a chiseled stone banner with engraved text, and carved rune tablets. ── */
-/* Illustrated forge backdrop. The art is a FRAME — an ornate gold border around a flat interior — not a
-   full-bleed painting, so it is sized to FIT (height-based, width follows the aspect) rather than cropped to
-   cover, and it paints as the FIRST layer, i.e. ON TOP of the scrim. The scrim sits behind it dimming the board;
-   the frame's surround is transparent (keyed out of the master, which shipped it as baked black), so the dimmed
-   board shows through around the frame instead of a black letterbox. Static layers only — no animation here, so
-   this costs one paint when the overlay opens. Every value is dialled by the 🪨 Runeforge Backdrop tuner. */
-.forge-ov {
-  background:
-    url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat,
-    linear-gradient(rgba(14, 16, 22, 0.96), rgba(14, 16, 22, 0.96));
-}
-/* Every geometry/colour knob below is dialled by the 🔨 Runeforge Look tuner (`runeforgeLookConfig.ts`) — the
-   `--rfl-*` vars carry the shipped value as their fallback, so production (no tuner) paints identically. */
-.forge-banner {
-  background: linear-gradient(180deg, var(--rfl-plaque-lt, #ffcb70) 0%, var(--rfl-plaque, #e3aa4d) 55%, var(--rfl-plaque-dk, #cf9638) 100%);
-  border: 3px solid #23262d; border-radius: calc(11 * var(--u));
-  display: inline-flex; align-items: center; gap: calc(10 * var(--u));
-  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.7), inset 0 2px 0 rgba(255, 255, 255, 0.22), inset 0 -3px 8px rgba(0, 0, 0, 0.5);
-  /* Preserves the base `.disc-banner` centering (`left: 50%; transform: translateX(-50%)`) while adding the
-     tuner's own x/y nudge + scale — scale applies about centre first, then the position shifts. */
-  transform: translate(calc(-50% + var(--rfl-ban-x, 0) * var(--u)), calc(var(--rfl-ban-y, -143) * var(--u))) scale(var(--rfl-ban-scale, 1.67));
-}
-.forge-banner svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); color: #d7d3c6; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5)); }
-/* Engraved title: light stone fill, a dark chiseled shadow below + a faint top highlight = carved into the slab.
-   Wears the TITLE font (same precedent as `.wipevs-label`) — retuning the logo font in the 🏔️ tuner re-dresses
-   this banner to match (owner ask 2026-08-29; shipped change, not a tuner knob). */
-.forge-banner .disp {
-  font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif);
-  font-weight: var(--title-weight, 700);
-  font-size: calc(30 * var(--u) * var(--rfl-title-scale, 0.73)); color: var(--rfl-title-col, #120d13);
-  letter-spacing: 0.08em; text-transform: uppercase;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 -1px 1px rgba(0, 0, 0, 0.6), 0 2px 3px rgba(0, 0, 0, 0.55);
-}
-.forge-sub { color: #c9c5ba; letter-spacing: 0.04em; }
-.forge-toggle {
-  top: calc(75% + var(--rfl-toggle-y, 160) * var(--u)); color: #e3e0d6;
-  background: linear-gradient(180deg, #5b606b, #3f434c); border-color: #23262d;
-  box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -3px 6px rgba(0, 0, 0, 0.45);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-  transform: translateX(-50%) scale(var(--rfl-toggle-scale, 1.48));
-}
-.forge-cards {
-  display: flex; gap: calc(var(--rfl-card-gap, 20) * var(--u)); justify-content: center;
-  margin-top: calc(16 * var(--u) + var(--rfl-row-y, 48) * var(--u)); align-items: stretch;
-}
+/* ── Runeforge: the look (backdrop, title, Gold, ledge, Re-roll, Inspect toggle) lives in
+   runeforgeEntrance/runeforgeLook.css since the 2026-10-07 redesign. Only the shared row sizing stays here. ── */
+.forge-cards { display: flex; gap: calc(var(--rfl-card-gap, 26) * var(--u)); justify-content: center; align-items: stretch; }
 /* Card size for the Runeforge specifically — the compound selector (both classes) out-specifies the shared
    `.disc-cards` rule above without touching it, so Discover/Quest's own 1.3 stays exactly as shipped. The
    `--rfl-card-scale` default (1.3) reproduces that same multiplier. */
@@ -3019,119 +2962,15 @@ body.modalup .app { z-index: auto; }
   --ccw: calc(var(--cw) * 0.85);
 }
 /* Re-roll — a chiseled button row under the rune tablets (the player must pick a rune; there is no leave button, owner 2026-09-15). */
-.forge-actions {
-  display: flex; align-items: center; justify-content: center; gap: calc(14 * var(--u));
-  margin-top: calc(18 * var(--u) + var(--rfl-footer-y, -3) * var(--u));
-  transform: scale(var(--rfl-footer-scale, 1.18)); transform-origin: top center;
-}
+.forge-actions { display: flex; align-items: center; justify-content: center; gap: calc(14 * var(--u)); transform-origin: top center; }
 /* Re-roll — the once-per-visit gold-spend. */
-.forge-reroll { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #4a3208; background: linear-gradient(#ffe293, #eab63f 62%, #d79b2c); border: 2px solid #8a6414; padding: calc(8 * var(--u)) calc(18 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.35); }
-.forge-reroll:hover:not(:disabled) { filter: brightness(1.06); }
-.forge-reroll:disabled { opacity: 0.45; filter: saturate(0.7); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.forge-reroll svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: #4a3208; }
-.forge-reroll .forge-reroll-cost { color: #3a2706; }
+.forge-reroll:disabled { opacity: 0.45; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 /* Spent: the button keeps its box (so the centred panel does not re-flow and drop the rune row) but is invisible
    and inert. `visibility` rather than `opacity` so it also leaves the accessibility tree and hover/cursor. */
 .forge-reroll.forge-reroll-spent { visibility: hidden; pointer-events: none; }
 
-/* RUNE TABLET, in the Gem plate language (owner ask 2026-10-07: "use our new ui style to make the runes more
-   uniform"). Full-bleed art inside the Gem plate's gold gradient EDGE, the shared Gold cost coin overhanging the
-   top-left, a darkened crown for the kicker + name, and the rules text on a Gem plate panel with filigree studs at
-   its ends (the Health pill's studs). EVERY colour is a `--ui-*` theme token (uiTheme.css), so a rune reskins with
-   the selected UI theme like the HUD pills and tooltips do. The one literal is the Epic GEM (`--rune-epic-*`), a
-   rarity colour like the tier colours, so Epic reads as Epic in every theme.
-   BASIC vs EPIC is one design at two ranks, not two systems: the Epic adds a second, outer gold rim and turns the
-   panel's studs into violet cut gems. Static paint throughout; the hover is a one-shot transition. */
-.runecard {
-  --c: var(--ui-edge-main); /* the accent the entrance FX + lock-in read; follows the theme */
-  --rune-epic-hi: #f1dcff; --rune-epic: #b078e6; --rune-epic-deep: #5b2f8a;
-  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62);
-  display: flex; flex-direction: column; text-align: center; padding: 0; border: 2px solid transparent; border-radius: 15px; overflow: visible;
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box; font-family: var(--font-ui);
-  /* Rune card TEXT SCALE (owner ask 2026-10-07: "increase the text size of all runes by 20%"): the kicker label
-     and the rules text multiply their font size by this one token. The NAME scales through the Runeforge Look
-     tuner's `--rfl-name-scale` instead (shipped default raised x1.2, 1.12 to 1.34), so it is not scaled twice. */
-  --runecard-text-scale: 1.2;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 12px 26px -10px rgba(0, 0, 0, 0.75);
-}
-/* The inner ring + bevel, drawn OVER the art (an inset shadow on the button itself would paint under it). */
-.runecard::after {
-  content: ''; position: absolute; inset: 0; border-radius: 13px; z-index: 3; pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 2px var(--ui-ring), var(--ui-bevel);
-}
-.runecard:hover:not(:disabled) {
-  transform: translateY(-8px); filter: brightness(1.05);
-  box-shadow: 0 0 0 1px var(--ui-edge-hi), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 34px -6px color-mix(in srgb, var(--ui-title) 70%, transparent);
-}
-.runecard.cantafford { cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; filter: grayscale(0.5) brightness(0.68); }
-.runecard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
-/* The crown: a soft dark fall-off under the kicker + name, so white type reads on any art. */
-.runecard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.3) 46%, rgba(0, 0, 0, 0) 100%); z-index: 1; pointer-events: none; }
-/* Gold coin cost: the SHARED coin skin (`.hpcost, .cost, .runecard-cost` near the top of this file, #1971), seated
-   over the top-left corner. x/y/scale nudges stay RAW px (no --u): this component's geometry is raw px. */
-.runecard-cost {
-  top: calc(-16px + var(--rfl-cost-y, 4) * 1px); left: calc(-14px + var(--rfl-cost-x, 6) * 1px);
-  width: 52px; height: 52px; border-width: 3px;
-  transform: scale(var(--rfl-cost-scale, 1.18));
-}
-.runecard-cost .costn { font-size: 25px; }
-.runecard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
-/* TRIBE ACCENT (owner 2026-10-07: "text for the runes should follow the tribe colors"). RuneCard sets `--rt` to the
-   rune's accent tribe hue (`var(--t-<tribe>)`, the token every card of that tribe wears; neutral for ungated runes),
-   and the kicker + the bold rules terms take it, exactly as a card's bold terms take its `--c`. */
-.runecard-kicker { font-family: var(--font-ui); font-weight: 800; font-size: calc(12px * var(--runecard-text-scale, 1)); letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--rt, var(--t-neutral)) 72%, var(--ui-text)); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
-.runecard-name { font-family: var(--font-title); font-weight: 800; font-size: calc(22px * var(--rfl-name-scale, 1.34)); line-height: 1.05; color: var(--ui-text); text-shadow: 0 2px 7px rgba(0, 0, 0, 0.85); margin-top: 3px; }
-.runecard-body { position: relative; z-index: 4; margin-top: auto; padding: 12px; display: flex; flex-direction: column; }
-/* The rules panel: a Gem plate (sheen, plate, gold edge, ring, bevel) with a filigree stud at each end. */
-.runecard-sect {
-  position: relative; border: 1px solid transparent; border-radius: 10px; padding: 8px 11px;
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
-}
-.runecard-sect::before, .runecard-sect::after {
-  content: ''; position: absolute; top: 50%; width: 7px; height: 7px;
-  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-  transform: translateY(-50%) rotate(45deg); pointer-events: none;
-}
-.runecard-sect::before { left: -5px; }
-.runecard-sect::after { right: -5px; }
-.runecard-txt { font-weight: 700; font-size: calc(13px * var(--runecard-text-scale, 1)); line-height: 1.26; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); overflow-wrap: anywhere; text-align: left; }
-.runecard-txt b { color: var(--rt, var(--ui-title)); font-weight: 800; }
-/* Dragon's hue is white (= the body text), so its terms wear the cards' static pastel halo instead. */
-.runecard[data-tribe="dragon"] .runecard-txt b { text-shadow: -1px 0 2px rgba(255, 150, 190, 0.6), 1px 0 2px rgba(150, 200, 255, 0.6), 0 -1px 2px rgba(160, 255, 190, 0.55), 0 1px 2px rgba(255, 225, 150, 0.55), 0 0 7px rgba(210, 175, 255, 0.5); }
-.runecard-lock { position: relative; z-index: 6; margin: 0 12px 11px; font-weight: 800; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-warn); }
-/* EPIC: a second, outer gold rim (a dark gap, then the theme's lit edge) and violet cut-gem studs. */
-.runecard-epic { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 0 4px var(--ui-edge-main), 0 0 0 5px var(--ui-edge-deep), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 22px -6px color-mix(in srgb, var(--rune-epic) 60%, transparent); }
-.runecard-epic:hover:not(:disabled) { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6), 0 0 0 4px var(--ui-edge-hi), 0 0 0 5px var(--ui-edge-main), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 38px -4px color-mix(in srgb, var(--rune-epic) 80%, transparent); }
-.runecard-epic .runecard-sect::before, .runecard-epic .runecard-sect::after {
-  width: 9px; height: 9px; background: linear-gradient(135deg, var(--rune-epic-hi), var(--rune-epic) 55%, var(--rune-epic-deep)); border-color: var(--ui-edge-deep);
-}
-.runecard-epic .runecard-sect::before { left: -6px; }
-.runecard-epic .runecard-sect::after { right: -6px; }
-.forge-ov.forge-epic .forge-banner .disp { color: var(--rfl-epic-title-col, #efe0ff); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 -1px 1px rgba(0, 0, 0, 0.6), 0 0 22px rgba(176, 120, 230, 0.6); }
-.forge-ov.forge-epic .forge-banner svg { color: var(--rfl-epic-icon-col, #cda6f2); }
+/* RUNE TABLET + RUNE RACK BADGE: the socketed-rune look lives in runeSocket.css (owner 2026-10-07). */
 
-/* Rune run-buff badge (in the quest-badge row above the hero) — a stone-toned circle. */
-/* Owner report 2026-08-01: a bought rune "wasn't showing" above the hero — it WAS rendering, but at the
-   quest-badge size (53u) a single stone-toned rune read as an unlabeled dark dot against the board frame.
-   The strip was tuned (#410) for ROWS of colorful quest badges; with quests off it holds 1–3 runes, so a
-   rune badge gets real presence: ~1.85× the quest size + a brighter rim and a STATIC soft glow (a shadow,
-   not a looping paint animation — perf rule). The opponent-frame override below (.oppbadges .questbadge,
-   34u) is later in the file and still wins there, so enemy-rune chips stay small. */
-/* Same NODE SIZE as a quest badge (owner 2026-08-03 — runes were 98u vs quests' 53u, so the rows read as
-   two different systems and the taller nodes fattened the row). Only the stone colouring differs now. */
-/* The rune rack badge in the Gem plate language (owner ask 2026-10-07: runes made uniform): the same gold gradient
-   EDGE a rune card wears (2px), over the theme plate, with the plate's dark ring. An EPIC rune adds the card's second
-   outer gold rim and a violet halo, so the rack reads Basic vs Epic the way the forge does. Static paint. */
-.questbadge.runebadge {
-  border: 2px solid transparent; background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow);
-}
-.questbadge.runebadge.runebadge-epic {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 3px var(--ui-edge-main), 0 0 0 4px var(--ui-edge-deep), 0 0 calc(12 * var(--u)) -2px rgba(176, 120, 230, 0.7), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow);
-}
-.questbadge.runebadge .questbadge-emblem { color: var(--ui-icon); }
 /* The slot is a pure layout wrapper now. Its old tribe-coloured ring + bloom (a static box-shadow plus a
    kwglow-animated `::before`) read as an outdated squared glow behind the offer cards and is removed across
    ALL offer overlays — Choose One, Discover, Scouted (owner ask 2026-08-19). A card carries its own affordance

@@ -78,6 +78,7 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
                     {rart
                       ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
                       : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
+                <span className="rune-setting" aria-hidden><i className="rp rp-tl" /><i className="rp rp-tr" /><i className="rp rp-bl" /><i className="rp rp-br" /></span>
                   </div>
                   <div className="questbadge-tip" role="tooltip">
                     <b>{rune.name}</b>

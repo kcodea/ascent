@@ -1,0 +1,210 @@
+/* ══ THE RUNE, SOCKETED (owner 2026-10-07: "i want the runes to feel more like they are socketed into something ...
+   these are runes forged in a magic forge"). ══════════════════════════════════════════════════════════════════════
+
+   A rune card and a rune rack badge are ONE object at two sizes: the rune's art set INTO a recess in a forged
+   SETTING, not ringed by a bezel. The pieces, shared by both:
+     · the setting (`--rs-metal`): the material the card / badge face is made of;
+     · the recess: the art inset by the setting's thickness (`--rk`), with a deep inner shadow on top of it (`::after`
+       on the card, the `.rune-setting` span on a badge);
+     · the seam: a hairline of forge light where the rune meets its setting (`.rune-setting`'s outer glow);
+     · the prongs (`.rp`): four claws gripping the rune's corners;
+     · the rules plaque: a recessed plate riveted onto the setting.
+   BASIC vs EPIC is a plainer vs a richer setting of the same design (iron vs gilded, gems in the prongs).
+
+   MOCKUP STAGE: two directions live side by side for the owner to pick. A (the default) is FORGED IRON with ember
+   seams and claw prongs; B (`:root[data-rune-socket="b"]`) is a CARVED RUNESTONE with arcane seams and an arched
+   recess. The losing direction is deleted once picked.
+
+   Colours: the plaque, text and gilding read the `--ui-*` theme tokens, so a rune reskins with the UI theme; the
+   iron, the stone, the seam light and the Epic gem are material colours (literal), like the tier and tribe hues.
+   Static paint only: nothing here animates. */
+
+/* ── The card ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.runecard {
+  --rk: 8px;                                           /* the setting's thickness: how far the art sits in */
+  --rs-seam: 255, 138, 56;                             /* forge light in the seam */
+  --rs-metal:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 32%, rgba(0, 0, 0, 0.28) 72%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 1px, rgba(255, 255, 255, 0) 1px 3px),
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 12%, #5a5c64), color-mix(in srgb, var(--ui-plate-mid) 12%, #34363d) 50%, color-mix(in srgb, var(--ui-plate-bot) 12%, #1c1d22));
+  --rs-prong: linear-gradient(135deg, #c4c6cf, #7a7c86 45%, #3a3b42);
+  --rune-epic-hi: #f1dcff; --rune-epic: #b078e6; --rune-epic-deep: #5b2f8a;
+  --c: var(--ui-edge-main);                            /* the accent the entrance FX + lock-in read */
+  --runecard-text-scale: 1.2;                          /* owner 2026-10-07: rune text +20% (see .runecard-txt) */
+  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62);
+  display: flex; flex-direction: column; text-align: center; padding: 0; border: none; border-radius: 14px; overflow: visible;
+  background: var(--rs-metal); font-family: var(--font-ui);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.75), 0 12px 26px -10px rgba(0, 0, 0, 0.8);
+}
+.runecard:hover:not(:disabled) {
+  transform: translateY(-8px); filter: brightness(1.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.75), 0 18px 32px -10px rgba(0, 0, 0, 0.8), 0 0 30px -6px rgba(var(--rs-seam), 0.65);
+}
+.runecard.cantafford { cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; filter: grayscale(0.5) brightness(0.68); }
+.runecard-art {
+  position: absolute; inset: var(--rk); width: calc(100% - 2 * var(--rk)); height: calc(100% - 2 * var(--rk));
+  object-fit: cover; object-position: center 32%; border-radius: 8px; z-index: 0;
+}
+/* The crown: a dark fall-off under the kicker + name, inside the recess. */
+.runecard::before {
+  content: ''; position: absolute; top: var(--rk); left: var(--rk); right: var(--rk); height: 46%; border-radius: 8px 8px 0 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.3) 46%, rgba(0, 0, 0, 0) 100%);
+}
+/* The recess: the art sits BELOW the setting, so its edge falls into shadow. */
+.runecard::after {
+  content: ''; position: absolute; inset: var(--rk); border-radius: 8px; z-index: 3; pointer-events: none;
+  box-shadow: inset 0 5px 9px rgba(0, 0, 0, 0.85), inset 0 -2px 5px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.9);
+}
+/* The seam: forge light where the rune meets the metal. */
+.runecard .rune-setting {
+  position: absolute; inset: calc(var(--rk) - 1px); border-radius: 9px; z-index: 5; pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(var(--rs-seam), 0.7), 0 0 8px 1px rgba(var(--rs-seam), 0.4);
+}
+/* The prongs: four claws over the rune's corners, gripping it into the setting. */
+.rune-setting .rp {
+  position: absolute; width: 20px; height: 20px;
+  background: radial-gradient(circle at 34% 34%, rgba(255, 255, 255, 0.55) 0 1.5px, rgba(255, 255, 255, 0) 2.5px), var(--rs-prong);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+}
+.runecard .rune-setting .rp-tl { left: -3px; top: -3px; }
+.runecard .rune-setting .rp-tr { right: -3px; top: -3px; transform: rotate(90deg); }
+.runecard .rune-setting .rp-br { right: -3px; bottom: -3px; transform: rotate(180deg); }
+.runecard .rune-setting .rp-bl { left: -3px; bottom: -3px; transform: rotate(270deg); }
+
+/* Gold coin cost: the SHARED coin skin (`.hpcost, .cost, .runecard-cost` in styles.css, #1971), seated over the
+   top-left corner. x/y/scale nudges stay RAW px (no --u): this component's geometry is raw px. */
+.runecard-cost {
+  top: calc(-16px + var(--rfl-cost-y, 4) * 1px); left: calc(-14px + var(--rfl-cost-x, 6) * 1px);
+  width: 52px; height: 52px; border-width: 3px; pointer-events: auto; /* the pivot-discount coin carries a hover tip */
+  transform: scale(var(--rfl-cost-scale, 1.18));
+}
+.runecard-cost .costn { font-size: 25px; }
+
+/* Type. TRIBE ACCENT (owner 2026-10-07: "text for the runes should follow the tribe colors"): RuneCard sets `--rt` to
+   the rune's accent tribe hue (`var(--t-<tribe>)`, the token every card of that tribe wears; neutral for ungated
+   runes), and the kicker + bold rules terms take it, as a card's bold terms take its `--c`.
+   TEXT SCALE (owner 2026-10-07: "increase the text size of all runes by 20%"): the kicker and rules text multiply by
+   `--runecard-text-scale`; the name scales through the Runeforge Look tuner's `--rfl-name-scale` (1.12 to 1.34). */
+.runecard-head { position: relative; z-index: 4; padding: 34px 14px 0; text-align: center; }
+.runecard-kicker { font-family: var(--font-ui); font-weight: 800; font-size: calc(12px * var(--runecard-text-scale, 1)); letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--rt, var(--t-neutral)) 72%, var(--ui-text)); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.runecard-name { font-family: var(--font-title); font-weight: 800; font-size: calc(22px * var(--rfl-name-scale, 1.34)); line-height: 1.05; color: var(--ui-text); text-shadow: 0 2px 7px rgba(0, 0, 0, 0.85); margin-top: 3px; }
+.runecard-body { position: relative; z-index: 4; margin-top: auto; padding: 14px; display: flex; flex-direction: column; }
+/* The rules plaque: a recessed plate riveted onto the setting (a rivet in each corner, painted as background layers). */
+.runecard-sect {
+  --rv: radial-gradient(circle, #c9c9d0 0 1px, #5d5d66 1.6px 2.4px, rgba(0, 0, 0, 0) 3px);
+  position: relative; border: 1px solid rgba(0, 0, 0, 0.8); border-radius: 7px; padding: 9px 13px;
+  background:
+    var(--rv) left 3px top 3px / 7px 7px no-repeat, var(--rv) right 3px top 3px / 7px 7px no-repeat,
+    var(--rv) left 3px bottom 3px / 7px 7px no-repeat, var(--rv) right 3px bottom 3px / 7px 7px no-repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 40%),
+    var(--ui-plate);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 0 1px rgba(var(--rs-seam), 0.25);
+}
+.runecard-txt { font-weight: 700; font-size: calc(13px * var(--runecard-text-scale, 1)); line-height: 1.26; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); overflow-wrap: anywhere; text-align: left; }
+.runecard-txt b { color: var(--rt, var(--ui-title)); font-weight: 800; }
+/* Dragon's hue is white (= the body text), so its terms wear the cards' static pastel halo instead. */
+.runecard[data-tribe="dragon"] .runecard-txt b { text-shadow: -1px 0 2px rgba(255, 150, 190, 0.6), 1px 0 2px rgba(150, 200, 255, 0.6), 0 -1px 2px rgba(160, 255, 190, 0.55), 0 1px 2px rgba(255, 225, 150, 0.55), 0 0 7px rgba(210, 175, 255, 0.5); }
+/* Neutral's hue is a dull taupe on the dark plaque; neutral terms take the theme's gold instead. */
+.runecard[data-tribe="neutral"] .runecard-txt b { color: var(--ui-title); }
+.runecard-lock { position: relative; z-index: 6; margin: 0 12px 11px; font-weight: 800; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-warn); }
+
+/* EPIC: a GILDED setting in the theme's gold, violet arcane light in the seam, a gem set in each prong. */
+.runecard-epic {
+  --rk: 9px;
+  --rs-seam: 190, 128, 255;
+  --rs-metal:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0.3) 75%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.07) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    linear-gradient(180deg, var(--ui-edge-hi), var(--ui-edge-main) 30%, var(--ui-edge-deep) 70%, var(--ui-edge-main));
+  --rs-prong: linear-gradient(135deg, var(--ui-edge-hi), var(--ui-edge-main) 50%, var(--ui-edge-deep));
+}
+.runecard-epic .runecard-sect { --rv: radial-gradient(circle, var(--rune-epic-hi) 0 1px, var(--rune-epic) 1.6px 2.4px, rgba(0, 0, 0, 0) 3px); }
+.runecard-epic .rune-setting .rp {
+  width: 22px; height: 22px;
+  background: radial-gradient(circle at 32% 32%, var(--rune-epic-hi) 0 1px, var(--rune-epic) 2px 3px, var(--rune-epic-deep) 3.6px, rgba(0, 0, 0, 0) 4.2px), var(--rs-prong);
+}
+
+/* ── The rack badge: the same socket, small ──────────────────────────────────────────────────────────────── */
+.questbadge.runebadge {
+  --rk: calc(5 * var(--u));
+  --rs-seam: 255, 138, 56;
+  --rs-prong: linear-gradient(135deg, #c4c6cf, #7a7c86 45%, #3a3b42);
+  border: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 35%, rgba(0, 0, 0, 0.3) 75%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 25%, #4d4d55), color-mix(in srgb, var(--ui-plate-bot) 25%, #18181d));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 3px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.75), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow);
+}
+.questbadge.runebadge .questbadge-art { position: absolute; inset: var(--rk); width: calc(100% - 2 * var(--rk)); height: calc(100% - 2 * var(--rk)); }
+.questbadge.runebadge .rune-setting {
+  position: absolute; inset: var(--rk); border-radius: 50%; pointer-events: none; z-index: 3;
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(var(--rs-seam), 0.7), 0 0 5px 1px rgba(var(--rs-seam), 0.4);
+}
+/* Four claws at the diagonals, reaching over the stone's rim toward its centre. */
+.questbadge.runebadge .rune-setting .rp { width: calc(10 * var(--u)); height: calc(10 * var(--u)); }
+.questbadge.runebadge .rune-setting .rp-tl { left: 14.6%; top: 14.6%; transform: translate(-50%, -50%) rotate(0deg); }
+.questbadge.runebadge .rune-setting .rp-tr { right: 14.6%; top: 14.6%; transform: translate(50%, -50%) rotate(90deg); }
+.questbadge.runebadge .rune-setting .rp-br { right: 14.6%; bottom: 14.6%; transform: translate(50%, 50%) rotate(180deg); }
+.questbadge.runebadge .rune-setting .rp-bl { left: 14.6%; bottom: 14.6%; transform: translate(-50%, 50%) rotate(270deg); }
+.questbadge.runebadge .questbadge-emblem { color: var(--ui-icon); }
+.questbadge.runebadge.runebadge-epic {
+  --rs-seam: 190, 128, 255;
+  --rs-prong: linear-gradient(135deg, var(--ui-edge-hi), var(--ui-edge-main) 50%, var(--ui-edge-deep));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0.3) 75%),
+    linear-gradient(180deg, var(--ui-edge-hi), var(--ui-edge-main) 35%, var(--ui-edge-deep) 75%, var(--ui-edge-main));
+}
+.questbadge.runebadge.runebadge-epic .rune-setting .rp {
+  background: radial-gradient(circle at 32% 32%, #f1dcff 0 1px, #b078e6 1.6px 2.4px, rgba(0, 0, 0, 0) 3px), var(--rs-prong);
+}
+
+/* ══ DIRECTION B: the CARVED RUNESTONE ═════════════════════════════════════════════════════════════════════════
+   The setting is dark slate with engraved rune marks along its top and bottom bands; the rune sits in an ARCHED
+   recess with cold arcane light in the seam; no claws. The Epic inlays gold along the seam and sets a violet gem in
+   each corner of the stone. */
+:root[data-rune-socket="b"] .runecard {
+  --rk: 11px;
+  --rs-seam: 120, 205, 255;
+  --rs-glyphs: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='11'%3E%3Cg fill='none' stroke='rgba(0,0,0,0.55)' stroke-width='1.3' stroke-linecap='round'%3E%3Cpath d='M4 2v7M4 2l3 3M4 5l3 3'/%3E%3Cpath d='M13 9V2l4 3.5L13 9'/%3E%3Cpath d='M22 2v7M22 4l3-2M22 7l3-2'/%3E%3Cpath d='M30 2l3 7M33 2l-3 7'/%3E%3C/g%3E%3C/svg%3E");
+  --rs-metal:
+    var(--rs-glyphs) 0 0 / 36px 11px repeat-x, var(--rs-glyphs) 18px 100% / 36px 11px repeat-x,
+    radial-gradient(60% 40% at 22% 18%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(50% 35% at 80% 75%, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0) 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 20%, #535a66), color-mix(in srgb, var(--ui-plate-mid) 20%, #333843) 55%, color-mix(in srgb, var(--ui-plate-bot) 20%, #1d2028));
+  border-radius: 12px;
+}
+:root[data-rune-socket="b"] .runecard-art,
+:root[data-rune-socket="b"] .runecard::after { border-radius: 46% 46% 8px 8px / 22% 22% 8px 8px; }
+:root[data-rune-socket="b"] .runecard::before { border-radius: 46% 46% 0 0 / 48% 48% 0 0; }
+:root[data-rune-socket="b"] .runecard .rune-setting { border-radius: 46% 46% 9px 9px / 22% 22% 9px 9px; }
+:root[data-rune-socket="b"] .rune-setting .rp { display: none; }
+:root[data-rune-socket="b"] .runecard-sect {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 40%), var(--ui-plate);
+  border-radius: 6px; box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(var(--rs-seam), 0.35), 0 0 8px rgba(var(--rs-seam), 0.18);
+}
+:root[data-rune-socket="b"] .runecard-epic {
+  --rs-seam: 190, 128, 255;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.75), 0 0 0 3px var(--ui-edge-main), 0 0 0 4px var(--ui-edge-deep), 0 12px 26px -10px rgba(0, 0, 0, 0.8);
+}
+/* The Epic's gold inlay: a gilded line just outside the seam, then the violet light. */
+:root[data-rune-socket="b"] .runecard-epic .rune-setting { box-shadow: 0 0 0 1px var(--ui-edge-hi), 0 0 0 2px var(--ui-edge-deep), 0 0 9px 2px rgba(var(--rs-seam), 0.5); }
+:root[data-rune-socket="b"] .runecard-epic .rune-setting .rp {
+  display: block; width: 9px; height: 9px; clip-path: none; border-radius: 50%; filter: none;
+  background: radial-gradient(circle at 35% 30%, #f1dcff, #b078e6 55%, #5b2f8a); box-shadow: 0 0 0 1.5px var(--ui-edge-main), 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+:root[data-rune-socket="b"] .runecard-epic .rune-setting .rp-tl { left: -8px; top: -8px; transform: none; }
+:root[data-rune-socket="b"] .runecard-epic .rune-setting .rp-tr { right: -8px; top: -8px; transform: none; }
+:root[data-rune-socket="b"] .runecard-epic .rune-setting .rp-br { right: -8px; bottom: -8px; transform: none; }
+:root[data-rune-socket="b"] .runecard-epic .rune-setting .rp-bl { left: -8px; bottom: -8px; transform: none; }
+/* B badge: a slate disc, the stone deep in it, arcane seam; Epic gets the gold inlay ring. */
+:root[data-rune-socket="b"] .questbadge.runebadge {
+  --rk: calc(6 * var(--u)); --rs-seam: 120, 205, 255;
+  background:
+    radial-gradient(60% 40% at 30% 20%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 20%, #535a66), color-mix(in srgb, var(--ui-plate-bot) 20%, #1d2028));
+}
+:root[data-rune-socket="b"] .questbadge.runebadge .rune-setting .rp { display: none; }
+:root[data-rune-socket="b"] .questbadge.runebadge.runebadge-epic { --rs-seam: 190, 128, 255; background: radial-gradient(60% 40% at 30% 20%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 70%), linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 20%, #535a66), color-mix(in srgb, var(--ui-plate-bot) 20%, #1d2028)); }
+:root[data-rune-socket="b"] .questbadge.runebadge.runebadge-epic .rune-setting { box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--ui-edge-hi), 0 0 0 2px var(--ui-edge-deep), 0 0 6px 1px rgba(var(--rs-seam), 0.55); }

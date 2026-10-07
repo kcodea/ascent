@@ -136,6 +136,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
           cache. So the clone mounted, painted one frame of empty card, and only then showed the art: a blink
           precisely at the hand-off, on the card the eye is following. */}
       {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
+      {/* The SETTING the rune is socketed into (owner 2026-10-07: "runes forged in a magic forge", socketed into
+          something): the recess's seam glow and the four prongs gripping the art. Pure decoration. */}
+      <span className="rune-setting" aria-hidden><i className="rp rp-tl" /><i className="rp rp-tr" /><i className="rp rp-bl" /><i className="rp rp-br" /></span>
       {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
       <span className={`runecard-cost${discounted ? ' discounted gtip' : ''}`} aria-label={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`} data-tip={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : undefined}><span className="costn">{shownCost}</span></span>
       <div className="runecard-head">

@@ -112,6 +112,7 @@ export function OpponentFrame() {
                 {rart
                   ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
                   : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
+                <span className="rune-setting" aria-hidden><i className="rp rp-tl" /><i className="rp rp-tr" /><i className="rp rp-bl" /><i className="rp rp-br" /></span>
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>
                   <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />

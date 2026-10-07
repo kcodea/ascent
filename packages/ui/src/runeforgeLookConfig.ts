@@ -48,6 +48,9 @@ export interface RuneforgeLookConfig {
   // Minimize toggle ("Inspect the board")
   toggleY: number;      // u
   toggleScale: number;  // ×
+
+  // Backdrop
+  bgOption: number;     // 1 deep violet · 2 warm forge · 3 tribe wash (the blurred board's colour grade)
 }
 
 /** Owner-tunable; these mirror the CSS fallbacks in runeforgeLook.css / the `.runecard*` rules, so production paints
@@ -75,6 +78,8 @@ const DEFAULTS: RuneforgeLookConfig = {
 
   toggleY: 160,
   toggleScale: 1.2,
+
+  bgOption: 1,
 };
 
 export { DEFAULTS as RUNEFORGE_LOOK_DEFAULTS };
@@ -103,6 +108,8 @@ const RANGES: Record<keyof RuneforgeLookConfig, [number, number, number]> = {
 
   toggleY: [-200, 200, 1],
   toggleScale: [0.5, 2, 0.01],
+
+  bgOption: [1, 3, 1],
 };
 
 const KEY = 'ascent.runeforgeLook.v2';
@@ -147,6 +154,8 @@ export function applyRuneforgeLookVars(): void {
   s.setProperty('--rfl-footer-scale', String(cfg.footerScale));
   s.setProperty('--rfl-toggle-y', String(cfg.toggleY));
   s.setProperty('--rfl-toggle-scale', String(cfg.toggleScale));
+  // The backdrop grade is an attribute, not a var: each option is its own gradient stack (runeforgeLook.css).
+  document.documentElement.dataset.rfBg = String(cfg.bgOption);
 }
 
 export function setRuneforgeLookValue(key: keyof RuneforgeLookConfig, value: number | string): void {
@@ -192,6 +201,8 @@ const controls: TunerControl<Extract<keyof RuneforgeLookConfig, string>>[] = [
 
   r('toggleY', 'Toggle Y offset', 'Minimize Toggle', 'px', 'Vertical offset of the "Inspect the board" toggle.'),
   r('toggleScale', 'Toggle scale', 'Minimize Toggle', '×', 'Scales the minimize toggle button.'),
+
+  r('bgOption', 'Backdrop option', 'Backdrop', undefined, 'The blurred board behind the forge: 1 deep violet, 2 warm forge glow, 3 a wash of the offered runes tribe colours.'),
 ];
 
 export const SPEC: TunerSpec<RuneforgeLookConfig> = {

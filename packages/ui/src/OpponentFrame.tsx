@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { runeAccentTribe } from './RuneCard';
 import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { questArt, runeArt } from './art';
@@ -108,11 +109,10 @@ export function OpponentFrame() {
             const rune = RUNE_INDEX[id]!;
             const rart = runeArt(rune.id);
             return (
-              <div className={`questbadge runebadge${rune.epic ? ' runebadge-epic' : ''}`} key={`r:${id}`}>
+              <div className={`questbadge runebadge${rune.epic ? ' runebadge-epic' : ''}`} data-tribe={runeAccentTribe(rune)} style={{ '--rt': `var(--t-${runeAccentTribe(rune)})` } as React.CSSProperties} key={`r:${id}`}>
                 {rart
                   ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
                   : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
-                <span className="rune-setting" aria-hidden />
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>
                   <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />

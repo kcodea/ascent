@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import type { Keyword, QuestReward, RuneDef, Tribe } from '@game/core';
 import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
+import { Icon } from './Icon';
 import { runeArt } from './art';
 import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
@@ -129,21 +130,21 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name}: buy for ${shownCost} Gold`}
     >
-      {/* `decoding="sync"`: paint the art WITH the card in the same frame, the same reason `Card.tsx` does it.
-          This is what the lock-in ceremony's flicker was (owner report 2026-08-31: "there's still a slight
-          rebuilding of the runes and then it centers"). The ceremony re-renders every card as an inert CLONE
-          — a brand-new <img decoding="sync">, which by default decodes ASYNCHRONOUSLY even when the bytes are already in
-          cache. So the clone mounted, painted one frame of empty card, and only then showed the art: a blink
-          precisely at the hand-off, on the card the eye is following. */}
-      {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
-      {/* The SETTING the rune is socketed into (owner 2026-10-07: "runes forged in a magic forge", socketed into
-          something): the setting's warm inner glow, and on an Epic its two cabochon gems. Pure decoration. */}
-      <span className="rune-setting" aria-hidden>{rune.epic && <><i className="rg rg-l" /><i className="rg rg-r" /></>}</span>
-      {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
+      {/* THE RUNE CARD (owner reference 2026-10-07, built only from the game's UI primitives): a tall, tribe-tinted
+          Gem plate with a gold rim, its round medallion art in a glowing window at the top, the Gold coin centred on
+          the top edge, the name over a small divider, and the rules beneath (runeCard.css).
+          `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new <img>s; an
+          async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
+      <span className="runecard-face" aria-hidden />
+      <span className="runecard-window" aria-hidden>
+        {art
+          ? <img className="runecard-art" src={art} alt="" decoding="sync" />
+          : <span className="runecard-art runecard-noart"><Icon name="engrave" /></span>}
+      </span>
       <span className={`runecard-cost${discounted ? ' discounted gtip' : ''}`} aria-label={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`} data-tip={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : undefined}><span className="costn">{shownCost}</span></span>
       <div className="runecard-head">
-        <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>
         <div className="runecard-name">{rune.name}</div>
+        <span className="runecard-divider" aria-hidden />
       </div>
       <div className="runecard-body">
         <div className="runecard-sect">

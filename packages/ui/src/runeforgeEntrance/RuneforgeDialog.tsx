@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { RUNE_INDEX } from '@game/content';
 import { Icon } from '../Icon';
-import { RuneCard } from '../RuneCard';
+import { RuneCard, runeAccentTribe } from '../RuneCard';
 import { prefersReducedMotion, runEntrance, type EntranceHandle } from './entrance';
 import './runeforgeEntrance.css';
 import './runeforgeLook.css';
@@ -54,46 +54,34 @@ export function resetRuneforgeEntranceMemoForTests(): void {
 }
 
 /**
- * THE AMBIENT MOTES (owner ask 2026-10-07: "some moving dust/etc in there to make it feel a bit more alive"): a FIXED
- * table, so the scene is identical every opening, and modest (18). Each is a CSS transform + opacity rise
- * (runeforgeLook.css), compositor-only. `x` lane %, `t` rise seconds, `d` delay (negative: already mid-flight on
- * open), `dx` sideways drift px, `sz` px, `o` peak opacity.
+ * THE EMBERS (owner 2026-10-07: "the rising dots are okay but they are tiny and too few"): 60 warm sparks of mixed
+ * size rising through the forge, a few of them big soft bokeh glows. A FIXED table (a tiny LCG, so the scene is the
+ * same every opening) of CSS transform + opacity rises (runeforgeLook.css), compositor-only. `x` lane %, `t` rise
+ * seconds, `d` delay (negative: already mid-flight on open), `dx` sideways drift px, `sz` px, `o` peak opacity,
+ * `b` bokeh (a big, soft, dim one).
  */
-const MOTES: readonly { x: number; t: number; d: number; dx: number; sz: number; o: number }[] = [
-  { x: 6, t: 15, d: -2, dx: 30, sz: 4, o: 0.7 }, { x: 13, t: 19, d: -11, dx: -24, sz: 3, o: 0.55 },
-  { x: 19, t: 13, d: -6, dx: 18, sz: 5, o: 0.8 }, { x: 26, t: 21, d: -15, dx: -36, sz: 3, o: 0.5 },
-  { x: 32, t: 16, d: -9, dx: 26, sz: 4, o: 0.65 }, { x: 38, t: 23, d: -3, dx: -14, sz: 2, o: 0.5 },
-  { x: 44, t: 14, d: -12, dx: 34, sz: 4, o: 0.75 }, { x: 50, t: 18, d: -7, dx: -28, sz: 3, o: 0.6 },
-  { x: 56, t: 20, d: -16, dx: 20, sz: 5, o: 0.7 }, { x: 61, t: 15, d: -4, dx: -32, sz: 3, o: 0.55 },
-  { x: 67, t: 22, d: -10, dx: 16, sz: 4, o: 0.65 }, { x: 73, t: 13, d: -1, dx: -20, sz: 3, o: 0.7 },
-  { x: 79, t: 19, d: -13, dx: 30, sz: 4, o: 0.6 }, { x: 85, t: 16, d: -8, dx: -26, sz: 5, o: 0.75 },
-  { x: 91, t: 21, d: -5, dx: 22, sz: 3, o: 0.5 }, { x: 96, t: 17, d: -14, dx: -18, sz: 4, o: 0.6 },
-  { x: 35, t: 25, d: -19, dx: 40, sz: 2, o: 0.45 }, { x: 64, t: 24, d: -21, dx: -40, sz: 2, o: 0.45 },
-];
+const EMBERS: readonly { x: number; t: number; d: number; dx: number; sz: number; o: number; b: boolean }[] = (() => {
+  let seed = 7;
+  const r = (): number => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  return Array.from({ length: 60 }, (_, i) => {
+    const b = i % 7 === 3;
+    return {
+      x: Math.round(r() * 1000) / 10,
+      t: Math.round((b ? 16 : 9) + r() * 9),
+      d: -Math.round(r() * 18 * 10) / 10,
+      dx: Math.round((r() - 0.5) * 90),
+      sz: b ? Math.round(18 + r() * 16) : Math.round(5 + r() * r() * 12),
+      o: b ? 0.28 : Math.round((0.55 + r() * 0.45) * 100) / 100,
+      b,
+    };
+  });
+})();
 
-/** THE STREAKS OF MAGIC (owner 2026-10-07: "streaks of magic to create a feeling of awe/magic in the air"): a fixed
- *  table of four soft arcs that now and then sweep across the forge and fade (runeforgeLook.css). `sx`/`sy` start %,
- *  `st` cycle seconds (visible ~20% of it), `sd` delay, `sr` tilt. */
-const STREAKS: readonly { sx: number; sy: number; st: number; sd: number; sr: number }[] = [
-  { sx: 6, sy: 18, st: 13, sd: -1, sr: -8 }, { sx: 52, sy: 10, st: 17, sd: -7, sr: 6 },
-  { sx: 14, sy: 62, st: 15, sd: -11, sr: 10 }, { sx: 48, sy: 70, st: 19, sd: -4, sr: -5 },
-];
-function Streak({ i }: { i: number }): JSX.Element {
-  const id = `rfsg-${i}`;
-  return (
-    <svg viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id={id} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" style={{ stopColor: 'rgb(var(--rf-streak))', stopOpacity: 0 }} />
-          <stop offset="0.55" style={{ stopColor: 'rgb(var(--rf-streak))', stopOpacity: 0.9 }} />
-          <stop offset="0.8" style={{ stopColor: '#fff', stopOpacity: 1 }} />
-          <stop offset="1" style={{ stopColor: 'rgb(var(--rf-streak))', stopOpacity: 0 }} />
-        </linearGradient>
-      </defs>
-      <path d="M0 80 Q 200 -10 400 40" fill="none" stroke={`url(#${id})`} strokeWidth="9" strokeLinecap="round" opacity="0.18" />
-      <path d="M0 80 Q 200 -10 400 40" fill="none" stroke={`url(#${id})`} strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
+/** Option 3's single colour wash: the blend of the offered runes' tribe hues (one nested color-mix, not per card). */
+function tribeWash(offer: readonly string[]): string | undefined {
+  const tribes = offer.map((id) => RUNE_INDEX[id]).filter((r) => !!r).map((r) => runeAccentTribe(r!));
+  if (tribes.length === 0) return undefined;
+  return tribes.slice(1).reduce((acc, t, i) => `color-mix(in srgb, ${acc} ${Math.round(((i + 1) / (i + 2)) * 100)}%, var(--t-${t}))`, `var(--t-${tribes[0]})`);
 }
 
 export interface RuneforgeDialogProps {
@@ -153,6 +141,7 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
     // `epic`/`occasion`/`speed` are fixed for one opening; the OFFER is what re-runs it (a re-roll).
   }, [offerSig]);
 
+  const wash = epic ? undefined : tribeWash(offer);
   return (
     <div
       ref={rootRef}
@@ -163,26 +152,28 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
       // tablets are pointer-events: none), so it skips without buying; a landed tablet also takes its click.
       onPointerDownCapture={() => { if (handleRef.current?.isRunning()) handleRef.current.skip(); }}
     >
-      {/* The stage: the forge glow, the streaks of magic and the rising embers (runeforgeLook.css). Inert. */}
-      <div className="rf-stage" aria-hidden="true">
-        <div className="rf-glow" />
-        {STREAKS.map((st, i) => (
-          <div key={`s${i}`} className="rf-streak" style={{ '--sx': `${st.sx}%`, '--sy': `${st.sy}%`, '--st': `${st.st}s`, '--sd': `${st.sd}s`, '--sr': `${st.sr}deg` } as CSSProperties}><Streak i={i} /></div>
-        ))}
+      {/* The stage: the live board, heavily blurred and colour-graded (one of three backdrop options, `data-rf-bg` on
+          <html>, the 🔨 Runeforge Look tuner's "Backdrop" dial), a soft light pool behind the cards, and the rising
+          embers (runeforgeLook.css). Inert. */}
+      <div className="rf-stage" aria-hidden="true" style={{ '--rf-wash': wash } as CSSProperties}>
+        <div className="rf-grade" />
+        <div className="rf-pool" />
         <div className="rf-motes">
-          {MOTES.map((m, i) => (
-            <span key={i} className="rf-mote" style={{ '--x': `${m.x}%`, '--t': `${m.t}s`, '--d': `${m.d}s`, '--dx': `${m.dx}px`, '--sz': `${m.sz}px`, '--o': m.o } as CSSProperties} />
+          {EMBERS.map((m, i) => (
+            <span key={i} className={`rf-mote${m.b ? ' rf-bokeh' : ''}`} style={{ '--x': `${m.x}%`, '--t': `${m.t}s`, '--d': `${m.d}s`, '--dx': `${m.dx}px`, '--sz': `${m.sz}px`, '--o': m.o } as CSSProperties} />
           ))}
         </div>
       </div>
       <div className="rfe-shade" aria-hidden="true" />
       <div className="disc-panel forge-panel">
-        {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
-        <div className="disc-banner forge-banner"><span className="disp">{epic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
-        {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
-            (owner ask 2026-07-16). Re-renders with every buy/re-roll. */}
-        <div className="forge-sub">Choose a Rune. It stays with you for the rest of the game.</div>
-        <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{embers}</b> Gold</div>
+        {/* The title: a Gem plate, with one short line beneath the name. */}
+        <div className="disc-banner forge-banner">
+          <span className="disp">{epic ? 'Epic Runeforge' : 'Runeforge'}</span>
+          <span className="rf-subtitle">Choose one rune to keep</span>
+        </div>
+        {/* The player's CURRENT Gold: the runes charge Gold, so the panel must say what's in the purse (owner ask
+            2026-07-16). Re-renders with every buy/re-roll. */}
+        <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{embers}</b></div>
         <div className="disc-cards forge-cards">
           {offer.map((id, i) => {
             const rune = RUNE_INDEX[id];
@@ -222,7 +213,7 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
             aria-description={rerollSpent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
             data-tip={rerollSpent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
           >
-            <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
+            <Icon name="refresh" /><span className="rf-rr"><span>Re-roll</span><b className="forge-reroll-cost">Free</b></span>
           </button>
         </div>
       </div>

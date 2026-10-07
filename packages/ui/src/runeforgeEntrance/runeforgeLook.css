@@ -1,162 +1,149 @@
-/* THE RUNEFORGE, redesigned (owner ask 2026-10-07: "a brand new look and feel to the runeforge ... more closely
-   follow our design changes and setup as of late ... the old png backdrop we use can be replaced if you're able to
-   build something better looking", "maybe some moving dust/etc in there to make it feel a bit more alive").
+/* THE RUNEFORGE (owner reference 2026-10-07, for composition, proportion and mood). Built ONLY from the game's own UI
+   system (owner HARD RULE 2026-10-07: never fake illustration with CSS/SVG drawings: no signs, chains, ribbons,
+   banners, daises, wood or metal textures, drawn props of any kind): a Gem plate title, the Gold pill, a row of tall
+   tribe-tinted rune cards over a soft light pool, a big blue Re-roll, Inspect beneath, and warm embers rising.
 
-   ONE calm stage in the Gem plate language, replacing the illustrated frame (`/runeforgebg2.webp`, kept in the repo,
-   no longer referenced):
-     · the BACKDROP is CSS: a deep vignette tinted from the UI theme's plate, and a low forge-glow pool rising behind
-       the tablets (warm ember on the Basic forge, violet on the Epic);
-     · drifting MOTES (embers on the Basic forge, violet sparks on the Epic) rising through the scene;
-     · the title, Gold, Re-roll and Inspect controls are Gem plates (sheen, plate, gold edge, ring, bevel, studs), so
-       the forge reskins with the selected UI theme like the HUD pills and tooltips.
+   NO BACKGROUND IMAGE (owner 2026-10-07: "it can use the game board but blurred/colored"). The overlay blurs the
+   live board behind it and grades it; three grades for the owner to pick from, chosen by `data-rf-bg` on <html>
+   (the 🔨 Runeforge Look tuner's "Backdrop" dial; the old `/runeforgebg2.webp` stays in the repo, unreferenced):
+     1 · DEEP VIOLET: the game's violet tint and a vignette darkening toward the edges;
+     2 · WARM FORGE: amber firelight spilling up from the bottom centre behind the cards, deep violet at the edges;
+     3 · TRIBE WASH: one soft wash blended from the offered runes' tribe colours (`--rf-wash`, set by RuneforgeDialog);
+         the Epic forge's wash is violet-gold.
+   Every option adds a soft light pool behind the cards.
 
-   PERFORMANCE (docs/performance.md): every static layer here paints once when the overlay opens. The ONLY looping
-   animation is the motes' rise, transform + opacity only (compositor). They exist only while the forge is open (the overlay unmounts on buy and on Inspect), the
-   browser stops them with the tab hidden, and prefers-reduced-motion stills them.
+   PERFORMANCE (docs/performance.md). The blur is a `backdrop-filter` on the overlay itself, STATIC (its radius never
+   animates). Every other layer paints once when the overlay opens. The only loops are the embers' rise, transform +
+   opacity (compositor); they exist only while the forge is open, the browser stops them with the tab hidden, and
+   prefers-reduced-motion stills them. Nothing bobs or floats (owner 2026-10-07). Measured on the prod build: see the
+   PR. Colours: the chrome reads `--ui-*` theme tokens; the Re-roll's blue and the glows are the only literals. */
 
-   Geometry knobs are the 🔨 Runeforge Look tuner's `--rfl-*` vars (their fallbacks are the shipped values). Colours
-   are `--ui-*` theme tokens; the two literals are the forge's own glow hues (`--rf-glow`, `--rf-mote`), which carry
-   the Basic vs Epic distinction in every theme, as the rarity colours do. */
-
-/* ── The stage: backdrop + glow + embers + streaks of magic ──────────────────────────────────────────────── */
-/* A (default): EMBER COPPER, a whimsical blacksmith's forge at night: warm charcoal, an ember glow, rising embers
-   and gold streaks of magic. B (`:root[data-rune-socket="b"]`): ARCANE ENAMEL, the same forge under arcane light:
-   indigo, violet glow, lavender sparks, violet streaks. The Epic forge leans each palette toward violet-gold. */
+/* ── The backdrop: the board, blurred and graded ──────────────────────────────────────────────────────────── */
 .forge-ov {
-  --rf-glow: 255, 140, 56;        /* the forge fire */
-  --rf-mote: 255, 190, 110;       /* embers */
-  --rf-streak: 255, 214, 140;     /* the streaks of magic */
-  background:
-    radial-gradient(120% 95% at 50% 52%,
-      color-mix(in srgb, var(--ui-plate-top) 25%, rgba(58, 34, 26, 0.95)) 0%,
-      rgba(26, 15, 12, 0.97) 55%,
-      rgba(6, 3, 2, 0.98) 100%);
+  --rf-ember: 255, 178, 92;
+  --rf-pool: 255, 214, 150;
+  background: rgba(26, 16, 52, 0.42);
+  -webkit-backdrop-filter: blur(26px) saturate(1.25);
+  backdrop-filter: blur(26px) saturate(1.25);
 }
-.forge-ov.forge-epic { --rf-glow: 220, 130, 120; --rf-mote: 255, 200, 150; --rf-streak: 214, 170, 255; }
-:root[data-rune-socket="b"] .forge-ov {
-  --rf-glow: 130, 120, 255; --rf-mote: 200, 190, 255; --rf-streak: 180, 160, 255;
-  background:
-    radial-gradient(120% 95% at 50% 52%,
-      color-mix(in srgb, var(--ui-plate-top) 40%, rgba(40, 32, 90, 0.95)) 0%,
-      rgba(16, 12, 40, 0.97) 55%,
-      rgba(4, 3, 10, 0.98) 100%);
-}
-:root[data-rune-socket="b"] .forge-ov.forge-epic { --rf-glow: 190, 120, 255; --rf-mote: 255, 220, 160; --rf-streak: 255, 210, 150; }
+.forge-ov.forge-epic { --rf-pool: 230, 190, 255; }
 .rf-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-/* The forge glow: one soft pool behind and below the tablets, plus a faint floor line of light. Static. */
-.rf-glow {
-  position: absolute; inset: 0;
+.rf-grade, .rf-pool { position: absolute; inset: 0; }
+/* 1 · Deep violet (the default). */
+.rf-grade {
   background:
-    radial-gradient(46% 30% at 50% calc(66% + var(--rfl-row-y, 0) * 0.1%), rgba(var(--rf-glow), 0.26), rgba(var(--rf-glow), 0.08) 55%, rgba(var(--rf-glow), 0) 100%),
-    radial-gradient(70% 18% at 50% 100%, rgba(var(--rf-glow), 0.16), rgba(var(--rf-glow), 0) 100%);
+    radial-gradient(120% 95% at 50% 48%, rgba(70, 44, 140, 0.28) 0%, rgba(34, 18, 74, 0.62) 58%, rgba(10, 5, 26, 0.92) 100%),
+    linear-gradient(180deg, rgba(60, 36, 130, 0.35), rgba(30, 14, 64, 0.35));
 }
-/* The motes: small soft dots rising from the floor, each on its own lane, speed, drift and delay (set inline by
-   RuneforgeDialog, a fixed table, so the scene is the same every time). */
+/* 2 · Warm forge: firelight from the bottom centre fading into deep violet. */
+:root[data-rf-bg="2"] .rf-grade {
+  background:
+    radial-gradient(70% 60% at 50% 92%, rgba(255, 150, 60, 0.55) 0%, rgba(214, 92, 50, 0.32) 38%, rgba(214, 92, 50, 0) 70%),
+    radial-gradient(120% 95% at 50% 52%, rgba(90, 40, 96, 0.2) 0%, rgba(40, 18, 70, 0.62) 60%, rgba(12, 5, 24, 0.94) 100%);
+}
+/* 3 · Tribe wash: one soft blend of the offered runes' tribe hues; the Epic's is violet-gold. */
+:root[data-rf-bg="3"] .rf-grade {
+  background:
+    radial-gradient(80% 70% at 50% 55%, color-mix(in srgb, var(--rf-wash, #8a6fd6) 34%, transparent) 0%, color-mix(in srgb, var(--rf-wash, #8a6fd6) 12%, transparent) 55%, rgba(0, 0, 0, 0) 80%),
+    radial-gradient(120% 95% at 50% 50%, rgba(40, 24, 80, 0.3) 0%, rgba(26, 14, 54, 0.66) 62%, rgba(8, 4, 20, 0.94) 100%);
+}
+:root[data-rf-bg="3"] .forge-epic .rf-grade {
+  background:
+    radial-gradient(80% 70% at 50% 55%, rgba(255, 200, 110, 0.32) 0%, rgba(176, 110, 240, 0.26) 45%, rgba(0, 0, 0, 0) 80%),
+    radial-gradient(120% 95% at 50% 50%, rgba(50, 24, 90, 0.3) 0%, rgba(30, 12, 60, 0.66) 62%, rgba(8, 4, 20, 0.94) 100%);
+}
+/* The light pool behind the cards. */
+.rf-pool { background: radial-gradient(44% 40% at 50% 58%, rgba(var(--rf-pool), 0.26), rgba(var(--rf-pool), 0.08) 55%, rgba(var(--rf-pool), 0) 100%); }
+
+/* The embers: mixed sizes rising from below the floor, each on its own lane, speed, drift and delay; one in seven is
+   a big soft bokeh glow. Transform + opacity only. */
 .rf-motes { position: absolute; inset: 0; }
 .rf-mote {
-  position: absolute; bottom: -2%; left: var(--x); width: var(--sz); height: var(--sz); border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--rf-mote), 1) 0%, rgba(var(--rf-mote), 0.55) 35%, rgba(var(--rf-mote), 0) 70%);
+  position: absolute; bottom: -4%; left: var(--x); width: var(--sz); height: var(--sz); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 220, 1) 0%, rgba(var(--rf-ember), 0.9) 28%, rgba(var(--rf-ember), 0.35) 52%, rgba(var(--rf-ember), 0) 72%);
   opacity: 0; will-change: transform, opacity;
   animation: rfmote var(--t) linear var(--d) infinite;
 }
+.rf-mote.rf-bokeh { background: radial-gradient(circle, rgba(var(--rf-ember), 0.7) 0%, rgba(var(--rf-ember), 0.3) 45%, rgba(var(--rf-ember), 0) 70%); }
 @keyframes rfmote {
   0% { transform: translate3d(0, 0, 0); opacity: 0; }
-  12% { opacity: var(--o); }
-  70% { opacity: var(--o); }
-  100% { transform: translate3d(var(--dx), -78vh, 0); opacity: 0; }
+  10% { opacity: var(--o); }
+  72% { opacity: var(--o); }
+  100% { transform: translate3d(var(--dx), -96vh, 0); opacity: 0; }
 }
-/* The streaks of magic: a soft arcing wisp of light that now and then sweeps across the forge and fades. Each is a
-   static SVG arc (drawn once) moved and faded by transform + opacity; it is visible for about a fifth of its cycle,
-   so at most one or two are in the air at once. */
-.rf-streak {
-  position: absolute; left: var(--sx); top: var(--sy); width: 44vw; height: 20vh; opacity: 0;
-  will-change: transform, opacity;
-  animation: rfstreak var(--st) ease-in-out var(--sd) infinite;
-}
-.rf-streak svg { display: block; width: 100%; height: 100%; overflow: visible; }
-@keyframes rfstreak {
-  0% { opacity: 0; transform: translate3d(-10vw, 3vh, 0) rotate(var(--sr)); }
-  7% { opacity: 0.85; }
-  20% { opacity: 0; transform: translate3d(9vw, -3vh, 0) rotate(var(--sr)); }
-  100% { opacity: 0; transform: translate3d(9vw, -3vh, 0) rotate(var(--sr)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .rf-mote, .rf-streak { animation: none; }
-}
+@media (prefers-reduced-motion: reduce) { .rf-mote { animation: none; } }
 
-/* ── The panel: title, subtitle, Gold, the row on its ledge, the Re-roll ─────────────────────────────────────── */
-/* A plain column now (the old panel hung its banner absolutely, for the framed backdrop). */
+/* ── The panel ─────────────────────────────────────────────────────────────────────────────────────────────── */
 .forge-ov .forge-panel { display: flex; flex-direction: column; align-items: center; padding: 0 calc(40 * var(--u)); }
 
-/* The title: a Gem plate with filigree studs. Overrides the shared `.disc-banner` chrome for the forge only. */
+/* THE TITLE: a Gem plate (sheen, plate, gold edge, ring, bevel) with diamond studs, the name in the title font, one
+   spaced line beneath. Overrides the shared `.disc-banner` for the forge. */
 .forge-ov .forge-banner {
-  position: relative; top: auto; left: auto;
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: calc(9 * var(--u)) calc(46 * var(--u)); border: 2px solid transparent; border-radius: calc(14 * var(--u));
+  position: relative; top: auto; left: auto; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
+  padding: calc(14 * var(--u)) calc(64 * var(--u)) calc(12 * var(--u));
+  border: 2px solid transparent; border-radius: calc(16 * var(--u));
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 calc(8 * var(--u)) calc(24 * var(--u)) -8px rgba(0, 0, 0, 0.75);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 calc(10 * var(--u)) calc(26 * var(--u)) -8px rgba(0, 0, 0, 0.7);
   transform: translate(calc(var(--rfl-ban-x, 0) * var(--u)), calc(var(--rfl-ban-y, 0) * var(--u))) scale(var(--rfl-ban-scale, 1));
 }
+.forge-ov .forge-banner .disp {
+  font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 700);
+  text-transform: uppercase; letter-spacing: 0.08em; line-height: 1;
+  font-size: calc(40 * var(--u) * var(--rfl-title-scale, 1)); color: var(--ui-title); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7), 0 0 calc(14 * var(--u)) rgba(255, 190, 90, 0.35);
+}
+.rf-subtitle { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.3em; text-transform: uppercase; color: var(--ui-muted); }
 .forge-ov .forge-banner::before, .forge-ov .forge-banner::after {
-  content: ''; position: absolute; top: 50%; width: calc(11 * var(--u)); height: calc(11 * var(--u));
+  content: ''; position: absolute; top: 50%; width: calc(16 * var(--u)); height: calc(16 * var(--u));
   background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   transform: translateY(-50%) rotate(45deg);
 }
-.forge-ov .forge-banner::before { left: calc(-7 * var(--u)); }
-.forge-ov .forge-banner::after { right: calc(-7 * var(--u)); }
-.forge-ov.forge-epic .forge-banner::before, .forge-ov.forge-epic .forge-banner::after {
-  width: calc(14 * var(--u)); height: calc(14 * var(--u));
-  background: linear-gradient(135deg, #f1dcff, #b078e6 55%, #5b2f8a); border-color: var(--ui-edge-deep);
-}
-.forge-ov.forge-epic .forge-banner::before { left: calc(-9 * var(--u)); }
-.forge-ov.forge-epic .forge-banner::after { right: calc(-9 * var(--u)); }
-.forge-ov .forge-banner .disp {
-  font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 700);
-  font-size: calc(34 * var(--u) * var(--rfl-title-scale, 1)); letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75), 0 0 calc(18 * var(--u)) rgba(var(--rf-glow), 0.35);
-}
-/* The one line of instruction under the title. */
-.forge-ov .forge-sub {
-  margin-top: calc(12 * var(--u)); font-family: var(--font-ui); font-weight: 700; font-size: calc(15 * var(--u));
-  letter-spacing: 0.02em; color: var(--ui-muted); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-}
-/* The purse: a Gem plate pill with the gold coin. */
+.forge-ov .forge-banner::before { left: calc(-9 * var(--u)); }
+.forge-ov .forge-banner::after { right: calc(-9 * var(--u)); }
+.forge-ov.forge-epic .forge-banner::before, .forge-ov.forge-epic .forge-banner::after { background: linear-gradient(135deg, #f1dcff, #b078e6 55%, #5b2f8a); border-color: var(--ui-edge-deep); }
+.forge-ov.forge-epic .forge-banner { box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--ui-edge-main), 0 calc(10 * var(--u)) calc(26 * var(--u)) -8px rgba(0, 0, 0, 0.7), 0 0 calc(30 * var(--u)) -6px rgba(196, 140, 255, 0.7); }
+
+/* THE GOLD PLATE: a dark navy Gem plate with gold diamond tips, the coin and the number. */
 .forge-ov .forge-gold {
-  display: inline-flex; align-items: center; gap: calc(7 * var(--u)); margin: calc(12 * var(--u)) auto 0;
-  padding: calc(5 * var(--u)) calc(18 * var(--u)); width: fit-content; border: 2px solid transparent; border-radius: 999px;
+  position: relative; display: inline-flex; align-items: center; gap: calc(10 * var(--u)); margin: calc(14 * var(--u)) auto 0;
+  padding: calc(6 * var(--u)) calc(34 * var(--u)); border: 2px solid transparent; border-radius: calc(10 * var(--u));
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
-  color: var(--ui-text); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u));
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  color: var(--ui-text); font-family: var(--font-ui); font-weight: 900; font-size: calc(24 * var(--u)); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   transform: translate(calc(var(--rfl-gold-x, 0) * var(--u)), calc(var(--rfl-gold-y, 0) * var(--u))) scale(var(--rfl-gold-scale, 1));
 }
-.forge-ov .forge-gold svg { width: calc(18 * var(--u)); height: calc(18 * var(--u)); color: var(--ui-icon); }
-.forge-ov .forge-gold b { color: var(--ui-title); }
+.forge-ov .forge-gold svg { width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: #ffd36a; }
+.forge-ov .forge-gold b { color: var(--ui-text); }
+.forge-ov .forge-gold::before, .forge-ov .forge-gold::after, .forge-ov .forge-reroll::before, .forge-ov .forge-reroll::after, .disc-toggle.forge-toggle::before, .disc-toggle.forge-toggle::after {
+  content: ''; position: absolute; top: 50%; width: calc(14 * var(--u)); height: calc(14 * var(--u));
+  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translateY(-50%) rotate(45deg);
+}
+.forge-ov .forge-gold::before, .forge-ov .forge-reroll::before, .disc-toggle.forge-toggle::before { left: calc(-8 * var(--u)); }
+.forge-ov .forge-gold::after, .forge-ov .forge-reroll::after, .disc-toggle.forge-toggle::after { right: calc(-8 * var(--u)); }
 
-/* The row stands on a LEDGE: a hairline of the theme's gold that fades out at both ends, lit from below. */
+/* THE ROW. */
 .forge-ov .forge-cards { position: relative; margin-top: calc(40 * var(--u) + var(--rfl-row-y, 0) * var(--u)); }
-.forge-ov .forge-cards::after {
-  content: ''; position: absolute; left: -8%; right: -8%; bottom: calc(-22 * var(--u)); height: 2px; pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--ui-edge-main) 22%, var(--ui-edge-hi) 50%, var(--ui-edge-main) 78%, transparent);
-  box-shadow: 0 0 calc(14 * var(--u)) rgba(var(--rf-glow), 0.55);
-  opacity: 0.85;
-}
 
-/* The Re-roll: a Gem plate button, like the combat Skip / Summary buttons. */
-.forge-ov .forge-actions { margin-top: calc(46 * var(--u) + var(--rfl-footer-y, 0) * var(--u)); transform: scale(var(--rfl-footer-scale, 1)); }
+/* THE RE-ROLL: a big blue button in the theme's gold edge with diamond studs (the Gem plate button, in blue). */
+.forge-ov .forge-actions { position: relative; z-index: 3; margin-top: calc(36 * var(--u) + var(--rfl-footer-y, 0) * var(--u)); transform: scale(var(--rfl-footer-scale, 1)); }
 .forge-ov .forge-reroll {
-  display: inline-flex; align-items: center; gap: calc(7 * var(--u));
-  padding: calc(8 * var(--u)) calc(22 * var(--u)); border: 2px solid transparent; border-radius: calc(12 * var(--u));
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
-  color: var(--ui-text); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  position: relative; display: inline-flex; align-items: center; gap: calc(14 * var(--u));
+  padding: calc(8 * var(--u)) calc(46 * var(--u)) calc(8 * var(--u)) calc(34 * var(--u)); border: 2px solid transparent; border-radius: calc(14 * var(--u));
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 70%) padding-box,
+    linear-gradient(180deg, #4f86f0, #2a55c8 55%, #1b3a94) padding-box,
+    var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 0 calc(16 * var(--u)) rgba(140, 200, 255, 0.45), 0 calc(6 * var(--u)) calc(16 * var(--u)) -4px rgba(0, 0, 0, 0.75);
+  color: #fff; font-family: var(--font-ui); text-shadow: 0 2px 0 rgba(10, 20, 60, 0.7);
 }
-.forge-ov .forge-reroll:hover:not(:disabled) { filter: none; color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
-.forge-ov .forge-reroll svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--ui-icon); }
-.forge-ov .forge-reroll .forge-reroll-cost { color: var(--ui-title); }
+.forge-ov .forge-reroll:hover:not(:disabled) { filter: brightness(1.1); }
+.forge-ov .forge-reroll svg { width: calc(30 * var(--u)); height: calc(30 * var(--u)); color: #fff; }
+.rf-rr { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.rf-rr > span { font-weight: 800; font-size: calc(26 * var(--u)); }
+.forge-ov .forge-reroll .forge-reroll-cost { margin-top: calc(3 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); color: #dbe9ff; }
 
-/* "Inspect the board" / "Return to the Runeforge": the same Gem plate button, pinned where it always was. */
+/* INSPECT THE BOARD: a smaller dark navy plate with diamond ends, pinned where it always was. */
 .disc-toggle.forge-toggle {
   border: 2px solid transparent; color: var(--ui-text);
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;

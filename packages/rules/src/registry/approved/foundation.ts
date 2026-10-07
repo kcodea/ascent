@@ -2550,10 +2550,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: 'correct their rarities as such' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (skins batch 9)', quote: 'yes add the new art to the catalog' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS skin rarities); packages/tools/src/wire-art.ts (SKIN_RARITY_DIRS)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01; the Ancient folder since 2026-10-02. Since 2026-10-06 the disk check tolerates a partial art folder (a master not on this machine is skipped; one that is present must still sit in exactly one rarity folder at its rarity, and every file there must be wired). Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-07' },
   },
   {
     id: 'R-PROG-SKINS-12',
@@ -2619,6 +2620,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-03. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-03' },
+  },
+  {
+    id: 'R-PROG-SKINS-15',
+    title: 'Skins batch 9: Canyon Drake and Thunderchorus Drake, two Rare Chorus Drake skins, join the crates',
+    statement:
+      'Two minion skins are crate items, each targeting Chorus Drake (d2_chorus) by stable id and shipping its own art (a '
+      + '512px WebP in packages/ui/src/art/skins/), with the rarity of the Minion Skins folder its master sits in '
+      + '(R-PROG-SKINS-11): Canyon Drake (Rare, skin_chorus_2, master \x27Rare/Canyon Drake.png\x27) and Thunderchorus Drake (Rare, '
+      + 'skin_chorus_3, master \x27Rare/Thunderchorus Drake.png\x27). Both were matched to Chorus Drake by the art, not only the '
+      + 'name: each repaints the card\x27s own three stacked singing heads, ring of music notes, chest gem and pose (a sandstone '
+      + 'canyon dragon; a storm-blue lightning dragon). Names come from the master filenames. Chorus Drake now has three '
+      + 'skins (Quartet Chorusdrake, Canyon Drake, Thunderchorus Drake). With them in, a first crate holds 38 Common, 42 '
+      + 'Rare, 45 Epic, 37 Legendary and 21 Ancient items (each Common 0.921%, Rare 0.738%, Epic 0.489%, Legendary 0.243%, '
+      + 'Ancient 0.143%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (skins batch 9)', quote: 'yes add the new art to the catalog' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 9); packages/ui/src/art/skins/skin_chorus_2.webp, skin_chorus_3.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-07. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skins.test.tsx', 'packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-07' },
   },
   {
     id: 'R-PROG-COLLECTION-03',

@@ -65,12 +65,25 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // card stays until you dismiss it, so the badges can be hovered for their own tooltips. Mirrors the
   // right-click card inspect players already know (`Inspect.tsx`).
   const [pinned, setPinned] = useState<{ id: string; top: number; right: number } | null>(null);
+  // THE RAIL IS INERT WHILE IT IS SLID AWAY (owner bug 2026-10-06: "the lobby rail shouldnt be able to be moused
+  // over here"). `combatStaged` is the same window that puts `.app.staged` on the app (the rail's slide-away, see
+  // Recruit.tsx). The CSS makes every rail descendant pointer-inert then; this is the state half: the scout card is
+  // portaled to <body>, OUTSIDE `.app`, so a card already open when the fight starts would otherwise stay up over
+  // the duel. Staging closes both the hover and the pinned card, and no new one can open until the rail is back.
+  const staged = useGame((st) => st.combatStaged);
+  useEffect(() => {
+    if (!staged) return;
+    setHovered(null);
+    setPinned(null);
+  }, [staged]);
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
+    if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
     setHovered({ id, top: toStage(b.top + b.height / 2), right: toStage(b.left) }); // screen -> stage (stage.ts): `at` is CSS px
   };
   const pinScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     e.preventDefault(); // no browser context menu over the rail
+    if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
     setPinned((p) => (p?.id === id ? null : { id, top: toStage(b.top + b.height / 2), right: toStage(b.left) })); // toggle; stage px
   };
@@ -261,10 +274,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
               )}
-              {hovered?.id === seat.id && pinned?.id !== seat.id && (isYou
+              {!staged && hovered?.id === seat.id && pinned?.id !== seat.id && (isYou
                 ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} />
                 : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />)}
-              {pinned?.id === seat.id && (
+              {!staged && pinned?.id === seat.id && (
                 <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned />
               )}
             </div>

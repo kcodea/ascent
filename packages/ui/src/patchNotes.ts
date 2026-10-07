@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Fixed the lobby rail's player card opening during combat.",
+      },
+      {
+        category: 'Systems',
         text: 'A new Epic portrait frame in crates: Cosmic Glass.',
       },
       {

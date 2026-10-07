@@ -134,7 +134,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
           rim whose top half is the rune's FULL art ("i want the top half of this to be the full art, with it blurring
           in a gradient downward"), blurring and fading into the body; then the name, a divider and the rules
           (runeCard.css). `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new
-          <img>s; an async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
+          image elements; an async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
       <span className="runecard-face" aria-hidden>
         <span className="runecard-hero">
           {art

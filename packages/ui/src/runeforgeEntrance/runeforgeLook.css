@@ -31,7 +31,7 @@
   0% { transform: translate3d(0, 0, 0); opacity: 0; }
   10% { opacity: var(--o); }
   72% { opacity: var(--o); }
-  100% { transform: translate3d(var(--dx), -96vh, 0); opacity: 0; }
+  100% { transform: translate3d(var(--dx), calc(var(--lvh, 100vh) * -0.96), 0); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .rf-mote { animation: none; } }
 

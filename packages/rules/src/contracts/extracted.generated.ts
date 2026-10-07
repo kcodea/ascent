@@ -1028,42 +1028,23 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "tier:7",
-      "choose-one"
-    ],
-    "triggers": [
-      {
-        "event": "onPlay",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "battlecryGrantBeastHunt",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "extra": 1
-          }
-        },
-        "note": "Choose One branch 1: \"Your Beast Rallies trigger an additional time.\""
-      },
-      {
-        "kind": "battlecryGrantBeastRitual",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "extra": 1
-          }
-        },
-        "note": "Choose One branch 2: \"Your Beast Echoes trigger an additional time.\""
-      }
+      "multiplier:rally",
+      "multiplier:deathrattle"
     ],
     "gildedDelta": {
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+    },
+    "multiplier": {
+      "families": [
+        "rally",
+        "deathrattle"
+      ],
+      "extra": 1,
+      "stacks": true,
+      "tribe": "beast"
     },
     "textContract": {
       "source": "index"
@@ -5864,44 +5845,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "dragon"
     ],
     "tags": [
-      "tier:7",
-      "choose-one",
-      "choose-both-when-golden"
-    ],
-    "triggers": [
-      {
-        "event": "onPlay",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "battlecryGrantShoutExtra",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "extra": 1
-          }
-        },
-        "note": "Choose One branch 1: \"Your Shouts trigger an additional time.\""
-      },
-      {
-        "kind": "battlecryGrantFirstSpellMult",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "mult": 3
-          }
-        },
-        "note": "Choose One branch 2: \"The first Shop spell you cast from hand each turn casts 3 times.\""
-      }
+      "tier:7"
     ],
     "gildedDelta": {
-      "kind": "reshape",
+      "kind": "multiply",
+      "factor": 2,
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"

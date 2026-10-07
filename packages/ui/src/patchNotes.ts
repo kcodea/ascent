@@ -56,6 +56,29 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-07',
+    changes: [
+      {
+        category: 'Balance',
+        text: "Elderhorn reworked: Your Beasts' Rallies and Echoes trigger an additional time, while it is on your board.",
+        details: [
+          'No more Choose One. It now does both, but only while Elderhorn is on your board. Sell it or lose it and the bonus ends.',
+          'Golden Elderhorn gives 2 additional triggers. Two Elderhorns stack.',
+          'Works on Beast Echoes in the Shop too.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Orivax, the Spellchoir is now Orivax: Your Shouts trigger 2 additional times, while it is on your board.',
+        details: [
+          'No more Choose One, and no more spell mode. The bonus lasts only while Orivax is on your board.',
+          'Works on every Shout: played, triggered in the Shop, and triggered mid-combat.',
+          'Golden Orivax gives 4 additional triggers. Copies stack, and it adds to other Shout bonuses like Rune of the Choir.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-06',
     changes: [
       {

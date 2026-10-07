@@ -221,7 +221,9 @@ export function runInteractionSweep(opts: InteractionSweepOptions): InteractionS
     for (const mult of cand.deathrattleMultipliers) {
       // The card's declared total factor, whichever shape it uses — `declared` (additive) or `factor`
       // (a "triggers twice" multiplier). See `declaredFireFactor`.
-      const declared = mult.multiplier!.factor ?? 1 + (mult.multiplier!.extra ?? 0);
+      // A TRIBE-SCOPED multiplier (Elderhorn: Beast Echoes only, 2026-10-07) declares ×1 on an off-tribe producer.
+      const offTribe = !!mult.multiplier!.tribe && !(producer.tribes ?? []).includes(mult.multiplier!.tribe as never);
+      const declared = offTribe ? 1 : mult.multiplier!.factor ?? 1 + (mult.multiplier!.extra ?? 0);
       if (d.plain * declared + 1 > BOARD_CAP) {
         push({
           family: 'trigger-x-multiplier', tier: 'pair', members: [producer.contentId, mult.contentId],

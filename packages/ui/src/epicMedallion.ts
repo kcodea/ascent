@@ -18,8 +18,8 @@ export const EPIC_UNITS: ReadonlySet<string> = new Set([
   'zyff',                    // Zyff, the Betrayer — Battlecries + Deathrattles +1
   'echowarden',              // Echo Warden — summons trigger one more time
   'attachmentconductor',     // Attachment Conductor — Magnetics magnetize twice
-  'b2_elderhorn',            // Elderhorn — Beast Rallies +1
-  'd2_orivax',               // Orivax, the Spellchoir — Shouts +1 / first Shop spell ×3
+  'b2_elderhorn',            // Elderhorn — Beast Rallies + Echoes +1 (board aura since 2026-10-07)
+  'd2_orivax',               // Orivax — Shouts +2 (board aura since 2026-10-07)
   'dw_edward',               // Edward Keg-hands — Dwarven Ales trigger twice
   'ce3_constellationprime',  // Constellation Prime — Star Crashes cast an additional time
   'k_deepdelve',             // Deepdelve Paragon — Rubies in combat give 2× stats (owner ask 2026-09-23)
@@ -30,7 +30,8 @@ export function isEpicUnit(cardId: string): boolean {
 }
 
 /** Per-card epic art override — a specific epic unit wears its own icon instead of the default (owner ask
- *  2026-09-23: Elderhorn / Orivax, the Choose One epics, get a bespoke "epic choose one" icon). Keyed cardId → art id. */
+ *  2026-09-23: Elderhorn / Orivax, the Choose One epics, get a bespoke "epic choose one" icon). Both stopped being
+ *  Choose Ones on 2026-10-07 (board auras); the icon is left as the owner set it pending an owner call. Keyed cardId → art id. */
 const EPIC_ART_OVERRIDE: Readonly<Record<string, string>> = {
   b2_elderhorn: 'epic-choose-one',
   d2_orivax: 'epic-choose-one',

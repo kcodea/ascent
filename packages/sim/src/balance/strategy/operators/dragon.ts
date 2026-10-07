@@ -52,7 +52,7 @@ const ROLES: Record<string, CardRole> = {
   d2_warflame: R(3, 'Dragonflame whenever a Dragon attacks', { fromWave: 10 }),
   d2_transcendence: R(3, 'Transcendant: adjacent Dragons are Engraved — combat gains stay', { fromWave: 6 }),
   d2_grimoire: R(2, 'the first spell each turn casts twice', { fromWave: 10 }),
-  d2_orivax: R(3, 'Orivax: the first spell each turn casts 3 times', { fromWave: 12 }),
+  d2_orivax: R(3, 'Orivax: Shouts trigger 2 additional times while on board', { fromWave: 12 }),
   d2_broodfire: R(1, 'Shout: +2/+2 to the Dragons', { filler: true }),
   d2_skald: R(1, 'Traveling Skald: +2/+1 to an attacking Dragon', { filler: true }),
   d2_chronicler: R(1, 'Scalefeather: a Tier-1 spell on Shout', { filler: true }),

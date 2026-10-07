@@ -37,9 +37,6 @@ describe('set 2 — Ruby exclusion matches the printed text', () => {
       expect(c.text, `${id} text`).toMatch(/Shop spell/i);
       if (c.goldenText) expect(c.goldenText, `${id} goldenText`).toMatch(/Shop spell/i);
     }
-    // Orivax's Spellweave OPTION carries the wording, not the card's own text.
-    const weave = CARD_INDEX['d2_orivax']!.chooseOne!.find((o) => /3 times/.test(o.text));
-    expect(weave?.text).toMatch(/Shop spell/i);
     // Rune of Scales is on the same ruling, and lives in the rune list rather than CARD_INDEX.
     const scales = [...RUNES, ...EPIC_RUNES].find((r) => r.id === 'rune_scales');
     expect(scales, 'rune_scales exists').toBeTruthy();

@@ -148,12 +148,17 @@ export type TriggerMultiplierDef = {
     factor?: never;
     /** Additive cards always stack — kept for the schema's benefit and for older data. */
     stacks?: boolean;
+    /** TRIBE-SCOPED (Elderhorn, owner 2026-10-07: "Your Beasts' Rallies and Echoes trigger an additional time"):
+     *  only a trigger whose SUBJECT (the rallying attacker / the dying Echo body) is of this tribe gets the extra.
+     *  `extraTriggerFires` needs the caller's `subjectHasTribe` to grant it; without one it is skipped. */
+    tribe?: Tribe;
   }
   | {
     /** MULTIPLIER: total fires are multiplied by this. Best single copy per card, product across cards. */
     factor: number;
     extra?: never;
     stacks?: never;
+    tribe?: never;
   }
 );
 
@@ -179,14 +184,18 @@ export function extraTriggerFires(
   family: TriggerFamily,
   minions: readonly { cardId: string; golden?: boolean }[],
   getCard: (id: string) => CardDef | undefined,
+  /** The trigger's subject tribe test (`isTribeOf(subject, t, cards)` / `isTribe(subject, t)`), for TRIBE-SCOPED
+   *  multipliers (Elderhorn). A call site that passes none never receives a tribe-scoped extra. */
+  subjectHasTribe?: (tribe: Tribe) => boolean,
 ): number {
-  let extra = 0; // ADDITIVE cards (Sylus, Zyff, Uron): every copy of every card counts
+  let extra = 0; // ADDITIVE cards (Sylus, Zyff, Uron, Elderhorn): every copy of every card counts
   // MULTIPLIER cards (Drakko, Chronos): the best single copy PER CARD, multiplied across different cards.
   // Keyed by cardId so two Drakkos are still one ×2 while Drakko × a different multiplier is ×4.
   const factors = new Map<string, number>();
   for (const m of minions) {
     const mult = getCard(m.cardId)?.triggerMultiplier;
     if (!mult || !mult.families.includes(family)) continue;
+    if (mult.tribe && !subjectHasTribe?.(mult.tribe)) continue; // Elderhorn: Beast triggers only
     if (mult.factor !== undefined) {
       // Golden adds ONE more trigger rather than doubling the factor (owner ruling 2026-08-28): ×2 → ×3.
       const f = mult.factor + (m.golden ? 1 : 0);
@@ -198,6 +207,24 @@ export function extraTriggerFires(
   let total = 1 + extra;
   for (const f of factors.values()) total *= f;
   return total - 1;
+}
+
+/**
+ * Orivax's board-aura Shout extras (`CardDef.shoutExtraAura`, owner 2026-10-07): the extra fires every Shout on this
+ * side gets from the auras on `minions` (the side's LIVING board). Additive: every copy counts, golden doubles. THE
+ * one definition read by the Shop fold (`shoutFireCount`) and the combat fold (`ctx.shoutCarryExtras`). "While on
+ * board" (owner ruling 2026-10-07): it reads the board at the moment of the Shout, never a run-wide counter.
+ */
+export function boardShoutExtras(
+  minions: readonly { cardId: string; golden?: boolean }[],
+  getCard: (id: string) => CardDef | undefined,
+): number {
+  let extra = 0;
+  for (const m of minions) {
+    const e = getCard(m.cardId)?.shoutExtraAura ?? 0;
+    if (e > 0) extra += e * (m.golden ? 2 : 1);
+  }
+  return extra;
 }
 
 /**
@@ -1052,6 +1079,12 @@ export interface CardDef {
   /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
    *  through `extraTriggerFires` — never by a hardcoded card-id check. */
   triggerMultiplier?: TriggerMultiplierDef;
+  /** A BOARD-AURA Shout extra (Orivax, owner 2026-10-07: "Your Shouts trigger 2 additional times"): while this
+   *  minion is on its side's board, every Shout that side triggers fires this many more times (golden doubles it;
+   *  every copy stacks). Folded through `boardShoutExtras` into the SAME channel as the run-wide Shout extras
+   *  (Rune of the Choir's `shoutExtraAlways`): Shop `shoutFireCount`, combat `ctx.shoutCarryExtras` — so it adds
+   *  to them in both phases, rather than multiplying with them as a `triggerMultiplier` would in combat. */
+  shoutExtraAura?: number;
   ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */

@@ -421,6 +421,7 @@ function extractCard(def: CardDef): ContentContract {
           ? { factor: def.triggerMultiplier.factor }
           : { extra: def.triggerMultiplier.extra }),
         stacks: !!def.triggerMultiplier.stacks,
+        ...(def.triggerMultiplier.tribe ? { tribe: def.triggerMultiplier.tribe } : {}),
       } }
       : {}),
     textContract: { source: 'index' },

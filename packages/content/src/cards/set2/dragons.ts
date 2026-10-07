@@ -204,25 +204,23 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** get **2 Brood Whelps**.',
   },
   {
-    // The tribe capstone: a Choose-One that installs a permanent global mode, and Gilds into BOTH. Chorus
-    // pumps the Shout half of the tribe; Spellweave pumps the spell half. Every other Dragon feeds one or the
-    // other, so Orivax is the payoff either build was climbing toward.
+    // The tribe capstone: a Shout-multiplying aura for the Shout half of the tribe.
     id: 'd2_orivax',
-    name: 'Orivax, the Spellchoir',
+    name: 'Orivax',
     tribe: 'dragon',
     tier: 7,
     attack: 10,
     health: 14,
     keywords: [],
     effects: [],
-    chooseOne: [
-      { text: 'Your **Shouts** trigger an additional time.', effects: [{ on: 'onPlay', do: 'battlecryGrantShoutExtra', params: { extra: 1 } }] },
-      { text: 'The first **Shop spell** you cast from hand each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
-    ],
-    chooseBothWhenGolden: true,
-    // No flavour names (owner 2026-07-25) — its OPTIONS never carried them, but the combined card text did.
-    text: '**Choose One:** your **Shouts** trigger an additional time, or the first **Shop spell** you cast from hand each turn casts **3 times**.',
-    goldenText: '**Choose One:** gain **both**. Your **Shouts** trigger an additional time, and the first **Shop spell** you cast from hand each turn casts **3 times**.',
+    // Owner batch 2026-10-07: renamed (was "Orivax, the Spellchoir"; the id stays) and reworked into a BOARD AURA.
+    // "While on board": it works only while Orivax is on your board (it used to be a Choose One granting the
+    // permanent `shoutExtraAlways` run mode / the first-spell triple; both factories stay for old saves + replays).
+    // `shoutExtraAura` folds into the SAME channel as Rune of the Choir in both phases, so the two ADD. Golden
+    // doubles the extra (+4), every copy stacks (owner vocabulary rule 2026-08-28 for "additional times").
+    shoutExtraAura: 2,
+    text: 'Your **Shouts** trigger **2** additional times.',
+    goldenText: 'Your **Shouts** trigger **4** additional times.',
   },
   {
     // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A

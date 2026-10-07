@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -2886,7 +2886,8 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   //   - Grave Contract / Last Rites / Rune of the Catacomb's first-Echo bonus, scoped to the FIRST shop Echo
   //     each TURN (the shop analogue of combat's per-fight `firstEchoDone`; the two pools are independent —
   //     combat still pays its own first Echo of every fight).
-  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
+  // Elderhorn (owner 2026-10-07): a tribe-scoped additive entry — it reads the dying body's tribe.
+  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id], (t) => isTribe(minion, t));
   const beastRitualExtra = isTribe(minion, 'beast') ? ctx.state.beastRitualExtra ?? 0 : 0;
   let firstEchoBonus = 0;
   if (hasDR && (ctx.state.echoFirstEachCombat ?? 0) > 0 && !ctx.state.echoFirstUsedThisTurn) {
@@ -11367,6 +11368,9 @@ function shoutFireCount(state: RunState, def: CardDef): number {
     const always = state.shoutExtraAlways ?? 0;
     if (always) procRuneId(state, 'rune_choir');
     n += always + (state.shoutExtraTurn ?? 0); // Choir / Hoardwake (permanent) + Demand an Encore (this turn)
+    // Orivax (owner 2026-10-07, "While on board"): the board's Orivaxes add their extras, additively with the
+    // Choir family above — the combat mirror is `ctx.shoutCarryExtras`.
+    n += boardShoutExtras(state.board, (id) => CARD_INDEX[id]);
     // Warm Embers / Opening Act — the FIRST Shout each turn triggers twice (one freebie per turn).
     if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
       state.shoutFirstUsedThisTurn = true;

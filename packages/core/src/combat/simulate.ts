@@ -20,7 +20,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -1089,6 +1089,9 @@ export function simulate(
       // combat-triggered Shout, nothing consumed. The badge pulse rides `questTrigger` (runeChoir → rune_choir).
       const always = modsFor(side).shoutExtraAlways ?? 0;
       if (always > 0) { extra += always; fireTrigger('runeChoir', side); }
+      // Orivax (owner 2026-10-07, "While on board"): the side's LIVING Orivaxes add their Shout extras to every
+      // combat-triggered Shout, additively with the Choir above (the Shop mirror is `shoutFireCount`).
+      extra += boardShoutExtras(living(side), (id) => cards[id]);
       return extra;
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -2698,7 +2701,8 @@ export function simulate(
     // the board, and was alive when the Deathrattle triggered, so it must still double (owner report
     // 2026-08-21: gilded + Sylus should fire "4 twice, twice"). Outside a defer scope nothing sits at
     // ≤0-not-dead, so this is identical to the old filter for every non-spraying Deathrattle.
-    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id]);
+    // Elderhorn (owner 2026-10-07) is a TRIBE-SCOPED additive entry in the same fold: it reads the dying body's tribe.
+    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id], (t) => isTribeOf(minion, t, cards));
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     const beastRitualExtra = isTribeOf(minion, 'beast', cards)
       ? (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
@@ -4013,7 +4017,7 @@ export function simulate(
           + beastExtraGain[attacker.side].hunt // a mid-fight Elderhorn re-fire counts from now on
         : 0;
       const rallyExtra = attacker.keywords.includes('RL')
-        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]) + huntExtra
+        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id], (t) => isTribeOf(attacker, t, cards)) + huntExtra
         : 0;
       for (let i = 0; i < rallyExtra; i++) {
         for (const effect of attacker.effects) {

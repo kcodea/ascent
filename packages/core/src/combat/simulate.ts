@@ -304,8 +304,8 @@ export function simulate(
   /** …and the "when you trigger N Shouts" RUNE METERS (the Chorus / Hoardcalling), copied in from the side's
    *  mods WITH their shop ticks so the ONE counter continues here: every fire advances them, a trip pays into
    *  `handGrants` at once, and the final ticks go home (`shoutMeters`) for the next shop to keep counting. */
-  const copyShoutMeters = (side: Side): { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[] }[] =>
-    (modsFor(side).shoutMeters ?? []).map((m) => ({ ...m, grantOneOf: m.grantOneOf ? [...m.grantOneOf] : undefined }));
+  const copyShoutMeters = (side: Side): NonNullable<QuestCombatMods['shoutMeters']> =>
+    (modsFor(side).shoutMeters ?? []).map((m) => ({ ...m, grantOneOf: m.grantOneOf ? [...m.grantOneOf] : undefined, grantCards: m.grantCards ? [...m.grantCards] : undefined, buff: m.buff ? { ...m.buff } : undefined }));
   const shoutMeters: Record<Side, ReturnType<typeof copyShoutMeters>> = { player: copyShoutMeters('player'), enemy: copyShoutMeters('enemy') };
   // THE CROSS-PHASE SHOUT TALLY (balance 9/23): every Shout FIRE on a side counts, and the side's "when you trigger
   // N Shouts" rune meters tick with it — paying mid-fight through `handGrants` (a random Shop spell, never an Ale,
@@ -362,6 +362,19 @@ export function simulate(
             handGrants[side].push(pick);
             if (side === 'player') emit({ type: 'toHand', cardId: pick, side });
           }
+        }
+        // Rune of the Whelps (2026-10-07): the named card(s), into the hand — the shop's `grantCards` payout.
+        for (const id of meter.grantCards ?? []) {
+          if (!cards[id]) continue;
+          handGrants[side].push(id);
+          if (side === 'player') emit({ type: 'toHand', cardId: id, side });
+        }
+        // Rune of the Echoing Shouts (2026-10-07): this side's LIVING tribe members gain +A/+H the moment the Shout
+        // fires (R-REALTIME-01), for this fight — the Drake Skull / Starsong combat rule. A Dragon in the HAND is not
+        // on the field; the shop's half reaches the hand.
+        if (meter.buff) {
+          const b = meter.buff;
+          for (const c of living(side)) if (isTribeOf(c, b.tribe, cards)) ctx.buff(c, b.attack, b.health, b.label);
         }
       }
     }

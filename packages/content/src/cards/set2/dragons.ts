@@ -412,3 +412,28 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** give a friendly **Dragon +10/+10**.',
   },
 ];
+
+/**
+ * Rune-granted Dragons (owner batch 2026-10-07) — forge-only, so `token: true` (the `SET2_DWARF_RUNE_MINIONS`
+ * convention: "Source: Rune" is never drawn from the tavern). Reached through the Runeforge and nowhere else.
+ */
+export const SET2_DRAGON_RUNE_MINIONS: CardDef[] = [
+  {
+    // Rune of the Flaming Dragon's body. Every Shout you trigger (played, re-fired, or a real-time combat Shout:
+    // "a triggered Shout is a Shout", #1933) CASTS Dragonflame through the phase's real cast pipeline, so it is a
+    // genuine spell cast for the cast counters and spell watchers. Gilded casts twice (the cast-a-named-spell
+    // convention: Flamebeat Drake, Warflame). Dragonflame names its spell, so its hover shows the live value
+    // (the owner's 2026-07-15 named-spell exception) instead of the minion restating it.
+    id: 'd2_firebird',
+    name: 'Firebird',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 6,
+    health: 9,
+    keywords: [],
+    token: true, // forge-only: Source = Rune of the Flaming Dragon
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryCastNamedSpell', params: { spellId: 'sp_dragonflame' } }],
+    text: 'When you trigger a **Shout**, cast **Dragonflame**.',
+    goldenText: 'When you trigger a **Shout**, cast **Dragonflame** twice.',
+  },
+];

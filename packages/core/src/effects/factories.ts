@@ -2780,6 +2780,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.onBattlecryBuffSelf(combatArena(ctx, self), params);
   },
 
+  /** Firebird (owner batch 2026-10-07): every friendly Shout fire in combat (real time, per fire — R-REALTIME-01)
+   *  casts Dragonflame through `castNamedSpellInCombat`. A dead Firebird casts nothing; an enemy Shout is not yours. */
+  onBattlecryCastNamedSpell: (ctx, self, params, payload) => {
+    if (self.dead || (payload as { side: Side }).side !== self.side) return;
+    ARENA_EFFECTS.onBattlecryCastNamedSpell(combatArena(ctx, self), params);
+  },
+
   // ARENA-MIGRATED (Rally family): one body in arena.ts; the payload guard stays with dispatch.
   rallyGrantSpell: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

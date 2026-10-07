@@ -1956,6 +1956,13 @@ export interface RunState {
   runeMuster?: number | boolean;
   /** Rune of the Foundry: minions sold toward `per` — a random Dragon each time it fills. */
   runeFoundry?: { per: number; sold: number };
+  /** Rune of the Voicekeeper (owner batch 2026-10-07): every `per` `tribe` minions sold → a plain copy of one of
+   *  them. `sold` holds the card ids sold since the last payout (in sale order), so the pick is "one of those 3". */
+  runeVoicekeeper?: { per: number; tribe: Tribe; sold: string[] };
+  /** RUNE-OWNED EQUIPMENT (owner batch 2026-10-07): `{ runeId, equipmentId }` for every owned `runeEquip` rune, in
+   *  purchase order. Re-granted at every Start-of-Turn rebuild after the board's Equipment, so it is held for the
+   *  rest of the run with no body behind it. Run state, so saves, replays (state replay) and restores carry it. */
+  runeEquipment?: { runeId: string; equipmentId: string }[];
   /** Rune of the Corrupted Tome: a Triple Reward grants two. */
   runeCorruptedTome?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on the Groveweaver. */
@@ -2590,7 +2597,10 @@ export interface GrantedEquipment {
    *  Starform SHOP OFFER (Star Destroyer, owner rule C 2026-09-13): `sourceUids` holds the token's offer uid, the
    *  entry is valid exactly while a Starform exists, and the rebuild / removal paths drop it when the token is
    *  gone (`syncStarDestroyer`). */
-  sourceKind?: 'starform';
+  sourceKind?: 'starform' | 'rune';
+  /** `sourceKind: 'rune'` (owner batch 2026-10-07): the RUNE that owns this Equipment (`RunState.runeEquipment`).
+   *  A rune-owned entry has no body — `sourceUids` is empty — and is held for the rest of the run. */
+  sourceRuneId?: string;
   /** Which wording/params apply. A single Gilded source anywhere upgrades the whole entry (handoff rule). */
   version: 'plain' | 'gilded';
   /** EVERY source, tracked independently — duplicates collapse to one selector entry but each still gets its

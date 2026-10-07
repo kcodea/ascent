@@ -183,6 +183,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
 export const COMBAT_CASTING_FACTORIES: ReadonlySet<string> = new Set([
   'rallyCastNamedSpell', // Flamebeat Drake
   'onTribeAttackCastNamedSpell', // Warflame
+  'onBattlecryCastNamedSpell', // Firebird (2026-10-07)
 ]);
 
 /**

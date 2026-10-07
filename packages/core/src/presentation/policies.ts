@@ -240,6 +240,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onAttackStripKeywords:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onBattlecryBuffFodder:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },
   'factory:onBattlecryBuffSelf:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },
+  'factory:onBattlecryCastNamedSpell:battlecryTriggered': { policy: 'ownBeat', family: 'shoutReact' }, // Firebird (2026-10-07): a real cast gets its own beat
   'factory:onBattlecryBuffSelf:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:onBattlecryBuffTribe:battlecryTriggered': { policy: 'foldedCue', family: 'shoutReact' },
   'factory:onBattlecryRearmGrimoire:battlecryTriggered': { policy: 'ownBeat', family: 'shoutPayoff', reason: 'triggers nested Shouts to reset; discrete payoff' },
@@ -694,6 +695,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_herzog:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_high_king:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_hoardcalling:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // ── owner batch 2026-10-07: the Dragon runes + the Wise Armory ──
+  'rune:rune_echoing_shouts:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every Shout: your Dragons +3/+2
+  'rune:rune_whelps:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Shouts: a Brood Whelp
+  'rune:rune_voicekeeper:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Dragons sold: a plain copy of one
+  'rune:rune_flaming_dragon:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Firebird
+  'rune:rune_dragons_egg:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Dragon's Egg
+  'rune:rune_wise_armory:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Spell Generator
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

@@ -102,6 +102,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   rallyCastSpell: 'spellId',
   rallyCastNamedSpell: 'spellId',              // Flamebeat Drake -> Dragonflame
   battlecryCastNamedSpell: 'spellId',          // Facetbound Martyr -> Veinstorm
+  onBattlecryCastNamedSpell: 'spellId',       // Firebird -> Dragonflame (2026-10-07)
   onTribeAttackCastNamedSpell: 'spellId',      // Warflame -> Dragonflame
   endOfTurnCastSpellEscalating: 'spellId',
   endOfTurnCastSpellOnSelf: 'spellId',        // Arnold -> Beefy
@@ -230,7 +231,7 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
 
 export { CardDefSchema, QuestDefSchema, RuneDefSchema, EffectFactoryIdSchema } from './schema'; // EffectFactoryIdSchema: the balance census / identity read the factory-id surface (B0, 2026-09-15)
 export { QUEST_DEFS, QUEST_INDEX, validateQuests } from './quests';
-export { EQUIPMENT, EQUIPMENT_INDEX, BLOODPOT, TITAN_HAMMER, STAR_DESTROYER, CALIBRATION_WRENCH, equipmentOf, type EquipmentDefinition, type EquipmentTargetMode } from './equipment';
+export { EQUIPMENT, EQUIPMENT_INDEX, BLOODPOT, TITAN_HAMMER, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR, equipmentOf, type EquipmentDefinition, type EquipmentTargetMode } from './equipment';
 export { RUNES, EPIC_RUNES, ARCHIVED_RUNES, RUNE_INDEX, RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, runeStacks, validateRunes } from './runes';
 export { cardRevisions, contentRevision, cardRevision, revisionOf } from './revisions';
 export * from './gauntlet';

@@ -1935,4 +1935,81 @@ export const RUNES_RULES: GameRule[] = [
       + 'writes `maxGoldBonus`, like Robin x Time, Gold Font and Nadja.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeCoffersEveryEot.test.ts', 'packages/ui/src/runeCoffersTally.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-RUNE-EQUIP-01',
+    title: 'A rune can own an Equipment: held for the rest of the run, with no body behind it',
+    statement:
+      "A `runeEquip` rune (Rune of the Dragon's Egg, Rune of the Wise Armory) grants its Equipment the moment it is "
+      + "bought, with its own charge ready, and the Start-of-Turn rebuild re-grants it every turn after the board's "
+      + "Equipment (`RunState.runeEquipment`, `sourceKind: 'rune'`, empty `sourceUids`). It obeys every Equipment rule "
+      + 'unchanged: one own activation a turn, the shared bonus pool, the cost reductions, Amplified. A rune is never '
+      + 'gilded, so the entry is plain. A second copy of the rune collapses into the one entry.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Dragon runes)', quote: "Equip Dragon's Egg (2): Discover a Dragon." },
+      { kind: 'code', ref: 'packages/sim/src/equipment.ts grantRuneEquipment / syncRuneEquipment / rebuildEquipment; packages/sim/src/reducer.ts applyQuestRewardInner runeEquip' },
+    ],
+    contentIds: ['rune_dragons_egg', 'rune_wise_armory'],
+    cardText: "**Equip Dragon's Egg (2):** Discover a **Dragon**.",
+    currentBehaviour: 'Conforms (2026-10-07, new primitive).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-SHOUT-METER-PAYLOADS-01',
+    title: 'Shout-meter runes that buff a tribe or grant a named card pay on combat Shouts too',
+    statement:
+      'The "when you trigger N Shouts" meters are one counter across both phases. Rune of the Echoing Shouts (every '
+      + 'Shout: your Dragons +3/+2) pays your Dragons on the board and in hand, permanently, in the Shop; on a combat '
+      + 'Shout fire it pays the living Dragons +3/+2 for that fight, the moment the Shout fires (the Drake Skull '
+      + 'and Starsong combat rule). Rune of the Whelps (3 Shouts: a Brood Whelp) pays the Whelp into the hand mid-fight '
+      + 'like the Chorus. A triggered Shout counts as a Shout (each fire ticks the meter once).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Dragon runes)', quote: 'When you trigger a Shout, give your Dragons +3/+2.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts shoutMetersFor; packages/core/src/combat/simulate.ts the battlecryTriggered shout-meter handler (grantCards / buff)' },
+    ],
+    contentIds: ['rune_echoing_shouts', 'rune_whelps'],
+    cardText: 'When you trigger a **Shout**, give your **Dragons +3/+2**.',
+    currentBehaviour: 'Conforms (2026-10-07).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-VOICEKEEPER-COPY-01',
+    title: 'Rune of the Voicekeeper: every third Dragon sold returns a PLAIN copy of one of those three',
+    statement:
+      'Each Dragon sold (board or hand; All-types bodies count) ticks the meter. On the third, one of the three sold '
+      + 'since the last payout is picked off the run cursor and a plain copy (base stats, never gilded) goes to hand, '
+      + 'the copy rule of the Voicekeeper minion and Rune of the Collector. A second copy of the rune pays one more copy.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Dragon runes)', quote: 'When you sell 3 Dragons, get a copy of one.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts settleMinionSale (runeVoicekeeper)' },
+    ],
+    contentIds: ['rune_voicekeeper'],
+    cardText: 'When you sell **3 Dragons**, get a copy of one.',
+    currentBehaviour: 'Conforms (2026-10-07). Plain copy is the judgement call, flagged to the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-FIREBIRD-CAST-01',
+    title: 'Firebird casts Dragonflame on every Shout you trigger, in the Shop and in combat',
+    statement:
+      'Firebird ("When you trigger a Shout, cast Dragonflame") hears every friendly Shout fire in both phases, real '
+      + 'time: a played Shout, a re-fired Shout, a combat Shout. Each fire casts Dragonflame through the real '
+      + 'cast pipeline (`castSpell` / `castNamedSpellInCombat`), so it is a counted spell cast that wakes spell '
+      + 'watchers. A gilded Firebird casts twice.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Dragon runes)', quote: 'When you trigger a Shout, cast Dragonflame' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts onBattlecryCastNamedSpell; packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts the two dispatch wrappers' },
+    ],
+    contentIds: ['d2_firebird', 'rune_flaming_dragon'],
+    cardText: 'When you trigger a **Shout**, cast **Dragonflame**.',
+    currentBehaviour: 'Conforms (2026-10-07).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

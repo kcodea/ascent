@@ -74,6 +74,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Runes can now give you Equipment. It stays for the rest of the game, with no minion needed.',
       },
+      {
+        category: 'Systems',
+        text: 'The Gold cost coin on spell cards now matches the Equipment cost coin: same size, same look.',
+        details: [
+          'The coin is a little smaller and sits on the same corner of the card.',
+          'A discounted cost now shows the same green coin with a white number that Equipment and Runes use.',
+          'The orange cast count badge on spells (like x2) is now the same size as the cost coin.',
+        ],
+      },
     ],
   },
   {

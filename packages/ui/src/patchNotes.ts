@@ -217,7 +217,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
-        text: 'Bronze ranked games now use the Gauntlet-style shop timer: no clock until you spend 20 Gold in a turn.',
+        text: 'Bronze ranked games now use the Gold Fuse, the Gauntlet-style shop timer: no clock until you spend 20 Gold in a turn.',
         details: [
           'In a ranked game you start in Bronze, each shop turn begins with no timer. A bar fills as you spend Gold.',
           'Once you have spent 20 Gold in the turn, a 60 second countdown starts. From turn 9 it is 90 seconds.',

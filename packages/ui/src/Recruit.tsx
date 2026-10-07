@@ -475,7 +475,7 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
         {practice
           ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
           : goldWaiting
-            ? `A countdown begins once you've spent ${goal} Gold in a single turn.`
+            ? `Gold Fuse: a countdown begins once you've spent ${goal} Gold in a single turn.`
             : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>

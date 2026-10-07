@@ -3,7 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestCombatMods } from '@game/core';
 import { createRun, type BoardCard, type RunState } from './state';
 import { reduce } from './reducer';
-import { fireRecruitDeathrattlesForTest } from './recruit';
+import { fireRecruitDeathrattlesForTest, fireShopRally } from './recruit';
 import { snapshotBoard } from './snapshot';
 import { sideFromSnapshot } from './boardSide';
 
@@ -150,6 +150,75 @@ describe('Elderhorn — "Your Beasts\' Rallies and Echoes trigger an additional 
     const r = simulate([bm('eo_echobeast', 'D', 0, 1)], [bm('sandbag', 'W', 5, 400)], makeRng(3), CARDS,
       combatSide({ tier: 5, beastRitualExtra: 1 }), combatSide({ tier: 1 }));
     expect(r.events.filter((e) => e.type === 'summon').length).toBe(2);
+  });
+});
+
+// ── Forced Rallies (owner ruling 2026-10-07: Rally doublers also boost a Rally fired WITHOUT an attack) ───────
+
+describe('Forced Rallies are boosted by every Rally doubler (R-RALLY-FORCED-01)', () => {
+  /** Rallies fired in a fight whose only Rally source is Rune of Rallying's Start-of-Combat forced Rally: the
+   *  rallier has 0 Attack and never swings, the wall has 0 Attack. */
+  const forcedCombatRallies = (rallier: string, others: BoardMinion[]): number => {
+    const run = (rune: boolean): number => simulate([bm(rallier, 'R', 0, 400), ...others], [bm('sandbag', 'W', 0, 400)], makeRng(11), CARDS,
+      combatSide({ tier: 6, questMods: rune ? { runeRallying: true } : {} } as never), combatSide({ tier: 1 })).playerRallies ?? 0;
+    expect(run(false), 'no swing Rallies in this staging').toBe(0);
+    return run(true);
+  };
+
+  it("COMBAT: Elderhorn boosts a Beast's forced Rally, Uron any forced Rally, and they add", () => {
+    expect(forcedCombatRallies(rallyBeastId, [])).toBe(1);
+    expect(forcedCombatRallies(rallyBeastId, [elder()])).toBe(2);
+    expect(forcedCombatRallies(rallyBeastId, [bm('uron', 'U', 0, 400)])).toBe(2);
+    expect(forcedCombatRallies(rallyBeastId, [elder(), bm('uron', 'U', 0, 400)])).toBe(3);
+    expect(forcedCombatRallies(rallyOtherId, [elder()]), 'Elderhorn: Beasts only').toBe(1);
+    expect(forcedCombatRallies(rallyOtherId, [bm('uron', 'U', 0, 400)])).toBe(2);
+  });
+
+  it('COMBAT: each extra forced fire is its own Rally line', () => {
+    const r = simulate([bm(rallyBeastId, 'R', 0, 400), elder()], [bm('sandbag', 'W', 0, 400)], makeRng(11), CARDS,
+      combatSide({ tier: 6, questMods: { runeRallying: true } } as never), combatSide({ tier: 1 }));
+    const rUid = r.initial.player[0]!.uid;
+    expect(r.events.filter((e) => e.type === 'sc' && e.source === rUid && (e as { text?: string }).text === 'Rally').length).toBe(2);
+  });
+
+  const shopRallies = (rallierId: string, others: BoardCard[], extra: Partial<RunState> = {}): number => {
+    const s: RunState = { ...createRun(9), tier: 6, phase: 'recruit', hand: [], board: [bc('r', rallierId), ...others], lastRallyFires: 0, ...extra } as RunState;
+    fireShopRally(s, s.board[0]!);
+    return s.lastRallyFires ?? 0;
+  };
+
+  it('SHOP: a forced Shop Rally (Lasting Cadence & co.) is boosted by Elderhorn for a Beast and by Uron for any Rally', () => {
+    expect(shopRallies(rallyBeastId, [])).toBe(1);
+    expect(shopRallies(rallyBeastId, [bc('e', 'b2_elderhorn')])).toBe(2);
+    expect(shopRallies(rallyBeastId, [bc('e', 'b2_elderhorn', { golden: true })])).toBe(3);
+    expect(shopRallies(rallyBeastId, [bc('u', 'uron')])).toBe(2);
+    expect(shopRallies(rallyBeastId, [bc('e', 'b2_elderhorn'), bc('u', 'uron')])).toBe(3);
+    expect(shopRallies(rallyOtherId, [bc('e', 'b2_elderhorn')]), 'Elderhorn: Beasts only').toBe(1);
+    expect(shopRallies(rallyOtherId, [bc('u', 'uron')])).toBe(2);
+  });
+
+  it('SHOP: the run-wide Rally doublers apply too (Rune of Adventuring, Law of Teeth); the combat-scoped ones do not', () => {
+    expect(shopRallies(rallyBeastId, [], { rallyExtraAlways: 1 })).toBe(2);
+    expect(shopRallies(rallyBeastId, [], { questFlags: { lawOfTeeth: true } })).toBe(2);
+    expect(shopRallies(rallyBeastId, [], { rallyDoubleNext: true }), 'Rallying Offensive is "next combat"').toBe(1);
+    expect(shopRallies(rallyBeastId, [], { rallyFirstEachCombat: 1 }), 'Spark Permit is "each combat"').toBe(1);
+  });
+
+  it('SHOP: the extra fires really re-run the Rally: Echohorn Stag procs the left-most Echo once per fire', () => {
+    // Echohorn Stag (the Beast rallier picked above): "Rally: trigger your left-most Echo". The left-most is an
+    // Undead Echo, so Elderhorn boosts only the Rally (2 fires), never the Echo itself.
+    const undeadEcho = Object.values(CARD_INDEX).find((c) => c && c.tribe === 'undead' && !c.tribe2 && !c.token && !c.spell
+      && c.effects.length > 0 && c.effects.every((e) => e.on === 'onDeath'))!.id;
+    expect(rallyBeastId).toBe('b2_echohorn');
+    const echoes = (others: BoardCard[]): number => {
+      const s: RunState = { ...createRun(9), tier: 6, phase: 'recruit', hand: [], board: [bc('d', undeadEcho), bc('r', rallyBeastId), ...others] } as RunState;
+      const before = s.deathrattlesTriggered;
+      fireShopRally(s, s.board[1]!);
+      return s.deathrattlesTriggered - before;
+    };
+    expect(echoes([])).toBe(1);
+    expect(echoes([bc('e', 'b2_elderhorn')])).toBe(2);
+    expect(echoes([bc('u', 'uron')])).toBe(2);
   });
 });
 

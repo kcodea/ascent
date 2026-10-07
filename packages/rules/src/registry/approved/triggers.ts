@@ -925,4 +925,29 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-06',
     },
   },
+  {
+    id: 'R-RALLY-FORCED-01',
+    title: 'A Rally fired without an attack is boosted by every Rally doubler, in the Shop and in combat',
+    statement:
+      'A forced Rally, fired by something other than the rallier\'s own attack (Rune of Rallying, Backbeat, the Hunting '
+      + 'Bell, a "trigger a Rally" effect in combat; Rune of Lasting Cadence and every other Shop Rally), is boosted by '
+      + 'the Rally doublers exactly as a swing\'s Rally is. In combat: the card multipliers on the side\'s board (Uron, '
+      + 'Elderhorn for a Beast) and the additive doublers (Law of Teeth, War Council, Rallying Offensive, Rune of '
+      + 'Adventuring, Spark Permit\'s first Rally of the fight). In the Shop: Uron, Elderhorn for a Beast, Law of Teeth, '
+      + 'War Council and Rune of Adventuring; Rallying Offensive ("next combat") and Spark Permit ("each combat") stay '
+      + 'in combat, as their own text says. Each extra fire re-runs the rallier\'s own Rally effects and the '
+      + '"whenever you trigger a Rally" watchers, is its own Rally line, and counts as a Rally for every tally. A welded '
+      + 'Rally (Better Bot, Perfect Core) pays once, as it does on a swing.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-07 on PR #1970, asked "Should Elderhorn boost Rallies that fire without an attack? Saying yes would change Uron too"', quote: 'yes' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts fireFreeRally (rallyCardExtras + playerRallyExtras); packages/sim/src/recruit.ts fireShopRally + shopRallyExtras' },
+    ],
+    contentIds: ['b2_elderhorn', 'uron', 'rune_rallying', 'rune_lasting_cadence', 'rune_adventuring', 'rune_backbeat', 'rune_hunting_bell'],
+    currentBehaviour:
+      'Conforms as of 2026-10-07. Before, no Rally multiplier applied to a forced Rally in either phase: Uron, Law of Teeth, '
+      + 'Rune of Adventuring and the Elderhorn modes boosted only a Rally fired by an attack.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

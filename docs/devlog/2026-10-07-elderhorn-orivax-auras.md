@@ -38,9 +38,18 @@ auras that work **only while the minion is on your board** (owner ruling: "While
 - **Simultaneous death**: deaths resolve left to right. An Elderhorn dying in the same strike still doubles a Beast
   Echo that resolves before its own death (it is at 0 Health but not yet resolved), and not one after. Identical to
   Sylus; pinned by a Cleave test.
-- **Forced Rallies are not multiplied**: neither combat's `fireFreeRally` nor the Shop's `fireShopRally` applies ANY
-  Rally multiplier today (Uron, Law of Teeth, the old Hunt mode). Elderhorn follows that precedent rather than
-  changing Uron's behaviour in this PR. Shop Echoes ARE multiplied.
+- **Forced Rallies ARE multiplied** (owner ruling 2026-10-07, asked "Should Elderhorn boost Rallies that fire without
+  an attack? Saying yes would change Uron too": "yes"; R-RALLY-FORCED-01). Before, no Rally multiplier applied to a
+  Rally fired without an attack in either phase. Now:
+  - Combat `fireFreeRally` folds `rallyCardExtras` (Uron, Elderhorn, the legacy Hunt mode; extracted from the swing
+    path so both read one definition) + `playerRallyExtras` (Law of Teeth, War Council, Rallying Offensive, Rune of
+    Adventuring, Spark Permit's first Rally). Each extra re-runs the rallier's own effects + the rally-gated watchers,
+    logs its own `sc` Rally line and bumps the tally.
+  - Shop `fireShopRally` folds the new `shopRallyExtras`: Uron, Elderhorn, the Hunt mode, Law of Teeth, War Council,
+    Rune of Adventuring. NOT Rallying Offensive (`rallyDoubleNext`, "next combat") or Spark Permit
+    (`rallyFirstEachCombat`, "each combat"), whose text is combat-scoped. Each fire (base + extras) counts toward
+    `lastRallyFires`, Call and Answer and Herding Horn. The welded Rallies pay once, as on a swing.
+  - `RALLY_WATCHER_EFFECTS` is now exported from core so the Shop extras re-fire the same watcher set as combat.
 - **Epic medallion** (owner ruling 2026-10-07, "fix their icons to now be the special gem icon that drakko/sylus use
   etc"): the "epic choose one" override is removed, so both wear the default epic gem (`medallions/epic.webp`), same
   as Drakko / Sylus, plain and golden (the epic medallion has no gilded variant).

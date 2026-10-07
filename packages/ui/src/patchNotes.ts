@@ -64,7 +64,17 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'No more Choose One. It now does both, but only while Elderhorn is on your board. Sell it or lose it and the bonus ends.',
           'Golden Elderhorn gives 2 additional triggers. Two Elderhorns stack.',
-          'Works on Beast Echoes in the Shop too.',
+          'Works on Beast Echoes in the Shop too, and on Beast Rallies that fire without an attack.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rallies that fire without an attack are now boosted by every Rally booster, in the Shop and in combat.',
+        details: [
+          'Covers Rallies set off by runes and effects, such as Rune of Rallying, Backbeat, the Hunting Bell and Rune of Lasting Cadence.',
+          'Uron, Elderhorn (Beasts), Law of Teeth, War Council and Rune of Adventuring now apply to them everywhere.',
+          'Rallying Offensive and Spark Permit still apply in combat only, as their text says.',
+          'Each extra Rally counts toward your Rally quests and runes.',
         ],
       },
       {

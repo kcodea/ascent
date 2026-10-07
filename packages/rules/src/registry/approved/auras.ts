@@ -112,7 +112,8 @@ export const AURAS_RULES: GameRule[] = [
       + 'death ends it. Each Rally (on attack) and each Echo of a BEAST on that side fires one more time; other tribes are '
       + 'untouched. It is an additive "additional time" multiplier (owner vocabulary rule 2026-08-28): golden gives 2 '
       + 'additional, every copy stacks, and it adds to Sylus, Uron and the run-wide Rally/Echo extras. It applies wherever '
-      + 'a Beast Echo fires (combat deaths, forced Echoes, Shop Echoes) and to Beast Rallies on attack. A served board '
+      + 'a Beast Echo fires (combat deaths, forced Echoes, Shop Echoes) and wherever a Beast Rally fires (on attack, and a '
+      + 'forced Rally in combat or the Shop, R-RALLY-FORCED-01). A served board '
       + 'carries it with the body. SIMULTANEOUS DEATH: deaths resolve left to right, so an Elderhorn dying in the same '
       + 'strike still doubles a Beast Echo that resolves before its own death, and not one after it (the Sylus precedent).',
     domain: 'auras',
@@ -126,8 +127,8 @@ export const AURAS_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms as of 2026-10-07. Before, Elderhorn was a Choose One that installed a permanent run mode (`beastHuntExtra` '
       + 'for Rallies or `beastRitualExtra` for Echoes). Those modes are still read so old saves and replays resolve, but no '
-      + 'card installs them any more. Forced Rallies (a rune or effect that triggers a Rally without an attack, in the Shop '
-      + 'or in combat) are not multiplied by any Rally multiplier today, Elderhorn included.',
+      + 'card installs them any more. A forced Rally (fired without an attack, in the Shop or in combat) is boosted too, '
+      + 'as is every Rally doubler (R-RALLY-FORCED-01, owner 2026-10-07).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {

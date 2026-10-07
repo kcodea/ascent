@@ -3154,7 +3154,7 @@ export function destroyMinionInShop(
     state.vacatingUid = target.uid;
     const summonedFrom = state.board.length;
     fireRecruitDeathrattles(ctx, target); // 2. its Echo, anchored on the still-present body
-    fireOnFriendDeath(state, target);     // 3. watchers (a shop destroy is a real death)
+    fireOnFriendDeath(state, target, { returnsWhole: willRebirth }); // 3. watchers (a shop destroy is a real death)
     state.vacatingUid = wasVacating;
     // 4. …and NOW it leaves. Found by uid: the Echo's summons have shifted the indices around it.
     const gone = state.board.findIndex((c) => c.uid === target.uid);
@@ -10694,7 +10694,11 @@ function fire(
  */
 const FRIEND_DEATH_WATCHERS: ReadonlySet<string> = new Set(['onFriendDeathSummon', 'onFriendDeathGainEcho', 'impInheritOnDeath']);
 
-export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
+/**
+ * @param opts.returnsWhole the dying body is about to come back by REBIRTH, as the same body (R-DEATH-RETURN-01): a
+ *   warband grant it would otherwise miss while dead (Rune of Beastial Swarm) lands on it too, so it returns with it.
+ */
+export function fireOnFriendDeath(state: RunState, dead: BoardCard, opts?: { returnsWhole?: boolean }): void {
   syncUnity(state); // Rune of Unity: a Shop death can break the full house
   const ctx = makeContext(state);
   // RUNE OF THE PALLBEARER (Set 3 design pass): a friendly Undead died → the left-most minion in hand +2/+2 per copy.
@@ -10704,7 +10708,10 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard): void {
   // amount, permanently, like any Shop buff — once per copy held. Its Avenge (2) improvement stays a combat count.
   if (state.questFlags?.runeBeastialSwarm && isTribe(dead, 'beast')) {
     const n = (state.beastialSwarmLevel ?? 2) * runeStacksOf(state, 'rune_beastial_swarm');
-    const beasts = state.board.filter((c) => c.uid !== dead.uid && isTribe(c, 'beast'));
+    // The dying Beast itself is skipped, unless it is about to return by Rebirth with its whole body (R-DEATH-RETURN-01,
+    // owner 2026-10-06: "a minion that rises/rebirths should get benefits from beastial swarm"); combat pays a Rebirth
+    // return the same. A Rise return is the printed body, so a Shop buff on the corpse would be shed anyway.
+    const beasts = state.board.filter((c) => (c.uid !== dead.uid || !!opts?.returnsWhole) && isTribe(c, 'beast'));
     if (n > 0 && beasts.length > 0) {
       procRuneId(state, 'rune_beastial_swarm');
       for (const c of beasts) addBuff(c, 'Rune of Beastial Swarm', n, n);
@@ -12482,7 +12489,7 @@ export function settlePendingDeath(state: RunState): void {
         else fireRecruitDeathrattles(makeContext(state), card);
         // A destroy is a real death for watchers (owner ruling 2026-08-26). A loan EXPIRY still is not —
         // whether it should be is an open design question, deliberately unchanged here.
-        if (pending.kind === 'destroy') fireOnFriendDeath(state, card);
+        if (pending.kind === 'destroy') fireOnFriendDeath(state, card, { returnsWhole: willRebirth });
         if (pending.kind === 'destroy') afterShopDestroy(state, card); // Rune of Last Rites (Set 3 batch 2)
       } finally {
         state.vacatingUid = wasVacating;

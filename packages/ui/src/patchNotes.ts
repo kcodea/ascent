@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Rune of Beastial Swarm now triggers when a Beast that Rises or Rebirths dies.',
+        details: [
+          'A death before a Rise or Rebirth is a real death, so the rune pays your other Beasts and counts toward its Avenge (2).',
+          'The returning Beast gets the buff too: it is one of your summoned Beasts.',
+          'The same fix applies to other death effects in combat: The Bone Throne, Assembly Line, Rune of Blood and Coin, Rune of Backbeat, Rune of Moonhowl, Rune of Ancestral Roar, Rune of Ruby Shrapnel, Rune of Emberline, Candlelight Toll, Rune of the Gem Golem and Parting Cry.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed Rune of the Undertow not triggering on minions that Rise or Rebirth.',
         details: [
           'A minion that Rises or Rebirths in combat is a summon, so it now takes the Ward while the rune has Wards left.',

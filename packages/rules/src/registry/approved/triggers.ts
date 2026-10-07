@@ -883,4 +883,45 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-03',
     },
   },
+  {
+    id: 'R-DEATH-RETURN-01',
+    title: 'A death that leads to a Rise or Rebirth is a real death for every death listener',
+    statement:
+      'When a minion dies and then returns by Rise or Rebirth, that death is a REAL death for every effect that listens '
+      + 'for a friendly death, in combat and in the Shop. It is ONE death: each listener hears it once, and the dying '
+      + 'body\'s own Echo fires once as before. That covers Rune of Beastial Swarm (the payout and its Avenge (2) '
+      + 'improvement) and every other death listener: Avenge counts, The Bone Throne, Assembly Line, Rune of Blood and '
+      + 'Coin, Rune of Backbeat, Rune of Moonhowl, Rune of Ancestral Roar, Rune of Ruby Shrapnel, Rune of Emberline, '
+      + 'Candlelight Toll, Rune of the Gem Golem and Parting Cry. A returning Beast is also one of the "summoned Beasts" '
+      + 'Beastial Swarm buffs: a Rise return takes the swarm through the Beast pool every summon inherits, and a Rebirth '
+      + 'return (which kept its body) takes the payouts that landed while it was dead, its own death\'s included. '
+      + 'Excluded by their own scope: graveyards (Mossmemory Colossus, Rune of the Final Gate) record only bodies that '
+      + 'stay dead, and the "your last minion died" checks (Pit Without End, Rune of Finality, Rune of the Crucible) '
+      + 'do not fire for a body that is about to return. The summon side of the same rule is R-SUMMON-RETURN-01.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-06 (Claude Code session, after #1967 found Beastial Swarm deaf to a Rise death)', quote: 'yeah a minion that rises/rebirths should get benefits from beastial swarm' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-07-27 (Rise death is a real death; reversing 2026-07-02/07-06)', quote: 'minions that die and then rise should still count as a death' },
+      { kind: 'card-text', ref: 'packages/content/src/runes.ts rune_beastial_swarm', quote: 'When a friendly **Beast** dies, give all Friendly and summoned Beasts **+2/+2**. **Avenge (2):** Improve this.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts killOrReborn: deathWatchers / firePartingCry / beastialSwarmImprove / avengePacedDeathWatchers, called from the true, Rise and Rebirth death branches; beastialGiven (the Rebirth return\'s owed swarm); packages/sim/src/recruit.ts fireOnFriendDeath(returnsWhole) from destroyMinionInShop and settlePendingDeath' },
+      { kind: 'docbot-scan', ref: 'packages/sim/src/docbot/combatModScan.ts deathReturnRider', quote: 'pre-fix engine: runeBeastialSwarm, runeGemGolem and assemblyLineStep deaf to Rise + Rebirth' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-06. Before: the combat death listeners that live inline in `killOrReborn` sat on its '
+      + 'TRUE-death branch only, so a Rise or Rebirth death reached the bus `onDeath` broadcast, the tallies and Avenge '
+      + 'but skipped Beastial Swarm (payout and improvement), the Avenge-paced side watchers (a Rise death that landed '
+      + 'on the Nth death paid nothing), and the rune-granted Echoes. The Shop half already heard a returning death; '
+      + 'only its Rebirth return missed its own death\'s Beastial Swarm buff.',
+    example:
+      'You own Rune of Beastial Swarm. A 1-Health Pennycat with Rise dies in combat beside another Pennycat: the other '
+      + 'gains +2/+2 at once, and the Pennycat returns as its printed body plus +2/+2. With Rebirth it returns with its '
+      + 'whole body and then gains +2/+2. Two Rise deaths in one fight improve the rune to +4/+4.',
+    contentIds: ['rune_beastial_swarm', 'q_the_bone_throne', 'q_assembly_line', 'rune_blood_and_coin', 'rune_backbeat', 'rune_moonhowl', 'rune_ancestral_roar', 'rune_ruby_shrapnel', 'rune_emberline', 'q_candlelight_toll', 'rune_gem_golem', 'sp_partingcry'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/riseDeathWatchers1006.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+      lastVerifiedAt: '2026-10-06',
+    },
+  },
 ];

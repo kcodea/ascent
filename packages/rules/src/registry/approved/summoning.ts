@@ -90,7 +90,8 @@ export const SUMMONING_RULES: GameRule[] = [
       + 'counted grant and fires its rune once. A return that does not fit (an overflow, R-RISE-05) takes nothing. '
       + 'Excluded by their own text: grants scoped to a named token or summoner (Rune of the Wrangler, Rune of the '
       + 'Living Geode, Heart of the Mountain), and Rune of Living Treasure, whose Rebirth on a returning Golem would '
-      + 'make the return endless (R-RUNE-09: "returns once").',
+      + 'make the return endless (R-RUNE-09: "returns once"). The DEATH side of the same rule (the death before a '
+      + 'return is a real death for every death listener) is R-DEATH-RETURN-01.',
     domain: 'summoning',
     status: 'approved',
     evidence: [

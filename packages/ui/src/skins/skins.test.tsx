@@ -264,6 +264,22 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
   });
+  // Skins batch 9 (owner 2026-10-07: "yes add the new art to the catalog"): two minion skins, rarity = the Minion Skins
+  // folder (both Rare). Both are Chorus Drake (d2_chorus), by the art: the card's three stacked singing heads, music
+  // notes, chest gem and pose, repainted. Same checks as batch 6.
+  const BATCH9: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
+    ['skin_chorus_2', 'rare', 'd2_chorus', 'Chorus Drake', 'Canyon Drake.png'],
+    ['skin_chorus_3', 'rare', 'd2_chorus', 'Chorus Drake', 'Thunderchorus Drake.png'],
+  ];
+  it.each(BATCH9)('batch 9: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['minion_skin', rarity, { type: 'card', id: cardId }, master, true]);
+    expect(CARD_INDEX[cardId]?.name).toBe(cardName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(minionSkinOf({ minionSkinByCardId: { [cardId]: id } }, cardId)?.id).toBe(id);
+  });
   it('batch 5: Influencer Indy (Epic) exists, targets the hero indy, and ships its art', () => {
     const c = cosmeticOf('skin_indy_1')!;
     expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', 'epic', { type: 'hero', id: 'indy' }, 'InfluencerIndy.png', true]);

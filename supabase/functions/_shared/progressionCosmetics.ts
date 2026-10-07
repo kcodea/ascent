@@ -344,6 +344,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_merrin_2', 'hero_skin', 'Merrin Sweeney', 'ancient', 'merrin', 'MerrinSweeney.png'),
   skin('skin_nadja_2', 'hero_skin', 'Nadja Sweeney', 'ancient', 'nadja', 'NadjaSweeney.png'),
   skin('skin_rayse_2', 'hero_skin', 'Rayse Sweeney', 'ancient', 'rayse', 'RayseSweeney.png'),
+  // Skins batch 9 (owner 2026-10-07: "yes add the new art to the catalog"). Rarity = the Minion Skins rarity folder
+  // (both in Rare/). Names come from the filenames. Both are Chorus Drake (d2_chorus), matched by the art: the same
+  // three stacked singing heads, ring of music notes, chest gem and pose as the card's own art, repainted (a sandstone
+  // canyon dragon; a storm-blue lightning dragon). Chorus Drake's third and fourth skins after Quartet Chorusdrake.
+  skin('skin_chorus_2', 'minion_skin', 'Canyon Drake', 'rare', 'd2_chorus', 'Canyon Drake.png'),
+  skin('skin_chorus_3', 'minion_skin', 'Thunderchorus Drake', 'rare', 'd2_chorus', 'Thunderchorus Drake.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

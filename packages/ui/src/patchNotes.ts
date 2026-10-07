@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: '2 new Rare minion skins in crates for Chorus Drake: Canyon Drake and Thunderchorus Drake.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: the end-of-turn charge effect and its sound now pause whenever the Shop timer pauses, and stay in sync with it.',
         details: [
           'Pausing mid-turn (the menu, a Discover, an offer, any pick) now freezes the charging rune, its sparks and its build-up sound together with the timer.',

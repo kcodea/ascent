@@ -90,7 +90,7 @@ export function outcomeText(r: RankResult): string | null {
  *  on the silver rank up screen". Wording is the owner's own (2026-10-06). */
 export const SILVER_CLOCK_NOTICE = Object.freeze({
   title: 'Shop Timer Adjusted',
-  body: 'At Silver rank and above, the round timer begins at the start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!',
+  body: 'At Silver rank and above, the round timer begins at the start of the round. No more Gold Fuse. Time to make fast decisions, champion!',
 });
 
 /** The notice a result earns, or null. ONLY the Bronze → Silver promotion: not a division step inside Bronze or

@@ -255,8 +255,8 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'bronze-timer',
     topic: 'lobby',
     q: 'Why does my shop timer wait until I spend Gold?',
-    a: "That's the **Bronze** timer. In a ranked game you start in Bronze, each shop turn begins with no clock, and a bar fills as you spend Gold. Once you've spent **20 Gold** in the turn, a countdown starts: **60 seconds**, or **90 seconds** from turn 9. Once you reach **Silver**, the timer starts at the beginning of every turn, like everyone else's. A game you started in Bronze keeps the Bronze timer to the end. The Gauntlet works the same way at 30 Gold.",
-    aliases: ['bronze timer', 'gold timer', 'no timer bronze', '20 gold', 'timer starts late', 'silver timer'],
+    a: "That's the **Gold Fuse**. In a ranked game you start in Bronze, each shop turn begins with no clock, and a bar fills as you spend Gold. Once you've spent **20 Gold** in the turn, a countdown starts: **60 seconds**, or **90 seconds** from turn 9. Once you reach **Silver**, the timer starts at the beginning of every turn, like everyone else's. A game you started in Bronze keeps the Gold Fuse to the end. The Gauntlet uses a Gold Fuse too, at 30 Gold.",
+    aliases: ['gold fuse', 'fuse', 'bronze timer', 'gold timer', 'no timer bronze', '20 gold', 'timer starts late', 'silver timer'],
     seeAlso: ['timer-runs-out', 'practice-timer'],
   },
   {

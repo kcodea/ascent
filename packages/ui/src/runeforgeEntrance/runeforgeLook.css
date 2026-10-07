@@ -1,58 +1,21 @@
-/* THE RUNEFORGE (owner reference 2026-10-07, for composition, proportion and mood). Built ONLY from the game's own UI
-   system (owner HARD RULE 2026-10-07: never fake illustration with CSS/SVG drawings: no signs, chains, ribbons,
-   banners, daises, wood or metal textures, drawn props of any kind): a Gem plate title, the Gold pill, a row of tall
-   tribe-tinted rune cards over a soft light pool, a big blue Re-roll, Inspect beneath, and warm embers rising.
+/* THE RUNEFORGE (owner 2026-10-07). The forge's illustrated frame (`/runeforgebg2.webp`) behind the offer ("can you put
+   the png back in behind the runes"), at its original shipped size and position over the dark scrim, and on it, built
+   only from the game's own UI system (owner HARD RULE 2026-10-07: never fake illustration with CSS/SVG drawings): a
+   Gem plate title, the Gold pill, a row of rune cards, a big blue Re-roll, Inspect beneath, and warm embers rising.
 
-   NO BACKGROUND IMAGE (owner 2026-10-07: "it can use the game board but blurred/colored"). The overlay blurs the
-   live board behind it and grades it; three grades for the owner to pick from, chosen by `data-rf-bg` on <html>
-   (the 🔨 Runeforge Look tuner's "Backdrop" dial; the old `/runeforgebg2.webp` stays in the repo, unreferenced):
-     1 · DEEP VIOLET: the game's violet tint and a vignette darkening toward the edges;
-     2 · WARM FORGE: amber firelight spilling up from the bottom centre behind the cards, deep violet at the edges;
-     3 · TRIBE WASH: one soft wash blended from the offered runes' tribe colours (`--rf-wash`, set by RuneforgeDialog);
-         the Epic forge's wash is violet-gold.
-   Every option adds a soft light pool behind the cards.
+   PERFORMANCE (docs/performance.md). The backdrop is two static layers that paint once when the overlay opens. The
+   only loop is the embers' rise, transform + opacity (compositor); it exists only while the forge is open, the browser
+   stops it with the tab hidden, and prefers-reduced-motion stills it. Nothing bobs or floats (owner 2026-10-07).
+   Colours: the chrome reads `--ui-*` theme tokens; the Re-roll's blue and the embers are the only literals. */
 
-   PERFORMANCE (docs/performance.md). The blur is a `backdrop-filter` on the overlay itself, STATIC (its radius never
-   animates). Every other layer paints once when the overlay opens. The only loops are the embers' rise, transform +
-   opacity (compositor); they exist only while the forge is open, the browser stops them with the tab hidden, and
-   prefers-reduced-motion stills them. Nothing bobs or floats (owner 2026-10-07). Measured on the prod build: see the
-   PR. Colours: the chrome reads `--ui-*` theme tokens; the Re-roll's blue and the glows are the only literals. */
-
-/* ── The backdrop: the board, blurred and graded ──────────────────────────────────────────────────────────── */
+/* ── The backdrop: the illustrated frame over the scrim (the shipped values from before this redesign) ──────── */
 .forge-ov {
   --rf-ember: 255, 178, 92;
-  --rf-pool: 255, 214, 150;
-  background: rgba(30, 18, 64, 0.55);
-  -webkit-backdrop-filter: blur(48px) saturate(1.05);
-  backdrop-filter: blur(48px) saturate(1.05);
+  background:
+    url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat,
+    linear-gradient(rgba(14, 16, 22, 0.96), rgba(14, 16, 22, 0.96));
 }
-.forge-ov.forge-epic { --rf-pool: 230, 190, 255; }
 .rf-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.rf-grade, .rf-pool { position: absolute; inset: 0; }
-/* 1 · Deep violet (the default). */
-.rf-grade {
-  background:
-    radial-gradient(110% 90% at 50% 50%, rgba(64, 40, 128, 0.35) 0%, rgba(36, 20, 80, 0.62) 55%, rgba(10, 5, 26, 0.94) 100%);
-}
-/* 2 · Warm forge: firelight from the bottom centre fading into deep violet. */
-:root[data-rf-bg="2"] .rf-grade {
-  background:
-    radial-gradient(70% 60% at 50% 92%, rgba(255, 150, 60, 0.55) 0%, rgba(214, 92, 50, 0.32) 38%, rgba(214, 92, 50, 0) 70%),
-    radial-gradient(120% 95% at 50% 52%, rgba(90, 40, 96, 0.2) 0%, rgba(40, 18, 70, 0.62) 60%, rgba(12, 5, 24, 0.94) 100%);
-}
-/* 3 · Tribe wash: one soft blend of the offered runes' tribe hues; the Epic's is violet-gold. */
-:root[data-rf-bg="3"] .rf-grade {
-  background:
-    radial-gradient(80% 70% at 50% 55%, color-mix(in srgb, var(--rf-wash, #8a6fd6) 34%, transparent) 0%, color-mix(in srgb, var(--rf-wash, #8a6fd6) 12%, transparent) 55%, rgba(0, 0, 0, 0) 80%),
-    radial-gradient(120% 95% at 50% 50%, rgba(40, 24, 80, 0.3) 0%, rgba(26, 14, 54, 0.66) 62%, rgba(8, 4, 20, 0.94) 100%);
-}
-:root[data-rf-bg="3"] .forge-epic .rf-grade {
-  background:
-    radial-gradient(80% 70% at 50% 55%, rgba(255, 200, 110, 0.32) 0%, rgba(176, 110, 240, 0.26) 45%, rgba(0, 0, 0, 0) 80%),
-    radial-gradient(120% 95% at 50% 50%, rgba(50, 24, 90, 0.3) 0%, rgba(30, 12, 60, 0.66) 62%, rgba(8, 4, 20, 0.94) 100%);
-}
-/* The light pool behind the cards. */
-.rf-pool { background: radial-gradient(44% 40% at 50% 58%, rgba(var(--rf-pool), 0.26), rgba(var(--rf-pool), 0.08) 55%, rgba(var(--rf-pool), 0) 100%); }
 
 /* The embers: mixed sizes rising from below the floor, each on its own lane, speed, drift and delay; one in seven is
    a big soft bokeh glow. Transform + opacity only. */
@@ -100,7 +63,6 @@
 .forge-ov .forge-banner::before { left: calc(-9 * var(--u)); }
 .forge-ov .forge-banner::after { right: calc(-9 * var(--u)); }
 .forge-ov.forge-epic .forge-banner::before, .forge-ov.forge-epic .forge-banner::after { background: linear-gradient(135deg, #f1dcff, #b078e6 55%, #5b2f8a); border-color: var(--ui-edge-deep); }
-.forge-ov.forge-epic .forge-banner { box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--ui-edge-main), 0 calc(10 * var(--u)) calc(26 * var(--u)) -8px rgba(0, 0, 0, 0.7), 0 0 calc(30 * var(--u)) -6px rgba(196, 140, 255, 0.7); }
 
 /* THE GOLD PLATE: a dark navy Gem plate with gold diamond tips, the coin and the number. */
 .forge-ov .forge-gold {

@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-07',
     changes: [
-      { category: 'Systems', text: 'Rune cards are easier to read: their text, label and name are 20% larger, and the small lightning badge on top of the card is gone.' },
+      { category: 'Systems', text: 'Runes and the Runeforge have a cleaner new look: full rune art on every card, larger text, tribe-coloured keywords, and calmer hover effects. The small lightning badge on top of rune cards is gone.' },
       {
         category: 'Systems',
         text: '2 new Rare minion skins in crates for Chorus Drake: Canyon Drake and Thunderchorus Drake.',

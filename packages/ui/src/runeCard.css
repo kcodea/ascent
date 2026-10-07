@@ -15,7 +15,7 @@
      · `--rc-deep`: the body, the HUD's deep navy Gem plate, the same on every card (owner 2026-10-07: restraint).
      · `--rt-body`: the tribe ACCENT (keywords, the divider hairline, the hover halo); neutral a soft gold, Dragon a
        warm coral (its tribe hue is white).
-   EPIC: the same card, a second outer gold rim with a thin violet line between the rims. Nothing around the art.
+   EPIC: the same card and the same single thin rim; the navy body carries a faint violet hint.
    Static paint everywhere; the only motion is the one-shot hover lift and the opacity of a pre-rendered edge glow.
    Nothing bobs (owner 2026-10-07). */
 
@@ -124,10 +124,9 @@
 .runecard[data-tribe="neutral"] .runecard-txt b { color: #f0d08c; }
 .runecard-lock { position: relative; z-index: 1; margin-top: 8px; font-weight: 800; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ui-warn); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
 
-/* EPIC: a second outer gold rim, crisp, with a thin violet line between the rims. No fog, nothing around the art. */
+/* EPIC: the same single thin gold rim as a Basic (owner 2026-10-07: the extra Epic outline removed); the navy body
+   carries a faint violet hint. */
 .runecard-epic { --rc-deep: color-mix(in srgb, var(--ui-plate-mid) 88%, #6a3aa8); }
-.runecard-epic .runecard-face { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3.5px var(--ui-edge-main), 0 0 14px rgba(176, 120, 240, 0.45), 0 14px 26px -12px rgba(8, 3, 20, 0.85); }
-.runecard-epic::after { inset: -3px; border-radius: 21px; }
 
 /* ── The rune rack badge: the round art in a gold rim ──────────────────────────────────────────────────────── */
 .questbadge.runebadge {

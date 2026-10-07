@@ -77,13 +77,6 @@ const EMBERS: readonly { x: number; t: number; d: number; dx: number; sz: number
   });
 })();
 
-/** Option 3's single colour wash: the blend of the offered runes' tribe hues (one nested color-mix, not per card). */
-function tribeWash(offer: readonly string[]): string | undefined {
-  const tribes = offer.map((id) => RUNE_INDEX[id]).filter((r) => !!r).map((r) => runeAccentTribe(r!));
-  if (tribes.length === 0) return undefined;
-  return tribes.slice(1).reduce((acc, t, i) => `color-mix(in srgb, ${acc} ${Math.round(((i + 1) / (i + 2)) * 100)}%, var(--t-${t}))`, `var(--t-${tribes[0]})`);
-}
-
 export interface RuneforgeDialogProps {
   offer: readonly string[];
   epic: boolean;
@@ -141,7 +134,6 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
     // `epic`/`occasion`/`speed` are fixed for one opening; the OFFER is what re-runs it (a re-roll).
   }, [offerSig]);
 
-  const wash = epic ? undefined : tribeWash(offer);
   return (
     <div
       ref={rootRef}
@@ -152,12 +144,8 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
       // tablets are pointer-events: none), so it skips without buying; a landed tablet also takes its click.
       onPointerDownCapture={() => { if (handleRef.current?.isRunning()) handleRef.current.skip(); }}
     >
-      {/* The stage: the live board, heavily blurred and colour-graded (one of three backdrop options, `data-rf-bg` on
-          <html>, the 🔨 Runeforge Look tuner's "Backdrop" dial), a soft light pool behind the cards, and the rising
-          embers (runeforgeLook.css). Inert. */}
-      <div className="rf-stage" aria-hidden="true" style={{ '--rf-wash': wash } as CSSProperties}>
-        <div className="rf-grade" />
-        <div className="rf-pool" />
+      {/* The stage: the rising embers over the forge's illustrated backdrop (runeforgeLook.css). Inert. */}
+      <div className="rf-stage" aria-hidden="true">
         <div className="rf-motes">
           {EMBERS.map((m, i) => (
             <span key={i} className={`rf-mote${m.b ? ' rf-bokeh' : ''}`} style={{ '--x': `${m.x}%`, '--t': `${m.t}s`, '--d': `${m.d}s`, '--dx': `${m.dx}px`, '--sz': `${m.sz}px`, '--o': m.o } as CSSProperties} />

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { aftershocksRider, combatModScan, summonReturnRider, undertowRider } from './combatModScan';
+import { aftershocksRider, combatModScan, deathReturnRider, summonReturnRider, undertowRider } from './combatModScan';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
@@ -56,5 +56,11 @@ describe('Doc Bot — combat-mod lane', () => {
     const { violations, summonGrants } = summonReturnRider(keys);
     expect(summonGrants, 'the rider must find the summon-grant mods to be measuring anything').toEqual(expect.arrayContaining(['runeUndertow', 'runeHatchery', 'runePackcraft']));
     expect(violations, `these "summoned in combat" mods skip a returning body — a Rise / Rebirth return IS a summon (owner 2026-10-06: Rune of the Undertow did not proc on a rising minion):\n  ${violations.join('\n  ')}`).toEqual([]);
+  });
+
+  it('RIDER — death-return parity: every mod that hears a true death hears a Rise / Rebirth death too (R-DEATH-RETURN-01)', () => {
+    const { violations, deathListeners } = deathReturnRider(keys);
+    expect(deathListeners, 'the rider must find the death-listener mods to be measuring anything').toEqual(expect.arrayContaining(['runeBeastialSwarm']));
+    expect(violations, `these death-listener mods skip a death that leads to a Rise / Rebirth — that death is a real death (owner 2026-10-06: "a minion that rises/rebirths should get benefits from beastial swarm"):\n  ${violations.join('\n  ')}`).toEqual([]);
   });
 });

@@ -295,3 +295,63 @@ export function summonReturnRider(keys: readonly string[]): { violations: string
   }
   return { violations, summonGrants };
 }
+
+/**
+ * Mods that act on a TRUE death but rightly stay quiet on a Rise / Rebirth death — each with its reason. Only a
+ * mod whose own text scopes it to something a returning body is not (a graveyard, an emptied board) belongs here.
+ * Also here: mods that move the fixture's window itself rather than listen to the death. (The fixture keeps two
+ * sturdy allies alive, so the board-wipe mods never fire in it.)
+ */
+export const DEATH_RETURN_EXEMPT: Record<string, string> = {
+  runeRisingGraves: 'Not a death listener: it grants Rise at Start of Combat, and the fixture body counts as every '
+    + 'tribe (so Undead), which turns the "true death" into a Rise death. An already-rising body is skipped, so the '
+    + 'return windows read the same.',
+  stolenInitiative: 'Not a death listener: the spell inserts an out-of-turn swing after the first enemy attack, '
+    + 'which changes the swing that closes the true-death window, not what the death triggers.',
+};
+
+/**
+ * R-DEATH-RETURN-01 — the death-return PARITY rider, the death side of `summonReturnRider`. For every mod key: arm
+ * it, and compare the events between a body's death and the next swing (a TRUE death) against the unarmed fight;
+ * then the events between the same body's death and its return when it RISES, and when it is REBORN. A mod that
+ * changes the true-death window but neither return window is a death listener that cannot hear a returning death:
+ * the exact shape of the Rune of Beastial Swarm report (owner 2026-10-06: "a minion that rises/rebirths should get
+ * benefits from beastial swarm"). The dying body counts as every tribe so tribe-gated listeners have a subject.
+ */
+export function deathReturnRider(keys: readonly string[]): { violations: string[]; deathListeners: string[] } {
+  const enemy = (): BoardMinion[] => [bm('sandbag', 'e0', 3, 90000)];
+  const body = (kw: string[]): BoardMinion[] => [
+    { ...bm('alley', 'p0', 1, 1, kw), universalTribe: true } as BoardMinion,
+    bm('alley', 'p1', 0, 9000),
+    bm('impscrap', 'p2', 0, 9000),
+  ];
+  const window = (kw: string[], mods: QuestCombatMods): string => {
+    const r = simulate(body(kw), enemy(), makeRng(0xdea7), CARD_INDEX,
+      combatSide({ tier: 5, tribes: ['beast', 'demon', 'dragon', 'dwarf', 'kobold'] as never, questMods: mods }),
+      combatSide({ tier: 5 }));
+    const uid = r.initial.player[0]!.uid;
+    const evs = r.events as readonly { type?: string; target?: string }[];
+    const d = evs.findIndex((e) => e.type === 'death' && e.target === uid);
+    if (d < 0) return '';
+    const stop = kw.length === 0
+      ? evs.findIndex((e, i) => i > d && e.type === 'attack')
+      : evs.findIndex((e, i) => i > d && e.type === 'reborn' && e.target === uid);
+    return JSON.stringify(evs.slice(d, stop < 0 ? undefined : stop));
+  };
+  const base = { die: window([], {}), rise: window(['R'], {}), rebirth: window(['RB'], {}) };
+  const violations: string[] = [];
+  const deathListeners: string[] = [];
+  for (const key of keys) {
+    if (key in DEATH_RETURN_EXEMPT) continue;
+    const mods = (): QuestCombatMods => ({ [key]: key in OBJECT_ARMS ? structuredClone(OBJECT_ARMS[key]) : true }) as QuestCombatMods;
+    try {
+      if (window([], mods()) === base.die) continue;
+      deathListeners.push(key);
+      const deaf: string[] = [];
+      if (window(['R'], mods()) === base.rise) deaf.push('Rise');
+      if (window(['RB'], mods()) === base.rebirth) deaf.push('Rebirth');
+      if (deaf.length) violations.push(`${key} (deaf to ${deaf.join(' + ')})`);
+    } catch { /* an arming crash is the main scan's `errored` finding, not this rider's */ }
+  }
+  return { violations, deathListeners };
+}

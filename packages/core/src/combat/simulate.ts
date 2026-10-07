@@ -509,6 +509,9 @@ export function simulate(
     enemy: enemyState.questMods?.beastialSwarmLevel ?? 2,
   };
   const beastialStart = { player: beastialLevel.player, enemy: beastialLevel.enemy };
+  /** Rune of Beastial Swarm: the running total each side's Beasts were given this fight. A Rebirth body that was dead
+   *  while a payout landed (its own death's, at least) is owed the difference on its return (R-DEATH-RETURN-01). */
+  const beastialGiven: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of Packcraft (owner rework 2026-09-23): the current per-summon grant, per side — starts at the run's
    *  persisted level (default the printed +2/+1), grows by that base step on every friendly summon, and the
    *  player side's grown value carries back. `PACKCRAFT_BASE` mirrors `PACKCRAFT_STEP` in @game/sim state
@@ -2990,6 +2993,11 @@ export function simulate(
       minion.health = 0;
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep();
+      // A Rebirth death is a REAL death for every death listener (R-DEATH-RETURN-01, owner 2026-10-06): the same
+      // watchers the true-death branch runs, at the same point (right after the `death` event).
+      const swarmBefore = beastialGiven[minion.side];
+      deathWatchers(minion, true);
+      firePartingCry(minion);
       deaths[minion.side] += 1; // counted before the Echo (R-AVWIN-02), as for a Rise
       noteCardDeath(minion);
       fireOwnDeathrattles(minion, killer);
@@ -2997,7 +3005,9 @@ export function simulate(
       if (minion.side === 'enemy') enemyDeaths++;
       noteKill(minion.cardId, minion.uid, minion.side);
       questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+      beastialSwarmImprove(minion.side); // R-DEATH-RETURN-01: the Avenge-paced watchers count this death too
       emitAvenge(minion.side, deaths[minion.side], minion);
+      avengePacedDeathWatchers(minion, false);
       // Echo first, THEN the return (owner 2026-09-18): the Echo's summons took the freed room; no room now = an
       // overflow and the body stays dead — the same rule as a Rise.
       if (living(minion.side).length >= 7) {
@@ -3034,6 +3044,12 @@ export function simulate(
       nextStep();
       const rbGrant = returnSummonGrants(minion); // after nextStep: the rune pulse shares the return's beat
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}), rebirth: true });
+      // RUNE OF BEASTIAL SWARM on a Rebirth return (owner 2026-10-06: "a minion that rises/rebirths should get benefits
+      // from beastial swarm"): the body kept everything it had, but the payouts that landed while it was dead (its own
+      // death's, at least) reached only the living. "All Friendly and summoned Beasts" includes a returning one, so it
+      // takes them now, as its own buff beat. (A Rise return gets the same through `applyAuras`' Beast pool.)
+      const swarmOwed = beastialGiven[minion.side] - swarmBefore;
+      if (swarmOwed > 0 && (isBeast(minion) || !!cards[minion.cardId]?.universalTribe)) { nextStep(); ctx.buff(minion, swarmOwed, swarmOwed, 'Rune of Beastial Swarm'); }
       if (rbGrant.attackNow && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, interrupts: true, seq: immediateSummonSeq++ });
       summonEntryEffects(minion, minion.side);
       summonReturnExtras(minion); // ANCIENT OF GENESIS × Lord of the Risen: a Rebirth return is a summon too
@@ -3058,6 +3074,10 @@ export function simulate(
       minion.health = 0;
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
+      // A Rise death is a REAL death for every death listener (R-DEATH-RETURN-01, owner 2026-10-06): the same
+      // watchers the true-death branch runs, at the same point (right after the `death` event).
+      deathWatchers(minion, true);
+      firePartingCry(minion);
       // NO slot is held while the body is dead (owner 2026-09-18, reversing 2026-09-09): the Echo fires from the
       // death and its summons take the freed room first; the Rise is attempted only afterwards, below.
       // R-AVWIN-02 (fixed 2026-09-10): the death is COUNTED before its Echo fires, so an Avenge source the Echo
@@ -3080,7 +3100,9 @@ export function simulate(
       noteKill(minion.cardId, minion.uid, minion.side);
       // (`deaths[side]` was incremented above, before the Echo — R-AVWIN-02.)
       questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+      beastialSwarmImprove(minion.side); // R-DEATH-RETURN-01: the Avenge-paced watchers count this death too
       emitAvenge(minion.side, deaths[minion.side], minion);
+      avengePacedDeathWatchers(minion, false);
       // ECHO FIRST, THEN THE RISE ATTEMPTS (owner ruling 2026-09-18: "the Echo triggers first, then the minion
       // attempts to Rise" — for ALL Rise/Echo interactions; reverses the 2026-09-09 "a rising body holds its
       // slot"). The Echo's summons took the freed slot; if the side is at 7 living now, the return does not fit —
@@ -3218,6 +3240,97 @@ export function simulate(
     emit({ type: 'death', target: minion.uid, side: minion.side });
     // RUNE OF THE FINAL GATE's graveyard: every Undead that really dies, printed body, in death order.
     if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden });
+    deathWatchers(minion, false);
+    // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff) and remember WHICH bodies
+    // they were, first and last, for Flash.
+    if (minion.side === 'enemy') enemyDeaths++;
+    noteKill(minion.cardId, minion.uid, minion.side);
+    // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
+    const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
+    if (hasDeathrattle) bumpDeathrattles(1, minion.side);
+    nextStep(); // Deathrattles + on-death watchers resolve as their own step
+    firePartingCry(minion);
+    // Defer any Fel-Spikes-style board deaths across the base Echo (fired via the bus) + every re-fire below,
+    // so all volleys land before a deferred victim resolves (see the withEchoDefer note). A no-op — byte-
+    // identical events — for every death whose rattle never calls `resolveEchoDeath`.
+    // R-AVWIN-02 (fixed 2026-09-10): the death is COUNTED before its Echo fires. An Avenge source summoned by
+    // this body's Echo stamps `avengeBaseline = deaths[side]` on arrival, so counting first is exactly what keeps
+    // the death that created it OUTSIDE its window. The avenge broadcast still fires after the Echo (below),
+    // so resolution order is unchanged — only the tally the new body reads on arrival moved.
+    deaths[minion.side] += 1;
+    noteCardDeath(minion);
+    withEchoDefer(() => {
+      bus.emit('onDeath', { minion, side: minion.side, killer });
+      // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
+      // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
+      // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
+      if (crucibleBank[minion.side].length > 0 && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
+        const bank = crucibleBank[minion.side];
+        crucibleBank[minion.side] = [];
+        fireTrigger('runeCrucible', minion.side);
+        for (const b of bank) {
+          const def = cards[b.cardId];
+          if (!def) continue;
+          summonMinion(minion.side, def, undefined, [...b.keywords], b.golden, false,
+            { attack: b.attack, health: b.health, maxHealth: b.health });
+        }
+      }
+      // RUNE OF THE FINAL GATE (set 3 batch 2, 2026-09-16): the FIRST time each combat the side's board becomes
+      // EMPTY, summon three random Undead that died this combat — printed bodies (the Rise / Colossus precedent),
+      // drawn without replacement from the death list, seeded. Mirrors the Crucible's wipe check above and runs
+      // AFTER it: a Crucible return that refills the board means the wipe was not real, and the gate stays armed.
+      // Once per fight, whatever it found (an empty graveyard still spends it — the board WAS empty).
+      if (modsFor(minion.side).runeFinalGate && !finalGateUsed[minion.side]
+          && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
+        finalGateUsed[minion.side] = true;
+        const pool = [...finalGateGraves[minion.side]];
+        if (pool.length > 0) {
+          nextStep(); fireTrigger('runeFinalGate', minion.side);
+          for (let i = 0; i < 3 && pool.length > 0; i++) {
+            const g = pool.splice(ctx.rng.int(pool.length), 1)[0]!;
+            const def = cards[g.cardId];
+            if (!def) continue;
+            summonMinion(minion.side, def, undefined, undefined, g.golden, false);
+          }
+        }
+      }
+      // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
+      // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
+      // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
+      const extra = hasDeathrattle ? playerEchoExtras(minion) : 0;
+      for (let r = 0; r < extra; r++) {
+        // One wrap around the whole re-trigger: a body with two Echo effects is still ONE Echo triggering.
+        asEcho(minion.side, () => {
+          for (const effect of minion.effects) {
+            if (effect.on !== 'onDeath') continue;
+            withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+          }
+        }, minion);
+      }
+      // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
+      // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
+      // re-fires so all firings read the same tally value (the value at death), only the count grows.
+      if (hasDeathrattle) bumpDeathrattles(extra, minion.side);
+    });
+    // Avenge: notify that side's avengers (the death was counted above, before the Echo — R-AVWIN-02).
+    questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+    beastialSwarmImprove(minion.side);
+    emitAvenge(minion.side, deaths[minion.side], minion);
+    avengePacedDeathWatchers(minion, true);
+  }
+
+  // ── DEATH WATCHERS (R-DEATH-RETURN-01, owner 2026-10-06) ──────────────────────────────────────────────────────
+  // "a death that leads to a Rise or Rebirth is a real death for every death listener." The inline death listeners
+  // below used to sit on `killOrReborn`'s TRUE-death branch only, so a body that died and then Rose or was Reborn
+  // never reached them (Rune of Beastial Swarm was the owner's report). They now live here, ONE implementation,
+  // called from all three death branches (true death, Rise death, Rebirth death) at the same point in each: the
+  // watchers right after the `death` event, the Avenge-paced ones around `emitAvenge`. The bus `onDeath` broadcast,
+  // the tallies and the dying body's own Echo were already shared and are untouched, so nothing fires twice.
+  // Graveyards (Mossmemory Colossus, Final Gate) and the "your board is empty" checks (Pit Without End, Finality,
+  // Crucible) stay true-death only: a returning body is not in the grave and its board is not empty.
+
+  /** The death listeners that read the dying body. `returning` = this is a Rise / Rebirth death. */
+  function deathWatchers(minion: Minion, returning: boolean): void {
     // MOSSMEMORY COLOSSUS's graveyard: every Beast that dies is recorded in DEATH ORDER, so its Echo can bring
     // back the three that fell earliest. The PRINTED body is what's recorded (cardId + golden), matching the
     // Rise precedent — "Rise resummons the PRINTED body" — rather than whatever the corpse had grown into.
@@ -3313,7 +3426,9 @@ export function simulate(
         for (let k = 0; k < flagCopiesOf(minion.side, 'runeBackbeat'); k++) fireFreeRally(lead, minion.side);
       }
     }
-    if ((minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))
+    // Only a body that STAYS dead enters the Colossus graveyard: a Rise / Rebirth body is back on the board, and
+    // resurrecting it would copy a living minion (the Final Gate graveyard follows the same rule).
+    if (!returning && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))
         && !raisedBodies.has(minion.uid)) {
       deadBeasts[minion.side].push({ uid: minion.uid, cardId: minion.cardId, golden: minion.golden, attack: minion.attack, maxHealth: minion.maxHealth ?? minion.health });
     }
@@ -3331,6 +3446,7 @@ export function simulate(
         nextStep(); fireTrigger('runeBeastialSwarm', side);
         const bs = n * flagCopiesOf(side, 'runeBeastialSwarm');
         beastAtkAuraFor[side] += bs;
+        beastialGiven[side] += bs; // what a Rebirth body dead at this moment is owed on its return
         beastHpAuraFor[side] += bs;
         for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
       }
@@ -3371,14 +3487,10 @@ export function simulate(
         }
       }
     }
-    // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff) and remember WHICH bodies
-    // they were, first and last, for Flash.
-    if (minion.side === 'enemy') enemyDeaths++;
-    noteKill(minion.cardId, minion.uid, minion.side);
-    // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
-    const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
-    if (hasDeathrattle) bumpDeathrattles(1, minion.side);
-    nextStep(); // Deathrattles + on-death watchers resolve as their own step
+  }
+
+  /** PARTING CRY (spell): one-shot, so a body pays it on its FIRST death, Rise / Rebirth deaths included. */
+  function firePartingCry(minion: Minion): void {
     // PARTING CRY (spell): this body's SHOUT fires as it dies, before its Echo. One-shot — spent here, so a
     // Rise/resummon of the same body never pays twice.
     if (minion.partingCry) {
@@ -3402,80 +3514,24 @@ export function simulate(
         }
       }
     }
-    // Defer any Fel-Spikes-style board deaths across the base Echo (fired via the bus) + every re-fire below,
-    // so all volleys land before a deferred victim resolves (see the withEchoDefer note). A no-op — byte-
-    // identical events — for every death whose rattle never calls `resolveEchoDeath`.
-    // R-AVWIN-02 (fixed 2026-09-10): the death is COUNTED before its Echo fires. An Avenge source summoned by
-    // this body's Echo stamps `avengeBaseline = deaths[side]` on arrival, so counting first is exactly what keeps
-    // the death that created it OUTSIDE its window. The avenge broadcast still fires after the Echo (below),
-    // so resolution order is unchanged — only the tally the new body reads on arrival moved.
-    deaths[minion.side] += 1;
-    noteCardDeath(minion);
-    withEchoDefer(() => {
-      bus.emit('onDeath', { minion, side: minion.side, killer });
-      // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
-      // Echoes fire, so an Echo that summons keeps the side alive and defers the return — the wipe has to be
-      // real. Emptied on use: one resurrection per fight, and the returning bodies can't re-trigger it.
-      if (crucibleBank[minion.side].length > 0 && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
-        const bank = crucibleBank[minion.side];
-        crucibleBank[minion.side] = [];
-        fireTrigger('runeCrucible', minion.side);
-        for (const b of bank) {
-          const def = cards[b.cardId];
-          if (!def) continue;
-          summonMinion(minion.side, def, undefined, [...b.keywords], b.golden, false,
-            { attack: b.attack, health: b.health, maxHealth: b.health });
-        }
-      }
-      // RUNE OF THE FINAL GATE (set 3 batch 2, 2026-09-16): the FIRST time each combat the side's board becomes
-      // EMPTY, summon three random Undead that died this combat — printed bodies (the Rise / Colossus precedent),
-      // drawn without replacement from the death list, seeded. Mirrors the Crucible's wipe check above and runs
-      // AFTER it: a Crucible return that refills the board means the wipe was not real, and the gate stays armed.
-      // Once per fight, whatever it found (an empty graveyard still spends it — the board WAS empty).
-      if (modsFor(minion.side).runeFinalGate && !finalGateUsed[minion.side]
-          && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
-        finalGateUsed[minion.side] = true;
-        const pool = [...finalGateGraves[minion.side]];
-        if (pool.length > 0) {
-          nextStep(); fireTrigger('runeFinalGate', minion.side);
-          for (let i = 0; i < 3 && pool.length > 0; i++) {
-            const g = pool.splice(ctx.rng.int(pool.length), 1)[0]!;
-            const def = cards[g.cardId];
-            if (!def) continue;
-            summonMinion(minion.side, def, undefined, undefined, g.golden, false);
-          }
-        }
-      }
-      // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
-      // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
-      // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
-      const extra = hasDeathrattle ? playerEchoExtras(minion) : 0;
-      for (let r = 0; r < extra; r++) {
-        // One wrap around the whole re-trigger: a body with two Echo effects is still ONE Echo triggering.
-        asEcho(minion.side, () => {
-          for (const effect of minion.effects) {
-            if (effect.on !== 'onDeath') continue;
-            withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
-          }
-        }, minion);
-      }
-      // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
-      // objective + Grim's tally — scale with doublers; a MINION dying is still one death). Added after the
-      // re-fires so all firings read the same tally value (the value at death), only the count grows.
-      if (hasDeathrattle) bumpDeathrattles(extra, minion.side);
-    });
-    // Avenge: notify that side's avengers (the death was counted above, before the Echo — R-AVWIN-02).
-    questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+  }
+
+  /** Rune of Beastial Swarm's Avenge (2) improvement. Called right before `emitAvenge` on every death path. */
+  function beastialSwarmImprove(side: Side): void {
     // RUNE OF BEASTIAL SWARM — Avenge (2): every 2 friendly deaths, raise the per-death amount by +2. Permanent:
     // the player side's grown level carries back into the run (`playerBeastialSwarmLevel`).
-    if (modsFor(minion.side).runeBeastialSwarm && deaths[minion.side] % 2 === 0) {
-      beastialLevel[minion.side] += 2;
-      fireTrigger('runeBeastialSwarm', minion.side);
+    if (modsFor(side).runeBeastialSwarm && deaths[side] % 2 === 0) {
+      beastialLevel[side] += 2;
+      fireTrigger('runeBeastialSwarm', side);
     }
-    emitAvenge(minion.side, deaths[minion.side], minion);
+  }
+
+  /** The Avenge-paced side watchers (deaths[side] % N), called right after `emitAvenge` on every death path. The
+   *  last-minion checks only on a true death (`trueDeath`): a Rise / Rebirth body is about to return. */
+  function avengePacedDeathWatchers(minion: Minion, trueDeath: boolean): void {
+    const side = minion.side; // per-side quest/rune death effects — a served enemy runs its own
     // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
-    const side = minion.side; // per-side quest/rune death effects — a served enemy runs its own
     const throneStep = modsFor(side).boneThroneStep ?? 0;
     if (throneStep > 0 && deaths[side] % throneStep === 0) {
       const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
@@ -3487,7 +3543,7 @@ export function simulate(
     if (asmStep > 0 && deaths[side] % asmStep === 0) { nextStep(); fireTrigger('assemblyLine', side); ctx.grantToHand('moneybot', side, minion.uid); }
     // Pit Without End: the friendly death that empties your board summons N Imps (a last stand, once per fight).
     const pitImps = modsFor(side).pitWithoutEndImps ?? 0;
-    if (pitImps > 0 && !pitDone[side] && countLiving(side) === 0) {
+    if (trueDeath && pitImps > 0 && !pitDone[side] && countLiving(side) === 0) {
       pitDone[side] = true;
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }
@@ -3502,7 +3558,7 @@ export function simulate(
     // Rune of Finality: the Warded sibling of Pit Without End — same "your last minion died" trigger, but the
     // Imps arrive with Ward. Its own latch, so holding both runes pays both once rather than one eating the other.
     const finalImps = modsFor(side).runeFinality ?? 0;
-    if (finalImps > 0 && !finalityDone[side] && countLiving(side) === 0) {
+    if (trueDeath && finalImps > 0 && !finalityDone[side] && countLiving(side) === 0) {
       finalityDone[side] = true;
       fireTrigger('runeFinality', side);
       const imp = cards['impscrap'];

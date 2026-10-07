@@ -2955,6 +2955,17 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'devOpenRuneforge': {
+      // DEV Scene Builder only (owner ask 2026-10-07): open the Runeforge without playing to its turn, so the forge
+      // look can be iterated on. It rolls through the SAME openers a real run uses: Epic is the turn-8 Epic forge
+      // (`openEpicRuneforge`, which also avoids a second same-turn Epic forge's repeats), Basic is the scheduled
+      // Basic forge. Neither spends a hero-power charge. Refused while any modal owns the screen.
+      if (s.phase !== 'recruit' || modalOpen(s)) return state;
+      if (action.epic) openEpicRuneforge(s);
+      else openScheduledBasicRuneforge(s);
+      return s;
+    }
+
     case 'buyHenchman': {
       // Recruit your hero's HENCHMAN (owner spec 2026-08-03): a hero-bound minion, once per run, for its
       // decayed cost (win −3 / loss −2 per round, floored at 0 — `henchmanOffer`). Granted to HAND like a

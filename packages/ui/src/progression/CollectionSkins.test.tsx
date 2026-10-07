@@ -67,9 +67,9 @@ describe('the Heroes and Minions tabs', () => {
     open();
     expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/34'); // skins batch 8 (2026-10-03): eleven hero skins (was 1/23); skins batch 7 (2026-10-01): Goth Merrin, Iron Guardian, Robin Hood (was 1/20)
-    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43; the 33 hero titles (2026-09-29) make it 76; the ninth hero attack, Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; skins batch 3 (2026-09-29) adds 4 minion skins (Minions 1/21) and a Frantic Frank hero skin (Heroes 1/3), +5; skins batch 4 (2026-09-30) adds 16 minion skins (Minions 1/37) and 16 hero skins (Heroes 1/19), +32; skins batch 5 (2026-09-30) adds 11 minion skins (Minions 1/48) and Influencer Indy (Heroes 1/20), +12; skins batch 6 (2026-10-01) adds 9 minion skins (Minions 1/57), +9; skins batch 9 (2026-10-07) adds Canyon Drake and Thunderchorus Drake (Minions 1/59), +2
+    // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43; the 33 hero titles (2026-09-29) make it 76; the ninth hero attack, Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; skins batch 3 (2026-09-29) adds 4 minion skins (Minions 1/21) and a Frantic Frank hero skin (Heroes 1/3), +5; skins batch 4 (2026-09-30) adds 16 minion skins (Minions 1/37) and 16 hero skins (Heroes 1/19), +32; skins batch 5 (2026-09-30) adds 11 minion skins (Minions 1/48) and Influencer Indy (Heroes 1/20), +12; skins batch 6 (2026-10-01) adds 9 minion skins (Minions 1/57), +9; skins batch 9 (2026-10-07) adds Canyon Drake and Thunderchorus Drake (Minions 1/59), +2; frames batch 9 (2026-10-07) adds 5 portrait frames, +5
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/59');
-    expect(text('.colls-meter-num')).toBe('3 / 220');
+    expect(text('.colls-meter-num')).toBe('3 / 225');
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
@@ -172,10 +172,10 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
       'Soul Surf Wayfinder', 'Hexhunter Wardkeeper', 'Amber Deepvein', 'Static Deepvein', 'Frost Wardkeeper', 'Infernal Wayfinder',
     ]);
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/58');
-    expect(text('.colls-meter-num')).toBe('2 / 219');
+    expect(text('.colls-meter-num')).toBe('2 / 224');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('3 / 220');
+    expect(text('.colls-meter-num')).toBe('3 / 225');
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -183,6 +183,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('2 / 186');
+    expect(text('.colls-meter-num')).toBe('2 / 191');
   });
 });

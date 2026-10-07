@@ -4259,13 +4259,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 53 frames (10 Common, 8 Rare, 19 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 58 frames (10 Common, 10 Rare, 22 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
-      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 53 crate items, one per master in '
+      'The portrait_frame category ("Portrait Frames", target global, enabled) holds 58 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
       + 'Wood, Dark Scale, Burnished, Sterling, Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, '
-      + 'Shard, Prism; Epic Aura, Amethyst, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, '
-      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom, Cream, Crystal, Disco, Econ, Snare, Cosmic Glass; Legendary Gilt Scale, Dark Cloud, '
+      + 'Shard, Prism, Color Doodle, Neon Ring; Epic Aura, Amethyst, Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, '
+      + 'Crackling Ruby, Topaz, Jade, Cherry Blossom, Cream, Crystal, Disco, Econ, Snare, Cosmic Glass, Blossom, Neonpunk, Solar Flare; Legendary Gilt Scale, Dark Cloud, '
       + 'Venom, Fire, Reaper, Water, Stained Glass, Wind, Chromatic Scale; Ancient (2026-10-02) Bonds, Death, Fortune, '
       + 'Genesis, Time, War, Reflective (a frame\x27s display name '
       + 'is the bare name, never "<name> Frame" or "<name> Portrait" (owner 2026-10-01); ids keep the master '
@@ -4283,6 +4283,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (frames batch 7)', quote: "ive also added many skins to the game's collections. can you add those all in" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (frames batch 8, Mike)', quote: 'i added a skin just to test to make sure this process works. lets wire it up' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (frames batch 9, Mike)', quote: 'wire them up' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-01 (the equip SQL is the owner\x27s to run).',
@@ -4364,7 +4365,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'geometry test (with Wedding and Simple Ring). Epic/DragonGem.png and Epic/ElectricBlue.png stay unwired: on '
       + '2026-10-03 they were still byte-identical (md5) to CracklingRuby.png and BlueEnergy.png. Batch 8 (Mike, 2026-10-06) '
       + 'added Cosmic Glass (Epic; master \x27Epic/Cosmic Glass Frame.png\x27, the first frame master with spaces in its name, '
-      + 'which the catalog test now allows as skins do): 53 in all (10 Common, 8 Rare, 19 Epic, 9 Legendary, 7 Ancient).',
+      + 'which the catalog test now allows as skins do): 53 in all (10 Common, 8 Rare, 19 Epic, 9 Legendary, 7 Ancient). '
+      + 'Batch 9 (Mike, the same day) added Blossom, Neonpunk and Solar Flare (Epic) and Color Doodle and Neon Ring (Rare): '
+      + '58 in all (10 Common, 10 Rare, 22 Epic, 9 Legendary, 7 Ancient).',
     domain: 'foundation',
     status: 'approved',
     evidence: [

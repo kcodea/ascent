@@ -17,6 +17,12 @@
     "holeCx": 0.5013,
     "holeCy": 0.4933
   },
+  "frame_blossom": {
+    "aspect": 1,
+    "holeD": 0.7257,
+    "holeCx": 0.507,
+    "holeCy": 0.4615
+  },
   "frame_blue_energy": {
     "aspect": 1,
     "holeD": 0.7873,
@@ -46,6 +52,12 @@
     "holeD": 0.7576,
     "holeCx": 0.5034,
     "holeCy": 0.4891
+  },
+  "frame_color_doodle": {
+    "aspect": 1,
+    "holeD": 0.7671,
+    "holeCx": 0.5007,
+    "holeCy": 0.4923
   },
   "frame_cosmic_glass": {
     "aspect": 1,
@@ -179,6 +191,18 @@
     "holeCx": 0.4978,
     "holeCy": 0.4753
   },
+  "frame_neon_ring": {
+    "aspect": 1,
+    "holeD": 0.7552,
+    "holeCx": 0.4989,
+    "holeCy": 0.4889
+  },
+  "frame_neonpunk": {
+    "aspect": 1,
+    "holeD": 0.799,
+    "holeCx": 0.4983,
+    "holeCy": 0.4791
+  },
   "frame_nimbus": {
     "aspect": 1,
     "holeD": 0.764,
@@ -244,6 +268,12 @@
     "holeD": 0.7839,
     "holeCx": 0.4997,
     "holeCy": 0.4866
+  },
+  "frame_solar_flare": {
+    "aspect": 1,
+    "holeD": 0.6874,
+    "holeCx": 0.5006,
+    "holeCy": 0.4857
   },
   "frame_stained_glass": {
     "aspect": 1,

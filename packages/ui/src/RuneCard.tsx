@@ -6,6 +6,8 @@ import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
+import './runeStyles.css';
+import './runeStyleDev';
 import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
@@ -141,8 +143,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx, 
           the top edge, the name over a small divider, and the rules beneath (runeCard.css).
           `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new <img>s; an
           async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
-      {look === 1 && <img className="rs-paint" src={`${import.meta.env.BASE_URL}frames/${PLATED_TRIBES.has(accent) ? `cardplate-${accent}` : 'cardplate'}.webp`} alt="" aria-hidden decoding="sync" />}
-      {look === 2 && <img className="rs-arch" src={`${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`} alt="" aria-hidden decoding="sync" />}
+      {/* DEV style candidates 1 and 2 (painted frames, runeStyles.css); never in a player build. */}
+      {import.meta.env.DEV && <img className="rs-paint" src={`${import.meta.env.BASE_URL}frames/${PLATED_TRIBES.has(accent) ? `cardplate-${accent}` : 'cardplate'}.webp`} alt="" aria-hidden decoding="sync" />}
+      {import.meta.env.DEV && <img className="rs-arch" src={`${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`} alt="" aria-hidden decoding="sync" />}
       <span className="runecard-face" aria-hidden>
         {/* The art BLEED (owner 2026-10-07: "use more of the art and feather it out"): the rune's own art, large, behind
             the window, feathered into the tribe tint before the rules text. Static (runeCard.css). */}

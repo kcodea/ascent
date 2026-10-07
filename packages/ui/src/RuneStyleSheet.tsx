@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { RuneCard } from './RuneCard';
-import './runeStyles.css';
 
 /**
  * THE RUNE CARD STYLE SHEET (DEV only, owner ask 2026-10-07): six genuinely different rune-card plate treatments side

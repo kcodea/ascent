@@ -169,6 +169,7 @@ const RUNE_ALIASES: Record<string, string> = {
   spellofpillaging: 'rune_pillaging',     // authored as "Spell of..."; there is no such spell, and the rune matches
   runeofthecaravan: 'rune_strange_caravan', // art authored as "the Caravan"; the rune is "the Strange Caravan"
   runeofthefirebird: 'rune_flaming_dragon', // owner 2026-10-07: the art is named for the minion it grants (Firebird)
+  alldrakko: 'rune_drakko',               // owner 2026-10-07: Rune of Drakko's art is filed as "AllDrakko" (every Drakko is a Dragon + Spirit)
 };
 
 /** A generator export: timestamp, `__`, the card name with hyphens for spaces, then the prompt tail. */

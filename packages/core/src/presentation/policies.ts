@@ -702,6 +702,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_flaming_dragon:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Firebird
   'rune:rune_dragons_egg:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Dragon's Egg
   'rune:rune_wise_armory:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Spell Generator
+  // ── owner batch 2026-10-07: the Beast runes ──
+  'rune:rune_actioned_beasts:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 5 Beasts played: a random Beast
+  'rune:rune_gators_bite:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every Beast played: your board Beasts +6/+6
+  'rune:rune_sunpony:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Beast attacks: your Beasts +1 Attack + the spread Rally
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

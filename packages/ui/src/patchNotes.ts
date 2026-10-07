@@ -83,6 +83,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'The orange cast count badge on spells (like x2) is now the same size as the cost coin.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Three new Beast runes join Set 2.',
+        details: [
+          'Rune of Actioned Beasts (3 Gold): when you play 5 Beasts, get a random Beast. Its badge counts down to the next one, and progress carries between turns.',
+          "Rune of the Gator's Bite (Epic, 3 Gold): when you play a Beast, give the Beasts on your board +6/+6. The Beast you just played gets it too.",
+          "Rune of the Sunpony (3 Gold): when a Beast attacks, give all of your Beasts +1 Attack for that fight, and the same spreading effect Sunmane Herald gives. Those Beasts then pass on what they have been given when they attack.",
+        ],
+      },
     ],
   },
   {

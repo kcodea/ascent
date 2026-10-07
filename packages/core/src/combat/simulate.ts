@@ -3921,6 +3921,15 @@ export function simulate(
       const windupSeq = immediateSummonSeq; // deferred summons stamped from here on belong to THIS swing's wind-up
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // RUNE OF THE SUNPONY (owner 2026-10-07): "When a Beast attacks, give all of your Beasts +1 Attack and this
+      // Rune's effect." Sunmane Herald's spreading Rally with the RUNE as the source: the SAME arena body
+      // (`rallySpreadTribeBuff`, `fixed` + `includeSelf`), so every Beast (the attacker too) gains +1 Attack per copy,
+      // banks it as spread-Rally value and carries the identical Sunmane graft (one graft per body, whichever source
+      // landed it first). Fires per swing, after the attacker's own Rally, combat-only like Sunmane.
+      if (modsFor(attacker.side).runeSunpony && !attacker.dead && isTribeOf(attacker, 'beast', cards)) {
+        fireTrigger('runeSunpony', attacker.side);
+        FACTORIES.rallySpreadTribeBuff?.(ctx, attacker, { tribe: 'beast', attack: flagCopiesOf(attacker.side, 'runeSunpony'), fixed: true, includeSelf: true }, { minion: attacker, side: attacker.side });
+      }
       // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
       // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
       // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.

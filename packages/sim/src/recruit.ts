@@ -1942,7 +1942,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -2057,6 +2057,16 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   }
   // `spells` (Bubble Crown): raise the run's SPELL POWER, the same channel Cinderwing Matron feeds — so every
   // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
+  // `tribeBoard` (Rune of the Gator's Bite): "your <tribe>" on the BOARD only, permanent, in the Shop (the Satchel /
+  // Whetstone shape; `tribe` above also reaches the hand). Runs after the played body has landed, so it is included.
+  else if (b.target === 'tribeBoard') {
+    const tribe = b.tribe;
+    if (tribe) {
+      const members = state.board.filter((c) => isTribe(c, tribe));
+      if (members.length > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of members) addBuff(c, RUNE_INDEX[t.sourceId ?? '']?.name ?? 'Rune', b.attack, b.health); });
+    }
+    grow();
+  }
   else if (b.target === 'spells') {
     state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + b.attack, health: (state.spellBonus?.health ?? 0) + b.health };
   }
@@ -15279,6 +15289,10 @@ export function playCard(state: RunState, played: BoardCard): void {
   // Set 3 batch 2 (2026-09-16): a Spirit played is one tick of the `playSpirit` meter (Rune of the Full Hand,
   // Rune of the Spirit Crown) — same engine, same cross-turn banking.
   if (isTribe(played, 'spirit')) advanceRuneThresholds(state, 'playSpirit', 1);
+  // Beast runes (owner 2026-10-07): a Beast played is one tick of the `playBeast` meter (Rune of Actioned Beasts at
+  // per 5, Rune of the Gator's Bite at per 1). Same engine, same cross-turn banking. Only this "played from hand"
+  // chokepoint ticks it, so a Shout-summoned token or a Discover pick sitting in hand never counts.
+  if (isTribe(played, 'beast')) advanceRuneThresholds(state, 'playBeast', 1);
   fireSpiritPlayRunes(state, played); // Chosen Vessel / Deep Currents / Growing Chorus / the Grand Procession rune
   runeDesignPlayRunes(state, played); // Set 3 design pass: the Kindred Hand (a Spirit played), the Whetstone (a Dwarf played)
   // ECHOED ARRIVAL: every `per`-th ECHO minion played fires its Echo on arrival. Counted per ECHO BODY (not

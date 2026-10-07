@@ -1371,7 +1371,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast'; per: number;
       /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
       grantRandomRuby?: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
@@ -1382,7 +1382,7 @@ export type QuestReward =
       castStatSpell?: number;
       /** `tribe` targets a tribe wherever it is (board + hand) — Compounding Wages' Dwarves. `step` makes the
        *  payout ESCALATE: every payout adds `step` to the grant, so the rune improves itself. */
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'tribeBoard' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
       /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -1865,7 +1865,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Starform their stats; keepsakeGem = every Ruby also casts on the left-most hand minion.
   | 'runeGemCrypt' | 'runePallbearer' | 'runeStarTap' | 'runeClosingTime' | 'runeGrimToast' | 'runeGemStar' | 'runeKeepsakeGem'
   // Tranche 5: heavyHand = friendly damage counts double toward Pummel; unity = all 5 types controlled → every type.
-  | 'runeHeavyHand' | 'runeUnity';
+  | 'runeHeavyHand' | 'runeUnity'
+  // Owner batch 2026-10-07: sunpony = when a Beast attacks, your Beasts +1 Attack and Sunmane's spreading Rally.
+  | 'runeSunpony';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2294,6 +2296,9 @@ export interface QuestCombatMods {
   runeHeavyHand?: boolean;
   /** Rune of Unity: while this side controls every active minion type (naturally), its minions count as every type. */
   runeUnity?: boolean;
+  /** Rune of the Sunpony (owner 2026-10-07): a friendly Beast attacking gives all your Beasts +1 Attack (per copy) and
+   *  Sunmane Herald's spreading Rally, through Sunmane's own body. */
+  runeSunpony?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —

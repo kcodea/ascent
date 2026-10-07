@@ -1967,6 +1967,33 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'shout', per: 1, buff: { target: 'tribe', tribe: 'dragon', attack: 3, health: 2 } },
     sets: ['set2'], // Dragons are a Set 2 tribe (Set 1 is disabled; not in Set 3)
   },
+  // ── OWNER BATCH 2026-10-07: the Beast runes (Basic half). ──
+  {
+    // The Dragon's Pantry shape on a new `playBeast` meter: every 5th Beast PLAYED from hand (Gilded plays included;
+    // Shout-summoned and other non-play arrivals never tick) gets a random buyable Beast at or below your shop tier.
+    // The remainder banks across turns; the badge shows the x/5 countdown.
+    id: 'rune_actioned_beasts',
+    tribes: ['beast'], // TRIBE GATE: the text names Beasts
+    name: 'Rune of Actioned Beasts',
+    cost: 3,
+    text: 'When you play **5 Beasts**, get a random **Beast**.',
+    reward: { kind: 'runeThreshold', meter: 'playBeast', per: 5, grantRandomTribe: 'beast' },
+    sets: ['set2'], // owner 2026-10-07: this batch is Set 2 only
+  },
+  {
+    // "This should copy Sunmane's effect, except it comes from a rune instead of the rallying effect of Sunmane"
+    // (owner 2026-10-07). COMBAT-ONLY (an attack is a combat event), through Sunmane Herald's own arena body
+    // (`rallySpreadTribeBuff` with `fixed` + `includeSelf`): every friendly Beast attack gives all your Beasts
+    // (the attacker too) +1 Attack per copy for this fight, banks it as spread-Rally value, and grafts Sunmane's
+    // spreading Rally onto any Beast that lacks it. See simulate.ts `runeSunpony`.
+    id: 'rune_sunpony',
+    tribes: ['beast'], // TRIBE GATE: the text names Beasts
+    name: 'Rune of the Sunpony',
+    cost: 3,
+    text: "When a **Beast** attacks, give all of your **Beasts +1 Attack** and this Rune's effect.",
+    reward: { kind: 'combatFlag', flag: 'runeSunpony' },
+    sets: ['set2'], // owner 2026-10-07: this batch is Set 2 only
+  },
 ];
 
 /**
@@ -4069,6 +4096,21 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Equip Spell Generator (2):** give your spells **+1/+1** and get a random spell that gives stats.',
     reward: { kind: 'runeEquip', equipmentId: 'spell_generator' },
     sets: ['set2'],
+  },
+  // ── OWNER BATCH 2026-10-07: the Beast runes (Epic half). ──
+  {
+    // A `playBeast` THRESHOLD at `per: 1` paying the `tribeBoard` buff: every Beast PLAYED from hand gives the Beasts
+    // on your BOARD +6/+6 (the played Beast included, it has landed), permanent, in the Shop. Hand Beasts are not
+    // "your Beasts" here (owner ask 2026-10-07: board Beasts; contrast Echoing Shouts' `tribe`, board + hand).
+    // Play is a Shop-only action, so there is no combat half.
+    id: 'rune_gators_bite',
+    tribes: ['beast'], // TRIBE GATE: the text names Beasts
+    name: "Rune of the Gator's Bite",
+    cost: 3,
+    epic: true,
+    text: 'When you play a **Beast**, give your **Beasts +6/+6**.',
+    reward: { kind: 'runeThreshold', meter: 'playBeast', per: 1, buff: { target: 'tribeBoard', tribe: 'beast', attack: 6, health: 6 } },
+    sets: ['set2'], // owner 2026-10-07: this batch is Set 2 only
   },
 ];
 

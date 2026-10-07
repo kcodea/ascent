@@ -1494,15 +1494,23 @@ export const ARENA_EFFECTS = {
    *  handed more. It never buffs the ATTACKER, which is what keeps Sunmane itself granting its printed +3
    *  forever. Only the printed card carries a base; the graft is written `attack: 0`. Accumulation is
    *  per-instance, so a body that dies loses its stacks and a fresh arrival starts empty. */
+  //
+  // RUNE OF THE SUNPONY (owner 2026-10-07) drives this SAME body with the rune as the source: `fixed: true` grants
+  // exactly `params.attack` (no Gilded doubling, no accrual read off the attacking Beast, which is not the source)
+  // and `includeSelf: true` ("all of your Beasts": the attacking Beast is one of them, since the rune has no body).
+  // The graft it hands out is the identical Sunmane spread-Rally, so the two never stack a second graft on a body.
   rallySpreadTribeBuff(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = str(params.tribe) || 'beast';
-    const value = num(params.attack, 0) * gold(arena) + (arena.self.rallySpreadAtk ?? 0);
+    const fixed = params.fixed === true;
+    const value = fixed ? num(params.attack, 0) : num(params.attack, 0) * gold(arena) + (arena.self.rallySpreadAtk ?? 0);
     if (value <= 0) return;
     // `combatOnly` rides the graft too (owner ruling 2026-08-20): a carrier's spread-Rally is as shop-inert
-    // as the printed Sunmane one — the loop this scopes out must not re-enter through a grafted copy.
-    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { ...(params ?? {}), attack: 0 }, combatOnly: true };
+    // as the printed Sunmane one — the loop this scopes out must not re-enter through a grafted copy. Written as
+    // `{ tribe, attack: 0 }` so the rune's `fixed` / `includeSelf` never leak into a carrier's Rally.
+    const graft: EffectDef = { on: 'onAttack', do: 'rallySpreadTribeBuff', params: { tribe, attack: 0 }, combatOnly: true };
+    const includeSelf = params.includeSelf === true;
     for (const m of arena.friends()) {
-      if (m.uid === arena.self.uid || !arena.isTribe(m, tribe)) continue; // never the attacker — see above
+      if ((!includeSelf && m.uid === arena.self.uid) || !arena.isTribe(m, tribe)) continue; // never the attacker — see above (the rune excepted)
       arena.buff(m, value, 0);
       // Clamped: the growth is exponential in a long fight and would otherwise reach Infinity and poison
       // every downstream stat as NaN. The ceiling is far past any reachable board strength.

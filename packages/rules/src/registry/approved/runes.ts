@@ -2014,4 +2014,49 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-07).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-BEAST-PLAY-METER-01',
+    title: "The Beast-play runes count Beasts PLAYED from hand; Gator's Bite buffs board Beasts only",
+    statement:
+      "Rune of Actioned Beasts and Rune of the Gator's Bite share the `playBeast` threshold meter, ticked only at the "
+      + '`playCard` chokepoint: a Beast played from hand (Gilded included) is one tick; a Beast summoned by a Shout, a '
+      + 'token, or a card reaching the hand is not a play. Play is a Shop action, so there is no combat half. Actioned '
+      + 'Beasts pays every 5th play with a random buyable Beast at or below the shop tier, and the remainder banks '
+      + "across turns (badge x/5). Gator's Bite pays every play: the Beasts on your BOARD (the played Beast included, "
+      + 'it has landed) gain +6/+6 permanently; Beasts in hand do not. Each copy held is its own meter, so two copies '
+      + 'pay twice.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Beast runes)', quote: 'When you play 5 Beasts, get a random Beast.' },
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Beast runes)', quote: 'When you play a Beast, give your Beasts +6/+6.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts playCard (playBeast tick) + payRuneThresholdInner (tribeBoard target)' },
+    ],
+    contentIds: ['rune_actioned_beasts', 'rune_gators_bite'],
+    cardText: 'When you play a **Beast**, give your **Beasts +6/+6**.',
+    currentBehaviour: 'Conforms (2026-10-07). Board-only and played-Beast-included are judgement calls, flagged to the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/beastRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-SUNPONY-SPREAD-01',
+    title: "Rune of the Sunpony is Sunmane Herald's spreading Rally with the rune as the source",
+    statement:
+      'Combat only (an attack is a combat event). Whenever a friendly Beast attacks (each swing), after its own Rally, '
+      + 'ALL your Beasts, the attacker included, gain +1 Attack per copy held for this fight, bank it as spread-Rally '
+      + "value, and get Sunmane Herald's spreading Rally if they lack it (so a carrier later passes on what it banked, to "
+      + 'your other Beasts, exactly as a Sunmane-fed Beast does). It runs through the SAME arena body as Sunmane '
+      + '(`rallySpreadTribeBuff` with `fixed` + `includeSelf`): a Gilded attacker does not double it, and a body holds at '
+      + "most one copy of the spread Rally whichever source grafted it. Beside a real Sunmane both fire: Sunmane's own "
+      + 'Rally (+3 plus its bank to the OTHER Beasts) and the rune (+1 to every Beast). Nothing carries out of the fight.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Beast runes)', quote: "this should copy sunmane's effect, except it comes from a rune" },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts rallySpreadTribeBuff (fixed / includeSelf); packages/core/src/combat/simulate.ts performAttack (runeSunpony)' },
+    ],
+    contentIds: ['rune_sunpony', 'b2_sunmane'],
+    cardText: "When a **Beast** attacks, give all of your **Beasts +1 Attack** and this Rune's effect.",
+    currentBehaviour: 'Conforms (2026-10-07). Attacker included, the graft being the Sunmane Rally, and combat-only are judgement calls, flagged to the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/sunponyRune.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

@@ -139,7 +139,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-07 (the Dragon rune batch): 118 → 119, CONSCIOUSLY. Rune of the Wise Armory's "Equip Spell Generator (2): give
 // your spells +1/+1 and get a random spell that gives stats." (the owner's wording; the grammar has no rule for a random
 // spell filtered by "that gives stats"). The other five runes and the Firebird parse fully.
-const UNRESOLVED_CAP = 119;
+// 2026-10-07 (the Beast rune batch): 119 -> 120, CONSCIOUSLY. Rune of the Sunpony's "When a Beast attacks, give all of
+// your Beasts +1 Attack and this Rune's effect." (the owner's wording; the grammar has no rule for granting "this Rune's
+// effect"). Rune of Actioned Beasts and Rune of the Gator's Bite parse fully.
+const UNRESOLVED_CAP = 120;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

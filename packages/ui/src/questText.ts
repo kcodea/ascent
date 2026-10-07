@@ -381,7 +381,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         : `Your Rubies cast ${times}`;
     }
     case 'runeThreshold': {
-      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', anySpell: 'spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', playDragon: 'Dragons you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume', playSpirit: 'Spirits you play' };
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', anySpell: 'spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', playDragon: 'Dragons you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume', playSpirit: 'Spirits you play', playBeast: 'Beasts you play' };
       const parts: string[] = [];
       if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
       if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);
@@ -402,6 +402,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           : b.target === 'spells' ? 'your spells'
           : b.target === 'hand' ? 'the minions in your hand'
           : b.target === 'tribe' ? `your ${b.tribe ? TRIBE_PLURAL[b.tribe] : 'minions'}`
+          : b.target === 'tribeBoard' ? `the ${b.tribe ? TRIBE_PLURAL[b.tribe] : 'minions'} on your board`
           : 'the right-most minion in the Shop';
         // `step` escalates, so the printed rule has to name the improvement as well as the current grant —
         // the live-accuracy rule, applied to the generated text too.

@@ -7914,6 +7914,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // ── tranche 5 ──
     runeHeavyHand: f?.runeHeavyHand,                 // friendly damage counts double toward Pummel
     runeUnity: f?.runeUnity,                         // all 5 types controlled → every minion counts as every type
+    runeSunpony: f?.runeSunpony,                     // Rune of the Sunpony: a Beast attack spreads +1 Attack + Sunmane's Rally
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

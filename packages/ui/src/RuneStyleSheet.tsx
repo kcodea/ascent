@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { RuneCard } from './RuneCard';
 import './runeStyles.css';
@@ -6,12 +7,11 @@ import './runeStyles.css';
 /**
  * THE RUNE CARD STYLE SHEET (DEV only, owner ask 2026-10-07): six genuinely different rune-card plate treatments side
  * by side, numbered 1-6, each shown on the same Basic rune (Rune of Hunger) and one Epic (Rune of Drakko), so the owner
- * can pick in seconds. Opened from the Scene Builder's "Rune card styles" button (the `RUNE_STYLES_EVENT` window
- * event); Esc or the close button dismisses it. Nothing here touches the run. The forge keeps its current look until
+ * can pick in seconds. Owned and rendered by the Scene Builder's "Rune card styles" button (so it exists wherever that
+ * button does) and portalled to <body> above everything, an open Runeforge included; Esc or Close returns to whatever
+ * was underneath. Nothing here touches the run. The forge keeps its current look until
  * a style is picked; the chosen look then becomes RuneCard's default and this sheet is deleted.
  */
-export const RUNE_STYLES_EVENT = 'ascent:rune-styles-open';
-
 const LOOKS: readonly { n: number; name: string; note: string }[] = [
   { n: 1, name: 'Painted plate', note: "The minion card's own painted plate (cardplate-<tribe>), the art set into it" },
   { n: 2, name: 'Spell sibling', note: "The shop spell tile's painted arch frame around the art, the text on a plate below" },
@@ -21,28 +21,19 @@ const LOOKS: readonly { n: number; name: string; note: string }[] = [
   { n: 6, name: 'Reference', note: "The reference's rich saturated tint and bright gold frame, without props" },
 ];
 
-export function RuneStyleSheet(): JSX.Element | null {
-  const [open, setOpen] = useState(false);
+export function RuneStyleSheet({ onClose }: { onClose: () => void }): JSX.Element {
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const onOpen = (): void => setOpen(true);
-    window.addEventListener(RUNE_STYLES_EVENT, onOpen);
-    return () => window.removeEventListener(RUNE_STYLES_EVENT, onOpen);
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); } };
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); } };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open]);
-  if (!open) return null;
+  }, [onClose]);
   const basic = RUNE_INDEX['rune_hunger'];
   const epic = RUNE_INDEX['rune_drakko'];
-  return (
+  return createPortal(
     <div className="rss" role="dialog" aria-label="Rune card styles">
       <div className="rss-head">
         <b>Rune card styles</b><span>Pick a number. Basic: Rune of Hunger. Epic: Rune of Drakko.</span>
-        <button className="rss-close" onClick={() => setOpen(false)}>Close (Esc)</button>
+        <button className="rss-close" onClick={onClose}>Close (Esc)</button>
       </div>
       <div className="rss-grid">
         {LOOKS.map((l) => (
@@ -55,6 +46,7 @@ export function RuneStyleSheet(): JSX.Element | null {
           </section>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -4652,4 +4652,30 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-06',
     },
   },
+  // ── The slid-away lobby rail is inert (owner bug 2026-10-06) ─────────────────────────────────────────────────
+  {
+    id: 'R-PRESENT-31',
+    title: 'While the lobby rail is slid away for combat, no part of it (seats, header, scout card) can be hovered or clicked',
+    statement:
+      'During the staged window (`.app.staged` / store `combatStaged`, the curtain-keyed span in which the lobby rail '
+      + 'and its round header slide off to the right), every descendant of `.lobbyrail` and `.lobbyrailhead` is '
+      + 'pointer-inert, so no seat opens its scout card and no header tip opens. A scout card already open (hovered or '
+      + 'pinned) when staging starts closes at once (the card is portaled to <body>, outside `.app`, so it is closed '
+      + 'by state, not by CSS). Once the rail is back, hover and pinning work as before. The Gauntlet foe that slides '
+      + 'away in the same window is inert in the same way (its rune row re-enabled pointer events).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report with a Round 6 combat screenshot (the scout card of a seat open over the foe portrait), 2026-10-06',
+        quote: 'the lobby rail shouldnt be able to be moused over here',
+      },
+      { kind: 'fix-pr', ref: 'PR fix/rail-no-hover-in-combat (2026-10-06): staged rail descendants pointer-inert + LobbyPanel closes / gates the scout card on combatStaged' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.app.staged .lobbyrail *, .app.staged .lobbyrailhead *, .app.staged .gauntletfoe *); packages/ui/src/LobbyPanel.tsx (combatStaged gate)' },
+    ],
+    example: 'Hover a seat in the shop so its scout card opens, then end the turn: the card closes as the curtain covers the board. During the fight, moving the cursor to the right margin of the window (where the faded rail sits on a wider-than-16:9 window) opens nothing.',
+    currentBehaviour: 'Conforms as of 2026-10-06. Root cause of the bug: `.lobbyrail > * { pointer-events: auto }` overrode `pointer-events: none` on the staged rail for its children, and the slid-away rail lands in the visible margin when the window is wider than the 16:9 `.app` box.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailStagedInert.test.tsx'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

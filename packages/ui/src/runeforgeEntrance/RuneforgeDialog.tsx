@@ -71,6 +71,31 @@ const MOTES: readonly { x: number; t: number; d: number; dx: number; sz: number;
   { x: 35, t: 25, d: -19, dx: 40, sz: 2, o: 0.45 }, { x: 64, t: 24, d: -21, dx: -40, sz: 2, o: 0.45 },
 ];
 
+/** THE STREAKS OF MAGIC (owner 2026-10-07: "streaks of magic to create a feeling of awe/magic in the air"): a fixed
+ *  table of four soft arcs that now and then sweep across the forge and fade (runeforgeLook.css). `sx`/`sy` start %,
+ *  `st` cycle seconds (visible ~20% of it), `sd` delay, `sr` tilt. */
+const STREAKS: readonly { sx: number; sy: number; st: number; sd: number; sr: number }[] = [
+  { sx: 6, sy: 18, st: 13, sd: -1, sr: -8 }, { sx: 52, sy: 10, st: 17, sd: -7, sr: 6 },
+  { sx: 14, sy: 62, st: 15, sd: -11, sr: 10 }, { sx: 48, sy: 70, st: 19, sd: -4, sr: -5 },
+];
+function Streak({ i }: { i: number }): JSX.Element {
+  const id = `rfsg-${i}`;
+  return (
+    <svg viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" style={{ stopColor: 'rgb(var(--rf-streak))', stopOpacity: 0 }} />
+          <stop offset="0.55" style={{ stopColor: 'rgb(var(--rf-streak))', stopOpacity: 0.9 }} />
+          <stop offset="0.8" style={{ stopColor: '#fff', stopOpacity: 1 }} />
+          <stop offset="1" style={{ stopColor: 'rgb(var(--rf-streak))', stopOpacity: 0 }} />
+        </linearGradient>
+      </defs>
+      <path d="M0 80 Q 200 -10 400 40" fill="none" stroke={`url(#${id})`} strokeWidth="9" strokeLinecap="round" opacity="0.18" />
+      <path d="M0 80 Q 200 -10 400 40" fill="none" stroke={`url(#${id})`} strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export interface RuneforgeDialogProps {
   offer: readonly string[];
   epic: boolean;
@@ -138,9 +163,12 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
       // tablets are pointer-events: none), so it skips without buying; a landed tablet also takes its click.
       onPointerDownCapture={() => { if (handleRef.current?.isRunning()) handleRef.current.skip(); }}
     >
-      {/* The stage: the forge glow and the rising motes (runeforgeLook.css). Inert. */}
+      {/* The stage: the forge glow, the streaks of magic and the rising embers (runeforgeLook.css). Inert. */}
       <div className="rf-stage" aria-hidden="true">
         <div className="rf-glow" />
+        {STREAKS.map((st, i) => (
+          <div key={`s${i}`} className="rf-streak" style={{ '--sx': `${st.sx}%`, '--sy': `${st.sy}%`, '--st': `${st.st}s`, '--sd': `${st.sd}s`, '--sr': `${st.sr}deg` } as CSSProperties}><Streak i={i} /></div>
+        ))}
         <div className="rf-motes">
           {MOTES.map((m, i) => (
             <span key={i} className="rf-mote" style={{ '--x': `${m.x}%`, '--t': `${m.t}s`, '--d': `${m.d}s`, '--dx': `${m.dx}px`, '--sz': `${m.sz}px`, '--o': m.o } as CSSProperties} />

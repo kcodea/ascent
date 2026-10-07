@@ -18,20 +18,30 @@
    are `--ui-*` theme tokens; the two literals are the forge's own glow hues (`--rf-glow`, `--rf-mote`), which carry
    the Basic vs Epic distinction in every theme, as the rarity colours do. */
 
-/* ── The stage: backdrop + glow + ring + motes ──────────────────────────────────────────────────────────────── */
+/* ── The stage: backdrop + glow + embers + streaks of magic ──────────────────────────────────────────────── */
+/* A (default): EMBER COPPER, a whimsical blacksmith's forge at night: warm charcoal, an ember glow, rising embers
+   and gold streaks of magic. B (`:root[data-rune-socket="b"]`): ARCANE ENAMEL, the same forge under arcane light:
+   indigo, violet glow, lavender sparks, violet streaks. The Epic forge leans each palette toward violet-gold. */
 .forge-ov {
-  --rf-glow: 255, 146, 58;        /* the Basic forge: a warm ember */
-  --rf-mote: 255, 205, 140;
+  --rf-glow: 255, 140, 56;        /* the forge fire */
+  --rf-mote: 255, 190, 110;       /* embers */
+  --rf-streak: 255, 214, 140;     /* the streaks of magic */
   background:
-    radial-gradient(120% 95% at 50% 46%,
-      color-mix(in srgb, var(--ui-plate-top) 62%, transparent) 0%,
-      color-mix(in srgb, var(--ui-plate-bot) 90%, transparent) 52%,
-      rgba(3, 2, 6, 0.97) 100%);
+    radial-gradient(120% 95% at 50% 52%,
+      color-mix(in srgb, var(--ui-plate-top) 25%, rgba(58, 34, 26, 0.95)) 0%,
+      rgba(26, 15, 12, 0.97) 55%,
+      rgba(6, 3, 2, 0.98) 100%);
 }
-.forge-ov.forge-epic {
-  --rf-glow: 176, 120, 230;       /* the Epic forge: violet */
-  --rf-mote: 226, 196, 255;
+.forge-ov.forge-epic { --rf-glow: 220, 130, 120; --rf-mote: 255, 200, 150; --rf-streak: 214, 170, 255; }
+:root[data-rune-socket="b"] .forge-ov {
+  --rf-glow: 130, 120, 255; --rf-mote: 200, 190, 255; --rf-streak: 180, 160, 255;
+  background:
+    radial-gradient(120% 95% at 50% 52%,
+      color-mix(in srgb, var(--ui-plate-top) 40%, rgba(40, 32, 90, 0.95)) 0%,
+      rgba(16, 12, 40, 0.97) 55%,
+      rgba(4, 3, 10, 0.98) 100%);
 }
+:root[data-rune-socket="b"] .forge-ov.forge-epic { --rf-glow: 190, 120, 255; --rf-mote: 255, 220, 160; --rf-streak: 255, 210, 150; }
 .rf-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 /* The forge glow: one soft pool behind and below the tablets, plus a faint floor line of light. Static. */
 .rf-glow {
@@ -55,8 +65,23 @@
   70% { opacity: var(--o); }
   100% { transform: translate3d(var(--dx), -78vh, 0); opacity: 0; }
 }
+/* The streaks of magic: a soft arcing wisp of light that now and then sweeps across the forge and fades. Each is a
+   static SVG arc (drawn once) moved and faded by transform + opacity; it is visible for about a fifth of its cycle,
+   so at most one or two are in the air at once. */
+.rf-streak {
+  position: absolute; left: var(--sx); top: var(--sy); width: 44vw; height: 20vh; opacity: 0;
+  will-change: transform, opacity;
+  animation: rfstreak var(--st) ease-in-out var(--sd) infinite;
+}
+.rf-streak svg { display: block; width: 100%; height: 100%; overflow: visible; }
+@keyframes rfstreak {
+  0% { opacity: 0; transform: translate3d(-10vw, 3vh, 0) rotate(var(--sr)); }
+  7% { opacity: 0.85; }
+  20% { opacity: 0; transform: translate3d(9vw, -3vh, 0) rotate(var(--sr)); }
+  100% { opacity: 0; transform: translate3d(9vw, -3vh, 0) rotate(var(--sr)); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .rf-mote { animation: none; }
+  .rf-mote, .rf-streak { animation: none; }
 }
 
 /* ── The panel: title, subtitle, Gold, the row on its ledge, the Re-roll ─────────────────────────────────────── */

@@ -108,10 +108,10 @@ export function OpponentFrame() {
             const rune = RUNE_INDEX[id]!;
             const rart = runeArt(rune.id);
             return (
-              <div className="questbadge runebadge" key={`r:${id}`}>
+              <div className={`questbadge runebadge${rune.epic ? ' runebadge-epic' : ''}`} key={`r:${id}`}>
                 {rart
                   ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
-                  : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                  : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>
                   <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
-import type { Keyword, QuestReward, RuneDef } from '@game/core';
+import type { Keyword, QuestReward, RuneDef, Tribe } from '@game/core';
 import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { runeArt } from './art';
@@ -31,6 +31,14 @@ function previewIdsOf(rune: RuneDef): { id: string; golden?: boolean }[] {
   const out = rewardCardIds(rune.reward);
   for (const id of rune.previewCards ?? []) if (!out.some((x) => x.id === id)) out.push({ id });
   return out;
+}
+
+/** A rune's ACCENT tribe (owner 2026-10-07: rune text follows the tribe colours): its tribe gate's first tribe, the
+ *  same `--t-<tribe>` hue a card of that tribe wears. An ungated rune, or one gated to three or more tribes (a
+ *  generalist), takes the neutral palette. Shared with the rune rack so a badge and its card agree. */
+export function runeAccentTribe(rune: Pick<RuneDef, 'tribes'>): Tribe {
+  const t = rune.tribes;
+  return t && t.length > 0 && t.length < 3 ? t[0]! : 'neutral';
 }
 
 /** Runes carry no badge keywords — one stable empty list so `KeywordDefs`' memo key never churns. */
@@ -108,9 +116,12 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
   const art = runeArt(rune.id);
+  const accent = runeAccentTribe(rune);
   return (
     <button
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
+      data-tribe={accent}
+      style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
       data-pick-sfx={pickSfx || undefined}

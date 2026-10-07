@@ -191,11 +191,11 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             const rune = RUNE_INDEX[id]!;
             const rart = runeArt(rune.id);
             return (
-              <div className="questbadge runebadge combatopp-rune" key={`${id}#${i}`} data-source-id={id}>
+              <div className={`questbadge runebadge combatopp-rune${rune.epic ? ' runebadge-epic' : ''}`} key={`${id}#${i}`} data-source-id={id}>
                 <div className="questbadge-inner">
                   {rart
                     ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
-                    : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                    : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
                 </div>
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>

@@ -29,3 +29,13 @@ Rule: **R-TIMER-SYNC-01** (triggers).
 
 Not changed: the look of the glyph, the clip, its gain, the explosion cue. Replay playback at 2x/3x still plays the
 build at 1x (pre-existing).
+
+## Follow-up: the final-countdown tick
+
+Owner ask (verbatim): "a big clock tick sound happens on each second, essentially signaling FIVE, FOUR, THREE, TWO,
+ONE (end turn)". Owner picks: the ticks BUILD, the explosion keeps 0:00, and the owner supplies the clip.
+
+- `sfx.turnTick(n)` fires from the countdown's own tick at 5..1 (real clocks only), so a hold holds the count.
+  `turnTickLevel(n)` builds linearly from FIVE to ONE (`TURN_TICK_BUILD`: volume x0.7 to x1, rate 1 to 1.12).
+- Clip slot: `packages/ui/src/audio/turntick.mp3` (or `.wav`), picked up by the audio glob. A synth tock stands
+  in until it exists. Its own `turntick` desk fader (ui bus, 0.5). `warmTurnTick` prefetches it from 10 s left.

@@ -4725,8 +4725,14 @@ export function Recruit() {
         // (`blockedByShopClock`) and a recording replays the lock where it was lived.
         dispatch({ type: 'shopClockExpired' });
       }
-      turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
-      if (!infiniteClockRef.current) observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
+      turnClock.set(next);
+      if (!infiniteClockRef.current) {
+        observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
+        // THE FINAL COUNTDOWN (owner 2026-10-07): a clock tick on FIVE, FOUR, THREE, TWO, ONE, building as it goes; the
+        // explosion above owns 0:00. Fired from this tick, so whatever holds the clock holds the count with it.
+        if (next >= 1 && next <= 5) sfx.turnTick(next);
+        else if (next > 5 && next <= 10) sfx.warmTurnTick();
+      }
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
       // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
       // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a

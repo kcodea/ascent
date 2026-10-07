@@ -1188,6 +1188,15 @@ export function playBellStrike(category: string, o: { gain: number; hz: number; 
 let turnChargeNodes: PlayNodes | null = null;
 /** The fade-in when the build restarts mid-clip (a resume from a held shop clock), so the cut-in never clicks. */
 const TURN_CHARGE_RESUME_FADE_S = 0.06;
+/** How the final-countdown ticks BUILD from FIVE (`from`) to ONE (`to`): a volume multiplier on the `turntick` fader
+ *  and a playback rate (1.12 ≈ two semitones up, and a hair shorter). Linear across the five ticks. */
+export const TURN_TICK_BUILD = { volFrom: 0.7, volTo: 1, rateFrom: 1, rateTo: 1.12 };
+/** The level of the tick for second `n` (5 → 1). Anything outside the count clamps to its nearest end. */
+export function turnTickLevel(n: number): { vol: number; rate: number } {
+  const step = Math.max(0, Math.min(1, (5 - n) / 4));
+  const b = TURN_TICK_BUILD;
+  return { vol: b.volFrom + (b.volTo - b.volFrom) * step, rate: b.rateFrom + (b.rateTo - b.rateFrom) * step };
+}
 /** The Undead Aura surge clip's live nodes while it plays — the cue NEVER overlaps itself (owner 2026-09-16:
  *  "make it so it can only play once at a time"): a rise that lands while the clip is still ringing is skipped,
  *  not stacked and not restarted. Cleared on the clip's natural end. */
@@ -1676,6 +1685,18 @@ export const sfx = {
     }, slice)) return;
     if (at === 0) tone({ freq: 150, dur: 0.7, type: 'sawtooth', vol: 0.1, slideTo: 480, category: 'turncharge' });
   },
+  /** THE FINAL COUNTDOWN TICK (owner ask 2026-10-07: "a big clock tick sound happens on each second, essentially
+   *  signaling FIVE, FOUR, THREE, TWO, ONE"). Fired by the shop clock's own tick as it reaches 5, 4, 3, 2 and 1, so
+   *  a held clock holds the count too; the end-of-turn explosion still owns 0:00. `n` is the second just reached:
+   *  each tick BUILDS (louder and a touch higher from FIVE to ONE, see `TURN_TICK_BUILD`). Sourced `turntick` clip
+   *  (drop it at `packages/ui/src/audio/turntick.mp3` or `.wav`); a synth tock stands in until it exists / decodes. */
+  turnTick: (n: number) => {
+    const { vol, rate } = turnTickLevel(n);
+    if (playTailedSample('turntick', 'turntick', vol, 0, NO_TAIL, undefined, rate)) return;
+    tone({ freq: 880 * rate, dur: 0.09, type: 'triangle', vol: 0.2 * vol, slideTo: 420 * rate, category: 'turntick' });
+  },
+  /** Start fetching the tick clip ahead of the count, so FIVE never falls back to the synth on a cold bank. */
+  warmTurnTick: () => { loadSample('turntick'); },
   // The turn timer hits ZERO — the last instant the shop is usable (actions lock); syncs with the charge glyph's
   // completion flash. A heavier "end-turn explosion" than the charge build. Sourced "turnexplosion" clip; synth
   // boom fallback until it decodes. Drop the clip at `packages/ui/src/audio/turnexplosion.mp3`.

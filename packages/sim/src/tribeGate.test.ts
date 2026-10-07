@@ -60,6 +60,8 @@ const grantedTribes = (r: QuestReward | undefined): Tribe[] => {
   if (!r) return [];
   if (r.kind === 'grant') return [...(r.cards ?? []), ...(r.grantGolden ?? [])].map((id) => CARD_INDEX[id]?.tribe).filter((t): t is Tribe => !!t && t !== 'neutral');
   if (r.kind === 'recurringGrant') return r.cards.map((id) => CARD_INDEX[id]?.tribe).filter((t): t is Tribe => !!t && t !== 'neutral');
+  // A meter that pays a NAMED body (Rune of the Whelps' Brood Whelp, 2026-10-07) grants that body's tribe too.
+  if (r.kind === 'runeThreshold') return (r.grantCards ?? []).map((id) => CARD_INDEX[id]?.tribe).filter((t): t is Tribe => !!t && t !== 'neutral');
   if (r.kind === 'multi') return r.rewards.flatMap(grantedTribes);
   return [];
 };

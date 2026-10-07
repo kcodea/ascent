@@ -4203,6 +4203,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onBattlecryBuffSelf(shopArena(ctx.state, self), params);
   },
 
+  /** Firebird (owner batch 2026-10-07): a Shout you trigger in the Shop casts Dragonflame — the one arena body. */
+  onBattlecryCastNamedSpell: (ctx, self, params) => {
+    ARENA_EFFECTS.onBattlecryCastNamedSpell(shopArena(ctx.state, self), params);
+  },
+
   /** Set 2 — Feastmaster Vhal (End of Turn): THIS minion and each adjacent Demon consume a random Shop minion
    *  (owner rework 2026-07-27 — it used to feed only the neighbours). Each eater gains the stats itself. */
   endOfTurnSelfAndNeighboursConsume: (ctx, self, params) => {
@@ -5092,6 +5097,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
       eotRepeatTick(ctx.state, self, sides, a, 0, tick);
     });
+  },
+
+  /** Spell Generator (Rune of the Wise Armory, owner batch 2026-10-07; one Equipment TRIGGER): raise the run's spell
+   *  power (`spellBonus`, the Bubble Crown / Cinderwing channel) by +attack/+health, THEN hand over `count` random
+   *  stat-granting Shop spells (`isStatGrantingSpell` — the one "spell that gives stats" category, owner ruling
+   *  2026-09-23) from the run's tribe-gated spell pool (`runSpells`: archived spells are outside every set pool,
+   *  tokens / Gifts / Rubies are outside the category) at or below the tavern tier. The improve lands first, so the
+   *  spell arrives already reading it. Seeded off the run cursor; a full hand keeps the improve and loses the card. */
+  equipmentSpellPowerAndStatSpell: (ctx, _self, params) => {
+    const a = num(params.attack, 1);
+    const h = num(params.health, 1);
+    ctx.state.spellBonus = { attack: (ctx.state.spellBonus?.attack ?? 0) + a, health: (ctx.state.spellBonus?.health ?? 0) + h };
+    const pool = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier && isStatGrantingSpell(c));
+    conjureToHand(ctx.state, pool, Math.max(1, num(params.count, 1)));
   },
 
   /** Pourman's Keg (one Equipment TRIGGER): cast `count` RANDOM Dwarven Ales through `castSpell`, the real
@@ -11212,6 +11231,26 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
       if (dragons.length > 0) { procRuneId(state, 'rune_foundry'); conjureToHand(state, dragons, runeStacksOf(state, 'rune_foundry'), true); }
     }
     state.runeFoundry = fd;
+  }
+  // RUNE OF THE VOICEKEEPER (owner batch 2026-10-07): "When you sell 3 Dragons, get a copy of one." Every `per`-th
+  // matching sale (board or hand: this is the one sale chokepoint) hands over a PLAIN copy of one of the `per`
+  // sold since the last payout, picked off the run cursor — the Voicekeeper minion's and Rune of the Collector's
+  // copy rule (base stats, never gilded, whatever the sold body carried). All-types bodies count (`isTribe`). One
+  // copy per rune held (threshold family, owner 2026-08-27). Overflow-safe like every earned reward.
+  if (state.runeVoicekeeper && CARD_INDEX[sold.cardId] && !CARD_INDEX[sold.cardId]!.spell && isTribe(sold, state.runeVoicekeeper.tribe)) {
+    const vk = { ...state.runeVoicekeeper, sold: [...state.runeVoicekeeper.sold, sold.cardId] };
+    if (vk.sold.length >= vk.per) {
+      const trio = vk.sold.slice(0, vk.per);
+      vk.sold = vk.sold.slice(vk.per);
+      procRuneId(state, 'rune_voicekeeper');
+      for (let k = 0; k < runeStacksOf(state, 'rune_voicekeeper'); k++) {
+        const rng = makeRng(state.rngCursor);
+        const pick = CARD_INDEX[trio[rng.int(trio.length)]!];
+        state.rngCursor = rng.state();
+        if (pick) grantMinionToHandOrBoard(state, pick, false, true);
+      }
+    }
+    state.runeVoicekeeper = vk;
   }
   if (state.nextSellBonus) state.nextSellBonus = 0;
   // RUNE OF QUICK RELEASE (Set 3 batch 2): selling an Equip minion (board or hand) arms a 0-cost next Equipment

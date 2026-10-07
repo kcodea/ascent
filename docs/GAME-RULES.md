@@ -763,6 +763,14 @@ Playing the minion grants it at once; selling the minion does **not** revoke it 
 every Start of Turn the collection is rebuilt from the surviving board, so keeping it means keeping an Equip
 minion alive. Duplicates collapse into one entry; a single Gilded source upgrades the entry for everyone.
 
+**Rune-owned Equipment (owner batch 2026-10-07).** A rune can grant Equipment too (Rune of the Dragon's Egg →
+Dragon's Egg, Rune of the Wise Armory → Spell Generator). It arrives the moment the rune is bought, with its own
+charge ready, and is held **for the rest of the run**: every Start-of-Turn rebuild re-grants it after the board's
+Equipment, with no body behind it. Everything else is unchanged (one own charge a turn, the shared pool, cost
+reductions, Amplified). A rune is never gilded, so it is always the plain version; a second copy of the rune
+collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.ts` (`grantRuneEquipment`,
+`syncRuneEquipment`), `GrantedEquipment.sourceKind: 'rune'` (R-RUNE-EQUIP-01).
+
 **Charges (2026-09-11):**
 - **Every Equipment has its OWN charge, once per turn.** Holding Bloodpot and Titan Hammer, you may activate
   each once per turn. Own charges reset at Start of Turn; nothing carries across turns.

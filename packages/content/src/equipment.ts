@@ -508,7 +508,45 @@ export const CALIBRATION_WRENCH: EquipmentDefinition = {
   gildedParams: { count: 2 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH];
+/**
+ * ── RUNE-OWNED EQUIPMENT (owner batch 2026-10-07) ────────────────────────────────────────────────────────
+ * The two below are granted by a RUNE, not a minion (`runeEquip` reward): owning the rune holds the Equipment for
+ * the rest of the run, re-granted at every Start-of-Turn rebuild (`RunState.runeEquipment`). They obey every other
+ * Equipment rule unchanged — one own charge a turn, the shared bonus pool, the cost reductions, Amplified. A rune is
+ * never gilded, so neither has a Gilded wording. No art yet (art is wired only on ask): the slot falls back to its
+ * glyph inside the default housing.
+ */
+
+/** DRAGON'S EGG — Rune of the Dragon's Egg: Discover a Dragon at the tavern tier. The Coffin Flop shape: the shared
+ *  `battlecryDiscoverMinion` queues a real Discover from the run's pinned pool. */
+export const DRAGONS_EGG: EquipmentDefinition = {
+  id: 'dragons_egg',
+  name: "Dragon's Egg",
+  text: 'Discover a **Dragon**.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'battlecryDiscoverMinion',
+  params: { tribe: 'dragon' },
+};
+
+/** SPELL GENERATOR — Rune of the Wise Armory: raise the run's spell power (`spellBonus`, the Cinderwing / Bubble
+ *  Crown channel) by +1/+1, then hand over a random STAT-GRANTING Shop spell (`isStatGrantingSpell`, the one
+ *  category every "random spell that gives stats" reads) from the run's spell pool at or below the tavern tier. The
+ *  spell lands AFTER the improve, so it arrives already reading the new spell power. */
+export const SPELL_GENERATOR: EquipmentDefinition = {
+  id: 'spell_generator',
+  name: 'Spell Generator',
+  text: 'Give your spells **+1/+1** and get a random spell that gives stats.',
+  baseCost: 2, // owner 2026-10-07 (PR #1972 review): 3 → 2; the rune itself stays 3 Gold
+  targetMode: 'none',
+  effectId: 'equipmentSpellPowerAndStatSpell',
+  params: { attack: 1, health: 1, count: 1 },
+  // The owner's authored def (FX Workbench export 2026-10-07): smoke + two bursts, 600 ms, anchored `target`. An
+  // untargeted Equipment plays its def ON the slot (target = the slot), so it blooms on the button when pressed.
+  useFxId: 'spell-generator-activate',
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

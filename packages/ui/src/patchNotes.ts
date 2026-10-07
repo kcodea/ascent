@@ -59,6 +59,22 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-07',
     changes: [
       {
+        category: 'Balance',
+        text: 'Six new runes join Set 2: five for Dragons and one for spells.',
+        details: [
+          'Rune of the Echoing Shouts (3 Gold): when you trigger a Shout, give your Dragons +3/+2. In combat it buffs your Dragons for that fight.',
+          'Rune of the Whelps (Epic, 3 Gold): when you trigger 3 Shouts, get a Brood Whelp. Shouts in combat count too.',
+          'Rune of the Voicekeeper (Epic, 2 Gold): when you sell 3 Dragons, get a copy of one of them.',
+          'Rune of the Flaming Dragon (Epic, 4 Gold): get a Firebird, a 6/9 Dragon that casts Dragonflame whenever you trigger a Shout.',
+          "Rune of the Dragon's Egg (Epic, 2 Gold): gives you the Dragon's Egg Equipment for the rest of the game. Use it (2 Gold) to Discover a Dragon.",
+          'Rune of the Wise Armory (Epic, 3 Gold): gives you the Spell Generator Equipment for the rest of the game. Use it (2 Gold) to give your spells +1/+1 and get a random spell that gives stats.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Runes can now give you Equipment. It stays for the rest of the game, with no minion needed.',
+      },
+      {
         category: 'Systems',
         text: 'The Gold cost coin on spell cards now matches the Equipment cost coin: same size, same look.',
         details: [

@@ -78,6 +78,8 @@ const ART_PENDING = new Set<string>([
   // a hand or the Shop, and no master was named for it (owner rule: wire only the art named in the batch).
   'rubyblast',
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
+  // SET 2 DRAGONS (owner batch 2026-10-07): Firebird, Rune of the Flaming Dragon's forge-only body, ships ahead of its art.
+  'd2_firebird',
 ]);
 
 describe('art coverage for live cards', () => {

@@ -506,6 +506,27 @@ export const RETIRED_RULES: RetiredRule[] = [
     retiredAt: '2026-09-11',
     enforcement: { kind: 'oracle', refs: ['textParse'], lastVerifiedAt: '2026-09-11' },
   },
+  {
+    id: 'R-TIMER-BRONZE-01',
+    why:
+      'Superseded by R-TIMER-FUSE-01 (owner 2026-10-07): the Gold Fuse is no longer Bronze-only. Every lobby (any medal, '
+      + 'rated or unrated) and Practice now wait for 10 Gold spent in a turn, then run that round\'s normal turn length, '
+      + 'instead of 20 Gold then 60 / 90 seconds for a game started in Bronze. The run\'s medalAtStart pin stays for '
+      + 'telemetry only. Owner: "every rank will have the gold fuse implemented. it will kick off the timer when 10 gold '
+      + 'is spent" + "the round timer should follow the existing round by round time increase, not the 60/90 secnd timer".',
+    retiredAt: '2026-10-07',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-TIMER-BRONZE-02',
+    why:
+      'Superseded by R-TIMER-FUSE-01 (owner 2026-10-07): with the same Gold Fuse at every rank, a promotion no longer '
+      + 'changes the shop clock, so the Bronze to Silver "Shop Timer Adjusted" notice was removed. Owner: "this is for '
+      + 'all ranks, so we can remove the silver note when promoted." The rank screen test pins that no promotion shows a '
+      + 'timer notice.',
+    retiredAt: '2026-10-07',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx'], lastVerifiedAt: '2026-10-07' },
+  },
 ];
 
 export const RETIRED_IDS: ReadonlySet<string> = new Set(RETIRED_RULES.map((r) => r.id));

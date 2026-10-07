@@ -15,8 +15,8 @@ import { goldClockReading } from './goldClock';
  * the end of the turn and prints that instead of a count.
  */
 export function DiscountWindowReadout({ window, goldClockSeconds }: { window: NonNullable<RunState['cardDiscountWindow']>; goldClockSeconds: number | null }): JSX.Element {
-  // Read the clock as the window was anchored to it: a parked gold-spend clock (Gauntlet, Bronze ranked) reads as the
-  // seconds it will start from (`goldClockSeconds`, this turn's `goldClockOf(run)?.seconds`; see goldClock.ts).
+  // Read the clock as the window was anchored to it: a parked Gold Fuse (any lobby, Practice, Gauntlet) reads as the
+  // seconds it will start from (`goldClockSeconds`, this turn's `goldClockOf(run, practiceTimer)?.seconds`; see goldClock.ts).
   const seconds = goldClockReading(goldClockSeconds == null ? null : { seconds: goldClockSeconds }, useTurnSeconds());
   const left = window.untilClock === null ? null : Math.max(0, seconds - window.untilClock);
   return (

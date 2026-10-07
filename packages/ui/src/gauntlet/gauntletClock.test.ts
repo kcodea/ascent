@@ -76,16 +76,16 @@ describe('the countdown gate while the Gauntlet clock is waiting', () => {
   });
 });
 
-// Since 2026-10-06 Recruit wires the SHARED gold-spend clock (`goldClockOf`, R-TIMER-BRONZE-01); the Gauntlet is one
+// Recruit wires the SHARED Gold Fuse (`goldClockOf`; every lobby + Practice since 2026-10-07, R-TIMER-FUSE-01); the Gauntlet is one
 // config of it. These source checks pin that the Gauntlet still goes through it.
 describe('Recruit wires the Gauntlet clock', () => {
   const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'Recruit.tsx'), 'utf8');
 
   it('opens every Gauntlet turn parked, and leaves the other modes on their normal formula', () => {
-    expect(src).toMatch(/const goldClock = goldClockOf\(run\);/);
+    expect(src).toMatch(/const goldClock = goldClockOf\(run, practiceTimer\);/);
     expect(src).toMatch(/const turnSeconds = goldClock \? GOLD_CLOCK_WAITING : infiniteClock \? 99999 :/);
-    expect(goldClockOf({ mode: 'gauntlet', wave: 1, lobby: undefined })).toEqual({ gold: GAUNTLET_CLOCK_GOLD, seconds: GAUNTLET_CLOCK_SECONDS });
-    expect(goldClockOf({ mode: 'gauntlet', wave: 12, lobby: undefined }), 'no late-turn change for the Gauntlet').toEqual({ gold: 30, seconds: 60 });
+    expect(goldClockOf({ mode: 'gauntlet', wave: 1 }, 1)).toEqual({ gold: GAUNTLET_CLOCK_GOLD, seconds: GAUNTLET_CLOCK_SECONDS });
+    expect(goldClockOf({ mode: 'gauntlet', wave: 12 }, 3), 'no late-turn change (and no Practice multiplier) for the Gauntlet').toEqual({ gold: 30, seconds: 60 });
   });
 
   it('holds the countdown while waiting, and re-runs the gate when that flips', () => {
@@ -131,8 +131,8 @@ describe('a Thymepiece window opened before the Gauntlet clock starts', () => {
 
   it('the store stamps and the readout counts through the Gauntlet reading', () => {
     const read = (f: string): string => readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', f), 'utf8');
-    expect(read('store.ts')).toContain('clockSeconds: goldClockReading(goldClockOf(prev), turnClock.get())');
+    expect(read('store.ts')).toContain('clockSeconds: goldClockReading(goldClockOf(prev, get().practiceTimer), turnClock.get())');
     expect(read('DiscountWindowReadout.tsx')).toContain('goldClockReading(goldClockSeconds == null ? null : { seconds: goldClockSeconds }, useTurnSeconds())');
-    expect(read('StatusBar.tsx')).toContain('<DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run)?.seconds ?? null} />');
+    expect(read('StatusBar.tsx')).toContain('<DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run, practiceTimer)?.seconds ?? null} />');
   });
 });

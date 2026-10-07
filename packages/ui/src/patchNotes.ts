@@ -69,6 +69,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Every lobby now uses the Gold Fuse: no shop clock until you spend 10 Gold in a turn, then that round\'s normal timer runs.',
+        details: [
+          'Applies at every rank, in unrated games and in Practice.',
+          'Each shop turn starts with no clock. A bar fills as you spend Gold, and at 10 Gold the round\'s usual timer starts (for example 52 seconds on round 8, 80 seconds on round 12).',
+          'The Gold Fuse is there from round 1. Early on you usually won\'t spend 10 Gold, so those rounds often have no clock, but if you do, that round\'s timer starts (for example 26 seconds on round 3).',
+          'Practice\'s 1x to 4x timer setting stretches the countdown, and Unlimited still means no timer.',
+          'The Bronze-only version (20 Gold, then 60 or 90 seconds) is gone, and so is the Silver promotion notice about the timer.',
+          'The Gauntlet keeps its own Gold Fuse: 30 Gold, then 60 seconds.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Balance pass on Set 2 and Set 3 minions, plus a new Dwarf: Big Brain Billy.',
         details: [
           'New: Big Brain Billy, a Tier 2 Dwarf 2/2 in Set 2. When you cast a Shop spell, it gains +1/+1 (Gilded +2/+2).',

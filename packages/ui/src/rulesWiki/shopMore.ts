@@ -359,18 +359,18 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'turn-timer-length',
     topic: 'shop',
     q: 'How long is my shop turn?',
-    a: "About **21 seconds** on turn 1, then roughly **4 seconds more** each turn, with bigger jumps on turns **6** and **12**. It tops out at about a **minute and a half**. The clock waits for the screen to come back from combat before it starts.",
+    a: "About **21 seconds** on turn 1, then roughly **4 seconds more** each turn, with bigger jumps on turns **6** and **12**. It tops out at about a **minute and a half**. In a lobby or Practice the clock only starts once you've spent **10 Gold** in the turn (the **Gold Fuse**), and it never starts before the screen comes back from combat.",
     aliases: ['timer', 'turn length', 'how much time', 'seconds', 'clock'],
-    seeAlso: ['timer-runs-out', 'more-time-to-think'],
-    covers: [{ rule: 'R-SOT-TIMER-01', fp: '930e7931' }],
+    seeAlso: ['timer-runs-out', 'more-time-to-think', 'bronze-timer'],
+    covers: [{ rule: 'R-SOT-TIMER-01', fp: '1c2bc9e9' }],
   },
   {
     id: 'more-time-to-think',
     topic: 'shop',
     q: 'Can I get more time to think?',
-    a: "In **Practice**, yes. You can stretch the turn timer up to 4 times longer, or switch it off completely. The normal timer in ranked games can't be changed.",
+    a: "In **Practice**, yes. You can stretch the turn timer up to 4 times longer, or switch it off completely. The timer in ranked games can't be changed, but it only starts once you've spent 10 Gold in a turn (the **Gold Fuse**).",
     aliases: ['more time', 'no timer', 'unlimited time', 'slow timer', 'practice mode'],
-    seeAlso: ['turn-timer-length', 'timer-runs-out'],
+    seeAlso: ['turn-timer-length', 'timer-runs-out', 'bronze-timer'],
   },
 
   // ── Basics ───────────────────────────────────────────────────────────────────────────────────────────────

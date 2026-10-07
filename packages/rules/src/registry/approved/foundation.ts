@@ -2015,15 +2015,17 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'The Practice Time row offers 1x, 2x, 3x, 4x and Unlimited. Unlimited (timeMult 0) runs the shop with no turn '
       + 'clock (the same effectively-infinite clock the tutorial uses): the timer shows the infinity symbol and never '
-      + 'locks actions. The in-game timer dropdown offers the same choice. Scored modes never read it.',
+      + 'locks actions, and no Gold Fuse is shown. 1x to 4x multiply the countdown the Gold Fuse starts once 10 Gold is '
+      + 'spent in a turn (R-TIMER-FUSE-01), so 1x is exactly a ranked game\x27s clock. The in-game timer dropdown offers '
+      + 'the same choice. Scored modes never read it.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice options)', quote: 'add an unlimited time option in practice' },
       { kind: 'code', ref: 'packages/sim/src/state.ts PracticeConfig.timeMult 0; packages/ui/src/Recruit.tsx infiniteClock + ShopTimer; packages/ui/src/store.ts setPracticeTimer / loadPracticeTimer; packages/ui/src/PracticeOptions.tsx TIMES' },
     ],
-    currentBehaviour: 'Conforms (built 2026-09-27).',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceUnlimitedTime.test.ts'], lastVerifiedAt: '2026-09-27' },
+    currentBehaviour: 'Conforms (built 2026-09-27). Since 2026-10-07 the 1x-4x choice multiplies the Gold Fuse\x27s countdown (the same standardTurnSeconds schedule times the multiplier) and Unlimited returns no fuse (goldClockOf null).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/practiceUnlimitedTime.test.ts', 'packages/ui/src/goldClock.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {
     id: 'R-PRACTICE-HEROES-01',
@@ -4542,60 +4544,6 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'a hand card it does not change (checked across the Doc Bot corpus), so a different card may still be involved.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handBuffSpellScaling.test.ts'], lastVerifiedAt: '2026-10-05' },
   },
-  // ── The Bronze ranked shop clock (owner 2026-10-06) ─────────────────────────────────────────────────────────
-  {
-    id: 'R-TIMER-BRONZE-01',
-    title: 'A ranked game started in Bronze runs on the Gold Fuse: no shop clock until 20 Gold is spent in a turn, then 60 seconds (90 from turn 9)',
-    statement:
-      'In a rated (ranked) lobby that the player started while Bronze, each Shop turn opens with no clock. Once the player '
-      + 'has spent 20 Gold in that turn, a countdown starts: 60 seconds on turns 1 to 8, 90 seconds from turn 9. It never '
-      + 'restarts for more Gold spent later in the turn, and at 0 the Shop locks exactly as the standard timeout does. The '
-      + 'medal is fixed when the game starts, so a game started in Bronze keeps this clock to its end (Save & Quit and '
-      + 'resume included) and a game started in Silver or above uses the standard timer. Unrated lobbies, Practice, the '
-      + 'tutorial and every other mode keep their own timers; the Gauntlet keeps its own 30 Gold / 60 second clock. A '
-      + 'time-limited discount window opened while the clock is still waiting keeps its full length once the clock starts.',
-    domain: 'foundation',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer)', quote: 'the system we implemented for the gold spend timer in gauntlet. i want to make that the experience for all players who are bronze ranked. once you become silver, it should transfer over to the standard timer experience' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer threshold)', quote: 'lets do 20 gold.' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer, late turns)', quote: 'can we up it to a 90 second timer on turns 9+?' },
-      { kind: 'code', ref: 'packages/ui/src/goldClock.ts (goldClockOf, the shared predicate; BRONZE_CLOCK_*; pinMedalAtStart); packages/ui/src/store.ts pickHero / newRun (pin beside runId) + the Thymepiece clock stamp; packages/ui/src/Recruit.tsx (turnSeconds, the start effect, the clockWaiting gate, the ShopTimer plaque); packages/ui/src/DiscountWindowReadout.tsx; packages/sim/src/state.ts RunState.medalAtStart' },
-      { kind: 'fix-pr', ref: 'feat/bronze-gold-clock (the Bronze ranked gold-spend clock + the Silver rank-up notice)' },
-    ],
-    example: 'A Bronze II player starts a ranked game. On turn 3 the shop shows a Gold bar at 0/20; buying a few cards fills it, and at 20 a 60-second countdown starts. On turn 9 the same 20 Gold starts a 90-second countdown. The player is promoted to Silver in another game before resuming this one: it still uses the Bronze clock.',
-    currentBehaviour:
-      'Conforms as of 2026-10-06. The medal is pinned on the run (RunState.medalAtStart) where a rated lobby is minted, '
-      + 'only when the table is rated (an all-generated table is unrated, R-LOBBY-06); a brand-new account starts at Bronze I '
-      + 'and counts. Pinned by the gold-clock tests: the predicate (Bronze rated 20/60, 90 from turn 9; Silver and above, '
-      + 'unrated, Practice, tutorial and sandbox standard; Gauntlet 30/60 unchanged), waiting below 20 and starting at 20, '
-      + 'no restart, Save & Quit keeping the parked value, the pin surviving a save round trip and a later rank change, and '
-      + 'the store pinning where the rated lobby is minted. PARTIAL pin: the 0-second lock is the shared timeout path '
-      + '(R-TIMER-LOCK-01), and the Recruit wiring is pinned by source checks in the Gauntlet clock test. Presentation-only: '
-      + 'the engine is untimed. Announcer note: the clock-based lines (TimeRunningOut, Idle, FastTurn) only hear a turn once '
-      + 'its countdown runs.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts', 'packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
-    id: 'R-TIMER-BRONZE-02',
-    title: 'The Bronze to Silver promotion screen tells the player the shop timer now starts every turn',
-    statement:
-      'When a ranked game promotes the player from Bronze to Silver, the post-game rank screen shows a notice, once the '
-      + 'promotion has played, that their shop timer now starts at the beginning of every turn like other ranked players. '
-      + 'It appears only on that promotion: never on a division step inside Bronze or Silver, a higher medal step, or a demotion.',
-    domain: 'foundation',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Bronze shop timer)', quote: 'we should have that as a notification on the silver rank up screen' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (the notice wording)', quote: 'change the silver promotion screen prompt to: Shop Timer Adjusted: At Silver rank and above, the round timer begins at the start of the round. No more Gold-Spent Timer. Time to make fast decisions, champion!' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (naming the gold-spend clock; the notice now says "No more Gold Fuse.")', quote: 'lets  use Gold Fuse' },
-      { kind: 'code', ref: 'packages/ui/src/rank/rankFormat.ts (SILVER_CLOCK_NOTICE, silverClockNoticeOf, announcement); packages/ui/src/rank/RankScreen.tsx (.rankend-notice); packages/ui/src/rank/fixtures.ts promo-silver' },
-      { kind: 'fix-pr', ref: 'feat/bronze-gold-clock (the Bronze ranked gold-spend clock + the Silver rank-up notice)' },
-    ],
-    example: 'Bronze III 100, a 1st place wins the medal promotion game: the crest turns Silver I, then the notice "Shop Timer Adjusted: At Silver rank and above, the round timer begins at the start of the round. No more Gold Fuse. Time to make fast decisions, champion!" appears. Silver I to Silver II shows nothing.',
-    currentBehaviour: 'Conforms as of 2026-10-06. Pinned by the rank screen tests: shown on the Bronze to Silver promotion (and read in the live region), absent on every other fixture, on division steps in Bronze and Silver, a higher medal step and a demotion to Bronze, and held until the sequence settles.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx'], lastVerifiedAt: '2026-10-06' },
-  },
   // ── Split early / late matchmaking bands by medal (owner design 2026-10-06) ──────────────────────────────────
   {
     id: 'R-LOBBY-13',
@@ -4717,5 +4665,46 @@ export const FOUNDATION_RULES: GameRule[] = [
     contentIds: ['dw_arnold', 'dw_sharpshooter', 'sp_beefy', 'deepdelvewrit'],
     currentBehaviour: 'Conforms (2026-10-07): both factories resolve the spell through CARD_INDEX, which includes the archive.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
+  {
+    id: 'R-TIMER-FUSE-01',
+    title: 'Every lobby and Practice run on the Gold Fuse: no shop clock until 10 Gold is spent in a turn, then that round\x27s normal timer',
+    statement:
+      'In every lobby (ranked at every medal, and unrated tables) and in Practice, each Shop turn opens with no clock. '
+      + 'Once the player has spent 10 Gold in that turn, a countdown starts at that round\x27s normal turn length: the '
+      + 'same round-by-round schedule the timer has always used (21 seconds on round 1, rising each round to 92 seconds '
+      + 'from round 15), times Practice\x27s 1x-4x choice. It never restarts for more Gold spent later in the turn, and at '
+      + '0 the Shop locks exactly as any timeout does. The fuse is there from round 1: early rounds, where the player '
+      + 'usually cannot spend 10 Gold, usually have no clock at all, but they still show the fuse and light it at that '
+      + 'round\x27s normal length the moment 10 Gold is spent; no round falls back to an always-running clock. Practice on Unlimited has no clock and no fuse. The player\x27s rank never changes '
+      + 'the clock, so no rank-up or rank-down screen mentions it. The Gauntlet keeps its own 30 Gold / 60 second fuse '
+      + '(R-GAUNTLET-04); the tutorial stays untimed. A time-limited discount window opened while the fuse is still '
+      + 'waiting keeps its full length once the countdown starts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (Gold Fuse for every rank)', quote: 'we want to make a game-wide change. every rank will have the gold fuse implemented. it will kick off the timer when 10 gold is spent. this is for all ranks, so we can remove the silver note when promoted.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (Gold Fuse countdown length)', quote: 'i want to clarify that the round timer should follow the existing round by round time increase, not the 60/90 secnd timer that is part of the current gold fuse timer for bronze.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (follow-up: rounds 1-7, where 10 Gold is usually out of reach)', quote: 'Yes, early rounds untimed' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (follow-up: scope)', quote: 'All lobbies, Gauntlet unchanged' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (clarification: the fuse in rounds 1-7)', quote: 'i want to clarify that the gold fuse will still show and operate during rounds 1-7' },
+      { kind: 'code', ref: 'packages/ui/src/goldClock.ts (goldClockOf, FUSE_GOLD, practiceClockMult); packages/ui/src/turnClock.ts standardTurnSeconds (the one schedule); packages/ui/src/Recruit.tsx (turnSeconds, the reset + start effects, the ShopTimer plaque); packages/ui/src/store.ts + StatusBar.tsx (the Thymepiece stamp and readout pass practiceTimer)' },
+      { kind: 'fix-pr', ref: 'feat/gold-fuse-all-lobbies (the Gold Fuse in every lobby; the Bronze-only clock and the Silver rank-up notice removed)' },
+    ],
+    example: 'A Gold II player starts a ranked game. Turns 1-7 never reach 10 Gold spent, so they have no clock. On turn 8 the shop shows a Gold bar at 0/10; buying cards fills it, and at 10 Gold a 52-second countdown starts (turn 12: 80 seconds). In Practice on 2x the same turn-8 fuse starts 104 seconds; on Unlimited there is no clock at all.',
+    currentBehaviour:
+      'Conforms as of 2026-10-07. Replaced the Bronze-only fuse (20 Gold, then 60 / 90 seconds, R-TIMER-BRONZE-01) and the '
+      + 'Silver promotion notice (R-TIMER-BRONZE-02), both retired. The run\x27s pinned medalAtStart is still stamped for '
+      + 'telemetry (R-TELEMETRY-RANK-01) but the clock no longer reads it, so a game saved under the Bronze rules resumes '
+      + 'under these. Pinned by the gold-clock tests (the schedule matches the old inline formula for waves 1-20 x 1-4; the '
+      + 'predicate for every mode and medal; parked to running at exactly 10 Gold at 52 on wave 8 and 80 on wave 12; '
+      + 'Practice 2x doubled; Unlimited null; the Gauntlet 30 / 60 unchanged; a mid-turn multiplier change; Save & Quit '
+      + 'while parked; the Thymepiece reading) and the rank screen test that no promotion shows a timer notice. No card '
+      + 'grants shop-clock seconds today (the retired bonusTurnSeconds fields are healed out of saves), so nothing adds '
+      + 'to a fuse\x27s countdown. PARTIAL pin: the 0-second lock is the shared timeout path (R-TIMER-LOCK-01), and the '
+      + 'Recruit wiring is pinned by source checks. Presentation-only: the engine is untimed. Announcer note: the '
+      + 'clock-based lines (TimeRunningOut, Idle, FastTurn) only hear a turn once its countdown runs.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts', 'packages/ui/src/rank/RankScreen.test.tsx', 'packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
 ];

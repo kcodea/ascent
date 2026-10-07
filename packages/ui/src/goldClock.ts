@@ -1,27 +1,34 @@
 /**
- * THE GOLD-SPEND SHOP CLOCK: a shop turn with NO clock until the player has spent a set amount of Gold in it
- * (`run.goldSpentThisTurn`), then a countdown. At 0 it behaves exactly like the normal game's timeout (Recruit's
- * existing `timeUp` gates and the engine's R-TIMER-LOCK-01 `shopClockExpired` lock). The next turn waits again.
+ * THE GOLD FUSE: a shop turn with NO clock until the player has spent a set amount of Gold in it
+ * (`run.goldSpentThisTurn`), then a countdown. At 0 it behaves exactly like any other timeout (Recruit's `timeUp`
+ * gates and the engine's R-TIMER-LOCK-01 `shopClockExpired` lock). The next turn waits again.
  *
- * Two kinds of run use it, each with its own config (`goldClockOf`):
- *  - a GAUNTLET stage (R-GAUNTLET-04, owner 2026-09-29): 30 Gold, then 60 seconds;
- *  - a RATED lobby started in BRONZE (R-TIMER-BRONZE-01, owner 2026-10-06: "i want to make that the experience for
- *    all players who are bronze ranked"): 20 Gold, then 60 seconds on turns 1-8 and 90 seconds from turn 9 ("can
- *    we up it to a 90 second timer on turns 9+?"). "Bronze" is the medal PINNED on the run when it started
- *    (`run.medalAtStart`, stamped by the store beside `runId`), so a game started in Bronze keeps this clock to the
- *    end, through Save & Quit and cloud resume. Silver and above, unrated lobbies, Practice, the tutorial and every
- *    other mode keep the standard clock.
+ * Two configs (`goldClockOf`):
+ *  - EVERY LOBBY AND PRACTICE (R-TIMER-FUSE-01, owner 2026-10-07: "every rank will have the gold fuse implemented. it
+ *    will kick off the timer when 10 gold is spent" + "the round timer should follow the existing round by round time
+ *    increase, not the 60/90 secnd timer"): 10 Gold, then that round's STANDARD turn length (`standardTurnSeconds`,
+ *    the one schedule Recruit's normal clock uses too), times Practice's 1-4x choice. Ranked at every medal, unrated
+ *    tables and Practice alike ("All lobbies, Gauntlet unchanged"). Rounds 1-7 usually never reach 10 Gold, so they
+ *    usually have no clock at all ("Yes, early rounds untimed"). Practice on ∞ has no clock whatsoever (null here,
+ *    and Recruit's infinite clock).
+ *  - a GAUNTLET stage (R-GAUNTLET-04, owner 2026-09-29): 30 Gold, then 60 seconds, every round.
+ * The tutorial (scripted, untimed), the sandbox and the legacy modes keep their own clocks (null).
+ *
+ * This replaced the Bronze-only fuse of 2026-10-06 (R-TIMER-BRONZE-01, 20 Gold then 60 / 90 s, read off the run's
+ * pinned `medalAtStart`). The clock no longer reads the medal at all; the pin stays for telemetry
+ * (R-TELEMETRY-RANK-01). A run saved under the Bronze rules simply resumes under these.
  *
  * Presentation-only, like every shop clock: the engine is untimed. The rule is kept here, pure, so it is testable
  * without a DOM; Recruit wires it into the shared `turnClock` store:
- *  - each gold-clock turn OPENS at `GOLD_CLOCK_WAITING` (Recruit's `turnSeconds`), a value no real countdown
- *    reaches, and the tick is held (`turnClockMayTick`'s `clockWaiting`) so it stays parked there;
+ *  - each fuse turn OPENS at `GOLD_CLOCK_WAITING` (Recruit's `turnSeconds`), a value no real countdown reaches, and
+ *    the tick is held (`turnClockMayTick`'s `clockWaiting`) so it stays parked there;
  *  - the moment the threshold is met, `goldTurnClock` moves the parked clock to the config's seconds and the tick
  *    starts.
  * Because "waiting" is encoded in the clock VALUE, Save & Quit needs nothing new: a turn quit while waiting saves
  * the parked value and resumes waiting; one quit mid-countdown saves (and resumes) its real seconds.
  */
 import { lobbyIsUnrated, medalOf, rankAtStartOf, type PlayerProfile, type RunState } from '@game/sim';
+import { standardTurnSeconds } from './turnClock';
 
 /** One gold-spend clock: the Gold spent in a turn that starts it, and the countdown it starts. */
 export interface GoldClockConfig {
@@ -35,32 +42,29 @@ export const GOLD_CLOCK_WAITING = 99999;
 /** The Gauntlet's clock (R-GAUNTLET-04). */
 export const GAUNTLET_GOLD_CLOCK: GoldClockConfig = Object.freeze({ gold: 30, seconds: 60 });
 
-/** The Bronze ranked clock (R-TIMER-BRONZE-01): Gold spent that starts it… */
-export const BRONZE_CLOCK_GOLD = 20;
-/** …the countdown on turns 1 to `BRONZE_CLOCK_LATE_WAVE - 1`… */
-export const BRONZE_CLOCK_SECONDS = 60;
-/** …and from `BRONZE_CLOCK_LATE_WAVE` on (owner 2026-10-06: "can we up it to a 90 second timer on turns 9+?"). */
-export const BRONZE_CLOCK_LATE_SECONDS = 90;
-export const BRONZE_CLOCK_LATE_WAVE = 9;
+/** The Gold spent in a turn that lights every lobby's and Practice's fuse (R-TIMER-FUSE-01). */
+export const FUSE_GOLD = 10;
 
-export type GoldClockRun = Pick<RunState, 'mode' | 'sandbox' | 'lobby' | 'medalAtStart' | 'wave'>;
+export type GoldClockRun = Pick<RunState, 'mode' | 'sandbox' | 'wave'>;
 
-/** Does this run get the Bronze ranked clock? A plain RATED lobby (not Practice, not a sandbox, not an unrated
- *  all-generated table, R-LOBBY-06) whose pinned starting medal is Bronze. */
-export function isBronzeClockRun(run: GoldClockRun): boolean {
-  return run.mode === 'lobby' && !run.sandbox && run.medalAtStart === 'Bronze' && !(run.lobby && lobbyIsUnrated(run.lobby));
+/** Practice's 1-4x timer multiplier as it applies to this run's clock: the store's `practiceTimer` on a Practice run
+ *  (0 = ∞), 1 on every other run (the multiplier is never consulted outside Practice, and never in the sandbox). */
+export function practiceClockMult(run: Pick<RunState, 'mode' | 'sandbox'>, practiceTimer: number): number {
+  return run.mode === 'practice' && !run.sandbox ? practiceTimer : 1;
 }
 
-/** The Bronze clock's countdown length on a turn. */
-export function bronzeClockSeconds(wave: number): number {
-  return wave >= BRONZE_CLOCK_LATE_WAVE ? BRONZE_CLOCK_LATE_SECONDS : BRONZE_CLOCK_SECONDS;
-}
-
-/** THE SHARED PREDICATE: this run's gold-spend clock for its CURRENT turn, or null for the standard clock. */
-export function goldClockOf(run: GoldClockRun): GoldClockConfig | null {
+/**
+ * THE SHARED PREDICATE: this run's Gold Fuse for its CURRENT turn, or null when the run keeps a clock of its own
+ * (standard or infinite). `practiceTimer` is the store's Practice timer choice (1-4, 0 = ∞); every caller passes it
+ * so the fuse's countdown, the Thymepiece stamp and its readout all agree on the seconds.
+ */
+export function goldClockOf(run: GoldClockRun, practiceTimer: number): GoldClockConfig | null {
+  if (run.sandbox) return null;
   if (run.mode === 'gauntlet') return GAUNTLET_GOLD_CLOCK;
-  if (isBronzeClockRun(run)) return { gold: BRONZE_CLOCK_GOLD, seconds: bronzeClockSeconds(run.wave) };
-  return null;
+  if (run.mode !== 'lobby' && run.mode !== 'practice') return null;
+  const mult = practiceClockMult(run, practiceTimer);
+  if (mult <= 0) return null; // Practice on ∞: no timer at all
+  return { gold: FUSE_GOLD, seconds: standardTurnSeconds(run.wave, mult) };
 }
 
 /** Whether this turn's clock is running yet. */
@@ -97,16 +101,16 @@ export function goldTurnClock(args: { clock: GoldClockConfig; goldSpent: number;
 }
 
 /**
- * PIN the player's medal on a run as it starts (R-TIMER-BRONZE-01). Called by the store where a RATED lobby is minted
- * (`pickHero` / `newRun`, beside `runId`), and nowhere else: the medal never changes afterwards, so Save & Quit, a
- * cloud resume and a rank change mid-game all keep the clock the game started with. Only a rated lobby is stamped
+ * PIN the player's medal on a run as it starts. Called by the store where a RATED lobby is minted (`pickHero` /
+ * `newRun`, beside `runId`), and nowhere else: the medal never changes afterwards, so Save & Quit, a cloud resume and
+ * a rank change mid-game all keep the rank the game started at. (It once chose the Bronze shop clock; since
+ * 2026-10-07 every lobby has the same Gold Fuse and the clock no longer reads it.) Only a rated lobby is stamped
  * (an unrated all-generated table, Practice, a Gauntlet stage, the tutorial and the sandbox are left alone). A
  * brand-new account's profile starts at Bronze I, so it is stamped Bronze. Mutates and returns `run`.
  *
  * The same call, under the same gate, pins the FULLER rank snapshot `run.rankAtStart` (medal, division, points,
  * rating, season; owner 2026-10-06, R-TELEMETRY-RANK-01) that the run's telemetry upload stamps into `derived`, so
- * the real Bronze top-4 rate can be measured. One pin point means the clock and the telemetry can never disagree on
- * the rank a game started at.
+ * the real Bronze top-4 rate can be measured.
  */
 export function pinMedalAtStart<R extends Pick<RunState, 'mode' | 'sandbox' | 'lobby' | 'medalAtStart' | 'rankAtStart'>>(
   run: R,

@@ -97,7 +97,7 @@ export function PracticeOptions() {
         />
         <Segmented
           label="Time"
-          hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer speed.'}
+          hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
           value={cfg.timeMult}
           options={TIMES}
           onPick={(v) => setDraft({ timeMult: v })}

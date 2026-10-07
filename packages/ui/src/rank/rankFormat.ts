@@ -4,7 +4,7 @@
  * an index → label, a points readout, or what a delta at a cap/floor says. Pure; no React, no store.
  */
 import {
-  isMedalGate, isPromotionReady, isUncapped, medalOf, POINTS_PER_DIVISION, rankLabel, rankScalar,
+  isMedalGate, isPromotionReady, isUncapped, POINTS_PER_DIVISION, rankLabel, rankScalar,
   type RankPosition, type RankResult,
 } from './types';
 
@@ -85,21 +85,6 @@ export function outcomeText(r: RankResult): string | null {
   return null;
 }
 
-/** THE SILVER SHOP-TIMER NOTICE (owner 2026-10-06, R-TIMER-BRONZE-01): a Bronze rated game's shop clock waits for 20
- *  Gold spent before it counts down; from Silver the standard timer applies, "and we should have that as a notification
- *  on the silver rank up screen". Wording is the owner's own (2026-10-06). */
-export const SILVER_CLOCK_NOTICE = Object.freeze({
-  title: 'Shop Timer Adjusted',
-  body: 'At Silver rank and above, the round timer begins at the start of the round. No more Gold Fuse. Time to make fast decisions, champion!',
-});
-
-/** The notice a result earns, or null. ONLY the Bronze → Silver promotion: not a division step inside Bronze or
- *  Silver, not a higher medal step, never a demotion. */
-export function silverClockNoticeOf(r: RankResult | null | undefined): typeof SILVER_CLOCK_NOTICE | null {
-  if (!r || !r.promoted || r.demoted) return null;
-  return medalOf(r.before.divisionIndex) === 'Bronze' && medalOf(r.after.divisionIndex) === 'Silver' ? SILVER_CLOCK_NOTICE : null;
-}
-
 /** One sentence for the screen's live region, announced once when the sequence settles. */
 export function announcement(placement: number, r: RankResult | null, submission: string): string {
   const place = placement === 1 ? 'Victory' : `Finished ${ordinal(placement)}`;
@@ -111,8 +96,7 @@ export function announcement(placement: number, r: RankResult | null, submission
   }
   // The live region is the one place a promotion / demotion is SAID — a screen reader can't see the crest change.
   const outcome = r.promoted ? `Promoted to ${rankLabel(r.after)}` : r.demoted ? `Demoted to ${rankLabel(r.after)}` : outcomeText(r)?.replace(/\.$/, '');
-  const notice = silverClockNoticeOf(r);
-  return `${place}. ${deltaText(r)}. Now ${rankLabel(r.after)}, ${pointsText(r.after)}.${outcome ? ` ${outcome}.` : ''}${notice ? ` ${notice.body}` : ''}`;
+  return `${place}. ${deltaText(r)}. Now ${rankLabel(r.after)}, ${pointsText(r.after)}.${outcome ? ` ${outcome}.` : ''}`;
 }
 
 /** The fraction of a (capped) division bar a position fills — Ascendant III reads as full. */

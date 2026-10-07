@@ -12446,20 +12446,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankend-status.rejected { color: #ff9a9a; }
 .rankend-status.unrated { text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.7; }
 .rankend-spin { width: 18px; height: 18px; border-width: 2px; }
-/* THE SILVER SHOP-TIMER NOTICE (R-TIMER-BRONZE-01): a gold-edged plaque under the result on the Bronze → Silver
-   promotion. Static shadow; the only motion is a one-shot rise (transform/opacity), nothing loops. */
-.rankend-notice { display: flex; align-items: center; gap: 14px; max-width: 620px; padding: 12px 20px 12px 14px; border-radius: 16px;
-  background: linear-gradient(180deg, rgba(40, 34, 22, 0.92), rgba(20, 17, 12, 0.92)); border: 1px solid rgba(255, 216, 128, 0.55);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.18), 0 10px 28px -10px rgba(0, 0, 0, 0.7);
-  animation: rankend-notice-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.rankend-notice-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: #ffe08a;
-  background: radial-gradient(circle at 50% 35%, rgba(255, 224, 138, 0.28), rgba(255, 224, 138, 0.06)); border: 1px solid rgba(255, 216, 128, 0.45); }
-.rankend-notice-ic svg { width: 22px; height: 22px; }
-.rankend-notice-text { display: flex; flex-direction: column; gap: 3px; text-align: left; }
-.rankend-notice-title { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: #ffe08a; }
-.rankend-notice-body { font-family: var(--font-ui); font-weight: 600; font-size: 16px; line-height: 1.3; color: rgba(255, 246, 228, 0.92); }
-@keyframes rankend-notice-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .rankend-notice { animation: none; } }
 .rankend-actions { display: flex; align-items: center; gap: 18px; }
 .rankend-actions .endplay { margin-top: 14px; }
 .rankend-retry { background: linear-gradient(180deg, #6a9ce0, #3f74bd); border-color: #22467a; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 #22467a, 0 14px 34px -8px rgba(0, 0, 0, 0.55); }

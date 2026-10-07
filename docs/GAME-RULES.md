@@ -170,8 +170,8 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
 - **Loss cap:** at most 5 per lost round on rounds 1–3, 10 on 4–6, 15 on 7–8, no cap on 9–10. Ties cost nothing.
 - **The shop is the normal game's** (economy, tiers, tribes, a random shop every attempt), with any hero at their
   normal Resolve and Armor. You can't see the opponent's next board before combat.
-- **Shop timer:** no clock until you spend 30 Gold in a round, then 60 seconds (R-GAUNTLET-04). The same gold-spend
-  clock runs Bronze ranked games at 20 Gold (see the Ranked ladder, R-TIMER-BRONZE-01).
+- **Shop timer:** no clock until you spend 30 Gold in a round, then 60 seconds (R-GAUNTLET-04). Every lobby and
+  Practice run the same Gold Fuse at 10 Gold, then the round's normal turn length (see the Ranked ladder, R-TIMER-FUSE-01).
 - **Opponent runes:** one from round 6, a second from round 9 (both active from then on). Only their combat effects act.
 - **Opponent run buffs:** a stage can give the opponent the run-wide values a real run builds up (Ruby strength, spell
   power, auras, counters like Grim's Deathrattles). A value set on a round lasts for every later round until changed,
@@ -230,18 +230,27 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   from the seat kinds (`lobbyIsUnrated`), the end screen reads **"Unrated · No opponents reached"**, and the
   client submits no rank request. The server enforces it too: `submit-rating` refuses to settle a request whose
   seat keys are all generated (`bot:…`, `allSeatsGenerated`). A lobby with at least one real run is rated as usual.
-- **Bronze plays on the Gold Fuse**, the gold-spend shop timer (named by the owner 2026-10-07: *"lets use Gold Fuse"*; owner 2026-10-06, verbatim: *"the system we implemented for the gold
-  spend timer in gauntlet. i want to make that the experience for all players who are bronze ranked. once you become
-  silver, it should transfer over to the standard timer experience"*, *"lets do 20 gold."*, *"can we up it to a 90
-  second timer on turns 9+?"*; R-TIMER-BRONZE-01). In a rated lobby started while **Bronze**, each Shop turn opens
-  with **no clock**; a bar fills with the Gold spent that turn, and at **20 Gold** a countdown starts: **60 seconds**
-  on turns 1-8, **90 seconds** from turn 9. It never restarts within the turn, and at 0 the Shop locks exactly like
-  the standard timeout. The medal is fixed when the game starts (`RunState.medalAtStart`), so a game begun in Bronze
-  keeps this clock to its end (Save & Quit and Continue included), and a brand-new account (Bronze I) gets it. From
-  **Silver** up, and in unrated lobbies, Practice, the tutorial and every other mode, the shop uses its usual timer.
-  The **Bronze → Silver promotion** screen says so: *"Shop Timer Adjusted: At Silver rank and above, the round timer begins at the
-  start of the round. No more Gold Fuse. Time to make fast decisions, champion!"* (R-TIMER-BRONZE-02; never on a division step
-  or another medal). Source: `packages/ui/src/goldClock.ts` (shared with the Gauntlet's 30 Gold / 60 second Gold Fuse).
+- **Every lobby plays on the Gold Fuse** (owner 2026-10-07, verbatim: *"every rank will have the gold fuse
+  implemented. it will kick off the timer when 10 gold is spent. this is for all ranks, so we can remove the silver note
+  when promoted. i want to clarify that the round timer should follow the existing round by round time increase, not
+  the 60/90 secnd timer that is part of the current gold fuse timer for bronze."*; follow-ups *"Yes, early rounds
+  untimed"*, *"All lobbies, Gauntlet unchanged"*; R-TIMER-FUSE-01). In every lobby (ranked at every medal, and
+  unrated tables) and in **Practice**, each Shop turn opens with **no clock**; a bar fills with the Gold spent that
+  turn, and at **10 Gold** a countdown starts at **that round's normal turn length**: the standard round-by-round
+  schedule (21, 22, 26, 30, 34, 44, 48, 52, 56, 60, 64, 80, 84, 88 s for rounds 1-14, then 92 s), times Practice's
+  1x-4x choice. It never restarts within the turn, and at 0 the Shop locks exactly like any timeout (R-TIMER-LOCK-01).
+  The fuse is there from round 1 (owner clarification 2026-10-07: *"i want to clarify that the gold fuse will still
+  show and operate during rounds 1-7"*): rounds 1-7 usually never reach 10 Gold (3 Gold on turn 1, +1 a turn), so they
+  often have no clock, but they show the 0/10 bar and light at that round's length the moment 10 Gold is spent (round 3:
+  26 s); no round falls back to an always-running clock.
+  Practice on **Unlimited** has no clock and no fuse. The **Gauntlet** keeps its own 30 Gold / 60 second fuse
+  (R-GAUNTLET-04), the tutorial stays untimed and the sandbox keeps its own clock. The player's rank never changes the
+  clock, so no rank-up screen mentions it. This replaced the 2026-10-06 **Bronze-only** fuse (20 Gold, then 60 s / 90 s
+  from turn 9, R-TIMER-BRONZE-01) and its **Bronze → Silver "Shop Timer Adjusted" notice** (R-TIMER-BRONZE-02), both
+  retired; `RunState.medalAtStart` is still pinned for telemetry (R-TELEMETRY-RANK-01) but the clock no longer reads
+  it, so a game saved under the Bronze rules resumes under the new fuse. Source: `packages/ui/src/goldClock.ts`
+  (`goldClockOf`) and `packages/ui/src/turnClock.ts` (`standardTurnSeconds`, the one schedule the plain clock and the
+  fuse share).
 - **Leaving a rated game early costs nothing** (owner 2026-10-02, verbatim: *"oh i didnt know there was an
   abandon penalty in. can we remove that for now?"*; R-RANK-05, switched off). Giving up an unfinished rated game
   (**Clear** on the title, starting any new game over it, or a cloud copy of another run adopted over it) simply

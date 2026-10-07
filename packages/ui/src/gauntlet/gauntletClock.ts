@@ -2,8 +2,9 @@
  * THE GAUNTLET SHOP TIMER (Gauntlet spec §1, R-GAUNTLET-04): a Gauntlet round has NO clock until the player has
  * spent `GAUNTLET_CLOCK_GOLD` Gold in it (`run.goldSpentThisTurn`), then a `GAUNTLET_CLOCK_SECONDS` countdown.
  *
- * Since 2026-10-06 this is one config of the shared GOLD-SPEND clock (`../goldClock.ts`), which a Bronze rated
- * lobby uses too (R-TIMER-BRONZE-01). Recruit, the store and the Thymepiece readout all go through `goldClockOf`;
+ * This is one config of the shared GOLD FUSE (`../goldClock.ts`), which every lobby and Practice use too since
+ * 2026-10-07 (R-TIMER-FUSE-01: 10 Gold, then the round's standard seconds). Recruit, the store and the Thymepiece
+ * readout all go through `goldClockOf`;
  * this file keeps the Gauntlet's own numbers and helpers, delegating to the shared ones, so the Gauntlet's clock
  * stays pinned on its own terms.
  */
@@ -27,7 +28,8 @@ export function gauntletClockWaiting(seconds: number): boolean {
 }
 
 /** The clock READING for a mode (see `goldClockReading`): a parked Gauntlet clock reads as the 60 it starts from;
- *  every other mode reads raw HERE (a Bronze lobby's reading needs its run: use `goldClockReading(goldClockOf(run), …)`). */
+ *  every other mode reads raw HERE (a lobby's or Practice's reading needs its run: use
+ *  `goldClockReading(goldClockOf(run, practiceTimer), …)`). */
 export function gauntletClockReading(mode: string | undefined, seconds: number): number {
   return goldClockReading(mode === 'gauntlet' ? GAUNTLET_GOLD_CLOCK : null, seconds);
 }

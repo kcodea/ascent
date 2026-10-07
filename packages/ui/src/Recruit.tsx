@@ -80,7 +80,7 @@ import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
-import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock } from './goldClock';
+import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -216,7 +216,7 @@ import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGate
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
-import { chargeElapsed, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { CHARGE_SECONDS, chargeElapsed, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
@@ -375,8 +375,8 @@ type Zone = 'tavern' | 'warband' | 'hand';
  *  who genuinely wants to end instantly barely notices. */
 const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the long lock outstayed its welcome)
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
-const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from round 6 — owner 2026-07-16), capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
-const CHARGE_SECONDS = 20;
+// The round timer's schedule (base 18s, +4s/wave, …) and the charge window (CHARGE_SECONDS) live in turnClock.ts
+// (`standardTurnSeconds`), shared with the Gold Fuse so the two can never drift.
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
 const CHARGE_HOLD_FADE_MS = 120; // the charge-build sound's fade when the clock is held mid-turn (quick, so it reads as a stop, without a click)
@@ -425,7 +425,7 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
-  // A GOLD-SPEND clock turn (a Gauntlet round: 30 Gold; a Bronze rated lobby: 20, R-TIMER-BRONZE-01) has no clock
+  // A GOLD FUSE turn (every lobby and Practice: 10 Gold, R-TIMER-FUSE-01; a Gauntlet round: 30) has no clock
   // until `goldGoal` Gold is spent: the clock sits parked on its waiting value until then (see goldClock.ts).
   const goal = goldGoal ?? 0;
   const goldWaiting = goal > 0 && goldClockWaiting(s);
@@ -473,11 +473,11 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
         </select>
       )}
       <span className="sbtip">
-        {practice
-          ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run), or ∞ for no timer.'
-          : goldWaiting
-            ? `Gold Fuse: a countdown begins once you've spent ${goal} Gold in a single turn.`
-            : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
+        {`${goldWaiting
+          ? `Gold Fuse: a countdown begins once you've spent ${goal} Gold in a single turn.`
+          : practice ? 'Time left this turn.' : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}${practice
+          ? ' Practice only: pick 1–4× to lengthen the shop timer (1× matches a ranked game), or ∞ for no timer.'
+          : ''}`}
       </span>
     </div>
   );
@@ -1180,15 +1180,11 @@ export function Recruit() {
   const ftbBonus = ftbLive.attack;
   const ftbBonusH = ftbLive.health;
 
-  // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
-  // combat, so the per-wave reset is an effect keyed on the wave — see below.) Practice gives 3× the clock.
-  // Floored at CHARGE_SECONDS+1 (21s) so NO turn ever STARTS inside the charge window — the glyph then always
-  // lights by the clock TICKING across the threshold, the one battle-tested path. Wave 1's base 18s sat inside
-  // the 20s window, forcing a light-at-shop-mount special case whose swell mis-fired (owner: round 1 kicks off
-  // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
-  // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
-  // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
-  // Sandbox (Scene Builder): a huge fixed clock so the turn never times out while you build.
+  // The round timer's per-wave schedule is `standardTurnSeconds` (turnClock.ts): +4s a wave, +6s from round 6,
+  // capped at 80s, +12s more from round 12, floored at CHARGE_SECONDS+1 (21s) so no turn ever STARTS inside the
+  // charge window. Since 2026-10-07 (R-TIMER-FUSE-01) every lobby and Practice reach it only through the Gold Fuse
+  // below (the same seconds, once 10 Gold is spent); the plain path is left to the sandbox's NORMAL rules and the
+  // legacy modes. Sandbox (Scene Builder) under GOD rules: a huge fixed clock so the turn never times out.
   // Practice's shop timer is a PLAYER CHOICE (owner 2026-07-25): the dropdown beside the clock picks 1-4x, with
   // 1x being exactly the scored mode's clock. Was a fixed 3x, which is still the default so existing practice
   // runs feel unchanged. Scored modes always run at 1x — the multiplier is never consulted outside practice.
@@ -1201,17 +1197,17 @@ export function Recruit() {
   // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
   const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
-  // THE GOLD-SPEND CLOCK (goldClock.ts): a GAUNTLET round (spec §1, R-GAUNTLET-04) and a BRONZE rated lobby turn
-  // (R-TIMER-BRONZE-01) OPEN with no clock, parked on its waiting value; the countdown starts once the config's Gold
-  // is spent in the turn (30 / 20; see the effect beside the clock reset below). `goldClockOf` is the ONE predicate
-  // every surface asks (this, the plaque, the store's Thymepiece stamp, the Discount readout). Primitive reads so the
-  // effects below key on values, not a fresh object per render. `goldClockWaits` flips at most once per turn
-  // (goldSpentThisTurn only rises within a wave).
-  const goldClock = goldClockOf(run);
+  // THE GOLD FUSE (goldClock.ts): every LOBBY turn and every Practice turn (R-TIMER-FUSE-01: 10 Gold, then this
+  // round's standard seconds, times Practice's 1-4x) and every GAUNTLET round (R-GAUNTLET-04: 30 Gold, then 60 s)
+  // OPEN with no clock, parked on its waiting value; the countdown starts once the fuse's Gold is spent in the turn
+  // (see the effect beside the clock reset below). `goldClockOf` is the ONE predicate every surface asks (this, the
+  // plaque, the store's Thymepiece stamp, the Discount readout). Primitive reads so the effects below key on values,
+  // not a fresh object per render. `goldClockWaits` flips at most once per turn (goldSpentThisTurn only rises).
+  const goldClock = goldClockOf(run, practiceTimer);
   const goldClockGold = goldClock?.gold ?? null;
   const goldClockSeconds = goldClock?.seconds ?? null;
   const goldClockWaits = !!goldClock && goldClockState(goldClock, run.goldSpentThisTurn ?? 0) === 'waiting';
-  const turnSeconds = goldClock ? GOLD_CLOCK_WAITING : infiniteClock ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' && !run.sandbox ? practiceTimer : 1));
+  const turnSeconds = goldClock ? GOLD_CLOCK_WAITING : infiniteClock ? 99999 : standardTurnSeconds(run.wave, practiceClockMult(run, practiceTimer));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -4648,10 +4644,15 @@ export function Recruit() {
       useGame.getState().clearPendingResume();
       resumedWaveRef.current = run.wave;
     }
-  }, [run.wave, turnSeconds, heroSelecting, showTitle]);
+    // `goldClockSeconds` re-opens the turn when the fuse's length changes mid-turn, which only Practice's timer
+    // dropdown does (its wave changes ride `run.wave`). `turnSeconds` alone can't see it: a fuse turn and Practice's
+    // ∞ both read 99999, so a running fuse switched to ∞ (or back) would otherwise keep its countdown. Re-opened, a
+    // fuse turn parks and the start effect below relights it at the new length if its Gold is already spent — the
+    // same "pick a new multiplier, get the full new turn" the plain clock always gave.
+  }, [run.wave, turnSeconds, goldClockSeconds, heroSelecting, showTitle]);
 
-  // THE GOLD-SPEND CLOCK STARTS once its Gold is spent in the turn (Gauntlet 30 → 60 s; Bronze ranked 20 → 60 s, 90 s from
-  // turn 9): move the parked clock to the config's seconds. Declared AFTER the
+  // THE GOLD FUSE LIGHTS once its Gold is spent in the turn (every lobby + Practice: 10 Gold → this round's standard
+  // seconds; Gauntlet: 30 → 60 s): move the parked clock to the config's seconds. Declared AFTER the
   // reset above so, on any commit where both run, it sees the value the reset (or a Continue's resume) left — a
   // countdown already running, including seconds restored by Continue, is never restarted (`goldTurnClock`).
   // Layout effect, like the reset, so the plaque never paints the parked value once the threshold is met.
@@ -4710,7 +4711,7 @@ export function Recruit() {
       // the clock as normal though since you can play right away"; R-SOT-TIMER-01).
       transitionPlaying: wipe !== 'idle',
       settingsOpen,
-      clockWaiting: goldClockWaits, // a gold-clock turn (Gauntlet / Bronze ranked) before its Gold is spent: no clock yet
+      clockWaiting: goldClockWaits, // a Gold Fuse turn (any lobby / Practice / Gauntlet) before its Gold is spent: no clock yet
     })) return;
     let id = 0;
     const tick = (): void => {

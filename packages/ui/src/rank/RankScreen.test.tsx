@@ -246,54 +246,37 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
 });
 
 /**
- * THE SILVER SHOP-TIMER NOTICE (R-TIMER-BRONZE-01, owner 2026-10-06: "once you become silver, it should transfer over
- * to the standard timer experience. we should have that as a notification on the silver rank up screen"). Only the
- * Bronze → Silver promotion prints it, and only once the sequence has settled.
+ * NO PROMOTION SHOWS A SHOP-TIMER NOTICE (R-TIMER-FUSE-01, owner 2026-10-07: "this is for all ranks, so we can remove
+ * the silver note when promoted"). Every lobby now uses the same Gold Fuse, so no rank change alters the clock and the
+ * old Bronze → Silver "Shop Timer Adjusted" plaque (R-TIMER-BRONZE-02, retired) is gone from the screen and the live
+ * region.
  */
-describe('the Silver shop-timer notice', () => {
-  const NOTICE = 'At Silver rank and above, the round timer begins at the start of the round. No more Gold Fuse. Time to make fast decisions, champion!';
-  const promo = (before: number, after: number, promotionKind: 'division' | 'medal'): RankFixture => {
-    const f = fixtureById('promo-silver')!;
-    return {
-      ...f, id: `p${before}-${after}`,
-      result: { ...f.result!, runId: `p${before}-${after}`, before: { divisionIndex: before, points: 100 }, after: { divisionIndex: after, points: 10 }, promotionKind },
-    };
-  };
+describe('no shop-timer notice on any rank change', () => {
+  const OLD_NOTICE = /Shop Timer|Gold Fuse|round timer/i;
 
-  it('shows on the Bronze → Silver promotion, in the game plaque and the live region', () => {
+  it('the Bronze → Silver promotion shows the medal transition and nothing about the timer', () => {
     render(fixtureById('promo-silver')!);
     expect(text('.rankbar-label')).toBe('Silver I');
-    expect(text('.rankend-notice-title')).toBe('Shop Timer Adjusted');
-    expect(text('.rankend-notice-body')).toBe(NOTICE);
-    expect(text('.rankend-live')).toContain(NOTICE);
-    expect(ui!.container.querySelector('.rankend-notice [title]')).toBeNull();
-  });
-
-  it('no other fixture prints it', () => {
-    for (const f of RANK_FIXTURES.filter((x) => x.id !== 'promo-silver')) {
-      render(f);
-      expect(ui!.container.querySelector('.rankend-notice'), f.id).toBeNull();
-      ui!.unmount(); ui = null;
-    }
-  });
-
-  it('not on a division step inside Bronze or Silver, a higher medal step, or a demotion to Bronze', () => {
-    for (const f of [promo(0, 1, 'division'), promo(1, 2, 'division'), promo(3, 4, 'division'), promo(5, 6, 'medal')]) {
-      render(f);
-      expect(ui!.container.querySelector('.rankend-notice'), f.id).toBeNull();
-      ui!.unmount(); ui = null;
-    }
-    const down = fixtureById('promo-silver')!;
-    render({ ...down, placement: 8, result: { ...down.result!, runId: 'down', before: { divisionIndex: 3, points: 0 }, after: { divisionIndex: 2, points: 60 }, promoted: false, demoted: true, wasDemotionGame: true } });
     expect(ui!.container.querySelector('.rankend-notice')).toBeNull();
+    expect(ui!.container.textContent).not.toMatch(OLD_NOTICE);
+    expect(text('.rankend-live')).not.toMatch(OLD_NOTICE);
   });
 
-  it('waits for the sequence to settle, so it never spoils the medal transition', () => {
+  it('no fixture (promotions, demotions, gates) prints a timer notice', () => {
+    for (const f of RANK_FIXTURES) {
+      render(f);
+      expect(ui!.container.querySelector('.rankend-notice'), f.id).toBeNull();
+      expect(ui!.container.textContent, f.id).not.toMatch(OLD_NOTICE);
+      ui!.unmount(); ui = null;
+    }
+  });
+
+  it('nothing appears after the sequence settles either', () => {
     render(fixtureById('promo-silver')!, { reducedMotion: false });
     const c = ui!.container;
-    expect(c.querySelector('.rankend-panel')!.className).toContain('playing');
-    expect(c.querySelector('.rankend-notice')).toBeNull();
     act(() => { (c.querySelector('.rankend-rank') as HTMLElement).click(); });
-    expect(text('.rankend-notice-body')).toBe(NOTICE);
+    expect(c.querySelector('.rankend-panel')!.className).toContain('settled');
+    expect(c.querySelector('.rankend-notice')).toBeNull();
+    expect(c.textContent).not.toMatch(OLD_NOTICE);
   });
 });

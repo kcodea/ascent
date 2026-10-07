@@ -29,13 +29,11 @@ export function isEpicUnit(cardId: string): boolean {
   return EPIC_UNITS.has(cardId);
 }
 
-/** Per-card epic art override — a specific epic unit wears its own icon instead of the default (owner ask
- *  2026-09-23: Elderhorn / Orivax, the Choose One epics, get a bespoke "epic choose one" icon). Both stopped being
- *  Choose Ones on 2026-10-07 (board auras); the icon is left as the owner set it pending an owner call. Keyed cardId → art id. */
-const EPIC_ART_OVERRIDE: Readonly<Record<string, string>> = {
-  b2_elderhorn: 'epic-choose-one',
-  d2_orivax: 'epic-choose-one',
-};
+/** Per-card epic art override — a specific epic unit wears its own icon instead of the default. Keyed cardId → art id.
+ *  EMPTY since 2026-10-07: Elderhorn / Orivax wore the bespoke "epic choose one" icon (owner ask 2026-09-23) while they
+ *  were Choose Ones; as board auras they wear the same default epic gem as Drakko / Sylus (owner ruling 2026-10-07:
+ *  "fix their icons to now be the special gem icon that drakko/sylus use etc"). The mechanism stays for future use. */
+const EPIC_ART_OVERRIDE: Readonly<Record<string, string>> = {};
 
 /** The default epic medallion art (used by the tuner preview). BASE_URL-relative (itch/exe serve from a CDN sub-path). */
 export const EPIC_MEDALLION_SRC = `${import.meta.env.BASE_URL}medallions/epic.webp`;

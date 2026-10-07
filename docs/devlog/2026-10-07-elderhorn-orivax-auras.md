@@ -41,7 +41,9 @@ auras that work **only while the minion is on your board** (owner ruling: "While
 - **Forced Rallies are not multiplied**: neither combat's `fireFreeRally` nor the Shop's `fireShopRally` applies ANY
   Rally multiplier today (Uron, Law of Teeth, the old Hunt mode). Elderhorn follows that precedent rather than
   changing Uron's behaviour in this PR. Shop Echoes ARE multiplied.
-- **Epic medallion**: both still wear the owner's "epic choose one" icon (`epicMedallion.ts`). Left for an owner call.
+- **Epic medallion** (owner ruling 2026-10-07, "fix their icons to now be the special gem icon that drakko/sylus use
+  etc"): the "epic choose one" override is removed, so both wear the default epic gem (`medallions/epic.webp`), same
+  as Drakko / Sylus, plain and golden (the epic medallion has no gilded variant).
 - Pre-existing asymmetry noticed, not fixed: Drakko / Zyff × Rune of the Choir fires a different count in the Shop
   (additive) than in combat (multiplied).
 

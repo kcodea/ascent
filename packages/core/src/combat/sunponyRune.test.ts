@@ -11,13 +11,15 @@ import { CARD_INDEX } from '@game/content';
 const probe = (id: string, over: Partial<CardDef>): CardDef => ({ id, name: id, tribe: 'beast', tier: 1, attack: 1, health: 400, keywords: [], effects: [], text: '', ...over });
 const B = probe('dbg_sp_beast', {});
 const K = probe('dbg_sp_kobold', { tribe: 'kobold' });
+/** An inert 0-Attack wall (the stock `sandbag` gains Attack when hit, which would start killing the player's line). */
+const WALL = probe('dbg_sp_wall', { tribe: 'neutral', attack: 0, health: 100000 });
 const CARDS: Record<string, CardDef> = { ...CARD_INDEX };
-for (const c of [B, K]) CARDS[c.id] = c;
+for (const c of [B, K, WALL]) CARDS[c.id] = c;
 
 const bm = (uid: string, cardId: string, over: Partial<BoardMinion> = {}): BoardMinion =>
   ({ uid, sourceUid: uid, cardId, attack: CARDS[cardId]!.attack, health: CARDS[cardId]!.health, keywords: [...(CARDS[cardId]!.keywords)], ...over } as unknown as BoardMinion);
 /** A 0-Attack wall: the fight is nothing but the player's swings. */
-const wall = (): BoardMinion => ({ uid: 'w', sourceUid: 'w', cardId: 'sandbag', attack: 0, health: 100000, keywords: [] } as unknown as BoardMinion);
+const wall = (): BoardMinion => bm('w', WALL.id);
 const fight = (mine: BoardMinion[], mods: object = {}, seed = 3) =>
   simulate(mine, [wall()], makeRng(seed), CARDS, combatSide({ tier: 6, tribes: ['kobold', 'dragon', 'beast', 'demon', 'dwarf'], questMods: mods }), combatSide({ tier: 6 }));
 type Ev = CombatEvent;
@@ -110,5 +112,82 @@ describe('Rune of the Sunpony — combat', () => {
     const a = fight([bm('a', B.id), bm('b', B.id), bm('c', B.id)], { runeSunpony: true }, 9);
     const b = fight([bm('a', B.id), bm('b', B.id), bm('c', B.id)], { runeSunpony: true }, 9);
     expect(JSON.stringify(b.events)).toBe(JSON.stringify(a.events));
+  });
+});
+
+/**
+ * "Does it stack appropriately?" (owner question on #1974). A Sunmane + 2 plain Beasts, three player swings, three
+ * scenarios: rune alone, Sunmane alone, both. The engine is checked against an independent REFERENCE MODEL of the
+ * two printed rules, so a dropped bank (e.g. the one-graft dedupe swallowing a grant) shows up as a mismatch:
+ *   · a spread carrier swinging grants v = (3 if it is the printed Sunmane, else 0) + its bank to every OTHER Beast;
+ *   · then the rune grants +1 to EVERY Beast (attacker included).
+ * Every grant adds to the receiver's Attack AND its bank, and makes it a carrier. In this setup every Attack gain is a
+ * spread grant, so bank = Attack - printed Attack.
+ */
+describe('Rune of the Sunpony + Sunmane Herald — banks stack additively (owner question 2026-10-07)', () => {
+  const board = (): BoardMinion[] => [bm('s', 'b2_sunmane'), bm('a', B.id), bm('b', B.id)];
+  const SWINGS = 3;
+  type Row = { swing: number; attacker: string; atk: number[]; bank: number[] };
+  /** Engine: Attack per Beast after each of the first SWINGS player swings (index order = board order). */
+  function engine(mods: object, withSunmane: boolean): Row[] {
+    const mine = withSunmane ? board() : [bm('s', B.id), bm('a', B.id), bm('b', B.id)];
+    const r = fight(mine, mods);
+    const uids = playerUids(r);
+    const base = r.initial.player.map((m) => m.attack);
+    const atk = [...base];
+    const rows: Row[] = [];
+    let cur = -1;
+    for (const e of r.events) {
+      if (e.type === 'attack' && uids.includes(e.attacker)) {
+        if (cur >= 0) rows.push({ swing: rows.length + 1, attacker: uids[cur]!, atk: [...atk], bank: atk.map((x, i) => x - base[i]!) });
+        if (rows.length === SWINGS) break;
+        cur = uids.indexOf(e.attacker);
+      } else if (e.type === 'buff' && uids.includes(e.target)) atk[uids.indexOf(e.target)]! += e.attack;
+    }
+    if (rows.length < SWINGS && cur >= 0) rows.push({ swing: rows.length + 1, attacker: uids[cur]!, atk: [...atk], bank: atk.map((x, i) => x - base[i]!) });
+    // name attackers by board slot for the table
+    return rows.map((row) => ({ ...row, attacker: ['s', 'a', 'b'][uids.indexOf(row.attacker)]! }));
+  }
+  /** Reference model of the printed rules, replaying the engine's own attack order. */
+  function model(order: string[], rune: boolean, withSunmane: boolean): Row[] {
+    const ids = ['s', 'a', 'b'];
+    const base = withSunmane ? [5, 1, 1] : [1, 1, 1];
+    const bank = [0, 0, 0];
+    const carrier = [withSunmane, false, false];
+    const rows: Row[] = [];
+    order.forEach((who, k) => {
+      const i = ids.indexOf(who);
+      if (carrier[i]) {
+        const v = (withSunmane && i === 0 ? 3 : 0) + bank[i]!;
+        if (v > 0) for (let j = 0; j < 3; j++) if (j !== i) { bank[j]! += v; carrier[j] = true; }
+      }
+      if (rune) for (let j = 0; j < 3; j++) { bank[j]! += 1; carrier[j] = true; }
+      rows.push({ swing: k + 1, attacker: who, atk: base.map((b, j) => b + bank[j]!), bank: [...bank] });
+    });
+    return rows;
+  }
+  const table = (name: string, rows: Row[]): string =>
+    rows.map((r) => `${name} swing ${r.swing} (${r.attacker} attacks): Attack s/a/b ${r.atk.join('/')}, bank ${r.bank.join('/')}`).join('\n');
+
+  it('rune alone, Sunmane alone, and both each match the reference model swing for swing (nothing dropped)', () => {
+    const runeOnly = engine({ runeSunpony: true }, false);
+    const sunOnly = engine({}, true);
+    const both = engine({ runeSunpony: true }, true);
+    for (const [name, rows, rune, sun] of [['rune', runeOnly, true, false], ['sunmane', sunOnly, false, true], ['both', both, true, true]] as const) {
+      expect(rows, `${name}: ${SWINGS} swings observed`).toHaveLength(SWINGS);
+      expect(rows, `${name}:\n${table(name, rows)}`).toEqual(model(rows.map((r) => r.attacker), rune, sun));
+    }
+    // Same attack order in all three (left to right), so the scenarios are comparable column by column.
+    expect(both.map((r) => r.attacker)).toEqual(['s', 'a', 'b']);
+    // The pinned numbers (owner-facing table, see the devlog).
+    expect(runeOnly.map((r) => r.bank)).toEqual([[1, 1, 1], [3, 2, 3], [7, 6, 4]]);
+    expect(sunOnly.map((r) => r.bank)).toEqual([[0, 3, 3], [3, 3, 6], [9, 9, 6]]);
+    expect(both.map((r) => r.bank)).toEqual([[1, 4, 4], [6, 5, 9], [16, 15, 10]]);
+    // EXACTLY additive: every Beast's bank with both = its bank with the rune alone + its bank with Sunmane alone, every
+    // swing. A spread grant is linear in the carrier's bank, and the one-graft dedupe only skips a second COPY of the
+    // Rally; the bank (`rallySpreadAtk`) always adds, and Sunmane's printed Rally reads it too. Nothing is dropped.
+    for (let k = 0; k < SWINGS; k++) {
+      expect(both[k]!.bank, `swing ${k + 1}`).toEqual(runeOnly[k]!.bank.map((x, j) => x + sunOnly[k]!.bank[j]!));
+    }
   });
 });

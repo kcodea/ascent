@@ -2030,11 +2030,12 @@ export const RUNES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Beast runes)', quote: 'When you play 5 Beasts, get a random Beast.' },
       { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Beast runes)', quote: 'When you play a Beast, give your Beasts +6/+6.' },
+      { kind: 'owner-chat', ref: 'Owner ruling on PR #1974 (2026-10-07)', quote: "Gator's Bite should not reach hand" },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts playCard (playBeast tick) + payRuneThresholdInner (tribeBoard target)' },
     ],
     contentIds: ['rune_actioned_beasts', 'rune_gators_bite'],
     cardText: 'When you play a **Beast**, give your **Beasts +6/+6**.',
-    currentBehaviour: 'Conforms (2026-10-07). Board-only and played-Beast-included are judgement calls, flagged to the owner.',
+    currentBehaviour: "Conforms (2026-10-07). Owner-confirmed on PR #1974: Gator's Bite is board-only and should NOT reach hand; the played Beast is included; a Gilded play is one play and a Shout-summoned Beast is not a play.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/beastRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {
@@ -2047,16 +2048,19 @@ export const RUNES_RULES: GameRule[] = [
       + 'your other Beasts, exactly as a Sunmane-fed Beast does). It runs through the SAME arena body as Sunmane '
       + '(`rallySpreadTribeBuff` with `fixed` + `includeSelf`): a Gilded attacker does not double it, and a body holds at '
       + "most one copy of the spread Rally whichever source grafted it. Beside a real Sunmane both fire: Sunmane's own "
-      + 'Rally (+3 plus its bank to the OTHER Beasts) and the rune (+1 to every Beast). Nothing carries out of the fight.',
+      + 'Rally (+3 plus its bank to the OTHER Beasts) and the rune (+1 to every Beast), and the banks stack EXACTLY '
+      + "additively: each Beast's bank with both equals its bank with the rune alone plus with Sunmane alone. The one-graft "
+      + 'dedupe never drops a bank. Nothing carries out of the fight.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Beast runes)', quote: "this should copy sunmane's effect, except it comes from a rune" },
+      { kind: 'owner-chat', ref: 'Owner question on PR #1974 (2026-10-07)', quote: 'okay but it stacks appropriately still?' },
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts rallySpreadTribeBuff (fixed / includeSelf); packages/core/src/combat/simulate.ts performAttack (runeSunpony)' },
     ],
     contentIds: ['rune_sunpony', 'b2_sunmane'],
     cardText: "When a **Beast** attacks, give all of your **Beasts +1 Attack** and this Rune's effect.",
-    currentBehaviour: 'Conforms (2026-10-07). Attacker included, the graft being the Sunmane Rally, and combat-only are judgement calls, flagged to the owner.',
+    currentBehaviour: "Conforms (2026-10-07). Owner-confirmed on PR #1974: the attacker is buffed, the rune spreads Sunmane's Rally (not its own trigger), and both fire beside a real Sunmane. With both, every bank is exactly the rune's plus Sunmane's (pinned against a reference model).",
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/sunponyRune.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
 ];

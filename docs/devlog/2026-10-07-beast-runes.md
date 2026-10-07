@@ -39,16 +39,34 @@ Sunpony cost (3) was confirmed by the owner mid-build.
   Beside a real Sunmane both fire (Sunmane's Rally to the OTHER Beasts, then the rune to every Beast); a body
   holds one graft whichever source landed it. Combat-only like Sunmane: nothing carries out of the fight.
 
-## Judgement calls (flagged to the owner)
+## Judgement calls (all five CONFIRMED by the owner on #1974, 2026-10-07)
 
 1. Gilded Beast played = one play; Shout-summoned Beasts are not plays (the "play a X" meter precedent).
-2. Gator's Bite: board Beasts only (per the ask), the played Beast included. Note this differs from Rune of the
+2. Gator's Bite: board Beasts only, the played Beast included. Owner: Gator's Bite should NOT reach hand. Note this differs from Rune of the
    Echoing Shouts, whose "your Dragons" reaches the hand too (`tribe` target).
 3. Sunpony: the attacker is included ("all of your Beasts"), unlike Sunmane, which never buffs itself. "This
    Rune's effect" is implemented as Sunmane's spreading Rally (what Sunmane grants), not as a copy of the rune's
    any-Beast-attacks trigger on every body, which would fire N times per attack and explode.
+   With a real Sunmane on board, both fire (confirmed).
 4. Actioned Beasts' random Beast uses the Pantry filter (`tribe`/`tribe2`/run-tribe), so All-types neutrals are
    not in its pool, same as the Pantry.
+
+## Sunpony + Sunmane stacking (owner question: "it stacks appropriately still?")
+
+Sunmane Herald (5 Attack) + two 1-Attack Beasts `a`, `b`, against an inert wall, left-to-right swings. Attack
+s/a/b after each swing, with each Beast's banked spread value in brackets:
+
+| Swing | Rune alone | Sunmane alone | Both |
+|---|---|---|---|
+| 1 (s attacks) | 2/2/2 [1/1/1] | 5/4/4 [0/3/3] | 6/5/5 [1/4/4] |
+| 2 (a attacks) | 4/3/4 [3/2/3] | 8/4/7 [3/3/6] | 11/6/10 [6/5/9] |
+| 3 (b attacks) | 8/7/5 [7/6/4] | 14/10/7 [9/9/6] | 21/16/11 [16/15/10] |
+
+"Rune alone" uses a plain 1-Attack Beast in Sunmane's slot. Both = rune + Sunmane EXACTLY, every Beast, every
+swing: a spread grant is linear in the carrier's bank. The one-graft dedupe only skips a second copy of the
+Rally; the bank (`rallySpreadAtk`) always adds, and Sunmane's printed Rally reads it too, so nothing is dropped
+and no fix was needed. Pinned in `sunponyRune.test.ts` against an independent reference model of the two
+printed rules; a sabotage that skips the bank when the graft already exists fails it.
 
 ## Re-pins
 

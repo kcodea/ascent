@@ -4,7 +4,6 @@ import type { CSSProperties } from 'react';
 import type { Keyword, QuestReward, RuneDef } from '@game/core';
 import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
-import { Icon } from './Icon';
 import { runeArt } from './art';
 import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
@@ -128,7 +127,6 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
       {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
       <span className={`runecard-cost${discounted ? ' discounted gtip' : ''}`} aria-label={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`} data-tip={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : undefined}><span className="costn">{shownCost}</span></span>
-      <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
         <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>
         <div className="runecard-name">{rune.name}</div>

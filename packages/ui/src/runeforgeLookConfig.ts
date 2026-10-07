@@ -1,7 +1,7 @@
 /**
  * DEV tuner config for the RUNEFORGE OVERLAY's LOOK (owner ask 2026-08-29) — every element of the Runesmith's
  * turn-6 shop (and its higher-power EPIC variant) placed, sized and coloured: the stone banner/title plaque, the
- * current-Gold pill, the rune-tablet row (name, kicker, rules box, cost coin, sigil medallion), the Re-roll/Leave
+ * current-Gold pill, the rune-tablet row (name, kicker, rules box, cost coin), the Re-roll/Leave
  * footer, and the "Inspect the board" minimize toggle. Its sibling 🪨 Runeforge Backdrop tuner owns the
  * illustrated art BEHIND the panel; this one owns everything painted ON it.
  *
@@ -16,7 +16,7 @@
  * those overlays. Verified by grepping each class name's usage before writing its rule.
  *
  * GEOMETRY IS DESIGN PX × `--u`, matching the surrounding `.forge-*` rules (which are already written as
- * `calc(N * var(--u))`), so a tune stays pinned across screen sizes — EXCEPT the `.runecard-cost` / rune-emblem
+ * `calc(N * var(--u))`), so a tune stays pinned across screen sizes — EXCEPT the `.runecard-cost`
  * offsets, which stay RAW px because the rule they extend (`.runecard`) is itself written in raw px, not `--u`
  * (a pre-existing inconsistency in that component — new offsets match the rule they sit in, not the file as a
  * whole). Scales are unitless ×.
@@ -64,7 +64,6 @@ export interface RuneforgeLookConfig {
   costScale: number;    // × — the gold cost coin
   costX: number;        // px — cost coin nudge (raw px — the rule it extends is itself raw px, not --u)
   costY: number;        // px
-  emblemScale: number;  // × — the rune sigil medallion
 
   // Footer (Re-roll + Leave)
   footerY: number;      // px
@@ -99,7 +98,7 @@ const DEFAULTS: RuneforgeLookConfig = {
   rowY: 48,
   cardGap: 20,
   cardScale: 1.29,
-  nameScale: 1.12,
+  nameScale: 1.34, // x1.2 (owner 2026-10-07: rune text +20%), was 1.12
   nameCol: '#ffffff',
   kickerCol: '#647290',
   rulesBgCol: '#1b0e07',
@@ -107,7 +106,6 @@ const DEFAULTS: RuneforgeLookConfig = {
   costScale: 1.18,
   costX: 6,
   costY: 4,
-  emblemScale: 0.5,
 
   footerY: -3,
   footerScale: 1.18,
@@ -126,7 +124,7 @@ export { DEFAULTS as RUNEFORGE_LOOK_DEFAULTS };
 const RANGES: Record<
   'banX' | 'banY' | 'banScale' | 'titleScale'
   | 'goldX' | 'goldY' | 'goldScale'
-  | 'rowY' | 'cardGap' | 'cardScale' | 'nameScale' | 'costScale' | 'costX' | 'costY' | 'emblemScale'
+  | 'rowY' | 'cardGap' | 'cardScale' | 'nameScale' | 'costScale' | 'costX' | 'costY'
   | 'footerY' | 'footerScale' | 'toggleY' | 'toggleScale',
   [number, number, number]
 > = {
@@ -146,7 +144,6 @@ const RANGES: Record<
   costScale: [0.5, 2, 0.01],
   costX: [-40, 40, 1],
   costY: [-40, 40, 1],
-  emblemScale: [0.5, 2, 0.01],
 
   footerY: [-200, 200, 1],
   footerScale: [0.5, 2, 0.01],
@@ -222,7 +219,6 @@ export function applyRuneforgeLookVars(): void {
   s.setProperty('--rfl-cost-scale', String(cfg.costScale));
   s.setProperty('--rfl-cost-x', String(cfg.costX));
   s.setProperty('--rfl-cost-y', String(cfg.costY));
-  s.setProperty('--rfl-emblem-scale', String(cfg.emblemScale));
 
   s.setProperty('--rfl-footer-y', String(cfg.footerY));
   s.setProperty('--rfl-footer-scale', String(cfg.footerScale));
@@ -283,7 +279,6 @@ const controls: TunerControl<Extract<keyof RuneforgeLookConfig, string>>[] = [
   r('costScale', 'Cost coin scale', 'Cards Row', '×', 'Size of the Gold cost coin overhanging the top-left corner.'),
   r('costX', 'Cost coin X', 'Cards Row', 'px', 'Nudge the cost coin left/right.'),
   r('costY', 'Cost coin Y', 'Cards Row', 'px', 'Nudge the cost coin up/down.'),
-  r('emblemScale', 'Medallion scale', 'Cards Row', '×', 'Size of the rune sigil medallion at the top of the tablet.'),
 
   r('footerY', 'Footer Y offset', 'Footer Buttons', 'px', 'Vertical offset of the Re-roll / Leave button row.'),
   r('footerScale', 'Footer scale', 'Footer Buttons', '×', 'Scales the Re-roll / Leave button row.'),

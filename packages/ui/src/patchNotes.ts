@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-07',
     changes: [
+      { category: 'Systems', text: 'Rune cards are easier to read: their text, label and name are 20% larger, and the small lightning badge on top of the card is gone.' },
       {
         category: 'Systems',
         text: '2 new Rare minion skins in crates for Chorus Drake: Canyon Drake and Thunderchorus Drake.',

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { aftershocksRider, combatModScan, undertowRider } from './combatModScan';
+import { aftershocksRider, combatModScan, summonReturnRider, undertowRider } from './combatModScan';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
@@ -50,5 +50,11 @@ describe('Doc Bot — combat-mod lane', () => {
   it('RIDER — Aftershocks pays per Echo TRIGGER, never per rattle-watcher (#941)', () => {
     const { survivorAttackDelta } = aftershocksRider();
     expect(survivorAttackDelta, 'a plain body died among LIVING rattle-bodies: their Echoes did not trigger, so Aftershocks must pay ZERO — a nonzero delta is the per-watcher over-fire (#941: N rattle-bodies meant N board buffs per death)').toBe(0);
+  });
+
+  it('RIDER — summon-return parity: every mod that grows a combat summon grows a Rise / Rebirth return too (R-SUMMON-RETURN-01)', () => {
+    const { violations, summonGrants } = summonReturnRider(keys);
+    expect(summonGrants, 'the rider must find the summon-grant mods to be measuring anything').toEqual(expect.arrayContaining(['runeUndertow', 'runeHatchery', 'runePackcraft']));
+    expect(violations, `these "summoned in combat" mods skip a returning body — a Rise / Rebirth return IS a summon (owner 2026-10-06: Rune of the Undertow did not proc on a rising minion):\n  ${violations.join('\n  ')}`).toEqual([]);
   });
 });

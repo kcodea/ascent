@@ -1882,79 +1882,12 @@ export function simulate(
     // dead weight for every summon line that isn't a Deathrattle — Start-of-Combat fills, Rally summons,
     // token generators. Now it covers every combat summon, matching Rune of the Undertow just below (which
     // grants Ward on the same "summoned in combat" scope).
-    const hatch = modsFor(side).runeHatchery;
-    if (hatch) {
-      fireTrigger('runeHatchery', side); // owner call 2026-08-19: a continuous modifier bursts on each body it buffs
-      minion.attack += hatch.attack;
-      minion.health += hatch.health;
-      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
-      if (!minion.keywords.includes('T')) minion.keywords.push('T');
-    }
-    // Rune of Packcraft (owner rework 2026-08-04): bodies summoned IN COMBAT come in +6/+6. Applied here, next
-    // to the Hatchery grant, for the same two reasons: it lands before the summon snapshot (so the replay shows
-    // the real body rather than the base card), and it is in place before the token can attack — a Whelp or a
-    // Gemheart Golem that strikes the instant it lands would otherwise swing at its base Attack.
-    //
-    // It USED to be an `onSummon` bus listener that buffed your whole Beast line whenever a Beast was summoned.
-    // That shape can't express "the minion you summoned gets +6/+6": by the time `onSummon` fires the body is
-    // already on the board and already snapshotted, and the old version was tribe-gated besides.
-    //
-    // OWNER REWORK 2026-09-23: ESCALATING. The body gains the CURRENT level (starts +2/+1), then the level grows
-    // by the printed step — "improve this permanently": the grown level rides back into the run
-    // (`packcraftLevel` carry-back) so the next fight's first summon starts from it. Both the grant and the step
-    // land once per copy held (boolean-flag family, owner 2026-08-27). The enemy side runs its own level off
-    // its snapshot and only accumulates (no run to persist to).
-    if (modsFor(side).runePackcraft) {
-      fireTrigger('runePackcraft', side); // as Hatchery — owning both pops both badges on the same summon, which is true
-      const copies = flagCopiesOf(side, 'runePackcraft');
-      const lvl = packcraftLevel[side];
-      minion.attack += lvl.attack * copies;
-      minion.health += lvl.health * copies;
-      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
-      packcraftLevel[side] = { attack: lvl.attack + PACKCRAFT_BASE.attack * copies, health: lvl.health + PACKCRAFT_BASE.health * copies };
-    }
+    const summonGrant = applyCombatSummonGrants(minion, side);
+    if (summonGrant.attackNow) attackNow = true;
+    if (summonGrant.ward) grantKeywords = [...(grantKeywords ?? []), 'DS'];
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
     // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
     if (modsFor(side).gemheartCharge && card.id === 'gemheart-shard') attackNow = true;
-    // RUNE OF THE SPARE CHAIR: a board that started FULL-but-one (exactly 6) has kept a seat open, and the
-    // first body to take it arrives Warded and swinging. `startCount` is the start-of-combat size, so a board
-    // that reaches 6 by losing a minion mid-fight doesn't qualify — "begin combat with exactly 6".
-    // One qualifying summon per copy held (boolean-flag family, owner 2026-08-27).
-    if (modsFor(side).runeSpareChair && spareChairUsed[side] < flagCopiesOf(side, 'runeSpareChair') && startCount[side] === 6) {
-      spareChairUsed[side] += 1;
-      attackNow = true;
-      grantKeywords = [...(grantKeywords ?? []), 'DS'];
-      fireTrigger('runeSpareChair', side);
-    }
-    // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
-    // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
-    // Rune of the Food Chain (owner rework 2026-09-23): the FIRST body summoned this combat gains the stats of
-    // the side's left-most LIVING Demon, read at this moment (its current Attack/Health) — no longer captured
-    // at Start of Combat. First summon only: a summon with no living Demon spends the one chance and pays
-    // nothing, which is what the text says. The captured stats land × copies held (boolean-flag family).
-    if (modsFor(side).runeFoodChain && !foodChainUsed[side]) {
-      foodChainUsed[side] = true;
-      const demon = boards[side].find((m) => !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe));
-      if (demon) {
-        const fcN = flagCopiesOf(side, 'runeFoodChain');
-        fireTrigger('runeFoodChain', side);
-        minion.attack += demon.attack * fcN;
-        minion.health += demon.health * fcN;
-        minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
-      }
-    }
-    // Rune of the Undertow (owner sheet 2026-07-31): minions summoned in combat arrive with Ward. Granted
-    // BEFORE the summon event is emitted, so the snapshot carries the shield from the first frame.
-    // RUNE OF THE UNDERTOW — capped at 4 Wards a combat (owner ruling 2026-08-08; it was unbounded, so a
-    // token engine warded its whole cascade). Per side and per fight, counting only the bodies that actually
-    // TAKE a Ward: a summon that already had one costs nothing from the allowance.
-    const undertow = modsFor(side).runeUndertow;
-    if (undertow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
-      fireTrigger('runeUndertow', side);
-      undertowUsed[side] += 1;
-      minion.divineShield = true;
-      if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
-    }
     // Rune of Living Treasure (owner rework 2026-09-23): your Gemheart Golems gain REBIRTH — the keyword that
     // returns a body ONCE with its full current stats, which is exactly what the 2026-07-31 exact-copy Echo graft
     // was hand-building (Rise was rejected then because it resummons the PRINTED body: a 7/3 shard came back a
@@ -2021,6 +1954,138 @@ export function simulate(
   }
 
   /**
+   * THE "SUMMONED IN COMBAT" BODY GRANTS — Rune of the Hatchery, Rune of Packcraft, Rune of the Spare Chair,
+   * Rune of the Food Chain and Rune of the Undertow. One helper, called from EVERY way a friendly body enters
+   * play mid-fight: an ordinary summon (`summonMinion`, before the summon snapshot) AND a Rise / Rebirth return
+   * (`killOrReborn`, before the `reborn` event). A Rise or Rebirth return IS a summon for every listener that
+   * cares about summons (owner 2026-10-06: "rune of the undertow didnt proc on a rising minion. it should, it
+   * should also proc on a rebirth minion"; R-SUMMON-RETURN-01). Until then these grants lived inline in
+   * `summonMinion`, which a return never passes through (it re-slots the SAME instance), so every one of them
+   * silently skipped returning bodies while the summon-entry suite (`summonEntryEffects`) already heard them.
+   *
+   * Returns the two grants the caller must place itself: `attackNow` (Spare Chair: the body strikes the instant
+   * it lands) and `ward` (Spare Chair's Ward, which a normal summon applies through `grantKeywords`).
+   */
+  function applyCombatSummonGrants(minion: Minion, side: Side): { attackNow: boolean; ward: boolean } {
+    const out = { attackNow: false, ward: false };
+    const hatch = modsFor(side).runeHatchery;
+    if (hatch) {
+      fireTrigger('runeHatchery', side); // owner call 2026-08-19: a continuous modifier bursts on each body it buffs
+      minion.attack += hatch.attack;
+      minion.health += hatch.health;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      if (!minion.keywords.includes('T')) minion.keywords.push('T');
+    }
+    // Rune of Packcraft (owner rework 2026-08-04): bodies summoned IN COMBAT come in +6/+6. Applied here, next
+    // to the Hatchery grant, for the same two reasons: it lands before the summon snapshot (so the replay shows
+    // the real body rather than the base card), and it is in place before the token can attack — a Whelp or a
+    // Gemheart Golem that strikes the instant it lands would otherwise swing at its base Attack.
+    //
+    // It USED to be an `onSummon` bus listener that buffed your whole Beast line whenever a Beast was summoned.
+    // That shape can't express "the minion you summoned gets +6/+6": by the time `onSummon` fires the body is
+    // already on the board and already snapshotted, and the old version was tribe-gated besides.
+    //
+    // OWNER REWORK 2026-09-23: ESCALATING. The body gains the CURRENT level (starts +2/+1), then the level grows
+    // by the printed step — "improve this permanently": the grown level rides back into the run
+    // (`packcraftLevel` carry-back) so the next fight's first summon starts from it. Both the grant and the step
+    // land once per copy held (boolean-flag family, owner 2026-08-27). The enemy side runs its own level off
+    // its snapshot and only accumulates (no run to persist to).
+    if (modsFor(side).runePackcraft) {
+      fireTrigger('runePackcraft', side); // as Hatchery — owning both pops both badges on the same summon, which is true
+      const copies = flagCopiesOf(side, 'runePackcraft');
+      const lvl = packcraftLevel[side];
+      minion.attack += lvl.attack * copies;
+      minion.health += lvl.health * copies;
+      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      packcraftLevel[side] = { attack: lvl.attack + PACKCRAFT_BASE.attack * copies, health: lvl.health + PACKCRAFT_BASE.health * copies };
+    }
+    // RUNE OF THE SPARE CHAIR: a board that started FULL-but-one (exactly 6) has kept a seat open, and the
+    // first body to take it arrives Warded and swinging. `startCount` is the start-of-combat size, so a board
+    // that reaches 6 by losing a minion mid-fight doesn't qualify — "begin combat with exactly 6".
+    // One qualifying summon per copy held (boolean-flag family, owner 2026-08-27).
+    if (modsFor(side).runeSpareChair && spareChairUsed[side] < flagCopiesOf(side, 'runeSpareChair') && startCount[side] === 6) {
+      spareChairUsed[side] += 1;
+      out.attackNow = true;
+      out.ward = true;
+      fireTrigger('runeSpareChair', side);
+    }
+    // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
+    // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
+    // Rune of the Food Chain (owner rework 2026-09-23): the FIRST body summoned this combat gains the stats of
+    // the side's left-most LIVING Demon, read at this moment (its current Attack/Health) — no longer captured
+    // at Start of Combat. First summon only: a summon with no living Demon spends the one chance and pays
+    // nothing, which is what the text says. The captured stats land × copies held (boolean-flag family).
+    if (modsFor(side).runeFoodChain && !foodChainUsed[side]) {
+      foodChainUsed[side] = true;
+      // `m !== minion`: a returning Demon (Rise / Rebirth) is already back on the board — it never feeds itself.
+      const demon = boards[side].find((m) => m !== minion && !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe));
+      if (demon) {
+        const fcN = flagCopiesOf(side, 'runeFoodChain');
+        fireTrigger('runeFoodChain', side);
+        minion.attack += demon.attack * fcN;
+        minion.health += demon.health * fcN;
+        minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      }
+    }
+    // Rune of the Undertow (owner sheet 2026-07-31): minions summoned in combat arrive with Ward. Granted
+    // BEFORE the summon event is emitted, so the snapshot carries the shield from the first frame.
+    // RUNE OF THE UNDERTOW — capped at 4 Wards a combat (owner ruling 2026-08-08; it was unbounded, so a
+    // token engine warded its whole cascade). Per side and per fight, counting only the bodies that actually
+    // TAKE a Ward: a summon that already had one costs nothing from the allowance.
+    const undertow = modsFor(side).runeUndertow;
+    if (undertow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
+      fireTrigger('runeUndertow', side);
+      undertowUsed[side] += 1;
+      minion.divineShield = true;
+      if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+    }
+    return out;
+  }
+
+  /** The return-path twin of a placed summon's arrival rules: a Rise / Rebirth return re-slots the SAME instance
+   *  (it never passes `summonMinion` / `placeSummon`), so this runs, in the placed summon's order, the "summoned in
+   *  combat" grants (`applyCombatSummonGrants`; Spare Chair's Ward applied straight onto the body), then Solid
+   *  Ground, then the foe's Containment pin — all BEFORE the `reborn` event, which carries the resulting body.
+   *  Returns whether the body must strike the instant it lands (the caller queues it after `reborn`). */
+  function returnSummonGrants(minion: Minion): { attackNow: boolean } {
+    const g = applyCombatSummonGrants(minion, minion.side);
+    if (g.ward) {
+      minion.divineShield = true;
+      if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+    }
+    applySolidGround(minion, minion.side);
+    applyContainment(minion, minion.side);
+    return { attackNow: g.attackNow };
+  }
+
+
+
+  /** SOLID GROUND (spell): the first N minions YOU summon this fight land bigger. Counted down per body, so a wave
+   *  of tokens spends it in arrival order and the 4th arrives plain. Side-general: it is the SUMMONING side's own
+   *  banked charges that pay. Shared by `placeSummon` and the Rise / Rebirth returns (R-SUMMON-RETURN-01). */
+  function applySolidGround(minion: Minion, side: Side): void {
+    const sg = modsFor(side);
+    if ((sg.solidGroundLeft ?? 0) > 0) {
+      const amt = sg.solidGroundStat ?? 4;
+      sg.solidGroundLeft = (sg.solidGroundLeft ?? 0) - 1;
+      ctx.buff(minion, amt, amt, 'Solid Ground');
+    }
+  }
+  /** CONTAINMENT RUNE (spell): the FIRST body the OPPOSING side summons is pinned to 1/1 — the flag lives on the
+   *  CASTER's mods and fires on their opponent's summon. One-shot: spent on that summon whatever it was, which is
+   *  the gamble (a throwaway token can eat it). A Rise / Rebirth return is a summon too (R-SUMMON-RETURN-01). */
+  function applyContainment(minion: Minion, side: Side): void {
+    const foeMods = modsFor(OTHER[side]);
+    if (foeMods.containFirstEnemySummon) {
+      foeMods.containFirstEnemySummon = false;
+      minion.attack = 1;
+      minion.health = 1;
+      minion.maxHealth = 1;
+      emit({ type: 'sc', source: minion.uid, text: 'Contained (1/1)' });
+    }
+  }
+
+  /**
    * Land an already-instantiated summon on the board: board-cap check, splice, auras, granted keywords,
    * effect registration, the `summon` event, quest tallies, onSummon + tribe auras, the attack-on-summon
    * strike-queue push, and Echo Warden doubling. Split out of summonMinion so attack-on-summon tokens can
@@ -2067,23 +2132,8 @@ export function simulate(
     // SOLID GROUND (spell): the first N minions YOU summon this fight land bigger. Counted down per body, so a
     // wave of tokens spends it in arrival order and the 4th arrives plain.
     // Side-general: it is the SUMMONING side's own banked charges that pay.
-    const sg = modsFor(side);
-    if ((sg.solidGroundLeft ?? 0) > 0) {
-      const amt = sg.solidGroundStat ?? 4;
-      sg.solidGroundLeft = (sg.solidGroundLeft ?? 0) - 1;
-      ctx.buff(minion, amt, amt, 'Solid Ground');
-    }
-    // CONTAINMENT RUNE (spell): the FIRST body the OPPOSING side summons is pinned to 1/1 — the flag lives on
-    // the CASTER's mods and fires on their opponent's summon. One-shot: spent on that summon whatever it was,
-    // which is the gamble (a throwaway token can eat it).
-    const foeMods = modsFor(OTHER[side]);
-    if (foeMods.containFirstEnemySummon) {
-      foeMods.containFirstEnemySummon = false;
-      minion.attack = 1;
-      minion.health = 1;
-      minion.maxHealth = 1;
-      emit({ type: 'sc', source: minion.uid, text: 'Contained (1/1)' });
-    }
+    applySolidGround(minion, side);
+    applyContainment(minion, side);
     // Grant keywords (e.g. Taunt from Broodmother) BEFORE snapshotting so the UI sees them from frame 1.
     if (grantKeywords) {
       for (const kw of grantKeywords) {
@@ -2978,8 +3028,13 @@ export function simulate(
       while (at < arr.length && !before.has(arr[at]!.uid)) at++;
       arr.splice(at, 0, minion);
       const after = at > slot ? arr[at - 1]!.uid : undefined;
+      // A Rebirth return IS a combat summon (R-SUMMON-RETURN-01): the "summoned in combat" body grants
+      // (Undertow's Ward, Hatchery, Packcraft, Food Chain, Spare Chair, Solid Ground, Containment) land on it before the `reborn` event, so
+      // the return shows them from its first frame, exactly as a placed summon's snapshot does.
       nextStep();
+      const rbGrant = returnSummonGrants(minion); // after nextStep: the rune pulse shares the return's beat
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}), rebirth: true });
+      if (rbGrant.attackNow && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, interrupts: true, seq: immediateSummonSeq++ });
       summonEntryEffects(minion, minion.side);
       summonReturnExtras(minion); // ANCIENT OF GENESIS × Lord of the Risen: a Rebirth return is a summon too
       return;
@@ -3119,6 +3174,10 @@ export function simulate(
       const spentTint = riseTint.get(minion.uid);
       riseTint.delete(minion.uid);
       nextStep(); // the body's return is its own moment, after the rattle's summons
+      // A Rise return IS a combat summon (R-SUMMON-RETURN-01): the "summoned in combat" body grants (Undertow's
+      // Ward, Hatchery, Packcraft, Food Chain, Spare Chair, Solid Ground, Containment) land on the printed body it returns as, after its
+      // Auras, before the `reborn` event — so the return shows them from its first frame.
+      const riseGrant = returnSummonGrants(minion); // after nextStep: the rune pulse shares the return's beat
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}), ...(spentTint ? { tint: spentTint } : {}) });
       // ANCIENT OF DEATH × Lord of the Risen (owner 2026-09-26: "Undying's target gains Rise after rising. (Once per
       // combat.)"): right after its return the Undying body regains Rise, ONCE per combat, as a BLUE Rise (the
@@ -3147,7 +3206,9 @@ export function simulate(
       // ANCIENT OF WAR: the returned Undying body attacks immediately. It cuts the line like an "attacks immediately"
       // summon (R-ORD-05): it strikes once this return settles, before the next normal attacker, and between the
       // swings of a Flurry (it rides the queue as an interrupting item with its own sequence stamp).
-      if (undying?.war && !minion.dead && minion.health > 0) {
+      // Rune of the Spare Chair on a return ("the first minion you summon … attacks immediately") rides the same
+      // single queue item, so a body both grants pick strikes once, not twice.
+      if ((undying?.war || riseGrant.attackNow) && !minion.dead && minion.health > 0) {
         pendingAttackOnSummon.push({ minion, interrupts: true, seq: immediateSummonSeq++ });
       }
       return;

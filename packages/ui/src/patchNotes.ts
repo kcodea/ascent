@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed Rune of the Undertow not triggering on minions that Rise or Rebirth.',
+        details: [
+          'A minion that Rises or Rebirths in combat is a summon, so it now takes the Ward while the rune has Wards left.',
+          'The same fix applies to Rune of the Hatchery, Rune of Packcraft, Rune of the Food Chain, Rune of the Spare Chair, Solid Ground and Containment Rune.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed Rune of the Coffers only triggering once. It now triggers every End of Turn.',
         details: [
           'Near 10 max Gold, its raise was swallowed by your normal Gold growth, so it looked like it stopped working.',

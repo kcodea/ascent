@@ -239,7 +239,7 @@ describe('the 2026-08-19 keyword batch', () => {
   const GRANTS: [string, string[]][] = [
     ['k_kobe', ['T']], ['dm_knocked', ['T']], ['dm_chosenfiend', ['CR']], ['dm_todd', ['DS']],
     ['dw_mountainbond', ['DS', 'CR']], ['k_portsmith', ['DS']], ['karwind', ['DS']],
-    ['d2_warflame', ['CR']], ['b2_beardsley', ['DS']], ['dm_maw', ['DS']],
+    ['d2_warflame', ['CR']], /* b2_beardsley's Ward dropped by the owner 2026-10-07 */ ['dm_maw', ['DS']],
   ];
 
   it.each(GRANTS)('%s wears its new keywords', (id, kws) => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /**
@@ -13,7 +13,8 @@ import { createRun, reduce, type BoardCard, type RunState } from './index';
  */
 
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
-const rune = (id: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.id === id)!;
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const rune = (id: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.id === id)!;
 
 const sim = (p: BoardMinion[], e: BoardMinion[], mods = {}, seed = 5) =>
   simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods as never }), combatSide());
@@ -37,7 +38,7 @@ describe('the nine defs ship as specced', () => {
     expect(rune('rune_aftermarket').cost).toBe(3); // balance 9/23 (4 → 3)
     expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
-    expect(rune('rune_gem_dividend').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+    expect(rune('rune_gem_dividend').sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'])
     expect(rune('rune_shared_pour').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
     for (const id of ['rune_empty_plate', 'rune_carrion_coin', 'rune_five_banners', 'rune_aftermarket', 'rune_hoardcalling']) {
       // Hoardcalling (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.

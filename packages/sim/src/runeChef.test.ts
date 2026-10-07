@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type CombatSideState } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /**
@@ -10,14 +10,16 @@ import { createRun, reduce, type BoardCard, type RunState } from './index';
  * Two halves: the SHOP banks what each Chef handed out (per instance, summed across every recipient), and the
  * turn rollover moves that into `chefGrantedLast`; COMBAT spends the banked figure on the Chef's attack.
  */
-const rune = () => [...RUNES, ...EPIC_RUNES].find((r) => r.id === 'rune_chef')!;
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const rune = () => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.id === 'rune_chef')!;
 const bm = (uid: string, cardId: string, a = 2, h = 2): BoardCard =>
   ({ uid, cardId, tribe: CARD_INDEX[cardId]?.tribe ?? 'neutral', attack: a, health: h, keywords: [], golden: false });
 const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
 describe('the def', () => {
-  it('is Epic, 5 (balance 9/23, was 6), and set-2 scoped (Dwarves)', () => {
-    expect([rune().cost, rune().epic, rune().sets]).toEqual([5, true, ['set2']]); // CUT FROM SET 3 2026-09-24 (owner)
+  it('is Epic, 5 (balance 9/23, was 6), and archived everywhere (owner 2026-10-07; was set-2 scoped)', () => {
+    expect([rune().cost, rune().epic, rune().sets]).toEqual([5, true, []]);
+    expect([...RUNES, ...EPIC_RUNES].some((r) => r.id === 'rune_chef'), 'in no forge stock').toBe(false);
   });
 });
 

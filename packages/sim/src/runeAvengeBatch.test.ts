@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type Keyword } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 
 /**
  * Rune batch 5 — the Avenge runes. All three register through the existing `runeAvenge` helper, which owns the
@@ -8,7 +8,8 @@ import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
  * deaths to cross the threshold, and compares against the same board without the rune.
  */
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
-const byName = (n: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.name === n);
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const byName = (n: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.name === n);
 const sim = (p: BoardMinion[], e: BoardMinion[], mods = {}) =>
   simulate(p, e, makeRng(5), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods as never }), combatSide());
 /** A board that loses N cheap bodies, with one survivor to keep the fight going. */
@@ -88,7 +89,7 @@ describe('the three runes ship as specced', () => {
   });
 
   it('only Last Call is set-2 scoped — the other two use set-1 mechanics too', () => {
-    expect(byName('Rune of Last Call')!.sets).toEqual(['set2']); // Ales; // CUT FROM SET 3 2026-09-24 (owner)
+    expect(byName('Rune of Last Call')!.sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'], cut from Set 3 2026-09-24)
     expect(byName('Rune of the Cinder Ledger')!.sets).toEqual(['set1', 'set2']); // Imps exist in both sets; // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
     expect(byName('Rune of the Procession')!.sets).toBeUndefined();
   });

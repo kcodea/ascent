@@ -220,7 +220,9 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     goldenText: '**End of Turn:** give a random Spirit **+6/+8**. Repeat for every Spirit played this turn.',
   },
   {
-    // Whenever you cast a Shop spell → a random minion in your HAND +4/+6 (permanent — R-HAND-02).
+    // Whenever you cast a Shop spell → a random minion in your HAND +4/+6 (permanent — R-HAND-02). HISTORY.
+    // Owner 2026-10-07: now a random friendly SPIRIT ON BOARD +4/+6 (the shared Runekeg picker,
+    // `onSpellCastBuffRandomTribe`). Never itself: R-TARGET-03 keeps the source out of every chosen pool.
     id: 'sp3_dreamcurrent',
     name: 'Lullaby Lou', // 'Dreamcurrent Mystic' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
@@ -228,9 +230,9 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffRandomHand', params: { attack: 4, health: 6 } }],
-    text: 'Whenever you cast a Shop spell, give a minion in your hand **+4/+6**.',
-    goldenText: 'Whenever you cast a Shop spell, give a minion in your hand **+8/+12**.',
+    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'spirit', count: 1, attack: 4, health: 6 } }],
+    text: 'Whenever you cast a Shop spell, give a friendly **Spirit** on board **+4/+6**.',
+    goldenText: 'Whenever you cast a Shop spell, give a friendly **Spirit** on board **+8/+12**.',
   },
   {
     // Equip minion: Revelmaker (2 Gold) — a random Reveler to hand (gilded: two).

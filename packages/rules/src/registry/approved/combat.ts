@@ -77,8 +77,8 @@ export const COMBAT_RULES: GameRule[] = [
       + 'holds it: Fleeting Vigor buffs that side\'s starting minions, the banked keywords (Field Maneuvers, Last Stand, '
       + 'Executioner\'s Edge) stamp onto the same bodies, Open the Gates\' Imps join that side, Rallying Offensive '
       + 'doubles that side\'s Rallies, and Marked Target gives the holder\'s FOE\'s right-most minion Taunt at Start of '
-      + 'Combat. The player\'s own fight resolves exactly as before. Pre-emptive Assault is the one exception for now: '
-      + 'it is captured on the snapshot but only the player\'s applies, until the owner rules on both sides holding it.',
+      + 'Combat. The player\'s own fight resolves exactly as before. Pre-emptive Assault is the one exception: it is a '
+      + 'PLAYER-ONLY carry and is never captured on a snapshot (R-PREEMPTIVE-PLAYER-01).',
     domain: 'combat',
     status: 'approved',
     evidence: [
@@ -90,6 +90,24 @@ export const COMBAT_RULES: GameRule[] = [
       'Conforms from 2026-10-07. Before, these six spells were player-only: pre-baked into the player\'s combat board '
       + 'or a player-only CombatConfig flag, and spent before the snapshot was captured, so a served board lost them. '
       + 'The guard test fails a new next-combat bank that has no snapshot capture or no enemy-side application.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-PREEMPTIVE-PLAYER-01',
+    title: 'Pre-emptive Assault is a player-only carry: an opponent never holds, casts or applies it',
+    statement:
+      'Pre-emptive Assault ("your minions attack first next combat") works only in the player\'s own fight. It is never '
+      + 'captured on a board snapshot, a served or recorded board never applies it (one recorded before the rule is '
+      + 'served without it), and no Start of Combat cast beat ever shows it for an opponent. The player\'s own fight, '
+      + 'including its cast beat, is unchanged.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling for PR #1973, 2026-10-07', quote: 'pre-emptive assault is a player only carry. dont let enemies cast this' },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts snapshotBoard (omits attackFirstNext); packages/sim/src/boardSide.ts sideFromSnapshot (drops it); packages/core/src/combat/bankedOpeners.ts armedCasts (player side only)' },
+    ],
+    contentIds: ['preemptive'],
+    currentBehaviour: 'Conforms (2026-10-07). PR #1969 captured it on the snapshot but kept it inert for opponents; it is no longer captured at all.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
 ];

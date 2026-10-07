@@ -5808,7 +5808,13 @@ function advanceCombat(s: RunState): void {
   if (s.questFlags?.runeShiftingFacets) s.runeShiftingFacetsTick = (s.runeShiftingFacetsTick ?? 0) + 1;
   // Rune of the Deep (Epic): each turn setup, a random minion of the armed tier — `payDeep`, the SAME payout
   // the purchase fires immediately ("Get … Repeat at Start of Turn", owner 2026-09-23).
-  if (s.runeDeep) recordSotBeat(s, runeSource('rune_deep'), () => payDeep(s));
+  // Cadenced since 2026-10-07 ("Repeat every 2 turns"): `runeDeepTick` counts setups since the last payout, the
+  // same shape as the cadenced grants above. A run with no `runeDeepEvery` (bought before the cadence) pays every turn.
+  if (s.runeDeep) {
+    const every = s.runeDeepEvery ?? 1;
+    s.runeDeepTick = (s.runeDeepTick ?? 0) + 1;
+    if (s.runeDeepTick >= every) { s.runeDeepTick = 0; recordSotBeat(s, runeSource('rune_deep'), () => payDeep(s)); }
+  }
   // Rune of Basic/Epic <tribe>: the same turn-setup faucet as the Deep, filtered by TRIBE instead of tier.
   // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
   // tribe filter and the count can never drift between "the turn it was taken" and every turn after.
@@ -7220,7 +7226,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     // The Deep pays its first minion NOW (owner 2026-09-23: "Get a random Tier 7 minion. Repeat at Start of
     // Turn") — the same rule the tribe drips and the every-turn grants follow: the Runeforge opens partway through
     // a shop turn, after that turn's setup has run, so without this the rune hands over nothing until next turn.
-    case 'runeDeep': s.runeDeep = r.tier; payDeep(s); break;
+    // The cadence (owner 2026-10-07: "Repeat every 2 turns") starts counting from the purchase; a second copy
+    // keeps the running countdown rather than restarting it (it pays per copy at the next due turn anyway).
+    case 'runeDeep':
+      s.runeDeep = r.tier;
+      if (s.runeDeepTick == null) { s.runeDeepEvery = r.every ?? 1; s.runeDeepTick = 0; }
+      payDeep(s);
+      break;
     // Guiding Candle ACCUMULATES the window: two copies = the first FOUR refreshes each turn are Tier-6-only
     // (unique-engine doubling, owner 2026-08-27). The live `left` widens with it so the extra lands this turn too.
     case 'runeGuidingCandle': s.runeGuidingCandle = { count: (s.runeGuidingCandle?.count ?? 0) + r.count, tier: r.tier, left: (s.runeGuidingCandle?.left ?? 0) + r.count }; break;

@@ -119,6 +119,11 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_summit' && run.runeSummitTick != null) {
     return `${run.runeSummitTick % 2}/2`;
   }
+  // Rune of the Deep (owner 2026-10-07: "Repeat every 2 turns"): turn setups since the last Tier 7 minion, of the
+  // cadence. A run that bought it before the cadence existed pays every turn and shows no countdown.
+  if (runeId === 'rune_deep' && run.runeDeep && (run.runeDeepEvery ?? 1) > 1) {
+    return `${Math.min(run.runeDeepTick ?? 0, run.runeDeepEvery!)}/${run.runeDeepEvery} turns`;
+  }
   // ── Set 3 batch 2, tranche B (2026-09-16) ──
   // Rune of Resonant Arms: Equipment TRIGGERS banked toward the next +8/+5 (a run-wide meter).
   if (runeId === 'rune_resonant_arms' && run.runeResonantArms) {

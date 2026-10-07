@@ -832,7 +832,9 @@ export const ARENA_EFFECTS = {
       const from = fresh.length > 0 ? fresh : left;
       const t = from[rng.int(from.length)]!;
       picked.add(t.uid);
-      arena.buff(t, a, h);
+      // A keyword-only rider (Wolvie since 2026-10-07: "give a friendly Beast Rise", 0/0) skips the buff, so the log
+      // and the beat carry no empty +0/+0.
+      if (a > 0 || h > 0) arena.buff(t, a, h);
       if (!has(t)) {
         if (kw === 'R') arena.grantReborn(t);
         else arena.grantKeywordTo(t, kw);

@@ -96,15 +96,15 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod packcraftLevel — Rune of Packcraft — the current per-summon grant (starts +2/+1, grows by +2/+1 per summon, run-persisted). Absent = the base step.
 - combat mod runeTwilight (Rune of Twilight: "Your Start-of-Combat effects trigger an additional time.") — Rune of Twilight: your Start-of-Combat effects trigger an additional time each fight.
 - combat mod runeGemGolem (Rune of the Gem Golem: "When a friendly Kobold dies, summon a Gemheart Golem with its Rubies.")
-- combat mod runeChef (Rune of the Chef: "Your Chef Gary Toasts gain Rally: buff another random Dwarf for the combined stats this granted last turn.") — Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`.
+- combat mod runeChef — Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`.
 - combat mod solidGroundStat — Solid Ground: the per-summon grant (so the number lives with the spell, not the engine).
-- combat mod attackFirstNext — Pre-emptive Assault: CAPTURED ONLY. The player's own fight still reads `CombatConfig.playerAttacksFirst`; nothing applies this for a served board until the owner rules what happens when BOTH sides hold it.
+- combat mod attackFirstNext — Pre-emptive Assault: PLAYER ONLY (owner 2026-10-07: "pre-emptive assault is a player only carry. dont let enemies cast this"; R-PREEMPTIVE-PLAYER-01). Present only on the player's own mods, for its Start of Combat cast beat; the effect itself is `CombatConfig.playerAttacksFirst`. Never captured on a snapshot (`snapshotBoard` omits it, `sideFromSnapshot` drops it), and an enemy side never announces or applies it.
 - combat mod runeCenterline — Rune of the Centerline: SoC — mismatched end types give the middle minion Ward + Critical Strike.
 - combat mod runeEmberline — Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned.
 - combat mod runeAshenPayroll (Rune of Ashen Payroll: "Gain 1 Gold next turn for each Imp you summon in combat.") — Rune of Ashen Payroll: Imps-summoned threshold (3) for its once-per-combat Gold payout. Read at settle.
 - combat mod runeSpareChair — Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now.
 - combat mod runeAncestralRoar (Rune of Ancestral Roar: "End of Turn: give your Dragons +6/+6 for every Shout you triggered this turn.") — Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo.
-- combat mod runeRubyShrapnel (Rune of Ruby Shrapnel: "When a Ruby-buffed minion dies, split its Ruby bonus stats among your surviving minions.") — Rune of Ruby Shrapnel: a dying Ruby-buffed body splits its Ruby stats among the survivors.
+- combat mod runeRubyShrapnel — Rune of Ruby Shrapnel: a dying Ruby-buffed body splits its Ruby stats among the survivors.
 - combat mod runeSharedScripture (Rune of Shared Scripture: "The first Shop spell cast by your warband in combat triggers your left-most Shout and Rally.") — Rune of Shared Scripture: the warband's first combat Shop-spell cast fires the left-most Shout + Rally.
 - combat mod runeBroodmaster — Rune of the Broodmaster: a Broodwright's Imp buff also lands on itself (combat half).
 - combat mod runeMoonhowl — Rune of Moonhowl: a dying Mage-Pup casts its taught spell (Echo).

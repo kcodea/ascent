@@ -174,8 +174,8 @@ function armedCasts(side: Side, m: QuestCombatMods, board: readonly BoardMinion[
   const out: CombatEvent[] = [];
   const cast = (spellId: string, count?: number): void => { out.push({ type: 'bankedCast', side, spellId, ...(count && count > 1 ? { count } : {}), key: BANKED_CAST_KEY }); };
   if (m.rallyDouble) cast(BANKED_SPELL_OF.rallyDouble);
-  // Pre-emptive Assault: the player's channel is still `CombatConfig.playerAttacksFirst` (an enemy's capture is
-  // inert until the owner rules on both sides holding it), so only the side it actually applies to announces it.
+  // Pre-emptive Assault is a PLAYER-ONLY carry (owner 2026-10-07, R-PREEMPTIVE-PLAYER-01): its channel is
+  // `CombatConfig.playerAttacksFirst`, and only the player side ever announces it.
   if (side === 'player' && playerAttacksFirst && m.attackFirstNext) cast(BANKED_SPELL_OF.attackFirstNext);
   if ((m.decoySigils ?? 0) > 0) cast(BANKED_SPELL_OF.decoySigils, m.decoySigils);
   if ((m.summonTaunts ?? 0) > 0) cast(BANKED_SPELL_OF.summonTaunts);

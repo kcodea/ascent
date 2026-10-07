@@ -45,7 +45,7 @@ export const SET2_DWARVES: CardDef[] = [
     id: 'dw_brunni',
     name: 'Brunni',
     tribe: 'dwarf',
-    tier: 2, // owner balance 2026-08-04: T2 → T3, 2/1 → 3/1; 2026-09-24: T3 → T2 (stats unchanged)
+    tier: 3, // owner balance 2026-08-04: T2 → T3, 2/1 → 3/1; 2026-09-24: T3 → T2 (stats unchanged); 2026-10-07: T2 → T3 (both sets)
     attack: 3,
     health: 2,
     keywords: ['T'],
@@ -237,7 +237,7 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Dwarven Ales** you cast from hand trigger **three times**.',
   },
   {
-    // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8).
+    // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8); 2026-10-07: +5/+5 (golden +10/+10).
     id: 'dw_chef',
     name: 'Chef Gary Toast',
     tribe: 'dwarf',
@@ -245,9 +245,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 4 } }],
-    text: 'Whenever you play a **Dwarf**, give your **Dwarves +4/+4**.',
-    goldenText: 'Whenever you play a **Dwarf**, give your **Dwarves +8/+8**.',
+    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 5 } }],
+    text: 'Whenever you play a **Dwarf**, give your **Dwarves +5/+5**.',
+    goldenText: 'Whenever you play a **Dwarf**, give your **Dwarves +10/+10**.',
   },
   {
     // The Ale payoff banked a turn late (owner 2026-08-07): Start of Combat reads the Ales you cast LAST
@@ -470,5 +470,21 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'onGainCard', do: 'onGainAleBuffSelf', params: { attack: 3, health: 3 } }],
     text: 'Whenever you get a **Dwarven Ale**, gain **+3/+3**.',
     goldenText: 'Whenever you get a **Dwarven Ale**, gain **+6/+6**.',
+  },
+  {
+    // BIG BRAIN BILLY (owner add 2026-10-07): a T2 Dwarf that grows itself off Shop spells. A DRAWABLE card (no
+    // `token`), appended LAST in this list (the set's final `own` slot) so no existing set-2 pool position moves.
+    // `spellCast` + `spellCastBuffSelf`, the house "Shop spell" watcher: a Ruby does not count (no `includeRubies`;
+    // Rune of the Spellstone's run-wide "a Ruby IS a Shop spell" rule still reaches it). Gilded +2/+2. No art yet.
+    id: 'dw_bigbrainbilly',
+    name: 'Big Brain Billy',
+    tribe: 'dwarf',
+    tier: 2,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 1, health: 1 } }],
+    text: 'When you cast a Shop spell, this gains **+1/+1**.',
+    goldenText: 'When you cast a Shop spell, this gains **+2/+2**.',
   },
 ];

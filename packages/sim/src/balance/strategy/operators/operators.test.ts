@@ -166,7 +166,9 @@ describe('operator — dwarf ale', () => {
     const full = ['dw_coinfire', 'dw_brunni', 'dw_orin', 'dw_pimm', 'dw_gangplank', 'dw_brakka', 'dw_wardkeeper'].map((id, i) => body(`b${i}`, id, { attack: 20, health: 20 }));
     const start: RunState = { ...run({ embers: 4, wave: 8, tier: 4, board: full, hand: [] }, 42), shop: [offer('x', 'k_pouchpincher'), offer('y', 'venom')] };
     const t = playTurn(start, op('dwarf'));
-    expect(t.actions.filter((a) => a.type === 'roll').length, types(t)).toBeGreaterThanOrEqual(2);
+    // RE-PINNED 2026-10-07: the set-2 pool moved (owner balance batch), so seed 42's first refresh now shows a Dwarf worth
+    // buying (roll, buy, sell...) instead of a second refresh. The contract is unchanged: every coin is spent.
+    expect(t.actions.filter((a) => a.type === 'roll').length, types(t)).toBeGreaterThanOrEqual(1);
     expect(t.run.embers).toBeLessThan(2);
   });
 
@@ -267,7 +269,10 @@ describe('operator — the shared procedure', () => {
 
   it('sells filler for an engine piece from wave 6: a full board of Whelps and Knocked makes a seat for Blart', () => {
     const fillers = ['d2_embermouth', 'dm_knocked', 'dm_leech', 'k_pouchpincher', 'dw_orin', 'b2_packstrider', 'manasaber'].map((id, i) => body(`f${i}`, id));
-    const start: RunState = { ...run({ embers: 3, wave: 7, tier: 4, board: fillers, hand: [] }, 73), shop: [offer('g', 'dm_gourmand'), offer('x', 'venom')] };
+    // RE-PINNED 2026-10-07: wave 6, as the title says. At wave 7 (PIVOT_WAVE) a board with no engine hands the turn to the
+    // generic strategist, so the old wave-7 fixture was really pinning the strategist's pick, which the owner balance batch's
+    // pool changes moved (it now upgrades). Wave 6 pins the OPERATOR's sell-for-an-engine behaviour this test is about.
+    const start: RunState = { ...run({ embers: 3, wave: 6, tier: 4, board: fillers, hand: [] }, 73), shop: [offer('g', 'dm_gourmand'), offer('x', 'venom')] };
     const t = playTurn(start, op('demon'));
     expect(types(t)).toContain('sell');
     expect(t.run.board.some((c) => c.cardId === 'dm_gourmand'), types(t)).toBe(true);

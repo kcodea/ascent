@@ -123,7 +123,7 @@ describe('set 3 scaffold', () => {
     }
     // 58 + Power Shifter (2026-08-22) + the five Dwarven Ales (2026-09-09). The Ales are drawable set-2 spells,
     // not tokens, so — unlike the Ruby — the Dwarves' Ale engine DOES need them opted in.
-    expect(p.spells.length).toBe(64); // 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
+    expect(p.spells.length).toBe(63); // Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
     expect(p.spells.filter((c) => c.name.includes('Ale')).map((c) => c.id).sort()).toEqual(['wo_attack', 'wo_champion', 'wo_health', 'wo_mine', 'wo_reinforcement']);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift
@@ -146,6 +146,7 @@ describe('set 3 scaffold', () => {
     expect(poolFor('set2').all.some((c) => c.id === 'k_alchemist')).toBe(true);
     // Set 3 taking eleven of set 2's Kobolds is a SHARED reference, not a move: set 2 keeps every one of
     // them. 22 buyable of 23 authored — Gem Sage is a token, so it is in neither set's drawable pool.
-    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(22);
+    // +1 on 2026-10-07: Jewel (a set-3 Kobold) joined set 2 (owner), appended at the end of set 2.
+    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(23);
   });
 });

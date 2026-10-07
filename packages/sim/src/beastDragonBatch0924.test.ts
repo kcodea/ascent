@@ -43,11 +43,12 @@ describe('Execute is the Venom mechanic (owner 2026-09-24)', () => {
 //    combat." (R-AURA-03). Its pins live in beastCombatOnly0928.test.ts.
 
 // ── 2. Wolvie (shop half; the combat half lives in beastBatchAug12.test.ts) ───────────────────────────────
-describe('Wolvie: "Taunt. Echo: Give a Beast +2/+4 and Rise." (SHOP)', () => {
-  it('a shop-fired Echo gives a random OTHER Beast +2/+4 and Rise, never a non-Beast', () => {
+// RE-PINNED 2026-10-07 (owner batch): "Taunt. Echo: Give a friendly Beast Rise." No stats; gilded = 2 Beasts.
+describe('Wolvie: "Taunt. Echo: Give a friendly Beast Rise." (SHOP)', () => {
+  it('a shop-fired Echo gives a random OTHER Beast Rise and no stats, never a non-Beast', () => {
     const s = shop([bc('w', 'b2_wolvie'), bc('a', 'alley'), bc('d', 'd2_broodfire')]);
     fireRecruitDeathrattlesForTest(s, on(s, 'w'));
-    expect([on(s, 'a').attack - CARD_INDEX['alley']!.attack, on(s, 'a').health - CARD_INDEX['alley']!.health]).toEqual([2, 4]);
+    expect([on(s, 'a').attack, on(s, 'a').health]).toEqual([CARD_INDEX['alley']!.attack, CARD_INDEX['alley']!.health]);
     expect(on(s, 'a').keywords).toContain('R');
     expect(on(s, 'd').keywords).not.toContain('R');
     expect(on(s, 'w').keywords, 'never itself').not.toContain('R');
@@ -58,27 +59,24 @@ describe('Wolvie: "Taunt. Echo: Give a Beast +2/+4 and Rise." (SHOP)', () => {
       const s = shop([bc('w', 'b2_wolvie'), bc('r', 'alley', { keywords: ['R'] }), bc('a', 'alley')], { rngCursor: seed } as Partial<RunState>);
       fireRecruitDeathrattlesForTest(s, on(s, 'w'));
       expect(on(s, 'a').keywords, `seed ${seed}`).toContain('R');
-      expect(on(s, 'r').attack, `seed ${seed}: the Beast that already had Rise was passed over`).toBe(CARD_INDEX['alley']!.attack);
     }
   });
 
-  it('GILDED (owner ruling 2026-09-24, "give 1 beast +4/+8"): ONE Beast takes +4/+8 and Rise', () => {
+  it('GILDED: two different Beasts take Rise, still no stats', () => {
     for (let seed = 1; seed <= 6; seed++) {
       const s = shop([bc('w', 'b2_wolvie', { golden: true }), bc('a', 'alley'), bc('b', 'alley'), bc('c', 'alley')], { rngCursor: seed } as Partial<RunState>);
       fireRecruitDeathrattlesForTest(s, on(s, 'w'));
       const hit = ['a', 'b', 'c'].filter((u) => on(s, u).keywords.includes('R'));
-      expect(hit.length, `seed ${seed}: one Beast`).toBe(1);
-      expect([on(s, hit[0]!).attack - CARD_INDEX['alley']!.attack, on(s, hit[0]!).health - CARD_INDEX['alley']!.health]).toEqual([4, 8]);
-      const missed = ['a', 'b', 'c'].filter((u) => u !== hit[0]);
-      for (const u of missed) expect(on(s, u).attack, `seed ${seed}: ${u} untouched`).toBe(CARD_INDEX['alley']!.attack);
+      expect(hit.length, `seed ${seed}: two Beasts`).toBe(2);
+      for (const u of ['a', 'b', 'c']) expect(on(s, u).attack, `seed ${seed}: ${u} has no stat change`).toBe(CARD_INDEX['alley']!.attack);
     }
   });
 
   it('keeps Taunt and prints the owner text', () => {
     const w = CARD_INDEX['b2_wolvie']!;
     expect(w.keywords).toEqual(['T']);
-    expect(w.text).toBe('**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.');
-    expect(w.goldenText).toBe('**Taunt. Echo:** give a **Beast** **+4/+8** and **Rise**.');
+    expect(w.text).toBe('**Taunt. Echo:** give a friendly **Beast** **Rise**.');
+    expect(w.goldenText).toBe('**Taunt. Echo:** give **2** friendly **Beasts** **Rise**.');
   });
 });
 
@@ -188,36 +186,38 @@ describe('Tort: Avenge (4): give another Beast Execute', () => {
 });
 
 // ── 12. Flo Rida ──────────────────────────────────────────────────────────────────────────────────────────
-describe('Flo Rida: when you summon a Beast, give your Beasts +4/+4', () => {
+// RE-PINNED 2026-10-07 (owner batch): "When you summon a Beast, give it +5/+5 and improve this." Each Beast
+// summoned with Flo out gets the current grant (5, 10, 15 ...), and Flo itself is not buffed. Every phase still fires.
+describe('Flo Rida: when you summon a Beast, give it +5/+5 and improve this', () => {
   it('is a set-2 T6 7/5 Beast', () => {
     const d = CARD_INDEX['b2_florida']!;
     expect([d.tribe, d.tier, d.attack, d.health]).toEqual(['beast', 6, 7, 5]);
     expect(set2Pool.has('b2_florida')).toBe(true);
   });
 
-  it('SHOP: playing a Beast buffs every Beast (itself and the arriver included), not the Dragon', () => {
+  it('SHOP: playing a Beast buffs THAT Beast +5/+5 only, not Flo, the board or the Dragon', () => {
     let s = shop([bc('f', 'b2_florida'), bc('a', 'alley'), bc('d', 'd2_broodfire')], { hand: [bc('n', 'b2_packstrider')] });
     s = reduce(s, { type: 'play', uid: 'n' });
-    expect(on(s, 'f').attack).toBe(7 + 4);
-    expect(on(s, 'a').attack).toBe(CARD_INDEX['alley']!.attack + 4);
-    expect(on(s, 'n').attack, 'the arriving Beast is one of your Beasts').toBe(CARD_INDEX['b2_packstrider']!.attack + 4);
+    expect(on(s, 'f').attack).toBe(7);
+    expect(on(s, 'a').attack).toBe(CARD_INDEX['alley']!.attack);
+    expect(on(s, 'n').attack, 'the arriving Beast').toBe(CARD_INDEX['b2_packstrider']!.attack + 5);
     expect(on(s, 'd').attack, 'not a Beast').toBe(CARD_INDEX['d2_broodfire']!.attack);
   });
 
-  it('SHOP: a token summon (Pack Leader’s Echo in the Shop) fires it once per Beast summoned', () => {
+  it('SHOP: a token summon (Pack Leader’s Echo in the Shop) fires it once per Beast, improving between them (+5, +10)', () => {
     const s = shop([bc('f', 'b2_florida'), bc('p', 'pack'), bc('a', 'alley')]);
     fireRecruitDeathrattlesForTest(s, on(s, 'p'));
-    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
-    expect(on(s, 'f').attack, 'two summons, +4 each').toBe(7 + 8);
-    expect(on(s, 'a').attack).toBe(CARD_INDEX['alley']!.attack + 8);
+    const pups = s.board.filter((c) => c.cardId === 'pup');
+    expect(pups.length).toBe(2);
+    expect(pups.map((c) => c.attack - CARD_INDEX['pup']!.attack).sort((x, y) => x - y)).toEqual([5, 10]);
   });
 
   it('END OF TURN: a Beast summoned at End of Turn fires it too (Spots under Rune of Combat Prowess procs Pack Leader)', () => {
     const s = shop([bc('p', 'pack'), bc('sp', 'b2_spots'), bc('f', 'b2_florida')], { runeCombatProwess: true } as Partial<RunState>);
     applyEndOfTurn(s);
-    const pups = s.board.filter((c) => c.cardId === 'pup').length;
-    expect(pups, 'the End-of-Turn Echo summoned Pups').toBeGreaterThan(0);
-    expect(on(s, 'f').attack - 7, '+4 per Beast summoned at End of Turn').toBe(pups * 4);
+    const pups = s.board.filter((c) => c.cardId === 'pup');
+    expect(pups.length, 'the End-of-Turn Echo summoned Pups').toBeGreaterThan(0);
+    expect(pups.every((c) => c.attack > CARD_INDEX['pup']!.attack), 'each End-of-Turn Pup got the grant').toBe(true);
   });
 
   it('SHOP: its own arrival does not trigger it', () => {
@@ -226,13 +226,12 @@ describe('Flo Rida: when you summon a Beast, give your Beasts +4/+4', () => {
     expect(on(s, 'a').attack).toBe(CARD_INDEX['alley']!.attack);
   });
 
-  it('COMBAT: an Echo-summoned Beast buffs the Beasts (+8/+8 gilded)', () => {
+  it('COMBAT: Echo-summoned Beasts take +5 then +10 (gilded +10 then +20)', () => {
     for (const golden of [false, true]) {
       const r = fight([bm('pack', 1, 1), bm('b2_florida', 7, 900, golden ? { golden: true } : {})], [{ cardId: 'sandbag', attack: 1, health: 90000 }]);
       const flo = uidOf(r, 'b2_florida');
-      const selfBuffs = buffs(r).filter((b) => b.target === flo && b.source === flo);
-      expect(selfBuffs.length, 'one per summoned Pup').toBe(2);
-      expect(selfBuffs.every((b) => b.attack === (golden ? 8 : 4) && b.health === (golden ? 8 : 4))).toBe(true);
+      const grants = buffs(r).filter((b) => b.source === flo && b.target !== flo).map((b) => [b.attack, b.health]);
+      expect(grants).toEqual(golden ? [[10, 10], [20, 20]] : [[5, 5], [10, 10]]);
     }
   });
 });

@@ -100,7 +100,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(188); // 187 → 188 on 2026-10-07: Rune of the Echoing Shouts (Dragon batch); 185 → 187 on 2026-09-27: Set 3 design pass tranche 5 (the Set 3 Menagerie, the Heavy Hand); 180 → 185 on 2026-09-27: Set 3 design pass tranche 4 (5 hybrid Basics); 175 → 180 on 2026-09-27: Set 3 design pass tranche 3 (4 Spirit + 1 Dwarf Basics); 170 → 175 on 2026-09-27: Set 3 design pass tranche 2 (5 Celestial Basics); 165 → 170 on 2026-09-27: Set 3 design pass tranche 1 (5 Undead Basics); 158 → 165 on 2026-09-25: Set 3 rune batch 3 (7 Basics: Gemmed Decisions, Echoing Kobolds, Red Storm, Rubywire, Choices, Combatative Rubies, Body Counting); 157 → 158 on 2026-09-25: Rune of Engraving Gems moved Epic → Basic (owner Set 3 rune list); 158 → 157 on 2026-09-24: Rune of the Full Hand archived (owner rulings, in no set after the Set 3 cut); 159 → 158 on 2026-09-24: Rune of Investment moved Basic → Epic (owner Ruby batch); 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic); 163 → 164 on 2026-09-17: Rune of Gambling (all sets); 164 → 159 on 2026-09-23: five Basics archived (Emberline, Centerline, Cindergem, Second Litter, Spare Chair — ARCHIVED_RUNES)
+    expect(RUNES.length).toBe(181); // merged 2026-10-07: 188 (main, + Rune of the Echoing Shouts) − 7 archived = 181; 187 → 180 on 2026-10-07: seven Basics archived (owner balance batch: Ruby Resonance, Contraband, Gemcutting, Shifting Facets, Gem Dividend, Last Call, Last Word); 185 → 187 on 2026-09-27: Set 3 design pass tranche 5 (the Set 3 Menagerie, the Heavy Hand); 180 → 185 on 2026-09-27: Set 3 design pass tranche 4 (5 hybrid Basics); 175 → 180 on 2026-09-27: Set 3 design pass tranche 3 (4 Spirit + 1 Dwarf Basics); 170 → 175 on 2026-09-27: Set 3 design pass tranche 2 (5 Celestial Basics); 165 → 170 on 2026-09-27: Set 3 design pass tranche 1 (5 Undead Basics); 158 → 165 on 2026-09-25: Set 3 rune batch 3 (7 Basics: Gemmed Decisions, Echoing Kobolds, Red Storm, Rubywire, Choices, Combatative Rubies, Body Counting); 157 → 158 on 2026-09-25: Rune of Engraving Gems moved Epic → Basic (owner Set 3 rune list); 158 → 157 on 2026-09-24: Rune of the Full Hand archived (owner rulings, in no set after the Set 3 cut); 159 → 158 on 2026-09-24: Rune of Investment moved Basic → Epic (owner Ruby batch); 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic); 163 → 164 on 2026-09-17: Rune of Gambling (all sets); 164 → 159 on 2026-09-23: five Basics archived (Emberline, Centerline, Cindergem, Second Litter, Spare Chair — ARCHIVED_RUNES)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -263,13 +263,14 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(s.maxEmbers).toBe(before); // the old max-Gold rider is GONE
   });
 
-  it('Summoning: casting a spell improves your Imps by its PRINTED +2/+2 (run-wide)', () => {
+  it('Summoning: casting a spell improves your Imps by its PRINTED +3/+3 (run-wide)', () => {
     let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 5, runeSummoning: true,
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' }); // cast one spell
     // The card prints +2/+2. It paid +1/+1 until the 2026-08-28 fix — the drift the text oracle caught, and
     // the owner's duplicate ruling ("a second copy = +4/+4") confirms the printed step is the contract.
-    expect(s.impBuff).toEqual({ attack: 2, health: 2 });
+    // RE-PINNED 2026-10-07: the printed step is +3/+3 now (owner balance batch; was +2/+2).
+    expect(s.impBuff).toEqual({ attack: 3, health: 3 });
   });
 });
 
@@ -1229,21 +1230,21 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(prog(true)).toBe(2);
   });
 
-  it('Rune of Summoning stacked with Mastery: the printed step doubles to +4/+4 per spell', () => {
+  it('Rune of Summoning stacked with Mastery: the printed step doubles to +6/+6 per spell (re-pinned 2026-10-07, step +3/+3)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
       runeMastery: true, runeSummoning: true,
       board: [mk('m', 'stray', 'beast', 1, 1)],
       hand: [mk('g1', 'growth', 'neutral', 0, 1)] };
     s = reduce(s, { type: 'play', uid: 'g1' });
-    expect(s.impBuff).toEqual({ attack: 4, health: 4 });
+    expect(s.impBuff).toEqual({ attack: 6, health: 6 });
   });
 
-  it('two copies pay the owner-ruled +4/+4 (the duplicate ruling that pinned the printed step)', () => {
+  it('two copies pay double the printed step: +6/+6 (re-pinned 2026-10-07; was the owner-ruled +4/+4 at step +2/+2)', () => {
     let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 5, runeSummoning: true,
       runeStacks: { rune_summoning: 2 },
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' });
-    expect(s.impBuff).toEqual({ attack: 4, health: 4 });
+    expect(s.impBuff).toEqual({ attack: 6, health: 6 });
   });
 });
 

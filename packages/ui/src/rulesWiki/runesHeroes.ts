@@ -128,7 +128,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Right away. A rune that says **Get something, repeat every Start of Turn** hands you the first one the moment you buy it, then one more each turn after. A rune that works in combat is already on for that turn's fight.",
     aliases: ['kick in', 'activate', 'first payout', 'immediately', 'next turn'],
     seeAlso: ['rune-lasts-whole-game', 'rune-counters'],
-    covers: [{ rule: 'R-RUNE-08', fp: '0454a46b' }],
+    covers: [{ rule: 'R-RUNE-08', fp: '069cd4aa' }], // re-checked 2026-10-07 (the Deep moved to the every-2-turns cadence; the answer still holds)
   },
   {
     id: 'where-are-my-runes',

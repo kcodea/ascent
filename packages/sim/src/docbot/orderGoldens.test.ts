@@ -92,17 +92,17 @@ describe('Doc Bot — order goldens (each pins a resolution-order rule via an or
   });
 
   it('G4 — trigger insertion is DEPTH-FIRST: a watcher fired by a mid-resolution summon runs before the next queued death', () => {
-    // A Cleave kills two 1-hp Mama Pups simultaneously while Beardsley (on-summon: +3/+3 to summoned Beasts,
-    // improving +3 every 3) watches. Outcome-bearing twice over: (a) each Pup's Beardsley buff is INSERTED
+    // A Cleave kills two 1-hp Mama Pups simultaneously while Beardsley (on-summon: +1/+1 to summoned Beasts,
+    // improving +1 on EVERY Beast since the 2026-10-07 owner batch; was +3/+3 improving every 3) watches. Outcome-bearing twice over: (a) each Pup's Beardsley buff is INSERTED
     // right after its own summon — a breadth-first engine would resolve both deaths, then both Echoes, then
-    // all buffs; (b) Beardsley's improve step advances MID-resolution, so the 4th Pup of the same simultaneous
-    // wave gets +6/+6 while the first three get +3/+3. RULE PINNED: depth-first insertion, live improve steps.
+    // all buffs; (b) Beardsley's improve step advances MID-resolution, so each Pup of the same simultaneous
+    // wave gets one step more than the last (+1, +2, +3, +4). RULE PINNED: depth-first insertion, live improve steps.
     const r = sim(
       [bm('b2_beardsley', 'BD', 0, 9999), bm('pack', 'P1', 0, 1), bm('pack', 'P2', 0, 1)],
       [bm('babycub', 'CUB', 30, 9999, { keywords: ['C'] })], ['beast']);
     const [p1, p2] = [r.initial.player[1]!.uid, r.initial.player[2]!.uid];
     const pupBuffs = buffs(r, 'onSummonTribeBuffFlat').map((e) => e.attack);
-    expect(pupBuffs, 'the improve step advanced on the 4th summon of the SAME wave').toEqual([3, 3, 3, 6]);
+    expect(pupBuffs, 'the improve step advanced on every summon of the SAME wave').toEqual([1, 2, 3, 4]);
     // each summon is immediately followed by its own Beardsley buff (depth-first insertion)
     for (const s of summons(r)) {
       const at = r.events.indexOf(s as never);

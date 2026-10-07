@@ -4698,4 +4698,23 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the same board fought at full strength against the player.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-ARCHIVE-GRANT-01',
+    title: 'An archived spell is never offered, but a live card that names it still casts or grants it',
+    statement:
+      'Archiving a Shop spell takes it out of every set: it never appears in the Shop, a Discover, a random-spell '
+      + 'grant or any other pool. It stays in the global card index, so a held copy still casts, a saved run or replay '
+      + 'still resolves it, and a LIVE card that names it by id keeps working: Arnold still casts Beefy on itself at '
+      + 'End of Turn and Dwarven Sharpshooter still gives a Deep Delve Writ, which still casts. The banked next-combat '
+      + 'machinery behind the archived next-combat spells stays in place for replays and any remaining source.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-07 (archive everywhere)', quote: 'Arnold and Dwarven Sharpshooter keep working' },
+      { kind: 'code', ref: 'packages/content/src/cards/archive.ts (the 2026-10-07 block); packages/sim/src/recruit.ts endOfTurnCastSpellOnSelf / battlecryGrantSpell (CARD_INDEX lookups)' },
+    ],
+    contentIds: ['dw_arnold', 'dw_sharpshooter', 'sp_beefy', 'deepdelvewrit'],
+    currentBehaviour: 'Conforms (2026-10-07): both factories resolve the spell through CARD_INDEX, which includes the archive.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1007.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

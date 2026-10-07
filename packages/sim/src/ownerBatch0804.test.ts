@@ -69,8 +69,10 @@ describe('Echoes triggered in the SHOP', () => {
   });
 
   it('Bone Taxer raises max Gold', () => {
-    const before = createRun(6).maxEmbers;
-    expect(borrowedEcho('bonetaxer').maxEmbers).toBeGreaterThan(before);
+    // Total max Gold (the natural curve + the above-the-cap `maxGoldBonus` the grant lands in, R-COFFERS-EVERY-EOT-01).
+    const total = (s: RunState): number => s.maxEmbers + (s.maxGoldBonus ?? 0);
+    const before = total(createRun(6));
+    expect(total(borrowedEcho('bonetaxer'))).toBeGreaterThan(before);
   });
 
   it('Errand Fiend has no Echo any more — a borrowed one summons nothing (Rally rework 2026-08-04)', () => {

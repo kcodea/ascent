@@ -1910,4 +1910,29 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms. The mechanic was already "the first Epic bought after it" (GAME-RULES); the text changed 2026-10-06 from "After you forge your Epic Rune, this transforms into a copy of it".',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgePowerSlot.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-COFFERS-EVERY-EOT-01',
+    title: 'Rune of the Coffers raises max Gold on EVERY End of Turn, above the cap',
+    statement:
+      'Rune of the Coffers reads "End of Turn: increase your maximum Gold by 1." Every End of Turn adds +1 max Gold '
+      + 'per copy on top of the natural curve, so after N End of Turns the player has exactly N more max Gold than a '
+      + 'run without it, before and after the natural 10. A raise is never eaten by the turn-start growth toward the '
+      + 'cap. Its Gold-pill beat plays each End of Turn and its badge prints the running total. The same holds for '
+      + 'every other "raise your maximum Gold" grant (Bone Taxer, Soulsman, Rune of Soul Taxes): all of them land in '
+      + 'the above-the-cap channel (`maxGoldBonus`), never the natural `maxEmbers` curve.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-06', quote: 'rune of the coffers only triggered once - it should trigger every end of turn' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyEndOfTurn (runeCoffers) + makeContext grantMaxGold; packages/sim/src/reducer.ts settleCombat (playerMaxGoldGain); packages/ui/src/runeTally.ts rune_coffers' },
+    ],
+    contentIds: ['rune_coffers', 'bonetaxer', 'soulsman', 'rune_soul_taxes'],
+    cardText: '**End of Turn:** increase your **maximum Gold** by **1**.',
+    currentBehaviour:
+      'Conforms (2026-10-06). The rune wrote `maxEmbers`, the natural curve, and the turn-start growth '
+      + '`max(maxEmbers, min(cap, maxEmbers + 1))` swallowed any raise that pushed it into the cap, so near 10 it only '
+      + 'pre-spent growth the player got anyway and looked like it had fired once (the Nadja 2026-07-22 class). It now '
+      + 'writes `maxGoldBonus`, like Robin x Time, Gold Font and Nadja.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeCoffersEveryEot.test.ts', 'packages/ui/src/runeCoffersTally.test.ts'], lastVerifiedAt: '2026-10-06' },
+  },
 ];

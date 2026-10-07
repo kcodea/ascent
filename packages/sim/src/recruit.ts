@@ -264,7 +264,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       if (idx < 0) return [];
       return [state.board[idx - 1], state.board[idx + 1]].filter((c): c is BoardCard => !!c);
     },
-    grantMaxGold: (amount) => { state.maxEmbers += amount; },
+    // ABOVE THE CAP (R-COFFERS-EVERY-EOT-01 sibling): `maxGoldBonus`, never the natural `maxEmbers` curve, or the raise
+    // evaporates the turn it pushes into the cap (Bone Taxer's Echo in the Shop).
+    grantMaxGold: (amount) => { state.maxGoldBonus = (state.maxGoldBonus ?? 0) + amount; },
     grantGoldNextTurn: (amount) => { state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + amount; },
     isCelestial: (t) => !!CARD_INDEX[t.cardId]?.celestial,
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
@@ -13543,11 +13545,17 @@ function applyEndOfTurnBody(state: RunState): void {
   if (state.runeCoffers) {
     procRune(state, 'runeCoffers');
     // +1 max Gold per copy held (recurring family, owner 2026-08-27: "+2 max Gold at End of Turn" with two).
+    // ABOVE THE CAP (owner report 2026-10-06: "rune of the coffers only triggered once - it should trigger every
+    // end of turn"): the raise goes into `maxGoldBonus`, NOT `maxEmbers`. `maxEmbers` is the natural curve, and the
+    // turn-start growth `max(maxEmbers, min(cap, maxEmbers + 1))` ate any raise that pushed it into the cap, so
+    // near 10 the rune only pre-spent growth the player got anyway and looked dead (the Nadja #642 class).
+    // `maxGoldBonus` is the channel Robin x Time / Gold Font / Nadja already use. R-COFFERS-EVERY-EOT-01.
     const cf = runeStacksOf(state, 'rune_coffers');
-    state.maxEmbers += cf;
+    state.maxGoldBonus = (state.maxGoldBonus ?? 0) + cf;
+    state.runeCoffersGold = (state.runeCoffersGold ?? 0) + cf; // the running total its badge prints
     if (collector.enabled) collector.withTrigger(
       { phase: 'endOfTurn', source: beatSource('rune', 'rune_coffers', 'Rune of the Coffers'), trigger: 'endOfTurn', ...beatIdentity('rune:rune_coffers:endOfTurn') },
-      () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: cf, valueAfter: state.maxEmbers }),
+      () => collector.emit({ type: 'resourceChanged', resource: 'maxGold', amount: cf, valueAfter: state.maxEmbers + (state.maxGoldBonus ?? 0) }),
     );
   }
   // Rune of Shopkeep: reduce the running upgrade cost by 3 each End of Turn (the "repeat" half; the buy pass

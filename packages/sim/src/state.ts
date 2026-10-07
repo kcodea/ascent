@@ -1874,6 +1874,8 @@ export interface RunState {
   runeRefrain?: boolean;
   /** Rune of the Coffers: End of Turn, max Gold +1. */
   runeCoffers?: boolean;
+  /** Rune of the Coffers: the max Gold it has granted so far (its live badge). The grant itself sits in `maxGoldBonus`. */
+  runeCoffersGold?: number;
   /** Rune of Enchantment: each Shop-spell cast gives your minions +1/+1 (permanent). */
   runeEnchantment?: boolean;
   /** Rune of the Crown: once `spellsCast` reaches `per`, your spells give +attack/+health extra. */

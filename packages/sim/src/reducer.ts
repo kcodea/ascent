@@ -5113,7 +5113,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // grantMaxGold is Soulsman-only, so playerMaxGoldGain IS Soulsman's contribution — tally it run-wide
   // for the "gained X Gold" metric shown on the card.
   if (result.playerMaxGoldGain) {
-    s.maxEmbers += result.playerMaxGoldGain;
+    // ABOVE THE CAP (R-COFFERS-EVERY-EOT-01 sibling): into `maxGoldBonus`, never the natural `maxEmbers` curve, whose
+    // turn-start growth would eat any raise that pushes into the cap (Soulsman, Bone Taxer, Rune of Soul Taxes).
+    s.maxGoldBonus = (s.maxGoldBonus ?? 0) + result.playerMaxGoldGain;
     s.soulsmanGold = (s.soulsmanGold ?? 0) + result.playerMaxGoldGain;
   }
   // ANCIENTS × Warden (a no-op unless the run has them): Fortune's Gold per friendly Ward break, Genesis' count.

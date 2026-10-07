@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { ARCHIVED_CARDS, ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, poolFor, type SetId } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, fireSpellCastWatchersForRuby } from './recruit';
+import { applyEndOfTurn, fireSpellCastWatchersForRuby, isStatGrantingSpell } from './recruit';
+import { runSpells } from './spellPool';
 
 /**
  * OWNER BALANCE BATCH 2026-10-07 (data half): the archives, the rune numbers, the minion reworks and the new
@@ -49,6 +50,14 @@ describe('2026-10-07 archives: out of every set, still resolvable', () => {
     }
     // Rune of Resonance is a different rune and stays.
     expect([...RUNES, ...EPIC_RUNES].some((r) => r.id === 'rune_resonance')).toBe(true);
+  });
+
+  it('cross-check with the Dragon rune batch: the Spell Generator (Wise Armory) stat-spell pool never offers an archived spell', () => {
+    for (const set of SETS) {
+      const pool = runSpells({ setId: set, tribes: ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf', 'spirit', 'celestial'] }).filter((c) => isStatGrantingSpell(c));
+      expect(pool.length, set).toBeGreaterThan(0);
+      for (const id of ARCHIVED_SPELLS) expect(pool.some((c) => c.id === id), `${id} in ${set}`).toBe(false);
+    }
   });
 
   it('OWNER RULING: Arnold still casts the archived Beefy on himself at End of Turn', () => {

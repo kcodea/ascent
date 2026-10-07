@@ -18,8 +18,8 @@ export const EPIC_UNITS: ReadonlySet<string> = new Set([
   'zyff',                    // Zyff, the Betrayer — Battlecries + Deathrattles +1
   'echowarden',              // Echo Warden — summons trigger one more time
   'attachmentconductor',     // Attachment Conductor — Magnetics magnetize twice
-  'b2_elderhorn',            // Elderhorn — Beast Rallies +1
-  'd2_orivax',               // Orivax, the Spellchoir — Shouts +1 / first Shop spell ×3
+  'b2_elderhorn',            // Elderhorn — Beast Rallies + Echoes +1 (board aura since 2026-10-07)
+  'd2_orivax',               // Orivax — Shouts +2 (board aura since 2026-10-07)
   'dw_edward',               // Edward Keg-hands — Dwarven Ales trigger twice
   'ce3_constellationprime',  // Constellation Prime — Star Crashes cast an additional time
   'k_deepdelve',             // Deepdelve Paragon — Rubies in combat give 2× stats (owner ask 2026-09-23)
@@ -29,12 +29,11 @@ export function isEpicUnit(cardId: string): boolean {
   return EPIC_UNITS.has(cardId);
 }
 
-/** Per-card epic art override — a specific epic unit wears its own icon instead of the default (owner ask
- *  2026-09-23: Elderhorn / Orivax, the Choose One epics, get a bespoke "epic choose one" icon). Keyed cardId → art id. */
-const EPIC_ART_OVERRIDE: Readonly<Record<string, string>> = {
-  b2_elderhorn: 'epic-choose-one',
-  d2_orivax: 'epic-choose-one',
-};
+/** Per-card epic art override — a specific epic unit wears its own icon instead of the default. Keyed cardId → art id.
+ *  EMPTY since 2026-10-07: Elderhorn / Orivax wore the bespoke "epic choose one" icon (owner ask 2026-09-23) while they
+ *  were Choose Ones; as board auras they wear the same default epic gem as Drakko / Sylus (owner ruling 2026-10-07:
+ *  "fix their icons to now be the special gem icon that drakko/sylus use etc"). The mechanism stays for future use. */
+const EPIC_ART_OVERRIDE: Readonly<Record<string, string>> = {};
 
 /** The default epic medallion art (used by the tuner preview). BASE_URL-relative (itch/exe serve from a CDN sub-path). */
 export const EPIC_MEDALLION_SRC = `${import.meta.env.BASE_URL}medallions/epic.webp`;

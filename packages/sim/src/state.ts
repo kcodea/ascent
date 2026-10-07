@@ -529,6 +529,10 @@ export interface EquipFx {
   cardId: string;
   /** `use` only: the Equipment that fired, so the UI can look up its authored FX and SFX. */
   equipmentId?: string;
+  /** `equip` from a RUNE (rune-owned Equipment, owner ruling 2026-10-07): the rune that granted it. There is no
+   *  body, so the UI starts the full equip animation from THIS rune's badge in the rune rack instead of a card
+   *  (`uid` is then `rune:<runeId>`, which names no board body). */
+  runeId?: string;
   /** `use` only: what it was cast on — the travel destination. Absent for an untargeted Equipment. */
   targetUid?: string;
   /** `use` only: the Shop spells this activation cast (Pourman's Keg → its random Ale), in cast order. The UI
@@ -1962,6 +1966,13 @@ export interface RunState {
   runeMuster?: number | boolean;
   /** Rune of the Foundry: minions sold toward `per` — a random Dragon each time it fills. */
   runeFoundry?: { per: number; sold: number };
+  /** Rune of the Voicekeeper (owner batch 2026-10-07): every `per` `tribe` minions sold → a plain copy of one of
+   *  them. `sold` holds the card ids sold since the last payout (in sale order), so the pick is "one of those 3". */
+  runeVoicekeeper?: { per: number; tribe: Tribe; sold: string[] };
+  /** RUNE-OWNED EQUIPMENT (owner batch 2026-10-07): `{ runeId, equipmentId }` for every owned `runeEquip` rune, in
+   *  purchase order. Re-granted at every Start-of-Turn rebuild after the board's Equipment, so it is held for the
+   *  rest of the run with no body behind it. Run state, so saves, replays (state replay) and restores carry it. */
+  runeEquipment?: { runeId: string; equipmentId: string }[];
   /** Rune of the Corrupted Tome: a Triple Reward grants two. */
   runeCorruptedTome?: boolean;
   /** Rune of the Groveweaver: a Groveweaver's summon grant also lands on the Groveweaver. */
@@ -2596,7 +2607,10 @@ export interface GrantedEquipment {
    *  Starform SHOP OFFER (Star Destroyer, owner rule C 2026-09-13): `sourceUids` holds the token's offer uid, the
    *  entry is valid exactly while a Starform exists, and the rebuild / removal paths drop it when the token is
    *  gone (`syncStarDestroyer`). */
-  sourceKind?: 'starform';
+  sourceKind?: 'starform' | 'rune';
+  /** `sourceKind: 'rune'` (owner batch 2026-10-07): the RUNE that owns this Equipment (`RunState.runeEquipment`).
+   *  A rune-owned entry has no body — `sourceUids` is empty — and is held for the rest of the run. */
+  sourceRuneId?: string;
   /** Which wording/params apply. A single Gilded source anywhere upgrades the whole entry (handoff rule). */
   version: 'plain' | 'gilded';
   /** EVERY source, tracked independently — duplicates collapse to one selector entry but each still gets its

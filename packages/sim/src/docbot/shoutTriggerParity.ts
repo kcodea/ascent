@@ -158,7 +158,7 @@ export interface ShoutModifier {
 
 export const SHOUT_MODIFIERS: readonly ShoutModifier[] = [
   { id: 'none', label: 'no modifier (control)', shop: {}, combat: {}, fires: 1 },
-  { id: 'choir', label: 'Rune of the Choir / Hoardwake / Resonant Path / Orivax Chorus (+1 each)', shop: { shoutExtraAlways: 1 }, combat: { shoutExtraAlways: 1 }, fires: 2 },
+  { id: 'choir', label: 'Rune of the Choir / Hoardwake / Resonant Path / legacy Orivax Chorus mode (+1 each)', shop: { shoutExtraAlways: 1 }, combat: { shoutExtraAlways: 1 }, fires: 2 },
   { id: 'blasting', label: 'Rune of Blasting Voices (+2)', shop: { shoutExtraAlways: 2 }, combat: { shoutExtraAlways: 2 }, fires: 3 },
   { id: 'encore', label: 'Demand an Encore (this turn)', shop: { shoutExtraTurn: 1 }, combat: { encoreExtra: 1 }, fires: 2 },
   { id: 'warmEmbers', label: 'Warm Embers / Opening Act (first Shout each turn / phase)', shop: { shoutFirstDoubleEachRound: true, shoutFirstUsedThisTurn: false }, combat: { warmEmbersFirst: 1 }, fires: 2, latch: 'shoutFirstUsedThisTurn' },

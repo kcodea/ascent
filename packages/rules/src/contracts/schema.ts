@@ -242,6 +242,8 @@ export interface MultiplierContract {
    *  card do not stack; different multiplier cards multiply with each other, and the product applies to the
    *  additive total — `(1 + Σ extra) × Π factor`. */
   factor?: number;
+  /** TRIBE-SCOPED (Elderhorn, 2026-10-07): only triggers whose subject is of this tribe get the extra. */
+  tribe?: string;
   /** R-AVWIN-07: the multiplier re-runs RESOLUTION, never progress counting. Stated only where ruled/known. */
   resolutionOnly?: boolean;
 }

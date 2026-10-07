@@ -148,12 +148,17 @@ export type TriggerMultiplierDef = {
     factor?: never;
     /** Additive cards always stack — kept for the schema's benefit and for older data. */
     stacks?: boolean;
+    /** TRIBE-SCOPED (Elderhorn, owner 2026-10-07: "Your Beasts' Rallies and Echoes trigger an additional time"):
+     *  only a trigger whose SUBJECT (the rallying attacker / the dying Echo body) is of this tribe gets the extra.
+     *  `extraTriggerFires` needs the caller's `subjectHasTribe` to grant it; without one it is skipped. */
+    tribe?: Tribe;
   }
   | {
     /** MULTIPLIER: total fires are multiplied by this. Best single copy per card, product across cards. */
     factor: number;
     extra?: never;
     stacks?: never;
+    tribe?: never;
   }
 );
 
@@ -179,14 +184,18 @@ export function extraTriggerFires(
   family: TriggerFamily,
   minions: readonly { cardId: string; golden?: boolean }[],
   getCard: (id: string) => CardDef | undefined,
+  /** The trigger's subject tribe test (`isTribeOf(subject, t, cards)` / `isTribe(subject, t)`), for TRIBE-SCOPED
+   *  multipliers (Elderhorn). A call site that passes none never receives a tribe-scoped extra. */
+  subjectHasTribe?: (tribe: Tribe) => boolean,
 ): number {
-  let extra = 0; // ADDITIVE cards (Sylus, Zyff, Uron): every copy of every card counts
+  let extra = 0; // ADDITIVE cards (Sylus, Zyff, Uron, Elderhorn): every copy of every card counts
   // MULTIPLIER cards (Drakko, Chronos): the best single copy PER CARD, multiplied across different cards.
   // Keyed by cardId so two Drakkos are still one ×2 while Drakko × a different multiplier is ×4.
   const factors = new Map<string, number>();
   for (const m of minions) {
     const mult = getCard(m.cardId)?.triggerMultiplier;
     if (!mult || !mult.families.includes(family)) continue;
+    if (mult.tribe && !subjectHasTribe?.(mult.tribe)) continue; // Elderhorn: Beast triggers only
     if (mult.factor !== undefined) {
       // Golden adds ONE more trigger rather than doubling the factor (owner ruling 2026-08-28): ×2 → ×3.
       const f = mult.factor + (m.golden ? 1 : 0);
@@ -198,6 +207,24 @@ export function extraTriggerFires(
   let total = 1 + extra;
   for (const f of factors.values()) total *= f;
   return total - 1;
+}
+
+/**
+ * Orivax's board-aura Shout extras (`CardDef.shoutExtraAura`, owner 2026-10-07): the extra fires every Shout on this
+ * side gets from the auras on `minions` (the side's LIVING board). Additive: every copy counts, golden doubles. THE
+ * one definition read by the Shop fold (`shoutFireCount`) and the combat fold (`ctx.shoutCarryExtras`). "While on
+ * board" (owner ruling 2026-10-07): it reads the board at the moment of the Shout, never a run-wide counter.
+ */
+export function boardShoutExtras(
+  minions: readonly { cardId: string; golden?: boolean }[],
+  getCard: (id: string) => CardDef | undefined,
+): number {
+  let extra = 0;
+  for (const m of minions) {
+    const e = getCard(m.cardId)?.shoutExtraAura ?? 0;
+    if (e > 0) extra += e * (m.golden ? 2 : 1);
+  }
+  return extra;
 }
 
 /**
@@ -493,6 +520,7 @@ export type EffectFactoryId =
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
+  | 'onBattlecryCastNamedSpell' // Firebird (owner batch 2026-10-07): a triggered Shout CASTS a named spell (Dragonflame), both phases
   | 'orbitBuffArriver' // Celestial ORBIT: buff the minion that just landed next to this one
   | 'orbitBuffRandomFriend' // Orbiting Familiar: buff a RANDOM friendly minion (not the arriver)
   | 'orbitSellValue' // Starpath Vendor (Dawn): this minion gains sell value, capped
@@ -578,6 +606,7 @@ export type EffectFactoryId =
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'grantEquipment' // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
   | 'equipmentRubyDuel' // Dueling Rubetta's — improve your Rubies, then Ruby your end Kobolds
+  | 'equipmentSpellPowerAndStatSpell' // Spell Generator (Rune of the Wise Armory, 2026-10-07): +A/+H spell power, then a random stat-granting spell to hand
   | 'equipmentBuffTarget' // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
   | 'equipmentCastSpell' // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
   | 'equipmentSetStats' // Titan Hammer: SETS the target's stats rather than adding to them
@@ -1052,6 +1081,12 @@ export interface CardDef {
   /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
    *  through `extraTriggerFires` — never by a hardcoded card-id check. */
   triggerMultiplier?: TriggerMultiplierDef;
+  /** A BOARD-AURA Shout extra (Orivax, owner 2026-10-07: "Your Shouts trigger 2 additional times"): while this
+   *  minion is on its side's board, every Shout that side triggers fires this many more times (golden doubles it;
+   *  every copy stacks). Folded through `boardShoutExtras` into the SAME channel as the run-wide Shout extras
+   *  (Rune of the Choir's `shoutExtraAlways`): Shop `shoutFireCount`, combat `ctx.shoutCarryExtras` — so it adds
+   *  to them in both phases, rather than multiplying with them as a `triggerMultiplier` would in combat. */
+  shoutExtraAura?: number;
   ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */
@@ -1515,6 +1550,12 @@ export type QuestReward =
   | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
   | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
+  /** Rune of the Voicekeeper (owner batch 2026-10-07): every `per` minions of `tribe` you sell → a PLAIN copy of
+   *  one of those `per`, picked off the run cursor (the Voicekeeper minion's / Rune of the Collector's copy rule). */
+  | { kind: 'runeVoicekeeper'; per: number; tribe: Tribe }
+  /** RUNE-OWNED EQUIPMENT (owner batch 2026-10-07): owning the rune grants the named Equipment for the rest of the
+   *  run — re-granted at every Start-of-Turn rebuild (`RunState.runeEquipment`), never tied to a board body. */
+  | { kind: 'runeEquip'; equipmentId: string }
   | { kind: 'runeCorruptedTome' } // a Triple Reward grants two instead
   | { kind: 'runeGroveweaver' } // a Groveweaver's summon-buff also lands on itself
   | { kind: 'runeSharedPour' } // the first Ale each turn casts an extra time
@@ -2033,7 +2074,12 @@ export interface QuestCombatMods {
    *  ticks. Every combat Shout fire (`battlecryTriggered`) advances them; a trip pays through `handGrants`
    *  (a random Shop spell, never an Ale — `grantSpell`; or one of `grantOneOf`) and the fight reports the final
    *  ticks back (`CombatCarryBacks.shoutMeters`) so the run's ONE counter continues into the next shop. */
-  shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[] }[];
+  shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[];
+    /** Rune of the Whelps (2026-10-07): these exact card ids to hand on a trip (the shop's `grantCards`). */
+    grantCards?: string[];
+    /** Rune of the Echoing Shouts (2026-10-07): on a trip, this side's LIVING `tribe` minions gain +A/+H for this
+     *  fight (the Drake Skull / Starsong combat rule), labelled with the rune's name. */
+    buff?: { tribe: Tribe; attack: number; health: number; label: string } }[];
   /** Gorun's Blade Mastery: a friendly attack grants the ATTACKER +3 Attack for the rest of the fight, and the
    *  grant improves by +3 for every 8 attacks made. `attacks` is the run-lifetime count BEFORE this fight, so
    *  the grant keeps stepping up mid-combat as the count rises past each multiple of 8 — the same total the

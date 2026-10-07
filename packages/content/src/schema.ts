@@ -209,6 +209,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffImps',
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',
+  'onBattlecryCastNamedSpell', // Firebird (2026-10-07) — a triggered Shout casts a named spell
   'spellCastDemonConsumesShop', // Baal — every N spells, a friendly Demon eats a Shop minion
   'orbitBuffArriver',
   'orbitBuffRandomFriend',
@@ -658,12 +659,14 @@ export const CardDefSchema = z.object({
       families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
       extra: z.number().int().positive(),
       stacks: z.boolean().optional(),
+      tribe: TribeSchema.optional(), // tribe-scoped (Elderhorn: Beast Rallies + Echoes only)
     }).strict(),
     z.object({
       families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
       factor: z.number().int().min(2),
     }).strict(),
   ]).optional(),
+  shoutExtraAura: z.number().int().positive().optional(), // Orivax: board-aura Shout extras (see CardDef)
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   celestial: z.boolean().optional(), // alignment-bearing (Dawn/Dusk/Eclipse) — drives the alignment HUD
@@ -837,6 +840,8 @@ z.object({ kind: z.literal('runeDeep'), tier: z.number().int().min(1).max(7), ev
 z.object({ kind: z.literal('runeGuidingCandle'), count: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('runeMuster') }).strict(),
 z.object({ kind: z.literal('runeFoundry'), per: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeVoicekeeper'), per: z.number().int().positive(), tribe: TribeSchema }).strict(), // Rune of the Voicekeeper (2026-10-07)
+z.object({ kind: z.literal('runeEquip'), equipmentId: z.string().min(1) }).strict(), // rune-owned Equipment (2026-10-07)
 z.object({ kind: z.literal('runeCorruptedTome') }).strict(),
 z.object({ kind: z.literal('runeGroveweaver') }).strict(),
 z.object({ kind: z.literal('runeSharedPour') }).strict(),

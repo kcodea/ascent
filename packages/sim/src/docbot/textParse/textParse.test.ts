@@ -136,7 +136,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // Pummel." (two rule-shaped texts). The Set 3 Menagerie parses fully.
 // 2026-10-03 (Rune of Drakko): 117 → 118, CONSCIOUSLY. "Get a Drakko. Drakko is a Dragon and a Spirit this game."
 // is a rule-shaped text (a run-wide type override) the grammar does not parse.
-const UNRESOLVED_CAP = 118;
+// 2026-10-07 (the Dragon rune batch): 118 → 119, CONSCIOUSLY. Rune of the Wise Armory's "Equip Spell Generator (2): give
+// your spells +1/+1 and get a random spell that gives stats." (the owner's wording; the grammar has no rule for a random
+// spell filtered by "that gives stats"). The other five runes and the Firebird parse fully.
+const UNRESOLVED_CAP = 119;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

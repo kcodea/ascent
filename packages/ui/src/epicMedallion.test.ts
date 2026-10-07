@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EPIC_MEDALLION_SRC, EPIC_UNITS, isEpicUnit } from './epicMedallion';
+import { EPIC_MEDALLION_SRC, EPIC_UNITS, epicMedallionSrc, isEpicUnit } from './epicMedallion';
 
 describe('isEpicUnit', () => {
   it('flags the four named units (trigger/cast multipliers)', () => {
@@ -12,6 +12,9 @@ describe('isEpicUnit', () => {
     for (const id of ['uron', 'zyff', 'echowarden', 'attachmentconductor', 'b2_elderhorn', 'd2_orivax', 'dw_edward', 'ce3_constellationprime']) {
       expect(isEpicUnit(id), id).toBe(true);
     }
+  });
+  it('Elderhorn and Orivax wear the same default epic gem as Drakko / Sylus (owner 2026-10-07)', () => {
+    for (const id of ['b2_elderhorn', 'd2_orivax', 'drummer', 'sylus']) expect(epicMedallionSrc(id), id).toBe(EPIC_MEDALLION_SRC);
   });
   it('is false for ordinary units and nonsense', () => {
     expect(isEpicUnit('taurus')).toBe(false);

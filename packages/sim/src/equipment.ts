@@ -266,6 +266,7 @@ export function equipmentText(def: EquipmentDefinition, version: 'plain' | 'gild
  *  deliberately outlives its source. */
 export function equipmentSourceAlive(run: Pick<RunState, 'board' | 'shop'>, g: GrantedEquipment): boolean {
   if (g.sourceKind === 'starform') return run.shop.some((o) => o.starform && g.sourceUids.includes(o.uid));
+  if (g.sourceKind === 'rune') return true; // a rune-owned Equipment has no body: owning the rune IS the source
   return g.sourceUids.some((uid) => run.board.some((c) => c.uid === uid));
 }
 
@@ -325,6 +326,37 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
   // "Select it automatically if the player had no active Equipment" — never steal a live selection.
   if (!e.selectedEquipmentId) e.selectedEquipmentId = def.id;
   return granted;
+}
+
+/**
+ * RUNE-OWNED EQUIPMENT (owner batch 2026-10-07) — grant `equipmentId` from an owned RUNE. The rune path's single
+ * write, used by the rune's purchase (`runeEquip` reward) and by every Start-of-Turn rebuild, so the Equipment is
+ * held for the rest of the run with no body behind it (`sourceKind: 'rune'`, empty `sourceUids`). A rune is never
+ * gilded, so the entry is plain. Idempotent: an Equipment already held (a second copy of the rune) collapses into
+ * the one entry, exactly as duplicate minion sources do. Selected automatically only when nothing else is.
+ */
+export function grantRuneEquipment(run: RunState, runeId: string, equipmentId: string): GrantedEquipment | undefined {
+  if (!EQUIPMENT_INDEX[equipmentId]) return undefined;
+  const e = ensure(run);
+  const existing = e.available.find((g) => g.equipmentId === equipmentId);
+  if (existing) return existing;
+  const granted: GrantedEquipment = {
+    equipmentId,
+    version: 'plain',
+    sourceKind: 'rune',
+    sourceRuneId: runeId,
+    sourceUids: [],
+    grantedTurn: run.wave,
+    ownChargeSpent: false,
+  };
+  e.available.push(granted);
+  if (!e.selectedEquipmentId) e.selectedEquipmentId = equipmentId;
+  return granted;
+}
+
+/** Re-grant every rune-owned Equipment (`RunState.runeEquipment`), in purchase order. Called by the rebuild. */
+export function syncRuneEquipment(run: RunState): void {
+  for (const r of run.runeEquipment ?? []) grantRuneEquipment(run, r.runeId, r.equipmentId);
 }
 
 /**
@@ -421,6 +453,8 @@ export function rebuildEquipment(run: RunState): ReequipCue[] {
   }
   // The Starform's own Equipment rides the token, not a body: re-granted here when the token survived the turn.
   syncStarDestroyer(run);
+  // RUNE-OWNED Equipment (2026-10-07) has no body at all: owning the rune re-grants it every turn, after the board's.
+  syncRuneEquipment(run);
   const e = run.equipment;
   // Amplified stacks survive the turn boundary for every Equipment the player STILL holds; a stack on an
   // Equipment whose every source left the board goes with it.

@@ -95,6 +95,8 @@ export {
   BASE_EQUIPMENT_ACTIVATIONS, equipmentCostOf, equipmentParams, equipmentSourceAlive, equipmentState,
   equipIsNews, equipmentText, equipmentChargesOf, equipmentOwnChargeOf, equipmentPool, equipmentUsesLeft, holdsEquipment,
   rebuildEquipment, selectEquipment, selectedEquipment, selectedEquipmentDef, spendEquipmentCharge, syncStarDestroyer,
+  // RUNE-OWNED Equipment (owner batch 2026-10-07): the rune path's grant + its rebuild sync.
+  grantRuneEquipment, syncRuneEquipment,
   // AMPLIFIED (owner design 2026-09-16): the blue-charge read + the two rune writers + the activation consumer.
   EQUIPMENT_AMPLIFY_MAX, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf, amplifyEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
   calibrationPendingOf, armCalibration, consumeCalibration, equipmentWillAmplify, equipmentPermanentlyAmplified, quickReleaseApplies, unusedEquipmentCount,

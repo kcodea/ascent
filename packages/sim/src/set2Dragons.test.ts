@@ -29,7 +29,7 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(set2Dragons.every((c) => !c.spell)).toBe(true);
     // Two of them since 2026-08-20: the Brood Whelp, plus Skybound Ascendant from the RUNE-ONLY batch —
     // `token: true` is how a forge-only minion stays out of every shop roll while still resolving in the set.
-    expect(set2Dragons.filter((c) => c.token).map((c) => c.id).sort(), 'the Dragon tokens').toEqual(['d2_ascendant', 'd2_broodwhelp']);
+    expect(set2Dragons.filter((c) => c.token).map((c) => c.id).sort(), 'the Dragon tokens').toEqual(['d2_ascendant', 'd2_broodwhelp', 'd2_firebird']); // + Firebird 2026-10-07 (forge-only, Rune of the Flaming Dragon)
     expect(run).toBeTruthy();
   });
 
@@ -532,33 +532,25 @@ describe('set 2 — Earthbreaker/Scalechanter (owner rework 2026-08-18)', () => 
   });
 });
 
-describe('set 2 — Orivax installs a permanent global mode', () => {
-  it('Chorus: adds a permanent extra Shout trigger, and it compounds a played Shout', () => {
+describe("set 2 — Orivax's LEGACY run modes (old saves / replays)", () => {
+  // Orivax is a board aura since 2026-10-07 (elderhornOrivaxAuras.test.ts). Its old Choose One factories stay so a
+  // save or replay that installed a mode keeps it; pin that the installed modes still resolve.
+  it('Chorus (`shoutExtraAlways`): a played Shout fires twice', () => {
     let s: RunState = {
-      ...createRun(7), tier: 7, phase: 'recruit', embers: 60,
-      board: [minion('mm', 'd2_matriarch', 'dragon', 4, 7)], // pays +2 Attack per Shout FIRE
-      hand: [minion('ox', 'd2_orivax', 'dragon', 10, 14), minion('sh', 'd2_chronicler', 'dragon', 3, 5)],
+      ...createRun(7), tier: 7, phase: 'recruit', embers: 60, shoutExtraAlways: 1,
+      board: [minion('mm', 'd2_matriarch', 'dragon', 4, 7)], hand: [minion('sh', 'd2_chronicler', 'dragon', 3, 5)],
     };
-    s = reduce(s, { type: 'play', uid: 'ox' });
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // Chorus
-    expect(s.shoutExtraAlways).toBe(1);
-    // now a played Shout fires TWICE, so Matriarch pays its +1 Attack twice = +2 (it was +2 Attack a fire
-    // before the 2026-08-07 rework to a flat +1/+1 — the DOUBLING is what this test pins, not the magnitude)
-    const before = s.board.find((c) => c.uid === 'mm')!.attack;
+    const before = s.board[0]!.attack;
     s = reduce(s, { type: 'play', uid: 'sh' });
-    const mm = s.board.find((c) => c.uid === 'mm')!;
-    expect(mm.attack - before).toBe(2);
+    expect(s.board.find((c) => c.uid === 'mm')!.attack - before).toBe(2);
   });
 
-  it('Spellweave: the first spell each turn casts 3 times (later spells single)', () => {
+  it('Spellweave (`spellFirstMultEachTurn`): the first spell each turn casts 3 times (later spells single)', () => {
     let s: RunState = {
-      ...createRun(7), tier: 7, phase: 'recruit', embers: 60,
+      ...createRun(7), tier: 7, phase: 'recruit', embers: 60, spellFirstMultEachTurn: 3,
       board: [minion('t', 'd2_chronicler', 'dragon', 3, 5)],
-      hand: [minion('ox', 'd2_orivax', 'dragon', 10, 14), spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
+      hand: [spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
     };
-    s = reduce(s, { type: 'play', uid: 'ox' });
-    s = reduce(s, { type: 'chooseOne', index: 1 }); // Spellweave
-    expect(s.spellFirstMultEachTurn).toBe(3);
     const t0 = s.board.find((c) => c.uid === 't')!;
     const [a0, h0] = [t0.attack, t0.health];
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 't' });
@@ -567,16 +559,6 @@ describe('set 2 — Orivax installs a permanent global mode', () => {
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 't' });
     const t2 = s.board.find((c) => c.uid === 't')!;
     expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([2, 3]); // second spell single
-  });
-
-  it('GILDED Orivax gains BOTH modes from one play', () => {
-    const gox = { ...minion('ox', 'd2_orivax', 'dragon', 20, 28), golden: true };
-    let s: RunState = { ...createRun(7), tier: 7, phase: 'recruit', embers: 60, board: [], hand: [gox] };
-    s = reduce(s, { type: 'play', uid: 'ox' });
-    // a golden minion still opens the choose prompt; pick either — both apply
-    if (s.chooseOne) s = reduce(s, { type: 'chooseOne', index: 0 });
-    expect(s.shoutExtraAlways).toBe(1); // Chorus applied
-    expect(s.spellFirstMultEachTurn).toBe(3); // AND Spellweave applied
   });
 });
 

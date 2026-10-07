@@ -1874,6 +1874,20 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeHeavyHand' },
     sets: ['set3'],
   },
+  // ── OWNER BATCH 2026-10-07: the Dragon runes (Basic half). ──
+  {
+    // A `shout` THRESHOLD at `per: 1` (the Merchant's Chorus shape) paying the `tribe` buff (Compounding Wages'
+    // shape: your Dragons on the board AND in hand, permanent, in the Shop). CROSS-PHASE (R-SHOUT-TRIGGER-01): a
+    // real-time combat Shout fire pays the side's living Dragons +3/+2 for that fight, the moment it fires
+    // (`QuestCombatMods.shoutMeters` buff — the Drake Skull / Starsong combat precedent).
+    id: 'rune_echoing_shouts',
+    tribes: ['dragon'], // TRIBE GATE: the text names Dragons
+    name: 'Rune of the Echoing Shouts',
+    cost: 3,
+    text: 'When you trigger a **Shout**, give your **Dragons +3/+2**.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 1, buff: { target: 'tribe', tribe: 'dragon', attack: 3, health: 2 } },
+    sets: ['set2'], // Dragons are a Set 2 tribe (Set 1 is disabled; not in Set 3)
+  },
 ];
 
 /**
@@ -3836,6 +3850,66 @@ export const EPIC_RUNES: RuneDef[] = [
     // The override lands FIRST, so the granted copy arrives already typed (its arrival watchers read Dragon / Spirit).
     reward: { kind: 'multi', rewards: [{ kind: 'cardTribes', cardId: 'drummer', tribes: ['dragon', 'spirit'] }, { kind: 'grant', cards: ['drummer'] }] },
     sets: ['set2', 'set3'],
+  },
+  // ── OWNER BATCH 2026-10-07: the Dragon runes (Epic half) + the Wise Armory. ──
+  {
+    // A `shout` THRESHOLD paying a named card (`grantCards`, the Deep Feast shape). Cross-phase like the Chorus:
+    // combat Shout fires advance the same meter and a mid-fight trip pays the Whelp into the hand.
+    id: 'rune_whelps',
+    tribes: ['dragon'], // TRIBE GATE: it grants a Dragon
+    name: 'Rune of the Whelps',
+    cost: 3,
+    epic: true,
+    text: 'When you trigger **3 Shouts**, get a **Brood Whelp**.',
+    previewCards: ['d2_broodwhelp'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantCards: ['d2_broodwhelp'] },
+    sets: ['set2'],
+  },
+  {
+    // A sell-Dragon meter. Every third Dragon sold hands over a PLAIN copy of one of those three, picked off the run
+    // cursor: the Voicekeeper minion's and Rune of the Collector's copy rule (base stats, never gilded).
+    id: 'rune_voicekeeper',
+    tribes: ['dragon'], // TRIBE GATE: the text names Dragons
+    name: 'Rune of the Voicekeeper',
+    cost: 2,
+    epic: true,
+    text: 'When you sell **3 Dragons**, get a copy of one.',
+    reward: { kind: 'runeVoicekeeper', per: 3, tribe: 'dragon' },
+    sets: ['set2'],
+  },
+  {
+    // A grant rune for a forge-only body (the Rune of Bucky shape). Firebird casts Dragonflame on every Shout.
+    id: 'rune_flaming_dragon',
+    tribes: ['dragon'], // TRIBE GATE: it grants a Dragon
+    name: 'Rune of the Flaming Dragon',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Firebird**.',
+    previewCards: ['d2_firebird'], // text names it — the forge hover shows the card
+    synergy: ['dragon', 'shout', 'spells'], // the text names only the body; its synergies are the Firebird's
+    reward: { kind: 'grant', cards: ['d2_firebird'] },
+    sets: ['set2'],
+  },
+  {
+    // RUNE-OWNED EQUIPMENT (`runeEquip`): the Egg is held for the rest of the run, never tied to a board body.
+    id: 'rune_dragons_egg',
+    tribes: ['dragon'], // TRIBE GATE: the text names Dragons
+    name: "Rune of the Dragon's Egg",
+    cost: 2,
+    epic: true,
+    text: "**Equip Dragon's Egg (2):** Discover a **Dragon**.",
+    reward: { kind: 'runeEquip', equipmentId: 'dragons_egg' },
+    sets: ['set2'],
+  },
+  {
+    // RUNE-OWNED EQUIPMENT (`runeEquip`). No tribe: spells are every run's.
+    id: 'rune_wise_armory',
+    name: 'Rune of the Wise Armory',
+    cost: 3,
+    epic: true,
+    text: '**Equip Spell Generator (2):** give your spells **+1/+1** and get a random spell that gives stats.',
+    reward: { kind: 'runeEquip', equipmentId: 'spell_generator' },
+    sets: ['set2'],
   },
 ];
 

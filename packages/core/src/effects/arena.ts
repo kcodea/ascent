@@ -1725,6 +1725,14 @@ export const ARENA_EFFECTS = {
     arena.castNamedSpell(str(params.spellId));
   },
 
+  /** Firebird (owner batch 2026-10-07) — "When you trigger a Shout, cast Dragonflame": every friendly Shout FIRE
+   *  casts the NAMED spell for real through the phase's cast pipeline (`castNamedSpell`: the shop's `castSpell`,
+   *  combat's `castNamedSpellInCombat`), so it counts as a spell cast and wakes spell watchers; golden = two casts
+   *  (inside `castNamedSpell`). The side/alive guard is the dispatcher's. */
+  onBattlecryCastNamedSpell(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.castNamedSpell(str(params.spellId));
+  },
+
   /** Demon Horse — Rally: PERMANENTLY buff every minion in the Shop (the Staff-of-Guel channel, per the owner's
    *  standing rule that "give minions in the Shop" survives a reroll — ruling 2026-07-25). */
   rallyBuffShopPermanent(arena: EffectArena, params: Record<string, unknown>): void {

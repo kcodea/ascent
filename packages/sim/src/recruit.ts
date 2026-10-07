@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -2890,7 +2890,8 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   //   - Grave Contract / Last Rites / Rune of the Catacomb's first-Echo bonus, scoped to the FIRST shop Echo
   //     each TURN (the shop analogue of combat's per-fight `firstEchoDone`; the two pools are independent —
   //     combat still pays its own first Echo of every fight).
-  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
+  // Elderhorn (owner 2026-10-07): a tribe-scoped additive entry — it reads the dying body's tribe.
+  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id], (t) => isTribe(minion, t));
   const beastRitualExtra = isTribe(minion, 'beast') ? ctx.state.beastRitualExtra ?? 0 : 0;
   let firstEchoBonus = 0;
   if (hasDR && (ctx.state.echoFirstEachCombat ?? 0) > 0 && !ctx.state.echoFirstUsedThisTurn) {
@@ -4207,6 +4208,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onBattlecryBuffSelf(shopArena(ctx.state, self), params);
   },
 
+  /** Firebird (owner batch 2026-10-07): a Shout you trigger in the Shop casts Dragonflame — the one arena body. */
+  onBattlecryCastNamedSpell: (ctx, self, params) => {
+    ARENA_EFFECTS.onBattlecryCastNamedSpell(shopArena(ctx.state, self), params);
+  },
+
   /** Set 2 — Feastmaster Vhal (End of Turn): THIS minion and each adjacent Demon consume a random Shop minion
    *  (owner rework 2026-07-27 — it used to feed only the neighbours). Each eater gains the stats itself. */
   endOfTurnSelfAndNeighboursConsume: (ctx, self, params) => {
@@ -5096,6 +5102,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
       eotRepeatTick(ctx.state, self, sides, a, 0, tick);
     });
+  },
+
+  /** Spell Generator (Rune of the Wise Armory, owner batch 2026-10-07; one Equipment TRIGGER): raise the run's spell
+   *  power (`spellBonus`, the Bubble Crown / Cinderwing channel) by +attack/+health, THEN hand over `count` random
+   *  stat-granting Shop spells (`isStatGrantingSpell` — the one "spell that gives stats" category, owner ruling
+   *  2026-09-23) from the run's tribe-gated spell pool (`runSpells`: archived spells are outside every set pool,
+   *  tokens / Gifts / Rubies are outside the category) at or below the tavern tier. The improve lands first, so the
+   *  spell arrives already reading it. Seeded off the run cursor; a full hand keeps the improve and loses the card. */
+  equipmentSpellPowerAndStatSpell: (ctx, _self, params) => {
+    const a = num(params.attack, 1);
+    const h = num(params.health, 1);
+    ctx.state.spellBonus = { attack: (ctx.state.spellBonus?.attack ?? 0) + a, health: (ctx.state.spellBonus?.health ?? 0) + h };
+    const pool = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier && isStatGrantingSpell(c));
+    conjureToHand(ctx.state, pool, Math.max(1, num(params.count, 1)));
   },
 
   /** Pourman's Keg (one Equipment TRIGGER): cast `count` RANDOM Dwarven Ales through `castSpell`, the real
@@ -11217,6 +11237,26 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
     }
     state.runeFoundry = fd;
   }
+  // RUNE OF THE VOICEKEEPER (owner batch 2026-10-07): "When you sell 3 Dragons, get a copy of one." Every `per`-th
+  // matching sale (board or hand: this is the one sale chokepoint) hands over a PLAIN copy of one of the `per`
+  // sold since the last payout, picked off the run cursor — the Voicekeeper minion's and Rune of the Collector's
+  // copy rule (base stats, never gilded, whatever the sold body carried). All-types bodies count (`isTribe`). One
+  // copy per rune held (threshold family, owner 2026-08-27). Overflow-safe like every earned reward.
+  if (state.runeVoicekeeper && CARD_INDEX[sold.cardId] && !CARD_INDEX[sold.cardId]!.spell && isTribe(sold, state.runeVoicekeeper.tribe)) {
+    const vk = { ...state.runeVoicekeeper, sold: [...state.runeVoicekeeper.sold, sold.cardId] };
+    if (vk.sold.length >= vk.per) {
+      const trio = vk.sold.slice(0, vk.per);
+      vk.sold = vk.sold.slice(vk.per);
+      procRuneId(state, 'rune_voicekeeper');
+      for (let k = 0; k < runeStacksOf(state, 'rune_voicekeeper'); k++) {
+        const rng = makeRng(state.rngCursor);
+        const pick = CARD_INDEX[trio[rng.int(trio.length)]!];
+        state.rngCursor = rng.state();
+        if (pick) grantMinionToHandOrBoard(state, pick, false, true);
+      }
+    }
+    state.runeVoicekeeper = vk;
+  }
   if (state.nextSellBonus) state.nextSellBonus = 0;
   // RUNE OF QUICK RELEASE (Set 3 batch 2): selling an Equip minion (board or hand) arms a 0-cost next Equipment
   // activation this turn — of any Equipment but the sold minion's OWN (owner 2026-09-18: "doesn't discount its
@@ -11371,6 +11411,9 @@ function shoutFireCount(state: RunState, def: CardDef): number {
     const always = state.shoutExtraAlways ?? 0;
     if (always) procRuneId(state, 'rune_choir');
     n += always + (state.shoutExtraTurn ?? 0); // Choir / Hoardwake (permanent) + Demand an Encore (this turn)
+    // Orivax (owner 2026-10-07, "While on board"): the board's Orivaxes add their extras, additively with the
+    // Choir family above — the combat mirror is `ctx.shoutCarryExtras`.
+    n += boardShoutExtras(state.board, (id) => CARD_INDEX[id]);
     // Warm Embers / Opening Act — the FIRST Shout each turn triggers twice (one freebie per turn).
     if (state.shoutFirstDoubleEachRound && !state.shoutFirstUsedThisTurn) {
       state.shoutFirstUsedThisTurn = true;
@@ -13118,10 +13161,52 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
   // shop rally passes through, for the same reason combat hooks everything at `bumpRally`: one definition of
   // "a Rally", never two drifting ones. The reducer consumes `lastRallyFires` per action (the
   // `lastShoutFires` pattern); Rune of the Herding Horn pays inline, as its combat half does.
-  state.lastRallyFires = (state.lastRallyFires ?? 0) + 1;
-  if (isTribe(card, 'spirit')) runeCallAndAnswerShop(state); // RUNE OF CALL AND ANSWER: a Spirit's Shop Rally
-  // One free refresh per copy held (boolean-flag family, owner 2026-08-27 — `flagCopies` is the copy channel).
-  if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += Math.max(1, state.flagCopies?.runeHerdingHorn ?? 1); }
+  // R-RALLY-FORCED-01 (owner 2026-10-07: forced Rallies are boosted): the Rally multipliers fold in here exactly as on
+  // a swing. Each extra re-runs the rallier's OWN on-attack effects and the rally-gated watchers (the combat mirror's
+  // `refireRallyWatchers`: generic ally-attack watchers hear the base fire only), and each extra counts as a Rally.
+  // The welded rallies above pay once, as on a swing.
+  const ownRally = card.keywords.includes('RL') && instanceEffects(card).some((e) => e.on === 'onAttack' && !e.combatOnly);
+  const extras = ownRally ? shopRallyExtras(state, card) : 0;
+  for (let r = 0; r < extras && state.board.includes(card); r++) {
+    for (const watcher of [...state.board]) {
+      const align = alignmentOf(state.board, watcher.uid);
+      for (const effect of instanceEffects(watcher)) {
+        if (effect.on !== 'onAttack' || effect.combatOnly || !alignAllows(effect, align)) continue;
+        if (watcher !== card && !RALLY_WATCHER_EFFECTS.has(effect.do)) continue;
+        const fn = RECRUIT_FACTORIES[effect.do];
+        if (!fn) continue;
+        withRecruitTrigger(
+          ctx,
+          { phase: 'endOfTurn', source: rallySource(watcher), trigger: 'onAttack', ...beatIdentity(`factory:${effect.do}:onAttack`) },
+          () => fn(ctx, watcher, effect.params ?? {}, { minion: card }),
+          { discardIfEmpty: true },
+        );
+      }
+    }
+  }
+  for (let f = 0; f < 1 + extras; f++) {
+    state.lastRallyFires = (state.lastRallyFires ?? 0) + 1;
+    if (isTribe(card, 'spirit')) runeCallAndAnswerShop(state); // RUNE OF CALL AND ANSWER: a Spirit's Shop Rally
+    // One free refresh per copy held (boolean-flag family, owner 2026-08-27 — `flagCopies` is the copy channel).
+    if (state.questFlags?.runeHerdingHorn) { procRuneId(state, 'rune_herding_horn'); state.freeRolls += Math.max(1, state.flagCopies?.runeHerdingHorn ?? 1); }
+  }
+}
+
+/**
+ * How many EXTRA times one Shop Rally fires (R-RALLY-FORCED-01, owner 2026-10-07): the Shop twin of combat's
+ * `rallyCardExtras` + `playerRallyExtras`. Folds the card multipliers on the board (Uron, Elderhorn for a Beast), the
+ * legacy Elderhorn Hunt mode, Law of Teeth (Beasts), War Council's tribe twin and Rune of Adventuring
+ * (`rallyExtraAlways`). Deliberately NOT here, because their own text scopes them to a fight: Rallying Offensive
+ * (`rallyDoubleNext`, "next combat") and Spark Permit / Overclocked Core (`rallyFirstEachCombat`, "each combat").
+ */
+export function shopRallyExtras(state: RunState, card: BoardCard): number {
+  let extra = extraTriggerFires('rally', state.board, (id) => CARD_INDEX[id], (t) => isTribe(card, t));
+  if (isTribe(card, 'beast')) extra += state.beastHuntExtra ?? 0;
+  if (state.questFlags?.lawOfTeeth && isTribe(card, 'beast')) extra += 1;
+  if (state.questTribeRallySlaughter && isTribe(card, state.questTribeRallySlaughter)) extra += 1;
+  const always = state.rallyExtraAlways ?? 0;
+  if (always > 0) { extra += always; procRuneId(state, 'rune_adventuring'); }
+  return extra;
 }
 
 /**

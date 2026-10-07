@@ -10,10 +10,7 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_BEASTS: CardDef[] = [
   {
-    // The tribe capstone: a Choose-One that permanently multiplies one HALF of the Beast trigger suite. Hunt
-    // pumps the aggressive line (Rally + Slaughter), Ritual the Echo line — so it rewards whichever build you
-    // actually assembled. Gilded doubles the chosen mode (2 additional triggers), NOT gain-both (owner
-    // 2026-07-24) — which is why it does not set `chooseBothWhenGolden` the way Orivax does.
+    // The tribe capstone: an aura that multiplies the Beast trigger suite (Rallies + Echoes) while it stands.
     id: 'b2_elderhorn',
     name: 'Elderhorn',
     tribe: 'beast',
@@ -22,19 +19,14 @@ export const SET2_BEASTS: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [],
-    // No flavour names on the options (owner 2026-07-25): "Hunt" / "Ritual" read as extra rules the player had
-    // to decode, when the mechanic is the whole choice. The factory ids keep the names — they're internal, and
-    // renaming them would churn the run-state fields for a display-only change.
-    chooseOne: [
-      { text: 'Your Beast **Rallies** trigger an additional time.',
-        goldenText: 'Your Beast **Rallies** trigger **2 additional** times.',
-        effects: [{ on: 'onPlay', do: 'battlecryGrantBeastHunt', params: { extra: 1 } }] },
-      { text: 'Your Beast **Echoes** trigger an additional time.',
-        goldenText: 'Your Beast **Echoes** trigger **2 additional** times.',
-        effects: [{ on: 'onPlay', do: 'battlecryGrantBeastRitual', params: { extra: 1 } }] },
-    ],
-    text: '**Choose One:** your Beast **Rallies**, or your Beast **Echoes**, trigger an additional time.',
-    goldenText: '**Choose One:** your Beast **Rallies**, or your Beast **Echoes**, trigger **2 additional** times.',
+    // Owner batch 2026-10-07: a BOARD AURA, not a run mode. "While on board" — it works only while Elderhorn is on
+    // your board, like normal card text (it used to be a Choose One that granted the permanent `beastHuntExtra` /
+    // `beastRitualExtra` run modes; those fields and factories stay so old saves and replays still resolve).
+    // ADDITIVE + tribe-scoped through the shared `triggerMultiplier` fold, exactly like Sylus / Uron: every copy
+    // stacks, golden is +2 (owner vocabulary rule 2026-08-28 for "an additional time").
+    triggerMultiplier: { families: ['rally', 'deathrattle'], extra: 1, stacks: true, tribe: 'beast' },
+    text: "Your Beasts' **Rallies** and **Echoes** trigger an additional time.",
+    goldenText: "Your Beasts' **Rallies** and **Echoes** trigger **2** additional times.",
   },
   {
     // A viral Rally whose escalation is EMERGENT: every Beast it buffs learns the rally, and a carrier grants

@@ -225,8 +225,8 @@ describe('The board-fit rule (owner 2026-09-22: "at least 2 of a tribe type" Bas
 
   it('1 Pup: no tag, so the guarantee does not fire and a Beast rune CAN carry the pivot discount', () => {
     let discountedBeast = false;
-    // 80 → 400 seeds on 2026-10-07: the owner balance batch archived 14 runes, which reshuffled the seeded forge offers so the
-    // first 80 seeds happened to miss the case. A sampling window, not a rule: the property is unchanged.
+    // 80 → 300 (Dragon rune batch, 2026-10-07: grew the Set 2 Basic pool) → 400 seeds (owner balance batch, same day:
+    // 14 runes archived): each reshuffled the seeded forge offers. A sampling window, not a rule: the property is unchanged.
     for (let seed = 1; seed <= 400 && !discountedBeast; seed++) {
       const s = openBasic(seed, [pup('a')]);
       if (!s.runeforgeOffer || !s.runeforgeDiscounts) continue;

@@ -11,7 +11,7 @@ import { SET2_KOBOLDS } from './cards/set2/kobolds';
 import { SET2_DWARVES, SET2_DWARF_TOKENS, SET2_DWARF_RUNE_MINIONS } from './cards/set2/dwarves';
 import { SET2_DEMONS } from './cards/set2/demons';
 import { SET2_NEUTRAL } from './cards/set2/neutral';
-import { SET2_DRAGONS } from './cards/set2/dragons';
+import { SET2_DRAGONS, SET2_DRAGON_RUNE_MINIONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
 import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS, SET3_SPELLS, SET3_CELESTIALS } from './cards/set3';
@@ -318,7 +318,7 @@ export const SETS: Record<SetId, SetDef> = {
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) are APPENDED so no existing set-2 position moves.
+    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) are APPENDED so no existing set-2 position moves.
   },
   set3: {
     id: 'set3',

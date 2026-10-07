@@ -27,6 +27,8 @@ const IRREGULAR_CLIP_CATEGORY: Record<string, string> = {
   gamblesfx: 'gamble',
   // The post-game rank screen's four cues share the `rank` fader (no clips committed yet — synth fallbacks).
   rankprogress: 'rank', rankgate: 'rank', rankpromote: 'rank', rankmedal: 'rank',
+  // The final-countdown ticks (owner 2026-10-07): one recorded tick per second, FIVE to ONE, on the `turntick` fader.
+  'turntick-5': 'turntick', 'turntick-4': 'turntick', 'turntick-3': 'turntick', 'turntick-2': 'turntick', 'turntick-1': 'turntick',
 };
 
 /** Numbered-variant bases (`buy1`/`buy2` → `buy`) — the logical clips backed by N files, one picked per play. */

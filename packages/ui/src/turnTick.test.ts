@@ -7,10 +7,11 @@
  * clock's own tick fires it at 5..1 only, never on an infinite clock, so a held clock holds the count with it).
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TURN_TICK_BUILD, turnTickLevel } from './sfx';
+import { TURN_TICK_BUILD, turnTickClip, turnTickLevel } from './sfx';
+import { familyOf } from './audio/clipFamily';
 import { CATEGORY_BUS, CATEGORY_GAINS } from './audio/config';
 
 describe('the final countdown builds from FIVE to ONE', () => {
@@ -20,10 +21,19 @@ describe('the final countdown builds from FIVE to ONE', () => {
     expect(turnTickLevel(1).rate).toBeCloseTo(TURN_TICK_BUILD.rateTo);
   });
 
-  it('every tick is louder and higher than the one before it', () => {
+  it('every tick is louder than the one before it, and never drops in pitch', () => {
     for (let n = 5; n > 1; n--) {
       expect(turnTickLevel(n - 1).vol, `${n - 1} louder than ${n}`).toBeGreaterThan(turnTickLevel(n).vol);
-      expect(turnTickLevel(n - 1).rate, `${n - 1} higher than ${n}`).toBeGreaterThan(turnTickLevel(n).rate);
+      expect(turnTickLevel(n - 1).rate, `${n - 1} not lower than ${n}`).toBeGreaterThanOrEqual(turnTickLevel(n).rate);
+    }
+  });
+
+  it('each second plays its own recorded tick, and every one of them is committed', () => {
+    const audioDir = join(dirname(fileURLToPath(import.meta.url)), 'audio');
+    for (let n = 5; n >= 1; n--) {
+      expect(turnTickClip(n)).toBe(`turntick-${n}`);
+      expect(existsSync(join(audioDir, `turntick-${n}.wav`)), `turntick-${n}.wav`).toBe(true);
+      expect(familyOf(`turntick-${n}`), 'on the turntick fader').toBe('turntick');
     }
   });
 

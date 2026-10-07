@@ -36,6 +36,9 @@ Owner ask (verbatim): "a big clock tick sound happens on each second, essentiall
 ONE (end turn)". Owner picks: the ticks BUILD, the explosion keeps 0:00, and the owner supplies the clip.
 
 - `sfx.turnTick(n)` fires from the countdown's own tick at 5..1 (real clocks only), so a hold holds the count.
-  `turnTickLevel(n)` builds linearly from FIVE to ONE (`TURN_TICK_BUILD`: volume x0.7 to x1, rate 1 to 1.12).
-- Clip slot: `packages/ui/src/audio/turntick.mp3` (or `.wav`), picked up by the audio glob. A synth tock stands
-  in until it exists. Its own `turntick` desk fader (ui bus, 0.5). `warmTurnTick` prefetches it from 10 s left.
+  `turnTickLevel(n)` builds the volume linearly from FIVE to ONE (`TURN_TICK_BUILD`: x0.7 to x1; rate left at 1).
+- One recorded tick per second: the owner's "clock ticking.mp3" has eight ticks one second apart; the first five
+  were sliced with ffmpeg (onset found by silencedetect at -55 dB, 4 ms pre-roll, 0.85 s long with a 0.2 s fade)
+  into `audio/turntick-5.wav` (FIVE) … `turntick-1.wav` (ONE). Hyphenated so the numbered random-variant grouping
+  ignores them; `clipFamily` maps all five onto the new `turntick` desk fader (ui bus, 0.5). A synth tock stands
+  in while a clip decodes; `warmTurnTick` prefetches all five from 10 s left.

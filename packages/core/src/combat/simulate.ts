@@ -20,7 +20,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -46,7 +46,7 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 // Hawkus, Mineral Master) — hears a free Rally (Rune of Rallying, Backbeat, Hunting Bell, `triggerRally`) and
 // each multiplier extra exactly as it hears a real swing. The lane derives the membership behaviourally
 // (`rallyDerivation` in packages/sim/src/docbot/firePaths.ts) and fails when a watcher misses either path.
-const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
+export const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
 /** Rune of Ruins: the flat per-stat grant each landed friendly-Demon hit gives that side's board. */
@@ -1102,6 +1102,9 @@ export function simulate(
       // combat-triggered Shout, nothing consumed. The badge pulse rides `questTrigger` (runeChoir → rune_choir).
       const always = modsFor(side).shoutExtraAlways ?? 0;
       if (always > 0) { extra += always; fireTrigger('runeChoir', side); }
+      // Orivax (owner 2026-10-07, "While on board"): the side's LIVING Orivaxes add their Shout extras to every
+      // combat-triggered Shout, additively with the Choir above (the Shop mirror is `shoutFireCount`).
+      extra += boardShoutExtras(living(side), (id) => cards[id]);
       return extra;
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
@@ -2465,6 +2468,20 @@ export function simulate(
           }
         }
       }
+      // R-RALLY-FORCED-01 (owner 2026-10-07: forced Rallies are boosted): a Rally fired WITHOUT an attack folds every
+      // Rally multiplier exactly as a swing does: the card multipliers (Uron, Elderhorn) and the additive doublers
+      // (Law of Teeth, War Council, Rallying Offensive, Rune of Adventuring, Spark Permit's first Rally). Each extra
+      // re-runs the rallier's OWN on-attack effects and the rally-gated watchers, logs its own Rally line, and counts.
+      const forcedExtras = rallyCardExtras(minion) + playerRallyExtras(minion);
+      for (let r = 0; r < forcedExtras; r++) {
+        emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+        for (const effect of minion.effects) {
+          if (effect.on !== 'onAttack') continue;
+          withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        }
+        refireRallyWatchers(minion);
+      }
+      bumpRally(forcedExtras, side, minion);
     }
     if ((minion.rallyMechAtk ?? 0) > 0) {
       for (const m of boards[side]) {
@@ -2711,7 +2728,8 @@ export function simulate(
     // the board, and was alive when the Deathrattle triggered, so it must still double (owner report
     // 2026-08-21: gilded + Sylus should fire "4 twice, twice"). Outside a defer scope nothing sits at
     // ≤0-not-dead, so this is identical to the old filter for every non-spraying Deathrattle.
-    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id]);
+    // Elderhorn (owner 2026-10-07) is a TRIBE-SCOPED additive entry in the same fold: it reads the dying body's tribe.
+    const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id], (t) => isTribeOf(minion, t, cards));
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     const beastRitualExtra = isTribeOf(minion, 'beast', cards)
       ? (minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0)
@@ -2748,6 +2766,16 @@ export function simulate(
     const first = mods.rallyFirstEachCombat ?? 0;
     if (first > 0 && !firstRallyDone[attacker.side]) { fireTrigger('runeStampede', attacker.side); extra += first; firstRallyDone[attacker.side] = true; }
     return extra;
+  }
+
+  // The CARD-DATA Rally multipliers on the rallier's side (Uron, Elderhorn for a Beast, from `triggerMultiplier`) plus
+  // the legacy Elderhorn Hunt run mode. One definition for the natural swing AND a forced Rally (`fireFreeRally`).
+  function rallyCardExtras(attacker: Minion): number {
+    const huntExtra = isTribeOf(attacker, 'beast', cards)
+      ? (attacker.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+        + beastExtraGain[attacker.side].hunt // a mid-fight Elderhorn re-fire counts from now on
+      : 0;
+    return extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id], (t) => isTribeOf(attacker, t, cards)) + huntExtra;
   }
 
   // A Rally WATCHER on ANOTHER minion (Paragon's `onRallyBuffOnePerTribe`) scales with the number of Rally
@@ -4030,13 +4058,7 @@ export function simulate(
       // Crypt Drake's payout count is unchanged with Uron on board.
       // Elderhorn (Hunt) adds extra fires for BEAST rallies only — tribe-scoped, unlike the board-wide
       // card multipliers (Drakko/Uron) that `extraTriggerFires` reads.
-      const huntExtra = isTribeOf(attacker, 'beast', cards)
-        ? (attacker.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
-          + beastExtraGain[attacker.side].hunt // a mid-fight Elderhorn re-fire counts from now on
-        : 0;
-      const rallyExtra = attacker.keywords.includes('RL')
-        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]) + huntExtra
-        : 0;
+      const rallyExtra = attacker.keywords.includes('RL') ? rallyCardExtras(attacker) : 0;
       for (let i = 0; i < rallyExtra; i++) {
         for (const effect of attacker.effects) {
           if (effect.on !== 'onAttack') continue;

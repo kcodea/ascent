@@ -24,9 +24,9 @@ import { chooseBothText } from './cardText';
 import { useGame } from './store';
 import { descTextOf, mount, plainOf } from './renderedText.mount';
 
-/** The three live (Both) sources, each as {run flags, instance, card}. */
+/** The live (Both) sources, each as {run flags, instance, card}. A golden Orivax (`chooseBothWhenGolden`) was the
+ *  third until 2026-10-07, when Orivax became a board aura with no Choose One. */
 const SOURCES = [
-  { what: 'a golden Orivax (chooseBothWhenGolden)', id: 'd2_orivax', run: {} as Partial<RunState>, golden: true },
   { what: "Facetwright under its rune", id: 'facetwright', run: { runeFacetwright: true } as Partial<RunState>, golden: false },
   { what: 'Veinbreaker under the Rune of the Unbroken Vein', id: 'k_veinbreaker', run: { runeUnbrokenVein: true } as Partial<RunState>, golden: false },
 ] as const;
@@ -129,7 +129,7 @@ describe('(Both) — every render chain agrees', () => {
   });
 
   it('COMBAT chain (Unit) prints the same string as the hand chain', () => {
-    const s = SOURCES[0]!; // a golden Orivax is the one (Both) source that reaches the board as a body
+    const s = SOURCES[0]!; // Facetwright under its rune, on the board as a body
     const run = runFor(s.run);
     const inst = instOf(s.id, s.golden);
     const def = CARD_INDEX[s.id]!;

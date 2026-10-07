@@ -80,14 +80,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // consequence; the spell it casts announces itself through the normal cast channel.
   'factory:battlecryCastNamedSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGildTarget:onPlay': { policy: 'ownBeat', family: 'shout' },
-  'factory:battlecryGrantBeastHunt:onPlay': { policy: 'ownBeat', family: 'shout' },
-  'factory:battlecryGrantBeastRitual:onPlay': { policy: 'ownBeat', family: 'shout' },
-  'factory:battlecryGrantFirstSpellMult:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantKeyword:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantRandomSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantRandomSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // River Drake: sell → a random Spell
-  'factory:battlecryGrantShoutExtra:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Gemline Martyr -> Veinstorm
   'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy

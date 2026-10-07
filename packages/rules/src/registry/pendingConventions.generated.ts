@@ -964,13 +964,14 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-multiplier-gilded",
-    "title": "Trigger multipliers · 5 carriers",
+    "title": "Trigger multipliers · 6 carriers",
     "statement": "Gilded multipliers count double. Stacking copies add up; non-stackers use their best copy; the two pools add together. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "multipliers",
     "currentBehaviour": "extraTriggerFires: contribution = extra × (golden ? 2 : 1); stacking summed, non-stacking best, summed + best returned.",
-    "cardText": "Carriers: Chronos · Drakko · Sylus · Uron, Oathbringer · Zyff, the Betrayer",
+    "cardText": "Carriers: Elderhorn · Chronos · Drakko · Sylus · Uron, Oathbringer · Zyff, the Betrayer",
     "example": "a gilded Sylus (stacking, extra 1) beside a plain Uron (non-stacking) grants 2 + 1 = 3 extra fires for a shared family.",
     "contentIds": [
+      "b2_elderhorn",
       "chronos",
       "drummer",
       "sylus",

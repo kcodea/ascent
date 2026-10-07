@@ -9,7 +9,7 @@
  * KEEP THIS MODULE OFF THE REDUCER PATH — it is capture/replay metadata, not run state. Nothing in
  * reducer.ts / recruit.ts may import it (it imports THEM, one-way).
  */
-import { combatSide, socTwilightExtraFires, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot, type PresentationBatch } from '@game/core';
+import { combatSide, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot, type PresentationBatch } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
@@ -456,7 +456,7 @@ export function boardPowerOf(view: Pick<ShopView, 'board'>, wave: number): numbe
  * New recordings carry the exact figure and never come through here.
  */
 export function oddsInputFromCombatFrame(
-  frame: Pick<CombatFrame, 'initial' | 'enemyScalers' | 'opponent'>,
+  frame: Pick<CombatFrame, 'initial' | 'enemyScalers' | 'opponent'> & { events?: CombatFrame['events'] },
   view: ShopView | null,
 ): CombatOddsInput {
   const poolIds = poolOf(view ?? {}).all.map((c) => c.id);
@@ -476,12 +476,13 @@ export function oddsInputFromCombatFrame(
   // (pinned in `replayOdds.test.ts`), so the view stands in for the run.
   const run = view as unknown as RunState;
   const playerState = playerCombatSideState(run);
-  // One extra pass per Twilight COPY (`socTwilightExtraFires`, the definition combat's pass consults) — a second
-  // copy used to triple minion effects in combat but only double these (reviewer 2026-09-21).
-  const twilightMult = 1 + socTwilightExtraFires({ runeTwilight: !!run.questFlags?.runeTwilight, flagCopies: run.flagCopies });
-  const fleeting = run.fleetingVigor && (run.fleetingVigor.attack !== 0 || run.fleetingVigor.health !== 0)
-    ? { attack: run.fleetingVigor.attack * twilightMult, health: run.fleetingVigor.health * twilightMult }
-    : null;
+  // The next-combat banks ride `playerState.questMods` and `simulate` applies them (2026-10-07). A recording from
+  // BEFORE that change has its banked Imps and keywords already in `initial` (the reducer pre-baked them and only
+  // Fleeting Vigor was rewound), so for one of those the two re-applied banks are dropped. A new recording's
+  // `initial` is the pre-bank board and opens with a `bankedCast` marker.
+  if (!(frame.events ?? []).some((e) => e.type === 'bankedCast')) {
+    playerState.questMods = { ...playerState.questMods, bankedImps: undefined, bankedKeywords: undefined };
+  }
   const player = overlayRoster(frame.initial.player, playerBoardMinions(run.board), (m, snap, fromBoard) => {
     // Back out the live auras `simulate` applied to the starting bodies (it re-applies them from the side state).
     const def = CARD_INDEX[snap.cardId];
@@ -489,8 +490,7 @@ export function oddsInputFromCombatFrame(
     if (defIsTribe(def, 'undead') || m.universalTribe) { m.attack = Math.max(0, m.attack - playerState.undeadAtk); m.health -= playerState.undeadHp; }
     // Rune of the Grim Toast (Set 3 design pass): a non-Undead Dwarf carried the whole Aura (buy Attack included).
     else if (playerState.questMods.runeGrimToast && defIsTribe(def, 'dwarf')) { m.attack = Math.max(0, m.attack - playerState.undeadAtk - playerState.undeadBuyAtk); m.health -= playerState.undeadHp; }
-    // Fleeting Vigor covered the run board only — not the Imps appended after it.
-    if (fleeting && fromBoard) { m.attack += fleeting.attack; m.health += fleeting.health; }
+    void fromBoard; // (Fleeting Vigor is re-applied by `simulate` from `questMods.fleetingVigor` now)
   });
   const foe = replayFoeSeat(view, frame.opponent);
   // `enemyScalers` grew field by field (2026-08 → 09); an older recording carries a subset, so every read

@@ -15,7 +15,8 @@ export type MomentKind =
   | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'shout' | 'toHand' | 'handBuff' | 'maxGold' | 'improve'
   | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura'
   | 'questTrigger' | 'questComplete'
-  | 'pummelTrigger';
+  | 'pummelTrigger'
+  | 'bankedCast';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -83,6 +84,9 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // crimson hit burst). Paced on its own `pummelTrigger` key, tuned equal to `dmg`, so the clock holds a
     // leading fire (and the death riding in it) like the hit it belongs to.
     case 'pummelTrigger': return 'pummelTrigger';
+    // A NEXT-COMBAT SPELL resolving at Start of Combat (owner ask 2026-10-07): its own beat, so the spell card can
+    // read before its effect (the buff / keyword / summon / Weaken behind it) lands. Paced on its own key.
+    case 'bankedCast': return 'bankedCast';
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
     default: return 'damage';

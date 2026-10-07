@@ -417,11 +417,14 @@ describe('combatContext mirrors the reducer’s faceOmen preparation', () => {
     expect('poolIds' in prep.side).toBe(false);
   });
 
-  it('pre-bakes the banked Start-of-Combat payouts exactly as the reducer does', () => {
+  it('carries the banked Start-of-Combat payouts in the side mods, exactly as the reducer does (2026-10-07)', () => {
+    // The banks are no longer pre-baked into the bodies (that would double them now `simulate` applies them): they
+    // ride `side.questMods`, the same channel the reducer's real fight and every snapshot of the board use.
     const s = run({ board: [body('a', 'stray')], fleetingVigor: { attack: 2, health: 3 }, pendingSCImps: 2 });
     const prep = friendlyCombatSideOf(s);
-    expect(prep.bodies[0]).toMatchObject({ attack: CARD_INDEX['stray']!.attack + 2, health: CARD_INDEX['stray']!.health + 3 });
-    expect(prep.bodies.filter((m) => m.cardId === 'impscrap')).toHaveLength(2);
+    expect(prep.bodies[0]).toMatchObject({ attack: CARD_INDEX['stray']!.attack, health: CARD_INDEX['stray']!.health });
+    expect(prep.bodies.filter((m) => m.cardId === 'impscrap')).toHaveLength(0);
+    expect(prep.side.questMods).toMatchObject({ fleetingVigor: { attack: 2, health: 3 }, bankedImps: 2 });
     // And the run is untouched — the banks are spent by the REAL fight, not by looking.
     expect(s.fleetingVigor).toEqual({ attack: 2, health: 3 });
     expect(s.pendingSCImps).toBe(2);

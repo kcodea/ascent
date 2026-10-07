@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Spells that set up the next fight (like Weaken and Rallying Offensive) now work for your opponents too, and every one shows a cast at Start of Combat.',
+        details: [
+          'Fleeting Vigor, Field Maneuvers, Last Stand, Executioner\'s Edge, Open the Gates, Marked Target and Rallying Offensive now carry over on an opponent\'s board, like Weaken already did.',
+          'Marked Target gives Taunt to the right-most minion of whoever the caster is fighting.',
+          'At Start of Combat the spell card appears, then its effect lands. Your casts show on your side. An opponent\'s casts show on the right side of the screen.',
+          'A spell only works in the fight it was cast for. A board that comes back in a later round does not cast it again.',
+          'Opponents now fight each other with their full boards: their runes, quests and spells all count, not just their minions.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Rune of Beastial Swarm now triggers when a Beast that Rises or Rebirths dies.',
         details: [
           'A death before a Rise or Rebirth is a real death, so the rune pays your other Beasts and counts toward its Avenge (2).',

@@ -132,6 +132,10 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   { key: 'system:startOfCombat:fleetingVigor', users: ['fleeting-vigor'] },
   { key: 'system:startOfCombat:pendingKeywords', users: ['field-maneuvers', 'last-stand', 'executioners-edge'] },
   { key: 'system:startOfCombat:pendingImps', users: ['open-the-gates'] },
+  // THE START OF COMBAT CAST BEAT (owner ask 2026-10-07): every next-combat spell, for whichever side banked it,
+  // announces itself as the fight opens (core `bankedOpeners.ts`, the combat `bankedCast` event, stamped with this
+  // key) and its effect lands behind it.
+  { key: 'system:startOfCombat:bankedCast', users: ['fleetingvigor', 'fieldmaneuvers', 'laststand', 'executionersedge', 'openthegates', 'markedtarget', 'rallyoffensive', 'weaken', 'decoysigil', 'summoningbulwark', 'sp_solidground', 'sp_containmentrune', 'sp_stoleninitiative', 'bloodlust', 'sp_partingcry', 'sp_closedcasket', 'preemptive'] },
   // An End-of-Turn Discover that auto-resolves (Moira re-firing Black Belt Brian) grants its pick on this beat,
   // so it coalesces into the hand during End-of-Turn playback instead of at the combat hand-off.
   { key: 'system:eotDiscover:grant', users: ['blackbelt'] },

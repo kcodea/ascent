@@ -122,20 +122,16 @@ describe('legacy defect (b): fightScore falls back to the procedural threat curv
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-describe('legacy defect (c): lobby combat builds a TIER-ONLY combat context; the reducer fight carries the run', () => {
-  const TIER_ONLY = /combatSide\(\{ tier: \w+\.tier \}\)/g;
-
-  it('lobby/lobby.ts + lobby/runLobby.ts pass `combatSide({ tier })` for BOTH sides at every fight (DEFECT — retire in B1: shared authoritative preparation)', () => {
+describe('legacy defect (c) — RETIRED 2026-10-07 (R-LOBBY-14): lobby combat used a TIER-ONLY combat context', () => {
+  it('lobby/lobby.ts + lobby/runLobby.ts build every seat fight through `seatCombatSide`, never a bare `combatSide({ tier })`', () => {
+    // Owner ruling 2026-10-07 on opponent-vs-opponent fights getting bare sides: "is a significant issue that needs
+    // to be fixed." Flipped consciously, as this suite asks: both files now build each side from the seat's snapshot.
     const lobby = src('lobby/lobby.ts');
     const runLobby = src('lobby/runLobby.ts');
-    const lobbyCalls = lobby.match(/combatSide\([^)]*\)/g) ?? [];
-    const runLobbyCalls = runLobby.match(/combatSide\([^)]*\)/g) ?? [];
-    expect(lobbyCalls.length).toBeGreaterThan(0);
-    expect(runLobbyCalls.length).toBeGreaterThan(0);
-    // EVERY call in both files is the tier-only shape — none passes poolIds / spell power / quest mods / …
-    for (const call of [...lobbyCalls, ...runLobbyCalls]) expect(call).toMatch(TIER_ONLY);
-    expect(lobbyCalls.length).toBe(2);
-    expect(runLobbyCalls.length).toBe(4);
+    for (const file of [lobby, runLobby]) {
+      expect(file.match(/combatSide\(\{ tier: \w+\.tier \}\)/g) ?? []).toEqual([]);
+      expect(file).toContain('seatCombatSide(');
+    }
   });
 
   it('the player\'s reducer fight (`faceOmen`) passes the run-level scalers the lobby drops', () => {

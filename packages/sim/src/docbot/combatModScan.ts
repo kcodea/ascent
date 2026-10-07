@@ -100,6 +100,10 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientBrackusAvenge: { every: 1, tick: 0, attack: 6, health: 6, flag: 'ancientSummitAvenge', label: 'Ancient of Death' }, // Brackus x Death: Avenge (1) so the staged deaths pulse (the hand / Shop payout flag)
   ancientSummitCopy: { label: 'Ancient of War' }, // Brackus x War: needs a Tier 7 on the board (staged via TIER7_STAGE_KEYS)
   ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
+  // The next-combat banks that became per-side mods on 2026-10-07 (Fleeting Vigor, the banked keywords, Open the Gates):
+  fleetingVigor: { attack: 2, health: 2 },
+  bankedKeywords: [{ index: 0, keyword: 'DS' }],
+  bankedImps: 2,
 };
 
 export interface ModScanResult { changed: string[]; inert: string[]; errored: string[]; stagedActive: string[] }

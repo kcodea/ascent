@@ -222,27 +222,31 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     expect(f.aAfter.deathrattlesTriggered).toBe(a.deathrattlesTriggered);
   });
 
-  it('`corrected` vs `shipped` is a real, labelled difference: the enemy seat’s banked Start-of-Combat keyword lands only under `corrected`', () => {
-    // B banked a Divine Shield for its first Spellsword (Field Maneuvers-style `pendingCombatKeywords`). The
-    // player builder stamps it onto the combat body; the shipped served-board path never sees the bank (a
-    // snapshot carries no pending banks) — exactly the discrepancy `FightRules` documents.
+  it('the enemy seat’s banked Start-of-Combat keyword lands under BOTH rule sets (2026-10-07: snapshots carry the banks)', () => {
+    // B banked a Divine Shield for its first Spellsword (Field Maneuvers-style `pendingCombatKeywords`). Until
+    // 2026-10-07 the shipped served-board path never saw the bank (it was spent before the snapshot was taken) —
+    // the discrepancy `FightRules` documented. The bank now rides `questMods.bankedKeywords`, stays armed until the
+    // fight settles, and `simulate` stamps it for whichever side holds it, so `shipped` matches `corrected` here.
     const build = (rules: 'corrected' | 'shipped') => {
       const { a, b } = fixture();
       b.pendingCombatKeywords = [{ uid: b.board[0]!.uid, keyword: 'DS' }];
       const ta = playRecruitTurn(a, PASS, ctx('s0', 1), NOOP_RECORDER, opts);
       const tb = playRecruitTurn(b, PASS, ctx('s1', 1), NOOP_RECORDER, opts);
-      expect(tb.run.pendingCombatKeywords).toEqual([]); // spent by the preparation either way
+      expect(tb.run.pendingCombatKeywords?.length).toBe(1); // still armed while the deferred fight is pending
       return prepareAndFight(ta.run, tb.run, 7, { round: 1, rules });
     };
     const corrected = build('corrected');
     const shipped = build('shipped');
-    expect(corrected.result.initial.enemy[0]!.keywords).toContain('DS');
-    expect(shipped.result.initial.enemy[0]!.keywords).not.toContain('DS');
-    // Both rule sets settle both runs through the same path.
     for (const f of [corrected, shipped]) {
+      // The keyword is rewound out of `initial` and lands as a Start of Combat beat behind the cast marker.
+      const target = f.result.initial.enemy[0]!.uid;
+      expect(f.result.events.some((e) => e.type === 'bankedCast' && e.side === 'enemy' && e.spellId === 'fieldmaneuvers')).toBe(true);
+      expect(f.result.events.some((e) => e.type === 'keyword' && e.target === target && e.keyword === 'DS')).toBe(true);
+      // Both rule sets settle both runs through the same path, and the bank is spent by the settle.
       expect(f.result.result).toBe('lose');
       expect(f.aAfter.wave).toBe(2);
       expect(f.bAfter.wave).toBe(2);
+      expect(f.bAfter.pendingCombatKeywords ?? []).toEqual([]);
       expect(f.aAfter.rightmostSlotBuff).toEqual({ attack: 3, health: 2 });
     }
   });

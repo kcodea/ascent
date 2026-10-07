@@ -1,8 +1,10 @@
 import type { BoardMinion, CombatOutcome, CombatResult, Tribe } from '@game/core';
-import { activeSet, type GauntletBuffs, type SetId } from '@game/content';
+import { activeSet, poolFor, type GauntletBuffs, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { combatSide, makeRng, simulate } from '@game/core';
+import { makeRng, simulate } from '@game/core';
+import { seatCombatSide } from '../boardSide';
+import { setIdOf } from '../cardPool';
 import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
 import { roundLossCap } from '../reducer';
@@ -781,6 +783,9 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
   //
   // Prefers `botSeatDamageMult` (the PACING dial, difficulty-independent) and falls back to `botDamageMult`
   // (the DIFFICULTY dial) so a practice run saved before they were split keeps resolving as it did.
+  // The set pool every seat fight draws its random picks from (the lobby's pinned set, never a Practice tribe
+  // narrowing: the seats use the full set, owner 2026-09-27).
+  const poolIds = poolFor(setIdOf({ setId: lobby.setId })).all.map((c) => c.id);
   const botSeat = lobby.seats.find((s) => s.botSeatDamageMult ?? s.botDamageMult);
   const seatDamageMult = botSeat?.botSeatDamageMult ?? botSeat?.botDamageMult ?? 1;
 
@@ -829,8 +834,12 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
         lobby.encounters.push({ round: lobby.round, a: a.id, b: b.id, outcome: 'draw', damageToA: 0, damageToB: 0, fought: false });
         continue;
       }
-      const r = simulate(boardA.minions, boardB.minions, rng, CARD_INDEX,
-        combatSide({ tier: boardA.tier }), combatSide({ tier: boardB.tier }));
+      // FULL SIDES, not a bare tier (owner ruling 2026-10-07: "is a significant issue that needs to be fixed"): both
+      // seats fight through `seatCombatSide`, the builder the player's own lobby fight uses, so their runes,
+      // quests, scalers and banked next-combat spells apply here exactly as they would against the player.
+      const sideA = seatCombatSide(boardA, lobby.round, poolIds);
+      const sideB = seatCombatSide(boardB, lobby.round, poolIds);
+      const r = simulate(sideA.minions, sideB.minions, rng, CARD_INDEX, sideA.state, sideB.state);
       outcome = r.result;
       // The SAME difficulty multiplier the player's fight uses (see `practiceBotDamageMult`). Applied to
       // seat-vs-seat too, or the bot table whittles itself down at the old trickle rate and a WINNING player
@@ -866,8 +875,11 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
     const board = ghost ? ghost.board : null;
     const mine = bye.id === 's0' ? null : (driverFor(bye, lobby.setId)?.prepare(lobby.round) ?? driverFor(bye, lobby.setId)?.finalBoard?.() ?? null);
     if (bye.id !== 's0' && board && mine) {
-      const r = simulate(mine.minions, board.minions, rng, CARD_INDEX,
-        combatSide({ tier: mine.tier }), combatSide({ tier: board.tier }));
+      // Full sides here too (see the pair loop). The ghost's board is from the round it DIED, so its banks are
+      // already spent (`snapshotBanksLive`): a ghost never re-casts its next-combat spells.
+      const sideMine = seatCombatSide(mine, lobby.round, poolIds);
+      const sideGhost = seatCombatSide(board, lobby.round, poolIds);
+      const r = simulate(sideMine.minions, sideGhost.minions, rng, CARD_INDEX, sideMine.state, sideGhost.state);
       const dmg = Math.min(cap, r.playerDamage);
       hitSeat(bye, dmg);
       driverFor(bye, lobby.setId)?.settle({

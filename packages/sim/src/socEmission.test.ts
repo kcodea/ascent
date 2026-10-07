@@ -158,7 +158,7 @@ describe('PR 8 — Fleeting Vigor SURGES on screen instead of being pre-applied'
     const lc = next.lastCombat!;
     const totals = new Map(lc.initial.player.map((m) => [m.uid, { a: m.attack, h: m.health }]));
     // Only the OPENING block — later in-combat buffs would inflate the total and make this pass by luck.
-    const end = lc.events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff');
+    const end = lc.events.findIndex((e) => e.type !== 'sc' && e.type !== 'buff' && e.type !== 'bankedCast');
     for (const e of lc.events.slice(0, end === -1 ? lc.events.length : end)) {
       if (e.type !== 'buff') continue;
       const t = totals.get(e.target);

@@ -85,7 +85,10 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
   'capture:chosenBoth': { boundary: 'capture', kind: 'shop-only', why: "Rune of Sold Choices' record that a Choose One body resolved EVERY branch when played (owner 2026-09-25). It is read only when the body is SOLD, which happens in the SHOP; a CAPTURED board is only ever fought against and never sold, so there is nothing for it to repeat. The single-branch record (`chosenOption`) is captured already, for the served card's text. The player's own save carries the whole instance" },
   'capture:tempShield': { boundary: 'capture', kind: 'folded', why: 'Maw of the Pit: the granted DS keyword is already in `keywords` (survives); the flag only tells resolveCombat to strip it after the fight, and a served copy has no settle' },
   'capture:tempReborn': { boundary: 'capture', kind: 'folded', why: 'Lord of the Risen: same contract as tempShield for the R keyword (state.ts docblock)' },
-  'capture:tempGrants': { boundary: 'capture', kind: 'folded', why: 'display preview only — faceOmen stamps the REAL grants from pendingCombatKeywords into `keywords` (which survive) and clears these before snapshotBoard runs (state.ts docblock)' },
+  // CORRECTED 2026-10-07 (Problem C of the next-combat audit): this used to claim the real grants survive in
+  // `keywords`. They never did — faceOmen stamped them onto the COMBAT copy only and spent the bank, so a served
+  // board lost Field Maneuvers / Last Stand / Executioner's Edge. They now travel as `questMods.bankedKeywords`.
+  'capture:tempGrants': { boundary: 'capture', kind: 'folded', why: 'display preview only (the gold "(Last Stand)" tag) — faceOmen clears these before snapshotBoard runs. The REAL grant rides the run-level `pendingCombatKeywords` bank, which snapshotBoard captures as `questMods.bankedKeywords` (a board index + keyword; since 2026-10-07) and simulate stamps onto that body for whichever side holds it. It is NOT in the minion keyword list.' },
   'capture:copiedEchoName': { boundary: 'capture', kind: 'display-only', why: 'Gravetwin: the source name for the shop inspect label; the copied effects themselves survive via copiedEcho' },
 
   // ── 'capture': per-turn / per-pass counters the far side correctly starts fresh ──

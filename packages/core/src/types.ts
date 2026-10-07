@@ -2382,6 +2382,26 @@ export interface QuestCombatMods {
   containFirstEnemySummon?: boolean;
   /** Stolen Initiative (spell): after the enemy's FIRST attack, your right-most minion attacks immediately. */
   stolenInitiative?: boolean;
+  // ── NEXT-COMBAT SPELL BANKS, PER SIDE (owner rulings 2026-10-07: "these should carry over", "rallying offensive
+  //    and marked target should work for opponents"). Each was a player-only channel (a `CombatConfig` flag or a
+  //    reducer pre-bake into the player's board, spent before the snapshot was captured), so a served board lost
+  //    it. They now ride the side's mods like Weaken, so `snapshotBoard` captures them and `simulate` applies
+  //    them for WHICHEVER side holds them (`applyBankedOpeners`). All optional: an older snapshot has none.
+  /** Rallying Offensive: this side's Rally effects trigger an extra time this fight. */
+  rallyDouble?: boolean;
+  /** Marked Target: this side's FOE enters with Taunt on its right-most minion (a Start of Combat step). */
+  markFoeRightmostTaunt?: boolean;
+  /** Fleeting Vigor: this side's starting minions gain +attack/+health at Start of Combat (×Twilight). */
+  fleetingVigor?: { attack: number; health: number };
+  /** Field Maneuvers / Last Stand / Executioner's Edge: a keyword stamped onto the starting minion at board
+   *  `index` for this fight only (an index, not a uid: a snapshot carries no uids; both the player's combat
+   *  board and `snapshotBoard` map the run board in order). `spellId` names the granting spell for the beat. */
+  bankedKeywords?: { index: number; keyword: Keyword; critChance?: number; spellId?: string }[];
+  /** Open the Gates: this many Imps join this side's starting board (room permitting, ×Twilight). */
+  bankedImps?: number;
+  /** Pre-emptive Assault: CAPTURED ONLY. The player's own fight still reads `CombatConfig.playerAttacksFirst`;
+   *  nothing applies this for a served board until the owner rules what happens when BOTH sides hold it. */
+  attackFirstNext?: boolean;
   /** Emissary Vale (United Front): Start of Combat, one friendly of each type gains +N/+N (N = the hero's
    *  Tavern Tier when the fight began). Same "one banner per body" rule as Five Banners, just tier-scaled. */
   unitedFront?: number;
@@ -2929,6 +2949,11 @@ export interface MinionSnapshot {
 export type CombatEvent = (
   | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string; rune?: string; heroPower?: true } // `rune` = the RUNE that cast `spellId` (Rune of Spellhide's Start-of-Combat re-cast, the Flooded Vault's free cast), when a rune is the caster: `source` is then the body the cast resolved through, and the presentation stems the spell's effect from the rune's node on the rail (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune if there needs to be a source position"). `heroPower` = the grant came from the HERO's power (an Ancient: Hunch × Death's Avenge), so the presentation anchors it on the hero-power button, never on `source`'s body.
   // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. (`grantsEcho`, the old Rune of Rebirth marker, retired 2026-09-16 — the rune grants the Rebirth KEYWORD now, a plain `keyword` event.) `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
+  // A NEXT-COMBAT SPELL resolving at Start of Combat (owner ask 2026-10-07: "we need to show these spells being cast
+  // in a start of combat beat"): `side` cast `spellId` last shop (×`count` when it was cast more than once). A
+  // presentation marker only: it changes no unit, and the effect it announces follows as ordinary events (a
+  // `buff`, a `keyword`, a `summon`, the Weaken `sc`), or arms for later in the fight (Decoy Sigil, Solid Ground).
+  | { type: 'bankedCast'; side: Side; spellId: string; count?: number }
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
@@ -3144,7 +3169,8 @@ export interface PendingCombatQuest {
 export interface CombatConfig {
   /** Rune Forthcoming / attack-first-next: the player's board strikes first this fight. */
   playerAttacksFirst?: boolean;
-  /** Rallying Offensive: the player's Rally triggers fire twice this fight. */
+  /** Rallying Offensive: the player's Rally triggers fire twice this fight. LEGACY (2026-10-07): the live channel is
+   *  the per-side `QuestCombatMods.rallyDouble`; this flag is still honoured (OR-ed in) for old callers. */
   playerRallyDouble?: boolean;
   /** TUTORIAL ONLY: force the enemy's FIRST attack to target the player minion with this card id, if one is
    *  alive — so a scripted lesson (e.g. "the enemy kills your T-Rex, watch its Echo fire") lands no matter

@@ -649,4 +649,29 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'existing derived jsonb.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/telemetryRankAtStart.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/tools/src/newcomer/newcomerRate.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-NEXTCOMBAT-01',
+    title: 'A next-combat spell spends on the round it was cast for, and only that round',
+    statement:
+      'A board snapshot\'s armed next-combat spells (its banks: Weaken, Fleeting Vigor, Rallying Offensive, Marked '
+      + 'Target, Open the Gates, the banked keywords, Decoy Sigil, Summoning Bulwark, Solid Ground, Containment Rune, '
+      + 'Stolen Initiative; and its one-combat marks: Bloodlust, Parting Cry, Closed Casket) apply ONLY in the fight for '
+      + 'the round they were cast for, which is the snapshot\'s own wave. The same board served in a LATER round (a '
+      + 'recorded seat serving its final board past its own end, a seat whose recording skipped a round, an eliminated '
+      + 'seat\'s ghost) fights without them. A fight never spends them on the shared snapshot: each fight works on its '
+      + 'own copy, so the deferred odds probe and every later fight see the banks exactly as armed. On the player\'s '
+      + 'own run the banks stay armed through the fight and are spent when it settles.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Next-combat spell audit, 2026-10-07 (Problem B: simulate spent one-shot banks on the shared snapshot)', quote: 'this is probably okay as long as they are spent on the turn the player played them' },
+      { kind: 'owner-chat', ref: 'lobby-stale-final-boards ruling, 2026-09-17 (recorded seats keep serving their final board past their own end)', quote: 'nah keep it as is' },
+      { kind: 'code', ref: 'packages/sim/src/boardSide.ts snapshotBanksLive / sideFromSnapshot(fightRound) / seatCombatSide; packages/core/src/combat/bankedOpeners.ts stripNextCombatBanks, stripNextCombatMarks; packages/core/src/combat/simulate.ts (per-fight questMods copy)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-07. Before, `sideFromSnapshot` shared the snapshot\'s `questMods` object and `simulate` '
+      + 'spent Stolen Initiative, Containment and Solid Ground on it in place, and a stale final board or a ghost '
+      + 're-cast every bank it had. Non-lobby pool boards (no round to compare) still apply their banks, as before.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

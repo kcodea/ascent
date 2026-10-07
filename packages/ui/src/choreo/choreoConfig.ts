@@ -63,6 +63,9 @@ export interface ChoreoConfig {
    *  never reaches the clock. Tuned equal to `dmg` so the leading crossing (and a death riding in it) holds
    *  like the hit it belongs to, not the bare 300 fallback. */
   pummelTrigger: number;
+  /** A next-combat spell's Start of Combat CAST beat (`bankedCast`): the hold between the spell card appearing
+   *  and its effect landing, so the card reads first (owner ask 2026-10-07). */
+  bankedCast: number;
   // Overlay lifetimes (divide by combatSpeed only, not by `speed`).
   /** How long a combat damage/heal float lingers before it clears (ms; keep ≥ the floatup CSS anim). */
   floatMs: number;
@@ -93,6 +96,7 @@ const DEFAULTS: ChoreoConfig = {
   // result beats (ms)
   dmg: 460, shield: 460, wardDowngrade: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   pummelTrigger: 460, // = dmg (see the field doc) — a leading crossing reads like the hit it rode in on
+  bankedCast: 620, // ×speed 1.5 ≈ 930ms: the cast preview fades in (150) and lingers before the effect behind it lands
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
   // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem) —
@@ -145,6 +149,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
   questTrigger: 'dmg', questComplete: 'dmg',
+  bankedCast: 'bankedCast', // its own key: the clock keys by primary event TYPE, and the card needs a real read
   pummelTrigger: 'pummelTrigger', // its own key (= dmg): the clock keys by primary event TYPE, so a leading crossing needs a real entry to hold like damage rather than falling to the 300 default
 };
 export function holdMsForKind(kind: MomentKind): number {

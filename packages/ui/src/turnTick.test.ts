@@ -52,4 +52,15 @@ describe('the shop clock fires the count', () => {
     expect(tick.indexOf('sfx.turnTick(next)'), 'inside the real-clock guard').toBeGreaterThan(tick.indexOf('if (!infiniteClockRef.current) {'));
     expect(tick).toContain('sfx.turnExplode();');
   });
+
+  it('the timer flashes gold behind its digits on each of the same five seconds (one-shot, compositor-only)', () => {
+    const timer = src.slice(src.indexOf('const ShopTimer = memo('), src.indexOf('const ChargeGlyph = memo('));
+    expect(timer).toMatch(/s >= 1 && s <= 5 && .*<span key=\{s\} className="sc-tickflash" aria-hidden="true" \/>/);
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'styles.css'), 'utf8');
+    const rule = css.slice(css.indexOf('.statcell.time .sc-tickflash {'), css.indexOf('@keyframes sctickflash'));
+    expect(rule).toContain('z-index: -1');
+    expect(rule, 'plays once per tick, never loops').not.toMatch(/infinite/);
+    const frames = css.slice(css.indexOf('@keyframes sctickflash'), css.indexOf('}', css.indexOf('100%', css.indexOf('@keyframes sctickflash'))));
+    expect(frames, 'animates transform/opacity only').not.toMatch(/box-shadow|filter|background/);
+  });
 });

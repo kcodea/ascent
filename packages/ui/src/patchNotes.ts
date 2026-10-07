@@ -81,6 +81,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'New: a clock tick counts down the last five seconds of every Shop turn.',
         details: [
           'A different clock tick sounds on each of the final five seconds, getting louder from five down to one, then the end-of-turn explosion hits at zero.',
+          'The timer flashes gold behind its numbers on each of those ticks.',
           'The count pauses with the timer, like the charging rune.',
         ],
       },

@@ -455,7 +455,13 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
           <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{goal}</span>
         </span>
       ) : (
-        <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+        <span className="sc-v">
+          {/* THE FINAL-COUNTDOWN FLASH (owner ask 2026-10-07): a gold glow pulses out from behind the digits on each of
+              the last five seconds, with the `turntick` sound. Re-keyed per second so its one-shot replays per tick;
+              it reads the same clock value the tick fires on, so the two land together (and a held clock holds both). */}
+          {s >= 1 && s <= 5 && !(practice && practiceTimer === 0) && <span key={s} className="sc-tickflash" aria-hidden="true" />}
+          {practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}
+        </span>
       )}
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`

@@ -11688,9 +11688,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .app.staged .lobbyrail { transform: translateX(115%); opacity: 0; pointer-events: none; }
 /* The round header above the rail leaves with it (same width, so 115% is the same distance). */
 .app.staged .lobbyrailhead { transform: translateX(115%); opacity: 0; pointer-events: none; }
-.app.staged .lobbyrailhead > * { pointer-events: none; }
-/* The Gauntlet foe's box is a zero-size anchor (see `.gauntletfoe`), so it slides a fixed distance instead of 115%. */
+/* EVERY DESCENDANT goes inert too (owner bug 2026-10-06: "the lobby rail shouldnt be able to be moused over here").
+   `pointer-events: none` on a parent does NOT stop a child that sets its own `auto`, and `.lobbyrail > *` /
+   `.lobbyrailhead > *` do exactly that. `.app` is a 16:9 box, so on a wider window the slid-away rail lands in the
+   visible right-hand margin at opacity 0, where its seats still caught the cursor and opened their scout card over
+   the fight. The open card itself is portaled out of `.app`, so LobbyPanel also closes it on `combatStaged`. */
+.app.staged .lobbyrail *, .app.staged .lobbyrailhead * { pointer-events: none; }
+/* The Gauntlet foe's box is a zero-size anchor (see `.gauntletfoe`), so it slides a fixed distance instead of 115%.
+   Same hover-through as the rail: `.gauntletfoe-runerow` re-enables pointer events for its rune tips. */
 .app.staged .gauntletfoe { transform: translateX(calc(520 * var(--u))); opacity: 0; }
+.app.staged .gauntletfoe * { pointer-events: none; }
 
 /* 1b. THE FOE ARRIVES — the opponent's hero portrait drops onto the Refresh button's anchor (that button is
    inert in combat, so the space is free). Same top-right base point as `.rfbwrap`, so the two occupy the same

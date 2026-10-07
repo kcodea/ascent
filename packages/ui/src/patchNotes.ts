@@ -132,6 +132,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: 'Rune of Duplication now reads "Copy the first Epic Rune you select." It works the same way.',
       },
+      {
+        category: 'Systems',
+        text: "Fixed the lobby rail's player card opening during combat.",
+      },
     ],
   },
   {

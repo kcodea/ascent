@@ -2042,9 +2042,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    family of badge while staying instantly distinguishable from the gold cost coin on the opposite corner.
    Circular like its siblings — `min-width` + a pill radius let a two-digit ×N stretch without going lozenge. */
 .castmult {
-  position: absolute; top: calc(-20 * var(--u)); right: calc(-16 * var(--u));
-  min-width: calc(60 * var(--u)); height: calc(60 * var(--u)); padding: 0 calc(6 * var(--u));
-  border-radius: calc(30 * var(--u)); z-index: 9;
+  /* SIZE (owner-approved 2026-10-07, PR #1971): the SAME diameter + numeral scaling as the shared gold cost coin
+     (`.hpcost, .cost`) — `--coin-d: 46.5`, numeral at half of it — so the ×N badge and the cost coin read as one
+     pair. The seat keeps the old 60u badge's CENTRE (14u in from the right, 10u down), mirroring `.cost`, so the
+     tuner's `multX/Y/Scale` mirror of the cost coin still holds. Only the colour is its own. */
+  --coin-d: 46.5;
+  position: absolute; top: calc(10 * var(--u) - 23.25 * var(--u)); right: calc(14 * var(--u) - 23.25 * var(--u));
+  min-width: calc(var(--coin-d) * var(--u)); height: calc(var(--coin-d) * var(--u)); padding: 0 calc(6 * var(--u));
+  border-radius: calc(var(--coin-d) * 0.5 * var(--u)); z-index: 9;
   /* The coin's three stops are MIXED from one tunable colour (`--cpl-mult-bg`, 🏷️ Card Pills tuner), so picking
      a hue keeps the minted highlight + shade instead of flattening it to a solid disc. Fallbacks are the
      shipped orange, so production renders identically with no vars set. */
@@ -2054,7 +2059,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
     color-mix(in srgb, var(--cpl-mult-bg, #f08a2c) 62%, #000));
   border: calc(3 * var(--u)) solid #1b1d22;
   box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -3px 4px rgba(120, 55, 10, 0.42);
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(29 * var(--u)); line-height: 1;
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--coin-d) * 0.5 * var(--u)); line-height: 1;
   color: var(--cpl-mult-fg, #4a2708); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
   display: grid; place-items: center;
   transform: var(--cpl-mult-t, none); transform-origin: center;

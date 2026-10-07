@@ -64,6 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The coin is a little smaller and sits on the same corner of the card.',
           'A discounted cost now shows the same green coin with a white number that Equipment and Runes use.',
+          'The orange cast count badge on spells (like x2) is now the same size as the cost coin.',
         ],
       },
     ],

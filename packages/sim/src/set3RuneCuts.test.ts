@@ -17,11 +17,12 @@ import { createRun, type RunState } from './index';
  *  Set-3-only runes, so the cut left them in no set — and the owner then ARCHIVED both the same day ("remove
  *  them"), so they are pinned in ownerRulings0924.test.ts, not here. */
 const NAMED: Record<string, readonly SetId[]> = {
+  // ARCHIVED everywhere 2026-10-07 (owner balance batch), so they left this list: Contraband, Gemcutting, Redirection,
+  // Ruby Shrapnel, Shifting Facets, Last Call, the Chef (and the Last Word from TRIBAL below). balanceBatch1007.test.ts pins them.
   // Kobolds
-  rune_contraband: ['set2'], rune_facetwright: ['set2'], rune_gemcutting: ['set2'], rune_lapidary: ['set2'],
-  rune_redirection: ['set2'], rune_ruby_shrapnel: ['set2'], rune_unbroken_vein: ['set2'], rune_shifting_facets: ['set2'],
+  rune_facetwright: ['set2'], rune_lapidary: ['set2'], rune_unbroken_vein: ['set2'],
   // Dwarves ("mykel" is Rune of Mykel, id rune_brisbane)
-  rune_last_call: ['set2'], rune_shared_pour: ['set2'], rune_baal: ['set2'], rune_chef: ['set2'],
+  rune_shared_pour: ['set2'], rune_baal: ['set2'],
   rune_brisbane: ['set2'], rune_runic_exchange: ['set2'],
   // Undead
   rune_pillaging: ['set1', 'set2'], rune_rising_graves: ['set1'], rune_soul_taxes: ['set1', 'set2'],
@@ -31,12 +32,12 @@ const NAMED: Record<string, readonly SetId[]> = {
 
 /** Runes gated to tribes outside Set 3, which were unscoped (every set) before the cut. */
 const TRIBAL = [
-  'rune_summoning', 'rune_brood', 'rune_hoardcalling', 'rune_ashen_payroll', 'rune_last_word', 'rune_runic_hoard',
+  'rune_summoning', 'rune_brood', 'rune_hoardcalling', 'rune_ashen_payroll', 'rune_runic_hoard',
   'rune_burrow', 'rune_glider', 'rune_drake_skull', 'rune_ancient_expenditure', 'rune_clockwork_promotion',
   'rune_night_market', 'rune_muckbroker', 'rune_draconic_curiosity', 'rune_dragons_pantry', 'rune_returning_pack',
   'rune_broodpit', 'rune_stormcalling', 'rune_scales', 'rune_first_claws', 'rune_finality', 'rune_cinder_ledger',
   'rune_wild_hunt', 'rune_food_chain', 'rune_chimerus', 'rune_refreshments', 'rune_dragonscale', 'rune_savagery',
-  'rune_foundry', 'rune_ancient_den', 'rune_ancestral_roar', 'rune_delayed_duplication', 'rune_ascension',
+  'rune_foundry', 'rune_ancient_den', 'rune_ancestral_roar', 'rune_delayed_duplication', /* rune_ascension: NEUTRAL since 2026-10-07 (owner), still set 1 + 2 */
   'rune_bottomless_portrait',
 ];
 
@@ -111,9 +112,10 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
   it('the Set 3 static pool counts: 91 Basic / 83 Epic (owner Set 3 rune list 2026-09-25: 84 / 79 after Engraving Gems moved Epic → Basic, then rune batch 3 +7 / +4; was 119 / 108)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.sets || r.sets.includes('set3'));
     expect(inS3(RUNES)).toHaveLength(109); // 107 → 109 on 2026-09-27 (design pass tranche 5); 102 → 107 on 2026-09-27 (design pass tranche 4); 97 → 102 on 2026-09-27 (design pass tranche 3); 92 → 97 on 2026-09-27 (design pass tranche 2); 87 → 92 on 2026-09-27 (design pass tranche 1); 91 → 87 on 2026-09-27 (design pass tranche 0: −7 cut, +3 restored); 84 → 91 on 2026-09-25 (Set 3 rune batch 3); 83 → 84 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 119 → 83 on 2026-09-25 (set3RuneList.test.ts pins the exact ids)
-    expect(inS3(EPIC_RUNES)).toHaveLength(95); // 94 → 95 on 2026-10-03 (Rune of Drakko); 93 → 94 on 2026-09-27 (design pass tranche 5); 90 → 93 on 2026-09-27 (design pass tranche 4); 88 → 90 on 2026-09-27 (design pass tranche 3); 85 → 88 on 2026-09-27 (design pass tranche 2); 82 → 85 on 2026-09-27 (design pass tranche 1); 83 → 82 on 2026-09-27 (design pass tranche 0: −3 cut, +2 restored); 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
+    expect(inS3(EPIC_RUNES)).toHaveLength(94); // 95 → 94 on 2026-10-07 (Profit Sharing archived everywhere); 94 → 95 on 2026-10-03 (Rune of Drakko); 93 → 94 on 2026-09-27 (design pass tranche 5); 90 → 93 on 2026-09-27 (design pass tranche 4); 88 → 90 on 2026-09-27 (design pass tranche 3); 85 → 88 on 2026-09-27 (design pass tranche 2); 82 → 85 on 2026-09-27 (design pass tranche 1); 83 → 82 on 2026-09-27 (design pass tranche 0: −3 cut, +2 restored); 79 → 83 on 2026-09-25 (Set 3 rune batch 3); 80 → 79 on 2026-09-25: Engraving Gems moved Epic → Basic (owner); 108 → 80 on 2026-09-25
     // 26/28 → 25/27 on 2026-09-24: Full Hand (Basic) and Grave Orbit (Epic) left the cut list for the archive
-    expect(CUT.filter((id) => !isEpic(id))).toHaveLength(25);
-    expect(CUT.filter(isEpic)).toHaveLength(27);
+    // 25/27 → 20/23 on 2026-10-07: eight cut runes archived everywhere (5 Basic, 3 Epic) and Ascension (Epic) made neutral
+    expect(CUT.filter((id) => !isEpic(id))).toHaveLength(20);
+    expect(CUT.filter(isEpic)).toHaveLength(23);
   });
 });

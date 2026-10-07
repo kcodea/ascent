@@ -390,21 +390,6 @@ export const SPELLS: CardDef[] = [
     text: "Set a minion's stats to **20/20**.",
   },
   {
-    // Bank a one-shot Start-of-Combat buff: your minions enter the NEXT combat at +2/+1 (+ spell power on
-    // both stats), spent after that fight (win or lose). Applied to the combat board in `faceOmen`.
-    id: 'fleetingvigor',
-    name: 'Fleeting Vigor',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 1,
-    effects: [{ on: 'cast', do: 'spellPendingSCBuff', params: { attack: 2, health: 1 } }],
-    text: '**Start of combat:** give your minions **+2/+1** (next combat only).',
-  },
-  {
     // Choose One: buff THIS tavern's offers by +2/+4 (rides on each offer, so a buy bakes it in — lost on
     // refresh, kept if frozen), OR spread +1/+1 across 2 random friendly BODIES.
     //
@@ -965,22 +950,6 @@ export const SPELLS: CardDef[] = [
 
   // --- New spells (2026-07-23 batch, tranche B3 — offer / minion manipulation; set-agnostic). ---
   {
-    // Cast on a SHOP offer: it survives rerolls (kept) and costs 1 less. `target: 'any'` for the drag, but it
-    // fizzles on a board minion (the reducer guards it) since only an offer can be kept.
-    id: 'layaway',
-    name: 'Layaway',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    target: 'any',
-    effects: [{ on: 'cast', do: 'spellLayaway', params: { reduce: 1 } }],
-    text: 'Choose a minion in the Shop. **Keep it** through refreshes and reduce its cost by **1**.',
-  },
-  {
     // Return a friendly non-Gilded minion to hand INTACT (keeps its buffs) — replay it for its Battlecry, or
     // just reposition. `targetNoGolden` makes a golden (triple) target fizzle.
     id: 'seconddraft',
@@ -1019,20 +988,6 @@ export const SPELLS: CardDef[] = [
     text: 'Transform a friendly or **Shop** minion into a random minion of the **same tier**. It keeps its **bonus stats**.',
   },
   {
-    // At the start of next combat, the enemy's right-most minion gains Taunt (funnels your attacks into it).
-    id: 'markedtarget',
-    name: 'Marked Target',
-    tribe: 'neutral',
-    tier: 5,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 3,
-    effects: [{ on: 'cast', do: 'spellMarkEnemyTaunt' }],
-    text: "At the start of next combat, give the enemy's **right-most** minion **Taunt**.",
-  },
-  {
     // +4/+4, plus +1/+1 for each Dragon you PLAYED this turn (flat — no spell power, so the printed value stays
     // exact; spellDisplayText greens the +4/+4 to its live total). `any` → warband minion or tavern offer.
     id: 'hoardflame',
@@ -1051,21 +1006,6 @@ export const SPELLS: CardDef[] = [
   },
 
   // --- New spells (2026-07-23 batch, tranche C — Discover-based; set-agnostic). ---
-  {
-    // Discover a minion from your CURRENT tavern tier, locked in hand until next turn (Hourglass Reserve).
-    id: 'hourglassreserve',
-    name: 'Hourglass Reserve',
-    tribe: 'neutral',
-    tier: 2,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    effects: [],
-    discoverOnPlay: { exactCurrentTier: true, lockUntilNextTurn: true },
-    text: '**Discover** a minion from your tier. You **cannot play it until next turn**.',
-  },
   {
     // Discover an Echo (Deathrattle) minion, BORROWED — playing it THIS TURN triggers its Echo and destroys
     // it (never boards). The loan expires at the next turn (owner 2026-07-31): the flag clears and the card
@@ -1112,20 +1052,6 @@ export const SPELLS: CardDef[] = [
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellAverageStats' }],
     text: 'Choose two friendly minions. **Average** their Attack and Health between them.',
-  },
-  {
-    // Reveal 3 random minions from your next opponent's warband, shown on the opponent frame until the fight.
-    id: 'farseersreport',
-    name: "Farseer's Report",
-    tribe: 'neutral',
-    tier: 5,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 3,
-    effects: [{ on: 'cast', do: 'spellScoutNextOpponent', params: { count: 3 } }],
-    text: "**Scout** 3 random minions from your next opponent's warband.",
   },
   {
     // Owner batch 2026-07-31 — set-agnostic (carries into Set 2 like the rest of this file's toolkit).

@@ -85,6 +85,7 @@ const armedRun = (): RunState => ({
   spellDripPer: 5,
   spellDripTick: 3,
   runeSummitTick: 1,
+  runeDeep: 7, runeDeepEvery: 2, runeDeepTick: 1, // Rune of the Deep (2026-10-07): every 2 turns, one setup in
   runeCollector: true,
   collectorBoughtThisTurn: [],
   runeSellRubies: 2, // Rune of Investment (balance 9/23): sells toward the 4th

@@ -59,21 +59,6 @@ export const SET2_SPELLS: CardDef[] = [
     text: '**Choose One:** your Rubies gain **+1 Attack**, or **+1 Health**.',
   },
   {
-    // Open the Gates — cast: bank 3 Imps to enter the next combat on your board (as many as fit the 7-slot cap).
-    // Reuses the Set-1 `impscrap` Imp token (owner ruling). Untargeted.
-    id: 'openthegates',
-    name: 'Open the Gates',
-    tribe: 'neutral',
-    tier: 4,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 3,
-    effects: [{ on: 'cast', do: 'spellSummonImpsNextCombat', params: { count: 3 } }],
-    text: '**Start of combat:** summon an **Imp**, three times (as room allows).',
-  },
-  {
     // Give every tavern minion offer stats equal to your Rubies (base 1/1 + rubyBonus). Untargeted; the printed
     // +1/+1 greens to the live Ruby value via spellDisplayText.
     id: 'veinstorm',
@@ -208,20 +193,6 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Cast **2 Rubies** on all of your minions.',
   },
   {
-    // "Steal" = take the offer into hand for free, exactly as a buy would shape it (offer buffs fold in).
-    id: 'deepdelvewrit',
-    name: 'Deep Delve Writ',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    effects: [{ on: 'cast', do: 'spellStealShop', params: { tribe: 'dwarf', count: 1 } }],
-    text: 'Steal a random **Dwarf** from the Shop.',
-  },
-  {
     id: 'ironcladreq',
     name: 'Ironclad Requisition',
     tribe: 'neutral',
@@ -272,22 +243,6 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Give a minion **+3/+4** twice.',
   },
   {
-    // Owner add 2026-08-15. Rewards a tight board: the chosen minion AND both neighbours, so a centre pick
-    // pays three times and an edge pick only twice.
-    id: 'sp_beefy',
-    name: 'Beefy',
-    tribe: 'neutral',
-    tier: 6,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 4,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellBuffTargetAndNeighbours', params: { attack: 8, health: 8 } }],
-    text: 'Give a minion and its neighbours **+8/+8**.',
-  },
-  {
     // Owner add 2026-08-15. The die face IS the tier — a 2-Gold spell that can hand over a Tier-6 card, or a
     // Tier-1 one. Untargeted; the pull is seeded off the run cursor like every other random grant.
     id: 'sp_gamble',
@@ -303,51 +258,6 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Roll a die. Get a random minion or spell of that Tier.',
   },
 
-  {
-    // Owner add 2026-08-15. Marks a friendly Shout minion: its Shout fires again as it dies next combat.
-    id: 'sp_partingcry',
-    name: 'Parting Cry',
-    tribe: 'neutral', tier: 4, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellMarkPartingCry', params: {} }],
-    text: 'Choose a friendly **Shout** minion. When it dies next combat, trigger its **Shout**.',
-  },
-  {
-    // Owner add 2026-08-15. Front-loads a summon build: the first three bodies arrive already big.
-    id: 'sp_solidground',
-    name: 'Solid Ground',
-    tribe: 'neutral', tier: 3, attack: 0, health: 1, keywords: [], spell: true, cost: 4,
-    effects: [{ on: 'cast', do: 'spellSolidGround', params: { count: 3, attack: 4, health: 4 } }],
-    text: 'The first **3** minions you summon next combat gain **+4/+4**.',
-  },
-  {
-    // Owner add 2026-08-15 (reworked same day): it simply DESTROYS the chosen minion at Start of Combat. The
-    // Echo is the obvious payoff, but because it is a real death everything else that keys off one fires too
-    // (Avenge, friend-death watchers, the Deathrattle tally).
-    id: 'sp_closedcasket',
-    name: 'Closed Casket',
-    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 2,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellMarkClosedCasket', params: {} }],
-    text: 'Choose a minion. **Start of Combat:** destroy it.',
-  },
-  {
-    // Owner add 2026-08-15. Buys a swing out of turn order — queued through the same lane an attack-on-summon
-    // uses, so the running order itself is never rewritten.
-    id: 'sp_stoleninitiative',
-    name: 'Stolen Initiative',
-    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
-    effects: [{ on: 'cast', do: 'spellStolenInitiative', params: {} }],
-    text: "Your **right-most** minion attacks immediately after the enemy's first attack.",
-  },
-  {
-    // Owner add 2026-08-15. Answers a summon build — but it is spent on whatever lands FIRST, token included.
-    id: 'sp_containmentrune',
-    name: 'Containment Rune',
-    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
-    effects: [{ on: 'cast', do: 'spellContainFirstEnemySummon', params: {} }],
-    text: 'Set the first enemy minion summoned next combat to **1/1**.',
-  },
 
   {
     // Owner add 2026-08-18. The Dragon payoff spell — buff a random friendly, then again for EVERY Dragon you

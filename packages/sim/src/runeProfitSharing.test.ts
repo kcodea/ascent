@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { gainGold } from './recruit';
 
@@ -11,7 +11,8 @@ import { gainGold } from './recruit';
  * credit path, and these tests exercise SEVERAL distinct income sources rather than one.
  */
 const set2 = (): RunState => ({ ...createRun(1, 'drakko'), setId: 'set2' } as RunState);
-const byName = (n: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.name === n);
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const byName = (n: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.name === n);
 const dwarf = CARD_INDEX['dw_brunni']!;
 const mk = (uid: string): BoardCard => ({ uid, cardId: 'dw_brunni', tribe: dwarf.tribe, attack: dwarf.attack, health: dwarf.health, keywords: [], golden: false });
 const armed = (over: Partial<RunState> = {}): RunState => ({
@@ -61,10 +62,10 @@ describe('Rune of Profit Sharing', () => {
 });
 
 describe('the rune data', () => {
-  it('ships at 4 Gold, epic, set-2 scoped', () => {
+  it('ships at 4 Gold, epic, archived everywhere (owner 2026-10-07; was set 2 + 3)', () => {
     const r = byName('Rune of Profit Sharing')!;
     expect(r.cost).toBe(4);
     expect(!!r.epic).toBe(true);
-    expect(r.sets).toEqual(['set2', 'set3']); // Dwarves // + set3 2026-09-14 (rune roster carryover)
+    expect(r.sets).toEqual([]);
   });
 });

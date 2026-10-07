@@ -450,13 +450,14 @@ export const STELLAR_LENS: EquipmentDefinition = {
   id: 'stellar_lens',
   name: 'Stellar Lens',
   // 2026-09-14 (owner): creates the token first (a no-op with one out), then this shop +7/+7 (was a bare +10/+10).
-  text: 'Create a **Starform**, then give **this shop +7/+7**.',
-  goldenText: 'Create a **Starform**, then give **this shop +14/+14**.',
+  // 2026-10-07 (owner): +5/+5, gilded +10/+10.
+  text: 'Create a **Starform**, then give **this shop +5/+5**.',
+  goldenText: 'Create a **Starform**, then give **this shop +10/+10**.',
   baseCost: 2,
   targetMode: 'none',
   effectId: 'equipmentCreateStarformThenBuffThisShop',
-  params: { attack: 7, health: 7 },
-  gildedParams: { attack: 14, health: 14 },
+  params: { attack: 5, health: 5 },
+  gildedParams: { attack: 10, health: 10 },
   // Owner-authored 2026-09-22: a camera-wide star flare as the lens fires. Camera-anchored, so it reads as the
   // shop itself lighting up rather than a spark on the button.
   useFxId: 'stellar-lens',

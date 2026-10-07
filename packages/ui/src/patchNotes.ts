@@ -56,6 +56,50 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-07',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Balance pass on Set 2 and Set 3 minions, plus a new Dwarf: Big Brain Billy.',
+        details: [
+          'New: Big Brain Billy, a Tier 2 Dwarf 2/2 in Set 2. When you cast a Shop spell, it gains +1/+1 (Gilded +2/+2).',
+          'Flo Rida now gives each Beast you summon +5/+5 and improves by +5/+5 every time (5/5, then 10/10, then 15/15).',
+          'Beardsley now gives each Beast you summon +1/+1 and improves by +1/+1 every time. It no longer has Ward.',
+          'Wolvie\'s Echo now gives a friendly Beast Rise, with no stat buff. Gilded gives 2 Beasts Rise.',
+          'Chef Gary Toast now gives your Dwarves +5/+5 (was +4/+4).',
+          'Brunni is now Tier 3 (was Tier 2) in Set 2 and Set 3.',
+          'Jewel joins Set 2 and stays in Set 3. Brood Matron joins Set 2.',
+          'Lullaby Lou now buffs a friendly Spirit on your board +4/+6 when you cast a Shop spell (was a minion in your hand).',
+          'Lens Grinder\'s Stellar Lens now gives this shop +5/+5 (was +7/+7). Gilded is +10/+10.',
+          'The Great Attractor now gives this shop +3/+2 (was +4/+3).',
+          'Roundabout is reworked: End of Turn, give minions in the shop +6/+7 permanently.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune changes: several costs and numbers adjusted, and Rune of Ascension is now neutral.',
+        details: [
+          'Rune of Ascension is no longer a Dragon rune, so it can show up whatever tribes you have.',
+          'Rune of the Deep costs 5 (was 6) and now repeats every 2 turns (was every turn).',
+          'Rune of the Summit costs 5 (was 3).',
+          'Rune of Stormcalling and Rune of the Foundry cost 3 (were 4).',
+          'Rune of the Runic Hoard now gives 3 random Dragons +3/+4 (was +2/+3).',
+          'Rune of Summoning costs 1 (was 2) and improves your Imp Aura by +3/+3 (was +2/+2).',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Some runes and Shop spells are retired from every set.',
+        details: [
+          'Retired runes: Ruby Resonance, Contraband, Gemcutting, Shifting Facets, the Gem Dividend, Gemscript, Gemstorm, Redirection, Ruby Shrapnel, Last Call, Profit Sharing, the Chef, Blasting Voices and the Last Word.',
+          'Retired Shop spells: Hourglass Reserve, Fleeting Vigor, Deep Delve Writ, Layaway, Solid Ground, Open the Gates, Parting Cry, Closed Casket, Containment Rune, Farseer\'s Report, Marked Target, Beefy and Stolen Initiative.',
+          'They no longer appear in the Shop, the Runeforge or a Discover.',
+          'Arnold still casts Beefy at End of Turn, and Dwarven Sharpshooter still gives you a Deep Delve Writ.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-06',
     changes: [
       {

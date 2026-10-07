@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /** Owner batch 4, tranche 3 (2026-08-07) — the eight contained-machinery Basic runes. */
 
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
-const rune = (id: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.id === id)!;
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const rune = (id: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.id === id)!;
 
 const sim = (p: BoardMinion[], e: BoardMinion[], mods = {}, seed = 5) =>
   simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods as never }), combatSide());
@@ -30,8 +31,9 @@ describe('the eight defs ship as specced', () => {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(rune(id).epic, `${id} should be Basic`).toBeFalsy();
       // Ashen Payroll (Demon), Last Word + Runic Hoard (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
-      const cut = ['rune_ashen_payroll', 'rune_last_word', 'rune_runic_hoard'].includes(id);
-      expect(rune(id).sets, `${id} should work in either set`).toEqual(cut ? ['set1', 'set2'] : undefined);
+      const cut = ['rune_ashen_payroll', 'rune_runic_hoard'].includes(id);
+      // Last Word ARCHIVED everywhere 2026-10-07 (owner balance batch): `sets: []`.
+      expect(rune(id).sets, `${id} should work in either set`).toEqual(id === 'rune_last_word' ? [] : cut ? ['set1', 'set2'] : undefined);
     }
   });
 });

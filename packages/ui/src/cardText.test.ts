@@ -247,13 +247,13 @@ describe('cardText helpers', () => {
   });
 
   it('summonFlatZooText shows Beardsley’s NEXT-summon grant under Rune of the Zoo', () => {
-    // Ordinal scaling: (summons so far + 1) × base 3 × golden. (Beardsley's base dropped from 6 → 3 in the
-    // 2026-08-18 escalating rework; this helper reads params.attack, so its Zoo arithmetic follows.) Null
-    // without the rune (undefined zooSummons), so the printed +3/+3 stands everywhere the rune isn't live.
+    // Ordinal scaling: (summons so far + 1) × base × golden. Beardsley's base is 1 since the owner balance
+    // 2026-10-07 (3 from the 2026-08-18 rework, 6 before); this helper reads params.attack, so its Zoo arithmetic
+    // follows. Null without the rune (undefined zooSummons), so the printed text stands everywhere the rune isn't live.
     expect(summonFlatZooText('b2_beardsley', false, undefined)).toBeNull();
-    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+3/+3}}');   // next summon is the 1st
-    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+9/+9}}');   // next summon is the 3rd
-    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+12/+12}}');  // gilded ×2 × ordinal 2
+    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+1/+1}}');   // next summon is the 1st
+    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+3/+3}}');   // next summon is the 3rd
+    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+4/+4}}');    // gilded ×2 × ordinal 2
     expect(summonFlatZooText('sandbag', false, 2)).toBeNull(); // not a flat summon-buff card
   });
 

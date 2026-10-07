@@ -878,7 +878,7 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   in the row right now** — the owner's "this shop" vocabulary (2026-07-25), not the per-turn channel. The Starform
   keeps it through the next refresh; every other offer loses it. (Wishing Star is a plain adjacent +3/+4 Shout
   since 2026-09-14.)
-- **The Great Attractor** (2026-09-14) gives **this shop +4/+3** and THEN its Starform eats the **highest current
+- **The Great Attractor** (2026-09-14; +3/+2 since the owner balance 2026-10-07) gives **this shop +3/+2** and THEN its Starform eats the **highest current
   buy Health** offer — so the meal carries the buff. **Black Hole** (was Accretion; no Star Crash any more) eats
   **3 random** Shop minions, one real consume each, fewer if the row is short. Ties for "highest" go to the
   **right-most**. With no Starform neither consumes.
@@ -889,8 +889,8 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Stardust Peddler** (2026-09-18, 2/5): **when you spend 5 Gold** (a per-instance Gold meter while it stands — the
   Coinfire Forewoman / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
   N/5) it **creates** a Starform if you have none, else the token gains **+3/+3** (gilded +6/+6).
-- **The Stellar Lens** (2026-09-14) **creates** a Starform if you have none, then gives **this shop +7/+7** (gilded
-  +14/+14) — the fresh token is one of the offers that takes it.
+- **The Stellar Lens** (2026-09-14) **creates** a Starform if you have none, then gives **this shop +5/+5** (gilded
+  +10/+10; +7/+7 and +14/+14 until the owner balance 2026-10-07) — the fresh token is one of the offers that takes it.
 - **Star Seed** gives an existing token **+4/+4** (gilded +8/+8).
 - **Solburn** (rules v2) **Collapses** the token: 3 unique random friendly Celestials each gain the rounded-up
   half (the Devotee itself is eligible; gilded → each hit gains the full stats); a token with no Celestial at all
@@ -911,10 +911,10 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Star Crash may be aimed at the Starform** (a friendly Celestial): the token gains +5/+7 (Twin Star hears it) and
   the secondary half still lands on a random friendly minion on the **board**. Only the tribe's own Celestial-aimed
   spell reaches the token — a plain `friendly` spell keeps its board-only aim (rule 5 stays whole).
-- **Roundabout** (Tier 5, 7/5; 2026-09-18): **End of Turn: create a Starform and give it +10/+10** (gilded +20/+20).
-  With no token out it creates one first (into a full row → it eats the right-most minion); with one already out
-  the create is the usual no-op and only the +10/+10 lands. (Until 2026-09-18 it created at Start of Turn and had
-  the token eat the whole row at End of Turn.)
+- **Roundabout** (Tier 5, 7/5; owner 2026-10-07): **End of Turn: give minions in the shop +6/+7 permanently** (gilded
+  +12/+14), the permanent Staff-of-Guel channel (`buffShopPermanent`), so a held Starform banks it too. It no longer
+  creates a token. (2026-09-18 to 2026-10-07 it was "End of Turn: create a Starform and give it +10/+10"; before
+  that it created at Start of Turn and had the token eat the whole row at End of Turn.)
 - **Crash Course** (2026-09-18): the **first Star Crash you cast on it each turn casts an additional time** on it —
   Mirrorwing's shape (a FULL re-cast, scaled by the cast multiplier) gated to the named spell; gilded 2 additional.
   (Until 2026-09-18 it spread the cast to 2 other Celestials instead.)
@@ -1636,7 +1636,9 @@ combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle
 
 ### Next-combat spells work for either side, and cast at Start of Combat (owner rulings 2026-10-07, R-NEXTCOMBAT-01..03, R-LOBBY-14)
 
-A spell cast in the Shop **for the next fight** (Weaken, Fleeting Vigor, Field Maneuvers, Last Stand, Executioner's
+A spell cast in the Shop **for the next fight** (as of the 2026-10-07 owner batch, Fleeting Vigor, Open the Gates, Marked
+Target, Solid Ground, Containment Rune, Stolen Initiative, Parting Cry and Closed Casket are ARCHIVED: out of every pool,
+the machinery stays for replays and held copies) (Weaken, Fleeting Vigor, Field Maneuvers, Last Stand, Executioner's
 Edge, Open the Gates, Marked Target, Rallying Offensive, Decoy Sigil, Summoning Bulwark, Solid Ground, Containment
 Rune, Stolen Initiative, Bloodlust, Parting Cry, Closed Casket) travels with the board snapshot and resolves for
 **whichever side holds it** (*"these should carry over"*; *"rallying offensive and marked target should work for

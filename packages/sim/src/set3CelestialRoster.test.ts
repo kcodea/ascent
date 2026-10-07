@@ -99,7 +99,7 @@ describe('the roster', () => {
     expect([d.name, d.spell, d.tribe, d.tier, d.cost]).toEqual(['Black Hole', true, 'celestial', 3, 2]);
     expect(runSpells({ setId: 'set3', tribes: ['celestial', 'undead'] }).some((c) => c.id === 'accretion')).toBe(true);
     expect(runSpells({ setId: 'set3', tribes: ['undead', 'kobold'] }).some((c) => c.id === 'accretion')).toBe(false);
-    expect(EQUIPMENT_INDEX['stellar_lens']).toMatchObject({ baseCost: 2, targetMode: 'none', effectId: 'equipmentCreateStarformThenBuffThisShop', params: { attack: 7, health: 7 }, gildedParams: { attack: 14, health: 14 } });
+    expect(EQUIPMENT_INDEX['stellar_lens']).toMatchObject({ baseCost: 2, targetMode: 'none', effectId: 'equipmentCreateStarformThenBuffThisShop', params: { attack: 5, health: 5 }, gildedParams: { attack: 10, health: 10 } }); // +5/+5 (gilded +10/+10) since the owner balance 2026-10-07
   });
 });
 
@@ -214,8 +214,8 @@ describe('Wishing Star — Shout: adjacent minions +3/+4 (owner 2026-09-14; was 
   });
 });
 
-describe('The Great Attractor — Shout: this shop +4/+3, THEN the Starform consumes the highest-Health minion (owner 2026-09-14)', () => {
-  it('every offer takes +4/+3 first, so the meal carries it; highest CURRENT Health wins, ties go RIGHT-most', () => {
+describe('The Great Attractor — Shout: this shop +3/+2 (owner 2026-10-07; was +4/+3), THEN the Starform consumes the highest-Health minion (owner 2026-09-14)', () => {
+  it('every offer takes +3/+2 first, so the meal carries it; highest CURRENT Health wins, ties go RIGHT-most', () => {
     let s = withStarform(0, 0, { hand: [body('w', 'ce3_accretionwarden')] });
     // courier 2/1, vendor 2/4, seer 0/8, seer 0/8 (stats since the 2026-09-18 owner pass) → the two Seers tie at 8 Health,
     // so the RIGHT-most Seer is the meal; the buff lands before it is eaten
@@ -224,22 +224,22 @@ describe('The Great Attractor — Shout: this shop +4/+3, THEN the Starform cons
     s = play(s, 'w', { toIndex: 0 });
     expect(s.shop.some((o) => o.uid === rightSeer), 'the highest-Health offer was eaten').toBe(false);
     expect(s.shop.some((o) => o.uid === leftSeer), 'the tie went RIGHT-most').toBe(true);
-    expect(offerStats(s, s.shop[0]!), 'the survivors keep the +4/+3').toEqual([2 + 4, 1 + 3]);
-    expect(sf(s), 'token 1/1 + its own +4/+3 + the buffed seer (0+4)/(8+3)').toEqual([1 + 4 + 4, 1 + 3 + 11]);
+    expect(offerStats(s, s.shop[0]!), 'the survivors keep the +3/+2').toEqual([2 + 3, 1 + 2]);
+    expect(sf(s), 'token 1/1 + its own +3/+2 + the buffed seer (0+3)/(8+2)').toEqual([1 + 3 + 3, 1 + 2 + 10]);
     expect(s.shopMinionsEaten, 'a real Shop consume').toBe(1);
     expect(s.tavernBuyBonus, 'THIS shop, never the permanent Staff-of-Guel channel').toEqual({ atk: 0, hp: 0 });
   });
-  it('no Starform → the buff still lands, nothing is eaten; gilded → +8/+6 and the token gains double the meal', () => {
+  it('no Starform → the buff still lands, nothing is eaten; gilded → +6/+4 and the token gains double the meal', () => {
     let s = run({ hand: [body('w', 'ce3_accretionwarden')], shop: [] });
     s.shop.push(offer(s, 'ce3_seer'));
     s = play(s, 'w', { toIndex: 0 });
     expect(s.shop.length).toBe(1);
-    expect(offerStats(s, s.shop[0]!)).toEqual([0 + 4, 8 + 3]); // Gravestar Seer 0/8 since 2026-09-18
+    expect(offerStats(s, s.shop[0]!)).toEqual([0 + 3, 8 + 2]); // Gravestar Seer 0/8 since 2026-09-18
     expect(hasStarform(s)).toBe(false);
     let g = withStarform(0, 0, { hand: [body('w', 'ce3_accretionwarden', { golden: true })] });
     g.shop.unshift(offer(g, 'ce3_seer'));
     g = play(g, 'w', { toIndex: 0 });
-    expect(sf(g), 'token 1/1 + 8/6 + double the buffed seer (0+8)/(8+6)').toEqual([1 + 8 + 16, 1 + 6 + 28]);
+    expect(sf(g), 'token 1/1 + 6/4 + double the buffed seer (0+6)/(8+4)').toEqual([1 + 6 + 12, 1 + 4 + 24]);
     expect(g.shop.length, 'one meal, not two').toBe(1);
   });
 });
@@ -282,54 +282,30 @@ describe('Eclipse Warden — Avenge (3): get a Star Crash (combat)', () => {
   });
 });
 
-describe('Roundabout (T5 7/5) — End of Turn: create a Starform and give it +10/+10 (owner handoff 2026-09-18)', () => {
-  const rollover = (s: RunState): RunState => act(act(act(s, { type: 'faceOmen' }), { type: 'settleCombat' }), { type: 'resolveCombat' });
-  it('End of Turn with a token already out: no second token, the held one gains +10/+10 (gilded +20/+20); the row is NOT eaten', () => {
+// RE-PINNED 2026-10-07 (owner rework): "End of Turn: Give minions in the shop +6/+7 permanently." The Staff-of-Guel
+// channel (`buffShopPermanent`): the run-wide shop bonus rises, and a held Starform banks it too (rule 6). It no longer
+// creates a token. Gilded +12/+14.
+describe('Roundabout (T5 7/5) — End of Turn: give minions in the shop +6/+7 permanently (owner 2026-10-07)', () => {
+  it('End of Turn raises the permanent shop channel +6/+7 (gilded +12/+14); a held token banks it; no token is created', () => {
     let s = withStarform(3, 3, { board: [body('k', 'ce3_orbitkeeper')] });
     const uid = starformOf(s)!.uid;
-    s.shop.unshift(offer(s, 'ce3_courier'), offer(s, 'ce3_seer'), offer(s, 'starcrash'));
+    const before = { ...s.tavernBuyBonus };
     s = act(s, { type: 'faceOmen' });
+    expect([s.tavernBuyBonus.atk - before.atk, s.tavernBuyBonus.hp - before.hp]).toEqual([6, 7]);
     expect(s.shop.filter((o) => o.starform)).toHaveLength(1);
     expect(starformOf(s)!.uid, 'the same token').toBe(uid);
-    expect(sf(s)).toEqual([4 + 10, 4 + 10]);
-    expect(starformOf(s)!.buffs?.find((b) => b.source === 'Roundabout')).toMatchObject({ attack: 10, health: 10 });
-    expect(s.shop.filter((o) => !o.starform).map((o) => o.cardId), 'nothing eaten (the 2026-09-14 row-meal is gone)').toEqual(['ce3_courier', 'ce3_seer', 'starcrash']);
-    expect(s.shopMinionsEaten ?? 0).toBe(0);
-    let g = withStarform(0, 0, { board: [body('k', 'ce3_orbitkeeper', { golden: true })] });
+    expect(sf(s), 'the Starform banks the permanent shop buff').toEqual([4 + 6, 4 + 7]);
+    let g = run({ board: [body('k', 'ce3_orbitkeeper', { golden: true })] });
+    const gb = { ...g.tavernBuyBonus };
     g = act(g, { type: 'faceOmen' });
-    expect(sf(g)).toEqual([1 + 20, 1 + 20]);
+    expect([g.tavernBuyBonus.atk - gb.atk, g.tavernBuyBonus.hp - gb.hp]).toEqual([12, 14]);
   });
-  it('End of Turn with NO token: creates one into the open slot and it arrives +10/+10; the token then survives into the next shop', () => {
+  it('End of Turn with NO token creates none (the create half is gone)', () => {
     let n = run({ board: [body('k', 'ce3_orbitkeeper')], shop: [] });
     n.shop.push(offer(n, 'ce3_courier'));
     n = act(n, { type: 'faceOmen' });
-    expect(hasStarform(n), 'created at End of Turn').toBe(true);
-    expect(sf(n)).toEqual([11, 11]);
-    expect(n.shop, 'the courier stays beside it').toHaveLength(2);
-    const uid = starformOf(n)!.uid;
-    n = act(act(n, { type: 'settleCombat' }), { type: 'resolveCombat' });
-    expect(n.phase).toBe('recruit');
-    expect(starformOf(n)?.uid, 'pinned through the turn flip').toBe(uid);
-    expect(sf(n)).toEqual([11, 11]);
-  });
-  it('End of Turn into a FULL row: the create eats the right-most minion first (rule 1), then the +10/+10 lands', () => {
-    let s = run({ board: [body('k', 'ce3_orbitkeeper')], shop: [] });
-    for (let i = 0; i < tierSlots(s.tier); i++) s.shop.push(offer(s, 'ce3_courier'));
-    s = act(s, { type: 'faceOmen' });
-    expect(hasStarform(s)).toBe(true);
-    expect(s.shopMinionsEaten, 'one real consume').toBe(1);
-    expect(sf(s), '1/1 + the eaten courier 2/1 (stat pass 2026-09-18) + 10/10').toEqual([13, 12]);
-    expect(s.shop.length, 'the token took the victim\'s slot').toBe(tierSlots(s.tier));
-  });
-  it('no Start of Turn half any more: a new turn with no token creates nothing', () => {
-    let s = run({ board: [body('k', 'ce3_orbitkeeper')] });
-    // faceOmen creates one at End of Turn — so remove it before the shop opens to prove Start of Turn is silent.
-    s = act(s, { type: 'faceOmen' });
-    s.shop = s.shop.filter((o) => !o.starform);
-    s = act(act(s, { type: 'settleCombat' }), { type: 'resolveCombat' });
-    expect(s.phase).toBe('recruit');
-    expect(hasStarform(s), 'nothing created at shop open').toBe(false);
-    void rollover;
+    expect(hasStarform(n)).toBe(false);
+    expect(n.shopMinionsEaten ?? 0).toBe(0);
   });
 });
 
@@ -373,8 +349,8 @@ describe('Corona Devotee — Collapse your Starform: 3 unique random friendly Ce
 // Star Charter / Maestro Lux's Shout Discover was replaced by "Pummel (12): Get a random Celestial. (Once per combat.)"
 // (owner 2026-09-24): pinned in koboldCelestialDwarf0924.test.ts.
 
-describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, then this shop +7/+7 (owner 2026-09-14)', () => {
-  it('the play grants the Lens; activating costs 2, keeps a held token, and buffs every current offer +7/+7 (the Starform keeps it past a refresh); one charge per turn', () => {
+describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, then this shop +5/+5 (owner 2026-10-07; was +7/+7)', () => {
+  it('the play grants the Lens; activating costs 2, keeps a held token, and buffs every current offer +5/+5 (the Starform keeps it past a refresh); one charge per turn', () => {
     let s = withStarform(0, 0, { hand: [body('l', 'ce3_lensgrinder')] });
     s.shop.unshift(offer(s, 'ce3_courier'));
     s = play(s, 'l', { toIndex: 0 });
@@ -384,30 +360,30 @@ describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, t
     s = act(s, { type: 'activateEquipment' } as Action);
     expect(s.embers).toBe(gold - 2);
     expect(starformOf(s)!.uid, 'a held token is kept, not replaced').toBe(uid);
-    expect(offerStats(s, s.shop[0]!)).toEqual([9, 8]); // Cosmo Express 2/1 since 2026-09-18
-    expect(sf(s)).toEqual([8, 8]);
+    expect(offerStats(s, s.shop[0]!)).toEqual([7, 6]); // Cosmo Express 2/1 since 2026-09-18; Lens +5/+5 since 2026-10-07
+    expect(sf(s)).toEqual([6, 6]);
     expect(equipmentChargesOf(s, 'stellar_lens'), 'the charge is spent').toBe(0);
     s = act(s, { type: 'activateEquipment' } as Action);
-    expect(sf(s), 'a second activation this turn is refused').toEqual([8, 8]);
+    expect(sf(s), 'a second activation this turn is refused').toEqual([6, 6]);
     expect(s.embers).toBe(gold - 2);
     s = act(s, { type: 'roll' });
-    expect(sf(s), 'the Starform kept it').toEqual([8, 8]);
+    expect(sf(s), 'the Starform kept it').toEqual([6, 6]);
     for (const o of s.shop.filter((o) => !o.starform)) expect(o.buffs?.some((b) => b.source === 'Stellar Lens') ?? false).toBe(false);
   });
-  it('with NO Starform the Lens creates one first, and the fresh token takes the +7/+7 too; a gilded Grinder\'s Lens gives +14/+14', () => {
+  it('with NO Starform the Lens creates one first, and the fresh token takes the +5/+5 too; a gilded Grinder\'s Lens gives +10/+10', () => {
     let s = run({ hand: [body('l', 'ce3_lensgrinder')], shop: [] });
     s.shop.push(offer(s, 'ce3_courier'));
     s = play(s, 'l', { toIndex: 0 });
     s = act(s, { type: 'selectEquipment', equipmentId: 'stellar_lens' } as Action);
     s = act(s, { type: 'activateEquipment' } as Action);
     expect(hasStarform(s), 'created by the Lens').toBe(true);
-    expect(sf(s), 'the new 1/1 took the buff').toEqual([8, 8]);
-    expect(offerStats(s, s.shop[0]!)).toEqual([9, 8]); // Cosmo Express 2/1 since 2026-09-18
+    expect(sf(s), 'the new 1/1 took the buff').toEqual([6, 6]);
+    expect(offerStats(s, s.shop[0]!)).toEqual([7, 6]); // Cosmo Express 2/1 since 2026-09-18
     let g = withStarform(0, 0, { hand: [body('l', 'ce3_lensgrinder', { golden: true })] });
     g = play(g, 'l', { toIndex: 0 });
     g = act(g, { type: 'selectEquipment', equipmentId: 'stellar_lens' } as Action);
     g = act(g, { type: 'activateEquipment' } as Action);
-    expect(sf(g)).toEqual([15, 15]);
+    expect(sf(g)).toEqual([11, 11]);
   });
 });
 
@@ -444,14 +420,14 @@ describe('Twinning (was Twin Star; T5) — whenever your Starform gains stats, t
     expect(stats(at(s, 't')), 'a direct buff').toEqual([6, 10]); // Twinning 4/7 since 2026-09-18
     s = play(s, 'w', { toIndex: 0 }); // Wishing Star (2026-09-14): a plain adjacent +3/+4 on the Twinning — NOT a mirror
     expect(stats(at(s, 't')), 'an adjacent buff, direct').toEqual([9, 14]);
-    s = play(s, 'a', { toIndex: 0 }); // The Great Attractor: this shop +4/+3 (mirrored) then the token eats the 4/11 Seer (0/8 + 4/3) (mirrored)
-    expect(stats(at(s, 't')), 'a this-shop buff + a consume').toEqual([9 + 4 + 4, 14 + 3 + 11]);
+    s = play(s, 'a', { toIndex: 0 }); // The Great Attractor: this shop +3/+2 (mirrored) then the token eats the 3/10 Seer (0/8 + 3/2) (mirrored)
+    expect(stats(at(s, 't')), 'a this-shop buff + a consume').toEqual([9 + 3 + 3, 14 + 2 + 10]);
     const sfUid = starformOf(s)!.uid;
     const before = stats(at(s, 't'));
     s = play(s, 'sc', { targetUid: sfUid }); // +5/+7 to the token (mirrored) — the secondary +5/+7 lands on a random board minion
     const gain: [number, number] = [at(s, 't').attack - before[0], at(s, 't').health - before[1]];
     expect(gain[0] % 5, 'the mirror + the secondary are each +5/+7').toBe(0);
-    expect(buffFrom(at(s, 't'), 'Twinning')).toEqual([2 + 4 + 4 + 5, 3 + 3 + 11 + 7]);
+    expect(buffFrom(at(s, 't'), 'Twinning')).toEqual([2 + 3 + 3 + 5, 3 + 2 + 10 + 7]);
     const secondary = s.board.map((c) => buffFrom(c, 'Star Crash')).reduce<[number, number]>((acc, b) => [acc[0] + b[0], acc[1] + b[1]], [0, 0]);
     expect(secondary, 'the secondary half landed once, somewhere on the board').toEqual([5, 7]);
     const g = withStarform(0, 0, { board: [body('t', 'ce3_twinstar', { golden: true })] });

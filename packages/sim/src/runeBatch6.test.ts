@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { ALE_IDS, combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type Keyword } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { RUBY_ID, applyEndOfTurn, noteSpellCast } from './recruit';
 
 /** Rune batch 6 — Hunger, the Shared Table, Redirection (recruit phase) and Gemstorm (Avenge). */
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
 const set2 = (): RunState => ({ ...createRun(1, 'drakko'), setId: 'set2' } as RunState);
-const byName = (n: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.name === n);
+// The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
+const byName = (n: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.name === n);
 const mk = (uid: string, cardId: string, tribe: string): BoardCard => {
   const d = CARD_INDEX[cardId]!;
   return { uid, cardId, tribe: tribe as never, attack: d.attack, health: d.health, keywords: [], golden: false };
@@ -143,7 +144,9 @@ describe("the four runes ship as specced", () => {
   it("all four are set-2 scoped — each names a set-2 mechanic", () => {
     for (const n of ['Rune of Hunger', 'Rune of Gemstorm', 'Rune of the Shared Table', 'Rune of Redirection']) {
       // Gemstorm / Shared Table / Redirection carried into set 3 (2026-09-14); Hunger (Fodder) stays set-2 only.
-      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(n === 'Rune of the Shared Table' ? ['set2', 'set3'] : ['set2']); // Redirection CUT FROM SET 3 2026-09-24 (owner); Gemstorm CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+      // Gemstorm + Redirection ARCHIVED everywhere 2026-10-07 (owner balance batch): `sets: []`.
+      const archived = n === 'Rune of Gemstorm' || n === 'Rune of Redirection';
+      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(archived ? [] : n === 'Rune of the Shared Table' ? ['set2', 'set3'] : ['set2']); // Redirection CUT FROM SET 3 2026-09-24 (owner); Gemstorm CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     }
   });
 });

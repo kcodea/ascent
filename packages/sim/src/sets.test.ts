@@ -158,6 +158,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
       'chronos', 'drummer', 'ropewrangler', 'stewardofspells', 'sylus', 'joker', 'yazzus', 'lazarus',
       'jenkins', 'uron', 'salvatore', 'zyff',
       'impoverseer', // the one set-1 DEMON opted in (owner 2026-07-27) — it fits set 2's Imp line
+      'brood', // Brood Matron, the second set-1 Demon opted in (owner 2026-10-07)
     ]);
     const set1Ids = new Set(poolFor('set1').buyable.map((c) => c.id));
     const leaked = poolFor('set2').buyable.filter((c) => set1Ids.has(c.id) && !OPTED_IN.has(c.id));

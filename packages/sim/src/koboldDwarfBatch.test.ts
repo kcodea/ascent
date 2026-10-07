@@ -22,7 +22,7 @@ describe('stat / tier changes (owner 2026-09-24)', () => {
     ['k3_splitpick', 'Pickles', 2, 3, 3],
     ['k3_forksong', 'Flagrunner', 3, 5, 4],
     ['dw3_tromboneer', 'Tromboneer', 3, 4, 3],
-    ['dw_brunni', 'Brunni', 2, 3, 2],
+    ['dw_brunni', 'Brunni', 3, 3, 2], // T2 → T3 (owner 2026-10-07)
   ] as const)('%s (%s) is Tier %i, %i/%i', (id, name, tier, attack, health) => {
     expect(CARD_INDEX[id]).toMatchObject({ name, tier, attack, health });
   });

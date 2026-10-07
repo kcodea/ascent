@@ -49,12 +49,14 @@ describe('the every-turn grant runes: one copy on purchase, one more at every St
     expect(held(next, cardId), 'the next turn setup pays another').toBe(2);
   });
 
-  it('the Deep pays a Tier 7 minion on purchase AND at the next Start of Turn (owner 2026-09-23)', () => {
+  // RE-PINNED 2026-10-07 (owner): "Repeat every 2 turns" — the next setup skips, the one after pays (R-DEEP-EVERY-01).
+  it('the Deep pays a Tier 7 minion on purchase, skips the next Start of Turn, and pays the one after (owner 2026-10-07)', () => {
     const s = withRune('rune_deep', { hand: [], board: [bc('t', 'sandbag', 0, 50)] });
     const t7 = (st: RunState) => st.hand.filter((c) => CARD_INDEX[c.cardId]?.tier === 7).length;
     expect(s.runeDeep).toBe(7);
     expect(t7(s), 'one Tier 7 minion the moment the rune is bought').toBe(1);
-    expect(t7(turn(s)), 'and one more at the next turn setup').toBe(2);
+    expect(t7(turn(s)), 'nothing at the next turn setup').toBe(1);
+    expect(t7(turn(turn(s))), 'one more two turns after the purchase').toBe(2);
   });
 
   it('the Muckbroker pays a Muckslinger on purchase and keeps its every-2-turns cadence', () => {
@@ -321,7 +323,7 @@ describe('the 19 reworked texts read as the owner wrote them', () => {
     rune_finality: 'When your **last minion dies**, summon **3 Imps** with **Ward**.',
     rune_living_treasure: 'Your **Gemheart Golems** gain **Rebirth**.',
     rune_banquet_hall: 'The first minion you **buy** each turn gives its stats to **2 random** friendly minions.',
-    rune_deep: 'Get a random **Tier 7** minion. Repeat at **Start of Turn**.',
+    rune_deep: 'Get a random **Tier 7** minion. Repeat every **2 turns**.', // owner 2026-10-07
     rune_food_chain: 'The **first minion you summon** in combat gains the stats of your **left-most Demon**.',
     rune_gem_golem: 'When a friendly **Kobold** dies, summon a **Gemheart Golem** with its **Rubies**.',
     rune_lassoing: 'Get a **Rope Wrangler**. When **Lasso** is cast, give your minions **+2/+2**.',

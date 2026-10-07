@@ -12,6 +12,186 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // ── 2026-10-07 owner balance batch: thirteen Shop spells archived from EVERY set. A held copy still casts, and the
+  //    banked next-combat machinery (#1969) stays for replays and remaining sources. Two are still GRANTED by live
+  //    minions by owner ruling — Beefy (Arnold) and Deep Delve Writ (Dwarven Sharpshooter) — they resolve by id. ──
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Discover a minion from your CURRENT tavern tier, locked in hand until next turn (Hourglass Reserve).
+    id: 'hourglassreserve',
+    name: 'Hourglass Reserve',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [],
+    discoverOnPlay: { exactCurrentTier: true, lockUntilNextTurn: true },
+    text: '**Discover** a minion from your tier. You **cannot play it until next turn**.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Bank a one-shot Start-of-Combat buff: your minions enter the NEXT combat at +2/+1 (+ spell power on
+    // both stats), spent after that fight (win or lose). Applied to the combat board in `faceOmen`.
+    id: 'fleetingvigor',
+    name: 'Fleeting Vigor',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellPendingSCBuff', params: { attack: 2, health: 1 } }],
+    text: '**Start of combat:** give your minions **+2/+1** (next combat only).',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now. OWNER RULING 2026-10-07: Dwarven Sharpshooter still grants it (resolved through CARD_INDEX); it just never appears in the Shop or a Discover.
+    // "Steal" = take the offer into hand for free, exactly as a buy would shape it (offer buffs fold in).
+    id: 'deepdelvewrit',
+    name: 'Deep Delve Writ',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellStealShop', params: { tribe: 'dwarf', count: 1 } }],
+    text: 'Steal a random **Dwarf** from the Shop.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Cast on a SHOP offer: it survives rerolls (kept) and costs 1 less. `target: 'any'` for the drag, but it
+    // fizzles on a board minion (the reducer guards it) since only an offer can be kept.
+    id: 'layaway',
+    name: 'Layaway',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellLayaway', params: { reduce: 1 } }],
+    text: 'Choose a minion in the Shop. **Keep it** through refreshes and reduce its cost by **1**.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Owner add 2026-08-15. Front-loads a summon build: the first three bodies arrive already big.
+    id: 'sp_solidground',
+    name: 'Solid Ground',
+    tribe: 'neutral', tier: 3, attack: 0, health: 1, keywords: [], spell: true, cost: 4,
+    effects: [{ on: 'cast', do: 'spellSolidGround', params: { count: 3, attack: 4, health: 4 } }],
+    text: 'The first **3** minions you summon next combat gain **+4/+4**.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Open the Gates — cast: bank 3 Imps to enter the next combat on your board (as many as fit the 7-slot cap).
+    // Reuses the Set-1 `impscrap` Imp token (owner ruling). Untargeted.
+    id: 'openthegates',
+    name: 'Open the Gates',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellSummonImpsNextCombat', params: { count: 3 } }],
+    text: '**Start of combat:** summon an **Imp**, three times (as room allows).',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Owner add 2026-08-15. Marks a friendly Shout minion: its Shout fires again as it dies next combat.
+    id: 'sp_partingcry',
+    name: 'Parting Cry',
+    tribe: 'neutral', tier: 4, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellMarkPartingCry', params: {} }],
+    text: 'Choose a friendly **Shout** minion. When it dies next combat, trigger its **Shout**.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Owner add 2026-08-15 (reworked same day): it simply DESTROYS the chosen minion at Start of Combat. The
+    // Echo is the obvious payoff, but because it is a real death everything else that keys off one fires too
+    // (Avenge, friend-death watchers, the Deathrattle tally).
+    id: 'sp_closedcasket',
+    name: 'Closed Casket',
+    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellMarkClosedCasket', params: {} }],
+    text: 'Choose a minion. **Start of Combat:** destroy it.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Owner add 2026-08-15. Answers a summon build — but it is spent on whatever lands FIRST, token included.
+    id: 'sp_containmentrune',
+    name: 'Containment Rune',
+    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
+    effects: [{ on: 'cast', do: 'spellContainFirstEnemySummon', params: {} }],
+    text: 'Set the first enemy minion summoned next combat to **1/1**.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Reveal 3 random minions from your next opponent's warband, shown on the opponent frame until the fight.
+    id: 'farseersreport',
+    name: "Farseer's Report",
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellScoutNextOpponent', params: { count: 3 } }],
+    text: "**Scout** 3 random minions from your next opponent's warband.",
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // At the start of next combat, the enemy's right-most minion gains Taunt (funnels your attacks into it).
+    id: 'markedtarget',
+    name: 'Marked Target',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellMarkEnemyTaunt' }],
+    text: "At the start of next combat, give the enemy's **right-most** minion **Taunt**.",
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now. OWNER RULING 2026-10-07: Arnold still casts it at End of Turn (resolved through CARD_INDEX); it just never appears in the Shop or a Discover.
+    // Owner add 2026-08-15. Rewards a tight board: the chosen minion AND both neighbours, so a centre pick
+    // pays three times and an edge pick only twice.
+    id: 'sp_beefy',
+    name: 'Beefy',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellBuffTargetAndNeighbours', params: { attack: 8, health: 8 } }],
+    text: 'Give a minion and its neighbours **+8/+8**.',
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Owner add 2026-08-15. Buys a swing out of turn order — queued through the same lane an attack-on-summon
+    // uses, so the running order itself is never rewritten.
+    id: 'sp_stoleninitiative',
+    name: 'Stolen Initiative',
+    tribe: 'neutral', tier: 5, attack: 0, health: 1, keywords: [], spell: true, cost: 3,
+    effects: [{ on: 'cast', do: 'spellStolenInitiative', params: {} }],
+    text: "Your **right-most** minion attacks immediately after the enemy's first attack.",
+  },
   {
     // ARCHIVED 2026-09-24 (owner beast/dragon batch). Moved verbatim from set2/beasts.ts; belongs to no set now.
     // Turns spell purchases into bodies: a bought Shop spell is taught to a Mage-Pup, and at End of Turn that

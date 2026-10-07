@@ -96,7 +96,10 @@ export function summonEscalatingText(cardId: string, golden: boolean, summonBonu
   const cur = (base + improve * Math.floor(seen / every)) * (golden ? 2 : 1);
   const toNext = every - (seen % every);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} to next step}}`;
+  const live = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`);
+  // An every-summon improve (Flo Rida / Beardsley, owner 2026-10-07: "...and improve this") steps on EVERY Beast, so
+  // a "1 to next step" countdown says nothing; the current value is the whole story.
+  return every <= 1 ? live : `${live} {{${toNext} to next step}}`;
 }
 
 export function summonBuffText(cardId: string, summonBonus: number, golden = false): string | null {

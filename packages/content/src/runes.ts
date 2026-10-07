@@ -57,17 +57,6 @@ export const RUNES: RuneDef[] = [
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
-    // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
-    id: 'rune_contraband',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Contraband',
-    cost: 3, // balance 9/23 (was 6)
-    text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
-    previewCards: ['ruby'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeContraband' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
-  },
-  {
     id: 'rune_spending',
     name: 'Rune of Spending',
     cost: 3,
@@ -108,8 +97,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summoning',
     tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Summoning',
-    cost: 2, // balance 9/23 (was 4)
-    text: 'Whenever you cast a Shop spell, improve your **Imp Aura** by **+2/+2**.',
+    cost: 1, // owner balance 2026-10-07 (was 2; balance 9/23 had it 4 → 2)
+    text: 'Whenever you cast a Shop spell, improve your **Imp Aura** by **+3/+3**.', // owner 2026-10-07 (was +2/+2)
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
@@ -242,15 +231,6 @@ export const RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, { kind: 'runeRubyDrip' }] },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
-  },
-  {
-    id: 'rune_last_call',
-    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
-    name: 'Rune of Last Call',
-    cost: 2, // owner balance 2026-08-11 (1 → 2)
-    text: '**Avenge (4):** get **2 random Dwarven Ales**.', // owner 2026-08-11 (was Avenge 3 / 1 Ale)
-    reward: { kind: 'combatFlag', flag: 'runeLastCall' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_hunger',
@@ -428,18 +408,6 @@ export const RUNES: RuneDef[] = [
     ] },
   },
   // ── Set 2 rune batch (owner roster 2026-07-29) — the GRANT-shaped ones, which need no new reward kind. ──
-  {
-    // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
-    id: 'rune_gemcutting',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Gemcutting',
-    cost: 1, // 4 → 1 (owner 2026-08-02)
-    // Rubies minted at a FIXED line, not the run's 1/1+bonus line (owner sheet 2026-07-31). Balance 9/23: 6 at +4/+4 (was 5 at +3/+3).
-    text: 'Get **6 Rubies** that give **+4/+4**.',
-    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
-    reward: { kind: 'mintRubies', count: 6, attack: 4, health: 4 },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
-  },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
   {
     id: 'rune_small_fortune',
@@ -466,7 +434,7 @@ export const RUNES: RuneDef[] = [
     // ceiling. Repeats for the rest of the run.
     id: 'rune_summit',
     name: 'Rune of the Summit',
-    cost: 3, // owner balance 2026-08-11
+    cost: 5, // owner balance 2026-10-07 (was 3)
     text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.', // balance 9/23 (was 3 turns)
     reward: { kind: 'runeSummit' },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
@@ -711,18 +679,6 @@ export const RUNES: RuneDef[] = [
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
-    // Balance 9/23: the FIRST Ruby cast each turn pays 3 Gold NOW (`grantGold` + `oncePerTurn`; was 5 Rubies in a
-    // turn → 3 Gold next turn). A per-1 meter, so the badge reads 1/1 once it has paid this turn.
-    id: 'rune_gem_dividend',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of the Gem Dividend',
-    cost: 3,
-    text: 'When you cast a **Ruby**, gain **3 Gold**. (Once per turn.)',
-    previewCards: ['ruby'],
-    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 1, grantGold: 3, oncePerTurn: true },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
-  },
-  {
     id: 'rune_carrion_coin',
     name: 'Rune of Carrion Coin',
     cost: 3,
@@ -808,23 +764,15 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'spellCast', per: 4, castCards: ['staffofguel'] },
   },
   {
-    id: 'rune_last_word',
-    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
-    name: 'Rune of the Last Word',
-    cost: 2, // balance 9/23 (was 4)
-    text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
-    reward: { kind: 'runeLastWord' },
-    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
-  },
-  {
     id: 'rune_runic_hoard',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Runic Hoard',
     cost: 4,
     // Balance 9/23: per spell CAST (every spell — Shop spells, Gifts, Rubies), 3 random Dragons +2/+3 (was: per
-    // Shop-spell copy added to hand, all Dragons +1/+1). See `fireRunicHoard`.
-    text: 'When you cast a **Spell**, give **3 random Dragons +2/+3**.',
-    reward: { kind: 'runeRunicHoard' },
+    // Shop-spell copy added to hand, all Dragons +1/+1). See `fireRunicHoard`. Owner 2026-10-07: +3/+4 (was
+    // +2/+3) — the numbers are params now, read by `fireRunicHoard`.
+    text: 'When you cast a **Spell**, give **3 random Dragons +3/+4**.',
+    reward: { kind: 'runeRunicHoard', attack: 3, health: 4 },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
 
@@ -1008,20 +956,6 @@ export const RUNES: RuneDef[] = [
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeEngravingGems' },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
-  },
-  {
-    // NB: Resonance Idol is ARCHIVED (owner call 2026-08-19) — it is out of the draw pool, so this rune is the
-    // ONLY way to obtain one. Deliberate, and the exception to the archive rule in `cards/archive.ts` that a
-    // reward must not name an archived id: here the reward IS the point. Archived cards still resolve through
-    // `CARD_INDEX`, so the grant works.
-    id: 'rune_ruby_resonance',
-    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
-    name: 'Rune of Ruby Resonance',
-    cost: 3,
-    text: 'Get a **Resonance Idol**.',
-    previewCards: ['k_resonance'],
-    reward: { kind: 'grant', cards: ['k_resonance'] },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
   {
     id: 'rune_basic_dwarf',
@@ -1334,19 +1268,6 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Kegheart Dwarf**.',
     reward: { kind: 'grant', cards: ['dw_kegheart'] },
     sets: ['set2', 'set3'], // the Kegheart eats ALES - a set without them makes it a vanilla body // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
-  },
-  {
-    // The Engraving's shape with a MOVING axis: the same `gainRubyBonus` carry-back, but which half it feeds
-    // flips at every turn setup. The axis in force rides into combat on the mod (see `runeShiftingFacets`),
-    // so a fight always resolves the axis the shop was showing.
-    id: 'rune_shifting_facets',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Shifting Facets',
-    cost: 3,
-    text: '**Avenge (3):** improve your **Rubies** by **+1 Health**. Each turn this **alternates** between Health and Attack.',
-    previewCards: ['ruby'],
-    reward: { kind: 'combatFlag', flag: 'runeShiftingFacets' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     // Rides the SAME stateless `addBuff` hook Sable's Soulbind uses - the one chokepoint every recruit-phase
@@ -2057,22 +1978,10 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeCadence' },
   },
   {
-    // The two currencies feed each other's power, one step per turn each.
-    id: 'rune_gemscript',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Gemscript',
-    cost: 4,
-    epic: true,
-    text: 'The first **Shop spell** you cast each turn gives your **Rubies +1/+1**. The first **Ruby** you cast gives your **Shop spells +1/+1**.',
-    previewCards: ['ruby'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeGemscript' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
-  },
-  {
     id: 'rune_stormcalling',
     tribes: ['dragon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Stormcalling',
-    cost: 4, // owner balance 2026-08-11
+    cost: 3, // owner balance 2026-10-07 (was 4)
     epic: true,
     text: 'Get a **Karwind** and a random **Shout** minion.',
     // Ungilded (owner sheet 2026-07-31 — it granted a Gilded copy before).
@@ -2522,17 +2431,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeProcession' },
   },
   {
-    id: 'rune_gemstorm',
-    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
-    name: 'Rune of Gemstorm',
-    cost: 2,
-    epic: true,
-    text: '**Avenge (2):** cast **2 Rubies** on each friendly **Kobold**.',
-    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
-    reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
-  },
-  {
     id: 'rune_shared_table',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Shared Table',
@@ -2541,17 +2439,6 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Dwarven Ale** casts each give **one friendly minion of each type +5/+5**.', // balance 9/23 (was +2/+2)
     reward: { kind: 'runeSharedTable', attack: 5, health: 5 },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
-  },
-  {
-    id: 'rune_redirection',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Redirection',
-    cost: 4,
-    epic: true,
-    text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
-    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
-    reward: { kind: 'runeRedirection' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     // The single-body Attack snowball next to The Old Hunt's board-wide aura — and its step GROWS, where the
@@ -2617,18 +2504,6 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeAttackingGems', amount: 1 },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
-  },
-  {
-    // Rides the run's single gold-GAIN chokepoint (`gainGold`), added for this rune — Gold was credited in a
-    // dozen places, and wiring eleven would have shipped a rune that silently misses the twelfth.
-    id: 'rune_profit_sharing',
-    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
-    name: 'Rune of Profit Sharing',
-    cost: 4,
-    epic: true,
-    text: 'Whenever you **gain Gold**, give your **Dwarves +3/+3**.',
-    reward: { kind: 'runeProfitSharing', tribe: 'dwarf', attack: 3, health: 3 },
-    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // "Permanently" required a new carry-back channel — every other one is tribe-scoped, so an untyped
@@ -2814,12 +2689,13 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_deep',
     name: 'Rune of the Deep',
-    cost: 6,
+    cost: 5, // owner balance 2026-10-07 (was 6)
     epic: true,
     // Owner 2026-09-23: "Get … Repeat at Start of Turn" — the first minion lands on purchase (`payDeep` at the
-    // reward site), then one at every turn setup.
-    text: 'Get a random **Tier 7** minion. Repeat at **Start of Turn**.',
-    reward: { kind: 'runeDeep', tier: 7 },
+    // reward site). Owner 2026-10-07: the repeat is now every 2 turns (`every`), counted from the purchase; the
+    // forge badge shows the x/2 countdown.
+    text: 'Get a random **Tier 7** minion. Repeat every **2 turns**.',
+    reward: { kind: 'runeDeep', tier: 7, every: 2 },
   },
   {
     id: 'rune_guiding_candle',
@@ -2841,7 +2717,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_foundry',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Foundry',
-    cost: 4,
+    cost: 3, // owner balance 2026-10-07 (was 4)
     epic: true,
     text: 'After you sell **5 minions**, get a random **Dragon**.',
     reward: { kind: 'runeFoundry', per: 5 },
@@ -2866,19 +2742,6 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeConduit' },
     sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
-  },
-  {
-    // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
-    // Per-instance, so two Chefs each pay their own tally.
-    id: 'rune_chef',
-    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
-    name: 'Rune of the Chef',
-    cost: 5, // balance 9/23 (was 6)
-    epic: true,
-    text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
-    previewCards: ['dw_chef'], // text names it — the forge hover shows the card
-    reward: { kind: 'combatFlag', flag: 'runeChef' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_bucky',
@@ -2917,17 +2780,6 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     reward: { kind: 'recurringEndOfTurn', effect: 'runeAncestralRoar' },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
-  },
-  {
-    id: 'rune_ruby_shrapnel',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Ruby Shrapnel',
-    cost: 5,
-    text: 'When a **Ruby**-buffed minion dies, split its Ruby bonus stats among your surviving minions.',
-    previewCards: ['ruby'],
-    epic: true,
-    reward: { kind: 'combatFlag', flag: 'runeRubyShrapnel' },
-    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_shared_scripture',
@@ -3174,17 +3026,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeRuins' },
     sets: ['set2'], // Demons + the Demon-damage trigger
   },
-  {
-    // Two stacked `shoutRepeat: always` grants — the reward stacks by design (see the reducer branch), so this
-    // is +2 triggers rather than a new flag. Rune of the Choir is the +1 version at a lower cost.
-    id: 'rune_blasting_voices',
-    name: 'Rune of Blasting Voices',
-    cost: 6,
-    epic: true,
-    text: 'Your **Shouts** trigger **2 extra times** in combat.',
-    reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'shoutRepeat', scope: 'always' }] },
-    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
-  },
 
   // ── 2026-08-19 owner rune batch (third wave) ──────────────────────────────────────────────────────────
   {
@@ -3311,7 +3152,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_ascension',
-    tribes: ['dragon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
+    // NEUTRAL (owner 2026-10-07: "not a Dragon rune") — the tribe gate is removed, so it is offered whatever tribes rolled.
     name: 'Rune of Ascension',
     cost: 2, // balance 9/23 (was 5)
     epic: true,
@@ -4005,6 +3846,184 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-10-07 owner balance batch: fourteen runes archived from EVERY set (owner: "archive everywhere"). Defs
+  //    verbatim apart from `sets: []` (the old tag is kept in the comment as history), so a saved run or replay that
+  //    holds one keeps its badge, text and reward machinery through `RUNE_INDEX`. ──
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    // NB: Resonance Idol is ARCHIVED (owner call 2026-08-19) — it is out of the draw pool, so this rune is the
+    // ONLY way to obtain one. Deliberate, and the exception to the archive rule in `cards/archive.ts` that a
+    // reward must not name an archived id: here the reward IS the point. Archived cards still resolve through
+    // `CARD_INDEX`, so the grant works.
+    id: 'rune_ruby_resonance',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
+    name: 'Rune of Ruby Resonance',
+    cost: 3,
+    text: 'Get a **Resonance Idol**.',
+    previewCards: ['k_resonance'],
+    reward: { kind: 'grant', cards: ['k_resonance'] },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
+    id: 'rune_contraband',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Contraband',
+    cost: 3, // balance 9/23 (was 6)
+    text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeContraband' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
+    id: 'rune_gemcutting',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Gemcutting',
+    cost: 1, // 4 → 1 (owner 2026-08-02)
+    // Rubies minted at a FIXED line, not the run's 1/1+bonus line (owner sheet 2026-07-31). Balance 9/23: 6 at +4/+4 (was 5 at +3/+3).
+    text: 'Get **6 Rubies** that give **+4/+4**.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
+    reward: { kind: 'mintRubies', count: 6, attack: 4, health: 4 },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    // The Engraving's shape with a MOVING axis: the same `gainRubyBonus` carry-back, but which half it feeds
+    // flips at every turn setup. The axis in force rides into combat on the mod (see `runeShiftingFacets`),
+    // so a fight always resolves the axis the shop was showing.
+    id: 'rune_shifting_facets',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Shifting Facets',
+    cost: 3,
+    text: '**Avenge (3):** improve your **Rubies** by **+1 Health**. Each turn this **alternates** between Health and Attack.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeShiftingFacets' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    // Balance 9/23: the FIRST Ruby cast each turn pays 3 Gold NOW (`grantGold` + `oncePerTurn`; was 5 Rubies in a
+    // turn → 3 Gold next turn). A per-1 meter, so the badge reads 1/1 once it has paid this turn.
+    id: 'rune_gem_dividend',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of the Gem Dividend',
+    cost: 3,
+    text: 'When you cast a **Ruby**, gain **3 Gold**. (Once per turn.)',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 1, grantGold: 3, oncePerTurn: true },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    // The two currencies feed each other's power, one step per turn each.
+    id: 'rune_gemscript',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Gemscript',
+    cost: 4,
+    epic: true,
+    text: 'The first **Shop spell** you cast each turn gives your **Rubies +1/+1**. The first **Ruby** you cast gives your **Shop spells +1/+1**.',
+    previewCards: ['ruby'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeGemscript' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    id: 'rune_gemstorm',
+    tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
+    name: 'Rune of Gemstorm',
+    cost: 2,
+    epic: true,
+    text: '**Avenge (2):** cast **2 Rubies** on each friendly **Kobold**.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
+    reward: { kind: 'combatFlag', flag: 'runeGemstorm', amount: 2 },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    id: 'rune_redirection',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Redirection',
+    cost: 4,
+    epic: true,
+    text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
+    reward: { kind: 'runeRedirection' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    id: 'rune_ruby_shrapnel',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Ruby Shrapnel',
+    cost: 5,
+    text: 'When a **Ruby**-buffed minion dies, split its Ruby bonus stats among your surviving minions.',
+    previewCards: ['ruby'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeRubyShrapnel' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    id: 'rune_last_call',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
+    name: 'Rune of Last Call',
+    cost: 2, // owner balance 2026-08-11 (1 → 2)
+    text: '**Avenge (4):** get **2 random Dwarven Ales**.', // owner 2026-08-11 (was Avenge 3 / 1 Ale)
+    reward: { kind: 'combatFlag', flag: 'runeLastCall' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    // Rides the run's single gold-GAIN chokepoint (`gainGold`), added for this rune — Gold was credited in a
+    // dozen places, and wiring eleven would have shipped a rune that silently misses the twelfth.
+    id: 'rune_profit_sharing',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
+    name: 'Rune of Profit Sharing',
+    cost: 4,
+    epic: true,
+    text: 'Whenever you **gain Gold**, give your **Dwarves +3/+3**.',
+    reward: { kind: 'runeProfitSharing', tribe: 'dwarf', attack: 3, health: 3 },
+    sets: [], // history: was ['set2', 'set3'] (Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    // The Chef banks what it handed out each shop turn; this rune spends LAST turn's total as a combat Rally.
+    // Per-instance, so two Chefs each pay their own tally.
+    id: 'rune_chef',
+    tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
+    name: 'Rune of the Chef',
+    cost: 5, // balance 9/23 (was 6)
+    epic: true,
+    text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
+    previewCards: ['dw_chef'], // text names it — the forge hover shows the card
+    reward: { kind: 'combatFlag', flag: 'runeChef' },
+    sets: [], // history: was ['set2'] (CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was an Epic rune. Moved verbatim.
+    // Two stacked `shoutRepeat: always` grants — the reward stacks by design (see the reducer branch), so this
+    // is +2 triggers rather than a new flag. Rune of the Choir is the +1 version at a lower cost.
+    id: 'rune_blasting_voices',
+    name: 'Rune of Blasting Voices',
+    cost: 6,
+    epic: true,
+    text: 'Your **Shouts** trigger **2 extra times** in combat.',
+    reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'shoutRepeat', scope: 'always' }] },
+    sets: [], // history: was ['set1', 'set2'] (CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)); archived 2026-10-07
+  },
+  {
+    // ARCHIVED 2026-10-07 (owner balance batch: "archive everywhere", all sets). Was a Basic rune. Moved verbatim.
+    id: 'rune_last_word',
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
+    name: 'Rune of the Last Word',
+    cost: 2, // balance 9/23 (was 4)
+    text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
+    reward: { kind: 'runeLastWord' },
+    sets: [], // history: was ['set1', 'set2'] (CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)); archived 2026-10-07
+  },
   // ── 2026-09-24 owner rulings: the two runes the Set 3 cut left in no set, archived ("remove them"). ──
   {
     // ARCHIVED 2026-09-24 (owner rulings: "remove them" — in no set after the Set 3 rune cuts). Was a Basic rune.

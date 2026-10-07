@@ -45,7 +45,7 @@ const BASIC: [string, number][] = [
   ['rune_living_magic', 4], ['rune_draconic_curiosity', 4], ['rune_dragons_pantry', 4],
   ['rune_returning_pack', 4], ['rune_grave_refreshment', 3], ['rune_seasoned_ledger', 4], // Seasoned Ledger 5 → 4 (balance 9/23)
   ['rune_echoed_arrival', 4], ['rune_rare_goods', 4], ['rune_kegheart', 4],
-  ['rune_shifting_facets', 3], ['rune_shared_spoils', 4], ['rune_heavy_payroll', 4],
+  /* rune_shifting_facets ARCHIVED everywhere 2026-10-07 (owner balance batch) */ ['rune_shared_spoils', 4], ['rune_heavy_payroll', 4],
   ['rune_compounding_wages', 4], ['rune_gilded_ledger', 4],
 ];
 const EPIC: [string, number][] = [
@@ -56,8 +56,8 @@ const EPIC: [string, number][] = [
 ];
 
 describe('the Aug-20 batch — pool membership, cost, and the three renames', () => {
-  it('the sweep sees all 30', () => {
-    expect(BASIC).toHaveLength(20);
+  it('the sweep sees all 29 live ones (Shifting Facets archived 2026-10-07)', () => {
+    expect(BASIC).toHaveLength(19);
     expect(EPIC).toHaveLength(10);
   });
 

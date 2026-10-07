@@ -20,8 +20,8 @@ describe('the 14 defs ship as specced', () => {
   const want: [string, number][] = [
     ['rune_enchantment', 2], ['rune_crown', 4], ['rune_lapidary', 3], ['rune_gem_golem', 4], // Enchantment 5 → 2, Lapidary 5 → 3 (balance 9/23)
     ['rune_dragonscale', 4], ['rune_tempered_time', 4], ['rune_savagery', 5], ['rune_crucible', 4],
-    ['rune_herald', 5], ['rune_deep', 6], ['rune_guiding_candle', 4], ['rune_muster', 3],
-    ['rune_foundry', 4], ['rune_corrupted_tome', 1], // Corrupted Tome 4 → 1 (balance 9/23)
+    ['rune_herald', 5], ['rune_deep', 5] /* 6 → 5 owner 2026-10-07 */, ['rune_guiding_candle', 4], ['rune_muster', 3],
+    ['rune_foundry', 3] /* 4 → 3 owner 2026-10-07 */, ['rune_corrupted_tome', 1], // Corrupted Tome 4 → 1 (balance 9/23)
   ];
   it('all present, all EPIC, at the sheet costs', () => {
     for (const [id, cost] of want) {

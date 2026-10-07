@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SETS, poolFor } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SETS, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { ALE_IDS, applyGoldSpent, noteSpellCast } from './recruit';
 
@@ -287,18 +287,18 @@ describe('tranche C — the five that needed machinery', () => {
     s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
     const before = s.board.find((x) => x.uid === 'mate')!.attack;
     s = play(s, 'newcomer');
-    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 4);
+    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 5); // +5/+5 since the owner balance 2026-10-07
   });
 
   it('…buffs the whole tribe including itself, with no count limit', () => {
-    // Owner text is plain "give your Dwarves +4/+4" (repriced from +3/+3, owner 2026-08-28) — the 3-target cap
+    // Owner text is plain "give your Dwarves +5/+5" (repriced +3/+3 → +4/+4 2026-08-28, → +5/+5 2026-10-07) — the 3-target cap
     // and Ale scaling were both mine and are gone.
     let s = set2();
     s = { ...s, board: [body('dw_chef', 'chef'), body('dw_brunni', 'a'), body('dw_tapkeeper', 'b'), body('dw_coinfire', 'c')], hand: [body('dw_orin', 'n')] };
     s = play(s, 'n');
     for (const uid of ['chef', 'a', 'b', 'c']) {
       const c = s.board.find((x) => x.uid === uid)!;
-      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 4);
+      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 5); // +5/+5 since 2026-10-07
     }
   });
 
@@ -379,7 +379,8 @@ describe('tranche C — the five that needed machinery', () => {
     // 26 → 28 on 2026-08-18: dw_billings + dw_gangplank joined the buyable roster.
     // 28 → 29 on 2026-08-19: dw_arnold (T6, End of Turn casts Beefy on itself).
     // 29 → 30 on 2026-08-20: dw_kegheart joined the FORGE-ONLY rune minions (token: true, like Baal / Bucky).
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(30);
+    // 30 → 31 on 2026-10-07: dw_bigbrainbilly (Big Brain Billy, T2, owner add) joined the buyable roster.
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(31);
     expect(poolFor('set2').buyable.some((c) => c.id === 'dw_kegheart'), 'rune-only: in the set, never drawable').toBe(false);
     expect(dwarfIds).toContain('dw_chickenbrawl');
     expect(dwarfIds).toContain('dw_soldier');
@@ -420,7 +421,8 @@ describe('Set 2 runes — the grant-shaped ones', () => {
   });
 
   it('Rune of Gemcutting mints 6 Rubies at a FIXED 4/4 (balance 9/23; owner balance 2026-08-18 had 5 at 3/3)', () => {
-    const rune = all.find((r) => r.name === 'Rune of Gemcutting')!;
+    // ARCHIVED everywhere 2026-10-07; the def (and its reward) still resolve through the archive.
+    const rune = ARCHIVED_RUNES.find((r) => r.name === 'Rune of Gemcutting')!;
     expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 6, attack: 4, health: 4 });
     // And through the reducer: six 4/4 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
     let st: RunState = { ...createRun(3), phase: 'recruit', hand: [], rubyBonus: { attack: 0, health: 0 } };
@@ -512,8 +514,8 @@ describe('set scoping for quests and runes (owner 2026-07-29)', () => {
     const s1 = RUNES.concat(EPIC_RUNES).filter((r) => !r.sets || r.sets.includes('set1'));
     const s2 = RUNES.concat(EPIC_RUNES).filter((r) => !r.sets || r.sets.includes('set2'));
     for (const r of s1) expect(r.sets?.includes('set2') === false || !r.sets || r.sets.includes('set1')).toBe(true);
-    expect(s2.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune vanished from set 2').toBe(true);
-    expect(s1.some((r) => r.id === 'rune_gemcutting'), 'a Ruby rune is offerable in set 1').toBe(false);
+    expect(s2.some((r) => r.id === 'rune_facetwright'), 'a Ruby rune vanished from set 2').toBe(true); // Gemcutting archived 2026-10-07; Facetwright is the set-2-only Ruby rune now
+    expect(s1.some((r) => r.id === 'rune_facetwright'), 'a Ruby rune is offerable in set 1').toBe(false);
   });
 });
 

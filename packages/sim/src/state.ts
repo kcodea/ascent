@@ -1946,8 +1946,14 @@ export interface RunState {
   /** Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for every
    *  card played this turn. Runs as a VIRTUAL recurring-EoT entry (see `recurringEotEffects`). */
   runeLapidary?: boolean;
-  /** Rune of the Deep: each turn setup, a random minion of this tier. */
+  /** Rune of the Deep: a random minion of this tier on purchase, then again every `runeDeepEvery` turn setups. */
   runeDeep?: number;
+  /** Rune of the Deep's cadence (owner 2026-10-07: "Repeat every 2 turns"). Absent = every turn setup, which is
+   *  what a run that bought the Deep before the cadence existed keeps doing (its saved state has no field). */
+  runeDeepEvery?: number;
+  /** Turn setups since the Deep last paid; the payout fires when it reaches `runeDeepEvery`, and the badge's
+   *  x/N countdown reads the same number. */
+  runeDeepTick?: number;
   /** Rune of the Guiding Candle: refreshes left THIS TURN that draw only `tier` minions. Reset each turn. */
   runeGuidingCandle?: { count: number; tier: number; left: number };
   /** Rune of the Muster: armed free refreshes stocked with plain copies of the board, spent one per refresh.

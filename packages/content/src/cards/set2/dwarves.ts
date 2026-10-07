@@ -475,7 +475,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     // BIG BRAIN BILLY (owner add 2026-10-07): a T2 Dwarf that grows itself off Shop spells. A DRAWABLE card (no
     // `token`), appended LAST in this list (the set's final `own` slot) so no existing set-2 pool position moves.
     // `spellCast` + `spellCastBuffSelf`, the house "Shop spell" watcher: a Ruby does not count (no `includeRubies`;
-    // Rune of the Spellstone's run-wide "a Ruby IS a Shop spell" rule still reaches it). Gilded +2/+2. No art yet.
+    // Rune of the Spellstone's run-wide "a Ruby IS a Shop spell" rule still reaches it). Gilded +2/+2.
     id: 'dw_bigbrainbilly',
     name: 'Big Brain Billy',
     tribe: 'dwarf',

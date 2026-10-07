@@ -168,6 +168,7 @@ const RUNE_ALIASES: Record<string, string> = {
   runeofthemotherload: 'rune_motherlode', // misspelled in the source ("Motherload")
   spellofpillaging: 'rune_pillaging',     // authored as "Spell of..."; there is no such spell, and the rune matches
   runeofthecaravan: 'rune_strange_caravan', // art authored as "the Caravan"; the rune is "the Strange Caravan"
+  runeofthefirebird: 'rune_flaming_dragon', // owner 2026-10-07: the art is named for the minion it grants (Firebird)
 };
 
 /** A generator export: timestamp, `__`, the card name with hyphens for spaces, then the prompt tail. */

@@ -514,8 +514,7 @@ export const CALIBRATION_WRENCH: EquipmentDefinition = {
  * The two below are granted by a RUNE, not a minion (`runeEquip` reward): owning the rune holds the Equipment for
  * the rest of the run, re-granted at every Start-of-Turn rebuild (`RunState.runeEquipment`). They obey every other
  * Equipment rule unchanged — one own charge a turn, the shared bonus pool, the cost reductions, Amplified. A rune is
- * never gilded, so neither has a Gilded wording. No art yet (art is wired only on ask): the slot falls back to its
- * glyph inside the default housing.
+ * never gilded, so neither has a Gilded wording. Icons wired 2026-10-07 (`art/equipment/dragons_egg`, `spell_generator`).
  */
 
 /** DRAGON'S EGG — Rune of the Dragon's Egg: Discover a Dragon at the tavern tier. The Coffin Flop shape: the shared

@@ -35,7 +35,7 @@ import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
-import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies } from './equipment';
+import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -7230,6 +7230,24 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     // Foundry keeps its meter on a re-apply (a duplicate must not reset progress); the payout doubles via
     // `runeStacksOf` at the trip (threshold family, owner 2026-08-27).
     case 'runeFoundry': s.runeFoundry = { per: r.per, sold: s.runeFoundry?.sold ?? 0 }; break;
+    // Rune of the Voicekeeper (2026-10-07): a duplicate keeps the meter (its banked sales survive); the payout
+    // doubles via `runeStacksOf` at the trip (threshold family, owner 2026-08-27), like the Foundry.
+    case 'runeVoicekeeper': s.runeVoicekeeper = { per: r.per, tribe: r.tribe, sold: s.runeVoicekeeper?.sold ?? [] }; break;
+    // RUNE-OWNED EQUIPMENT (2026-10-07): record the ownership (the Start-of-Turn rebuild re-grants from it) and hand
+    // the Equipment over NOW, with its own charge ready — a rune bought this turn is usable this turn. A second copy
+    // of the rune collapses into the one entry (`grantRuneEquipment` is idempotent), as duplicate sources do.
+    case 'runeEquip': {
+      const list = (s.runeEquipment ??= []);
+      if (!list.some((x) => x.equipmentId === r.equipmentId)) list.push({ runeId: def.id, equipmentId: r.equipmentId });
+      // THE EQUIP ANIMATION (owner ruling 2026-10-07: "the same animation that an equip unit uses"): the full
+      // `equip` cue, gated by the same "does what you hold change" rule a minion's equip uses (`equipIsNews`), so a
+      // second copy of the rune is silent. The rune has no body: the cue names the RUNE and the UI starts the
+      // animation from its badge in the rune rack.
+      const news = equipIsNews(s, r.equipmentId, false);
+      grantRuneEquipment(s, def.id, r.equipmentId);
+      if (news) stampEquipFx(s, { kind: 'equip', uid: `rune:${def.id}`, cardId: def.id, equipmentId: r.equipmentId, runeId: def.id });
+      break;
+    }
     case 'runeCorruptedTome': s.runeCorruptedTome = true; break;
     case 'runeGroveweaver': s.runeGroveweaver = true; break;
     case 'runeSharedPour': s.runeSharedPour = true; break;
@@ -7641,8 +7659,17 @@ function shoutMetersFor(s: RunState): QuestCombatMods['shoutMeters'] {
   const out: NonNullable<QuestCombatMods['shoutMeters']> = [];
   for (const t of s.runeThresholds ?? []) {
     if (t.meter !== 'shout' || !t.sourceId || t.oncePerTurn || t.once) continue;
-    if (!t.grantSpell && !t.grantOneOf?.length) continue;
-    out.push({ sourceId: t.sourceId, per: t.per, tick: t.tick, grantSpell: t.grantSpell, grantOneOf: t.grantOneOf ? [...t.grantOneOf] : undefined });
+    // Rune of the Echoing Shouts (2026-10-07): a `tribe` buff with no escalation pays mid-fight too — the side's
+    // living members of the tribe, for this fight (the Drake Skull / Starsong combat rule).
+    const tribeBuff = t.buff?.target === 'tribe' && t.buff.tribe && !t.buff.step
+      ? { tribe: t.buff.tribe, attack: t.buff.attack, health: t.buff.health, label: RUNE_INDEX[t.sourceId]?.name ?? 'Rune' }
+      : undefined;
+    if (!t.grantSpell && !t.grantOneOf?.length && !t.grantCards?.length && !tribeBuff) continue;
+    out.push({
+      sourceId: t.sourceId, per: t.per, tick: t.tick, grantSpell: t.grantSpell, grantOneOf: t.grantOneOf ? [...t.grantOneOf] : undefined,
+      ...(t.grantCards?.length ? { grantCards: [...t.grantCards] } : {}), // Rune of the Whelps (2026-10-07)
+      ...(tribeBuff ? { buff: tribeBuff } : {}),
+    });
   }
   return out.length > 0 ? out : undefined;
 }

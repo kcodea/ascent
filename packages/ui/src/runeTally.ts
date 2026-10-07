@@ -239,6 +239,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_foundry' && run.runeFoundry) {
     return `${Math.min(run.runeFoundry.sold, run.runeFoundry.per)}/${run.runeFoundry.per}`;
   }
+  // Rune of the Voicekeeper (2026-10-07): Dragons sold toward the copy (the sales banked since the last payout).
+  if (runeId === 'rune_voicekeeper' && run.runeVoicekeeper) {
+    return `${Math.min(run.runeVoicekeeper.sold.length, run.runeVoicekeeper.per)}/${run.runeVoicekeeper.per}`;
+  }
   if (runeId === 'rune_scale' && run.runeScale?.per) {
     return `${Math.min(run.runeScale.tick ?? 0, run.runeScale.per)}/${run.runeScale.per}g`;
   }

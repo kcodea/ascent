@@ -73,6 +73,7 @@ const armedRun = (): RunState => ({
   shopBuffPerShouts: { per: 3, attack: 1, health: 1, tick: 2 },
   runeCrown: { per: 6, attack: 4, health: 4 }, // Rune of the Crown — spells cast toward its one-time step
   runeFoundry: { per: 5, sold: 2 },            // Rune of the Foundry — minions sold toward the next Dragon
+  runeVoicekeeper: { per: 3, tribe: 'dragon', sold: ['d2_embermouth'] }, // Rune of the Voicekeeper — Dragons sold toward the copy (2026-10-07)
   shopBuffOnRefresh: { attack: 5, health: 5, step: 1, per: 2, grown: 0, tick: 1 },
   shopAuraGrow: { step: 2, per: 4, tick: 1, grown: 0 }, // Rune of the Wheel — refreshes toward the next improve
   questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 3 },

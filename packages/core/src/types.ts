@@ -520,6 +520,7 @@ export type EffectFactoryId =
   | 'spellCastBuffImps' // Set 2 — Rouge Rogue: a Shop spell buffs your Imps everywhere
   | 'rallyGrantSpellPower' // Set 2 — Chorus Drake: Rally raises Shop-spell power
   | 'onBattlecryBuffSelf' // Set 2 — Embermouth Whelp: a triggered Shout grows this minion
+  | 'onBattlecryCastNamedSpell' // Firebird (owner batch 2026-10-07): a triggered Shout CASTS a named spell (Dragonflame), both phases
   | 'orbitBuffArriver' // Celestial ORBIT: buff the minion that just landed next to this one
   | 'orbitBuffRandomFriend' // Orbiting Familiar: buff a RANDOM friendly minion (not the arriver)
   | 'orbitSellValue' // Starpath Vendor (Dawn): this minion gains sell value, capped
@@ -605,6 +606,7 @@ export type EffectFactoryId =
   | 'scGrantReborn' // Gravewarden: Start of Combat — give a friendly Undead (not self) Rise; golden two
   | 'grantEquipment' // the `equip` factory: hands the player the Equipment named by `params.equipmentId`
   | 'equipmentRubyDuel' // Dueling Rubetta's — improve your Rubies, then Ruby your end Kobolds
+  | 'equipmentSpellPowerAndStatSpell' // Spell Generator (Rune of the Wise Armory, 2026-10-07): +A/+H spell power, then a random stat-granting spell to hand
   | 'equipmentBuffTarget' // Bloodpot: one Equipment TRIGGER — +atk/+hp onto the chosen friendly minion
   | 'equipmentCastSpell' // an EQUIPMENT SPELL: casts its named Shop spell through the real cast pipeline
   | 'equipmentSetStats' // Titan Hammer: SETS the target's stats rather than adding to them
@@ -1548,6 +1550,12 @@ export type QuestReward =
   | { kind: 'runeGuidingCandle'; count: number; tier: number } // the first `count` refreshes each turn are all `tier`
   | { kind: 'runeMuster' } // one free refresh stocked with plain copies of your board
   | { kind: 'runeFoundry'; per: number } // every `per` minions sold: a random Dragon
+  /** Rune of the Voicekeeper (owner batch 2026-10-07): every `per` minions of `tribe` you sell → a PLAIN copy of
+   *  one of those `per`, picked off the run cursor (the Voicekeeper minion's / Rune of the Collector's copy rule). */
+  | { kind: 'runeVoicekeeper'; per: number; tribe: Tribe }
+  /** RUNE-OWNED EQUIPMENT (owner batch 2026-10-07): owning the rune grants the named Equipment for the rest of the
+   *  run — re-granted at every Start-of-Turn rebuild (`RunState.runeEquipment`), never tied to a board body. */
+  | { kind: 'runeEquip'; equipmentId: string }
   | { kind: 'runeCorruptedTome' } // a Triple Reward grants two instead
   | { kind: 'runeGroveweaver' } // a Groveweaver's summon-buff also lands on itself
   | { kind: 'runeSharedPour' } // the first Ale each turn casts an extra time
@@ -2066,7 +2074,12 @@ export interface QuestCombatMods {
    *  ticks. Every combat Shout fire (`battlecryTriggered`) advances them; a trip pays through `handGrants`
    *  (a random Shop spell, never an Ale — `grantSpell`; or one of `grantOneOf`) and the fight reports the final
    *  ticks back (`CombatCarryBacks.shoutMeters`) so the run's ONE counter continues into the next shop. */
-  shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[] }[];
+  shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[];
+    /** Rune of the Whelps (2026-10-07): these exact card ids to hand on a trip (the shop's `grantCards`). */
+    grantCards?: string[];
+    /** Rune of the Echoing Shouts (2026-10-07): on a trip, this side's LIVING `tribe` minions gain +A/+H for this
+     *  fight (the Drake Skull / Starsong combat rule), labelled with the rune's name. */
+    buff?: { tribe: Tribe; attack: number; health: number; label: string } }[];
   /** Gorun's Blade Mastery: a friendly attack grants the ATTACKER +3 Attack for the rest of the fight, and the
    *  grant improves by +3 for every 8 attacks made. `attacks` is the run-lifetime count BEFORE this fight, so
    *  the grant keeps stepping up mid-combat as the count rises past each multiple of 8 — the same total the

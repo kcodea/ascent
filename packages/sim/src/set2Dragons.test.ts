@@ -29,7 +29,7 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(set2Dragons.every((c) => !c.spell)).toBe(true);
     // Two of them since 2026-08-20: the Brood Whelp, plus Skybound Ascendant from the RUNE-ONLY batch —
     // `token: true` is how a forge-only minion stays out of every shop roll while still resolving in the set.
-    expect(set2Dragons.filter((c) => c.token).map((c) => c.id).sort(), 'the Dragon tokens').toEqual(['d2_ascendant', 'd2_broodwhelp']);
+    expect(set2Dragons.filter((c) => c.token).map((c) => c.id).sort(), 'the Dragon tokens').toEqual(['d2_ascendant', 'd2_broodwhelp', 'd2_firebird']); // + Firebird 2026-10-07 (forge-only, Rune of the Flaming Dragon)
     expect(run).toBeTruthy();
   });
 

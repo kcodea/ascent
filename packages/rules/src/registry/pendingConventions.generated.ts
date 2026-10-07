@@ -542,15 +542,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shoutReact",
-    "title": "'shoutReact' family · 4 cards",
-    "statement": "All 4 'shoutReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shoutReact' family · 5 cards",
+    "statement": "All 5 'shoutReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'shoutReact' presentation family, all on the single trigger 'battlecryTriggered' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Members: Bane · Embermouth Whelp · Karwind · Sporeling",
+    "currentBehaviour": "5 effect factories across 5 cards dispatch through the 'shoutReact' presentation family, all on the single trigger 'battlecryTriggered' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Members: Bane · Embermouth Whelp · Firebird · Karwind · Sporeling",
     "example": "Bane follows the 'shoutReact' convention — its trigger fires on battlecryTriggered. its printed numbers double when the card is gilded.",
     "contentIds": [
       "bane",
       "d2_embermouth",
+      "d2_firebird",
       "karwind",
       "spore"
     ]
@@ -916,7 +917,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "368 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "369 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },

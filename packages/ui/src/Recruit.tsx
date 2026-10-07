@@ -2599,7 +2599,12 @@ export function Recruit() {
       }
     }
     cues.filter((c) => c.kind !== 'use').forEach((cue, i) => {
-      const el = findEl(cue.uid);
+      // A RUNE-OWNED Equipment (owner ruling 2026-10-07: "the same animation that an equip unit uses") has no body:
+      // the identical animation starts from THAT rune's badge in the rune rack (the rune is the source), falling
+      // back to the rack itself. Motion and timing are the minion's, untouched.
+      const el = cue.runeId
+        ? runeNodeEl(cue.runeId) ?? document.querySelector('.questbadges .runebadge') ?? document.querySelector('.questbadges')
+        : findEl(cue.uid);
       const r = el?.getBoundingClientRect();
       const from = r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
       // A REBUILD fires one cue per surviving source, so it is staggered and (by default) quieter than a
@@ -2616,7 +2621,8 @@ export function Recruit() {
           const stop = playDef(
             'equipment-spark',
             { source: at, target: at, cursor: at },
-            { uids: { source: cue.uid, target: onUnit ? cue.uid : null } },
+            // A rune source names no board body, so its react uids stay empty rather than pointing at nothing.
+            { uids: { source: cue.runeId ? null : cue.uid, target: onUnit && !cue.runeId ? cue.uid : null } },
           );
           // `playDef` hands back a retire fn — called on cleanup so a route change mid-burst leaves nothing.
           if (stop) retire.push(stop);

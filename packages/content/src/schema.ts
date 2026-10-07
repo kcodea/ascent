@@ -209,6 +209,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffImps',
   'rallyGrantSpellPower',
   'onBattlecryBuffSelf',
+  'onBattlecryCastNamedSpell', // Firebird (2026-10-07) — a triggered Shout casts a named spell
   'spellCastDemonConsumesShop', // Baal — every N spells, a friendly Demon eats a Shop minion
   'orbitBuffArriver',
   'orbitBuffRandomFriend',
@@ -839,6 +840,8 @@ z.object({ kind: z.literal('runeDeep'), tier: z.number().int().min(1).max(7) }).
 z.object({ kind: z.literal('runeGuidingCandle'), count: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('runeMuster') }).strict(),
 z.object({ kind: z.literal('runeFoundry'), per: z.number().int().positive() }).strict(),
+z.object({ kind: z.literal('runeVoicekeeper'), per: z.number().int().positive(), tribe: TribeSchema }).strict(), // Rune of the Voicekeeper (2026-10-07)
+z.object({ kind: z.literal('runeEquip'), equipmentId: z.string().min(1) }).strict(), // rune-owned Equipment (2026-10-07)
 z.object({ kind: z.literal('runeCorruptedTome') }).strict(),
 z.object({ kind: z.literal('runeGroveweaver') }).strict(),
 z.object({ kind: z.literal('runeSharedPour') }).strict(),

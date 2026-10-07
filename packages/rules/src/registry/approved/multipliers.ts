@@ -207,7 +207,7 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       + 'and the Nimbus charge). Card, rune and quest texts now say "from hand".',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/castMultipliersFromHand.test.ts', 'packages/sim/src/set3Dwarves.test.ts', 'packages/sim/src/docbot/recastMultiplier.test.ts'],
+      refs: ['packages/sim/src/castMultipliersFromHand.test.ts', 'packages/sim/src/set3Dwarves.test.ts', 'packages/sim/src/docbot/recastMultiplier.test.ts', 'packages/sim/src/runeDragonBreathCombat.test.ts'],
       lastVerifiedAt: '2026-09-24',
     },
   },

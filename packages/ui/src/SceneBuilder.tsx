@@ -1,3 +1,4 @@
+import { RUNE_STYLES_EVENT } from './RuneStyleSheet';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
@@ -445,6 +446,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(false)} aria-description="Open a Basic Runeforge on this turn">Enter Runeforge</button>
               <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(true)} aria-description="Open an Epic Runeforge on this turn (the turn-8 rules)">Enter Epic Runeforge</button>
             </div>
+            <button className="sb-btn" onClick={() => window.dispatchEvent(new Event(RUNE_STYLES_EVENT))} aria-description="Open the rune card style sheet: six candidate looks side by side">Rune card styles</button>
             <div className="sb-row sb-tierrow">
               <span className="sb-mini">tier</span>
               <div className="sb-seg sb-seg-7" role="radiogroup" aria-label="Tavern tier">

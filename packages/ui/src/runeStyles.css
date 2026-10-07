@@ -1,0 +1,110 @@
+/* THE RUNE CARD STYLE SHEET (DEV only, owner ask 2026-10-07): six candidate plate treatments, `data-look="1".."6"` on
+   a RuneCard (RuneStyleSheet.tsx). Each overrides the base card (runeCard.css). Rules for all six: no blurred-art
+   bleed, high contrast and saturation, text on a clean field, static paint, no code-drawn props (existing painted art
+   from public/frames is fine). Once the owner picks, the winner becomes the base and this file is deleted. */
+
+/* ── The sheet ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.rss { position: fixed; inset: 0; z-index: 950; overflow: auto; padding: 22px 28px 40px; background: radial-gradient(120% 90% at 50% 30%, #4a3790, #241a4a 70%, #140e2c); font-family: var(--font-ui); color: #f4ecdb; }
+.rss-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 14px; }
+.rss-head b { font-size: 22px; font-weight: 900; }
+.rss-head span { font-size: 14px; color: #c6b8d8; }
+.rss-close { margin-left: auto; padding: 6px 14px; border-radius: 10px; border: 2px solid #c8953f; background: #21173a; color: #fff1d6; font-weight: 800; }
+.rss-grid { display: grid; grid-template-columns: repeat(3, auto); justify-content: center; gap: 30px 46px; }
+.rss-cell { display: flex; flex-direction: column; gap: 22px; }
+.rss-label { display: flex; align-items: baseline; gap: 10px; max-width: 470px; }
+.rss-n { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #ffd98a; color: #2a1606; font-weight: 900; font-size: 20px; }
+.rss-label b { font-size: 17px; font-weight: 900; white-space: nowrap; }
+.rss-label i { font-style: normal; font-size: 12.5px; color: #c6b8d8; }
+.rss-cards { --cw: 214px; display: flex; gap: 24px; align-items: stretch; padding-top: 18px; }
+
+/* ── Shared by every look ──────────────────────────────────────────────────────────────────────────────────── */
+.runecard[data-look] { --rs-gold: linear-gradient(180deg, #fff6cf 0%, #ffd96e 22%, #c88c22 52%, #ffe28e 78%, #a8701c 100%); }
+.runecard[data-look] .runecard-bleed, .runecard[data-look] .runecard-face::after { display: none; }
+.rs-paint, .rs-arch { position: absolute; pointer-events: none; }
+
+/* ── 1 · Painted plate: the minion card's own painted plate, parchment interior, dark ink ─────────────────── */
+.runecard[data-look="1"] { min-height: calc(var(--cw) * 1.555); padding: calc(var(--cw) * 0.1) calc(var(--cw) * 0.14) calc(var(--cw) * 0.22); }
+.runecard[data-look="1"] .rs-paint { inset: 0; width: 100%; height: 100%; z-index: 0; }
+.runecard[data-look="1"] .runecard-face { display: none; }
+.runecard[data-look="1"] .runecard-window { width: 56%; border: none; background: none; box-shadow: none; overflow: visible; filter: drop-shadow(0 4px 5px rgba(40, 20, 0, 0.55)); }
+.runecard[data-look="1"] .runecard-name { font-size: 22px; color: #2c1708; text-shadow: 0 1px 0 rgba(255, 240, 210, 0.55); }
+.runecard[data-look="1"] .runecard-divider::before { background: linear-gradient(90deg, rgba(60, 30, 10, 0), #5a3418 40%, #5a3418 60%, rgba(60, 30, 10, 0)); }
+.runecard[data-look="1"] .runecard-divider::after { background: #6a3e1c; box-shadow: none; }
+.runecard[data-look="1"] .runecard-txt { font-size: 14px; color: #24140a; text-shadow: 0 1px 0 rgba(255, 240, 210, 0.45); }
+.runecard[data-look="1"] .runecard-txt b { color: color-mix(in srgb, var(--rt-body) 48%, #120600); font-weight: 900; text-shadow: none; }
+.runecard[data-look="1"][data-tribe="neutral"] .runecard-txt b { color: #7a4a0e; }
+.runecard-epic[data-look="1"] { filter: drop-shadow(0 10px 14px rgba(10, 4, 24, 0.6)) drop-shadow(0 0 16px rgba(196, 140, 255, 0.85)); }
+
+/* ── 2 · Spell sibling: the shop spell tile's painted arch around the art, the text on a plate beneath ──────── */
+.runecard[data-look="2"] { padding: calc(var(--cw) * 1.25) 14px 16px; min-height: 0; }
+.runecard[data-look="2"] .rs-arch { left: 0; top: 0; width: 100%; height: auto; z-index: 3; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)); }
+.runecard[data-look="2"] .runecard-window {
+  position: absolute; left: 0; top: 0; width: 100%; height: auto; aspect-ratio: 705 / 862; border: none; border-radius: 0; box-shadow: none;
+  background: color-mix(in srgb, var(--rt-body) 40%, #0c0710);
+  -webkit-mask-image: url('/frames/spell-art-window-arch.webp'); mask-image: url('/frames/spell-art-window-arch.webp');
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+}
+.runecard[data-look="2"] .runecard-art { -webkit-mask-image: none; mask-image: none; transform: scale(1.05); }
+.runecard[data-look="2"] .runecard-face {
+  top: calc(var(--cw) * 1.14); border-radius: 0 0 16px 16px; border-width: 2px;
+  background: var(--ui-sheen) padding-box, linear-gradient(180deg, color-mix(in srgb, var(--rt-body) 38%, var(--ui-plate-top)), color-mix(in srgb, var(--rt-body) 14%, var(--ui-plate-bot))) padding-box, var(--ui-edge) border-box;
+}
+.runecard[data-look="2"] .runecard-cost { top: 2px; left: 12px; transform: scale(var(--rfl-cost-scale, 1.18)); z-index: 6; }
+.runecard[data-look="2"] .runecard-head { margin-top: 4px; }
+.runecard-epic[data-look="2"] .runecard-face { box-shadow: var(--ui-bevel), 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--ui-edge-main), 0 0 18px rgba(196, 140, 255, 0.6); }
+
+/* ── 3 · Dark glass: deep saturated tribe glass, a layered bright gold rim, crisp art, a clean text well ─────── */
+.runecard[data-look="3"] .runecard-face {
+  border: 3px solid transparent; border-radius: 18px;
+  background:
+    radial-gradient(90% 45% at 50% 0%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 70%) padding-box,
+    linear-gradient(180deg, color-mix(in srgb, var(--rt-body) 62%, #06030c) 0%, color-mix(in srgb, var(--rt-body) 38%, #06030c) 55%, color-mix(in srgb, var(--rt-body) 22%, #04020a) 100%) padding-box,
+    var(--rs-gold) border-box;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 0 0 3px #7a5414, inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 0 2px rgba(255, 230, 160, 0.55), inset 0 3px 0 rgba(255, 255, 255, 0.25), inset 0 0 34px color-mix(in srgb, var(--rt-body) 55%, transparent);
+}
+.runecard[data-look="3"] .runecard-window { border: 4px solid transparent; background: #06030c padding-box, var(--rs-gold) border-box; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(0, 0, 0, 0.8); }
+.runecard[data-look="3"] .runecard-body { margin: 10px -4px 0; padding: 10px 10px; border-radius: 12px; background: rgba(0, 0, 0, 0.42); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(255, 230, 160, 0.16); }
+.runecard[data-look="3"] .runecard-name { color: #ffe08a; }
+.runecard-epic[data-look="3"] .runecard-face { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 0 0 3px #7a5414, 0 0 0 5px #c48cff, 0 0 22px rgba(196, 140, 255, 0.75), inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 0 2px rgba(255, 230, 160, 0.55), inset 0 3px 0 rgba(255, 255, 255, 0.25), inset 0 0 34px color-mix(in srgb, var(--rt-body) 55%, transparent); }
+
+/* ── 4 · Art-forward tall: the full art large on top, a Gem plate name banner across the middle ─────────────── */
+.runecard[data-look="4"] { padding: 0 0 16px; }
+.runecard[data-look="4"] .runecard-face {
+  border-radius: 18px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rt-body) 72%, #12081c) 0%, color-mix(in srgb, var(--rt-body) 40%, #0c0614) 60%, color-mix(in srgb, var(--rt-body) 26%, #08040e) 100%) padding-box, var(--ui-edge) border-box;
+}
+.runecard[data-look="4"] .runecard-window { width: calc(100% - 4px); margin-top: 2px; border: none; border-radius: 16px 16px 0 0; background: #0c0710; box-shadow: none; }
+.runecard[data-look="4"] .runecard-art { -webkit-mask-image: linear-gradient(180deg, #000 80%, rgba(0, 0, 0, 0)); mask-image: linear-gradient(180deg, #000 80%, rgba(0, 0, 0, 0)); transform: none; }
+.runecard[data-look="4"] .runecard-cost { left: 8px; top: -10px; transform: scale(var(--rfl-cost-scale, 1.18)); }
+.runecard[data-look="4"] .runecard-head {
+  margin-top: -26px; width: calc(100% + 16px); padding: 8px 10px; border: 2px solid transparent; border-radius: 12px;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 6px 14px -4px rgba(0, 0, 0, 0.7);
+}
+.runecard[data-look="4"] .runecard-divider { display: none; }
+.runecard[data-look="4"] .runecard-body { padding: 4px 14px 0; }
+.runecard-epic[data-look="4"] .runecard-face { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 4px var(--ui-edge-main), 0 0 20px rgba(196, 140, 255, 0.7); }
+
+/* ── 5 · Minimal premium: near-black, one tribe accent, quiet type ───────────────────────────────────────── */
+.runecard[data-look="5"] { filter: none; }
+.runecard[data-look="5"] .runecard-face { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 22px; background: linear-gradient(180deg, #17121f, #0b0910); box-shadow: 0 18px 34px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.runecard[data-look="5"] .runecard-window { width: 84%; border: none; background: none; box-shadow: 0 14px 40px -8px color-mix(in srgb, var(--rt-body) 70%, transparent); overflow: visible; }
+.runecard[data-look="5"] .runecard-name { font-family: var(--font-ui); font-weight: 700; letter-spacing: 0.01em; color: #fff; text-shadow: none; }
+.runecard[data-look="5"] .runecard-divider { width: 34px; height: 3px; margin-top: 10px; border-radius: 2px; background: var(--rt-body); box-shadow: 0 0 10px var(--rt-body); }
+.runecard[data-look="5"] .runecard-divider::before, .runecard[data-look="5"] .runecard-divider::after { display: none; }
+.runecard[data-look="5"] .runecard-txt { font-weight: 600; color: #cfc8dc; text-shadow: none; }
+.runecard[data-look="5"] .runecard-cost { transform: translateX(-50%) scale(1); }
+.runecard-epic[data-look="5"] .runecard-face { border-color: rgba(196, 140, 255, 0.55); box-shadow: 0 18px 34px -12px rgba(0, 0, 0, 0.85), 0 0 26px -4px rgba(196, 140, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+
+/* ── 6 · Reference: a rich saturated tint glowing from the art, a thick bright gold frame, gold type ─────────── */
+.runecard[data-look="6"] .runecard-face {
+  border: 5px solid transparent; border-radius: 16px;
+  background:
+    radial-gradient(85% 50% at 50% 28%, color-mix(in srgb, var(--rt-body) 95%, #fff 5%) 0%, color-mix(in srgb, var(--rt-body) 62%, #10061a) 55%, color-mix(in srgb, var(--rt-body) 35%, #08030e) 100%) padding-box,
+    var(--rs-gold) border-box;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 0 4px #e8b950, 0 0 0 5px #6a4410, inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(255, 236, 170, 0.5), inset 0 0 26px rgba(0, 0, 0, 0.45);
+}
+.runecard[data-look="6"] .runecard-window { border: 4px solid transparent; background: #0c0710 padding-box, var(--rs-gold) border-box; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 0 20px 5px color-mix(in srgb, var(--rt-body) 90%, #fff 10%), inset 0 0 16px 3px color-mix(in srgb, var(--rt-body) 80%, transparent); }
+.runecard[data-look="6"] .runecard-name { background: linear-gradient(180deg, #fff6d2, #ffd77a 50%, #e8a838); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; filter: drop-shadow(0 2px 0 rgba(30, 10, 0, 0.85)); }
+.runecard[data-look="6"] .runecard-body { margin: 10px -6px 0; padding: 10px 10px 12px; border-radius: 10px; background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.62)); box-shadow: inset 0 0 0 1px rgba(255, 220, 140, 0.25); }
+.runecard-epic[data-look="6"] .runecard-face { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 0 4px #e8b950, 0 0 0 5px #6a4410, 0 0 0 7px #c48cff, 0 0 26px rgba(196, 140, 255, 0.8), inset 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 3px rgba(255, 236, 170, 0.5), inset 0 0 26px rgba(0, 0, 0, 0.45); }

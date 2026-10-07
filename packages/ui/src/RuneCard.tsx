@@ -42,6 +42,9 @@ export function runeAccentTribe(rune: Pick<RuneDef, 'tribes'>): Tribe {
   return t && t.length > 0 && t.length < 3 ? t[0]! : 'neutral';
 }
 
+/** Tribes with a painted card plate in `public/frames/cardplate-<tribe>.webp` (style sheet option 1). */
+const PLATED_TRIBES: ReadonlySet<Tribe> = new Set<Tribe>(['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'neutral', 'undead']);
+
 /** Runes carry no badge keywords — one stable empty list so `KeywordDefs`' memo key never churns. */
 const NO_KEYWORDS: Keyword[] = [];
 
@@ -63,7 +66,7 @@ function cardViewOf(id: string, golden = false): CardView | null {
  * the effect it grants for the run. Bought for its cost on click (greyed when you can't afford it). A rune that
  * grants a minion (Pillaging → a Pillager) floats a full preview of that card on hover, like QuestCard.
  */
-export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }: {
+export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx, look }: {
   rune: RuneDef;
   affordable: boolean;
   /** The clicked card's own element comes back with the call so the lock-in ceremony can read its rect at
@@ -78,6 +81,8 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
   /** This card is a real PICK (the forge), so pressing it plays the pick cue instead of the click thock (see
    *  `sfx.pickPress`). Off everywhere a RuneCard is only shown — the Compendium, a preview, the ceremony's clones. */
   pickSfx?: boolean;
+  /** DEV style sheet only (owner 2026-10-07): which of the six candidate plate treatments to wear (runeStyles.css). */
+  look?: number;
 }) {
   const shownCost = cost ?? rune.cost;
   const discounted = shownCost < rune.cost;
@@ -122,6 +127,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
     <button
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
       data-tribe={accent}
+      data-look={look}
       style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
@@ -135,6 +141,8 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
           the top edge, the name over a small divider, and the rules beneath (runeCard.css).
           `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new <img>s; an
           async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
+      {look === 1 && <img className="rs-paint" src={`${import.meta.env.BASE_URL}frames/${PLATED_TRIBES.has(accent) ? `cardplate-${accent}` : 'cardplate'}.webp`} alt="" aria-hidden decoding="sync" />}
+      {look === 2 && <img className="rs-arch" src={`${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`} alt="" aria-hidden decoding="sync" />}
       <span className="runecard-face" aria-hidden>
         {/* The art BLEED (owner 2026-10-07: "use more of the art and feather it out"): the rune's own art, large, behind
             the window, feathered into the tribe tint before the rules text. Static (runeCard.css). */}

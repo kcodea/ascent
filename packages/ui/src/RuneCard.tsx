@@ -135,7 +135,11 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
           the top edge, the name over a small divider, and the rules beneath (runeCard.css).
           `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new <img>s; an
           async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
-      <span className="runecard-face" aria-hidden />
+      <span className="runecard-face" aria-hidden>
+        {/* The art BLEED (owner 2026-10-07: "use more of the art and feather it out"): the rune's own art, large, behind
+            the window, feathered into the tribe tint before the rules text. Static (runeCard.css). */}
+        {art && <img className="runecard-bleed" src={art} alt="" decoding="sync" />}
+      </span>
       <span className="runecard-window" aria-hidden>
         {art
           ? <img className="runecard-art" src={art} alt="" decoding="sync" />

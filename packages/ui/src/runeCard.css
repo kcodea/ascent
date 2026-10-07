@@ -15,7 +15,7 @@
   --c: var(--ui-edge-main);                            /* the accent the entrance FX + lock-in read */
   --runecard-text-scale: 1.2;                          /* owner 2026-10-07: rune text +20% */
   --rt-body: var(--rt, var(--t-neutral));
-  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62);
+  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.48);
   display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: calc(var(--cw) * 0.1) 16px 20px; border: none; background: none; overflow: visible; font-family: var(--font-ui);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.16s ease, filter 0.16s ease;
@@ -104,3 +104,31 @@
 }
 .questbadge.runebadge .questbadge-emblem { color: #ffe3a0; }
 .questbadge.runebadge.runebadge-epic { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 3px rgba(196, 140, 255, 0.7), 0 0 12px 2px color-mix(in srgb, var(--rt-body) 75%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+
+/* ── The ART BLEED (owner 2026-10-07: "can you improve the look of the plates a bit more? use more of the art and
+   feather it out maybe"). The card's own art, scaled up, fills the top of the plate behind the window, dimmed,
+   softly blurred and vignetted, and feathered (a static mask) into the tribe tint well before the rules text.
+   Two variants for the owner (`data-rune-plate` on <html>):
+     A (default): the blurred art glow behind a crisp round window;
+     B: no window ring; the crisp art itself fills the top of the card and feathers out, the medallion as the hero.
+   Static: the mask and the blur rasterize once with the card; nothing animates. */
+.runecard-face { overflow: hidden; }
+.runecard-bleed {
+  position: absolute; left: -12%; right: -12%; top: -8%; width: 124%; height: auto; aspect-ratio: 1; object-fit: cover;
+  opacity: 0.85; filter: blur(6px) saturate(1.3) brightness(0.95);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.85) 38%, rgba(0, 0, 0, 0.25) 62%, rgba(0, 0, 0, 0) 76%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.85) 38%, rgba(0, 0, 0, 0.25) 62%, rgba(0, 0, 0, 0) 76%);
+}
+/* A soft vignette over the bleed so the medallion pops and the edges stay calm. */
+.runecard-face::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(75% 50% at 50% 26%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.28) 100%);
+}
+/* The rules text sits in the middle of the space below the name, so a short rule does not leave a dead floor. */
+.runecard-body { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
+
+/* Variant B: no window; the art fills the top and feathers out. */
+:root[data-rune-plate="b"] .runecard-window { border-color: transparent; background: none; box-shadow: none; overflow: visible; width: 100%; margin-top: calc(var(--cw) * -0.06); }
+:root[data-rune-plate="b"] .runecard-art { transform: scale(1.12); -webkit-mask-image: radial-gradient(circle closest-side, #000 62%, rgba(0, 0, 0, 0) 100%); mask-image: radial-gradient(circle closest-side, #000 62%, rgba(0, 0, 0, 0) 100%); }
+:root[data-rune-plate="b"] .runecard-bleed { filter: blur(3px) saturate(1.25) brightness(0.85); opacity: 0.75; }
+:root[data-rune-plate="b"] .runecard-epic .runecard-window { box-shadow: none; }

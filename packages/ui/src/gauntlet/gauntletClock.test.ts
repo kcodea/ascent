@@ -92,7 +92,7 @@ describe('Recruit wires the Gauntlet clock', () => {
     const at = src.indexOf('if (!turnClockMayTick({');
     const call = src.slice(at, src.indexOf('})) return;', at));
     expect(call).toMatch(/clockWaiting: goldClockWaits,/);
-    expect(src).toMatch(/wipe, sotPlaying, goldClockWaits\]\);/);
+    expect(src).toMatch(/wipe, sotPlaying, goldClockWaits[,\]]/);
   });
 
   it('starts the clock AFTER the turn reset, and the plaque knows the mode', () => {

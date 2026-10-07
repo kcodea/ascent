@@ -506,6 +506,8 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
    CHARGE_FADEOUT_MS. */
 .chargeglyph.fading, .charge-motes.fading { animation: none; opacity: 0; transition: opacity 450ms ease; }
 .chargeglyph.fading .charge-fill { animation: none; } /* stop the pulse so the fade reads clean */
+/* Held with the shop clock (R-TIMER-SYNC-01): a pause freezes the pulse where it is, like the fill, motes and sound. */
+.chargeglyph.held .charge-fill { animation-play-state: paused; }
 /* each layer = the SVG shape  ∩  a symmetric both-sides-in wipe: lit at both EDGES, an unlit central GAP that
    closes as --charge → 1, so energy builds inward and the centre sigil fills LAST. Driven per-frame (no CSS
    transition — a tween would lag the update and desync the charge from the clock). */

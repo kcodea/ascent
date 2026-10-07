@@ -1186,6 +1186,8 @@ export function playBellStrike(category: string, o: { gain: number; hz: number; 
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.
 let turnChargeNodes: PlayNodes | null = null;
+/** The fade-in when the build restarts mid-clip (a resume from a held shop clock), so the cut-in never clicks. */
+const TURN_CHARGE_RESUME_FADE_S = 0.06;
 /** The Undead Aura surge clip's live nodes while it plays — the cue NEVER overlaps itself (owner 2026-09-16:
  *  "make it so it can only play once at a time"): a rise that lands while the clip is still ringing is skipped,
  *  not stacked and not restarted. Cleared on the clip's natural end. */
@@ -1653,13 +1655,26 @@ export const sfx = {
     undeadAuraLastAt = now;
     playSample('undeadaurabuff', 'buff');
   },
-  turnCharge: () => {
+  /** `offsetSec` = how far into the build to start: the seconds of the charge window already gone, so the build
+   *  stays locked to the shop clock across a hold / resume or a mid-window light (R-TIMER-SYNC-01). A mid-clip
+   *  start fades in over a few ms so it never clicks. */
+  turnCharge: (offsetSec = 0) => {
     stopTurnCharge(80); // never stack: quickly cut any build still ringing from a prior turn before the new one
+    const at = Math.max(0, offsetSec);
+    const len = buffers.get('turncharge')?.duration ?? 0;
+    if (at > 0 && len > 0 && at >= len) return; // already past the end of the build: nothing left to play
+    const slice = at > 0 && len > 0 ? { offset: at, duration: len - at } : undefined;
     if (playSample('turncharge', 'turncharge', 0, (n) => {
       turnChargeNodes = n;
       n.src.onended = () => { if (turnChargeNodes?.src === n.src) turnChargeNodes = null; }; // clear on natural end
-    })) return;
-    tone({ freq: 150, dur: 0.7, type: 'sawtooth', vol: 0.1, slideTo: 480, category: 'turncharge' });
+      if (slice) {
+        const t = n.src.context.currentTime;
+        const level = n.gain.gain.value;
+        n.gain.gain.setValueAtTime(0.0001, t);
+        n.gain.gain.linearRampToValueAtTime(level, t + TURN_CHARGE_RESUME_FADE_S);
+      }
+    }, slice)) return;
+    if (at === 0) tone({ freq: 150, dur: 0.7, type: 'sawtooth', vol: 0.1, slideTo: 480, category: 'turncharge' });
   },
   // The turn timer hits ZERO — the last instant the shop is usable (actions lock); syncs with the charge glyph's
   // completion flash. A heavier "end-turn explosion" than the charge build. Sourced "turnexplosion" clip; synth

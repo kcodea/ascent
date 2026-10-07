@@ -14,6 +14,10 @@
  * questions, never silence. Two magnitude RIDERS cover the shipped cap/count classes:
  *   · Undertow: warded bodies ≤ its cap.
  *   · Aftershocks: pays once per Echo TRIGGER (one dying echo body ⇒ one pulse), not per watcher.
+ * And one CLASS rider over every mod key:
+ *   · Summon-return parity (R-SUMMON-RETURN-01): a mod that changes the body of a plain combat SUMMON must change
+ *     a Rise / Rebirth RETURN of the same card too — a return IS a summon. Rune of the Undertow (and Hatchery,
+ *     Packcraft) shipped deaf to returns because their grants lived on the summon-only path (owner 2026-10-06).
  */
 import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type QuestCombatMods } from '@game/core';
@@ -66,7 +70,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   flagCopies: { runeGemstorm: 2 },
   solidGroundStat: 2,
   beastialSwarmLevel: 1,
-  packcraftLevel: { attack: 2, health: 1 },       // Rune of Packcraft's live per-summon grant (owner rework 2026-09-23)
+  packcraftLevel: { attack: 2, health: 1 },
+  runeHatchery: { attack: 5, health: 5 },        // the summon-body grant (owner balance 2026-09-23); `true` armed it as NaN       // Rune of Packcraft's live per-summon grant (owner rework 2026-09-23)
   runeReinvestment: { attack: 3, health: 4 },    // the per-summon Shop buff (owner balance 2026-09-23; was a number)
   warDrumExtra: 2,       // the unspent War Drum charge's multiplier (a count, not a flag)
   shoutDoubleCharges: 2, // remaining Warm Embers charges (a count, not a flag)
@@ -226,4 +231,67 @@ export function aftershocksRider(): { survivorAttackDelta: number } {
     return r.events.filter((e) => /aftershock/i.test(JSON.stringify(e))).length;
   };
   return { survivorAttackDelta: run(true) - run(false) };
+}
+
+/** The body a summon / return arrives as — what a "summoned in combat" grant writes to. */
+type Arrival = { attack: number; health: number; keywords: string[] } | null;
+const arrivalOf = (r: { events: readonly unknown[]; initial: { player: readonly { uid: string }[] } }, type: 'summon' | 'reborn'): Arrival => {
+  const mine = new Set(r.initial.player.map((m) => m.uid));
+  for (const e of r.events) {
+    const ev = e as { type?: string; side?: string; source?: string; target?: string; minion?: { attack: number; health: number; keywords?: string[] }; attack?: number; hp?: number; keywords?: string[] };
+    // The summon the fixture's OWN Echo made (sourced to the dying starter) — not a token some mod adds itself.
+    if (type === 'summon' && ev.type === 'summon' && ev.side === 'player' && ev.minion && !!ev.source && mine.has(ev.source)) {
+      return { attack: ev.minion.attack, health: ev.minion.health, keywords: [...(ev.minion.keywords ?? [])].sort() };
+    }
+    if (type === 'reborn' && ev.type === 'reborn' && !!ev.target && mine.has(ev.target)) {
+      return { attack: ev.attack ?? 0, health: ev.hp ?? 0, keywords: [...(ev.keywords ?? [])].sort() };
+    }
+  }
+  return null;
+};
+
+/**
+ * Mods that change a SUMMONED body but rightly leave a Rise / Rebirth return alone — each with its reason. A mod
+ * belongs here only when its own text scopes it to something a return is not (an Echo's summons, a named token).
+ */
+export const SUMMON_RETURN_EXEMPT: Record<string, string> = {
+  ancientRallyGold: 'Tradesman x War grafts its Rally onto bodies summoned mid-fight; a RETURNING body was on the board, '
+    + 'so it already carries the graft from the Shop (`grantedEffects`) and keeps its effects through the return. The '
+    + 'fixture body has no Shop graft, which is all this rider sees.',
+};
+
+/**
+ * R-SUMMON-RETURN-01 — the summon-return PARITY rider. For every mod key: arm it, and compare (a) the body of a
+ * plain combat summon (Burial Imp dies; its Imp lands) and (b) the body of an Imp that RISES and one that is
+ * REBORN, each against the unarmed fight. A mod that changes (a) but leaves (b) untouched is a "summoned in combat"
+ * listener that cannot hear a return: the exact shape of the Undertow report (owner 2026-10-06).
+ */
+export function summonReturnRider(keys: readonly string[]): { violations: string[]; summonGrants: string[] } {
+  const enemy = (): BoardMinion[] => [bm('cryptwolf', 'e0', 1, 60)];
+  const run = (player: BoardMinion[], mods: QuestCombatMods) => simulate(player, enemy(), makeRng(0x5e7), CARD_INDEX,
+    combatSide({ tier: 5, tribes: ['beast', 'demon', 'dragon', 'dwarf', 'kobold'] as never, questMods: mods }),
+    combatSide({ tier: 5 }));
+  // Burial Imp's Echo summons a plain Imp; the returns are that same Imp card. (Not a Beast: a Beast DEATH feeds
+  // Beastial Swarm into later summons, which would blur a summon-grant read with a death-trigger one.)
+  const summonFight = (mods: QuestCombatMods) => arrivalOf(run([bm('burialimp', 'p0', 1, 1)], mods), 'summon');
+  const riseFight = (mods: QuestCombatMods) => arrivalOf(run([bm('impscrap', 'p0', 1, 1, ['R'])], mods), 'reborn');
+  const rebirthFight = (mods: QuestCombatMods) => arrivalOf(run([bm('impscrap', 'p0', 1, 1, ['RB'])], mods), 'reborn');
+  const same = (a: Arrival, b: Arrival) => JSON.stringify(a) === JSON.stringify(b);
+  const base = { summon: summonFight({}), rise: riseFight({}), rebirth: rebirthFight({}) };
+  const violations: string[] = [];
+  const summonGrants: string[] = [];
+  for (const key of keys) {
+    if (key in SUMMON_RETURN_EXEMPT) continue;
+    // A FRESH arm per fight: some mods are spent by mutating the mods object (Solid Ground counts down in place).
+    const mods = (): QuestCombatMods => ({ [key]: key in OBJECT_ARMS ? structuredClone(OBJECT_ARMS[key]) : true }) as QuestCombatMods;
+    try {
+      if (same(summonFight(mods()), base.summon)) continue;
+      summonGrants.push(key);
+      const deaf: string[] = [];
+      if (same(riseFight(mods()), base.rise)) deaf.push('Rise');
+      if (same(rebirthFight(mods()), base.rebirth)) deaf.push('Rebirth');
+      if (deaf.length) violations.push(`${key} (deaf to ${deaf.join(' + ')})`);
+    } catch { /* an arming crash is the main scan's `errored` finding, not this rider's */ }
+  }
+  return { violations, summonGrants };
 }

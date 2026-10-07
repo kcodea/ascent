@@ -75,4 +75,39 @@ export const SUMMONING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-09-24.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts', 'packages/core/src/combat/simulate.test.ts'], lastVerifiedAt: '2026-09-24' },
   },
+  {
+    id: 'R-SUMMON-RETURN-01',
+    title: 'A Rise or Rebirth return IS a combat summon for every "summoned in combat" listener',
+    statement:
+      'A minion that returns by Rise or Rebirth in combat counts as a minion SUMMONED in combat for every effect that '
+      + 'keys on a summon, not only for the summon-entry watchers and tallies (R-RUNE-06 already said a Rise return '
+      + 'counts once). That includes the body grants that land on the arriving minion: the Ward of Rune of the Undertow '
+      + '(within its 4-Ward allowance, shared with ordinary summons, and free when the return already has a Ward), '
+      + 'Rune of the Hatchery, Rune of Packcraft, Rune of the Food Chain (never fed by the returning Demon itself), '
+      + 'Rune of the Spare Chair (Ward + an immediate attack), Solid Ground and the Containment Rune of the foe. A Rise '
+      + 'returns at its printed body first (R-RISE-01) and then takes these grants, exactly as a fresh summon would; a '
+      + 'Rebirth returns its full body and then takes them. Each return is ONE summon: it spends one charge of a '
+      + 'counted grant and fires its rune once. A return that does not fit (an overflow, R-RISE-05) takes nothing. '
+      + 'Excluded by their own text: grants scoped to a named token or summoner (Rune of the Wrangler, Rune of the '
+      + 'Living Geode, Heart of the Mountain), and Rune of Living Treasure, whose Rebirth on a returning Golem would '
+      + 'make the return endless (R-RUNE-09: "returns once").',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-06 (Rune of the Undertow)', quote: 'rune of the undertow didnt proc on a rising minion. it should, it should also proc on a rebirth minion. please fix' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonEntryEffects doc comment (owner ruling 2026-08-12, Rise is a summon in full, closing the "quest count only" carve-out); R-RUNE-06 ("a Rise return ... count once")' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts applyCombatSummonGrants (shared by summonMinion and the Rise / Rebirth returns in killOrReborn via returnSummonGrants), applySolidGround, applyContainment' },
+    ],
+    contentIds: ['rune_undertow', 'rune_hatchery', 'rune_packcraft', 'rune_food_chain', 'rune_spare_chair'],
+    currentBehaviour:
+      'Conforms as of 2026-10-06. Before: the body grants lived inline in `summonMinion` / `placeSummon`, which a Rise or '
+      + 'Rebirth return never passes through (it re-slots the SAME instance and runs only `summonEntryEffects`), so '
+      + 'Undertow, Hatchery, Packcraft, Food Chain, Spare Chair, Solid Ground and Containment all skipped returning '
+      + 'bodies. the Doc Bot summon-return parity rider now checks every combat mod for this class.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/summonReturnGrants.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+      lastVerifiedAt: '2026-10-06',
+    },
+  },
 ];

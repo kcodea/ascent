@@ -529,6 +529,10 @@ export interface EquipFx {
   cardId: string;
   /** `use` only: the Equipment that fired, so the UI can look up its authored FX and SFX. */
   equipmentId?: string;
+  /** `equip` from a RUNE (rune-owned Equipment, owner ruling 2026-10-07): the rune that granted it. There is no
+   *  body, so the UI starts the full equip animation from THIS rune's badge in the rune rack instead of a card
+   *  (`uid` is then `rune:<runeId>`, which names no board body). */
+  runeId?: string;
   /** `use` only: what it was cast on — the travel destination. Absent for an untargeted Equipment. */
   targetUid?: string;
   /** `use` only: the Shop spells this activation cast (Pourman's Keg → its random Ale), in cast order. The UI

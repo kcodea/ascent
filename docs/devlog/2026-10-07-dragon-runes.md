@@ -12,7 +12,7 @@ primitives they need. Branch `feat/dragon-runes-1007`.
 | Rune of the Voicekeeper | Epic | 2 | NEW `runeVoicekeeper` reward: sell-Dragon meter → plain copy of one of the 3 |
 | Rune of the Flaming Dragon | Epic | 4 | `grant` of `d2_firebird` (T6 6/9 Dragon, `token: true`) |
 | Rune of the Dragon's Egg | Epic | 2 | NEW `runeEquip` reward → Equipment `dragons_egg` (2 Gold: Discover a Dragon) |
-| Rune of the Wise Armory | Epic | 3 | NEW `runeEquip` reward → Equipment `spell_generator` (3 Gold: spells +1/+1, a random stat spell) |
+| Rune of the Wise Armory | Epic | 3 | NEW `runeEquip` reward → Equipment `spell_generator` (2 Gold: spells +1/+1, a random stat spell) |
 
 All are `sets: ['set2']`; the five Dragon runes are `tribes: ['dragon']`. Set 1 also has Dragons (Hoardcalling
 and Drake Skull are `['set1', 'set2']`), but Set 1 is disabled, so the batch defaulted to Set 2 only (flagged to
@@ -43,7 +43,7 @@ the owner).
 
 ## Judgement calls (flagged to the owner)
 
-- **Echoing Shouts permanence.** Shop: Dragons on the board AND in hand, permanent (the `tribe` threshold target).
+- **Echoing Shouts permanence** (owner confirmed 2026-10-07). Shop: Dragons on the board AND in hand, permanent (the `tribe` threshold target).
   Combat: the living board Dragons, **for that fight only**, the moment the Shout fires. That follows Rune of the
   Drake Skull and the Starsong, the two existing "whenever you trigger a Shout, buff X" runes, whose combat halves
   are combat-only.
@@ -53,10 +53,24 @@ the owner).
 - **Spell Generator's pool** uses `isStatGrantingSpell` (the owner's 2026-09-23 "spell that gives stats" category,
   which excludes the shop-buff family) rather than the wider `isStatSpell`, and caps at the tavern tier like every
   other "random spell" grant. A full hand keeps the +1/+1 and loses the card.
-- **Wise Armory set.** Neutral, but defaulted to Set 2 with the rest of the batch. Set 3 is the Equipment set and
-  may want it too.
-- **No equip cue on purchase.** The grant has no body for the equip animation to start from; the slot's own
-  mount fade / first-equipment sheen plays.
+- **Wise Armory set** (owner confirmed 2026-10-07): Set 2 only, not Set 3.
+
+## Owner rulings on PR #1972 (2026-10-07)
+
+- **Spell Generator costs 2 Gold** (was 3; owner: "change spell generator's cost to 2g"). The Rune of the Wise
+  Armory itself stays at 3 Gold; its text now reads "Equip Spell Generator (2): ...".
+
+- **Sets: confirmed.** All six runes are Set 2 only. The Wise Armory is NOT in Set 3. No change.
+- **Echoing Shouts in combat: confirmed** "that fight only" (the Drake Skull / Starsong rule). Recorded in
+  R-SHOUT-METER-PAYLOADS-01.
+- **Equip animation: the full equip-unit animation on purchase.** The `runeEquip` reward now stamps the same
+  `equip` cue a minion's equip stamps, gated by the same `equipIsNews` rule (a duplicate rune is silent). The cue
+  carries `runeId` (and `uid: rune:<id>`, which names no body), and the UI's equip effect in `Recruit.tsx` starts
+  the animation from THAT rune's badge in the rune rack (`runeNodeEl`, falling back to the rack) instead of a card.
+  Motion, timing, the slot burst, the clang and the CSS ring are the minion's, unchanged; only the source anchor
+  differs, and the react-layer uids stay empty because a rune has no body. Verified live on a throwaway Scene
+  Builder run (port 5247): the source flash lands exactly on the Dragon's Egg rune badge and the second on the
+  Equipment slot.
 
 ## Owner FX
 

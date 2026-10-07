@@ -35,7 +35,7 @@ import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
-import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies, grantRuneEquipment } from './equipment';
+import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -7239,7 +7239,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeEquip': {
       const list = (s.runeEquipment ??= []);
       if (!list.some((x) => x.equipmentId === r.equipmentId)) list.push({ runeId: def.id, equipmentId: r.equipmentId });
+      // THE EQUIP ANIMATION (owner ruling 2026-10-07: "the same animation that an equip unit uses"): the full
+      // `equip` cue, gated by the same "does what you hold change" rule a minion's equip uses (`equipIsNews`), so a
+      // second copy of the rune is silent. The rune has no body: the cue names the RUNE and the UI starts the
+      // animation from its badge in the rune rack.
+      const news = equipIsNews(s, r.equipmentId, false);
       grantRuneEquipment(s, def.id, r.equipmentId);
+      if (news) stampEquipFx(s, { kind: 'equip', uid: `rune:${def.id}`, cardId: def.id, equipmentId: r.equipmentId, runeId: def.id });
       break;
     }
     case 'runeCorruptedTome': s.runeCorruptedTome = true; break;

@@ -1943,7 +1943,8 @@ export const RUNES_RULES: GameRule[] = [
       + "bought, with its own charge ready, and the Start-of-Turn rebuild re-grants it every turn after the board's "
       + "Equipment (`RunState.runeEquipment`, `sourceKind: 'rune'`, empty `sourceUids`). It obeys every Equipment rule "
       + 'unchanged: one own activation a turn, the shared bonus pool, the cost reductions, Amplified. A rune is never '
-      + 'gilded, so the entry is plain. A second copy of the rune collapses into the one entry.',
+      + 'gilded, so the entry is plain. A second copy of the rune collapses into the one entry. Buying it plays the '
+      + 'full equip animation a minion equip plays, started from the rune badge in the rune rack (owner ruling on PR #1972).',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -1968,11 +1969,12 @@ export const RUNES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner batch 2026-10-07 (Dragon runes)', quote: 'When you trigger a Shout, give your Dragons +3/+2.' },
+      { kind: 'owner-chat', ref: 'Owner ruling on PR #1972 (2026-10-07)', quote: 'Echoing Shouts in combat = that fight only' },
       { kind: 'code', ref: 'packages/sim/src/reducer.ts shoutMetersFor; packages/core/src/combat/simulate.ts the battlecryTriggered shout-meter handler (grantCards / buff)' },
     ],
     contentIds: ['rune_echoing_shouts', 'rune_whelps'],
     cardText: 'When you trigger a **Shout**, give your **Dragons +3/+2**.',
-    currentBehaviour: 'Conforms (2026-10-07).',
+    currentBehaviour: 'Conforms (2026-10-07). The owner confirmed on PR #1972 that the combat payout lasts that fight only.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonRunes1007.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {

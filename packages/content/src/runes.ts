@@ -4066,7 +4066,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Wise Armory',
     cost: 3,
     epic: true,
-    text: '**Equip Spell Generator (3):** give your spells **+1/+1** and get a random spell that gives stats.',
+    text: '**Equip Spell Generator (2):** give your spells **+1/+1** and get a random spell that gives stats.',
     reward: { kind: 'runeEquip', equipmentId: 'spell_generator' },
     sets: ['set2'],
   },

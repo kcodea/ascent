@@ -537,7 +537,7 @@ export const SPELL_GENERATOR: EquipmentDefinition = {
   id: 'spell_generator',
   name: 'Spell Generator',
   text: 'Give your spells **+1/+1** and get a random spell that gives stats.',
-  baseCost: 3,
+  baseCost: 2, // owner 2026-10-07 (PR #1972 review): 3 → 2; the rune itself stays 3 Gold
   targetMode: 'none',
   effectId: 'equipmentSpellPowerAndStatSpell',
   params: { attack: 1, health: 1, count: 1 },

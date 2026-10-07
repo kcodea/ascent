@@ -222,6 +222,13 @@ describe("rune-owned Equipment — Rune of the Dragon's Egg / Rune of the Wise A
     expect(equipmentChargesOf(s, 'dragons_egg')).toBe(1);
     expect(s.runeEquipment).toEqual([{ runeId: 'rune_dragons_egg', equipmentId: 'dragons_egg' }]);
   });
+  it('buying the rune plays the FULL equip animation, sourced from the rune (owner 2026-10-07); a duplicate is silent', () => {
+    const s = withRune('rune_wise_armory');
+    expect(s.equipFx).toEqual([{ kind: 'equip', uid: 'rune:rune_wise_armory', cardId: 'rune_wise_armory', equipmentId: 'spell_generator', runeId: 'rune_wise_armory' }]);
+    const seq = s.equipFxSeq;
+    const dup = act({ ...s, runeforgeOffer: ['rune_wise_armory'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    expect(dup.equipFxSeq, 'nothing new is held: no cue').toBe(seq);
+  });
   it("Dragon's Egg: activation costs 2 Gold, spends the charge and opens a Dragon Discover", () => {
     let s = withRune('rune_dragons_egg');
     const gold = s.embers;
@@ -259,7 +266,7 @@ describe("rune-owned Equipment — Rune of the Dragon's Egg / Rune of the Wise A
     const hand = s.hand.length;
     const gold = s.embers;
     s = act(s, { type: 'activateEquipment' });
-    expect(s.embers).toBe(gold - 3);
+    expect(s.embers, 'Spell Generator costs 2 Gold (owner 2026-10-07)').toBe(gold - 2);
     expect(s.spellBonus).toEqual({ attack: sp.attack + 1, health: sp.health + 1 });
     const got = s.hand.slice(hand);
     expect(got).toHaveLength(1);

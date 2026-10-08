@@ -1,4 +1,4 @@
-import { OPPONENT_POOL, type BoardSnapshot, type RunState } from '@game/sim';
+import { OPPONENT_POOL, isServableBoard, type BoardSnapshot, type RunState } from '@game/sim';
 import { supabaseClient } from '../remoteBoards';
 
 /**
@@ -17,11 +17,15 @@ export interface GodBoardDeps {
 }
 
 /** A board God Mode may serve: the chosen round, the run's set (pre-set boards are Set 1), a real player's (never a
- *  synthetic bot board), and never empty. Applied to the remote answer too, so a bad RPC row can't slip through —
- *  and it never throws on a malformed payload (non-object, missing / non-array `minions`): that just falls back. */
+ *  synthetic bot board), never empty, and SERVABLE — every minion's card still exists in this build (`isServableBoard`,
+ *  the same door the opponent pool uses). An old board naming a removed card would otherwise be pinned, throw inside
+ *  `faceOmen` and silently become the procedural Omen. Applied to the remote answer too, so a bad RPC row can't slip
+ *  through — and it never throws on a malformed payload (non-object, missing / non-array `minions`, a non-object
+ *  minion): that just falls back. */
 const usable = (b: BoardSnapshot | null | undefined, wave: number, setId: string): b is BoardSnapshot =>
   !!b && typeof b === 'object' && b.wave === wave && (b.setId ?? 'set1') === setId && b.origin !== 'synthetic'
-  && Array.isArray(b.minions) && b.minions.length > 0;
+  && Array.isArray(b.minions) && b.minions.length > 0
+  && b.minions.every((m) => !!m && typeof m === 'object') && isServableBoard(b);
 
 async function remote(wave: number, setId: string, deps: GodBoardDeps): Promise<BoardSnapshot | null> {
   if (!deps.rpc) return null;

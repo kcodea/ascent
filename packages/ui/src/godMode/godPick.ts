@@ -36,7 +36,7 @@ export interface GodPickDeps {
 export type GodPickOutcome = 'fought' | 'stale' | 'none';
 
 /**
- * One pick: busy → fetch → if the shop moved on (phase / round / mode changed) drop the board; if nothing came back
+ * One pick: busy → fetch → if the shop moved on (phase / round / mode / run changed) drop the board; if nothing came back
  * (or the fetch threw) say so and stay open; otherwise pin it as this round's foe and start the fight. The prompt can
  * never be left stuck on busy: every path ends by closing it or clearing busy.
  */
@@ -51,7 +51,9 @@ export async function runGodPick(round: number, deps: GodPickDeps): Promise<GodP
     board = null;
   }
   const now = deps.getRun();
-  if (now.phase !== 'recruit' || now.wave !== live.wave || now.godMode !== true) { deps.setPrompt(null); return 'stale'; }
+  // Same run too (seed), not just the same round: leaving and starting a NEW God Mode game that reaches this wave while
+  // the fetch is in flight must not pin the old pick into it.
+  if (now.phase !== 'recruit' || now.wave !== live.wave || now.godMode !== true || now.seed !== live.seed) { deps.setPrompt(null); return 'stale'; }
   if (!board) { deps.setPrompt({ busy: false, message: `No boards found for round ${round} — try another` }); return 'none'; }
   deps.setRun(pinGodFoe(now, board));
   deps.setPrompt(null);

@@ -54,6 +54,17 @@ describe('God Mode End Turn wiring', () => {
     expect(box.prompts.at(-1)).toBeNull();
   });
 
+  it('a pick fetched for one run never lands on a different run at the same round (final review M2)', async () => {
+    const run = god();
+    const other = { ...god(), seed: run.seed + 1 }; // a NEW God Mode game, same phase + wave
+    const { box, deps, fight } = harness(run, async () => { box.run = other; return dummies(run.wave); });
+    expect(other.wave).toBe(run.wave);
+    expect(await runGodPick(3, deps)).toBe('stale');
+    expect(fight).not.toHaveBeenCalled();
+    expect(box.run).toBe(other);
+    expect(box.prompts.at(-1)).toBeNull();
+  });
+
   it('no board, or a fetch that throws, says so and never leaves the prompt busy', async () => {
     for (const find of [async () => null, async () => { throw new Error('network'); }] as GodPickDeps['findBoard'][]) {
       const { box, deps, fight } = harness(god(), find);

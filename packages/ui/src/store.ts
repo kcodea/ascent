@@ -3129,6 +3129,10 @@ export function adoptCloudRun(row: CloudRow): boolean {
  * the title's Continue (which resumes `run`) can never resume the God Mode game. Never writes storage.
  */
 function restoreSaveSlot(): void {
+  // Leaving mid-End-of-Turn: the God Mode fight is still prepared, and the unmounting Recruit's safety net would commit
+  // it after its pad — on top of the real run if Continue is pressed inside that window. Drop it with the God Mode run.
+  useGame.getState().cancelPresentationAction('leave God Mode');
+  useGame.setState({ endTurnAnimating: false });
   dropBoardFx();
   const save = loadSave();
   if (!save) {

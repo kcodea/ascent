@@ -67,6 +67,33 @@ describe('God Mode in the store', { timeout: 60_000 }, () => {
     expect(localStorage.getItem(SAVE_KEY)).toBe(onDisk);
   });
 
+  it('leaving God Mode mid-End-of-Turn drops the pending fight: a quick Continue never gets the God Mode combat (M1)', async () => {
+    const useGame = await freshStore({ godMode: false });
+    useGame.getState().confirmPracticeSetup();
+    useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
+    const real = useGame.getState().run;
+    useGame.getState().setPracticeDraft({ godMode: true });
+    useGame.getState().confirmPracticeSetup();
+    useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
+    expect(useGame.getState().run.godMode).toBe(true);
+    // End Turn pressed: the fight is prepared and the End of Turn is playing...
+    expect(useGame.getState().preparePresentationAction({ type: 'faceOmen' })).not.toBeNull();
+    useGame.getState().setEndTurnAnimating(true);
+    // ...and the player leaves through the Esc menu, then presses Continue inside the unmount pad window.
+    useGame.getState().openTitle();
+    expect(useGame.getState().presentationTx).toBeNull();
+    expect(useGame.getState().endTurnAnimating).toBe(false);
+    useGame.getState().continueRun();
+    const replayLen = useGame.getState().replayActions.length;
+    // The unmounted Recruit's late safety-net commit is now a no-op.
+    useGame.getState().commitPresentationAction();
+    const resumed = useGame.getState().run;
+    expect(resumed.godMode).toBeUndefined();
+    expect(resumed.seed).toBe(real.seed);
+    expect(resumed.phase).toBe(real.phase);
+    expect(useGame.getState().replayActions.length).toBe(replayLen);
+  });
+
   it('with no save, leaving God Mode offers no Continue and leaves no God Mode run behind the title', async () => {
     const useGame = await freshStore({ godMode: true });
     useGame.getState().confirmPracticeSetup();

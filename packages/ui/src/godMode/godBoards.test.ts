@@ -27,6 +27,19 @@ describe('findGodBoard', () => {
     expect(await findGodBoard(5, 'set3', deps({ rpc: async () => bad, pool: () => [local] }))).toBe(local);
     expect(await findGodBoard(5, 'set3', deps({ rpc: async () => missing, pool: () => [local] }))).toBe(local);
   });
+  it('rejects a board naming a card this build no longer has, from the RPC and the pool alike (final review I1)', async () => {
+    const stale = board({ seed: 66, minions: [{ cardId: 'sandbag', attack: 1, health: 1, keywords: [] }, { cardId: 'corrupted_lifebinder_removed', attack: 2, health: 2, keywords: [] }] } as Partial<BoardSnapshot>);
+    const local = board({ seed: 7 });
+    // A stale remote board falls back to the boot pool...
+    expect(await findGodBoard(5, 'set3', deps({ rpc: async () => stale, pool: () => [local] }))).toBe(local);
+    // ...a stale pool board is never picked...
+    expect(await findGodBoard(5, 'set3', deps({ pool: () => [stale, local] }))).toBe(local);
+    // ...and with only stale boards there is no board at all ("No boards found"), never the procedural Omen.
+    expect(await findGodBoard(5, 'set3', deps({ rpc: async () => stale, pool: () => [stale] }))).toBeNull();
+    // A malformed minion entry is a fallback too, never a throw.
+    const junk = { ...board({}), minions: [null] } as unknown as BoardSnapshot;
+    expect(await findGodBoard(5, 'set3', deps({ rpc: async () => junk, pool: () => [local] }))).toBe(local);
+  });
   it('falls back when the fetch times out or throws', async () => {
     const local = board({ seed: 7 });
     const never = () => new Promise<BoardSnapshot | null>(() => { /* hangs */ });

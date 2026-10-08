@@ -5,6 +5,8 @@
 -- sample is drawn ID-FIRST: only the candidate ids are collected, one is picked uniformly, and only that row's
 -- snapshot is returned. It never sorts snapshots (`order by random()` over whole rows would). VOLATILE because it
 -- calls random() (the client calls it as a plain POST RPC).
+--
+-- Idempotent: safe to re-run. The same block is appended to schema.sql; keep the two identical.
 
 create index if not exists boards_wave_patch_idx on public.boards (wave, patch text_pattern_ops);
 

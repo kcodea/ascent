@@ -7,6 +7,10 @@ import { practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type Pr
  * picker. A dedicated menu of knobs: whether the player can die, the shop-timer speed, and
  * which tribes are in the game. `Start` applies them and opens the hero picker; the choices are pinned onto the run.
  *
+ * GOD MODE | SANDBOX MODE (owner sketch 2026-10-08): two modes side by side. God Mode (left) plays its own fixed
+ * setup (`godPracticeConfig`); Sandbox Mode (right) is the practice game above, and its option rows are greyed and
+ * inert until it is selected. The chosen mode persists with the draft (`practiceDraft.godMode`).
+ *
  * Pure over the store draft (`practiceDraft`) — every control writes back through `setPracticeDraft`, which also
  * persists, so a returning player keeps their last setup.
  */
@@ -66,6 +70,20 @@ const TRIBE_OPTIONS: { value: PracticeTribe | null; label: string }[] = [
   ...practiceTribeOptions().map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
 ];
 
+/** One of the Practice screen's two modes (owner sketch 2026-10-08): heading, Select button, description. */
+function ModeColumn({ mode, title, text, on, onSelect }: {
+  mode: 'god' | 'sandbox'; title: string; text: string; on: boolean; onSelect: () => void;
+}) {
+  return (
+    <div className={`pomode${on ? ' on' : ''}`} data-mode={mode}>
+      <h2 className="disp pomode-title">{title}</h2>
+      <button className={`pomode-select pressable${on ? ' on' : ''}`} aria-pressed={on}
+        onPointerDown={() => { if (!on) { sfx.tick(); onSelect(); } }}>{on ? 'Selected' : 'Select'}</button>
+      <p className="pomode-text">{text}</p>
+    </div>
+  );
+}
+
 export function PracticeOptions() {
   const open = useGame((s) => s.practiceSetupOpen);
   const cfg = useGame((s) => s.practiceDraft);
@@ -73,42 +91,57 @@ export function PracticeOptions() {
   const confirm = useGame((s) => s.confirmPracticeSetup);
   const cancel = useGame((s) => s.cancelPracticeSetup);
   if (!open) return null;
+  // GOD MODE (owner sketch 2026-10-08): God Mode ignores the Sandbox options (it always plays every hero, Unlimited
+  // health, every tribe, no timer), so they are greyed out and inert until Sandbox Mode is selected.
+  const god = cfg.godMode === true;
 
   return (
     <div className="modepick practiceopts" role="dialog" aria-label="Practice options">
       <button className="hsback" onPointerDown={() => { sfx.pulse(); cancel(); }}>← Back</button>
-      <div className="mpbox pobox">
+      <div className="mpbox pobox pomodes-box">
         <h1 className="disp mptitle">PRACTICE</h1>
-        <p className="posub">A sandbox to try things out. Nothing here is rated.</p>
-
-        <Segmented
-          label="Heroes"
-          hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
-          value={cfg.heroes ?? 'beginner'}
-          options={HERO_MODES}
-          onPick={(v) => setDraft({ heroes: v })}
-        />
-        <Segmented
-          label="Health"
-          hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
-          value={cfg.health}
-          options={HEALTH}
-          onPick={(v) => setDraft({ health: v })}
-        />
-        <Segmented
-          label="Time"
-          hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
-          value={cfg.timeMult}
-          options={TIMES}
-          onPick={(v) => setDraft({ timeMult: v })}
-        />
-        <Segmented
-          label="Tribes"
-          hint={`Select as many as you'd like. Selected tribes will be included in the game in addition to Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
-          isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
-          options={TRIBE_OPTIONS}
-          onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
-        />
+        <div className="pomodes">
+          <ModeColumn mode="god" title="God Mode" on={god} onSelect={() => setDraft({ godMode: true })}
+            text="999 Gold and no timer. Put any card in your shop, take any rune, and choose which round your opponent comes from. Nothing is saved." />
+          <div className="pomode-col">
+            <ModeColumn mode="sandbox" title="Sandbox Mode" on={!god} onSelect={() => setDraft({ godMode: false })}
+              text="The Practice game, set up your way. Nothing here is rated." />
+            <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
+              <Segmented
+                label="Heroes"
+                hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
+                value={cfg.heroes ?? 'beginner'}
+                options={HERO_MODES}
+                onPick={(v) => setDraft({ heroes: v })}
+                disabled={god}
+              />
+              <Segmented
+                label="Health"
+                hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
+                value={cfg.health}
+                options={HEALTH}
+                onPick={(v) => setDraft({ health: v })}
+                disabled={god}
+              />
+              <Segmented
+                label="Time"
+                hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
+                value={cfg.timeMult}
+                options={TIMES}
+                onPick={(v) => setDraft({ timeMult: v })}
+                disabled={god}
+              />
+              <Segmented
+                label="Tribes"
+                hint={`Select as many as you'd like. Selected tribes will be included in the game in addition to Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
+                isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
+                options={TRIBE_OPTIONS}
+                onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
+                disabled={god}
+              />
+            </div>
+          </div>
+        </div>
 
         <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>
       </div>

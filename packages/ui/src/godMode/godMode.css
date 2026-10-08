@@ -54,7 +54,7 @@
 .godp-sects { display: grid; grid-template-columns: 1fr 1fr; row-gap: calc(16 * var(--u)); column-gap: calc(8 * var(--u)); }
 .godp-sect.wide { grid-column: 1 / -1; }
 .godp-sect { display: flex; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); width: 100%; min-height: calc(40 * var(--u)); padding: calc(8 * var(--u)) calc(14 * var(--u));
-  border-radius: 10px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-title); font-family: inherit;
+  border-radius: 10px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: #fff; font-family: inherit;
   font-size: calc(15 * var(--u)); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
 .godp-sect:hover { border-color: var(--ui-title); }
 .godp-sect.on { border-color: var(--ui-title); background: var(--ui-hover-mid); box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.45); }

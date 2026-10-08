@@ -144,7 +144,7 @@ import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
-import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
+import { sfx, stopAllAudio, resumeAudio, stopTurnCharge, turnTickLevel } from './sfx';
 import { observeCombatBoard, observeCombatMoments, observeTurnClock } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
@@ -431,6 +431,20 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
   const goldWaiting = goal > 0 && goldClockWaiting(s);
   // …and while it waits, a bar fills with the Gold spent this turn toward that threshold (owner ask 2026-09-30).
   const goldSpent = useGame((st) => (goal > 0 ? Math.min(st.run.goldSpentThisTurn ?? 0, goal) : 0));
+  // THE FINAL-COUNTDOWN BURST (owner 2026-10-07): the owner-authored `final-countdown-tick` effect bursts from the
+  // timer digits on each of the last five seconds, with the `turntick` sound. Keyed on the same clock value the tick
+  // fires on, so the two land together and a held clock holds both. It BUILDS like the tick (`intensity` = the tick's
+  // level, FIVE quietest to ONE fullest). One rect read per second, screen space (Pixi is not on the stage scale).
+  const digitsRef = useRef<HTMLSpanElement>(null);
+  const unlimited = !!practice && practiceTimer === 0;
+  useEffect(() => {
+    if (s < 1 || s > 5 || unlimited || goldWaiting) return;
+    const el = digitsRef.current;
+    if (!el || !canPlayDefs()) return;
+    const r = el.getBoundingClientRect();
+    const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    playDef('final-countdown-tick', { source: p, target: p, cursor: p }, { intensity: turnTickLevel(s).vol });
+  }, [s, unlimited, goldWaiting]);
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}${goldWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
       {/* Two faces, one shown per HUD look (healthPills.css): the flat Classic glyph and the Gem plate gold clock. */}
@@ -455,7 +469,7 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
           <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{goal}</span>
         </span>
       ) : (
-        <span className="sc-v">{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+        <span className="sc-v" ref={digitsRef}>{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
       )}
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
@@ -4725,8 +4739,14 @@ export function Recruit() {
         // (`blockedByShopClock`) and a recording replays the lock where it was lived.
         dispatch({ type: 'shopClockExpired' });
       }
-      turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
-      if (!infiniteClockRef.current) observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
+      turnClock.set(next);
+      if (!infiniteClockRef.current) {
+        observeTurnClock(next, run.wave); // the announcer's "Low on time" warning (15 s left, every Shop turn)
+        // THE FINAL COUNTDOWN (owner 2026-10-07): a clock tick on FIVE, FOUR, THREE, TWO, ONE, building as it goes; the
+        // explosion above owns 0:00. Fired from this tick, so whatever holds the clock holds the count with it.
+        if (next >= 1 && next <= 5) sfx.turnTick(next);
+        else if (next > 5 && next <= 10) sfx.warmTurnTick();
+      }
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
       // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
       // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a

@@ -29,3 +29,20 @@ Rule: **R-TIMER-SYNC-01** (triggers).
 
 Not changed: the look of the glyph, the clip, its gain, the explosion cue. Replay playback at 2x/3x still plays the
 build at 1x (pre-existing).
+
+## Follow-up: the final-countdown tick
+
+Owner ask (verbatim): "a big clock tick sound happens on each second, essentially signaling FIVE, FOUR, THREE, TWO,
+ONE (end turn)". Owner picks: the ticks BUILD, the explosion keeps 0:00, and the owner supplies the clip.
+
+- `sfx.turnTick(n)` fires from the countdown's own tick at 5..1 (real clocks only), so a hold holds the count.
+  `turnTickLevel(n)` builds the volume linearly from FIVE to ONE (`TURN_TICK_BUILD`: x0.7 to x1; rate left at 1).
+- One recorded tick per second: the owner's "clock ticking.mp3" has eight ticks one second apart; the first five
+  were sliced with ffmpeg (onset found by silencedetect at -55 dB, 4 ms pre-roll, 0.85 s long with a 0.2 s fade)
+  into `audio/turntick-5.wav` (FIVE) … `turntick-1.wav` (ONE). Hyphenated so the numbered random-variant grouping
+  ignores them; `clipFamily` maps all five onto the new `turntick` desk fader (ui bus, 0.5). A synth tock stands
+  in while a clip decodes; `warmTurnTick` prefetches all five from 10 s left.
+- On each tick the owner-authored `final-countdown-tick` def (three gold shard bursts) plays from the centre of the
+  timer digits: `ShopTimer` fires `playDef` on the clock value 5..1 with `intensity` = the tick's level (one rect read
+  per second, screen space). It replaced a first-pass CSS gold flash the same day (owner: "use that instead of the
+  pulse"). Registered in `fx/directCalls.ts` + its test.

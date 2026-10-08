@@ -63,6 +63,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The slot running out of uses. Fired from StatusBar because the allowance is what it is about, and the
   // slot is where the allowance is shown — there is no board unit to hang it on.
   'equipment-used-up': ['StatusBar.tsx'],
+  // THE FINAL COUNTDOWN (owner-authored 2026-10-07): a gold burst from the shop timer's digits on each of the last
+  // five seconds, with the turntick sound; fired from `ShopTimer` in Recruit, building in intensity toward ONE.
+  'final-countdown-tick': ['Recruit.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.

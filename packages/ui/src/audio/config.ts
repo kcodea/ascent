@@ -25,6 +25,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   gemapply: 0.35, clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.29, rebornshatter: 0.24, rebornsummon: 0.24,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
   cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
+  // The final-countdown clock tick at 5..1 left (owner 2026-10-07); the per-tick build rides on top (sfx TURN_TICK_BUILD).
+  turntick: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
@@ -58,7 +60,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
 export const CATEGORY_BUS: Record<string, BusName> = {
   buy: 'ui', sell: 'ui', consume: 'ui', runeBreak: 'ui', roll: 'ui', freeze: 'ui', unfreeze: 'ui', discover: 'ui', discoverSelect: 'ui', inspect: 'ui',
   clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui', uihover: 'ui',
-  cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui',
+  cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui', turntick: 'ui',
   smack: 'combat', crit: 'combat', attack: 'combat', death: 'combat', cast: 'combat', divineshieldbreak: 'combat', rebornshatter: 'combat', rebornsummon: 'combat',
   gemapply: 'combat', skullburst: 'combat', triggerpulse: 'combat', triggerglow: 'combat', buff: 'combat', maxgold: 'combat',
   summon: 'combat', taunt: 'combat', shield: 'combat', flurrylunge: 'combat', flurryhit: 'combat', cleave: 'combat',

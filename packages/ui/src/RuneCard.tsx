@@ -136,6 +136,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
           (runeCard.css). `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new
           image elements; an async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
       <span className="runecard-face" aria-hidden>
+        {/* The body layers for fade styles 2 and 4 (a blurred copy of the art under the card's lower half, and its
+            legibility shade). Hidden in the other styles. */}
+        {art && <><img className="rh-body" src={art} alt="" decoding="sync" /><span className="rh-shade" /></>}
         <span className="runecard-hero">
           {art
             ? <><img className="rh-blur" src={art} alt="" decoding="sync" /><img className="rh-art" src={art} alt="" decoding="sync" /></>

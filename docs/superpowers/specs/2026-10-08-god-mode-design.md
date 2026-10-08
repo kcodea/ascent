@@ -84,7 +84,7 @@ God Mode depends on them.
   in localStorage (try/catch). **Not rendered at all during combat** (phase ≠ recruit).
 - **Filter bar** (above Minions / Spells):
   - **Tier chips 1–6**, multi-select, applied to minions and spells.
-  - **Tribe chips**, multi-select — one per tribe present in the run's set pool, plus **No tribe** (`neutral`).
+  - **Tribe chips**, multi-select — one per tribe present in the run's set pool, plus **Neutral** (`neutral`).
     Applied to minions; **Spells ignore Tribe.**
   - Nothing selected in a group = no filter. Chips combine with each dropdown's search text (AND).
   - Selections persist like the panel position.

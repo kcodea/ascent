@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { stageHost } from '../stage';
 import { GOD_ROUNDS } from './godBoards';
+import './godMode.css';
 
 /** Where the last-picked round is remembered (per viewer), so the prompt opens on it next time. */
 export const GOD_ROUND_KEY = 'ascent.godmode.round';

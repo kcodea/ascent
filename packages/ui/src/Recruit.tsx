@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
@@ -230,6 +230,9 @@ import { TAP_SLOP } from './touchInput';
 import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
 import { findGodBoard, liveGodBoardDeps, pinGodFoe } from './godMode/godBoards';
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
+
+/** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
+const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ default: m.GodModePanel })));
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -7640,6 +7643,10 @@ export function Recruit() {
       {run.lobby && !run.godMode && (run.mode === 'gauntlet'
         ? <GauntletFoe />
         : <LobbyPanel lobby={run.lobby} />)}
+      {/* GOD MODE panel: shop phase only — gone for the fight (owner: "the panel should not be visible during the
+          fight phase") and while End of Turn plays out (the same interaction lock as the shop / board); also kept off
+          hero select, the Good Luck intro and the full-screen pages (title, Compendium, …), which it would float over. */}
+      {run.godMode && !inCombat && !eotAnimating && !heroSelecting && !introPlaying && !overlayOpen && <Suspense fallback={null}><GodModePanel /></Suspense>}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />

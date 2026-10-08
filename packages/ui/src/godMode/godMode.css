@@ -1,0 +1,41 @@
+/* GOD MODE (owner 2026-10-08) — the End Turn round prompt (GodRoundPrompt.tsx) + the God Mode panel (GodModePanel.tsx).
+   Its own sheet (the ancients.css / discoverEntrance.css pattern) so it never lands inside another styles.css section.
+   Static styles only: theme tokens (uiTheme.css), stage-scaled lengths (--u), no looping paint-property animation. */
+.godround-scrim { position: fixed; inset: 0; z-index: 470; display: grid; place-items: center; background: rgb(0 0 0 / 0.55); font-family: var(--font-ui); }
+.godround { position: relative; width: calc(560 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); border-radius: 14px;
+  border: 2px solid transparent; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text); text-align: center; }
+.godround-q { margin: 0 0 calc(16 * var(--u)); font-size: calc(20 * var(--u)); color: var(--ui-title); }
+.godround-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(8 * var(--u)); }
+.godround-btn { height: calc(44 * var(--u)); border-radius: 9px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
+  color: var(--ui-text); font-family: inherit; font-size: calc(18 * var(--u)); font-weight: 800; }
+.godround-btn.on { border-color: var(--ui-title); color: var(--ui-title); }
+.godround-btn:hover:not(:disabled) { border-color: var(--ui-title); }
+.godround-btn:disabled { opacity: 0.5; }
+.godround-x { position: absolute; top: calc(8 * var(--u)); right: calc(10 * var(--u)); background: none; border: 0; color: var(--ui-muted); font-size: calc(16 * var(--u)); }
+.godround-note { margin-top: calc(12 * var(--u)); font-size: calc(13 * var(--u)); color: var(--ui-muted); }
+.godround-note.warn { color: #ffb3a3; }
+.godp { position: fixed; z-index: 455; width: calc(330 * var(--u)); max-height: calc(860 * var(--u)); display: flex; flex-direction: column;
+  border: 2px solid transparent; border-radius: 14px; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
+  font-family: var(--font-ui); box-shadow: 0 22px 50px -14px rgb(0 0 0 / 0.85); }
+.godp.collapsed { width: calc(160 * var(--u)); }
+.godp-head { display: flex; align-items: center; justify-content: space-between; padding: calc(8 * var(--u)) calc(12 * var(--u)); touch-action: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, move; }
+.godp-title { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(12 * var(--u)); color: var(--ui-title); }
+.godp-fold { background: none; border: 0; color: var(--ui-muted); font-size: calc(12 * var(--u)); }
+.godp-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); padding: 0 calc(12 * var(--u)) calc(12 * var(--u)); overflow-y: auto; min-height: 0; }
+.godp-chips { display: flex; flex-wrap: wrap; gap: calc(4 * var(--u)); }
+.godp-chip { padding: calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
+  color: var(--ui-chip-text); font-family: inherit; font-size: calc(11 * var(--u)); font-weight: 700; }
+.godp-chip.on { border-color: var(--ui-title); color: var(--ui-title); }
+.godp-list { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.godp-lh { font-size: calc(10 * var(--u)); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-muted); }
+.godp-search { height: calc(26 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-text); font-family: inherit; font-size: calc(12 * var(--u)); }
+.godp-rows { display: flex; flex-direction: column; max-height: calc(150 * var(--u)); overflow-y: auto; }
+.godp-row { display: flex; justify-content: space-between; gap: calc(6 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); border: 0; border-radius: 6px; background: none; color: var(--ui-text); text-align: left; font-family: inherit; font-size: calc(12 * var(--u)); }
+.godp-row:hover:not(:disabled) { background: var(--ui-hover-mid); }
+.godp-row:disabled { opacity: 0.45; }
+.godp-meta { color: var(--ui-muted); font-size: calc(10 * var(--u)); }
+.godp-toast { font-size: calc(12 * var(--u)); color: var(--ui-title); text-align: center; }
+/* Inert while a Discover / quest / Runeforge window owns the screen: greyed rows (disabled) + a line saying why. */
+.godp.inert .godp-list { opacity: 0.55; }
+.godp.inert .godp-row:disabled { opacity: 1; }
+.godp-lock { padding: calc(5 * var(--u)) calc(8 * var(--u)); border-radius: 8px; background: var(--ui-chip-bg); color: var(--ui-muted); font-size: calc(11 * var(--u)); font-weight: 700; text-align: center; }

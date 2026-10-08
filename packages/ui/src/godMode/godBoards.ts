@@ -29,6 +29,7 @@ async function remote(wave: number, setId: string, deps: GodBoardDeps): Promise<
   let handle: ReturnType<typeof setTimeout> | undefined;
   const timer = new Promise<null>((resolve) => { handle = setTimeout(() => { ctl.abort(); resolve(null); }, deps.timeoutMs); });
   try {
+    // rows: not a Supabase call, the injected `deps.rpc` returns ONE board (god_board_sample returns a single jsonb).
     return await Promise.race([deps.rpc(wave, setId, deps.patchPrefix, ctl.signal), timer]);
   } catch {
     return null;
@@ -49,6 +50,7 @@ export function liveGodBoardDeps(): GodBoardDeps {
   return {
     rpc: c
       ? async (wave, setId, patchPrefix, signal) => {
+          // rows: god_board_sample is a scalar RPC (`returns jsonb`): one board or null, never a table to cut.
           const res = await c.rpc('god_board_sample', { p_wave: wave, p_set: setId, p_patch_prefix: patchPrefix }).abortSignal(signal);
           return res.error ? null : ((res.data ?? null) as BoardSnapshot | null);
         }

@@ -2777,6 +2777,10 @@ export type Action =
    *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
    *  reward engine a real buy/completion uses; see the reducer case. */
   | { type: 'devGrant'; kind: 'quest' | 'rune'; id: string; completed?: boolean }
+  /** GOD MODE (owner 2026-10-08): put any card in the shop (any tier). Refused unless `run.godMode`. */
+  | { type: 'godPrint'; cardId: string }
+  /** GOD MODE (owner 2026-10-08): take any rune / epic rune free. Refused unless `run.godMode`. */
+  | { type: 'godGrantRune'; runeId: string }
   /** DEV Scene Builder only: open a real Runeforge (Basic or Epic) on the current turn, rolled by the run's own forge logic. */
   | { type: 'devOpenRuneforge'; epic: boolean }
   /** ANCIENTS: lock in an offered Ancient (the awakening Discover). */

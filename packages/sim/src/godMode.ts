@@ -1,4 +1,5 @@
 import type { PracticeConfig, RunState } from './state';
+import { forgeFilteredDuplicate } from './runeDup';
 
 /**
  * GOD MODE (owner 2026-10-08): a Practice option that is a learning playground. A God Mode run is an ordinary
@@ -32,4 +33,9 @@ export function makeGodModeRun(run: RunState): RunState {
       }
     : run.lobby;
   return { ...run, lobby, sandbox: true, godMode: true, embers: GOD_MODE_GOLD };
+}
+
+/** A rune the God Mode panel greys out: already owned AND one the Runeforge would never offer twice. */
+export function godRuneBlocked(run: RunState, runeId: string): boolean {
+  return forgeFilteredDuplicate(run, runeId);
 }

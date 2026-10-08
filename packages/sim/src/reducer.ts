@@ -34,6 +34,7 @@ import { blockedByShopClock } from './shopClock';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
+import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
@@ -2952,6 +2953,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       checkTriples(s); // a granted copy can complete a triple (which opens its own Discover)
       openNextStartOfTurnModal(s); // a reward can raise a Discover — open it, or leave it queued behind an open modal
+      return s;
+    }
+    case 'godPrint': {
+      // GOD MODE (owner 2026-10-08): any card, any tier, straight into the shop. A printed card is an ordinary shop
+      // card: bought at its normal price, kept by Freeze, replaced by a roll, counted toward triples.
+      if (s.godMode !== true || s.phase !== 'recruit' || !CARD_INDEX[action.cardId]) return state;
+      s.shop.push({ uid: `s${s.uidSeq++}`, cardId: action.cardId });
+      return s;
+    }
+    case 'godGrantRune': {
+      // GOD MODE: a free rune, through the same path a bought rune takes (`devGrant`'s rune branch).
+      if (s.godMode !== true || s.phase !== 'recruit') return state;
+      const rune = RUNE_INDEX[action.runeId];
+      if (!rune || godRuneBlocked(s, rune.id)) return state;
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+      (s.ownedRunes ??= []).push(rune.id);
+      checkTriples(s);
+      openNextStartOfTurnModal(s);
       return s;
     }
 

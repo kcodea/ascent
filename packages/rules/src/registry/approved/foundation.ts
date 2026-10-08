@@ -4902,17 +4902,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'when selecting practice, this is what should show up. two options. God mode (what we are building) and Sandbox Mode (what already exists as the practice menu). a brief description under the Select button under each mode and then you click the start button. all of the sanbox mode text and options should be greyed out until it is selected.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode Practice screen layout follow-up)', quote: 'have sanbox mode pre selecetd … have god mode swapped with sandbox mode so its on the right … have god mode and sanbox modes take up the same about of space. it should be even down the middle' },
-      { kind: 'code', ref: 'packages/ui/src/PracticeOptions.tsx (the two modes, Sandbox options inert while God Mode is selected); packages/sim/src/godMode.ts godPracticeConfig; packages/ui/src/store.ts (the Sandbox draft untouched by a God Mode game)' },
+      { kind: 'code', ref: 'packages/ui/src/PracticeOptions.tsx (the two modes, Sandbox options inert while God Mode is selected); packages/sim/src/godMode.ts godPracticeConfig; packages/ui/src/store.ts startPractice (Sandbox Mode pre-selected on every open) + pickHero (the Sandbox draft untouched by a God Mode game)' },
     ],
     currentBehaviour:
-      'PARTIAL (built 2026-10-08; packages/ui/src/PracticeOptions.tsx, packages/sim/src/godMode.ts godPracticeConfig). '
-      + 'The layout follow-up (Sandbox Mode on the left and selected on every open, God Mode on the right, equal '
-      + 'halves) is being built on the same branch; as first built, God Mode sat on the left and the last chosen mode '
-      + 'was remembered. Re-check PracticeOptionsGodMode.test.tsx pins the Sandbox default and the order once that '
-      + 'lands, then drop this note. PARTIAL pin on "leaving the Sandbox Mode settings as they were": the half that is pinned is the run (God Mode '
-      + 'plays every hero, Unlimited health, every tribe and no timer whatever the draft says, and the player\'s own '
-      + 'Practice timer choice survives a God Mode game); the half that is not is the draft itself, where the store '
-      + 'test checks only the godMode flag, not the heroes / health / time / tribes fields.',
+      'Conforms, built 2026-10-08 (packages/ui/src/PracticeOptions.tsx, packages/ui/src/store.ts startPractice, '
+      + 'packages/sim/src/godMode.ts godPracticeConfig); the layout follow-up (Sandbox left and pre-selected on every '
+      + 'open, God Mode right, even halves) shipped the same day. PracticeOptionsGodMode.test.tsx pins the column order '
+      + '(Sandbox, then God Mode), Sandbox pre-selected on every open with its options live, God Mode greying the '
+      + 'Sandbox options, and Select switching modes. The even halves are CSS only and not asserted. PARTIAL pin on '
+      + '"leaving the Sandbox Mode settings as they were": the half that is pinned is the run (God Mode plays every '
+      + 'hero, Unlimited health, every tribe and no timer whatever the draft says, and the player\'s own Practice '
+      + 'timer choice survives a God Mode game); the half that is not is the draft itself, where no test checks that '
+      + 'the draft\'s heroes / health / tribes survive a God Mode game (reopening Practice is pinned to keep the '
+      + 'draft\'s time setting only).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/PracticeOptionsGodMode.test.tsx', 'packages/sim/src/godMode.test.ts', 'packages/ui/src/godModeStore.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
 ];

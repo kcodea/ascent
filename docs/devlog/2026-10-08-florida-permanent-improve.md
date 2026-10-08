@@ -20,14 +20,25 @@ future change cannot quietly make it per-round: 3 rounds of Shop summons (5, 10,
 carrying back and feeding the next Shop grant, an End-of-Turn summon, Gilded read-time doubling, determinism, and
 the live text on the shared `liveCardText` chain.
 
-**Flagged, not changed.**
+**Owner rulings (same day, same PR).**
 
-- **Beardsley** (`b2_beardsley`, "give it +1/+1 and improve this") runs the exact same factory and the same carry-back,
-  so its improve is already permanent too. Its text was left alone; the owner's wording named only Flo Rida.
-- **Rise edge.** A risen body resets its `summonBonus` to 0 (R-RISE-01). If a Flo with Rise dies and rises in combat,
-  the carry-back writes the risen body's count (losing the pre-combat growth), or nothing if the risen body saw no
-  summon (the `> 0` filter keeps the old value). Flo has no native Rise; worth an owner ruling on whether
-  "permanently" should survive a combat Rise.
-- **In-place gild.** Flo reads `(base + improve x step) x golden`, so gilding an existing copy in place (Indy, Golden
-  Touch) doubles growth already earned. `GOLD_SCALED_ACCRUAL_CARDS` exists for this on other cards; Flo and Beardsley
-  are not in it.
+- **In-place gild: "yes fix".** Flo Rida and Beardsley joined `GOLD_SCALED_ACCRUAL_CARDS` (recruit.ts), so `gildMinion`
+  (Indy, Golden Touch, a Shop gild) halves the earned count and the unchanged x2 read gives back exactly the earned
+  growth: a plain Flo at count 3 (+20) gilds to +25 (base 10 + earned 15), not +40. Because both cards improve every 1
+  Beast, the step now reads the count RAW instead of `floor(count / every)` (both factory halves and
+  `summonEscalatingText`), so a half-count (3 -> 1.5) stays exact. `every > 1` cards keep the floor. The combat-only
+  gild (Auric Runemaster in a fight) is unchanged, like the other cards on the list.
+- **Rise: "rise = reset its number since its not the same minion per se".** The combat Rise already zeroed
+  `summonBonus` (R-RISE-01). The gap was the write-back: the carry-back skipped any body at 0, so a risen Flo that saw
+  no Beast after rising left the board card at its PRE-combat count, while one that saw a Beast wrote the post-rise
+  count. **Choice made:** the board card keeps what the risen body ends the fight with, 0 included (`risenUids` in
+  `simulate.ts` lets a risen 0 through). That follows the existing precedents: the shop Rise rebuilds the board body
+  from the def, and risen-body results (Second Wind) carry back to the board card. The alternative, "the board card
+  keeps the original's pre-death count", is a one-line change if the owner prefers it.
+- **Scope note:** the write-back fix is on the shared `summonBonus` channel, so it applies to every summonBonus
+  improver that Rises (Kennelmaster, Pack Leader, ...), not only Flo and Beardsley. It never branches on a card id.
+  Sergeant's `hpGrantBonus` is also zeroed at Rise and carried back behind the same `> 0` filter, so it still has the
+  same gap. It is not changed here.
+
+**Beardsley** shares the same factory and carry-back, so its improve was already permanent. Its text is unchanged
+because the owner named only Flo Rida. Both gild and Rise fixes apply to it.

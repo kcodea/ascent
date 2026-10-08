@@ -58,7 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-08',
     changes: [
-      { category: 'Balance', text: 'Flo Rida now reads "give it +5/+5 and permanently improve this." Its growth lasts the whole game and never resets between rounds, including growth from Beasts summoned in combat.' },
+      {
+        category: 'Balance',
+        text: 'Flo Rida now reads "give it +5/+5 and permanently improve this." Its growth lasts the whole game and never resets between rounds, including growth from Beasts summoned in combat.',
+        details: [
+          'Gilding a Flo Rida or Beardsley that is already on your board no longer doubles the growth it has earned. Its base doubles, and new growth comes at the Gilded rate.',
+          'A Flo Rida or Beardsley that Rises comes back as a new minion: its growth starts again from zero, and it keeps that count after the fight.',
+        ],
+      },
     ],
   },
   {

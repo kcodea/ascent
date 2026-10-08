@@ -20,4 +20,11 @@ describe('Flo Rida live text: the current grant, permanently improving', () => {
     expect(liveCardText('b2_florida', { ...base, summonBonus: 2, golden: true }).goldenText)
       .toBe('When you summon a **Beast**, give it {{+30/+30}} and permanently improve this.');
   });
+
+  it('after an in-place gild (count halved, owner 2026-10-08 "yes fix") it prints the earned value, not double', () => {
+    // A plain Flo that saw 3 Beasts grants +20/+20. Gilded in place: the count halves to 1.5, so the golden read is
+    // (5 + 7.5) x 2 = +25/+25 (base doubled, the earned +15 at face value). Beardsley: (1 + 1.5) x 2 = +5/+5.
+    expect(liveCardText('b2_florida', { ...base, summonBonus: 1.5, golden: true }).goldenText).toContain('{{+25/+25}}');
+    expect(liveCardText('b2_beardsley', { ...base, summonBonus: 1.5, golden: true }).goldenText).toContain('{{+5/+5}}');
+  });
 });

@@ -1,6 +1,6 @@
 // packages/ui/src/godMode/GodModePanel.test.tsx
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun, makeGodModeRun, GOD_MODE_MAX_ROUNDS } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
@@ -59,6 +59,41 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     act(() => { row.click(); });
     expect((useGame.getState().run.ownedRunes ?? []).length).toBe(1);
     expect(el.querySelector('.godp-toast')!.textContent).toMatch(/^Gained /);
+  });
+  it('a pointer-down outside the panel and its window closes the window (and still reaches its target)', () => {
+    const el = show();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    const reached = vi.fn();
+    outside.addEventListener('pointerdown', reached);
+    press(el, 'Minions');
+    act(() => { outside.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true })); });
+    expect(el.querySelector('.godp-fly')).toBeNull();
+    expect(reached).toHaveBeenCalledTimes(1); // not swallowed: the outside click does its normal thing
+    outside.remove();
+  });
+  it('a pointer-down on a filter chip or inside the window keeps it open', () => {
+    const el = show();
+    press(el, 'Minions');
+    act(() => { el.querySelector('.godp-tribe')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    expect(el.querySelector('.godp-fly')).not.toBeNull();
+    act(() => { el.querySelector('.godp-tier')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    expect(el.querySelector('.godp-fly')).not.toBeNull();
+    act(() => { el.querySelector('.godp-fly .godp-search')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    act(() => { el.querySelector('.godp-fly .godp-row')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    expect(el.querySelector('.godp-fly')).not.toBeNull();
+  });
+  it('the outside-click listener exists only while a window is open', () => {
+    const add = vi.spyOn(document, 'addEventListener');
+    const remove = vi.spyOn(document, 'removeEventListener');
+    const el = show();
+    const downs = (spy: typeof add): unknown[] => spy.mock.calls.filter((c) => c[0] === 'pointerdown' && c[2] === true).map((c) => c[1]);
+    expect(downs(add)).toHaveLength(0);
+    press(el, 'Runes');
+    expect(downs(add)).toHaveLength(1);
+    press(el, 'Runes'); // same button closes
+    expect(downs(remove)).toContain(downs(add)[0]);
+    add.mockRestore(); remove.mockRestore();
   });
   it('one window at a time: another button switches it; the same button, ✕ and Esc close it', () => {
     const el = show();

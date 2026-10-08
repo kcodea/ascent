@@ -100,6 +100,22 @@ export function GodModePanel() {
     window.addEventListener('keydown', key, true);
     return () => window.removeEventListener('keydown', key, true);
   }, [open, closeFly]);
+  // A pointer-down OUTSIDE closes the side window (owner 2026-10-08: "clicking outside of that window should
+  // automatically close it"). The panel counts as inside — its filter chips change what the list shows, and its list
+  // buttons switch / close it themselves. Capture phase so it sees the press before anything else, but it never
+  // prevents or stops it: the outside click still does its normal thing. The hover preview is `pointer-events: none`,
+  // so a press "on" it lands on what's underneath. Registered only while a window is open.
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: PointerEvent): void => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (panelRef.current?.contains(t) || flyRef.current?.contains(t)) return;
+      closeFly();
+    };
+    document.addEventListener('pointerdown', down, true);
+    return () => document.removeEventListener('pointerdown', down, true);
+  }, [open, closeFly]);
 
   const print = useCallback((r: CardRow): void => dispatch({ type: 'godPrint', cardId: r.id }), [dispatch]);
   const grant = useCallback((r: RuneRow): void => {

@@ -927,7 +927,7 @@ export function StatusBar() {
               : dieRoll != null ? null
                 : clearanceUses != null
                   ? <span key={`cu${clearanceUses}`} className="hpb-tally clearance-uses" data-testid="clearance-uses">{clearanceUses}</span>
-                  : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
+                  : powerTally ? <span key={powerTally} className="hpb-tally hpb-pill">{powerTally}</span> : null}
             {dieRoll && (
               <DiceRoll
                 result={dieRoll.result}
@@ -1137,7 +1137,7 @@ export function StatusBar() {
               {/* Cost coin, tracker pill and centre magnitude — the same three the main power shows, from
                   slot-1 state. `liveCost2` (not `p2.cost`) so an escalating/shrinking cost reads its live price. */}
               {liveCost2 ? <span className="hpcost"><span className="costn">{liveCost2}</span></span> : null}
-              {tally2 ? <span key={tally2} className="hpb-tally">{tally2}</span> : null}
+              {tally2 ? <span key={tally2} className="hpb-tally hpb-pill">{tally2}</span> : null}
               {center2 && <span key={center2} className="hpb-tally hpb-center">{center2}</span>}
               </div>
               <div className="hplabel">{p2.name}</div>

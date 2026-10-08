@@ -4776,8 +4776,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms, built 2026-10-08 (packages/sim/src/reducer.ts godPrint / godGrantRune, packages/sim/src/godMode.ts). '
       + 'Printing may exceed the shop\'s slot count in God Mode only (owner-approved spec: "Printing into a full shop '
       + 'still adds the card"). The refusal while a Discover / quest / Runeforge window is open is the reducer\'s shared '
-      + 'modalOpen gate (not exempted for these actions); the panel greys out then (GodModePanel test).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/godActions.test.ts', 'packages/ui/src/godMode/GodModePanel.test.tsx'], lastVerifiedAt: '2026-10-08' },
+      + 'modalOpen gate (not exempted for these actions) plus the Ancients-offer gate; the panel greys out on exactly those (godPanelLocked, godPick test).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/godActions.test.ts', 'packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godMode/godPick.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
   {
     id: 'R-GODMODE-03',
@@ -4819,7 +4819,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'a 4 second timeout), else from the boards downloaded at startup (filtered by round, set and non-synthetic '
       + 'origin only), else "no boards". Until supabase/migrations/2026-10-08-god-board-sample.sql is deployed, every '
       + 'pick uses the startup boards. The pinned board is fought through the sandbox foe path (sim test).',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godMode/godBoards.test.ts', 'packages/ui/src/godMode/GodRoundPrompt.test.tsx', 'packages/sim/src/godMode.test.ts'], lastVerifiedAt: '2026-10-08' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godMode/godBoards.test.ts', 'packages/ui/src/godMode/GodRoundPrompt.test.tsx', 'packages/ui/src/godMode/godPick.test.ts', 'packages/sim/src/godMode.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
   {
     id: 'R-GODMODE-05',

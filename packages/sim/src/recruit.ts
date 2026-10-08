@@ -1316,7 +1316,8 @@ export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeB
  *  encodes the combined magnitude"), and halving those would destroy real value.
  *  TRIPLES ARE NOT THIS: `checkTriples` builds a golden FROM three bodies and deliberately encodes their
  *  summed grants through the ×2 read — that math is untouched. */
-const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader', 'dm_broodwright', 'b2_groveweaver']);
+// Flo Rida + Beardsley joined 2026-10-08 (owner: "yes fix", R-FLORIDA-01): `(base + improve x count) x golden`, every 1.
+const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader', 'dm_broodwright', 'b2_groveweaver', 'b2_florida', 'b2_beardsley']);
 
 /** Spells the copy-last/first effects (Recaller, Spellvault Drake) may NOT reproduce (owner ruling
  *  2026-08-07). Second Draft is the loop: cast it ON the Recaller, replay the Recaller, receive another
@@ -5522,7 +5523,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // per-instance counter. Absent `improve` → the plain flat grant, unchanged.
     const improve = num(params.improve, 0);
     const every = Math.max(1, num(params.every, 1));
-    const step = improve > 0 ? Math.floor((self.summonBonus ?? 0) / every) : 0;
+    // An every-1 improve reads the count RAW (no floor): an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS, Flo Rida /
+    // Beardsley), and the x2 read must land on exactly the value already earned, a half-count included.
+    const step = improve > 0 ? (every <= 1 ? (self.summonBonus ?? 0) : Math.floor((self.summonBonus ?? 0) / every)) : 0;
     const a = (num(params.attack, 6) + improve * step) * g;
     const h = (num(params.health, 6) + improve * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);

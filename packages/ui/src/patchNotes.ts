@@ -69,6 +69,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Settings controls are clearer: on/off options are now red/green switches, Audio shows Master with an Advanced Controls button for the other channels, and the frame cap is a Max Frame Rate dropdown.',
+        details: [
+          'Each button now shows only its name; the explanation sits beside it.',
+          'The Settings button in the corner now matches the Compendium and Rules buttons.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Settings menu has a new look: the navy and gold of the main menu and Career page, with bigger section headings. Combat speed is now the first section.',
+      },
+      {
+        category: 'Systems',
         text: 'Rise now reads "Returns once when destroyed with 1 health." Rules text no longer says "printed stats" anywhere.',
         details: [
           'The Rise keyword pill, glossary and Rules entries use the new line. How Rise works is unchanged: the minion comes back once as a fresh copy with 1 Health.',

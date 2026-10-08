@@ -17,7 +17,8 @@ const openOver = (godMode: boolean): HTMLElement => {
   ui = mount(<EscMenu onClose={() => {}} />);
   return ui.container;
 };
-const primary = (el: HTMLElement): string => el.querySelector('.escbtn-primary')?.textContent ?? '';
+// The primary button's whole row: its label (in the button) and its note (beside it, `ActionButton`).
+const primary = (el: HTMLElement): string => el.querySelector('.escbtn-primary')?.closest('.escline')?.textContent ?? '';
 
 describe('Esc menu in God Mode', { timeout: 60_000 }, () => {
   it('offers a plain leave that says nothing is saved', () => {

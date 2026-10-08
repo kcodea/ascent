@@ -38,8 +38,8 @@ export function applyFpsCap(cap: number): void {
   gsap.ticker.fps(n); // 0 → GSAP's default ceiling
 }
 
-/** Option label for the Settings row. */
+/** Option label for the Settings "Max Frame Rate" dropdown. */
 export function fpsCapLabel(cap: number, displayHz?: number): string {
-  if (cap === 0) return displayHz && displayHz > 0 ? `Display (${Math.round(displayHz)})` : 'Display';
-  return String(cap);
+  if (cap === 0) return displayHz && displayHz > 0 ? `Display (${Math.round(displayHz)} Hz)` : 'Display';
+  return `${cap} FPS`;
 }

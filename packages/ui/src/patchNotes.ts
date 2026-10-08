@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Settings controls are clearer: on/off options are now red/green switches, Audio shows Master with an Advanced Controls button for the other channels, and the frame cap is a Max Frame Rate dropdown.',
+        details: [
+          'Each button now shows only its name; the explanation sits beside it.',
+          'The Settings button in the corner now matches the Compendium and Rules buttons.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The Settings menu has a new look: the navy and gold of the main menu and Career page, with bigger section headings. Combat speed is now the first section.',
       },
       {

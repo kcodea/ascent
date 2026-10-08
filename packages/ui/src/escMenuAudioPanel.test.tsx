@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
- * THE AUDIO PANEL in Settings (owner ask 2026-09-23: *"an 'audio' button in the settings window that
- * expands/collapses these 3 channels with mute toggles for each"*). Pins: the section is ONE "Audio" button
- * (aria-expanded), collapsed by default; expanded it shows the MASTER row (owner ask 2026-09-26) on top of the
- * three channel rows, Game sounds / Music / Announcer, each a slider + a mute pill; a mute persists to its own localStorage key and applies live (the
+ * THE AUDIO SECTION in Settings (owner asks 2026-09-23 / 2026-10-08: *"made the audio section always show the
+ * master volume. then add a button that says Advanced Controls that then drops down into the more precise
+ * tuners"*). Pins: the MASTER row (owner ask 2026-09-26) always shows; under it ONE "Advanced Controls" button
+ * (aria-expanded), collapsed by default, opens the three channel rows, Game sounds / Music / Announcer, each a
+ * slider + a mute pill; a mute persists to its own localStorage key and applies live (the
  * slider disables, the value reads Off); the open state is remembered; no `title=` attribute anywhere in the
  * menu (the owner banned native tooltips); no player-facing em dash or double hyphen.
  *
@@ -27,8 +28,8 @@ const press = (el: Element | null | undefined): void => {
   act(() => { el!.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
 };
 const audioButton = (root: ParentNode): HTMLButtonElement | null =>
-  [...root.querySelectorAll<HTMLButtonElement>('button.escbtn')].find((b) => b.querySelector('.ebl')?.textContent === 'Audio') ?? null;
-const rows = (root: ParentNode): HTMLElement[] => [...root.querySelectorAll<HTMLElement>('#esc-audio-panel .escvol')];
+  [...root.querySelectorAll<HTMLButtonElement>('button.escbtn')].find((b) => b.querySelector('.ebl')?.textContent === 'Advanced Controls') ?? null;
+const rows = (root: ParentNode): HTMLElement[] => [...root.querySelectorAll<HTMLElement>('.escaudio .escvol')];
 const labelOf = (row: HTMLElement): string => row.querySelector('.evl')?.textContent ?? '';
 const unmuteAll = (): void => {
   if (isMuted()) toggleMute();
@@ -52,12 +53,13 @@ afterEach(() => {
 });
 
 describe('the Audio panel', () => {
-  it('is one "Audio" button, collapsed by default, that expands to the Master row plus the three channels', () => {
+  it('always shows Master; one "Advanced Controls" button, collapsed by default, expands the three channels', () => {
     ui = mount(<EscMenu onClose={() => {}} />);
     const btn = audioButton(ui.container);
     expect(btn).not.toBeNull();
     expect(btn!.getAttribute('aria-expanded')).toBe('false');
     expect(ui.container.querySelector('#esc-audio-panel')).toBeNull();
+    expect(rows(ui.container).map(labelOf)).toEqual(['Master']);
     press(btn);
     expect(audioButton(ui.container)!.getAttribute('aria-expanded')).toBe('true');
     expect(rows(ui.container).map(labelOf)).toEqual(['Master', 'Game sounds', 'Music', 'Announcer']);
@@ -71,6 +73,7 @@ describe('the Audio panel', () => {
     press(audioButton(ui.container));
     expect(audioButton(ui.container)!.getAttribute('aria-expanded')).toBe('false');
     expect(ui.container.querySelector('#esc-audio-panel')).toBeNull();
+    expect(rows(ui.container).map(labelOf)).toEqual(['Master']);
   });
 
   it('remembers open / closed across a remount (localStorage)', () => {

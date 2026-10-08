@@ -6097,9 +6097,16 @@ svg { width: 18px; height: 18px; }
 .side.foe { color: #ff6f95; }
 
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */
-.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
-.gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
-.gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
+/* The Settings gear (owner ask 2026-10-08): the Compendium book's plaque (navy fill, gold rim, inner bevel, hard
+   bottom edge) carrying the gold tools medallion. Same slot and size as before, so the book/rules offsets hold. */
+.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
+.gearbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.gearbtn:active, .gearbtn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 #0a1526, 0 4px 10px -6px rgba(0, 0, 0, 0.7); }
+.gearbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
 /* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
    pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
 .bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
@@ -6125,16 +6132,20 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    that brightens on hover; a chosen option fills with a gold wash. Nothing here loops. */
 .escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(4, 8, 16, 0.66); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
 .escpanel { zoom: var(--ui-zoom); color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98)); border: 2px solid rgba(196, 160, 92, 0.55); border-radius: 18px; padding: 24px 28px 22px; min-width: 380px;
+  /* 900px (owner ask 2026-10-08: "reduce it by 30%" from the ~1290px the long notes stretched it to); the notes wrap. */
+  width: min(900px, calc(94 * var(--vw, 1vw)));
+  /* Narrower means taller: with Advanced Controls open in a run it can pass the stage height, so it scrolls instead
+     of running off the bottom (a gold thumb on a clear track). */
+  max-height: calc(94 * var(--vh, 1vh)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(196, 160, 92, 0.55) transparent;
   box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 26px 64px -16px rgba(0, 0, 0, 0.75); }
 .escpanel .esch { font-weight: 800; font-size: 30px; letter-spacing: 0.04em; color: #f0d089; text-align: center; }
 .escpanel .pressable:focus-visible { outline-color: #f0d089; }
-/* Frame-rate cap row (Settings → Performance): six compact radio-style buttons on one line. Reuses `.escbtn`
-   for the look + the gauntlet cursor; `.dim` marks an option above the display's refresh (inert). */
-.escfps { display: flex; gap: 6px; margin-bottom: 8px; }
-.escfps .escfpsopt { flex: 1 1 0; min-width: 0; padding: 9px 4px; text-align: center; }
-.escfps .escfpsopt .ebl { font-size: 13px; white-space: nowrap; }
-.escfps .escfpsopt.dim { opacity: 0.45; }
-.escnote { font-family: var(--font-ui); font-size: 12px; color: rgba(244, 238, 226, 0.55); text-align: left; margin: 0 4px 8px; line-height: 1.35; }
+.escnote { font-family: var(--font-ui); font-size: 13px; color: rgba(244, 238, 226, 0.58); text-align: left; margin: 0 4px 8px; line-height: 1.35; }
+/* A button's explanation sits OUTSIDE it, on the same line to its right (owner asks 2026-10-08): the button keeps
+   its own width, the note takes the rest of the line and wraps there. */
+.escline { display: flex; align-items: center; gap: 18px; margin-bottom: 8px; }
+.escline > .escbtn { flex: none; }
+.escnote.eschint { flex: 1; min-width: 0; margin: 0; }
 /* SECTION HEADERS (owner ask 2026-10-08): left-aligned, large, gold, and a gold rule running from the end of the
    word to the panel's right edge (the `::after` takes the rest of the flex line). The rule fades as it travels so
    the word stays the loudest thing on the line. */
@@ -6831,39 +6842,68 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
   background: rgba(255,138,60,.16); color: #ffcf9e; font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
 
 /* Audio: a labeled master-volume slider above the mute toggle. */
-.escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); margin-bottom: 8px; }
-.escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #f4eee2; white-space: nowrap; }
-.escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #e8c877; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+/* Rows are only as wide as their content (owner ask 2026-10-08), the slider a fixed length so every track lines up. */
+.escvol { display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; padding: 10px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); margin-bottom: 8px; }
+/* ONE LABEL SIZE (owner ask 2026-10-08): every row label, button label and the dropdown's value is 18px. */
+.escvol .evl { flex: 0 0 150px; font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #f4eee2; white-space: nowrap; }
+.escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: #e8c877; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 /* The slider: a dark recessed groove with a gold hairline, a gold gem thumb. */
-.escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(196, 160, 92, 0.3); border-radius: 99px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; }
+.escvol input[type='range'] { flex: none; width: 360px; max-width: 100%; height: 8px; -webkit-appearance: none; appearance: none; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(196, 160, 92, 0.3); border-radius: 99px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; }
 .escname { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
 .escname:focus { border-color: var(--acc); }
 .escname::placeholder { color: var(--ink3); }
 .escvol input[type='range']:disabled { opacity: 0.4; cursor: inherit; }
 /* THE AUDIO PANEL (2026-09-23): the three channel rows behind the "Audio" button; each row's mute is a small pill.
    No cursor keyword here: the global button rule paints the gauntlet. */
-.escaudio { display: flex; flex-direction: column; }
+.escaudio { display: flex; flex-direction: column; align-items: flex-start; }
 /* Owner ask 2026-09-24: the three channel sliders must line up. Each row is a flex line, so a label's own width
    decided where its slider started ("Game sounds" pushed its track right of "Music"'s). A fixed label column and a
    fixed Mute pill ("Mute"/"Muted") give every track the same start, end and length. */
-/* 104px holds the widest label ("Game sounds"); "Master" (2026-09-26) fits well inside it. */
-.escaudio .escvol .evl { flex: 0 0 104px; }
+/* Every row's label column is 150px (`.escvol .evl`), wide enough for "Max Frame Rate", so the Combat, Audio and
+   Performance controls all start on the same line. */
 .escaudio .escvol .escmute { min-width: 76px; }
+
+/* TOGGLE BUTTONS (owner ask 2026-10-08): an on/off setting is a button whose right end is a switch. OFF = knob
+   left over a red track; ON = knob right over a green track. The knob moves on `transform` (compositor) and the
+   track's colour is a one-shot transition on the toggle, never a loop. */
+.escbtn.esctoggle { align-items: center; }
+.escswitch { position: relative; flex: none; width: 52px; height: 28px; border-radius: 99px; background: linear-gradient(180deg, #8f2a33, #b8414c); border: 1.5px solid rgba(196, 160, 92, 0.6); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45); transition: background-color 0.16s ease, border-color 0.16s ease; }
+.esctoggle.is-on .escswitch { background: linear-gradient(180deg, #23774a, #3aa265); }
+.escknob { position: absolute; top: 2px; left: 2px; width: 21px; height: 21px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 1px solid #8a6428; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); transform: translateX(0); transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+.esctoggle.is-on .escknob { transform: translateX(24px); }
+
+/* ADVANCED CONTROLS (owner ask 2026-10-08): the disclosure under Master that opens the three channels: label, then
+   a chevron that turns when open. */
+.escbtn.escdisclose { align-self: flex-start; align-items: center; gap: 14px; margin-bottom: 8px; }
+.escchev { flex: none; width: 16px; height: 16px; fill: none; stroke: #e8c877; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+.escdisclose.open .escchev, .escselect.open .escselect-trigger .escchev { transform: rotate(180deg); }
+.escdisclose.open { border-color: rgba(196, 160, 92, 0.7); }
+.escaudio-adv { display: flex; flex-direction: column; align-items: flex-start; padding-left: 14px; border-left: 2px solid rgba(196, 160, 92, 0.3); margin: 0 0 4px 6px; }
+
+/* THE DROPDOWN (owner ask 2026-10-08, Performance → Max Frame Rate): a gold-rimmed trigger at the row's right end and
+   a navy list that opens under it, over the rows below. `.dim` marks a rate above the display's refresh (no effect). */
+.escselectrow { position: relative; z-index: 2; }
+.escselect { position: relative; min-width: 200px; }
+.escselect-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 7px 12px 7px 14px; border-radius: 9px; border: 1.5px solid rgba(196, 160, 92, 0.5); background: rgba(0, 0, 0, 0.35); color: #f4eee2; font-family: var(--font-ui); font-weight: 800; font-size: 18px; transition: border-color 0.12s; }
+.escselect-trigger:hover, .escselect.open .escselect-trigger { border-color: #e8c877; }
+.escselect-trigger:focus-visible, .escselect-opt:focus-visible { outline: 2px solid #f0d089; outline-offset: 2px; }
+.escselect-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 3; display: flex; flex-direction: column; gap: 2px; padding: 5px; border-radius: 10px;
+  background: linear-gradient(180deg, #13203a, #0b1427); border: 1.5px solid rgba(196, 160, 92, 0.6); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14), 0 14px 30px -10px rgba(0, 0, 0, 0.75); animation: escselin 0.12s ease-out; }
+@keyframes escselin { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.escselect-opt { text-align: left; padding: 7px 10px; border-radius: 7px; border: none; background: transparent; color: #f4eee2; font-family: var(--font-ui); font-weight: 700; font-size: 16px; }
+.escselect-opt:hover, .escselect-opt:focus-visible { background: rgba(196, 160, 92, 0.14); }
+.escselect-opt.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
+.escselect-opt.dim:not(.on) { opacity: 0.45; }
 .escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); background: rgba(0, 0, 0, 0.32); border: 1.5px solid rgba(196, 160, 92, 0.42); border-radius: 99px; padding: 5px 11px; transition: border-color 0.12s, color 0.12s; }
 .escvol .escmute:hover { border-color: #e8c877; color: #f4dc9c; }
 .escvol .escmute.on { color: #241705; border-color: #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); }
 .escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-/* The press edge reads as the dark navy under the row (the `.pressable` box-shadow); a chosen row's gold inner
+/* The press edge reads as the dark navy under the row (the `.pressable` box-shadow); the primary row's gold inner
    hairline rides `--pr-inset` so it survives the press instead of being overwritten by it. */
 .escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
 .escbtn:hover { border-color: rgba(196, 160, 92, 0.7); background: rgba(196, 160, 92, 0.08); }
-.escbtn.on { border-color: #e8c877; background: linear-gradient(90deg, rgba(232, 200, 119, 0.2), rgba(232, 200, 119, 0.06)); --pr-inset: inset 0 0 0 1px rgba(232, 200, 119, 0.35); }
-.escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #f4eee2; }
-.escbtn .ebs { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(232, 200, 119, 0.62); text-transform: uppercase; letter-spacing: 0.06em; }
-/* A subtext that carries an email (Settings → Account): case + spacing left as typed, and it may wrap. */
-.escbtn .ebs.ebs-plain { text-transform: none; letter-spacing: 0.02em; word-break: break-all; text-align: right; }
-.escbtn.on .ebs { color: #f0d089; }
+.escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #f4eee2; }
 .escbtn.danger { border-color: rgba(217, 102, 106, 0.55); }
 .escbtn.danger:hover { border-color: #e5707a; background: rgba(217, 102, 106, 0.14); }
 .escbtn.danger .ebl { color: #ff9ea4; }
@@ -6872,9 +6912,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .escbtn.escbtn-primary { border-color: #e8c877; background: linear-gradient(90deg, rgba(232, 200, 119, 0.2), rgba(232, 200, 119, 0.07)); --pr-inset: inset 0 0 0 1px rgba(232, 200, 119, 0.3); }
 .escbtn.escbtn-primary:hover { border-color: #f4dc9c; background: linear-gradient(90deg, rgba(232, 200, 119, 0.28), rgba(232, 200, 119, 0.1)); }
 .escbtn.escbtn-primary .ebl { color: #f0d089; }
-.escbtn.escbtn-primary .ebs { color: rgba(232, 200, 119, 0.75); }
-/* Resume — the house gold action (the Career's `.cv2-btn` / ladder `.lb-btn` face): gold gradient, dark ink. */
-.escclose { margin-top: 22px; width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); color: #1a1206; font-family: var(--font-ui); font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* Resume — the house gold action (the Career's `.cv2-btn` / ladder `.lb-btn` face): gold gradient, dark ink. Half the
+   panel's width, centred, ~30% taller than a row (owner ask 2026-10-08). */
+.escclose { display: block; margin: 22px auto 0; width: 50%; padding: 17px 12px; border-radius: 12px; border: 1.5px solid #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); color: #1a1206; font-family: var(--font-ui); font-weight: 900; font-size: 22px; letter-spacing: 0.12em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
 .lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%); /* the loading splash's navy — the same backdrop as the rank screen (owner 2026-09-20), replacing the title art */ animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }

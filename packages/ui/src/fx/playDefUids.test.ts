@@ -30,6 +30,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'click-puff', why: 'fires at the cursor' },
   { file: 'lobbyKnockoutFx.ts', id: 'lobby-knockout', why: 'plays on a seat ROW of the lobby rail (HUD chrome): the subject is a player knocked out of the table, not a unit on the board' },
   { file: 'Recruit.tsx', id: 'coin', why: 'fires at the gold pill' },
+  { file: 'Recruit.tsx', id: 'final-countdown-tick', why: 'the final-countdown burst: fires from the shop TIMER digits (HUD chrome) on each of the last five seconds, never at a unit' },
   { file: 'Recruit.tsx', id: 'self-buff-burst', why: 'the End-of-Turn economy burst (R-EOT-ECON-01): fires at the HUD control whose number moved (Tier stone, Refresh crystal, Gold pill), never at a unit' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
   { file: 'StatusBar.tsx', id: 'equipment-used-up', why: "the Equipment slot ran EMPTY — anchored on the slot button, which is HUD chrome and has no unit uid. The subject is the allowance, not a body on the board" },

@@ -144,7 +144,7 @@ import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
-import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
+import { sfx, stopAllAudio, resumeAudio, stopTurnCharge, turnTickLevel } from './sfx';
 import { observeCombatBoard, observeCombatMoments, observeTurnClock } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
@@ -431,6 +431,20 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
   const goldWaiting = goal > 0 && goldClockWaiting(s);
   // …and while it waits, a bar fills with the Gold spent this turn toward that threshold (owner ask 2026-09-30).
   const goldSpent = useGame((st) => (goal > 0 ? Math.min(st.run.goldSpentThisTurn ?? 0, goal) : 0));
+  // THE FINAL-COUNTDOWN BURST (owner 2026-10-07): the owner-authored `final-countdown-tick` effect bursts from the
+  // timer digits on each of the last five seconds, with the `turntick` sound. Keyed on the same clock value the tick
+  // fires on, so the two land together and a held clock holds both. It BUILDS like the tick (`intensity` = the tick's
+  // level, FIVE quietest to ONE fullest). One rect read per second, screen space (Pixi is not on the stage scale).
+  const digitsRef = useRef<HTMLSpanElement>(null);
+  const unlimited = !!practice && practiceTimer === 0;
+  useEffect(() => {
+    if (s < 1 || s > 5 || unlimited || goldWaiting) return;
+    const el = digitsRef.current;
+    if (!el || !canPlayDefs()) return;
+    const r = el.getBoundingClientRect();
+    const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    playDef('final-countdown-tick', { source: p, target: p, cursor: p }, { intensity: turnTickLevel(s).vol });
+  }, [s, unlimited, goldWaiting]);
   return (
     <div className={`statcell time${s <= 5 ? ' low' : ''}${goldWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
       {/* Two faces, one shown per HUD look (healthPills.css): the flat Classic glyph and the Gem plate gold clock. */}
@@ -455,13 +469,7 @@ const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: b
           <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{goal}</span>
         </span>
       ) : (
-        <span className="sc-v">
-          {/* THE FINAL-COUNTDOWN FLASH (owner ask 2026-10-07): a gold glow pulses out from behind the digits on each of
-              the last five seconds, with the `turntick` sound. Re-keyed per second so its one-shot replays per tick;
-              it reads the same clock value the tick fires on, so the two land together (and a held clock holds both). */}
-          {s >= 1 && s <= 5 && !(practice && practiceTimer === 0) && <span key={s} className="sc-tickflash" aria-hidden="true" />}
-          {practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}
-        </span>
+        <span className="sc-v" ref={digitsRef}>{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
       )}
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`

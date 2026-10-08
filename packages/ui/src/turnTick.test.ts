@@ -53,14 +53,14 @@ describe('the shop clock fires the count', () => {
     expect(tick).toContain('sfx.turnExplode();');
   });
 
-  it('the timer flashes gold behind its digits on each of the same five seconds (one-shot, compositor-only)', () => {
+  it('the owner-authored burst plays from the timer digits on each of the same five seconds, building like the tick', () => {
     const timer = src.slice(src.indexOf('const ShopTimer = memo('), src.indexOf('const ChargeGlyph = memo('));
-    expect(timer).toMatch(/s >= 1 && s <= 5 && .*<span key=\{s\} className="sc-tickflash" aria-hidden="true" \/>/);
-    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'styles.css'), 'utf8');
-    const rule = css.slice(css.indexOf('.statcell.time .sc-tickflash {'), css.indexOf('@keyframes sctickflash'));
-    expect(rule).toContain('z-index: -1');
-    expect(rule, 'plays once per tick, never loops').not.toMatch(/infinite/);
-    const frames = css.slice(css.indexOf('@keyframes sctickflash'), css.indexOf('}', css.indexOf('100%', css.indexOf('@keyframes sctickflash'))));
-    expect(frames, 'animates transform/opacity only').not.toMatch(/box-shadow|filter|background/);
+    expect(timer).toContain('if (s < 1 || s > 5 || unlimited || goldWaiting) return;');
+    expect(timer).toContain("playDef('final-countdown-tick', { source: p, target: p, cursor: p }, { intensity: turnTickLevel(s).vol });");
+    expect(timer).toContain('}, [s, unlimited, goldWaiting]);');
+    expect(timer, 'the CSS flash it replaced is gone').not.toContain('sc-tickflash');
+    const def = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fx/defs/final-countdown-tick.json'), 'utf8'));
+    expect(def.id).toBe('final-countdown-tick');
+    expect(def.layers.some((l: { primitive: string }) => l.primitive === 'sound'), 'the tick sound comes from code, never doubled by the def').toBe(false);
   });
 });

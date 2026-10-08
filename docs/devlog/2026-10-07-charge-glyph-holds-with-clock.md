@@ -42,6 +42,7 @@ ONE (end turn)". Owner picks: the ticks BUILD, the explosion keeps 0:00, and the
   into `audio/turntick-5.wav` (FIVE) … `turntick-1.wav` (ONE). Hyphenated so the numbered random-variant grouping
   ignores them; `clipFamily` maps all five onto the new `turntick` desk fader (ui bus, 0.5). A synth tock stands
   in while a clip decodes; `warmTurnTick` prefetches all five from 10 s left.
-- The timer plaque flashes gold behind its digits on each tick (owner ask): `ShopTimer` renders a `.sc-tickflash`
-  re-keyed per second at 5..1, a static radial gradient whose transform + opacity play once (700 ms) at z -1 inside
-  the digits' own stacking context (`isolation: isolate` on `.statcell.time .sc-v`).
+- On each tick the owner-authored `final-countdown-tick` def (three gold shard bursts) plays from the centre of the
+  timer digits: `ShopTimer` fires `playDef` on the clock value 5..1 with `intensity` = the tick's level (one rect read
+  per second, screen space). It replaced a first-pass CSS gold flash the same day (owner: "use that instead of the
+  pulse"). Registered in `fx/directCalls.ts` + its test.

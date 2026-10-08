@@ -17,9 +17,9 @@ God Mode depends on them.
 | Question | Answer |
 |---|---|
 | What does a God Mode game count for? | **Nothing persists**: no XP, no crate, no save/Continue, no practice upload, no replay, no telemetry. |
-| How is it chosen? | A **Standard / God Mode** switch on the Practice setup screen. Time row hidden in God Mode; Heroes, Health and Tribes still apply. Then the normal hero select. |
+| How is it chosen? | The Practice screen offers **God Mode** and **Sandbox Mode** side by side, each with Select + description; Sandbox options greyed until Sandbox is selected (owner sketch). God Mode uses every hero, Unlimited health, every tribe. Then the normal hero select. |
 | Panel placement | **Floating, draggable, collapsible** to a "God Mode" tab; position and collapse remembered. **Hidden during fights.** |
-| How does it end? | **Never on its own** (no round-15 finish). Health = Normal → the normal loss screen at 0; otherwise play until Home/Leave. |
+| How does it end? | **Never on its own** (no round-15 finish); play until Home/Leave. |
 | Build approach | Reuse `sandbox: true` (one switch already turns off every persistent write) plus a new `godMode` flag. |
 | Opponent | On **End Turn**: "What round should your opponent board be on?" — buttons **1–15**. Clicking one fetches a random real player board from that round and **the fight starts immediately** (no preview). |
 | Lobby rail | **Hidden** in God Mode. |
@@ -27,9 +27,13 @@ God Mode depends on them.
 
 ## 1. Setup and launch
 
-- `PracticeConfig` gains `godMode: boolean` (default `false`). `PracticeOptions.tsx` gets a **Standard / God Mode**
-  switch at the top; in God Mode the **Time** row is hidden (God Mode has no clock). Heroes / Health / Tribes behave
-  as in normal Practice. The setting is remembered like the other practice knobs.
+- **Practice screen (owner sketch 2026-10-08):** two modes side by side under the PRACTICE title: **God Mode**
+  (left) and **Sandbox Mode** (right; the existing practice game). Each has a **Select** button with a short
+  description under it. The existing options (Heroes, Health, Time, Tribes) sit in a box under Sandbox Mode and are
+  **greyed out and inert until Sandbox Mode is selected**. **Start** at the bottom. The chosen mode is remembered.
+- `PracticeConfig` gains `godMode: boolean` (default `false`). God Mode **ignores** the Sandbox options and always
+  plays with every hero, Unlimited health, every tribe and no timer (`godPracticeConfig`); the player's saved
+  Sandbox settings are left untouched.
 - Launch is unchanged up to the run: Practice setup → the standard `HeroSelect` → `pickHero` → `createLobbyRun(...,
   'practice', practiceDraft)`. When `practiceDraft.godMode` is set, the new run is stamped
   **`sandbox: true`, `godMode: true`, `embers: 999`**.

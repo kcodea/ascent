@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RunState } from '@game/sim';
 
 const KEY = 'ascent.practiceconfig';
+const SAVE_KEY = 'ascent.save';
 async function freshStore(persisted: object) {
   localStorage.setItem(KEY, JSON.stringify(persisted));
   vi.resetModules();
@@ -36,17 +37,77 @@ describe('God Mode in the store', { timeout: 60_000 }, () => {
     expect(Object.keys(localStorage).filter((k) => /save|resum/i.test(k))).toEqual([]);
   });
 
-  it('keeps the player\'s own saved run as the Continue slot, and their saved Practice timer', async () => {
-    const useGame = await freshStore({ godMode: true, timeMult: 2 });
-    localStorage.setItem('ascent.practicetimer', '2');
-    const real = { wave: 6 } as unknown as RunState;
-    useGame.setState({ savedRun: real });
+  it('Continue after a God Mode game resumes the REAL saved run, and the save on disk is untouched (spec §6)', async () => {
+    const useGame = await freshStore({ godMode: false, timeMult: 2 });
+    // A real (Sandbox Mode) Practice game: it takes the save slot.
     useGame.getState().confirmPracticeSetup();
     useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
+    const real = useGame.getState().run;
+    const onDisk = localStorage.getItem(SAVE_KEY);
+    expect(onDisk).not.toBeNull();
+    // ...then a God Mode game, played a little, then back to the title.
+    useGame.getState().setPracticeDraft({ godMode: true });
+    useGame.getState().confirmPracticeSetup();
+    expect(useGame.getState().practiceTimer).toBe(2); // the player's own Practice timer, never God Mode's 0
+    useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
     expect(useGame.getState().run.godMode).toBe(true);
-    expect(useGame.getState().savedRun).toBe(real);
+    useGame.getState().dispatch({ type: 'roll' });
+    useGame.getState().openTitle();
+    expect(localStorage.getItem(SAVE_KEY)).toBe(onDisk);
     expect(localStorage.getItem('ascent.practicetimer')).toBe('2');
-    expect(useGame.getState().practiceDraft.timeMult).toBe(2);
+    // The title offers the real run, and Continue resumes it.
+    expect(useGame.getState().savedRun?.godMode).toBeUndefined();
+    expect(useGame.getState().savedRun?.seed).toBe(real.seed);
+    useGame.getState().continueRun();
+    const resumed = useGame.getState().run;
+    expect(resumed.godMode).toBeUndefined();
+    expect(resumed.sandbox).toBeFalsy();
+    expect(resumed.seed).toBe(real.seed);
+    expect(resumed.heroId).toBe(real.heroId);
+    expect(localStorage.getItem(SAVE_KEY)).toBe(onDisk);
+  });
+
+  it('with no save, leaving God Mode offers no Continue and leaves no God Mode run behind the title', async () => {
+    const useGame = await freshStore({ godMode: true });
+    useGame.getState().confirmPracticeSetup();
+    useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
+    useGame.getState().openTitle();
+    expect(useGame.getState().savedRun).toBeNull();
+    expect(useGame.getState().run.godMode).toBeUndefined();
+    expect(localStorage.getItem(SAVE_KEY)).toBeNull();
+  });
+
+  it('a sandbox run that ends never clears the real save', async () => {
+    // Force the run to end on a roll: a God Mode run cannot really reach gameover, which is the point of the guard.
+    vi.resetModules();
+    vi.doMock('@game/sim', async (importOriginal) => {
+      const sim = await importOriginal<typeof import('@game/sim')>();
+      const end = <T extends { state: RunState }>(r: T, a: { type: string }): T =>
+        (a.type === 'roll' && r.state.godMode ? { ...r, state: { ...r.state, phase: 'gameover' } } : r);
+      return {
+        ...sim,
+        reduce: (s: RunState, a: Parameters<typeof sim.reduce>[1]) => end({ state: sim.reduce(s, a) }, a).state,
+        reduceWithPresentation: (...args: Parameters<typeof sim.reduceWithPresentation>) => end(sim.reduceWithPresentation(...args), args[1]),
+      };
+    });
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ godMode: false }));
+      const useGame = (await import('./store')).useGame;
+      useGame.getState().confirmPracticeSetup();
+      useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
+      const onDisk = localStorage.getItem(SAVE_KEY);
+      const realSaved = useGame.getState().savedRun;
+      expect(onDisk).not.toBeNull();
+      useGame.getState().setPracticeDraft({ godMode: true });
+      useGame.getState().confirmPracticeSetup();
+      useGame.getState().pickHero(useGame.getState().heroChoices![0]!);
+      useGame.getState().dispatch({ type: 'roll' });
+      expect(useGame.getState().run.phase).toBe('gameover');
+      expect(localStorage.getItem(SAVE_KEY)).toBe(onDisk);
+      expect(useGame.getState().savedRun).toBe(realSaved);
+    } finally {
+      vi.doUnmock('@game/sim');
+    }
   });
 
   it('Sandbox Mode practice is untouched (Review Focus 3)', async () => {

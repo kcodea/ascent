@@ -8204,7 +8204,6 @@ body:has(.book-ov) .cardref { z-index: 490; }
    the light board, and reading them over the dark backdrop (and as text ON the orange accent) was muddy
    (owner report 2026-08-24). Cream text on dark, near-black text on orange. */
 .pobox { gap: 2px; min-width: min(580px, calc(92 * var(--vw, 1vw))); }
-.posub { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: #d7cdba; margin: -8px 0 22px; }
 .porow { display: grid; grid-template-columns: 168px 1fr; align-items: center; gap: 22px; width: 100%; padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .porow:first-of-type { border-top: none; }
 .polabel { display: flex; flex-direction: column; gap: 3px; text-align: left; font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #fbf6ec; }

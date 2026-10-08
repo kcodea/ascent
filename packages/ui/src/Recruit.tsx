@@ -7621,7 +7621,7 @@ export function Recruit() {
       <CombatOpponent />
 
       <ShopControls
-        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} goldClockGold={goldClockGold}
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold}
         replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
@@ -7961,12 +7961,14 @@ export function Recruit() {
  *  between the HUD and the drag zones. Memoized on primitives + stable handlers (perf 2026-09-16: a drag
  *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
 const ShopControls = memo(function ShopControls({
-  fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
+  fighting, inCombat, mode, sandbox, godMode, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
   onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
+  /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
+  godMode: boolean;
   /** The gold-spend clock's threshold this turn (`goldClockOf(run)?.gold`), null for the standard clock. */
   goldClockGold: number | null;
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
@@ -7993,7 +7995,8 @@ const ShopControls = memo(function ShopControls({
             (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
         {/* The turn timer is hidden entirely in the tutorial — a first-time player is never on the clock
             (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
-        {mode !== 'tutorial' && (
+        {/* GOD MODE (owner 2026-10-08) has no clock either: hide the plaque rather than count down an untimed turn. */}
+        {mode !== 'tutorial' && !godMode && (
           <div className="statstrip">
             <ShopTimer practice={mode === 'practice' && !sandbox} goldGoal={goldClockGold} />
           </div>

@@ -38,6 +38,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // nowhere to go, so the section is omitted; a run saves & quits.
   const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showCollection || s.titleView !== 'menu');
   const primary: 'replay' | 'menu' | 'none' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : 'run';
+  // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
+  const godMode = useGame((s) => s.run.godMode === true);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -106,8 +108,17 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             className="escbtn escbtn-primary pressable"
             onPointerDown={() => { openTitle(); onClose(); }}
           >
-            <span className="ebl">Save &amp; Quit</span>
-            <span className="ebs">Saves this exact moment and returns to the menu. Continue picks up right here.</span>
+            {godMode ? (
+              <>
+                <span className="ebl">Leave God Mode</span>
+                <span className="ebs">Returns to the menu. Nothing from this game is saved.</span>
+              </>
+            ) : (
+              <>
+                <span className="ebl">Save &amp; Quit</span>
+                <span className="ebs">Saves this exact moment and returns to the menu. Continue picks up right here.</span>
+              </>
+            )}
           </button>
         )}
         <div className="escsec">Audio</div>

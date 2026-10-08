@@ -2009,7 +2009,9 @@ function commitResolvedAction(
     if (changed) {
       // The run ENDED: clear the cloud copy too (R-PERSIST-CLOUD-03), so Continue disappears on every device.
       // `endRun` reads the lease before `clearSave` drops it.
-      if (finished) { void cloudSave.endRun(); clearSave(); savedRun = null; }
+      // `!next.sandbox`: a sandbox run (Scene Builder, God Mode) never owns the save slot, so its end must never
+      // clear the player's real save (God Mode keeps that save offered as Continue, owner 2026-10-08).
+      if (finished && !next.sandbox) { void cloudSave.endRun(); clearSave(); savedRun = null; }
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && isResumableRun(next)) {
@@ -2091,6 +2093,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
   continueRun: () => {
+    // GOD MODE (owner 2026-10-08): the run behind the title can still be the God Mode game just left; Continue
+    // resumes the player's REAL save, never it (`openTitle` already swaps it back; this is the backstop).
+    if (get().run.godMode === true) restoreSaveSlot();
     // Hand Recruit the exact seconds this run was quit with (or null → the reset effect opens the turn at full
     // time). Recruit's clock-reset effect fires on this resume (its `showTitle` dep flips) and consumes it, so
     // a mid-turn Save & Quit at 51s comes back at 51s, not the old hard 0 (owner ask 2026-08-24).
@@ -2535,7 +2540,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // GOD MODE (owner 2026-10-08) offers every hero: the offer reads God Mode's fixed config, while `practiceDraft`
     // keeps the player's Sandbox Mode settings untouched (only the run uses the God Mode ones).
     const effective = draft.godMode === true ? godPracticeConfig(draft) : draft;
-    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: effective.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)) };
+    // `practiceTimer` stays the player's own choice: God Mode never reads it (a sandbox run has no Practice clock),
+    // and a 0 left in memory would make a Practice save resumed later this session silently untimed.
+    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
@@ -2673,7 +2680,14 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Returning to the title lands on the MAIN menu, not whatever sub-menu was open when the run started (owner
   // ask 2026-08-24: Save & Quit went back to the mode picker) — and with every ladder page closed, since the
   // menu sidebar can open Settings (Save & Quit / Leave replay, "back to the main menu") from any page.
-  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED }); void syncCloudAtTitle(); },
+  openTitle: () => {
+    get().flushSave();
+    // GOD MODE (owner 2026-10-08): leaving a God Mode game puts the save slot back behind the title exactly as a
+    // boot would (the real save, or a throwaway when there is none), so Continue never resumes the God Mode game.
+    if (get().run.godMode === true) restoreSaveSlot();
+    set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED });
+    void syncCloudAtTitle();
+  },
   titleView: 'menu',
   setTitleView: (view) => set({ titleView: view }),
   goTo: (dest) => {
@@ -3101,6 +3115,33 @@ export function adoptCloudRun(row: CloudRow): boolean {
     void replayDrafts.remove(draftRunId(run)).catch(() => undefined).then(() => hydrateReplayDraft(run));
   } else void hydrateReplayDraft(run);
   return true;
+}
+
+/**
+ * GOD MODE (owner 2026-10-08): re-seat the store from the local save slot exactly as a boot would — the real saved
+ * run (with its actions, boards, observers and replay draft), or a fresh throwaway when there is no save. A God
+ * Mode game never writes the slot, so this is the player's real run, untouched. Used when leaving God Mode, so
+ * the title's Continue (which resumes `run`) can never resume the God Mode game. Never writes storage.
+ */
+function restoreSaveSlot(): void {
+  dropBoardFx();
+  const save = loadSave();
+  if (!save) {
+    const fresh = createRun(randomSeed());
+    useGame.setState({ savedRun: null, savedTurnRemaining: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, ...freshObservers(fresh) });
+    return;
+  }
+  // The God Mode table's drivers are not this run's; evict any cached for its seats so they rebuild from the save.
+  if (save.run.lobby) resetLobbyDrivers(save.run.lobby.seats);
+  const run = save.run;
+  useGame.setState({
+    run, savedRun: run, savedTurnRemaining: save.turnRemaining ?? null,
+    replayActions: save.actions, capturedBoards: save.boards,
+    telemetryLog: save.telemetry ?? emptyTelemetryLog(), deriveState: save.derive ?? beginDerive(run),
+    announced: announcedFor(save.announced, run.seed), combatOdds: null,
+    replayFrames: seedReplayFrames(run), replayPartial: true,
+  });
+  void hydrateReplayDraft(run);
 }
 
 /** Drop a local save whose run ENDED on another device (its synced cloud row is gone). Not an abandonment:

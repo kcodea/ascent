@@ -30,4 +30,9 @@ describe('God Mode gates', () => {
     expect(src('Game.tsx')).toContain('SandboxDevPanels && sandbox && !godMode &&');
     expect(src('Recruit.tsx')).toContain('run.lobby && !run.godMode && (run.mode === \'gauntlet\'');
   });
+  it('shows no timer plaque in God Mode (an untimed turn must not count down)', () => {
+    const r = src('Recruit.tsx');
+    expect(r).toContain('godMode={run.godMode === true}');
+    expect(r).toContain("{mode !== 'tutorial' && !godMode && (");
+  });
 });

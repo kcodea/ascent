@@ -453,4 +453,24 @@ export const TEXT_RULES: GameRule[] = [
     example: 'The Rules wiki entry for Ward reads "…and then the Ward breaks." with no mention of Divine Shield.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/shoutTerminology.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: 'R-TEXT-PRINTED-01',
+    title: 'Player-facing text never says "printed stats"; Rise reads "Returns once when destroyed with 1 health."',
+    statement:
+      'Rules text shown to players says what actually happens instead of the designer word "printed" for a body or '
+      + 'its stats: "a fresh copy", "its original Attack". Plain uses of the verb ("a tribe printed on the card") are '
+      + 'fine. The Rise definition reads exactly "Returns once when destroyed with 1 health." on the pill, the '
+      + 'glossary and the Rules wiki. The behaviour is unchanged (R-RISE-01, R-RISE-04).',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08', quote: "find any place the game says 'printed stats' and fix the wording. make rise say 'Returns once when destroyed with 1 health.'" },
+      { kind: 'fix-pr', ref: 'fix/printed-stats-wording: packages/ui/src/keywordGlossary.ts, packages/ui/src/rulesWiki/{kwCombat,glossaryMore}.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-08: the Rise glossary def, five Rise wiki answers and the plain-copy answer were reworded. '
+      + 'The test sweeps every glossary def, wiki entry, card and rune text for the jargon.',
+    example: 'Hovering the Rise pill shows "Returns once when destroyed with 1 health."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/plainRulesWording.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
 ];

@@ -114,7 +114,7 @@ export function UnitEditor({
         className="uned-card"
         value={value.cardId}
         onChange={(e) => onChange({ cardId: e.target.value })}
-        aria-label="Which card this unit is — swapping adopts its printed stats"
+        aria-label="Which card this unit is. Swapping gives it that card's original stats."
       >
         {cards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>

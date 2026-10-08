@@ -12667,3 +12667,18 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gauntletend-actions { display: flex; align-items: center; justify-content: center; gap: 24px; }
 .gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 .gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* ---- GOD MODE (owner 2026-10-08) — End Turn round prompt + the God Mode panel (godMode/). Static styles only. ---- */
+.godround-scrim { position: fixed; inset: 0; z-index: 470; display: grid; place-items: center; background: rgb(0 0 0 / 0.55); font-family: var(--font-ui); }
+.godround { position: relative; width: calc(560 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); border-radius: 14px;
+  border: 2px solid transparent; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text); text-align: center; }
+.godround-q { margin: 0 0 calc(16 * var(--u)); font-size: calc(20 * var(--u)); color: var(--ui-title); }
+.godround-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(8 * var(--u)); }
+.godround-btn { height: calc(44 * var(--u)); border-radius: 9px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
+  color: var(--ui-text); font-family: inherit; font-size: calc(18 * var(--u)); font-weight: 800; }
+.godround-btn.on { border-color: var(--ui-title); color: var(--ui-title); }
+.godround-btn:hover:not(:disabled) { border-color: var(--ui-title); }
+.godround-btn:disabled { opacity: 0.5; }
+.godround-x { position: absolute; top: calc(8 * var(--u)); right: calc(10 * var(--u)); background: none; border: 0; color: var(--ui-muted); font-size: calc(16 * var(--u)); }
+.godround-note { margin-top: calc(12 * var(--u)); font-size: calc(13 * var(--u)); color: var(--ui-muted); }
+.godround-note.warn { color: #ffb3a3; }

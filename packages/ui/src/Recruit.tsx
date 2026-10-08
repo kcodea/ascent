@@ -1,5 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
-import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -227,6 +227,8 @@ import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFo
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { TAP_SLOP } from './touchInput';
+import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
+import { findGodBoard, liveGodBoardDeps, pinGodFoe } from './godMode/godBoards';
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
@@ -6837,6 +6839,9 @@ export function Recruit() {
     // lives), so check it here at the single End Turn entry — covering both the authoritative and legacy paths.
     const gate = tutorialGateBlocks({ type: 'faceOmen' }, run);
     if (gate.blocked) { if (gate.reason) notifyTutorialGateNudge(gate.reason); return; }
+    // GOD MODE (owner 2026-10-08): End Turn first asks which round the opponent board should be from; the pick
+    // (`pickGodRound`) fetches + pins a real board and re-enters here with the gate open.
+    if (run.godMode && !godFoeReadyRef.current) { if (!godPrompt) setGodPrompt({ busy: false, message: null }); return; }
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
     // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
@@ -7170,6 +7175,25 @@ export function Recruit() {
   const endTurnRef = useRef(endTurn);
   endTurnRef.current = endTurn;
   const endTurnStable = useCallback((): void => { endTurnRef.current(); }, []);
+  // GOD MODE (owner 2026-10-08): End Turn asks for the opponent's round first; a pick fetches + pins a real board,
+  // then re-enters endTurn with the gate open. Double-pick guard: the prompt's buttons are disabled while `busy`,
+  // and a board that arrives after the shop moved on (phase / round changed) is dropped, never pinned.
+  const [godPrompt, setGodPrompt] = useState<{ busy: boolean; message: string | null } | null>(null);
+  const godFoeReadyRef = useRef(false);
+  const pickGodRound = useCallback(async (round: number): Promise<void> => {
+    setGodPrompt({ busy: true, message: null });
+    try { localStorage.setItem(GOD_ROUND_KEY, String(round)); } catch { /* ignore */ }
+    const live = useGame.getState().run;
+    const board = await findGodBoard(round, live.setId ?? activeSet().id, liveGodBoardDeps());
+    const now = useGame.getState().run;
+    if (now.phase !== 'recruit' || now.wave !== live.wave || !now.godMode) { setGodPrompt(null); return; } // the shop moved on; drop the stale board
+    if (!board) { setGodPrompt({ busy: false, message: `No boards found for round ${round} — try another` }); return; }
+    useGame.setState({ run: pinGodFoe(now, board) });
+    setGodPrompt(null);
+    godFoeReadyRef.current = true;
+    try { endTurnRef.current(); } finally { godFoeReadyRef.current = false; }
+  }, []);
+  const closeGodPrompt = useCallback((): void => { setGodPrompt((p) => (p?.busy ? p : null)); }, []);
   /* REPLAY VIEWER: play a RECORDED End of Turn when the replay player asks (owner report 2026-10-02: "when
      watching this back, the end of turn with lasting cadence etc wasnt showing any animation or beats at all").
      The cue carries the batch the live End Turn played (`CombatFrame.eot`); it runs through the SAME compiler,
@@ -7620,6 +7644,10 @@ export function Recruit() {
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
 
+      {godPrompt && run.godMode && !inCombat && (
+        <GodRoundPrompt lastRound={loadGodRound()} busy={godPrompt.busy} message={godPrompt.message}
+          onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
+      )}
       <ShopControls
         fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold}
         replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}

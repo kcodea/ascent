@@ -33,6 +33,7 @@ import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
 import compendiumBookArt from './compendium-book.png';
 import rulesQuestionArt from './rules-question.png';
+import settingsArt from './settings-medallion.png';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
@@ -68,7 +69,6 @@ function setPerfFlag(on: boolean): void {
   try { localStorage.setItem('ascent.perf', on ? '1' : '0'); } catch { /* ignore */ }
 }
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
-import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
@@ -493,8 +493,9 @@ export function Game() {
           <img decoding="sync" src={compendiumBookArt} alt="" draggable={false} />
         </button>
       )}
-      <button className="gearbtn" onPointerDown={openSettings} aria-label="Settings">
-        <Icon name="gear" />
+      {/* The gear wears the book's navy/gold plaque and the gold tools medallion (owner ask 2026-10-08). */}
+      <button className="gearbtn gtip" data-tip="Settings" onPointerDown={openSettings} aria-label="Settings">
+        <img decoding="sync" src={settingsArt} alt="" draggable={false} />
       </button>
       {/* Build badge above the gear — version + short git SHA, so you can tell at a glance which build is live. */}
       <div className="version" aria-description={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>

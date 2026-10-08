@@ -14,31 +14,49 @@
 .godround-x { position: absolute; top: calc(8 * var(--u)); right: calc(10 * var(--u)); background: none; border: 0; color: var(--ui-muted); font-size: calc(16 * var(--u)); }
 .godround-note { margin-top: calc(12 * var(--u)); font-size: calc(13 * var(--u)); color: var(--ui-muted); }
 .godround-note.warn { color: #ffb3a3; }
-.godp { position: fixed; z-index: 455; width: calc(330 * var(--u)); max-height: calc(860 * var(--u)); display: flex; flex-direction: column;
+/* The panel is sized to its content and never scrolls (owner 2026-10-08: "fully expanded so there is no scroll bar"). */
+.godp { position: fixed; z-index: 455; width: calc(330 * var(--u)); display: flex; flex-direction: column;
   border: 2px solid transparent; border-radius: 14px; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
   font-family: var(--font-ui); box-shadow: 0 22px 50px -14px rgb(0 0 0 / 0.85); }
 .godp.collapsed { width: calc(160 * var(--u)); }
 .godp-head { display: flex; align-items: center; justify-content: space-between; padding: calc(8 * var(--u)) calc(12 * var(--u)); touch-action: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, move; }
 .godp-title { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(12 * var(--u)); color: var(--ui-title); }
 .godp-fold { background: none; border: 0; color: var(--ui-muted); font-size: calc(12 * var(--u)); }
-.godp-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); padding: 0 calc(12 * var(--u)) calc(12 * var(--u)); overflow-y: auto; min-height: 0; }
+.godp-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); padding: 0 calc(12 * var(--u)) calc(12 * var(--u)); }
 .godp-chips { display: flex; flex-wrap: wrap; gap: calc(4 * var(--u)); }
 .godp-chip { padding: calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
   color: var(--ui-chip-text); font-family: inherit; font-size: calc(11 * var(--u)); font-weight: 700; }
 .godp-chip.on { border-color: var(--ui-title); color: var(--ui-title); }
-.godp-list { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.godp-list { display: flex; flex-direction: column; gap: calc(6 * var(--u)); flex: 1 1 auto; min-height: 0; }
+/* The four section buttons (Minions / Spells / Runes / Epic runes); the open one reads pressed. */
+.godp-sects { display: grid; grid-template-columns: 1fr 1fr; gap: calc(6 * var(--u)); }
+.godp-sect { display: flex; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); padding: calc(7 * var(--u)) calc(10 * var(--u));
+  border-radius: 9px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-title); font-family: inherit;
+  font-size: calc(12.5 * var(--u)); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
+.godp-sect:hover { border-color: var(--ui-title); }
+.godp-sect.on { border-color: var(--ui-title); background: var(--ui-hover-mid); box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.45); }
+.godp-sect-arrow { color: var(--ui-muted); font-size: calc(10 * var(--u)); }
+.godp-sect.on .godp-sect-arrow { color: var(--ui-title); }
+/* The SIDE WINDOW: one list beside the panel (seated + max-height set from JS in stage px); only its rows scroll. */
+.godp-fly { position: fixed; z-index: 455; width: calc(300 * var(--u)); display: flex; flex-direction: column; padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u));
+  border: 2px solid transparent; border-radius: 14px; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
+  font-family: var(--font-ui); box-shadow: 0 22px 50px -14px rgb(0 0 0 / 0.85); }
+.godp-fly-head { display: flex; align-items: center; justify-content: space-between; }
+.godp-fly-x { background: none; border: 0; color: var(--ui-muted); font-size: calc(14 * var(--u)); }
+.godp-fly-x:hover { color: var(--ui-title); }
+.godp-empty { padding: calc(6 * var(--u)); color: var(--ui-muted); font-size: calc(12 * var(--u)); text-align: center; }
 /* Section titles — Tier Filter, Tribe Filter, Minions, Spells, Runes, Epic runes: larger and gold (owner 2026-10-08:
    "make it gold instead of light blue"), the same --ui-title gold as the GOD MODE header. */
 .godp-filter { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
 .godp-lh { font-size: calc(13.5 * var(--u)); font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ui-title); }
 .godp-search { height: calc(26 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-text); font-family: inherit; font-size: calc(12 * var(--u)); }
-.godp-rows { display: flex; flex-direction: column; max-height: calc(150 * var(--u)); overflow-y: auto; }
+.godp-rows { display: flex; flex-direction: column; max-height: calc(520 * var(--u)); min-height: 0; overflow-y: auto; }
 .godp-row { display: flex; justify-content: space-between; gap: calc(6 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); border: 0; border-radius: 6px; background: none; color: var(--ui-text); text-align: left; font-family: inherit; font-size: calc(12 * var(--u)); }
 .godp-row:hover:not(:disabled) { background: var(--ui-hover-mid); }
 .godp-row:disabled { opacity: 0.45; }
 .godp-meta { color: var(--ui-muted); font-size: calc(10 * var(--u)); }
 .godp-toast { font-size: calc(12 * var(--u)); color: var(--ui-title); text-align: center; }
-/* Inert while a Discover / quest / Runeforge window owns the screen: greyed rows (disabled) + a line saying why. */
-.godp.inert .godp-list { opacity: 0.55; }
-.godp.inert .godp-row:disabled { opacity: 1; }
+/* Inert while a Discover / quest / Runeforge / Ancients window owns the screen: greyed rows (disabled) + a line saying why. */
+.godp-fly.inert .godp-rows { opacity: 0.55; }
+.godp-fly.inert .godp-row:disabled { opacity: 1; }
 .godp-lock { padding: calc(5 * var(--u)) calc(8 * var(--u)); border-radius: 8px; background: var(--ui-chip-bg); color: var(--ui-muted); font-size: calc(11 * var(--u)); font-weight: 700; text-align: center; }

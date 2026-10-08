@@ -1,5 +1,5 @@
 // packages/ui/src/godMode/GodModePanel.tsx
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { activeSet } from '@game/content';
 import { godRuneBlocked } from '@game/sim';
@@ -9,6 +9,7 @@ import { SceneBuilderPreview, type SbPreviewTarget } from '../SceneBuilderPrevie
 import { cardRowsFor, filterCards, matches, runeRowsFor, searchTerms, tribesIn, type CardRow, type RuneRow } from '../cardSearch';
 import { clampGodPanelPos, loadGodPanelPrefs, saveGodPanelPrefs, type GodPanelPrefs } from './godPanelPrefs';
 import { godPanelLocked } from './godPick';
+import { GodFlyout, seatGodFlyout } from './GodFlyout';
 import './godMode.css';
 
 /**
@@ -17,6 +18,10 @@ import './godMode.css';
  * Tier + Tribe chips filter minions and spells (spells ignore Tribe). Separate from the DEV Scene Builder; shares
  * only the search module and the hover preview.
  *
+ * Layout (owner 2026-10-08: "make the widget fully expanded so there is no scroll bar"): the panel holds the Tier and
+ * Tribe filters and four section buttons and never scrolls; a button opens that list in a SIDE WINDOW
+ * (`GodFlyout`) — one at a time; the same button, its ✕ or Esc closes it.
+ *
  * While a Discover / quest / Runeforge / targeting / Ancients window owns the screen (`godPanelLocked`, the same gates
  * the reducer refuses God Mode actions behind) the panel is visibly INERT: greyed, rows disabled, with a line saying why —
  * never a click that silently does nothing.
@@ -24,38 +29,13 @@ import './godMode.css';
 const TIERS = [1, 2, 3, 4, 5, 6];
 const tribeLabel = (t: string): string => (t === 'neutral' ? 'Neutral' : t.charAt(0).toUpperCase() + t.slice(1));
 
-type ListProps<T extends { id: string; name: string }> = {
-  label: string; rows: readonly T[]; query: string; setQuery: (q: string) => void; onPick: (r: T) => void;
-  onHover: (r: T, el: HTMLElement) => void; onLeave: () => void; locked: boolean; owned?: (r: T) => boolean; meta: (r: T) => string;
-};
-
-/** One searchable list. Memoized with stable callbacks so a hover / toast re-render of the panel doesn't re-render
- *  every row of all four lists. */
-const List = memo(function List<T extends { id: string; name: string }>({ label, rows, query, setQuery, onPick, onHover, onLeave, locked, owned, meta }: ListProps<T>) {
-  return (
-    <section className="godp-list" aria-label={label}>
-      <div className="godp-lh">{label}</div>
-      <input className="godp-search" value={query} placeholder={`Search ${label.toLowerCase()}…`} aria-label={`Search ${label}`}
-        onChange={(e) => setQuery(e.target.value)} />
-      <div className="godp-rows" onMouseLeave={onLeave}>
-        {rows.map((r) => {
-          const isOwned = owned?.(r) ?? false;
-          return (
-            <button key={r.id} type="button" className="godp-row" disabled={locked || isOwned}
-              aria-label={isOwned ? `${r.name} (owned)` : r.name}
-              onClick={() => { if (!locked && !isOwned) onPick(r); }}
-              onMouseEnter={(e) => onHover(r, e.currentTarget)} onFocus={(e) => onHover(r, e.currentTarget)} onBlur={onLeave}>
-              <span className="godp-name">{r.name}</span><span className="godp-meta">{isOwned ? 'owned' : meta(r)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}) as <T extends { id: string; name: string }>(p: ListProps<T>) => ReactElement;
-
 const tierMeta = (r: CardRow): string => `T${r.tier}`;
 const noMeta = (): string => '';
+
+type Section = 'minions' | 'spells' | 'runes' | 'epic';
+const SECTIONS: readonly { id: Section; label: string }[] = [
+  { id: 'minions', label: 'Minions' }, { id: 'spells', label: 'Spells' }, { id: 'runes', label: 'Runes' }, { id: 'epic', label: 'Epic runes' },
+];
 
 export function GodModePanel() {
   const run = useGame((s) => s.run);
@@ -65,7 +45,9 @@ export function GodModePanel() {
   const [q, setQ] = useState({ minions: '', spells: '', runes: '', epic: '' });
   const [preview, setPreview] = useState<SbPreviewTarget | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [open, setOpen] = useState<Section | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const flyRef = useRef<HTMLDivElement | null>(null);
   const dragEndRef = useRef<(() => void) | null>(null);
 
   const setId = run.setId ?? activeSet().id;
@@ -83,20 +65,38 @@ export function GodModePanel() {
   // The saved spot is clamped to the CURRENT stage on every render, and a stage resize re-renders: a panel parked
   // on a wide window can never be stranded off-stage on a narrower one (its header always stays grabbable). The
   // saved prefs keep the original spot, so it returns there when the window is wide again.
-  const [, setStageTick] = useState(0);
+  const [stageTick, setStageTick] = useState(0);
   useEffect(() => onStageChange(() => setStageTick((n) => n + 1)), []);
   const pos0 = clampGodPanelPos(prefs, stageViewport());
 
   // Hover preview: one rect read per hover (never per frame), converted to stage px for the preview's placement.
   const hover = useCallback((kind: 'card' | 'rune', id: string, el: HTMLElement): void => {
+    // The anchor spans the panel AND the flyout, so the preview sits beside the pair (right of both, or flipped left
+    // of both) — never over the flyout or the panel.
     const row = el.getBoundingClientRect();
-    const panel = panelRef.current?.getBoundingClientRect();
-    const right = Math.max(row.right, panel?.right ?? 0);
-    setPreview({ kind, id, anchor: new DOMRect(toStage(row.left), toStage(row.top), toStage(right - row.left), toStage(row.height)) });
+    const rects = [row, panelRef.current?.getBoundingClientRect(), flyRef.current?.getBoundingClientRect()].filter((r): r is DOMRect => !!r);
+    const left = Math.min(...rects.map((r) => r.left));
+    const right = Math.max(...rects.map((r) => r.right));
+    setPreview({ kind, id, anchor: new DOMRect(toStage(left), toStage(row.top), toStage(right - left), toStage(row.height)) });
   }, []);
   const hoverCard = useCallback((r: CardRow, el: HTMLElement) => hover('card', r.id, el), [hover]);
   const hoverRune = useCallback((r: RuneRow, el: HTMLElement) => hover('rune', r.id, el), [hover]);
   const leave = useCallback(() => setPreview(null), []);
+
+  const closeFly = useCallback(() => { setOpen(null); setPreview(null); }, []);
+  const toggleFly = (id: Section): void => { setPreview(null); setOpen((cur) => (cur === id ? null : id)); };
+  // Esc closes the side window. Capture phase + stopPropagation so the same press doesn't also open the Esc menu.
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      closeFly();
+    };
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, [open, closeFly]);
 
   const print = useCallback((r: CardRow): void => dispatch({ type: 'godPrint', cardId: r.id }), [dispatch]);
   const grant = useCallback((r: RuneRow): void => {
@@ -118,10 +118,16 @@ export function GodModePanel() {
     if (!el) return;
     const start = { x: e.clientX, y: e.clientY, px: pos0.x, py: pos0.y };
     let pos = { x: pos0.x, y: pos0.y };
+    // Sizes read ONCE per drag (layout px = stage px), so the open side window can follow the panel without a layout
+    // read per pointer move.
+    const fly = flyRef.current;
+    const panelW = el.offsetWidth;
+    const flySize = fly ? { w: fly.offsetWidth, h: fly.offsetHeight } : null;
     const move = (ev: PointerEvent): void => {
       pos = clampGodPanelPos({ x: start.px + toStage(ev.clientX - start.x), y: start.py + toStage(ev.clientY - start.y) }, stageViewport());
       el.style.left = `${pos.x}px`;
       el.style.top = `${pos.y}px`;
+      if (fly && flySize) seatGodFlyout(fly, { x: pos.x, y: pos.y, w: panelW }, flySize);
     };
     const end = (): void => {
       window.removeEventListener('pointermove', move);
@@ -148,7 +154,7 @@ export function GodModePanel() {
         <div className="godp-head" onPointerDown={onHeadDown}>
           <span className="godp-title">God Mode</span>
           <button type="button" className="godp-fold" aria-label={prefs.collapsed ? 'Expand God Mode' : 'Collapse God Mode'}
-            onClick={() => update({ collapsed: !prefs.collapsed })}>{prefs.collapsed ? '▸' : '▾'}</button>
+            onClick={() => { if (!prefs.collapsed) closeFly(); update({ collapsed: !prefs.collapsed }); }}>{prefs.collapsed ? '▸' : '▾'}</button>
         </div>
         {!prefs.collapsed && (
           <div className="godp-body">
@@ -172,19 +178,35 @@ export function GodModePanel() {
                 ))}
               </div>
             </div>
-            <List label="Minions" rows={minions} query={q.minions} setQuery={setMinionQ} onPick={print}
-              onHover={hoverCard} onLeave={leave} locked={locked} meta={tierMeta} />
-            <List label="Spells" rows={spells} query={q.spells} setQuery={setSpellQ} onPick={print}
-              onHover={hoverCard} onLeave={leave} locked={locked} meta={tierMeta} />
-            <List label="Runes" rows={basic} query={q.runes} setQuery={setRuneQ} onPick={grant}
-              onHover={hoverRune} onLeave={leave} locked={locked} owned={owned} meta={noMeta} />
-            <List label="Epic runes" rows={epic} query={q.epic} setQuery={setEpicQ} onPick={grant}
-              onHover={hoverRune} onLeave={leave} locked={locked} owned={owned} meta={noMeta} />
+            <div className="godp-sects" role="group" aria-label="Lists">
+              {SECTIONS.map((sec) => (
+                <button key={sec.id} type="button" className={`godp-sect${open === sec.id ? ' on' : ''}`} aria-expanded={open === sec.id}
+                  onClick={() => toggleFly(sec.id)}>
+                  <span>{sec.label}</span><span className="godp-sect-arrow" aria-hidden>▸</span>
+                </button>
+              ))}
+            </div>
             {toast && <div className="godp-toast" role="status">{toast}</div>}
           </div>
         )}
       </div>
-      <SceneBuilderPreview target={prefs.collapsed ? null : preview} run={run} />
+      {!prefs.collapsed && open === 'minions' && (
+        <GodFlyout label="Minions" rows={minions} query={q.minions} setQuery={setMinionQ} onPick={print} onHover={hoverCard} onLeave={leave}
+          locked={locked} meta={tierMeta} onClose={closeFly} flyRef={flyRef} panelRef={panelRef} panelX={pos0.x} panelY={pos0.y} stageTick={stageTick} />
+      )}
+      {!prefs.collapsed && open === 'spells' && (
+        <GodFlyout label="Spells" rows={spells} query={q.spells} setQuery={setSpellQ} onPick={print} onHover={hoverCard} onLeave={leave}
+          locked={locked} meta={tierMeta} onClose={closeFly} flyRef={flyRef} panelRef={panelRef} panelX={pos0.x} panelY={pos0.y} stageTick={stageTick} />
+      )}
+      {!prefs.collapsed && open === 'runes' && (
+        <GodFlyout label="Runes" rows={basic} query={q.runes} setQuery={setRuneQ} onPick={grant} onHover={hoverRune} onLeave={leave}
+          locked={locked} owned={owned} meta={noMeta} onClose={closeFly} flyRef={flyRef} panelRef={panelRef} panelX={pos0.x} panelY={pos0.y} stageTick={stageTick} />
+      )}
+      {!prefs.collapsed && open === 'epic' && (
+        <GodFlyout label="Epic runes" rows={epic} query={q.epic} setQuery={setEpicQ} onPick={grant} onHover={hoverRune} onLeave={leave}
+          locked={locked} owned={owned} meta={noMeta} onClose={closeFly} flyRef={flyRef} panelRef={panelRef} panelX={pos0.x} panelY={pos0.y} stageTick={stageTick} />
+      )}
+      <SceneBuilderPreview target={prefs.collapsed || !open ? null : preview} run={run} />
     </>,
     stageHost(),
   );

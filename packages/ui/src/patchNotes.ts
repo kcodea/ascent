@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-08',
+    changes: [
+      { category: 'Balance', text: 'Flo Rida now reads "give it +5/+5 and permanently improve this." Its growth lasts the whole game and never resets between rounds, including growth from Beasts summoned in combat.' },
+    ],
+  },
+  {
     date: '2026-10-07',
     changes: [
       { category: 'Systems', text: 'Runes and the Runeforge have a cleaner new look: full rune art on every card, larger text, and a calmer hover. The small lightning badge on top of rune cards is gone.' },

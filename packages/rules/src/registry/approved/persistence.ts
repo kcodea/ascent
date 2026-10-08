@@ -674,4 +674,26 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 're-cast every bank it had. Non-lobby pool boards (no round to compare) still apply their banks, as before.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-FLORIDA-01',
+    title: 'Flo Rida permanently improves: its per-Beast step never resets between rounds',
+    statement:
+      'Flo Rida reads "When you summon a Beast, give it +5/+5 and permanently improve this." Every Beast summoned while '
+      + 'this copy is on the board raises the grant by +5/+5 for the rest of the run (5, 10, 15, ...), whichever phase the '
+      + 'summon happens in: a Shop or End-of-Turn summon improves the board card directly, and a combat summon is carried '
+      + 'back to the board card when the fight settles. Nothing resets it at the start of a round or a combat. The '
+      + '+X/+X given to the summoned Beast stays a normal permanent buff, exactly as before. Gilded doubles the grant and the '
+      + 'earned step at read time, and a triple keeps the two highest improvements among the copies (the universal summonBonus rule).',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-08 (Flo Rida text)', quote: 'flo rida should add the word permanently to its text so it does not reset per round' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/beasts.ts b2_florida; packages/sim/src/recruit.ts onSummonTribeBuffFlat (shop half); packages/core/src/effects/factories.ts onSummonTribeBuffFlat (combat half); packages/core/src/combat/simulate.ts carryBacksFor summonBonus; packages/sim/src/reducer.ts settleCombat playerSummonBonus' },
+    ],
+    currentBehaviour:
+      'Conforms. The engine already persisted the improve (per-instance summonBonus, carried back from combat); on '
+      + '2026-10-08 the printed text gained the word "permanently" so the card says so, and tests now pin the 3-round '
+      + 'persistence and the combat carry-back.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/floRidaPermanent1008.test.ts', 'packages/ui/src/floRidaPermanentText.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
 ];

@@ -346,9 +346,12 @@ export const SET2_BEASTS: CardDef[] = [
     // Owner 2026-10-07: "When you summon a Beast, give it +5/+5 and improve this." Each improve adds +5/+5, so the
     // grant runs 5/5, 10/10, 15/15… (the Beardsley escalator, `onSummonTribeBuffFlat` with `improve` every 1 Beast).
     // Gilded doubles the grant and the step. The live grant is folded into the printed text (`summonEscalatingText`).
+    // Owner 2026-10-08: "flo rida should add the word permanently to its text so it does not reset per round". The
+    // improve rides the per-instance `summonBonus`, which already persists: Shop summons write the board card, and
+    // combat summons carry back at settle (`playerSummonBonus`). The word makes that contract explicit (R-FLORIDA-01).
     effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 5, health: 5, improve: 5, every: 1 } }],
-    text: 'When you summon a **Beast**, give it **+5/+5** and improve this.',
-    goldenText: 'When you summon a **Beast**, give it **+10/+10** and improve this.',
+    text: 'When you summon a **Beast**, give it **+5/+5** and permanently improve this.',
+    goldenText: 'When you summon a **Beast**, give it **+10/+10** and permanently improve this.',
   },
   {
     // Any friendly Beast attacking (Beev itself included) buffs the attacker AND Beev. When Beev is the attacker

@@ -20,6 +20,13 @@ describe('findGodBoard', () => {
     expect(await findGodBoard(5, 'set3', deps({ rpc: async () => board({ setId: 'set2' }), pool }))).toBe(local);
     expect(await findGodBoard(5, 'set3', deps({ rpc: async () => board({ minions: [] }), pool }))).toBe(local);
   });
+  it('a malformed remote payload (minions not an array, or missing) falls back to the boot pool without throwing', async () => {
+    const local = board({ seed: 7 });
+    const bad = { ...board({}), minions: 'nope' } as unknown as BoardSnapshot;
+    const missing = { ...board({}), minions: undefined } as unknown as BoardSnapshot;
+    expect(await findGodBoard(5, 'set3', deps({ rpc: async () => bad, pool: () => [local] }))).toBe(local);
+    expect(await findGodBoard(5, 'set3', deps({ rpc: async () => missing, pool: () => [local] }))).toBe(local);
+  });
   it('falls back when the fetch times out or throws', async () => {
     const local = board({ seed: 7 });
     const never = () => new Promise<BoardSnapshot | null>(() => { /* hangs */ });

@@ -17,9 +17,11 @@ export interface GodBoardDeps {
 }
 
 /** A board God Mode may serve: the chosen round, the run's set (pre-set boards are Set 1), a real player's (never a
- *  synthetic bot board), and never empty. Applied to the remote answer too, so a bad RPC row can't slip through. */
+ *  synthetic bot board), and never empty. Applied to the remote answer too, so a bad RPC row can't slip through —
+ *  and it never throws on a malformed payload (non-object, missing / non-array `minions`): that just falls back. */
 const usable = (b: BoardSnapshot | null | undefined, wave: number, setId: string): b is BoardSnapshot =>
-  !!b && b.wave === wave && (b.setId ?? 'set1') === setId && b.origin !== 'synthetic' && b.minions.length > 0;
+  !!b && typeof b === 'object' && b.wave === wave && (b.setId ?? 'set1') === setId && b.origin !== 'synthetic'
+  && Array.isArray(b.minions) && b.minions.length > 0;
 
 async function remote(wave: number, setId: string, deps: GodBoardDeps): Promise<BoardSnapshot | null> {
   if (!deps.rpc) return null;

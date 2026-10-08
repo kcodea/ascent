@@ -46,7 +46,7 @@
    runeforge title text above the png again like used to be"): anchored to the overlay, centred, its foot just over the
    frame's top ornament. Overrides the shared `.disc-banner` for the forge. */
 .forge-ov .forge-banner {
-  position: absolute; top: calc(3.5% + var(--rfl-ban-y, 0) * var(--u)); left: 50%; z-index: 2;
+  position: absolute; top: calc(3.5% + var(--rfl-ban-y, 22) * var(--u)); left: 50%; z-index: 2;
   display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
   padding: calc(14 * var(--u)) calc(64 * var(--u)) calc(12 * var(--u));
   border: 2px solid transparent; border-radius: calc(16 * var(--u));

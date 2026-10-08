@@ -40,6 +40,8 @@ export interface RuneforgeLookConfig {
   costScale: number;    // × — the gold cost coin
   costX: number;        // px — cost coin nudge (raw px)
   costY: number;        // px
+  textY: number;        // px — the card's name + rules block offset below the art (raw px)
+  fadeStart: number;    // % — where the card art starts to dissolve, as a share of its height
 
   // Footer (Re-roll)
   footerY: number;      // u
@@ -54,7 +56,7 @@ export interface RuneforgeLookConfig {
  *  them with no JS. Bake a tune by pasting Copy values here AND updating those fallbacks. */
 const DEFAULTS: RuneforgeLookConfig = {
   banX: 0,
-  banY: 0,
+  banY: 22,
   banScale: 1,
   titleScale: 1,
 
@@ -67,8 +69,10 @@ const DEFAULTS: RuneforgeLookConfig = {
   cardScale: 1.29,
   nameScale: 1.34, // x1.2 (owner 2026-10-07: rune text +20%), was 1.12
   costScale: 1,
-  costX: 6,
-  costY: 4,
+  costX: 0,
+  costY: 0,
+  textY: 14,
+  fadeStart: 78,
 
   footerY: 0,
   footerScale: 1,
@@ -97,6 +101,8 @@ const RANGES: Record<keyof RuneforgeLookConfig, [number, number, number]> = {
   costScale: [0.5, 2, 0.01],
   costX: [-40, 40, 1],
   costY: [-40, 40, 1],
+  textY: [-60, 80, 1],
+  fadeStart: [40, 95, 1],
 
   footerY: [-200, 200, 1],
   footerScale: [0.5, 2, 0.01],
@@ -142,6 +148,8 @@ export function applyRuneforgeLookVars(): void {
   s.setProperty('--rfl-cost-scale', String(cfg.costScale));
   s.setProperty('--rfl-cost-x', String(cfg.costX));
   s.setProperty('--rfl-cost-y', String(cfg.costY));
+  s.setProperty('--rfl-text-y', String(cfg.textY));
+  s.setProperty('--rfl-fade-start', String(cfg.fadeStart));
 
   s.setProperty('--rfl-footer-y', String(cfg.footerY));
   s.setProperty('--rfl-footer-scale', String(cfg.footerScale));
@@ -186,6 +194,8 @@ const controls: TunerControl<Extract<keyof RuneforgeLookConfig, string>>[] = [
   r('costScale', 'Cost coin scale', 'Cards Row', '×', 'Size of the Gold cost coin overhanging the top-left corner.'),
   r('costX', 'Cost coin X', 'Cards Row', 'px', 'Nudge the cost coin left/right.'),
   r('costY', 'Cost coin Y', 'Cards Row', 'px', 'Nudge the cost coin up/down.'),
+  r('textY', 'Card text offset', 'Cards Row', 'px', 'Moves the rune name, divider and rules down (or up) under the art.'),
+  r('fadeStart', 'Art fade start', 'Cards Row', '%', 'How far down the card art stays crisp before it starts to dissolve into the card.'),
 
   r('footerY', 'Footer Y offset', 'Footer Buttons', 'px', 'Vertical offset of the Re-roll button.'),
   r('footerScale', 'Footer scale', 'Footer Buttons', '×', 'Scales the Re-roll button.'),

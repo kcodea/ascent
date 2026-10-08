@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-07',
     changes: [
+      { category: 'Systems', text: 'Runes and the Runeforge have a cleaner new look: full rune art on every card, larger text, and a calmer hover. The small lightning badge on top of rune cards is gone.' },
       {
         category: 'Systems',
         text: 'Fixed: Rune of Shared Scripture now fires on the first Shop spell your minions cast in combat, whoever casts it. Before, most combat casts (such as Growth from Fatecarver or Lantern of Souls from Watcher) were missed.',

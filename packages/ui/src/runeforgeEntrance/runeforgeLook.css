@@ -1,0 +1,125 @@
+/* THE RUNEFORGE (owner 2026-10-07). The forge's illustrated frame (`/runeforgebg2.webp`) behind the offer ("can you put
+   the png back in behind the runes"), at its original shipped size and position over the dark scrim, and on it, built
+   only from the game's own UI system (owner HARD RULE 2026-10-07: never fake illustration with CSS/SVG drawings): a
+   Gem plate title, the Gold pill, a row of rune cards, a big blue Re-roll, Inspect beneath, and warm embers rising.
+
+   PERFORMANCE (docs/performance.md). The backdrop is two static layers that paint once when the overlay opens. The
+   only loop is the embers' rise, transform + opacity (compositor); it exists only while the forge is open, the browser
+   stops it with the tab hidden, and prefers-reduced-motion stills it. Nothing bobs or floats (owner 2026-10-07).
+   Colours: the chrome reads `--ui-*` theme tokens; the Re-roll's blue and the embers are the only literals. */
+
+/* ── The backdrop: the illustrated frame over the scrim (the shipped values from before this redesign) ──────── */
+.forge-ov {
+  --rf-ember: 255, 178, 92;
+  background:
+    url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat,
+    linear-gradient(rgba(14, 16, 22, 0.96), rgba(14, 16, 22, 0.96));
+}
+.rf-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+
+/* The embers: mixed sizes rising from below the floor, each on its own lane, speed, drift and delay; one in seven is
+   a big soft bokeh glow. Transform + opacity only. */
+.rf-motes { position: absolute; inset: 0; }
+.rf-mote {
+  position: absolute; bottom: -4%; left: var(--x); width: var(--sz); height: var(--sz); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 220, 1) 0%, rgba(var(--rf-ember), 0.9) 28%, rgba(var(--rf-ember), 0.35) 52%, rgba(var(--rf-ember), 0) 72%);
+  opacity: 0; will-change: transform, opacity;
+  animation: rfmote var(--t) linear var(--d) infinite;
+}
+.rf-mote.rf-bokeh { background: radial-gradient(circle, rgba(var(--rf-ember), 0.7) 0%, rgba(var(--rf-ember), 0.3) 45%, rgba(var(--rf-ember), 0) 70%); }
+@keyframes rfmote {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: var(--o); }
+  72% { opacity: var(--o); }
+  100% { transform: translate3d(var(--dx), calc(var(--lvh, 100vh) * -0.96), 0); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .rf-mote { animation: none; } }
+
+/* ── The panel ─────────────────────────────────────────────────────────────────────────────────────────────── */
+/* The panel is a plain centred column, nudged down so its contents sit inside the frame's interior (the frame is 72%
+   of the overlay height, centred at 55%; its thick border puts the open interior about at screen centre). It is
+   `position: static` so the title can anchor to the overlay itself. */
+.forge-ov .forge-panel { position: static; display: flex; flex-direction: column; align-items: center; padding: calc(var(--lvh, 100vh) * 0.012) calc(40 * var(--u)) 0; }
+
+/* THE TITLE: a Gem plate (sheen, plate, gold edge, ring, bevel) with diamond studs, the name in the title font, one
+   spaced line beneath. It sits ABOVE the illustrated frame, as it did before this redesign (owner 2026-10-07: "move the
+   runeforge title text above the png again like used to be"): anchored to the overlay, centred, its foot just over the
+   frame's top ornament. Overrides the shared `.disc-banner` for the forge. */
+.forge-ov .forge-banner {
+  position: absolute; top: calc(3.5% + var(--rfl-ban-y, 94) * var(--u)); left: 50%; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--u));
+  padding: calc(14 * var(--u)) calc(64 * var(--u)) calc(12 * var(--u));
+  border: 2px solid transparent; border-radius: calc(16 * var(--u));
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 calc(10 * var(--u)) calc(26 * var(--u)) -8px rgba(0, 0, 0, 0.7);
+  transform: translateX(calc(-50% + var(--rfl-ban-x, 0) * var(--u))) scale(var(--rfl-ban-scale, 1)); transform-origin: top center;
+}
+.forge-ov .forge-banner .disp {
+  font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 700);
+  text-transform: uppercase; letter-spacing: 0.08em; line-height: 1;
+  font-size: calc(40 * var(--u) * var(--rfl-title-scale, 1)); color: var(--ui-title); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7), 0 0 calc(14 * var(--u)) rgba(255, 190, 90, 0.35);
+}
+.rf-subtitle { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.3em; text-transform: uppercase; color: var(--ui-muted); }
+.forge-ov .forge-banner::before, .forge-ov .forge-banner::after {
+  content: ''; position: absolute; top: 50%; width: calc(16 * var(--u)); height: calc(16 * var(--u));
+  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translateY(-50%) rotate(45deg);
+}
+.forge-ov .forge-banner::before { left: calc(-9 * var(--u)); }
+.forge-ov .forge-banner::after { right: calc(-9 * var(--u)); }
+.forge-ov.forge-epic .forge-banner::before, .forge-ov.forge-epic .forge-banner::after { background: linear-gradient(135deg, #f1dcff, #b078e6 55%, #5b2f8a); border-color: var(--ui-edge-deep); }
+
+/* THE GOLD PLATE: a dark navy Gem plate with gold diamond tips, the coin and the number. */
+.forge-ov .forge-gold {
+  position: relative; display: inline-flex; align-items: center; gap: calc(10 * var(--u)); margin: 0 auto;
+  padding: calc(6 * var(--u)) calc(34 * var(--u)); border: 2px solid transparent; border-radius: calc(10 * var(--u));
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+  color: var(--ui-text); font-family: var(--font-ui); font-weight: 900; font-size: calc(24 * var(--u)); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  transform: translate(calc(var(--rfl-gold-x, 0) * var(--u)), calc(var(--rfl-gold-y, 0) * var(--u))) scale(var(--rfl-gold-scale, 1));
+}
+.forge-ov .forge-gold svg { width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: #ffd36a; }
+.forge-ov .forge-gold b { color: var(--ui-text); }
+.forge-ov .forge-gold::before, .forge-ov .forge-gold::after, .forge-ov .forge-reroll::before, .forge-ov .forge-reroll::after, .disc-toggle.forge-toggle::before, .disc-toggle.forge-toggle::after {
+  content: ''; position: absolute; top: 50%; width: calc(14 * var(--u)); height: calc(14 * var(--u));
+  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translateY(-50%) rotate(45deg);
+}
+.forge-ov .forge-gold::before, .forge-ov .forge-reroll::before, .disc-toggle.forge-toggle::before { left: calc(-8 * var(--u)); }
+.forge-ov .forge-gold::after, .forge-ov .forge-reroll::after, .disc-toggle.forge-toggle::after { right: calc(-8 * var(--u)); }
+
+/* The entrance's one-shot ignite ring + light sweep: crisp and tight to the card's rounded edge, no fog. */
+.forge-ov .rfe-ignite { border-radius: 18px; box-shadow: 0 0 0 2px var(--ui-edge-hi), 0 0 12px 2px rgba(255, 214, 140, 0.45); }
+.forge-ov .rfe-sweep { border-radius: 18px; }
+
+/* THE ROW. */
+.forge-ov .forge-cards { position: relative; margin-top: calc(40 * var(--u) + var(--rfl-row-y, 0) * var(--u)); }
+
+/* THE RE-ROLL (owner 2026-10-07: "change the refresh button to better fit the same pill style that we use else
+   where"): the navy Gem plate pill with a gold rim and diamond studs, the Gold pill's and Inspect's sibling, with the
+   same hover (the theme's hover plate + edge). */
+.forge-ov .forge-actions { position: relative; z-index: 3; margin-top: calc(22 * var(--u) + var(--rfl-footer-y, 0) * var(--u)); transform: scale(var(--rfl-footer-scale, 1)); }
+.forge-ov .forge-reroll {
+  position: relative; display: inline-flex; align-items: center; gap: calc(8 * var(--u));
+  padding: calc(8 * var(--u)) calc(30 * var(--u)); border: 2px solid transparent; border-radius: calc(10 * var(--u));
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
+  color: var(--ui-text); font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+.forge-ov .forge-reroll:hover:not(:disabled) { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.forge-ov .forge-reroll:active:not(:disabled) { transform: translateY(1px); }
+.forge-ov .forge-reroll svg { width: calc(18 * var(--u)); height: calc(18 * var(--u)); color: var(--ui-icon); }
+.forge-ov .forge-reroll .forge-reroll-cost { color: var(--ui-title); }
+
+/* INSPECT THE BOARD: a smaller dark navy plate with diamond ends, pinned where it always was. */
+.disc-toggle.forge-toggle {
+  border: 2px solid transparent; color: var(--ui-text);
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  top: calc(75% + var(--rfl-toggle-y, 134) * var(--u));
+  font-size: calc(17 * var(--u)); padding: calc(10 * var(--u)) calc(28 * var(--u));
+  transform: translateX(-50%) scale(var(--rfl-toggle-scale, 1.3));
+}
+.disc-toggle.forge-toggle svg { color: var(--ui-icon); }
+.disc-toggle.forge-toggle:hover { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }

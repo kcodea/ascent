@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { RUNE_INDEX } from '@game/content';
 import { Icon } from '../Icon';
-import { RuneCard } from '../RuneCard';
+import { RuneCard, runeAccentTribe } from '../RuneCard';
 import { prefersReducedMotion, runEntrance, type EntranceHandle } from './entrance';
 import './runeforgeEntrance.css';
+import './runeforgeLook.css';
 
 /**
  * THE RUNEFORGE DIALOG — the forge overlay's panel (banner, Gold, rune tablets, re-roll), plus its ENTRANCE
@@ -51,6 +52,30 @@ function shouldPlay(key: string | null): boolean {
 export function resetRuneforgeEntranceMemoForTests(): void {
   openings.clear();
 }
+
+/**
+ * THE EMBERS (owner 2026-10-07: "the rising dots are okay but they are tiny and too few"): 60 warm sparks of mixed
+ * size rising through the forge, a few of them big soft bokeh glows. A FIXED table (a tiny LCG, so the scene is the
+ * same every opening) of CSS transform + opacity rises (runeforgeLook.css), compositor-only. `x` lane %, `t` rise
+ * seconds, `d` delay (negative: already mid-flight on open), `dx` sideways drift px, `sz` px, `o` peak opacity,
+ * `b` bokeh (a big, soft, dim one).
+ */
+const EMBERS: readonly { x: number; t: number; d: number; dx: number; sz: number; o: number; b: boolean }[] = (() => {
+  let seed = 7;
+  const r = (): number => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  return Array.from({ length: 60 }, (_, i) => {
+    const b = i % 7 === 3;
+    return {
+      x: Math.round(r() * 1000) / 10,
+      t: Math.round((b ? 16 : 9) + r() * 9),
+      d: -Math.round(r() * 18 * 10) / 10,
+      dx: Math.round((r() - 0.5) * 90),
+      sz: b ? Math.round(18 + r() * 16) : Math.round(5 + r() * r() * 12),
+      o: b ? 0.28 : Math.round((0.55 + r() * 0.45) * 100) / 100,
+      b,
+    };
+  });
+})();
 
 export interface RuneforgeDialogProps {
   offer: readonly string[];
@@ -119,13 +144,24 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
       // tablets are pointer-events: none), so it skips without buying; a landed tablet also takes its click.
       onPointerDownCapture={() => { if (handleRef.current?.isRunning()) handleRef.current.skip(); }}
     >
+      {/* The stage: the rising embers over the forge's illustrated backdrop (runeforgeLook.css). Inert. */}
+      <div className="rf-stage" aria-hidden="true">
+        <div className="rf-motes">
+          {EMBERS.map((m, i) => (
+            <span key={i} className={`rf-mote${m.b ? ' rf-bokeh' : ''}`} style={{ '--x': `${m.x}%`, '--t': `${m.t}s`, '--d': `${m.d}s`, '--dx': `${m.dx}px`, '--sz': `${m.sz}px`, '--o': m.o } as CSSProperties} />
+          ))}
+        </div>
+      </div>
       <div className="rfe-shade" aria-hidden="true" />
       <div className="disc-panel forge-panel">
-        {/* Title only — the anvil icon was removed from the forge banner (owner ask 2026-08-30). */}
-        <div className="disc-banner forge-banner"><span className="disp">{epic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
-        {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
-            (owner ask 2026-07-16). Re-renders with every buy/re-roll. */}
-        <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{embers}</b> Gold</div>
+        {/* The title: a Gem plate, with one short line beneath the name. */}
+        <div className="disc-banner forge-banner">
+          <span className="disp">{epic ? 'Epic Runeforge' : 'Runeforge'}</span>
+          <span className="rf-subtitle">Choose one rune to keep</span>
+        </div>
+        {/* The player's CURRENT Gold: the runes charge Gold, so the panel must say what's in the purse (owner ask
+            2026-07-16). Re-renders with every buy/re-roll. */}
+        <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{embers}</b></div>
         <div className="disc-cards forge-cards">
           {offer.map((id, i) => {
             const rune = RUNE_INDEX[id];

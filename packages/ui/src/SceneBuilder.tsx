@@ -293,6 +293,10 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   // queueing all run exactly as they would in a played run — which is the only way the interaction under test
   // is the real one. Clicking a quest completes it (pays the reward); "◷" adds it un-started to watch it fill.
   const grantRune = (id: string): void => dispatch({ type: 'devGrant', kind: 'rune', id });
+  // Enter a REAL Runeforge on this turn (owner ask 2026-10-07), rolled by the run's own forge openers through the
+  // reducer, so the forge look can be iterated on without playing to turn 6 / 8. Refused while a modal is up.
+  const openForge = (epic: boolean): void => dispatch({ type: 'devOpenRuneforge', epic });
+  const forgeBlocked = !run || run.phase !== 'recruit' || !!run.runeforgeOffer;
   const setTier = (tier: number): void => mutate((r) => ({ ...r, tier }));
   const giveGold = (): void => mutate((r) => ({ ...r, embers: (r.embers ?? 0) + 1000 }));
   const freezeTime = (): void => turnClock.set(9999);
@@ -436,6 +440,10 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               <button className="sb-tile" onClick={clearShop} aria-description="Empty the shop row"><b>⌫</b> shop</button>
               <button className="sb-tile" onClick={clearBoard} aria-description="Empty your board"><b>⌫</b> board</button>
               <button className="sb-tile sb-tile-warn" onClick={clearAll} aria-description="Empty shop, board and hand"><b>⌫</b> all</button>
+            </div>
+            <div className="sb-two">
+              <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(false)} aria-description="Open a Basic Runeforge on this turn">Enter Runeforge</button>
+              <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(true)} aria-description="Open an Epic Runeforge on this turn (the turn-8 rules)">Enter Epic Runeforge</button>
             </div>
             <div className="sb-row sb-tierrow">
               <span className="sb-mini">tier</span>

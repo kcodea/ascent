@@ -18,6 +18,7 @@
  *
  * Reads the store through PRIMITIVE selectors and takes no props, so Recruit's (hot) renders never re-render it.
  */
+import { runeAccentTribe } from '../RuneCard';
 import { memo } from 'react';
 import { roundLossCap } from '@game/sim';
 import { GAUNTLET_ROUNDS, RUNE_INDEX, gauntletStage } from '@game/content';
@@ -73,11 +74,11 @@ export const GauntletFoe = memo(function GauntletFoe(): JSX.Element | null {
               }
               const rart = runeArt(rune.id);
               return (
-                <div className="questbadge runebadge gauntletfoe-rune" key={from} data-source-id={rune.id}>
+                <div className={`questbadge runebadge gauntletfoe-rune${rune.epic ? ' runebadge-epic' : ''}`} data-tribe={runeAccentTribe(rune)} style={{ '--rt': `var(--t-${runeAccentTribe(rune)})` } as React.CSSProperties} key={from} data-source-id={rune.id}>
                   <div className="questbadge-inner">
                     {rart
                       ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
-                      : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                      : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
                   </div>
                   <div className="questbadge-tip" role="tooltip">
                     <b>{rune.name}</b>

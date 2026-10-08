@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { runeAccentTribe } from './RuneCard';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import type { RunState } from '@game/sim';
@@ -192,11 +193,11 @@ export function QuestBadges() {
           // Keyed by SLOT, not id alone (audit fix 2026-08-06): Rune of Duplication legitimately puts the
           // same rune id in `ownedRunes` twice, and duplicate keys mis-reconciled the two badges' pulses.
           <div
-            className={`questbadge runebadge${arrivalCls[i] ?? ''}`}
+            className={`questbadge runebadge${rune.epic ? ' runebadge-epic' : ''}${arrivalCls[i] ?? ''}`} data-tribe={runeAccentTribe(rune)}
             key={`${id}#${i}`}
             data-source-id={id}
             data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}
-            style={arrivalVars}
+            style={{ ...arrivalVars, '--rt': `var(--t-${runeAccentTribe(rune)})` } as React.CSSProperties}
           >
             {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
                 each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
@@ -204,7 +205,7 @@ export function QuestBadges() {
               {(triggered[id] ?? 0) > 0 && <span className="questbadge-pulse" aria-hidden />}
               {art
                 ? <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
-                : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
             </div>
             {/* LIVE METER (owner ask 2026-08-03) — a rune that fires on a threshold shows how close it is,
                 in the same `x/N` language as the Avenge counters on units. Keyed on the text so every change

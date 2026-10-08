@@ -91,7 +91,6 @@ import { SPEC as PlateDissolveSpec } from './PlateDissolveTuner';
 import { SPEC as QuestTendrilSpec } from './QuestTendrilTuner';
 import { SPEC as RefreshSpec } from './RefreshTuner';
 import { SPEC as RubyPowerFxSpec } from './RubyPowerFxTuner';
-import { SPEC as RuneforgeBgSpec } from './RuneforgeBgTuner';
 import { SPEC as RuneforgeLookSpec } from './RuneforgeLookTuner';
 import { SPEC as RuneSheenSpec } from './RuneSheenTuner';
 import { SPEC as CombatCtlSpec } from './CombatCtlTuner';
@@ -190,7 +189,6 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   QuestTendrilSpec,
   RefreshSpec,
   RubyPowerFxSpec,
-  RuneforgeBgSpec,
   RuneforgeLookSpec,
   RuneSheenSpec,
   CombatCtlSpec,

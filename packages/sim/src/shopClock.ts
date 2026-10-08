@@ -70,6 +70,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   combatBladeAttackPreview: 'open',
   combatScoutPreview: 'open',
   devGrant: 'open',
+  devOpenRuneforge: 'open',
   ancientSetMeter: 'open',
 };
 

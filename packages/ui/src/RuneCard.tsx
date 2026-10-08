@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
-import type { Keyword, QuestReward, RuneDef } from '@game/core';
+import type { Keyword, QuestReward, RuneDef, Tribe } from '@game/core';
 import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
@@ -32,6 +32,14 @@ function previewIdsOf(rune: RuneDef): { id: string; golden?: boolean }[] {
   const out = rewardCardIds(rune.reward);
   for (const id of rune.previewCards ?? []) if (!out.some((x) => x.id === id)) out.push({ id });
   return out;
+}
+
+/** A rune's ACCENT tribe (owner 2026-10-07: rune text follows the tribe colours): its tribe gate's first tribe, the
+ *  same `--t-<tribe>` hue a card of that tribe wears. An ungated rune, or one gated to three or more tribes (a
+ *  generalist), takes the neutral palette. Shared with the rune rack so a badge and its card agree. */
+export function runeAccentTribe(rune: Pick<RuneDef, 'tribes'>): Tribe {
+  const t = rune.tribes;
+  return t && t.length > 0 && t.length < 3 ? t[0]! : 'neutral';
 }
 
 /** Runes carry no badge keywords — one stable empty list so `KeywordDefs`' memo key never churns. */
@@ -109,9 +117,12 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
   const art = runeArt(rune.id);
+  const accent = runeAccentTribe(rune);
   return (
     <button
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
+      data-tribe={accent}
+      style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
       data-pick-sfx={pickSfx || undefined}
@@ -119,19 +130,23 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name}: buy for ${shownCost} Gold`}
     >
-      {/* `decoding="sync"`: paint the art WITH the card in the same frame, the same reason `Card.tsx` does it.
-          This is what the lock-in ceremony's flicker was (owner report 2026-08-31: "there's still a slight
-          rebuilding of the runes and then it centers"). The ceremony re-renders every card as an inert CLONE
-          — a brand-new <img decoding="sync">, which by default decodes ASYNCHRONOUSLY even when the bytes are already in
-          cache. So the clone mounted, painted one frame of empty card, and only then showed the art: a blink
-          precisely at the hand-off, on the card the eye is following. */}
-      {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
-      {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
+      {/* THE RUNE CARD (owner 2026-10-07, built only from the game's UI primitives): a tall tribe-tinted card in a gold
+          rim whose top half is the rune's FULL art ("i want the top half of this to be the full art, with it blurring
+          in a gradient downward"), blurring and fading into the body; then the name, a divider and the rules
+          (runeCard.css). `decoding="sync"`: paint the art WITH the card in the same frame (the lock-in clones are new
+          image elements; an async decode blinked one empty frame at the hand-off, owner report 2026-08-31). */}
+      <span className="runecard-face" aria-hidden>
+        <span className="runecard-hero">
+          {art
+            ? <><img className="rh-blur" src={art} alt="" decoding="sync" /><img className="rh-art" src={art} alt="" decoding="sync" /></>
+            : <span className="rh-noart"><Icon name="engrave" /></span>}
+        </span>
+      </span>
+      <span className="runecard-window" aria-hidden />
       <span className={`runecard-cost${discounted ? ' discounted gtip' : ''}`} aria-label={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`} data-tip={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : undefined}><span className="costn">{shownCost}</span></span>
-      <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
-        <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>
         <div className="runecard-name">{rune.name}</div>
+        <span className="runecard-divider" aria-hidden />
       </div>
       <div className="runecard-body">
         <div className="runecard-sect">

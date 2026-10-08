@@ -6002,11 +6002,11 @@ body:has(.titlescreen) .version { visibility: hidden; }
   --pr-inset: inset 0 2px 0 rgba(255, 255, 255, 0.3);
   --pr-amb: 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 /* Resume — the pause menu's primary. It had no edge at all, so it gains one in its own accent. */
-.escclose { position: relative; --pr-edge: 4px; --pr-edge-c: var(--acc-dk); }
+.escclose { position: relative; --pr-edge: 4px; --pr-edge-c: #8a6428; --pr-inset: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
 /* Every other surface takes the SAME character — real thickness and the sheen — with the depth scaled to the
    button. `Play Again` is the ceiling at 7px because it is the largest object on screen; a 40px icon button
    carrying the same edge would read as a rendering bug rather than a heavy control. */
-.escbtn   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(90, 66, 30, 0.3); }
+.escbtn   { position: relative; --pr-edge: 4px; --pr-edge-c: #060d1a; }
 .hsback   { --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }   /* absolute already — no containment needed */
 .lbback   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }
 /* 40px icon buttons — the floor. 3px still reads as an object without swamping the glyph. */
@@ -6120,17 +6120,27 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
-.escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
-.escpanel { zoom: var(--ui-zoom); background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
-.escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
+/* THE HOUSE NAVY + GOLD (owner ask 2026-10-08): the Settings panel wears the Career / match-details chrome, a deep
+   navy body inside a double gold frame (2px rim + inset hairline). Rows are recessed dark wells with a gold hairline
+   that brightens on hover; a chosen option fills with a gold wash. Nothing here loops. */
+.escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(4, 8, 16, 0.66); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
+.escpanel { zoom: var(--ui-zoom); color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98)); border: 2px solid rgba(196, 160, 92, 0.55); border-radius: 18px; padding: 24px 28px 22px; min-width: 380px;
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 26px 64px -16px rgba(0, 0, 0, 0.75); }
+.escpanel .esch { font-weight: 800; font-size: 30px; letter-spacing: 0.04em; color: #f0d089; text-align: center; }
+.escpanel .pressable:focus-visible { outline-color: #f0d089; }
 /* Frame-rate cap row (Settings → Performance): six compact radio-style buttons on one line. Reuses `.escbtn`
    for the look + the gauntlet cursor; `.dim` marks an option above the display's refresh (inert). */
 .escfps { display: flex; gap: 6px; margin-bottom: 8px; }
 .escfps .escfpsopt { flex: 1 1 0; min-width: 0; padding: 9px 4px; text-align: center; }
 .escfps .escfpsopt .ebl { font-size: 13px; white-space: nowrap; }
 .escfps .escfpsopt.dim { opacity: 0.45; }
-.escnote { font-family: var(--font-ui); font-size: 12px; color: var(--ink3); text-align: center; margin: 0 8px 8px; line-height: 1.35; }
-.escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
+.escnote { font-family: var(--font-ui); font-size: 12px; color: rgba(244, 238, 226, 0.55); text-align: left; margin: 0 4px 8px; line-height: 1.35; }
+/* SECTION HEADERS (owner ask 2026-10-08): left-aligned, large, gold, and a gold rule running from the end of the
+   word to the panel's right edge (the `::after` takes the rest of the flex line). The rule fades as it travels so
+   the word stays the loudest thing on the line. */
+.escsec { display: flex; align-items: center; gap: 16px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; line-height: 1; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; text-align: left; margin: 26px 0 12px; }
+.escsec::after { content: ''; flex: 1; height: 2px; border-radius: 1px; background: linear-gradient(90deg, rgba(232, 200, 119, 0.75), rgba(196, 160, 92, 0.22)); }
+.escpanel .esch + .escsec { margin-top: 16px; }
 .escres { display: grid; gap: 8px; }
 .escboards { display: grid; gap: 8px; }
 .escboards-msg { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--acc-dk); text-align: center; padding: 2px 4px; }
@@ -6821,10 +6831,11 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
   background: rgba(255,138,60,.16); color: #ffcf9e; font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
 
 /* Audio: a labeled master-volume slider above the mute toggle. */
-.escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
-.escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--ink); white-space: nowrap; }
-.escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
-.escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; }
+.escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); margin-bottom: 8px; }
+.escvol .evl { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #f4eee2; white-space: nowrap; }
+.escvol .evv { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #e8c877; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+/* The slider: a dark recessed groove with a gold hairline, a gold gem thumb. */
+.escvol input[type='range'] { flex: 1; height: 8px; -webkit-appearance: none; appearance: none; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(196, 160, 92, 0.3); border-radius: 99px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; }
 .escname { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card); border: 2px solid var(--line); border-radius: 9px; padding: 7px 11px; outline: none; }
 .escname:focus { border-color: var(--acc); }
 .escname::placeholder { color: var(--ink3); }
@@ -6838,30 +6849,32 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 /* 104px holds the widest label ("Game sounds"); "Master" (2026-09-26) fits well inside it. */
 .escaudio .escvol .evl { flex: 0 0 104px; }
 .escaudio .escvol .escmute { min-width: 76px; }
-.escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); background: var(--card); border: 2px solid var(--line); border-radius: 99px; padding: 5px 11px; }
-.escvol .escmute:hover { border-color: var(--acc); }
-.escvol .escmute.on { color: var(--acc-dk); border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); }
-.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
-.escbtn:hover { border-color: var(--acc); }
-.escbtn.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); box-shadow: inset 0 0 0 1px var(--acc); }
-.escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: var(--ink); }
-.escbtn .ebs { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; }
+.escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); background: rgba(0, 0, 0, 0.32); border: 1.5px solid rgba(196, 160, 92, 0.42); border-radius: 99px; padding: 5px 11px; transition: border-color 0.12s, color 0.12s; }
+.escvol .escmute:hover { border-color: #e8c877; color: #f4dc9c; }
+.escvol .escmute.on { color: #241705; border-color: #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); }
+.escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(180deg, #f6dc9c, #c99d4e); border: 2px solid #0d1628; box-shadow: 0 0 0 1px rgba(232, 200, 119, 0.55), 0 2px 5px rgba(0, 0, 0, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* The press edge reads as the dark navy under the row (the `.pressable` box-shadow); a chosen row's gold inner
+   hairline rides `--pr-inset` so it survives the press instead of being overwritten by it. */
+.escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.28); background: rgba(0, 0, 0, 0.3); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
+.escbtn:hover { border-color: rgba(196, 160, 92, 0.7); background: rgba(196, 160, 92, 0.08); }
+.escbtn.on { border-color: #e8c877; background: linear-gradient(90deg, rgba(232, 200, 119, 0.2), rgba(232, 200, 119, 0.06)); --pr-inset: inset 0 0 0 1px rgba(232, 200, 119, 0.35); }
+.escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #f4eee2; }
+.escbtn .ebs { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(232, 200, 119, 0.62); text-transform: uppercase; letter-spacing: 0.06em; }
 /* A subtext that carries an email (Settings → Account): case + spacing left as typed, and it may wrap. */
 .escbtn .ebs.ebs-plain { text-transform: none; letter-spacing: 0.02em; word-break: break-all; text-align: right; }
-.escbtn.on .ebs { color: var(--acc-dk); }
-.escbtn.danger { border-color: color-mix(in srgb, var(--threat) 45%, var(--line)); }
-.escbtn.danger:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 12%, var(--card)); }
-.escbtn.danger .ebl { color: var(--threat-dk); }
+.escbtn.on .ebs { color: #f0d089; }
+.escbtn.danger { border-color: rgba(217, 102, 106, 0.55); }
+.escbtn.danger:hover { border-color: #e5707a; background: rgba(217, 102, 106, 0.14); }
+.escbtn.danger .ebl { color: #ff9ea4; }
 /* SAVE & QUIT — the primary run action, promoted to the top of the Esc panel (owner ask 2026-08-24). Accented
    fill + border so it reads as the button you came here to press, not one row among the settings. */
-.escbtn.escbtn-primary { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, var(--bg2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 40%, transparent); }
-.escbtn.escbtn-primary:hover { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 22%, var(--bg2)); }
-.escbtn.escbtn-primary .ebl { color: var(--acc); }
-.escbtn.escbtn-primary .ebs { color: var(--acc-dk); }
-.escclose { margin-top: 18px; width: 100%; padding: 12px; border-radius: 13px; border: none; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.escclose:hover { background: var(--acc-dk); }
+.escbtn.escbtn-primary { border-color: #e8c877; background: linear-gradient(90deg, rgba(232, 200, 119, 0.2), rgba(232, 200, 119, 0.07)); --pr-inset: inset 0 0 0 1px rgba(232, 200, 119, 0.3); }
+.escbtn.escbtn-primary:hover { border-color: #f4dc9c; background: linear-gradient(90deg, rgba(232, 200, 119, 0.28), rgba(232, 200, 119, 0.1)); }
+.escbtn.escbtn-primary .ebl { color: #f0d089; }
+.escbtn.escbtn-primary .ebs { color: rgba(232, 200, 119, 0.75); }
+/* Resume — the house gold action (the Career's `.cv2-btn` / ladder `.lb-btn` face): gold gradient, dark ink. */
+.escclose { margin-top: 22px; width: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid #8a6428; background: linear-gradient(180deg, #f0d089, #c99d4e); color: #1a1206; font-family: var(--font-ui); font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
 .lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%); /* the loading splash's navy — the same backdrop as the rank screen (owner 2026-09-20), replacing the title art */ animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }

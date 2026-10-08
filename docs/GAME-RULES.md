@@ -162,10 +162,11 @@ Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board st
 
 ## Practice: God Mode and Sandbox Mode (owner design 2026-10-08)
 
-The Practice screen offers two modes side by side, each with a **Select** button and a short description, then
-**Start** (R-GODMODE-08). **Sandbox Mode** is the Practice game that already existed (its options are described
-under *Unverified / confirm* below); its options (heroes, health, time, tribes) are greyed out and can't be changed
-until Sandbox Mode is selected. The chosen mode is remembered.
+The Practice screen offers two modes side by side in two equal halves, **Sandbox Mode** on the left and **God
+Mode** on the right, each with a **Select** button and a short description, then **Start** (R-GODMODE-08).
+**Sandbox Mode** is the Practice game that already existed (its options are described under *Unverified / confirm*
+below) and is selected every time the Practice screen opens; its options (heroes, health, time, tribes) are greyed
+out and can't be changed while God Mode is selected.
 
 ### God Mode
 
@@ -184,8 +185,9 @@ A learning playground: all the Gold, no clock, and any card or rune on demand.
 - **Filters.** Tier chips (1 to 6) and Tribe chips, several on at once; no chip on = no filter. Spells follow Tier
   and ignore Tribe. The no-tribe chip reads **Neutral** (R-GODMODE-07).
 - **Choosing the opponent.** End Turn asks *"What round should your opponent board be on?"* with buttons 1 to 15.
-  Clicking one starts the fight at once against a random real player's board from that round, same card set and
-  game version. If none is found, the prompt says so and no fight starts; it never fights an empty board. Closing
+  Clicking one starts the fight at once against a random real player's board from that round, from the same card set
+  (and from the current game version once the online board finder is switched on; until then it can be a board
+  from an earlier version). If none is found, the prompt says so and no fight starts; it never fights an empty board. Closing
   the prompt stays in the shop (R-GODMODE-04).
 - **It never ends on its own.** No last round and no lobby finish (the other seats can't be knocked out); with
   Unlimited health, the game ends when the player leaves (R-GODMODE-05). The lobby rail is hidden (R-GODMODE-06).
@@ -301,7 +303,7 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   settles whatever placement a client sends, so builds from before the switch keep charging abandons until replaced.
 - **What Continue resumes** (owner 2026-09-30, R-PERSIST-01). A game is saved only once a hero is picked and it has
   started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
-  (Play, Practice, the tutorial) is ever saved or resumed. A saved run in the retired 17-round course format is
+  (Play, Sandbox Mode Practice, the tutorial; never a God Mode game) is ever saved or resumed. A saved run in the retired 17-round course format is
   dropped at load (not a quit, no settlement) and no Continue is offered; no menu starts a course run any more.
 - **Continue on any device** (owner 2026-09-30, verbatim: *"if a player is playing on one device and they save/quit,
   can we allow that to be picked up from another device they are signed in on?"*; R-PERSIST-CLOUD-01..03). A

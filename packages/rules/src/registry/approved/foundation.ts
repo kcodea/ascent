@@ -4773,8 +4773,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/reducer.ts godPrint / godGrantRune (refused unless run.godMode and phase recruit; the shared modalOpen gate) + applyRuneCopyTo (shared with buyRune); packages/sim/src/godMode.ts godRuneBlocked; packages/sim/src/docbot/shopCapacity.test.ts (godPrint declared unbounded by design)' },
     ],
     currentBehaviour:
-      'Conforms, built 2026-10-08 (packages/sim/src/reducer.ts godPrint / godGrantRune, packages/sim/src/godMode.ts). '
-      + 'Printing may exceed the shop\'s slot count in God Mode only (owner-approved spec: "Printing into a full shop '
+      'PARTIAL pin (built 2026-10-08; packages/sim/src/reducer.ts godPrint / godGrantRune, packages/sim/src/godMode.ts). '
+      + 'Pinned: both actions are refused outside God Mode, outside the shop and for an unknown id; a print appends a '
+      + 'fresh shop card; a rune grant is free and a second copy matches a bought second copy (Rune of the Altar). '
+      + 'NOT re-tested here: a printed card\'s normal price, Freeze keeping it, a roll replacing it and it counting '
+      + 'toward triples (they ride the ordinary shop-card paths, since a printed card is a plain shop entry), and '
+      + 'printing past the shop\'s slots is only exercised, not asserted. Printing may exceed the shop\'s slot count '
+      + 'in God Mode only (owner-approved spec: "Printing into a full shop '
       + 'still adds the card"). The refusal while a Discover / quest / Runeforge window is open is the reducer\'s shared '
       + 'modalOpen gate (not exempted for these actions) plus the Ancients-offer gate; the panel greys out on exactly those (godPanelLocked, godPick test).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/godActions.test.ts', 'packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godMode/godPick.test.ts'], lastVerifiedAt: '2026-10-08' },
@@ -4814,7 +4819,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/godMode/godBoards.ts findGodBoard / pinGodFoe; packages/ui/src/godMode/GodRoundPrompt.tsx; packages/ui/src/Recruit.tsx (End Turn opens the prompt in God Mode); supabase/migrations/2026-10-08-god-board-sample.sql (god_board_sample)' },
     ],
     currentBehaviour:
-      'Conforms, built 2026-10-08 (packages/ui/src/godMode/godBoards.ts, GodRoundPrompt.tsx, Recruit.tsx). The board '
+      'PARTIAL (built 2026-10-08; packages/ui/src/godMode/godBoards.ts, GodRoundPrompt.tsx, godPick.ts, Recruit.tsx): '
+      + 'the game-version match applies only through the god_board_sample RPC; the startup-board fallback (the only '
+      + 'path until the migration is deployed) matches round and set but not version, and no test pins the version '
+      + 'filter. Everything else conforms. The board '
       + 'comes from the Supabase RPC god_board_sample (round, set, game-version prefix, never a synthetic board; about '
       + 'a 4 second timeout), else from the boards downloaded at startup (filtered by round, set and non-synthetic '
       + 'origin only), else "no boards". Until supabase/migrations/2026-10-08-god-board-sample.sql is deployed, every '
@@ -4883,19 +4891,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-GODMODE-08',
     title: 'Practice offers two modes, God Mode and Sandbox Mode; Sandbox Mode\'s options are greyed out and ignored unless Sandbox Mode is selected',
     statement:
-      'The Practice screen offers two modes side by side, God Mode and Sandbox Mode (the Practice game that already '
-      + 'existed), each with a Select button and a short description, then Start. Sandbox Mode\'s options (heroes, '
-      + 'health, time, tribes) are greyed out and cannot be changed until Sandbox Mode is selected. God Mode ignores '
-      + 'them and always plays with every hero, Unlimited health, every tribe and no timer, leaving the player\'s '
-      + 'Sandbox Mode settings as they were. The chosen mode is remembered.',
+      'The Practice screen offers two modes side by side in two equal halves: Sandbox Mode (the Practice game that '
+      + 'already existed) on the left and God Mode on the right, each with a Select button and a short description, '
+      + 'then Start. Sandbox Mode is selected every time the Practice screen opens. Sandbox Mode\'s options (heroes, '
+      + 'health, time, tribes) are greyed out and cannot be changed while God Mode is selected. God Mode ignores them '
+      + 'and always plays with every hero, Unlimited health, every tribe and no timer, leaving the player\'s Sandbox '
+      + 'Mode settings as they were.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'when selecting practice, this is what should show up. two options. God mode (what we are building) and Sandbox Mode (what already exists as the practice menu). a brief description under the Select button under each mode and then you click the start button. all of the sanbox mode text and options should be greyed out until it is selected.' },
-      { kind: 'code', ref: 'packages/ui/src/PracticeOptions.tsx (the two modes, Sandbox options inert while God Mode is selected); packages/sim/src/godMode.ts godPracticeConfig; packages/ui/src/store.ts (practiceDraft.godMode persisted, the Sandbox draft untouched)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode Practice screen layout follow-up)', quote: 'have sanbox mode pre selecetd … have god mode swapped with sandbox mode so its on the right … have god mode and sanbox modes take up the same about of space. it should be even down the middle' },
+      { kind: 'code', ref: 'packages/ui/src/PracticeOptions.tsx (the two modes, Sandbox options inert while God Mode is selected); packages/sim/src/godMode.ts godPracticeConfig; packages/ui/src/store.ts (the Sandbox draft untouched by a God Mode game)' },
     ],
     currentBehaviour:
-      'Conforms, built 2026-10-08 (packages/ui/src/PracticeOptions.tsx, packages/sim/src/godMode.ts godPracticeConfig).',
+      'PARTIAL (built 2026-10-08; packages/ui/src/PracticeOptions.tsx, packages/sim/src/godMode.ts godPracticeConfig). '
+      + 'The layout follow-up (Sandbox Mode on the left and selected on every open, God Mode on the right, equal '
+      + 'halves) is being built on the same branch; as first built, God Mode sat on the left and the last chosen mode '
+      + 'was remembered. Re-check PracticeOptionsGodMode.test.tsx pins the Sandbox default and the order once that '
+      + 'lands, then drop this note. PARTIAL pin on "leaving the Sandbox Mode settings as they were": the half that is pinned is the run (God Mode '
+      + 'plays every hero, Unlimited health, every tribe and no timer whatever the draft says, and the player\'s own '
+      + 'Practice timer choice survives a God Mode game); the half that is not is the draft itself, where the store '
+      + 'test checks only the godMode flag, not the heroes / health / time / tribes fields.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/PracticeOptionsGodMode.test.tsx', 'packages/sim/src/godMode.test.ts', 'packages/ui/src/godModeStore.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
 ];

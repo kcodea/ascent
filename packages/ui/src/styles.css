@@ -3679,11 +3679,18 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* The READY / ARMED cue is the diamond's FACE GLOW (see .hpb-glow above) — the old box-shadow ring retired
    with the diamond housing (2026-07-16). */
 .statusbar .heropanel .hpwrap { margin-left: 0; }
+/* THE HERO-POWER PILL palette — one source for the name pill, the counter pill and the Equipment charge chip
+   (equipSlot.css), so the three can never drift apart. */
+:root {
+  --hpill-bg: linear-gradient(180deg, #211812, #16100b);
+  --hpill-edge: color-mix(in srgb, var(--gold) 55%, #000);
+  --hpill-text: #f4ecdb;
+}
 /* The power name in a dark pill under the button (replaces the old white panel box) — brightens when usable. */
 .statusbar .hplabel {
   font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em;
-  color: #f4ecdb; text-align: center; line-height: 1.05; white-space: nowrap;
-  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  color: var(--hpill-text); text-align: center; line-height: 1.05; white-space: nowrap;
+  background: var(--hpill-bg); border: 2px solid var(--hpill-edge);
   border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(12 * var(--u));
   box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
@@ -3693,8 +3700,8 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    `stepbump` still animates transform alone. The die face / centre readout / Clearance pip keep their own looks. */
 .statusbar .hpwrap .hpb-tally.hpb-pill {
   font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.05;
-  color: #f4ecdb; text-shadow: none;
-  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  color: var(--hpill-text); text-shadow: none;
+  background: var(--hpill-bg); border: 2px solid var(--hpill-edge);
   border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u));
   box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }

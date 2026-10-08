@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-08',
     changes: [
-      { category: 'Systems', text: 'Hero power counters (like 0/3) now sit in a pill that matches the hero power name.' },
+      { category: 'Systems', text: 'Hero power counters (like 0/3) and Equipment charge counts now sit in a pill that matches the hero power name.' },
       {
         category: 'Systems',
         text: 'New Practice option: God Mode. 999 Gold, no timer, and a panel to put any minion or spell in your shop and take any rune.',

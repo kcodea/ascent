@@ -67,17 +67,18 @@
 }
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpcost .costn { font-size: calc(20 * var(--u)); }
 
-/* The CHARGE CHIP: the number on a small dark gem chip instead of floating over the frame. Green while the shared
-   bonus pool is in it, BLUE while Amplified (both are the number's old colours), muted at 0. The tuner's X / Y still
-   nudge it; its size is the chip's own. */
+/* The CHARGE CHIP: the number in the SAME dark pill as the hero power's counter + name (`.hpb-pill` / `.hplabel` in
+   styles.css — owner ask 2026-10-08), kept in its corner. Green while the shared bonus pool is in it, BLUE while
+   Amplified (both are the number's old colours), muted at 0. The tuner's X / Y still nudge it. */
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpb-tally {
   left: auto; box-sizing: border-box; display: grid; place-items: center;
-  min-width: calc(30 * var(--u)); height: calc(30 * var(--u)); padding: 0 calc(7 * var(--u));
-  border-radius: 999px; border: calc(2 * var(--u)) solid var(--ui-edge-main);
-  background: var(--ui-chip-bg); color: var(--ui-chip-text);
-  font-size: calc(17 * var(--u)); font-weight: 800; font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  min-width: calc(30 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u));
+  border-radius: calc(11 * var(--u)); border: 2px solid var(--hpill-edge);
+  background: var(--hpill-bg); color: var(--hpill-text);
+  font-size: calc(14 * var(--u)); font-weight: 800; letter-spacing: 0.02em; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+  box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
   transform: translate(calc(var(--equ-x, 0) * 1px), calc(var(--equ-y, 0) * 1px));
 }
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap .hpb-tally.boosted { color: var(--eq-boost); border-color: var(--eq-boost); }

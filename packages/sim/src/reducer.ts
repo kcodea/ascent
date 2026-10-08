@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -2967,7 +2967,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.godMode !== true || s.phase !== 'recruit') return state;
       const rune = RUNE_INDEX[action.runeId];
       if (!rune || godRuneBlocked(s, rune.id)) return state;
-      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
+      // A copy you already own behaves exactly as a bought second copy (spec §2): the shared duplicate handling.
+      applyRuneCopyTo(s, rune, (s.ownedRunes ?? []).includes(rune.id));
       (s.ownedRunes ??= []).push(rune.id);
       checkTriples(s);
       openNextStartOfTurnModal(s);
@@ -3015,35 +3016,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const runeCost = Math.max(0, rune.cost - (s.runeforgeDiscounts?.[action.index] ?? 0)); // pivot discount
       if (s.embers < runeCost) return state; // can't afford — no-op (the UI greys it out)
       spendGold(s, runeCost);
-      // DUPLICATES (owner rulings 2026-08-27, decisions q-runedup-*): a duplicate that cannot meaningfully
-      // stack pays the universal SWEETENER (Gold = half the rune's printed cost rounded up, plus a free
-      // refresh); a ruled-UNIQUE duplicate (Ornate Clock) does nothing at all; every OTHER duplicate simply
-      // re-applies its reward — and the counted `runeStacks` (ticked in `applyQuestReward`) is what turns
-      // that re-application into real stacking behaviour at every consumer (see runeDup.ts).
-      const applyRuneCopy = (isDuplicate: boolean): void => {
-        if (isDuplicate && RUNE_DUP_UNIQUE.has(rune.id)) return; // owner: unique — a duplicate does nothing
-        if (isDuplicate && RUNE_DUP_SWEETENER.has(rune.id)) {
-          gainGold(s, Math.ceil(rune.cost / 2));
-          s.freeRolls += 1;
-          return;
-        }
-        // ONE-SHOT re-grants that cannot pay right now BANK to next turn (owner 2026-08-27: "rune of the
-        // armory would get 10 random attachments, and then next turn it would fire again, since you cannot
-        // have 20 cards in hand"). The pendingQuestRewards channel resolves rune ids at the rollover.
-        if (isDuplicate && (rune.id === 'rune_armory' || rune.id === 'rune_spare_parts')) {
-          const count = (rune.reward as { randomFilterCount?: number }).randomFilterCount ?? 0;
-          if (count > 0 && s.hand.length + count > handCap(s)) {
-            (s.pendingQuestRewards ??= []).push({ questId: rune.id, turnsLeft: 1 });
-            return;
-          }
-        }
-        if (isDuplicate && rune.id === 'rune_altar' && s.board.length === 0) {
-          (s.pendingQuestRewards ??= []).push({ questId: rune.id, turnsLeft: 1 }); // an empty board sells nothing — fire next turn instead
-          return;
-        }
-        // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
-        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
-      };
+      const applyRuneCopy = (isDuplicate: boolean): void => applyRuneCopyTo(s, rune, isDuplicate);
       applyRuneCopy((s.ownedRunes ?? []).includes(rune.id));
       // Rune of Duplication: "Copy the first Epic Rune you select" (R-RUNESLOT-02) — the NEXT Epic bought has its
       // reward applied a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
@@ -6580,6 +6553,38 @@ function payRevelerDrip(s: RunState, count: number): void {
 function payAstralDraft(s: RunState): void {
   procRuneId(s, 'rune_astral_draft');
   for (let k = 0; k < runeStacksOf(s, 'rune_astral_draft'); k++) queueDiscover(s, { kind: 'spell', extraCasts: 1 });
+}
+
+/** Apply ONE copy of a rune's reward — the shared path for a bought rune (`buyRune`, incl. Rune of Duplication's
+ *  extra copy) and a God Mode grant (`godGrantRune`), so a second copy behaves the same however it arrived.
+ *  DUPLICATES (owner rulings 2026-08-27, decisions q-runedup-*): a duplicate that cannot meaningfully
+ *  stack pays the universal SWEETENER (Gold = half the rune's printed cost rounded up, plus a free
+ *  refresh); a ruled-UNIQUE duplicate (Ornate Clock) does nothing at all; every OTHER duplicate simply
+ *  re-applies its reward — and the counted `runeStacks` (ticked in `applyQuestReward`) is what turns
+ *  that re-application into real stacking behaviour at every consumer (see runeDup.ts). */
+function applyRuneCopyTo(s: RunState, rune: RuneDef, isDuplicate: boolean): void {
+  if (isDuplicate && RUNE_DUP_UNIQUE.has(rune.id)) return; // owner: unique — a duplicate does nothing
+  if (isDuplicate && RUNE_DUP_SWEETENER.has(rune.id)) {
+    gainGold(s, Math.ceil(rune.cost / 2));
+    s.freeRolls += 1;
+    return;
+  }
+  // ONE-SHOT re-grants that cannot pay right now BANK to next turn (owner 2026-08-27: "rune of the
+  // armory would get 10 random attachments, and then next turn it would fire again, since you cannot
+  // have 20 cards in hand"). The pendingQuestRewards channel resolves rune ids at the rollover.
+  if (isDuplicate && (rune.id === 'rune_armory' || rune.id === 'rune_spare_parts')) {
+    const count = (rune.reward as { randomFilterCount?: number }).randomFilterCount ?? 0;
+    if (count > 0 && s.hand.length + count > handCap(s)) {
+      (s.pendingQuestRewards ??= []).push({ questId: rune.id, turnsLeft: 1 });
+      return;
+    }
+  }
+  if (isDuplicate && rune.id === 'rune_altar' && s.board.length === 0) {
+    (s.pendingQuestRewards ??= []).push({ questId: rune.id, turnsLeft: 1 }); // an empty board sells nothing — fire next turn instead
+    return;
+  }
+  // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
+  applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
 }
 
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sourceKind: 'quest' | 'rune' = 'quest'): void {

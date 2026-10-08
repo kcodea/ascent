@@ -132,6 +132,9 @@ describe('Doc Bot — the Shop never overflows its capacity', () => {
       + 'is normally consumed in the same breath. `holdFodderConsume` can defer that behind a start-of-turn '
       + 'modal, which is the window where a player could see an over-long row. Flagged for an owner ruling '
       + 'rather than changed unasked, because bounding it would change Demon behaviour',
+    'reducer.ts godPrint': 'UNBOUNDED BY DESIGN, and only in a God Mode practice run (`run.godMode`, refused '
+      + 'everywhere else): the owner\'s God Mode spec (2026-10-08) rules "Printing into a full shop still adds the '
+      + 'card" — the player is deliberately stocking the row. A roll clears the printed cards back to slot size',
   };
 
   it('every `shop.push` site is declared with its bound', () => {

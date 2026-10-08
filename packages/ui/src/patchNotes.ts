@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: Rune of Shared Scripture now fires on the first Shop spell your minions cast in combat, whoever casts it. Before, most combat casts (such as Growth from Fatecarver or Lantern of Souls from Watcher) were missed.',
+      },
+      {
+        category: 'Systems',
         text: '2 new Rare minion skins in crates for Chorus Drake: Canyon Drake and Thunderchorus Drake.',
       },
       {

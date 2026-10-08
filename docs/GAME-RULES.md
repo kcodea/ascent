@@ -160,6 +160,45 @@ Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board st
 
 ---
 
+## Practice: God Mode and Sandbox Mode (owner design 2026-10-08)
+
+The Practice screen offers two modes side by side, each with a **Select** button and a short description, then
+**Start** (R-GODMODE-08). **Sandbox Mode** is the Practice game that already existed (its options are described
+under *Unverified / confirm* below); its options (heroes, health, time, tribes) are greyed out and can't be changed
+until Sandbox Mode is selected. The chosen mode is remembered.
+
+### God Mode
+
+A learning playground: all the Gold, no clock, and any card or rune on demand.
+
+- **Fixed setup.** God Mode ignores the Sandbox options and always plays with every hero, Unlimited health, every
+  tribe and no timer; the player's Sandbox settings are left as they were (R-GODMODE-08).
+- **Gold and clock.** It starts with 999 Gold. Everything costs Gold as normal, but whenever the Gold drops below
+  900 it tops back up to 999. The shop never has a clock: no timer, no Gold Fuse (R-GODMODE-03).
+- **The God Mode panel** (shop only, never during a fight; R-GODMODE-06) is a floating, draggable, collapsible
+  panel with four searchable lists: **Minions** and **Spells** (click to put the card in your shop, any tier, even
+  past the shop's normal slots) and **Runes** and **Epic Runes** (click to take one free). A printed card is an
+  ordinary shop card: normal price, Freeze keeps it, a roll replaces it, it counts toward triples. A rune taken a
+  second time behaves exactly as a bought second copy; a rune that can't stack shows as owned. The panel greys out
+  while a Discover, quest or Runeforge window is open (R-GODMODE-02).
+- **Filters.** Tier chips (1 to 6) and Tribe chips, several on at once; no chip on = no filter. Spells follow Tier
+  and ignore Tribe. The no-tribe chip reads **Neutral** (R-GODMODE-07).
+- **Choosing the opponent.** End Turn asks *"What round should your opponent board be on?"* with buttons 1 to 15.
+  Clicking one starts the fight at once against a random real player's board from that round, same card set and
+  game version. If none is found, the prompt says so and no fight starts; it never fights an empty board. Closing
+  the prompt stays in the shop (R-GODMODE-04).
+- **It never ends on its own.** No last round and no lobby finish (the other seats can't be knocked out); with
+  Unlimited health, the game ends when the player leaves (R-GODMODE-05). The lobby rail is hidden (R-GODMODE-06).
+- **Nothing is kept.** No save or Continue, no XP, no crate, no Practice upload, no replay. The player's real saved
+  game is untouched and is still offered as Continue afterwards (R-GODMODE-01).
+
+Source: `packages/sim/src/godMode.ts`, `packages/sim/src/reducer.ts` (`godPrint`, `godGrantRune`),
+`packages/ui/src/godMode/` (panel, round prompt, board finder), `packages/ui/src/PracticeOptions.tsx`,
+`supabase/migrations/2026-10-08-god-board-sample.sql` (`god_board_sample`; until it is deployed, boards come from
+the set downloaded at startup).
+
+---
+
 ## Gauntlet
 
 Single-player stages, each a 10-round duel against one hand-built opponent whose board grows every round

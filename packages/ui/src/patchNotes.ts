@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Practice option: God Mode. 999 Gold, no timer, and a panel to put any minion or spell in your shop and take any rune.',
+        details: [
+          'Practice now offers two modes: God Mode and Sandbox Mode (the Practice game you already know).',
+          'When you end your turn, pick a round from 1 to 15 and fight a real player\'s board from that round.',
+          'Filter minions and spells by tier and tribe. Nothing in God Mode is saved or earns rewards.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Rise now reads "Returns once when destroyed with 1 health." Rules text no longer says "printed stats" anywhere.',
         details: [
           'The Rise keyword pill, glossary and Rules entries use the new line. How Rise works is unchanged: the minion comes back once as a fresh copy with 1 Health.',

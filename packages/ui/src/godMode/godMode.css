@@ -27,7 +27,10 @@
   color: var(--ui-chip-text); font-family: inherit; font-size: calc(11 * var(--u)); font-weight: 700; }
 .godp-chip.on { border-color: var(--ui-title); color: var(--ui-title); }
 .godp-list { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
-.godp-lh { font-size: calc(10 * var(--u)); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-muted); }
+/* Section titles — Tier Filter, Tribe Filter, Minions, Spells, Runes, Epic runes: larger and gold (owner 2026-10-08:
+   "make it gold instead of light blue"), the same --ui-title gold as the GOD MODE header. */
+.godp-filter { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.godp-lh { font-size: calc(13.5 * var(--u)); font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ui-title); }
 .godp-search { height: calc(26 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-text); font-family: inherit; font-size: calc(12 * var(--u)); }
 .godp-rows { display: flex; flex-direction: column; max-height: calc(150 * var(--u)); overflow-y: auto; }
 .godp-row { display: flex; justify-content: space-between; gap: calc(6 * var(--u)); padding: calc(4 * var(--u)) calc(6 * var(--u)); border: 0; border-radius: 6px; background: none; color: var(--ui-text); text-align: left; font-family: inherit; font-size: calc(12 * var(--u)); }

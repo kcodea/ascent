@@ -63,4 +63,8 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     expect(parseFloat(panel.style.top)).toBeLessThanOrEqual(window.innerHeight - 40);
     expect(parseFloat(panel.style.left)).toBeGreaterThanOrEqual(0);
   });
+  it('titles every section: Tier Filter and Tribe Filter above the chips, then the four lists', () => {
+    const el = show();
+    expect([...el.querySelectorAll('.godp-lh')].map((h) => h.textContent)).toEqual(['Tier Filter', 'Tribe Filter', 'Minions', 'Spells', 'Runes', 'Epic runes']);
+  });
 });

@@ -153,17 +153,24 @@ export function GodModePanel() {
         {!prefs.collapsed && (
           <div className="godp-body">
             {locked && <div className="godp-lock" role="status">Finish the open choice to use God Mode</div>}
-            <div className="godp-chips" role="group" aria-label="Tier filter">
-              {TIERS.map((t) => (
-                <button key={t} type="button" className={`godp-chip godp-tier${prefs.tiers.includes(t) ? ' on' : ''}`} aria-pressed={prefs.tiers.includes(t)}
-                  onClick={() => update({ tiers: toggle(prefs.tiers, t) })}>{t}</button>
-              ))}
+            {/* Section titles (owner 2026-10-08: "have the sections at the top labeled like Tier Filter and Tribe Filter"). */}
+            <div className="godp-filter">
+              <div className="godp-lh" aria-hidden>Tier Filter</div>
+              <div className="godp-chips" role="group" aria-label="Tier filter">
+                {TIERS.map((t) => (
+                  <button key={t} type="button" className={`godp-chip godp-tier${prefs.tiers.includes(t) ? ' on' : ''}`} aria-pressed={prefs.tiers.includes(t)}
+                    onClick={() => update({ tiers: toggle(prefs.tiers, t) })}>{t}</button>
+                ))}
+              </div>
             </div>
-            <div className="godp-chips" role="group" aria-label="Tribe filter (minions)">
-              {tribes.map((t) => (
-                <button key={t} type="button" className={`godp-chip godp-tribe${prefs.tribes.includes(t) ? ' on' : ''}`} aria-pressed={prefs.tribes.includes(t)}
-                  onClick={() => update({ tribes: toggle(prefs.tribes, t) })}>{tribeLabel(t)}</button>
-              ))}
+            <div className="godp-filter">
+              <div className="godp-lh" aria-hidden>Tribe Filter</div>
+              <div className="godp-chips" role="group" aria-label="Tribe filter (minions)">
+                {tribes.map((t) => (
+                  <button key={t} type="button" className={`godp-chip godp-tribe${prefs.tribes.includes(t) ? ' on' : ''}`} aria-pressed={prefs.tribes.includes(t)}
+                    onClick={() => update({ tribes: toggle(prefs.tribes, t) })}>{tribeLabel(t)}</button>
+                ))}
+              </div>
             </div>
             <List label="Minions" rows={minions} query={q.minions} setQuery={setMinionQ} onPick={print}
               onHover={hoverCard} onLeave={leave} locked={locked} meta={tierMeta} />

@@ -93,7 +93,8 @@ export function summonEscalatingText(cardId: string, golden: boolean, summonBonu
   const base = Number(p?.attack ?? 3);
   const improve = Number(p?.improve ?? 3);
   const every = Math.max(1, Number(p?.every ?? 3));
-  const cur = (base + improve * Math.floor(seen / every)) * (golden ? 2 : 1);
+  // Every-1 reads the count raw: an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS), so a half-count is legal here.
+  const cur = (base + improve * (every <= 1 ? seen : Math.floor(seen / every))) * (golden ? 2 : 1);
   const toNext = every - (seen % every);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   const live = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`);

@@ -674,4 +674,34 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 're-cast every bank it had. Non-lobby pool boards (no round to compare) still apply their banks, as before.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-FLORIDA-01',
+    title: 'Flo Rida permanently improves: its per-Beast step never resets between rounds',
+    statement:
+      'Flo Rida reads "When you summon a Beast, give it +5/+5 and permanently improve this." Every Beast summoned while '
+      + 'this copy is on the board raises the grant by +5/+5 for the rest of the run (5, 10, 15, ...), whichever phase the '
+      + 'summon happens in: a Shop or End-of-Turn summon improves the board card directly, and a combat summon is carried '
+      + 'back to the board card when the fight settles. Nothing resets it at the start of a round or a combat. The '
+      + '+X/+X given to the summoned Beast stays a normal permanent buff, exactly as before. Gilded doubles the grant and the '
+      + 'earned step at read time, and a triple keeps the two highest improvements among the copies (the universal summonBonus rule). '
+      + 'Gilding an EXISTING copy in place (Indy, Golden Touch, a Shop gild) never doubles growth already earned: the base '
+      + 'doubles and only future growth runs at the golden rate (Flo Rida and Beardsley join GOLD_SCALED_ACCRUAL_CARDS). '
+      + 'A Flo Rida or Beardsley that Rises comes back with its count at 0, since it is not the same minion: growth earned '
+      + 'before the Rise is lost, growth after it counts from 0, and the board card keeps what the risen body ends the fight '
+      + 'with, 0 included (the old count is not restored at settle).',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-08 (Flo Rida text)', quote: 'flo rida should add the word permanently to its text so it does not reset per round' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-08 (PR #1984, in-place gild of Flo Rida / Beardsley)', quote: 'yes fix' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-08 (PR #1984, Flo Rida / Beardsley and Rise)', quote: 'rise = reset its number since its not the same minion per se' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/beasts.ts b2_florida; packages/sim/src/recruit.ts onSummonTribeBuffFlat (shop half); packages/core/src/effects/factories.ts onSummonTribeBuffFlat (combat half); packages/core/src/combat/simulate.ts carryBacksFor summonBonus; packages/sim/src/reducer.ts settleCombat playerSummonBonus; packages/sim/src/recruit.ts GOLD_SCALED_ACCRUAL_CARDS + gildMinion; packages/core/src/combat/simulate.ts risenUids' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-08. The engine already persisted the improve (per-instance summonBonus, carried back from '
+      + 'combat); the printed text gained the word "permanently". Two fixes landed with it: an in-place gild used to double '
+      + 'earned growth, and a risen body that saw no Beast afterwards carried back nothing, so the board card kept its '
+      + 'pre-combat count (the carry-back now includes every risen body, for every summonBonus card).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/floRidaPermanent1008.test.ts', 'packages/ui/src/floRidaPermanentText.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
 ];

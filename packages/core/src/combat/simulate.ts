@@ -2706,6 +2706,11 @@ export function simulate(
 
   // Running death tally per side — drives Avenge (X) (A.4).
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
+  // Bodies that Rose this fight. A risen body's `summonBonus` restarts at 0 (R-RISE-01), and the carry-back must write
+  // that reset home even when the risen body earned nothing afterwards (owner 2026-10-08, R-FLORIDA-01: "rise = reset
+  // its number since its not the same minion per se"). Without this, a 0 was filtered out and the board card kept its
+  // pre-combat count.
+  const risenUids = new Set<string>();
   // The immediate-attack queue, drained by flushImmediateAttacks after each attack's death cascade settles.
   // Two item kinds, processed in FIFO order so a token's summon and its strike stay adjacent:
   //   • `{ summon }` — a DEFERRED attack-on-summon token (Twilight Whelp's 3/3 Whelp, Spear Warden): its whole
@@ -3241,6 +3246,7 @@ export function simulate(
       // with its stats and keywords, exactly as the shop's Rise rebuilds the body from the def.
       minion.hpGrantBonus = undefined;
       minion.summonBonus = 0;
+      risenUids.add(minion.uid);
       minion.eotBonus = undefined;
       minion.sellBonus = undefined;
       minion.overflowBonus = undefined;
@@ -6089,8 +6095,10 @@ export function simulate(
     const foe: Side = side === 'player' ? 'enemy' : 'player';
     // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge improved its summon buff
     // this combat keeps the higher bonus for the run.
+    // A body that Rose carries back its RESET count too, 0 included (R-FLORIDA-01; the Second Wind precedent: what the
+    // risen body ends the fight with is what the board card keeps).
     const summonBonus = board
-      .filter((m) => m.sourceUid !== undefined && m.summonBonus > 0 && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
+      .filter((m) => m.sourceUid !== undefined && (m.summonBonus > 0 || risenUids.has(m.uid)) && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
       .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
     // Sergeant: the Deathrattle HP-grant accrual (seeded from the run board + any improvements from Attack
     // gained this combat) carries back so the improvement is permanent — keyed to the originating board card.

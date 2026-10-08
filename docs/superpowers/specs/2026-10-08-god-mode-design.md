@@ -52,10 +52,11 @@ God Mode depends on them.
   the phase is `recruit`. A rune already owned behaves as the game already treats a second copy (verified per rune
   during the build; any rune that can't stack is greyed out in the list as "owned").
   The ungated `devGrant` is **not** reused, so the dev path stays dev-only.
-- **Never ends on its own.** The practice round-15 curtain is already skipped for sandbox runs. In addition, for
-  `godMode` the game does **not** end when the background lobby finishes (`lobby.finished`); it ends only when the
-  player's seat is eliminated (Health = Normal) or the player leaves. The lobby's stalemate backstop
-  (`maxRounds: 60`) is lifted for God Mode as well.
+- **Never ends on its own.** The practice round-15 curtain is already skipped for sandbox runs. The background
+  table's seven seats are made **invulnerable** and its round cap is lifted (999), so the lobby never finishes; the
+  run ends only when the player's own seat is eliminated (Health = Normal) or the player leaves. (Chosen over
+  special-casing `lobby.finished` because a finished lobby stops settling rounds, which would freeze the player's
+  damage.)
 
 ## 3. Choosing the opponent each round
 
@@ -89,8 +90,8 @@ God Mode depends on them.
   - Nothing selected in a group = no filter. Chips combine with each dropdown's search text (AND).
   - Selections persist like the panel position.
 - **Four searchable dropdowns:**
-  - **Minions** — the run's set pool minions (tokens excluded), plus Rubies and gifts.
-  - **Spells** — the run's set pool spells.
+  - **Minions** — the run's set pool minions (tokens excluded).
+  - **Spells** — the run's set pool spells, plus Rubies and gifts (they are spells, as in the Scene Builder).
   - **Runes** — `RUNES` available in the run's set.
   - **Epic runes** — `EPIC_RUNES` available in the run's set.
   - Archived cards and runes are never listed.

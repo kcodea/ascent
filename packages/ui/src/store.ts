@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -942,6 +942,8 @@ function loadPracticeConfig(): PracticeConfig {
       tribes: normalizePracticeTribes(parsed.tribes),
       // Practice hero offer (2026-09-27): only the two known modes; anything else (an old draft) opens on Beginner.
       heroes: parsed.heroes === 'all' ? 'all' : 'beginner',
+      // GOD MODE (owner 2026-10-08): the Practice screen remembers which mode was selected.
+      godMode: parsed.godMode === true,
     };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
@@ -1494,6 +1496,12 @@ function commitResolvedAction(
   captureBeats: boolean,
   set: StoreSet,
 ): Partial<GameStore> {
+    // GOD MODE (owner 2026-10-08): the wallet refills. Only when the reducer actually changed the run, so a refused
+    // action stays a no-op (no phantom replay action, no re-render). Covers dispatch AND commitPresentationAction
+    // (End Turn) — both funnel through here. BEFORE `actionSfx`, so the sound sees the final run.
+    if (next !== s.run && next.godMode === true && next.phase === 'recruit' && next.embers < 900) {
+      next = { ...next, embers: GOD_MODE_GOLD };
+    }
     actionSfx(action, s.run, next);
     // WP C — the always-on rolling action window (bug-report/actionRing.ts): record this accepted action's
     // reproduction rails (rng cursor before + state hashes) into the memory-only ring. Purely observational
@@ -2444,9 +2452,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
       return;
     }
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
+    // GOD MODE (owner 2026-10-08): a God Mode practice run. Nothing about it persists, so it never takes the save slot.
+    const godPick = pre.pendingMode === 'practice' && pre.practiceDraft.godMode === true;
     // QUITTING COSTS RATING (R-RANK-05): the new run REPLACES the one saved save slot, so an unfinished
     // RATED save it overwrites is abandoned (a no-op while ABANDON_PENALTY_ENABLED is off, owner 2026-10-02). Outside the updater (a queue write).
-    settleAbandonedRun(get().savedRun);
+    // A God Mode run replaces nothing (it is never saved), so the player's real save is left alone.
+    if (!godPick) settleAbandonedRun(get().savedRun);
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
@@ -2462,10 +2473,15 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const mode: 'lobby' | 'practice' = s.pendingMode === 'practice' ? 'practice' : 'lobby';
       // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
       // tribe surge); a plain lobby uses none.
-      const run = stage ? createGauntletRun(seed, heroId, stage) : createLobbyRun(seed, heroId, {}, mode, mode === 'practice' ? s.practiceDraft : undefined, undefined,
+      // GOD MODE (owner 2026-10-08): God Mode's own fixed config (every hero, Unlimited health, every tribe, no timer;
+      // the player's Sandbox settings are untouched), no round cap, then stamped sandbox + godMode + 999 Gold.
+      const god = mode === 'practice' && !stage && s.practiceDraft.godMode === true;
+      const built = stage ? createGauntletRun(seed, heroId, stage) : createLobbyRun(seed, heroId, god ? { maxRounds: GOD_MODE_MAX_ROUNDS } : {}, mode,
+        mode === 'practice' ? (god ? godPracticeConfig(s.practiceDraft) : s.practiceDraft) : undefined, undefined,
         // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
         // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
         mode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {});
+      const run = god ? makeGodModeRun(built) : built;
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
       if (mode === 'lobby' && !stage) run.runId = mintRunId(); // a Gauntlet stage is never rated
@@ -2480,8 +2496,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
       recordRunCosmetics(run);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
-      writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
+      writeSave(run, []); // the new run is now the resumable save (a no-op for a God Mode run: `sandbox`)
+      // GOD MODE: Continue keeps offering the player's real saved run, never the God Mode game.
+      return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
   newRun: (seed, heroId) => {
@@ -2515,7 +2532,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
     const seed = randomSeed();
     // Practice is always vs players (2026-09-29); the bots option is gone from the setup screen.
     const draft: PracticeConfig = { ...s.practiceDraft, opponents: 'players' };
-    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(draft.heroes, practiceRunTribes(seed, draft)) };
+    // GOD MODE (owner 2026-10-08) offers every hero: the offer reads God Mode's fixed config, while `practiceDraft`
+    // keeps the player's Sandbox Mode settings untouched (only the run uses the God Mode ones).
+    const effective = draft.godMode === true ? godPracticeConfig(draft) : draft;
+    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: effective.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole

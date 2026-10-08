@@ -43,6 +43,7 @@ export * from './semanticTrace'; // WP C — the unified recruit+combat semantic
 
 export * from './runTelemetry';
 export * from './rankAtStart'; // R-TELEMETRY-RANK-01: the rank a rated game started at, pinned on the run + stamped into telemetry
+export * from './godMode'; // GOD MODE (owner 2026-10-08): the practice playground's run stamp, fixed config + gates
 export * from './runeDup'; // rune duplicate stacking (owner rulings 2026-08-27): stack counts + sweetener/unique/forge-filter sets
 export * from './runDerive';
 export * from './reportCohorts'; // the honest-associations cohorts (2026-09-22): segments, exposed diagnostic, episodes, adjusted association, Welch, evidence

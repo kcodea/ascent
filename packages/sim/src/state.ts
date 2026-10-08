@@ -439,6 +439,9 @@ export interface PracticeConfig {
    *  (`BEGINNER_HERO_IDS`: Indy, Warden, Keshi), shown as the usual three-choice pick; `all` = every Practice hero.
    *  Absent on drafts/runs saved before this existed: read it through `practiceHeroMode`. */
   heroes?: 'beginner' | 'all';
+  /** GOD MODE (owner 2026-10-08): 999 Gold, no clock, the God Mode panel, and a chosen-round real board each fight.
+   *  Absent / false = a normal practice run. See `godMode.ts`. */
+  godMode?: boolean;
 }
 
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
@@ -777,6 +780,9 @@ export interface RunState {
    *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
    *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
   sandbox?: boolean;
+  /** GOD MODE practice run (owner 2026-10-08). Always paired with `sandbox: true` (the write barrier: no save, upload,
+   *  XP, replay). Gates `godPrint` / `godGrantRune` and every God Mode UI behaviour. See `godMode.ts`. */
+  godMode?: true;
   /** ANCIENTS (proof of concept, owner 2026-09-25): the Scene Builder turns this on for Set 3 runs only. Off (absent)
    *  on every lobby / practice / normal run, and then nothing in `ancients.ts` reads or writes anything. */
   ancientsEnabled?: boolean;

@@ -75,7 +75,7 @@
   min-width: calc(30 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u));
   border-radius: calc(11 * var(--u)); border: 2px solid var(--hpill-edge);
   background: var(--hpill-bg); color: var(--hpill-text);
-  font-size: calc(14 * var(--u)); font-weight: 800; letter-spacing: 0.02em; line-height: 1.05;
+  font-size: calc(16 * var(--u)); font-weight: 800; letter-spacing: 0.02em; line-height: 1.05;
   font-variant-numeric: tabular-nums;
   text-shadow: none;
   box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);

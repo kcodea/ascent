@@ -3699,7 +3699,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    top rim as the name pill sits on the bottom (owner ask 2026-10-08). Static paint only — the inherited one-shot
    `stepbump` still animates transform alone. The die face / centre readout / Clearance pip keep their own looks. */
 .statusbar .hpwrap .hpb-tally.hpb-pill {
-  font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.05;
+  font-weight: 800; font-size: calc(16 * var(--u)); letter-spacing: 0.02em; line-height: 1.05;
   color: var(--hpill-text); text-shadow: none;
   background: var(--hpill-bg); border: 2px solid var(--hpill-edge);
   border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u));

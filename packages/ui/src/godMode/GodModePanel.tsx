@@ -2,12 +2,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { activeSet } from '@game/content';
-import { godRuneBlocked, modalOpen } from '@game/sim';
+import { godRuneBlocked } from '@game/sim';
 import { useGame } from '../store';
-import { stageHost, stageViewport, toStage } from '../stage';
+import { onStageChange, stageHost, stageViewport, toStage } from '../stage';
 import { SceneBuilderPreview, type SbPreviewTarget } from '../SceneBuilderPreview';
 import { cardRowsFor, filterCards, matches, runeRowsFor, searchTerms, tribesIn, type CardRow, type RuneRow } from '../cardSearch';
-import { loadGodPanelPrefs, saveGodPanelPrefs, type GodPanelPrefs } from './godPanelPrefs';
+import { clampGodPanelPos, loadGodPanelPrefs, saveGodPanelPrefs, type GodPanelPrefs } from './godPanelPrefs';
+import { godPanelLocked } from './godPick';
 import './godMode.css';
 
 /**
@@ -16,8 +17,8 @@ import './godMode.css';
  * Tier + Tribe chips filter minions and spells (spells ignore Tribe). Separate from the DEV Scene Builder; shares
  * only the search module and the hover preview.
  *
- * While a Discover / quest / Runeforge / targeting window owns the screen (`modalOpen`, the same gate the reducer
- * refuses God Mode actions behind) the panel is visibly INERT: greyed, rows disabled, with a line saying why —
+ * While a Discover / quest / Runeforge / targeting / Ancients window owns the screen (`godPanelLocked`, the same gates
+ * the reducer refuses God Mode actions behind) the panel is visibly INERT: greyed, rows disabled, with a line saying why —
  * never a click that silently does nothing.
  */
 const TIERS = [1, 2, 3, 4, 5, 6];
@@ -79,6 +80,12 @@ export function GodModePanel() {
   useEffect(() => { if (!toast) return; const t = window.setTimeout(() => setToast(null), 1800); return () => window.clearTimeout(t); }, [toast]);
   // A drag in flight when the panel unmounts (the fight starts) must not leave window listeners behind.
   useEffect(() => () => dragEndRef.current?.(), []);
+  // The saved spot is clamped to the CURRENT stage on every render, and a stage resize re-renders: a panel parked
+  // on a wide window can never be stranded off-stage on a narrower one (its header always stays grabbable). The
+  // saved prefs keep the original spot, so it returns there when the window is wide again.
+  const [, setStageTick] = useState(0);
+  useEffect(() => onStageChange(() => setStageTick((n) => n + 1)), []);
+  const pos0 = clampGodPanelPos(prefs, stageViewport());
 
   // Hover preview: one rect read per hover (never per frame), converted to stage px for the preview's placement.
   const hover = useCallback((kind: 'card' | 'rune', id: string, el: HTMLElement): void => {
@@ -109,14 +116,10 @@ export function GodModePanel() {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
     const el = panelRef.current;
     if (!el) return;
-    const start = { x: e.clientX, y: e.clientY, px: prefs.x, py: prefs.y };
-    let pos = { x: prefs.x, y: prefs.y };
+    const start = { x: e.clientX, y: e.clientY, px: pos0.x, py: pos0.y };
+    let pos = { x: pos0.x, y: pos0.y };
     const move = (ev: PointerEvent): void => {
-      const vp = stageViewport();
-      pos = {
-        x: Math.round(Math.min(Math.max(0, start.px + toStage(ev.clientX - start.x)), Math.max(0, vp.w - 120))),
-        y: Math.round(Math.min(Math.max(0, start.py + toStage(ev.clientY - start.y)), Math.max(0, vp.h - 40))),
-      };
+      pos = clampGodPanelPos({ x: start.px + toStage(ev.clientX - start.x), y: start.py + toStage(ev.clientY - start.y) }, stageViewport());
       el.style.left = `${pos.x}px`;
       el.style.top = `${pos.y}px`;
     };
@@ -135,12 +138,12 @@ export function GodModePanel() {
   };
 
   if (run.godMode !== true || run.phase !== 'recruit') return null;
-  const locked = modalOpen(run);
+  const locked = godPanelLocked(run);
   const toggle = <T,>(list: readonly T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   return createPortal(
     <>
-      <div ref={panelRef} className={`godp${prefs.collapsed ? ' collapsed' : ''}${locked ? ' inert' : ''}`} style={{ left: prefs.x, top: prefs.y }}
+      <div ref={panelRef} className={`godp${prefs.collapsed ? ' collapsed' : ''}${locked ? ' inert' : ''}`} style={{ left: pos0.x, top: pos0.y }}
         role="region" aria-label="God Mode" aria-disabled={locked || undefined}>
         <div className="godp-head" onPointerDown={onHeadDown}>
           <span className="godp-title">God Mode</span>

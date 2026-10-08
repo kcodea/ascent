@@ -228,7 +228,8 @@ import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { TAP_SLOP } from './touchInput';
 import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
-import { findGodBoard, liveGodBoardDeps, pinGodFoe } from './godMode/godBoards';
+import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
+import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/godPick';
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
@@ -6844,7 +6845,7 @@ export function Recruit() {
     if (gate.blocked) { if (gate.reason) notifyTutorialGateNudge(gate.reason); return; }
     // GOD MODE (owner 2026-10-08): End Turn first asks which round the opponent board should be from; the pick
     // (`pickGodRound`) fetches + pins a real board and re-enters here with the gate open.
-    if (run.godMode && !godFoeReadyRef.current) { if (!godPrompt) setGodPrompt({ busy: false, message: null }); return; }
+    if (godEndTurnNeedsPick(run, godFoeReadyRef.current)) { if (!godPrompt) setGodPrompt({ busy: false, message: null }); return; }
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
     // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
@@ -7181,20 +7182,18 @@ export function Recruit() {
   // GOD MODE (owner 2026-10-08): End Turn asks for the opponent's round first; a pick fetches + pins a real board,
   // then re-enters endTurn with the gate open. Double-pick guard: the prompt's buttons are disabled while `busy`,
   // and a board that arrives after the shop moved on (phase / round changed) is dropped, never pinned.
-  const [godPrompt, setGodPrompt] = useState<{ busy: boolean; message: string | null } | null>(null);
+  const [godPrompt, setGodPrompt] = useState<GodPromptState>(null);
   const godFoeReadyRef = useRef(false);
   const pickGodRound = useCallback(async (round: number): Promise<void> => {
-    setGodPrompt({ busy: true, message: null });
-    try { localStorage.setItem(GOD_ROUND_KEY, String(round)); } catch { /* ignore */ }
-    const live = useGame.getState().run;
-    const board = await findGodBoard(round, live.setId ?? activeSet().id, liveGodBoardDeps());
-    const now = useGame.getState().run;
-    if (now.phase !== 'recruit' || now.wave !== live.wave || !now.godMode) { setGodPrompt(null); return; } // the shop moved on; drop the stale board
-    if (!board) { setGodPrompt({ busy: false, message: `No boards found for round ${round} — try another` }); return; }
-    useGame.setState({ run: pinGodFoe(now, board) });
-    setGodPrompt(null);
-    godFoeReadyRef.current = true;
-    try { endTurnRef.current(); } finally { godFoeReadyRef.current = false; }
+    await runGodPick(round, {
+      getRun: () => useGame.getState().run,
+      setRun: (r) => useGame.setState({ run: r }),
+      findBoard: (r, setId) => findGodBoard(r, setId, liveGodBoardDeps()),
+      setId: (r) => r.setId ?? activeSet().id,
+      setPrompt: setGodPrompt,
+      remember: (r) => { try { localStorage.setItem(GOD_ROUND_KEY, String(r)); } catch { /* ignore */ } },
+      fight: () => { godFoeReadyRef.current = true; try { endTurnRef.current(); } finally { godFoeReadyRef.current = false; } },
+    });
   }, []);
   const closeGodPrompt = useCallback((): void => { setGodPrompt((p) => (p?.busy ? p : null)); }, []);
   /* REPLAY VIEWER: play a RECORDED End of Turn when the replay player asks (owner report 2026-10-02: "when

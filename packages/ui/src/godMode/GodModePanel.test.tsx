@@ -49,4 +49,18 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     act(() => { el.querySelector<HTMLButtonElement>('[aria-label="Minions"] .godp-row')!.click(); });
     expect(useGame.getState().run.shop.length).toBe(before);
   });
+  it('greys out under the Ancients offer too (the reducer refuses God Mode actions there)', () => {
+    act(() => { useGame.setState({ run: { ...godRun(), ancientsEnabled: true, ancients: { ...(godRun().ancients ?? {}), offer: ['x'] } } as unknown as ReturnType<typeof godRun> }); });
+    ui = mount(<GodModePanel />);
+    expect(document.body.querySelector('.godp')!.classList.contains('inert')).toBe(true);
+    expect([...document.body.querySelectorAll<HTMLButtonElement>('.godp-row')].every((b) => b.disabled)).toBe(true);
+  });
+  it('a spot saved off-stage (a wider window) renders on-stage, header grabbable', () => {
+    localStorage.setItem('ascent.godmode.panel', JSON.stringify({ x: 3000, y: 2000, collapsed: false, tiers: [], tribes: [] }));
+    const el = show();
+    const panel = el.querySelector<HTMLElement>('.godp')!;
+    expect(parseFloat(panel.style.left)).toBeLessThanOrEqual(window.innerWidth - 120);
+    expect(parseFloat(panel.style.top)).toBeLessThanOrEqual(window.innerHeight - 40);
+    expect(parseFloat(panel.style.left)).toBeGreaterThanOrEqual(0);
+  });
 });

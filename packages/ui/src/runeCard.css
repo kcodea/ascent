@@ -1,16 +1,15 @@
 /* ══ THE RUNE CARD (owner 2026-10-07; built ONLY from the game's existing UI primitives, no drawn props). ════════════
 
-   A tall card tinted to the rune's tribe inside the theme's gold rim (`--ui-edge`). Its TOP is the rune's FULL art,
-   edge to edge inside the rounded top corners ("i want the top half of this to be the full art, with it blurring in
-   a gradient downward"), which blurs and fades into the tribe-tinted body with no edge anywhere:
+   A tall card: one deep navy Gem plate body inside a thin theme-gold rim (`--ui-edge`). Its TOP is the rune's FULL
+   square art, fitted to the card's width ("i want the top half of this to be the full art, with it blurring in a
+   gradient downward"), dissolving into the body with no edge anywhere:
      1 · `.rh-art`  the crisp art, masked opaque at the top to transparent at the bottom of the art box;
-     2 · `.rh-blur` a blurred copy behind it, masked to show only in the transition band, so the lower edge reads as
-         progressively blurred rather than merely faded (wider than the card, so the blur's own transparent rim falls
-         outside the clip and never shows as a side seam);
-   Both fade to nothing over the art's bottom 30% straight onto ONE continuous body background (no band, no element
-   edge), so there is no seam.
-   The art is the whole square image, fitted to the card's width. Below it: the name (on a soft shadow, over the end of the fade), a hairline divider, the rules. The shared
-   Gold coin (#1971) sits centred on the top edge, over the art. A rune rack badge is the round art with a gold rim.
+     2 · `.rh-blur` a blurred copy behind it, masked to show only in the dissolve band, so the lower edge reads as
+         progressively blurred rather than merely faded;
+     3 · `.runecard-hero::after` a navy wash ending in exactly the body colour, so warm stone recedes into navy.
+   The dissolve starts at `--rfl-fade-start` (the Runeforge Look tuner's "Art fade start"). Below the art: the name on a
+   soft shadow, a tribe-colour divider hairline, the rules. The shared Gold coin (#1971) sits centred on the top edge.
+   A rune rack badge is the round art in a gold rim.
      · `--rt`: the rune's accent tribe hue (RuneCard sets it from the tribe gate; neutral for ungated runes).
      · `--rc-deep`: the body, the HUD's deep navy Gem plate, the same on every card (owner 2026-10-07: restraint).
      · `--rt-body`: the tribe ACCENT (keywords, the divider hairline, the hover halo); neutral a soft gold, Dragon a
@@ -150,47 +149,3 @@
 .questbadge.runebadge .questbadge-emblem { color: #ffe3a0; }
 .questbadge.runebadge.runebadge-epic { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 2px #9a62e0, 0 0 0 3px var(--ui-edge-main), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 
-/* ══ FADE STYLES (owner ask 2026-10-07: "the purple looks kinda meh, can you add 5 different blend/blur/gradient
-   styles?"). The Runeforge Look tuner's "Fade style" dial sets `data-rune-fade="2".."5"` on <html>; no attribute = 1.
-   Each changes how the art dissolves and what the body below looks like. All static, all seam-free: the art's own
-   masks always reach zero, and each style's body is what lies under the art where they do.
-     1 · NAVY: the shipped look above (the HUD's navy Gem plate).
-     2 · ART-TINTED: the body is the card's own art, blurred into its colours, darkened and desaturated, so every card's
-         body echoes its art.
-     3 · CHARCOAL: a near-black cool slate, no purple, so the art and gold pop.
-     4 · FROSTED: the whole card is the art behind frosted glass (heavily blurred, darkened), the crisp art on top.
-     5 · EMBER: a deep warm brown-black matching the forge frame's bronze and leather, an ember glow rising from below. */
-.rh-body, .rh-shade { display: none; position: absolute; pointer-events: none; }
-
-/* 2 · Art-tinted */
-:root[data-rune-fade="2"] .runecard { --rc-deep: #0f0b14; --rc-deep-bot: #09070c; }
-:root[data-rune-fade="2"] .rh-body {
-  display: block; left: -20%; width: 140%; top: calc(var(--rc-art-h) * 0.45); bottom: -10%; height: auto; object-fit: cover; object-position: 50% 80%;
-  filter: blur(26px) saturate(0.9) brightness(0.72);
-  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #000 22%); mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #000 22%);
-}
-:root[data-rune-fade="2"] .rh-shade { display: block; inset: 0; background: linear-gradient(180deg, rgba(8, 6, 12, 0) 50%, rgba(8, 6, 12, 0.28) 72%, rgba(8, 6, 12, 0.5) 100%); }
-:root[data-rune-fade="2"] .runecard-hero::after { display: none; }
-
-/* 3 · Charcoal */
-:root[data-rune-fade="3"] .runecard { --rc-deep: #17181d; --rc-deep-bot: #0d0e11; }
-:root[data-rune-fade="3"] .runecard-epic { --rc-deep: #1a1820; }
-
-/* 4 · Frosted glass */
-:root[data-rune-fade="4"] .runecard { --rc-deep: #0c0a10; --rc-deep-bot: #08070b; }
-:root[data-rune-fade="4"] .rh-body {
-  display: block; left: -25%; top: -15%; width: 150%; height: 130%; object-fit: cover; object-position: 50% 50%;
-  filter: blur(30px) saturate(1.15) brightness(0.7);
-}
-:root[data-rune-fade="4"] .rh-shade { display: block; inset: 0; background: linear-gradient(180deg, rgba(10, 8, 16, 0.1) 0%, rgba(10, 8, 16, 0.25) 45%, rgba(10, 8, 16, 0.55) 75%, rgba(10, 8, 16, 0.68) 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
-:root[data-rune-fade="4"] .runecard-hero::after { display: none; }
-
-/* 5 · Ember: the deep warm leather of the forge frame, an ember glow rising from the bottom edge. */
-:root[data-rune-fade="5"] .runecard { --rc-deep: #24160f; --rc-deep-bot: #140c07; }
-:root[data-rune-fade="5"] .runecard-face {
-  background:
-    radial-gradient(90% 32% at 50% 104%, rgba(255, 128, 48, 0.32), rgba(255, 110, 40, 0.1) 55%, rgba(255, 110, 40, 0) 100%) padding-box,
-    linear-gradient(180deg, var(--rc-deep) 0, var(--rc-deep) var(--rc-art-h), var(--rc-deep-bot) 100%) padding-box,
-    var(--ui-edge) border-box;
-}
-:root[data-rune-fade="5"] .runecard-epic { --rc-deep: #26150f; }

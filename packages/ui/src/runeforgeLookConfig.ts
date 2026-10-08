@@ -42,7 +42,6 @@ export interface RuneforgeLookConfig {
   costY: number;        // px
   textY: number;        // px — the card's name + rules block offset below the art (raw px)
   fadeStart: number;    // % — where the card art starts to dissolve, as a share of its height
-  fadeStyle: number;    // 1-5 — how the art dissolves and what the card body looks like (runeCard.css)
 
   // Footer (Re-roll)
   footerY: number;      // u
@@ -74,7 +73,6 @@ const DEFAULTS: RuneforgeLookConfig = {
   costY: -7,
   textY: 26,
   fadeStart: 84,
-  fadeStyle: 1,
 
   footerY: 0,
   footerScale: 1,
@@ -105,7 +103,6 @@ const RANGES: Record<keyof RuneforgeLookConfig, [number, number, number]> = {
   costY: [-40, 40, 1],
   textY: [-60, 80, 1],
   fadeStart: [40, 95, 1],
-  fadeStyle: [1, 5, 1],
 
   footerY: [-200, 200, 1],
   footerScale: [0.5, 2, 0.01],
@@ -120,7 +117,15 @@ let cfg: RuneforgeLookConfig = (() => {
   if (!import.meta.env.DEV) return { ...DEFAULTS };
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<RuneforgeLookConfig>) : {}) };
+    // Only known knobs are taken from a save, so a stale entry (the retired `bgOption` / `fadeStyle`) is ignored.
+    const out = { ...DEFAULTS };
+    if (saved && typeof saved === 'object') {
+      for (const k of Object.keys(DEFAULTS) as (keyof RuneforgeLookConfig)[]) {
+        const v = (saved as Record<string, unknown>)[k];
+        if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+      }
+    }
+    return out;
   } catch {
     return { ...DEFAULTS };
   }
@@ -153,9 +158,6 @@ export function applyRuneforgeLookVars(): void {
   s.setProperty('--rfl-cost-y', String(cfg.costY));
   s.setProperty('--rfl-text-y', String(cfg.textY));
   s.setProperty('--rfl-fade-start', String(cfg.fadeStart));
-  // The fade style is a whole look (its own layers), so it is an attribute on <html>; 1 is the shipped default.
-  if (cfg.fadeStyle > 1) document.documentElement.dataset.runeFade = String(cfg.fadeStyle);
-  else delete document.documentElement.dataset.runeFade;
 
   s.setProperty('--rfl-footer-y', String(cfg.footerY));
   s.setProperty('--rfl-footer-scale', String(cfg.footerScale));
@@ -202,7 +204,6 @@ const controls: TunerControl<Extract<keyof RuneforgeLookConfig, string>>[] = [
   r('costY', 'Cost coin Y', 'Cards Row', 'px', 'Nudge the cost coin up/down.'),
   r('textY', 'Card text offset', 'Cards Row', 'px', 'Moves the rune name, divider and rules down (or up) under the art.'),
   r('fadeStart', 'Art fade start', 'Cards Row', '%', 'How far down the card art stays crisp before it starts to dissolve into the card.'),
-  r('fadeStyle', 'Fade style', 'Cards Row', undefined, 'How the art dissolves into the card body: 1 navy, 2 art-tinted, 3 charcoal, 4 frosted glass, 5 ember.'),
 
   r('footerY', 'Footer Y offset', 'Footer Buttons', 'px', 'Vertical offset of the Re-roll button.'),
   r('footerScale', 'Footer scale', 'Footer Buttons', '×', 'Scales the Re-roll button.'),

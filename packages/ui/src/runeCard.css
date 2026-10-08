@@ -28,7 +28,8 @@
   --rc-deep: var(--ui-plate-mid);
   --rc-deep-bot: var(--ui-plate-bot);
   --rc-art-h: calc(var(--cw) - 4px);                   /* the whole square art, edge to edge inside the 2px rim */
-  position: relative; flex: 0 0 auto; width: var(--cw);
+  /* The TALL card (owner 2026-10-07): the whole square art, then plenty of room for the name and rules. */
+  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.72);
   display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: 0 18px 20px; border: none; background: none; overflow: visible; font-family: var(--font-ui);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);

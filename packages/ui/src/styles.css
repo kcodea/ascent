@@ -2952,7 +2952,7 @@ body.modalup .app { z-index: auto; }
 
 /* ── Runeforge: the look (backdrop, title, Gold, ledge, Re-roll, Inspect toggle) lives in
    runeforgeEntrance/runeforgeLook.css since the 2026-10-07 redesign. Only the shared row sizing stays here. ── */
-.forge-cards { display: flex; gap: calc(var(--rfl-card-gap, 26) * var(--u)); justify-content: center; align-items: stretch; }
+.forge-cards { display: flex; gap: calc(var(--rfl-card-gap, 20) * var(--u)); justify-content: center; align-items: stretch; }
 /* Card size for the Runeforge specifically — the compound selector (both classes) out-specifies the shared
    `.disc-cards` rule above without touching it, so Discover/Quest's own 1.3 stays exactly as shipped. The
    `--rfl-card-scale` default (1.3) reproduces that same multiplier. */

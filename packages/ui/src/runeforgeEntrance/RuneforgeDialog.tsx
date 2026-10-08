@@ -201,7 +201,7 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
             aria-description={rerollSpent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
             data-tip={rerollSpent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
           >
-            <Icon name="refresh" /><span className="rf-rr"><span>Re-roll</span><b className="forge-reroll-cost">Free</b></span>
+            <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
           </button>
         </div>
       </div>

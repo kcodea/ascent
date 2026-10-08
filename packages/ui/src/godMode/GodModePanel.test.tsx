@@ -113,6 +113,20 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     press(el, 'Epic runes');
     expect(el.querySelector('.godp-fly .godp-lh')!.textContent).toBe('Epic runes');
   });
+  it('the header reads GOD MODE; the four list buttons are stacked, one per line, full width', () => {
+    const el = show();
+    expect(el.querySelector('.godp-head .godp-title')!.textContent).toBe('God Mode');
+    const sects = el.querySelector('.godp-sects')!;
+    expect([...sects.children].map((b) => b.className.split(' ')[0])).toEqual(['godp-sect', 'godp-sect', 'godp-sect', 'godp-sect']);
+    expect([...sects.children].map((b) => b.textContent!.replace('▸', ''))).toEqual(['Minions', 'Spells', 'Runes', 'Epic runes']);
+  });
+  it('a shop action that leaves owned runes alone does not change the open rune list', () => {
+    const el = show();
+    press(el, 'Runes');
+    const first = el.querySelector('[aria-label="Runes"] .godp-row');
+    act(() => { useGame.getState().dispatch({ type: 'godPrint', cardId: useGame.getState().run.shop[0]?.cardId ?? 'sandbag' }); });
+    expect(el.querySelector('[aria-label="Runes"] .godp-row')).toBe(first);
+  });
 });
 
 describe('placeGodFlyout', () => {

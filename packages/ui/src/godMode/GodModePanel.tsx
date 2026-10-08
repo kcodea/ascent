@@ -104,7 +104,10 @@ export function GodModePanel() {
     dispatch({ type: 'godGrantRune', runeId: r.id });
     if ((useGame.getState().run.ownedRunes?.length ?? 0) > before) setToast(`Gained ${r.name}`); // only when it landed
   }, [dispatch]);
-  const owned = useCallback((r: RuneRow): boolean => godRuneBlocked(run, r.id), [run]);
+  // Keyed on the OWNED RUNES only (all `godRuneBlocked` reads), not the whole run — so the open rune list re-renders
+  // when a rune is owned, not on every shop action. Reads the store's run at call time, which is this render's run.
+  const ownedKey = (run.ownedRunes ?? []).join('|');
+  const owned = useCallback((r: RuneRow): boolean => godRuneBlocked(useGame.getState().run, r.id), [ownedKey]);
   const setMinionQ = useCallback((v: string) => setQ((c) => ({ ...c, minions: v })), []);
   const setSpellQ = useCallback((v: string) => setQ((c) => ({ ...c, spells: v })), []);
   const setRuneQ = useCallback((v: string) => setQ((c) => ({ ...c, runes: v })), []);

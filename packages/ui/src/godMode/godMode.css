@@ -19,23 +19,28 @@
   border: 2px solid transparent; border-radius: 14px; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
   font-family: var(--font-ui); box-shadow: 0 22px 50px -14px rgb(0 0 0 / 0.85); }
 .godp.collapsed { width: calc(160 * var(--u)); }
-.godp-head { display: flex; align-items: center; justify-content: space-between; padding: calc(8 * var(--u)) calc(12 * var(--u)); touch-action: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, move; }
-.godp-title { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(12 * var(--u)); color: var(--ui-title); }
+/* Header + a divider under it (owner 2026-10-08: "have the god mode text much larger, create a horizontal line separating it"). */
+.godp-head { display: flex; align-items: center; justify-content: space-between; padding: calc(10 * var(--u)) calc(14 * var(--u)); border-bottom: 1px solid var(--ui-chip-edge); touch-action: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, move; }
+.godp-title { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(24 * var(--u)); line-height: 1.1; color: var(--ui-title); }
+.godp.collapsed .godp-head { border-bottom: 0; }
 .godp-fold { background: none; border: 0; color: var(--ui-muted); font-size: calc(12 * var(--u)); }
-.godp-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); padding: 0 calc(12 * var(--u)) calc(12 * var(--u)); }
+.godp-body { display: flex; flex-direction: column; gap: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u)); }
+/* A divider between each section: Tier Filter | Tribe Filter | the list buttons. Static 1px theme line. */
+.godp-filter + .godp-filter, .godp-filter + .godp-sects { border-top: 1px solid var(--ui-chip-edge); padding-top: calc(10 * var(--u)); }
 .godp-chips { display: flex; flex-wrap: wrap; gap: calc(4 * var(--u)); }
 .godp-chip { padding: calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
   color: var(--ui-chip-text); font-family: inherit; font-size: calc(11 * var(--u)); font-weight: 700; }
 .godp-chip.on { border-color: var(--ui-title); color: var(--ui-title); }
 .godp-list { display: flex; flex-direction: column; gap: calc(6 * var(--u)); flex: 1 1 auto; min-height: 0; }
 /* The four section buttons (Minions / Spells / Runes / Epic runes); the open one reads pressed. */
-.godp-sects { display: grid; grid-template-columns: 1fr 1fr; gap: calc(6 * var(--u)); }
-.godp-sect { display: flex; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); padding: calc(7 * var(--u)) calc(10 * var(--u));
-  border-radius: 9px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-title); font-family: inherit;
-  font-size: calc(12.5 * var(--u)); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
+/* The four list buttons, each on its own full-width line (owner: "wider and taller"). */
+.godp-sects { display: flex; flex-direction: column; gap: calc(8 * var(--u)); }
+.godp-sect { display: flex; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); width: 100%; min-height: calc(40 * var(--u)); padding: calc(8 * var(--u)) calc(14 * var(--u));
+  border-radius: 10px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-title); font-family: inherit;
+  font-size: calc(15 * var(--u)); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
 .godp-sect:hover { border-color: var(--ui-title); }
 .godp-sect.on { border-color: var(--ui-title); background: var(--ui-hover-mid); box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.45); }
-.godp-sect-arrow { color: var(--ui-muted); font-size: calc(10 * var(--u)); }
+.godp-sect-arrow { color: var(--ui-muted); font-size: calc(13 * var(--u)); }
 .godp-sect.on .godp-sect-arrow { color: var(--ui-title); }
 /* The SIDE WINDOW: one list beside the panel (seated + max-height set from JS in stage px); only its rows scroll. */
 .godp-fly { position: fixed; z-index: 455; width: calc(300 * var(--u)); display: flex; flex-direction: column; padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u));

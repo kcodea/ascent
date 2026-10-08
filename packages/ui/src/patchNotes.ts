@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-08',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed: Rune of the Undertow now Wards the first 4 minions summoned in every combat. Before, summons that could not fit on a full board used up its Wards, so it often seemed to stop working.',
+      },
+    ],
+  },
+  {
     date: '2026-10-07',
     changes: [
       { category: 'Systems', text: 'Runes and the Runeforge have a cleaner new look: full rune art on every card, larger text, and a calmer hover. The small lightning badge on top of rune cards is gone.' },

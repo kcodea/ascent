@@ -111,4 +111,32 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-06',
     },
   },
+  {
+    id: 'R-UNDERTOW-LANDED-01',
+    title: 'Rune of the Undertow wards the first N bodies that LAND, with a fresh allowance every combat, on both sides',
+    statement:
+      'Rune of the Undertow ("The first 4 minions summoned in combat gain Ward") gives Ward to the first 4 friendly '
+      + 'bodies that actually enter play in EACH combat, every round, for whichever side holds it (your own run or a '
+      + 'served snapshot / ghost). The allowance is per fight and per side; it never carries between fights. Copies stack '
+      + 'their allowances (two copies = 8 a combat). A summon that does not fit on a full board (an overflow) was never '
+      + 'summoned: it takes no Ward, spends nothing from the allowance and does not pulse the rune. An attack-on-summon '
+      + 'body that is queued and then overflows when it lands hands its Ward back. A body that already has a Ward costs '
+      + 'nothing, and a Rise or Rebirth return counts as one summon (R-SUMMON-RETURN-01).',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-08 (Rune of the Undertow)', quote: "rune of the undertow needs to work every round, i think it's only working for 4 total uses" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts applyCombatSummonGrants (Undertow block: overflowsNow / capJudgedElsewhere) + placeSummon overflow branch (undertowWarded refund); per-fight undertowUsed' },
+    ],
+    contentIds: ['rune_undertow'],
+    currentBehaviour:
+      'Conforms as of 2026-10-08. Before: the allowance was already per fight, but the Ward was granted (and the '
+      + 'allowance spent) BEFORE the board-cap check, so on a full token board the overflowed bodies ate all 4 Wards '
+      + 'and the bodies that did land arrived bare in every fight, which read as "only 4 total uses".',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/undertowEveryCombat.test.ts', 'packages/sim/src/undertowEveryRound.test.ts'],
+      lastVerifiedAt: '2026-10-08',
+    },
+  },
 ];

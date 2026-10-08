@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The Settings menu has a new look: the navy and gold of the main menu and Career page, with bigger section headings. Combat speed is now the first section.',
+      },
+      {
+        category: 'Systems',
         text: 'Rise now reads "Returns once when destroyed with 1 health." Rules text no longer says "printed stats" anywhere.',
         details: [
           'The Rise keyword pill, glossary and Rules entries use the new line. How Rise works is unchanged: the minion comes back once as a fresh copy with 1 Health.',

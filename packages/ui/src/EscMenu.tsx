@@ -110,6 +110,29 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             <span className="ebs">Saves this exact moment and returns to the menu. Continue picks up right here.</span>
           </button>
         )}
+        {/* COMBAT leads the settings (owner ask 2026-10-08): the speed is the one players reach for mid-run. */}
+        <div className="escsec">Combat</div>
+        <div className="escvol">
+          <span className="evl">{combatRampUp ? 'Start speed' : 'Speed'}</span>
+          <input
+            type="range"
+            min={0.5}
+            max={5}
+            step={0.1}
+            value={combatSpeed}
+            aria-label="Combat replay speed"
+            onChange={(e) => setCombatSpeed(Number(e.target.value))}
+          />
+          <span className="evv">{combatSpeed.toFixed(1)}×</span>
+        </div>
+        <button
+          className={`escbtn pressable${combatRampUp ? ' on' : ''}`}
+          onPointerDown={() => { setCombatRampUp(!combatRampUp); sfx.pulse(); }}
+          aria-pressed={combatRampUp}
+        >
+          <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
+          <span className="ebs">Long fights speed up, then ease back down for the finish</span>
+        </button>
         <div className="escsec">Audio</div>
         {/* THREE CHANNELS behind one button (owner ask 2026-09-23): "Game sounds" is the SFX master (sfx.ts),
             "Music" the lobby background music's level (music.ts), "Announcer" the voice lines' level
@@ -158,28 +181,6 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             />
           </div>
         )}
-        <div className="escsec">Combat</div>
-        <div className="escvol">
-          <span className="evl">{combatRampUp ? 'Start speed' : 'Speed'}</span>
-          <input
-            type="range"
-            min={0.5}
-            max={5}
-            step={0.1}
-            value={combatSpeed}
-            aria-label="Combat replay speed"
-            onChange={(e) => setCombatSpeed(Number(e.target.value))}
-          />
-          <span className="evv">{combatSpeed.toFixed(1)}×</span>
-        </div>
-        <button
-          className={`escbtn pressable${combatRampUp ? ' on' : ''}`}
-          onPointerDown={() => { setCombatRampUp(!combatRampUp); sfx.pulse(); }}
-          aria-pressed={combatRampUp}
-        >
-          <span className="ebl">Auto-ramp speed{combatRampUp ? ' ✓' : ''}</span>
-          <span className="ebs">Long fights speed up, then ease back down for the finish</span>
-        </button>
         {/* One switch for EVERY opponent cosmetic (2026-09-28): their skins and, since hero attacks became cosmetics,
             the attack they strike you with. Same stored setting (`showOpponentSkins`), renamed to say so. */}
         <div className="escsec">Cosmetics</div>

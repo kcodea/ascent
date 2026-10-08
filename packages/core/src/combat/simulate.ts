@@ -1715,6 +1715,12 @@ export function simulate(
       // permanent". `castInCombat` reports each finished repetition with the spell it cast; only a Shop-POOL
       // spell of this side's set (Ales included) wakes the spell-identity watchers.
       if (!isShopPoolSpell(cards[spellId], ctx.poolCards(side))) return;
+      // RUNE OF SHARED SCRIPTURE (owner bug 2026-10-07: "this rune is not working at all"): the warband's FIRST
+      // Shop-spell cast in a fight fires the left-most Shout and the left-most Rally. It listens HERE, the per-cast
+      // chokepoint EVERY combat caster reports through (`castInCombat`), not inside `resolveCombatSpellCast`, which
+      // only some casters reach: Fatecarver / Taragosa / Hoardbreaker's Growth, Watcher's Lantern of Souls, Spell
+      // Drummer and friends cast real Shop spells without it, so the rune never heard them (R-SCRIPTURE-01).
+      sharedScripture(side);
       // RUNE OF RUBYWIRE (owner 2026-09-25): a Shop spell cast in combat (any caster) casts a Ruby on 2 random
       // friendly Kobolds, once per copy held. The same Shop-spell test Goldilox reads (R-SHOPSPELL-01).
       if (modsFor(side).runeRubywire) {
@@ -1762,27 +1768,6 @@ export function simulate(
     spellCastRepsFor: (side) => 1 + spellCastExtra[side],
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
     lastSpellCastFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellCastId,
-    onCombatSpellCast: (side) => {
-      // RUNE OF SHARED SCRIPTURE: the warband's FIRST Shop-spell cast in a fight fires the left-most Shout and
-      // the left-most Rally. Reported from `resolveCombatSpellCast`, so it counts a cast that actually
-      // RESOLVED — a fizzled aim (no legal target) is not a cast, and must not spend the rune.
-      if (!modsFor(side).runeSharedScripture || scriptureSpent[side]) return;
-      const shout = living(side).find((m) => m.effects.some((e) => e.on === 'onPlay'));
-      const rally = living(side).find((m) => canRally(m));
-      if (!shout && !rally) return;
-      scriptureSpent[side] = true;
-      nextStep(); fireTrigger('runeSharedScripture', side);
-      if (shout) {
-        // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the rune's forced Shout folds the
-        // Battlecry multipliers (Drakko) like every other combat Shout re-fire (Ryme / Sovereign / Dawnclaw).
-        // R-SHOUT-TRIGGER-01: a forced Shout is a Shout. It fires through the shared combat Shout path (`fireShout`:
-        // a counted `shout` beat, the side's Shout extras, `battlecryTriggered` per fire), never a hand-rolled loop,
-        // so the Choir, the charges, the Shout tally and every Shout watcher hear it.
-        const reps = drakkoRepeats(ctx, side);
-        for (let r = 0; r < reps; r++) fireShout(ctx, shout, shout);
-      }
-      if (rally) fireFreeRally(rally, side);
-    },
     rememberedSpellsFor: (side) => (side === 'player' ? playerState : enemyState).rememberedSpellIds ?? [],
     resummonDeadBeasts: (side, count, excludeUid) => {
       // Earliest-first, skipping the caller's own corpse ("other Beasts") and anything already brought back,
@@ -3643,6 +3628,29 @@ export function simulate(
   const spareChairUsed: Record<Side, number> = { player: 0, enemy: 0 }; // qualifying summons paid (one per Spare Chair copy)
   const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
   const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
+  /** RUNE OF SHARED SCRIPTURE: once per side per fight, on the first Shop-spell cast (`spellResolved`). The
+   *  left-most minion WITH a Shout Shouts and the left-most minion WITH a Rally Rallies (they may be two bodies;
+   *  the Rune of Rallying / War Chorus "left-most" convention). Latched BEFORE firing, so a Shout that itself casts
+   *  a spell cannot re-enter. One fire of each per copy held (boolean-flag family, owner 2026-08-27). */
+  function sharedScripture(side: Side): void {
+    if (!modsFor(side).runeSharedScripture || scriptureSpent[side]) return;
+    const shout = living(side).find((m) => m.effects.some((e) => e.on === 'onPlay'));
+    const rally = living(side).find((m) => canRally(m));
+    if (!shout && !rally) return;
+    scriptureSpent[side] = true;
+    nextStep(); fireTrigger('runeSharedScripture', side);
+    for (let k = 0; k < flagCopiesOf(side, 'runeSharedScripture'); k++) {
+      if (shout && !shout.dead && shout.health > 0) {
+        // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the forced Shout folds the Battlecry
+        // multipliers (Drakko). R-SHOUT-TRIGGER-01: a forced Shout is a Shout, fired through the shared `fireShout`
+        // (a counted `shout` beat, the side's Shout extras, `battlecryTriggered` per fire), never a hand-rolled loop.
+        const reps = drakkoRepeats(ctx, side);
+        for (let r = 0; r < reps; r++) fireShout(ctx, shout, shout);
+      }
+      // R-RALLY-FORCED-01: `fireFreeRally` folds Uron / Elderhorn and the additive Rally doublers itself.
+      if (rally && !rally.dead && rally.health > 0) fireFreeRally(rally, side);
+    }
+  }
   // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): an UNSPENT War Drum charge applies to the FIRST Shout
   // triggered in combat, and unspent Warm Embers double-charges apply to the next N. Per side, so a served
   // rival whose snapshot carried its own unspent charges gets them too. Spend trackers live here (per-combat),

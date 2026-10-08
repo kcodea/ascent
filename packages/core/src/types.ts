@@ -3982,8 +3982,6 @@ export interface CombatContext {
   grantSpellCastExtra?(side: Side, n: number): void;
   /** The card id of the LAST Shop spell this side's owner cast, if any (Sporebat's stored spell). */
   lastSpellCastFor?(side: Side): string | undefined;
-  /** Rune of Shared Scripture's hook — every resolved combat Shop-spell cast reports itself here. */
-  onCombatSpellCast?(side: Side): void;
   /** Rune of the Broodmaster — does a Broodwright on this side also buff itself? (mirrors `groveweaverSelfFor`) */
   broodmasterSelfFor?(side: Side): boolean;
   /** Rune of the Flooded Vault — does Water Dragon's Avenge also cast the left-most hand spell? */

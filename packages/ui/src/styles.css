@@ -803,7 +803,6 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .statcell.tier[data-tier='7'] .sc-v { color: var(--tier-7); }
 /* Time cell — smaller tabular digits; fills red-tinted in the final 5s. */
 .statcell.time .sc-v { font-size: calc(21 * var(--u)); }
-}
 /* GAUNTLET: before the clock starts, the plaque shows Gold spent this round filling toward the 30 that starts it.
    The fill scales on the compositor (transform), with a one-shot ease per purchase. */
 .statcell.time .gclock { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); }

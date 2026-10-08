@@ -3,13 +3,14 @@
 --
 -- Cost: the candidate set is narrowed through `boards_wave_patch_idx` (round + build-version prefix), and the
 -- sample is drawn ID-FIRST: only the candidate ids are collected, one is picked uniformly, and only that row's
--- snapshot is returned. It never sorts snapshots (`order by random()` over whole rows would).
+-- snapshot is returned. It never sorts snapshots (`order by random()` over whole rows would). VOLATILE because it
+-- calls random() (the client calls it as a plain POST RPC).
 
 create index if not exists boards_wave_patch_idx on public.boards (wave, patch text_pattern_ops);
 
 create or replace function public.god_board_sample(p_wave int, p_set text, p_patch_prefix text default null)
 returns jsonb
-language sql stable set search_path = public as $$
+language sql volatile set search_path = public as $$
   with c as (
     select array_agg(b.id) as ids
     from public.boards b
@@ -22,9 +23,10 @@ language sql stable set search_path = public as $$
                then jsonb_array_length(b.snapshot->'minions') > 0
                else false end
   )
+  -- The pick is drawn ONCE (an uncorrelated scalar subquery), then looked up by primary key. Null when no candidates.
   select x.snapshot
-  from c
-  join public.boards x on x.id = c.ids[1 + floor(random() * cardinality(c.ids))::int]
+  from public.boards x
+  where x.id = (select c.ids[1 + floor(random() * cardinality(c.ids))::int] from c)
 $$;
 
 grant execute on function public.god_board_sample(int, text, text) to anon, authenticated;

@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-08',
     changes: [
       {
+        category: 'Systems',
+        text: 'Fixed: Rune of the Undertow and Rune of the Food Chain now only count minions that actually land on the board. Summons that could not fit on a full board used to use them up.',
+        details: [
+          'Rune of the Undertow: the first 4 minions that land in each combat gain Ward, every round. Before, it often seemed to stop working on a full board.',
+          'Rune of the Food Chain: the first minion that actually lands gains the stats of your left-most Demon. A summon that could not fit no longer wastes it.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Flo Rida now reads "give it +5/+5 and permanently improve this." Its growth lasts the whole game and never resets between rounds, including growth from Beasts summoned in combat.',
         details: [

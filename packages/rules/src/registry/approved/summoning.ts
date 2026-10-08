@@ -111,4 +111,61 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-06',
     },
   },
+  {
+    id: 'R-UNDERTOW-LANDED-01',
+    title: 'Rune of the Undertow wards the first N bodies that LAND, with a fresh allowance every combat, on both sides',
+    statement:
+      'Rune of the Undertow ("The first 4 minions summoned in combat gain Ward") gives Ward to the first 4 friendly '
+      + 'bodies that actually enter play in EACH combat, every round, for whichever side holds it (your own run or a '
+      + 'served snapshot / ghost). The allowance is per fight and per side; it never carries between fights. Copies stack '
+      + 'their allowances (two copies = 8 a combat). A summon that does not fit on a full board (an overflow) was never '
+      + 'summoned: it takes no Ward, spends nothing from the allowance and does not pulse the rune. An attack-on-summon '
+      + 'body that is queued and then overflows when it lands hands its Ward back. A body that already has a Ward costs '
+      + 'nothing, and a Rise or Rebirth return counts as one summon (R-SUMMON-RETURN-01).',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-08 (Rune of the Undertow)', quote: "rune of the undertow needs to work every round, i think it's only working for 4 total uses" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts applyCombatSummonGrants (Undertow block: overflowsNow / capJudgedElsewhere) + placeSummon overflow branch (undertowWarded refund); per-fight undertowUsed' },
+    ],
+    contentIds: ['rune_undertow'],
+    currentBehaviour:
+      'Conforms as of 2026-10-08. Before: the allowance was already per fight, but the Ward was granted (and the '
+      + 'allowance spent) BEFORE the board-cap check, so on a full token board the overflowed bodies ate all 4 Wards '
+      + 'and the bodies that did land arrived bare in every fight, which read as "only 4 total uses".',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/undertowEveryCombat.test.ts', 'packages/sim/src/undertowEveryRound.test.ts'],
+      lastVerifiedAt: '2026-10-08',
+    },
+  },
+  {
+    id: 'R-FOODCHAIN-LANDED-01',
+    title: 'Rune of the Food Chain feeds the first summon that LANDS, never an overflow',
+    statement:
+      'Rune of the Food Chain ("The first minion you summon in combat gains the stats of your left-most Demon") is '
+      + 'spent only by the first friendly body that actually lands on the board in that combat. A summon lost to the '
+      + '7-slot cap (an overflow) is not the first summon: it takes nothing and spends nothing. An attack-on-summon body '
+      + 'that took the chance when it queued and then overflows when it lands hands the chance back, so the next body '
+      + 'that lands is fed. A Rise or Rebirth return always lands and counts as a summon (R-SUMMON-RETURN-01). One '
+      + 'chance per combat per side, read from the left-most living Demon at that moment, x copies held.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling, 2026-10-08 (Rune of the Food Chain, on the Undertow fix)', quote: 'this should only work on first actual summon on board, not an overflow' },
+      { kind: 'owner-chat', ref: 'Owner ruling, 2026-10-08 (same review, given separately for Rune of Packcraft and for Rune of the Hatchery)', quote: 'this is fine' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts applyCombatSummonGrants (Food Chain block: overflowsNow) + placeSummon overflow branch (foodChainTaken refund)' },
+    ],
+    contentIds: ['rune_food_chain'],
+    currentBehaviour:
+      'Conforms as of 2026-10-08. Before: the chance was spent in applyCombatSummonGrants, before the board-cap check, '
+      + 'so a summon onto a full board used it up and the first body that really landed came in plain. Rune of '
+      + 'Packcraft (an overflow still grows its level) and Rune of the Hatchery (an overflow still pulses) keep their '
+      + 'behaviour by owner ruling ("this is fine").',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/foodChainLanded.test.ts'],
+      lastVerifiedAt: '2026-10-08',
+    },
+  },
 ];

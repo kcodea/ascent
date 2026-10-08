@@ -1906,7 +1906,10 @@ export function simulate(
     // dead weight for every summon line that isn't a Deathrattle — Start-of-Combat fills, Rally summons,
     // token generators. Now it covers every combat summon, matching Rune of the Undertow just below (which
     // grants Ward on the same "summoned in combat" scope).
-    const summonGrant = applyCombatSummonGrants(minion, side);
+    // `deferred`: this body will queue and be judged against the board cap at LAND time (flushImmediateAttacks),
+    // not now. Every other summon is placed inline just below, so the cap it meets is the one standing right now.
+    const deferredLanding = !!card.attackOnSummon || attackNow || (!!modsFor(side).gemheartCharge && card.id === 'gemheart-shard');
+    const summonGrant = applyCombatSummonGrants(minion, side, deferredLanding);
     if (summonGrant.attackNow) attackNow = true;
     if (summonGrant.ward) grantKeywords = [...(grantKeywords ?? []), 'DS'];
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
@@ -1990,7 +1993,7 @@ export function simulate(
    * Returns the two grants the caller must place itself: `attackNow` (Spare Chair: the body strikes the instant
    * it lands) and `ward` (Spare Chair's Ward, which a normal summon applies through `grantKeywords`).
    */
-  function applyCombatSummonGrants(minion: Minion, side: Side): { attackNow: boolean; ward: boolean } {
+  function applyCombatSummonGrants(minion: Minion, side: Side, capJudgedElsewhere = false): { attackNow: boolean; ward: boolean } {
     const out = { attackNow: false, ward: false };
     const hatch = modsFor(side).runeHatchery;
     if (hatch) {
@@ -2039,8 +2042,15 @@ export function simulate(
     // the side's left-most LIVING Demon, read at this moment (its current Attack/Health) — no longer captured
     // at Start of Combat. First summon only: a summon with no living Demon spends the one chance and pays
     // nothing, which is what the text says. The captured stats land × copies held (boolean-flag family).
-    if (modsFor(side).runeFoodChain && !foodChainUsed[side]) {
+    //
+    // LANDED SUMMONS ONLY (owner 2026-10-08: "this should only work on first actual summon on board, not an
+    // overflow"; R-FOODCHAIN-LANDED-01): a summon lost to the 7-slot cap is not the first summon and does not spend
+    // the chance — the same gate as Rune of the Undertow below. A deferred (attack-on-summon) body that took it and
+    // then overflows at land time hands it back in `placeSummon`. A Rise / Rebirth return always lands.
+    const overflowsNow = !capJudgedElsewhere && !out.attackNow && occupied(side) >= 7;
+    if (modsFor(side).runeFoodChain && !foodChainUsed[side] && !overflowsNow) {
       foodChainUsed[side] = true;
+      foodChainTaken.add(minion);
       // `m !== minion`: a returning Demon (Rise / Rebirth) is already back on the board — it never feeds itself.
       const demon = boards[side].find((m) => m !== minion && !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe));
       if (demon) {
@@ -2056,10 +2066,19 @@ export function simulate(
     // RUNE OF THE UNDERTOW — capped at 4 Wards a combat (owner ruling 2026-08-08; it was unbounded, so a
     // token engine warded its whole cascade). Per side and per fight, counting only the bodies that actually
     // TAKE a Ward: a summon that already had one costs nothing from the allowance.
+    //
+    // ONLY BODIES THAT ACTUALLY LAND (owner bug 2026-10-08: "rune of the undertow needs to work every round, i think
+    // it's only working for 4 total uses"; R-UNDERTOW-LANDED-01). A summon onto a FULL board is lost
+    // (`summonOverflow`), so it was never "summoned" and must not spend the allowance. It used to: a 7-wide token
+    // board burned all 4 Wards on overflowed tokens, so the bodies that did land arrived bare, fight after fight.
+    // An inline summon meets the cap right now, so a full board skips it here (no Ward, no pulse). A deferred one
+    // (attack-on-summon queue) is judged when it lands; `placeSummon` refunds its Ward if it overflows then. A
+    // Rise / Rebirth return always lands (its body still holds its own slot), so it passes `capJudgedElsewhere`.
     const undertow = modsFor(side).runeUndertow;
-    if (undertow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
+    if (undertow && !overflowsNow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
       fireTrigger('runeUndertow', side);
       undertowUsed[side] += 1;
+      undertowWarded.add(minion);
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
     }
@@ -2072,7 +2091,7 @@ export function simulate(
    *  Ground, then the foe's Containment pin — all BEFORE the `reborn` event, which carries the resulting body.
    *  Returns whether the body must strike the instant it lands (the caller queues it after `reborn`). */
   function returnSummonGrants(minion: Minion): { attackNow: boolean } {
-    const g = applyCombatSummonGrants(minion, minion.side);
+    const g = applyCombatSummonGrants(minion, minion.side, true); // a return already holds its slot: it always lands
     if (g.ward) {
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
@@ -2122,6 +2141,12 @@ export function simulate(
     const fromHand = pendingHandSummon[side];
     pendingHandSummon[side] = false; // consumed by THIS placement, landed or not
     if (occupied(side) >= 7) {
+      // Rune of the Undertow: a deferred body that took a Ward at queue time but never landed gives it back
+      // (R-UNDERTOW-LANDED-01) — the allowance counts bodies that were really summoned.
+      if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
+      // Rune of the Food Chain: likewise, a deferred body that never landed was not the first summon
+      // (R-FOODCHAIN-LANDED-01) — the chance re-opens for the next body that does land.
+      if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
       bus.emit('summonOverflow', { side });
       // Rune of Overflow: a summon that does not fit buffs your whole board PERMANENTLY. Buffed live here so it
       // matters this fight, and banked for the carry-back so it survives the settle — the word "permanently" is
@@ -2490,6 +2515,8 @@ export function simulate(
   /** Rune of the Food Chain: has this side's FIRST summon already happened? The rune reads the left-most living
    *  Demon's stats at that moment (owner rework 2026-09-23; it used to capture them at Start of Combat). */
   const foodChainUsed: Record<Side, boolean> = { player: false, enemy: false };
+  /** The body that spent this side's Food Chain chance, so a deferred one that overflows can hand it back. */
+  const foodChainTaken = new WeakSet<Minion>();
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *
@@ -3670,7 +3697,11 @@ export function simulate(
     player: modsFor('player').shoutDoubleCharges ?? 0,
     enemy: modsFor('enemy').shoutDoubleCharges ?? 0,
   };
-  const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 }; // Rune of the Undertow's 4-Ward budget
+  // Rune of the Undertow's Ward budget — PER FIGHT and per side (a fresh allowance every combat, both sides), spent
+  // only by bodies that land (R-UNDERTOW-LANDED-01). `undertowWarded` remembers which bodies took one, so a deferred
+  // summon that overflows at land time can refund it.
+  const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  const undertowWarded = new WeakSet<Minion>();
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side; reclaim?: { gain?: number; bonds?: boolean; label: string } }[] = [];
   // ANCIENT OF WAR × Brackus: Start-of-Combat Tier 7 copies waiting for room. Summoned from the source's body as it

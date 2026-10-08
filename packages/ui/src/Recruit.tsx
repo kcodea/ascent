@@ -80,7 +80,7 @@ import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
-import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult } from './goldClock';
+import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult, shopClockInfinite } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -1209,7 +1209,8 @@ export function Recruit() {
   // NORMAL rules (2026-09-09) the sandbox runs the REAL clock — 1×, not the practice multiplier, since the point
   // of the switch is to feel the shipped pace.
   // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
-  const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
+  // GOD MODE (owner 2026-10-08) has no clock either, independent of the DEV rules preference (`shopClockInfinite`).
+  const infiniteClock = shopClockInfinite(run, sbRules) || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
   // THE GOLD FUSE (goldClock.ts): every LOBBY turn and every Practice turn (R-TIMER-FUSE-01: 10 Gold, then this
   // round's standard seconds, times Practice's 1-4x) and every GAUNTLET round (R-GAUNTLET-04: 30 Gold, then 60 s)
@@ -7611,7 +7612,8 @@ export function Recruit() {
       {/* A GAUNTLET run is a 2-seat table against one authored foe: no rail at all, just the opponent's emblem
           portrait + name floating on the right (round / 10 + the Gauntlet cap under it), nothing to scout
           (GauntletFoe.tsx; owner ask 2026-09-29). */}
-      {run.lobby && (run.mode === 'gauntlet'
+      {/* GOD MODE (owner 2026-10-08): the background table is invisible — the player picks each round's foe. */}
+      {run.lobby && !run.godMode && (run.mode === 'gauntlet'
         ? <GauntletFoe />
         : <LobbyPanel lobby={run.lobby} />)}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away

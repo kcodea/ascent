@@ -61,14 +61,15 @@ export interface MusicStateLike {
   heroChoices: string[] | null;
   practiceSetupOpen: boolean;
   replaying: boolean;
-  run: { mode?: string | undefined; sandbox?: boolean | undefined; seed: number };
+  run: { mode?: string | undefined; sandbox?: boolean | undefined; godMode?: true | undefined; seed: number };
 }
 
 /** The pure gate: true exactly while a lobby-mode run is on screen (see the header). */
 export function isMusicWanted(s: MusicStateLike): boolean {
   if (isPreRun(s) || s.replaying) return false;
   const run = s.run;
-  if (run.sandbox) return false;
+  // GOD MODE (owner 2026-10-08) is a player-facing practice game on the sandbox flag: it keeps its music.
+  if (run.sandbox && run.godMode !== true) return false;
   return run.mode === 'lobby' || run.mode === 'practice' || run.mode === 'gauntlet';
 }
 

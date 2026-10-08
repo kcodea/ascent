@@ -115,6 +115,8 @@ const MENU_SFX_SKIP = '[data-nohoversfx], .devmenu, .desk, .heropowerbtn, .frzwr
 export function Game() {
   const phase = useGame((s) => s.run.phase);
   const sandbox = useGame((s) => s.run.sandbox);
+  // GOD MODE (owner 2026-10-08) rides the sandbox flag, but the DEV rig's panels never mount over it.
+  const godMode = useGame((s) => s.run.godMode === true);
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
   const toggleBook = useGame((s) => s.toggleBook);
@@ -508,7 +510,7 @@ export function Game() {
       {import.meta.env.DEV && <EditorOverlay />}
       {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). While
           the Stage Builder (Gauntlet authoring) is open, its board canvas + panel take the Scene Builder's place. */}
-      {SandboxDevPanels && sandbox && <Suspense fallback={null}><SandboxDevPanels /></Suspense>}
+      {SandboxDevPanels && sandbox && !godMode && <Suspense fallback={null}><SandboxDevPanels /></Suspense>}
       {/* Bug-scenario report side panel (PR 4) — mounts with a loaded scenario. Independent of `sandbox`:
           a content-mismatch load is READ-ONLY (the run is never entered), but its evidence still shows. */}
       {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}

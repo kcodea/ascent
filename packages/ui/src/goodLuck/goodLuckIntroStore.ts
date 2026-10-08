@@ -54,6 +54,7 @@ export function useGoodLuckIntroSeq(): number {
 export interface GoodLuckRunSlice {
   mode?: string;
   sandbox?: boolean;
+  godMode?: true | undefined;
   wave: number;
 }
 
@@ -68,7 +69,8 @@ export interface GoodLuckRunSlice {
  */
 export function shouldPlayGoodLuckIntro(run: GoodLuckRunSlice | null | undefined, opts: { replaying?: boolean } = {}): boolean {
   if (!run || opts.replaying) return false;
-  if (run.sandbox) return false;
+  // GOD MODE (owner 2026-10-08) rides the sandbox flag but is a real player game start: it keeps the intro.
+  if (run.sandbox && run.godMode !== true) return false;
   if (run.mode !== 'lobby' && run.mode !== 'practice' && run.mode !== 'gauntlet') return false;
   return run.wave === 1;
 }

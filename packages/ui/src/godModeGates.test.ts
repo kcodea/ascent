@@ -35,4 +35,11 @@ describe('God Mode gates', () => {
     expect(r).toContain('godMode={run.godMode === true}');
     expect(r).toContain("{mode !== 'tutorial' && !godMode && (");
   });
+  it('hides the combat ROUND label in God Mode (the player picks each fight\'s round, so it means nothing)', () => {
+    const r = src('Recruit.tsx');
+    expect(r).toContain('godMode={run.godMode === true}'); // ShopControls' godMode prop is run.godMode
+    expect(r).toContain('{inCombat && !godMode && <CombatRoundLabel round={combatRoundNo} />}');
+    // No other mount of the label bypasses the gate.
+    expect(r.match(/<CombatRoundLabel\b/g)).toHaveLength(1);
+  });
 });

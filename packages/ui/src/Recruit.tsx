@@ -8148,8 +8148,10 @@ const ShopControls = memo(function ShopControls({
       )}
 
       {/* ROUND X — white, top-centre, just above the Skip button (owner ask 2026-09-25). Mounted for the WHOLE
-          fight (replay + settled screen), so it stays after Skip unmounts. Shares Skip's stage anchor in CSS. */}
-      {inCombat && <CombatRoundLabel round={combatRoundNo} />}
+          fight (replay + settled screen), so it stays after Skip unmounts. Shares Skip's stage anchor in CSS.
+          Hidden in God Mode: the player picks each fight's round there, so the label means nothing (owner
+          2026-10-08, R-GODMODE-06). */}
+      {inCombat && !godMode && <CombatRoundLabel round={combatRoundNo} />}
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}

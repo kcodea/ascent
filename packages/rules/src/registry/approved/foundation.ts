@@ -4851,21 +4851,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-GODMODE-06',
-    title: 'The God Mode panel shows only in the shop; the lobby rail and DEV panels never show in God Mode',
+    title: 'The God Mode panel shows only in the shop; the lobby rail, the combat ROUND label and DEV panels never show in God Mode',
     statement:
       'The God Mode panel appears only during the shop, never during a fight. A God Mode game never shows the lobby '
-      + 'rail, and the developer Scene Builder and Stage Builder panels never appear over it. Music and the good-luck '
-      + 'intro play as in a normal game.',
+      + 'rail, never shows the "ROUND X" label at the top of a fight (the player picks each fight\'s round, so it '
+      + 'means nothing there), and the developer Scene Builder and Stage Builder panels never appear over it. Music '
+      + 'and the good-luck intro play as in a normal game.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'yes, the panel should not be visible during the fight phase' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'yes, hide the lobby rail.' },
-      { kind: 'code', ref: 'packages/ui/src/godMode/GodModePanel.tsx (renders nothing outside recruit); packages/ui/src/Game.tsx (SandboxDevPanels gated on !godMode); packages/ui/src/Recruit.tsx (lobby rail gated on !run.godMode); packages/ui/src/music.ts; packages/ui/src/goodLuck/goodLuckIntroStore.ts' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode feedback)', quote: 'we can remove the round 1-15 text up top during the combat phase. its not important here' },
+      { kind: 'code', ref: 'packages/ui/src/godMode/GodModePanel.tsx (renders nothing outside recruit); packages/ui/src/Game.tsx (SandboxDevPanels gated on !godMode); packages/ui/src/Recruit.tsx (lobby rail gated on !run.godMode; CombatRoundLabel gated on the ShopControls godMode prop); packages/ui/src/music.ts; packages/ui/src/goodLuck/goodLuckIntroStore.ts' },
     ],
     currentBehaviour:
       'Conforms, built 2026-10-08 (packages/ui/src/godMode/GodModePanel.tsx, Game.tsx, Recruit.tsx). The panel\'s '
-      + 'shop-only rendering is a component test; the rail and DEV-panel gates are pinned by source checks.',
+      + 'shop-only rendering is a component test; the rail, combat ROUND label and DEV-panel gates are pinned by '
+      + 'source checks in godModeGates.test.ts.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godModeGates.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
   {

@@ -2524,7 +2524,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Practice now opens a SETUP screen first (owner ask 2026-08-24): opponents / health / time / tribe surge.
   // `confirmPracticeSetup` then opens the hero picker. The old direct-to-picker behaviour is that flow minus
   // the setup step.
-  startPractice: () => set({ showTitle: false, practiceSetupOpen: true, avatarPickerOpen: false }),
+  // SANDBOX MODE IS PRE-SELECTED every time Practice opens (owner 2026-10-08); the rest of the draft is kept.
+  startPractice: () => set((s) => {
+    const practiceDraft: PracticeConfig = { ...s.practiceDraft, godMode: false };
+    savePracticeConfig(practiceDraft);
+    return { showTitle: false, practiceSetupOpen: true, avatarPickerOpen: false, practiceDraft };
+  }),
   setPracticeDraft: (partial) => set((s) => {
     const next = { ...s.practiceDraft, ...partial };
     savePracticeConfig(next);

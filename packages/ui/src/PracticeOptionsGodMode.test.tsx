@@ -48,6 +48,21 @@ describe('Practice screen — God Mode | Sandbox Mode', { timeout: 60_000 }, () 
     press(rowButtons(el).find((b) => b.textContent === 'Normal')!);
     expect(useGame.getState().practiceDraft.health).toBe(health);
   });
+  it('Sandbox Mode sits on the left, God Mode on the right (owner 2026-10-08)', () => {
+    const el = open(false);
+    const order = [...el.querySelectorAll<HTMLElement>('.pomode')].map((c) => c.dataset.mode);
+    expect(order).toEqual(['sandbox', 'god']);
+  });
+  it('opening Practice pre-selects Sandbox Mode, keeping the rest of the draft', () => {
+    act(() => { useGame.setState({ practiceSetupOpen: false, practiceDraft: { ...useGame.getState().practiceDraft, godMode: true, timeMult: 2 } }); });
+    act(() => { useGame.getState().startPractice(); });
+    expect(useGame.getState().practiceDraft.godMode).toBe(false);
+    expect(useGame.getState().practiceDraft.timeMult).toBe(2);
+    ui = mount(<PracticeOptions />);
+    expect(col(ui.container, 'sandbox').classList.contains('on')).toBe(true);
+    expect(select(ui.container, 'sandbox').textContent).toBe('Selected');
+    expect(rowButtons(ui.container).every((b) => !b.disabled)).toBe(true);
+  });
   it('Select switches the mode', () => {
     const el = open(false);
     press(select(el, 'god'));

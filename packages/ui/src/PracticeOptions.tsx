@@ -7,9 +7,9 @@ import { practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type Pr
  * picker. A dedicated menu of knobs: whether the player can die, the shop-timer speed, and
  * which tribes are in the game. `Start` applies them and opens the hero picker; the choices are pinned onto the run.
  *
- * GOD MODE | SANDBOX MODE (owner sketch 2026-10-08): two modes side by side. God Mode (left) plays its own fixed
- * setup (`godPracticeConfig`); Sandbox Mode (right) is the practice game above, and its option rows are greyed and
- * inert until it is selected. The chosen mode persists with the draft (`practiceDraft.godMode`).
+ * SANDBOX MODE | GOD MODE (owner sketch 2026-10-08, revised the same day): two modes in even halves. Sandbox Mode
+ * (left, selected every time the screen opens) is the practice game above; God Mode (right) plays its own fixed
+ * setup (`godPracticeConfig`), and while it is selected the Sandbox option rows are greyed and inert.
  *
  * Pure over the store draft (`practiceDraft`) — every control writes back through `setPracticeDraft`, which also
  * persists, so a returning player keeps their last setup.
@@ -101,8 +101,6 @@ export function PracticeOptions() {
       <div className="mpbox pobox pomodes-box">
         <h1 className="disp mptitle">PRACTICE</h1>
         <div className="pomodes">
-          <ModeColumn mode="god" title="God Mode" on={god} onSelect={() => setDraft({ godMode: true })}
-            text="999 Gold and no timer. Put any card in your shop, take any rune, and choose which round your opponent comes from. Nothing is saved." />
           <div className="pomode-col">
             <ModeColumn mode="sandbox" title="Sandbox Mode" on={!god} onSelect={() => setDraft({ godMode: false })}
               text="The Practice game, set up your way. Nothing here is rated." />
@@ -141,6 +139,8 @@ export function PracticeOptions() {
               />
             </div>
           </div>
+          <ModeColumn mode="god" title="God Mode" on={god} onSelect={() => setDraft({ godMode: true })}
+            text="999 Gold and no timer. Put any card in your shop, take any rune, and choose which round your opponent comes from. Nothing is saved." />
         </div>
 
         <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>

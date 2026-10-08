@@ -8257,7 +8257,6 @@ body:has(.book-ov) .cardref { z-index: 490; }
    the light board, and reading them over the dark backdrop (and as text ON the orange accent) was muddy
    (owner report 2026-08-24). Cream text on dark, near-black text on orange. */
 .pobox { gap: 2px; min-width: min(580px, calc(92 * var(--vw, 1vw))); }
-.posub { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: #d7cdba; margin: -8px 0 22px; }
 .porow { display: grid; grid-template-columns: 168px 1fr; align-items: center; gap: 22px; width: 100%; padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 .porow:first-of-type { border-top: none; }
 .polabel { display: flex; flex-direction: column; gap: 3px; text-align: left; font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #fbf6ec; }
@@ -8271,6 +8270,23 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .porow.podisabled .polabel { opacity: 0.5; }
 .postart { margin-top: 30px; align-self: center; font-family: var(--font-ui); font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: 0.08em; color: #1a1206; background: var(--acc); border: none; border-radius: 14px; padding: 16px 68px; box-shadow: 0 8px 22px -8px rgba(240, 144, 46, 0.6); }
 .postart:hover { filter: brightness(1.06); }
+/* Practice screen: God Mode | Sandbox Mode (owner sketch 2026-10-08). God Mode left, Sandbox Mode right with its
+   option rows boxed under it — greyed (`.off`, and each row's buttons disabled) until Sandbox Mode is selected. */
+.pomodes-box { min-width: min(1180px, calc(96 * var(--vw, 1vw))); }
+.pomodes { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; width: 100%; margin-top: 18px; }
+.pomode-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.pomode { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+/* White whether selected or not (owner 2026-10-08): the Select / Selected button carries the selection. */
+.pomode-title { margin: 0; font-size: 30px; letter-spacing: 0.04em; color: #ffffff; }
+.pomode-select { min-width: 190px; padding: 12px 28px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.25); background: rgba(10, 16, 40, 0.6);
+  color: #f3ead8; font-family: var(--font-ui); font-weight: 900; font-size: 17px; text-transform: uppercase; letter-spacing: 0.08em; }
+.pomode-select.on { border-color: var(--acc); background: var(--acc); color: #1a1206; }
+.pomode-text { margin: 0; max-width: 440px; font-size: 14px; line-height: 1.4; color: #ffffff; }
+.posandbox { width: 100%; padding: 6px 22px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(8, 14, 34, 0.35); transition: opacity 160ms ease; }
+.posandbox.off { opacity: 0.38; }
+/* In a half-width box the label sits above its choices (the Tribes row wraps); white text while it is live. */
+.posandbox .porow { grid-template-columns: 1fr; gap: 8px; }
+.posandbox .polabel, .posandbox .pohint { color: #ffffff; }
 
 .modecard {
   width: 375px; gap: 12px; padding: 32px 12px 12px;

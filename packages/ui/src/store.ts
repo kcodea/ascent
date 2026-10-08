@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -942,6 +942,8 @@ function loadPracticeConfig(): PracticeConfig {
       tribes: normalizePracticeTribes(parsed.tribes),
       // Practice hero offer (2026-09-27): only the two known modes; anything else (an old draft) opens on Beginner.
       heroes: parsed.heroes === 'all' ? 'all' : 'beginner',
+      // GOD MODE (owner 2026-10-08): the Practice screen remembers which mode was selected.
+      godMode: parsed.godMode === true,
     };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
@@ -1494,6 +1496,12 @@ function commitResolvedAction(
   captureBeats: boolean,
   set: StoreSet,
 ): Partial<GameStore> {
+    // GOD MODE (owner 2026-10-08): the wallet refills. Only when the reducer actually changed the run, so a refused
+    // action stays a no-op (no phantom replay action, no re-render). Covers dispatch AND commitPresentationAction
+    // (End Turn) — both funnel through here. BEFORE `actionSfx`, so the sound sees the final run.
+    if (next !== s.run && next.godMode === true && next.phase === 'recruit' && next.embers < 900) {
+      next = { ...next, embers: GOD_MODE_GOLD };
+    }
     actionSfx(action, s.run, next);
     // WP C — the always-on rolling action window (bug-report/actionRing.ts): record this accepted action's
     // reproduction rails (rng cursor before + state hashes) into the memory-only ring. Purely observational
@@ -2001,7 +2009,9 @@ function commitResolvedAction(
     if (changed) {
       // The run ENDED: clear the cloud copy too (R-PERSIST-CLOUD-03), so Continue disappears on every device.
       // `endRun` reads the lease before `clearSave` drops it.
-      if (finished) { void cloudSave.endRun(); clearSave(); savedRun = null; }
+      // `!next.sandbox`: a sandbox run (Scene Builder, God Mode) never owns the save slot, so its end must never
+      // clear the player's real save (God Mode keeps that save offered as Continue, owner 2026-10-08).
+      if (finished && !next.sandbox) { void cloudSave.endRun(); clearSave(); savedRun = null; }
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && isResumableRun(next)) {
@@ -2083,6 +2093,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
   // resume is unaffected; the next recruit turn (wave change) gets its full timer back via Recruit's reset.
   continueRun: () => {
+    // GOD MODE (owner 2026-10-08): the run behind the title can still be the God Mode game just left; Continue
+    // resumes the player's REAL save, never it (`openTitle` already swaps it back; this is the backstop).
+    if (get().run.godMode === true) restoreSaveSlot();
     // Hand Recruit the exact seconds this run was quit with (or null → the reset effect opens the turn at full
     // time). Recruit's clock-reset effect fires on this resume (its `showTitle` dep flips) and consumes it, so
     // a mid-turn Save & Quit at 51s comes back at 51s, not the old hard 0 (owner ask 2026-08-24).
@@ -2444,9 +2457,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
       return;
     }
     dropBoardFx(); // outside the updater: `set`'s callback is a pure state derivation, not a place for effects
+    // GOD MODE (owner 2026-10-08): a God Mode practice run. Nothing about it persists, so it never takes the save slot.
+    const godPick = pre.pendingMode === 'practice' && pre.practiceDraft.godMode === true;
     // QUITTING COSTS RATING (R-RANK-05): the new run REPLACES the one saved save slot, so an unfinished
     // RATED save it overwrites is abandoned (a no-op while ABANDON_PENALTY_ENABLED is off, owner 2026-10-02). Outside the updater (a queue write).
-    settleAbandonedRun(get().savedRun);
+    // A God Mode run replaces nothing (it is never saved), so the player's real save is left alone.
+    if (!godPick) settleAbandonedRun(get().savedRun);
     set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
@@ -2462,10 +2478,15 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const mode: 'lobby' | 'practice' = s.pendingMode === 'practice' ? 'practice' : 'lobby';
       // Practice carries the setup options chosen on the Practice screen (bots vs recorded opponents, health,
       // tribe surge); a plain lobby uses none.
-      const run = stage ? createGauntletRun(seed, heroId, stage) : createLobbyRun(seed, heroId, {}, mode, mode === 'practice' ? s.practiceDraft : undefined, undefined,
+      // GOD MODE (owner 2026-10-08): God Mode's own fixed config (every hero, Unlimited health, every tribe, no timer;
+      // the player's Sandbox settings are untouched), no round cap, then stamped sandbox + godMode + 999 Gold.
+      const god = mode === 'practice' && !stage && s.practiceDraft.godMode === true;
+      const built = stage ? createGauntletRun(seed, heroId, stage) : createLobbyRun(seed, heroId, god ? { maxRounds: GOD_MODE_MAX_ROUNDS } : {}, mode,
+        mode === 'practice' ? (god ? godPracticeConfig(s.practiceDraft) : s.practiceDraft) : undefined, undefined,
         // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
         // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
         mode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {});
+      const run = god ? makeGodModeRun(built) : built;
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
       if (mode === 'lobby' && !stage) run.runId = mintRunId(); // a Gauntlet stage is never rated
@@ -2480,8 +2501,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
       recordRunCosmetics(run);
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
-      writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
+      writeSave(run, []); // the new run is now the resumable save (a no-op for a God Mode run: `sandbox`)
+      // GOD MODE: Continue keeps offering the player's real saved run, never the God Mode game.
+      return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
   newRun: (seed, heroId) => {
@@ -2502,7 +2524,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Practice now opens a SETUP screen first (owner ask 2026-08-24): opponents / health / time / tribe surge.
   // `confirmPracticeSetup` then opens the hero picker. The old direct-to-picker behaviour is that flow minus
   // the setup step.
-  startPractice: () => set({ showTitle: false, practiceSetupOpen: true, avatarPickerOpen: false }),
+  // SANDBOX MODE IS PRE-SELECTED every time Practice opens (owner 2026-10-08); the rest of the draft is kept.
+  startPractice: () => set((s) => {
+    const practiceDraft: PracticeConfig = { ...s.practiceDraft, godMode: false };
+    savePracticeConfig(practiceDraft);
+    return { showTitle: false, practiceSetupOpen: true, avatarPickerOpen: false, practiceDraft };
+  }),
   setPracticeDraft: (partial) => set((s) => {
     const next = { ...s.practiceDraft, ...partial };
     savePracticeConfig(next);
@@ -2515,7 +2542,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
     const seed = randomSeed();
     // Practice is always vs players (2026-09-29); the bots option is gone from the setup screen.
     const draft: PracticeConfig = { ...s.practiceDraft, opponents: 'players' };
-    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(draft.heroes, practiceRunTribes(seed, draft)) };
+    // GOD MODE (owner 2026-10-08) offers every hero: the offer reads God Mode's fixed config, while `practiceDraft`
+    // keeps the player's Sandbox Mode settings untouched (only the run uses the God Mode ones).
+    const effective = draft.godMode === true ? godPracticeConfig(draft) : draft;
+    // `practiceTimer` stays the player's own choice: God Mode never reads it (a sandbox run has no Practice clock),
+    // and a 0 left in memory would make a Practice save resumed later this session silently untimed.
+    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)) };
   }),
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
@@ -2653,7 +2685,14 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Returning to the title lands on the MAIN menu, not whatever sub-menu was open when the run started (owner
   // ask 2026-08-24: Save & Quit went back to the mode picker) — and with every ladder page closed, since the
   // menu sidebar can open Settings (Save & Quit / Leave replay, "back to the main menu") from any page.
-  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED }); void syncCloudAtTitle(); },
+  openTitle: () => {
+    get().flushSave();
+    // GOD MODE (owner 2026-10-08): leaving a God Mode game puts the save slot back behind the title exactly as a
+    // boot would (the real save, or a throwaway when there is none), so Continue never resumes the God Mode game.
+    if (get().run.godMode === true) restoreSaveSlot();
+    set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED });
+    void syncCloudAtTitle();
+  },
   titleView: 'menu',
   setTitleView: (view) => set({ titleView: view }),
   goTo: (dest) => {
@@ -3081,6 +3120,37 @@ export function adoptCloudRun(row: CloudRow): boolean {
     void replayDrafts.remove(draftRunId(run)).catch(() => undefined).then(() => hydrateReplayDraft(run));
   } else void hydrateReplayDraft(run);
   return true;
+}
+
+/**
+ * GOD MODE (owner 2026-10-08): re-seat the store from the local save slot exactly as a boot would — the real saved
+ * run (with its actions, boards, observers and replay draft), or a fresh throwaway when there is no save. A God
+ * Mode game never writes the slot, so this is the player's real run, untouched. Used when leaving God Mode, so
+ * the title's Continue (which resumes `run`) can never resume the God Mode game. Never writes storage.
+ */
+function restoreSaveSlot(): void {
+  // Leaving mid-End-of-Turn: the God Mode fight is still prepared, and the unmounting Recruit's safety net would commit
+  // it after its pad — on top of the real run if Continue is pressed inside that window. Drop it with the God Mode run.
+  useGame.getState().cancelPresentationAction('leave God Mode');
+  useGame.setState({ endTurnAnimating: false });
+  dropBoardFx();
+  const save = loadSave();
+  if (!save) {
+    const fresh = createRun(randomSeed());
+    useGame.setState({ savedRun: null, savedTurnRemaining: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, ...freshObservers(fresh) });
+    return;
+  }
+  // The God Mode table's drivers are not this run's; evict any cached for its seats so they rebuild from the save.
+  if (save.run.lobby) resetLobbyDrivers(save.run.lobby.seats);
+  const run = save.run;
+  useGame.setState({
+    run, savedRun: run, savedTurnRemaining: save.turnRemaining ?? null,
+    replayActions: save.actions, capturedBoards: save.boards,
+    telemetryLog: save.telemetry ?? emptyTelemetryLog(), deriveState: save.derive ?? beginDerive(run),
+    announced: announcedFor(save.announced, run.seed), combatOdds: null,
+    replayFrames: seedReplayFrames(run), replayPartial: true,
+  });
+  void hydrateReplayDraft(run);
 }
 
 /** Drop a local save whose run ENDED on another device (its synced cloud row is gone). Not an abandonment:

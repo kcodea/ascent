@@ -4733,4 +4733,195 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'clock-based lines (TimeRunningOut, Idle, FastTurn) only hear a turn once its countdown runs.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts', 'packages/ui/src/rank/RankScreen.test.tsx', 'packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  // ── God Mode: the Practice learning playground (owner design 2026-10-08) ─────────────────────────────────────
+  {
+    id: 'R-GODMODE-01',
+    title: 'A God Mode practice game never persists anything',
+    statement:
+      'A God Mode game counts for nothing and keeps nothing: it is never saved and never offered as Continue, earns no '
+      + 'XP and no crate, is never uploaded as a Practice game and records no replay. Starting one leaves the player\'s '
+      + 'real saved game untouched, and leaving it puts that saved game back behind Continue (or no Continue when there '
+      + 'was none). Even if a God Mode game ends, it never clears the real save.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'A (to: "A — Nothing persists: no XP, no crate, no save/Continue, no practice upload, no replay")' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'the idea is to give players access to all the money, search and print out minions in the shop to buy, to start learning interactions.' },
+      { kind: 'code', ref: 'packages/sim/src/godMode.ts makeGodModeRun (stamps sandbox: true, the existing write barrier); packages/ui/src/store.ts pickHero (a God Mode run never takes the save slot), restoreSaveSlot (leaving God Mode), the gameover save-clear guarded by !sandbox' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-10-08. A God Mode run is a `sandbox` run (packages/sim/src/godMode.ts, packages/ui/src/store.ts): '
+      + 'the save slot, Continue and the real save on disk are pinned by the store test. PARTIAL pin: no XP, crate, '
+      + 'upload or replay rides the pre-existing `sandbox` write barrier, which these tests do not re-check.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeStore.test.ts', 'packages/ui/src/EscMenuGodMode.test.tsx'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-02',
+    title: 'God Mode\'s print and rune grant work only in a God Mode game\'s shop',
+    statement:
+      'Only in a God Mode game, and only during the shop, can the player put any minion or spell into the shop (any '
+      + 'tier, even past the shop\'s normal slots) or take any rune or Epic Rune for free. A printed card is an ordinary '
+      + 'shop card: it costs its normal price, Freeze keeps it, a roll replaces it and it counts toward triples. A rune '
+      + 'taken a second time behaves exactly as a bought second copy; a rune that cannot stack is shown as owned and '
+      + 'cannot be taken again. Neither works in any other mode, outside the shop, or while a Discover, Runeforge, '
+      + 'quest or Ancients choice is open, and the God Mode panel greys out then.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'the idea is to give players access to all the money, search and print out minions in the shop to buy, to start learning interactions.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'in this option you get 999 gold, infinite timer, and the dev tuner that we have available in the scene builder.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts godPrint / godGrantRune (refused unless run.godMode and phase recruit; the shared modalOpen gate) + applyRuneCopyTo (shared with buyRune); packages/sim/src/godMode.ts godRuneBlocked; packages/sim/src/docbot/shopCapacity.test.ts (godPrint declared unbounded by design)' },
+    ],
+    currentBehaviour:
+      'PARTIAL pin (built 2026-10-08; packages/sim/src/reducer.ts godPrint / godGrantRune, packages/sim/src/godMode.ts). '
+      + 'Pinned: both actions are refused outside God Mode, outside the shop and for an unknown id; a print appends a '
+      + 'fresh shop card; a rune grant is free and a second copy matches a bought second copy (Rune of the Altar). '
+      + 'NOT re-tested here: a printed card\'s normal price, Freeze keeping it, a roll replacing it and it counting '
+      + 'toward triples (they ride the ordinary shop-card paths, since a printed card is a plain shop entry), and '
+      + 'printing past the shop\'s slots is only exercised, not asserted. Printing may exceed the shop\'s slot count '
+      + 'in God Mode only (owner-approved spec: "Printing into a full shop '
+      + 'still adds the card"). The refusal while a Discover / quest / Runeforge window is open is the reducer\'s shared '
+      + 'modalOpen gate (not exempted for these actions) plus the Ancients-offer gate; the panel greys out on exactly those (godPanelLocked, godPick test).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/godActions.test.ts', 'packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godMode/godPick.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-03',
+    title: 'God Mode has no shop clock and its Gold refills to 999',
+    statement:
+      'A God Mode game starts with 999 Gold and its shop never has a clock: no timer, no Gold Fuse and no countdown. '
+      + 'Buying, rolling, freezing and upgrading the Shop cost Gold as normal, but whenever the Gold drops below 900 it is '
+      + 'topped back up to 999, so the player never runs out. An action the game refuses changes nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'in this option you get 999 gold, infinite timer, and the dev tuner that we have available in the scene builder.' },
+      { kind: 'code', ref: 'packages/sim/src/godMode.ts GOD_MODE_GOLD; packages/ui/src/store.ts (the God Mode wallet refill on every committed action); packages/ui/src/goldClock.ts shopClockInfinite; packages/ui/src/Recruit.tsx (no ShopTimer plaque in God Mode)' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-10-08. The refill lives in packages/ui/src/store.ts (only when the reducer changed the run, '
+      + 'so a refused action stays a no-op) and the clock gate in packages/ui/src/goldClock.ts; the engine itself is '
+      + 'untimed. The Recruit wiring is pinned by source checks.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeGates.test.ts', 'packages/ui/src/godModeStore.test.ts', 'packages/sim/src/godMode.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-04',
+    title: 'End Turn in God Mode asks for a round and fights a random real board from it',
+    statement:
+      'In God Mode, pressing End Turn asks which round the opponent\'s board should come from (1 to 15). Choosing a '
+      + 'round starts the fight at once against a random real player\'s board from that round, from the same card set '
+      + 'and game version. If none can be found, the prompt says so and no fight starts; it never fights an empty '
+      + 'board. Closing the prompt stays in the shop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'when clicking start round, the player should be prompted with a question: What round should your opponent board be on? 1-15. then randomly find and display a board from supabase from that round.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'B. pick a round by clicking a button and the round starts' },
+      { kind: 'code', ref: 'packages/ui/src/godMode/godBoards.ts findGodBoard / pinGodFoe; packages/ui/src/godMode/GodRoundPrompt.tsx; packages/ui/src/Recruit.tsx (End Turn opens the prompt in God Mode); supabase/migrations/2026-10-08-god-board-sample.sql (god_board_sample)' },
+    ],
+    currentBehaviour:
+      'PARTIAL (built 2026-10-08; packages/ui/src/godMode/godBoards.ts, GodRoundPrompt.tsx, godPick.ts, Recruit.tsx): '
+      + 'the game-version match applies only through the god_board_sample RPC; the startup-board fallback (the only '
+      + 'path until the migration is deployed) matches round and set but not version, and no test pins the version '
+      + 'filter. Everything else conforms. The board '
+      + 'comes from the Supabase RPC god_board_sample (round, set, game-version prefix, never a synthetic board; about '
+      + 'a 4 second timeout), else from the boards downloaded at startup (filtered by round, set and non-synthetic '
+      + 'origin only), else "no boards". Until supabase/migrations/2026-10-08-god-board-sample.sql is deployed, every '
+      + 'pick uses the startup boards. The pinned board is fought through the sandbox foe path (sim test).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godMode/godBoards.test.ts', 'packages/ui/src/godMode/GodRoundPrompt.test.tsx', 'packages/ui/src/godMode/godPick.test.ts', 'packages/sim/src/godMode.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-05',
+    title: 'A God Mode game never ends on its own (it ends when the player leaves)',
+    statement:
+      'A God Mode game has no last round and no lobby finish: the other seats can never be knocked out and the game '
+      + 'plays on for as many rounds as the player likes. Because God Mode always plays on Unlimited health, it ends '
+      + 'only when the player leaves.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'A (to: "A — It never ends on its own: no round-15 finish; play until Home/Leave")' },
+      { kind: 'code', ref: 'packages/sim/src/godMode.ts makeGodModeRun (the seven background seats invulnerable, maxRounds GOD_MODE_MAX_ROUNDS = 999), godPracticeConfig (health unlimited)' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-10-08 (packages/sim/src/godMode.ts). The background table\'s seven seats are invulnerable and '
+      + 'the round cap is 999, so the lobby never finishes (chosen over special-casing a finished lobby, which stops '
+      + 'settling rounds). The sim test plays 70 rounds and stays in the shop. If a run were ever built with Normal '
+      + 'health, the player\'s own seat could still be knocked out (also pinned).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/godMode.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-06',
+    title: 'The God Mode panel shows only in the shop; the lobby rail, the combat ROUND label and DEV panels never show in God Mode',
+    statement:
+      'The God Mode panel appears only during the shop, never during a fight. A God Mode game never shows the lobby '
+      + 'rail, never shows the "ROUND X" label at the top of a fight (the player picks each fight\'s round, so it '
+      + 'means nothing there), and the developer Scene Builder and Stage Builder panels never appear over it. Music '
+      + 'and the good-luck intro play as in a normal game.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'yes, the panel should not be visible during the fight phase' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'yes, hide the lobby rail.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode feedback)', quote: 'we can remove the round 1-15 text up top during the combat phase. its not important here' },
+      { kind: 'code', ref: 'packages/ui/src/godMode/GodModePanel.tsx (renders nothing outside recruit); packages/ui/src/Game.tsx (SandboxDevPanels gated on !godMode); packages/ui/src/Recruit.tsx (lobby rail gated on !run.godMode; CombatRoundLabel gated on the ShopControls godMode prop); packages/ui/src/music.ts; packages/ui/src/goodLuck/goodLuckIntroStore.ts' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-10-08 (packages/ui/src/godMode/GodModePanel.tsx, Game.tsx, Recruit.tsx). The panel\'s '
+      + 'shop-only rendering is a component test; the rail, combat ROUND label and DEV-panel gates are pinned by '
+      + 'source checks in godModeGates.test.ts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godModeGates.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-07',
+    title: 'God Mode\'s tier and tribe filters are multi-select; spells ignore tribe; the no-tribe chip reads Neutral',
+    statement:
+      'The God Mode panel filters the Minions and Spells lists (each opened from its button in a side window beside '
+      + 'the panel) with a Tier Filter (chips for Tiers 1 to 7) and a Tribe Filter (a chip per tribe), and several '
+      + 'chips in a filter can be on at once (a minion matches any chosen tier and any chosen tribe; a dual-tribe '
+      + 'minion matches either tribe). No chip on in a filter means no filter. Spells follow the Tier Filter and '
+      + 'ignore the Tribe Filter. The chip for minions with no tribe reads "Neutral". The chips combine with each '
+      + 'list\'s search text.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'can we have multi select filters for tier and tribe for minions/spells? obviously tribe doesnt work with spells, but we can have the spell section ignore that' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'instead of no tribe it should be "Neutral"' },
+      { kind: 'code', ref: 'packages/ui/src/cardSearch.ts (tier + tribe filters, tribesIn); packages/ui/src/godMode/GodModePanel.tsx (the chips); packages/ui/src/godMode/godPanelPrefs.ts (chip choices remembered)' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-10-08 (packages/ui/src/cardSearch.ts, packages/ui/src/godMode/GodModePanel.tsx): Tier 7 '
+      + 'chip added and the lists moved into side windows the same day (GodModePanel.test.tsx pins the 1-7 chips with '
+      + 'Tier 7 filtering, the Tier / Tribe Filter titles and the side windows).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardSearch.test.ts', 'packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godMode/godPanelPrefs.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
+    id: 'R-GODMODE-08',
+    title: 'Practice offers two modes, God Mode and Sandbox Mode; Sandbox Mode\'s options are greyed out and ignored unless Sandbox Mode is selected',
+    statement:
+      'The Practice screen offers two modes side by side in two equal halves: Sandbox Mode (the Practice game that '
+      + 'already existed) on the left and God Mode on the right, each with a Select button and a short description, '
+      + 'then Start. Sandbox Mode is selected every time the Practice screen opens. Sandbox Mode\'s options (heroes, '
+      + 'health, time, tribes) are greyed out and cannot be changed while God Mode is selected. God Mode ignores them '
+      + 'and always plays with every hero, Unlimited health, every tribe and no timer, leaving the player\'s Sandbox '
+      + 'Mode settings as they were.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode design)', quote: 'when selecting practice, this is what should show up. two options. God mode (what we are building) and Sandbox Mode (what already exists as the practice menu). a brief description under the Select button under each mode and then you click the start button. all of the sanbox mode text and options should be greyed out until it is selected.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-08 (God Mode Practice screen layout follow-up)', quote: 'have sanbox mode pre selecetd … have god mode swapped with sandbox mode so its on the right … have god mode and sanbox modes take up the same about of space. it should be even down the middle' },
+      { kind: 'code', ref: 'packages/ui/src/PracticeOptions.tsx (the two modes, Sandbox options inert while God Mode is selected); packages/sim/src/godMode.ts godPracticeConfig; packages/ui/src/store.ts startPractice (Sandbox Mode pre-selected on every open) + pickHero (the Sandbox draft untouched by a God Mode game)' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-10-08 (packages/ui/src/PracticeOptions.tsx, packages/ui/src/store.ts startPractice, '
+      + 'packages/sim/src/godMode.ts godPracticeConfig); the layout follow-up (Sandbox left and pre-selected on every '
+      + 'open, God Mode right, even halves) shipped the same day. PracticeOptionsGodMode.test.tsx pins the column order '
+      + '(Sandbox, then God Mode), Sandbox pre-selected on every open with its options live, God Mode greying the '
+      + 'Sandbox options, and Select switching modes. The even halves are CSS only and not asserted. PARTIAL pin on '
+      + '"leaving the Sandbox Mode settings as they were": the half that is pinned is the run (God Mode plays every '
+      + 'hero, Unlimited health, every tribe and no timer whatever the draft says, and the player\'s own Practice '
+      + 'timer choice survives a God Mode game); the half that is not is the draft itself, where no test checks that '
+      + 'the draft\'s heroes / health / tribes survive a God Mode game (reopening Practice is pinned to keep the '
+      + 'draft\'s time setting only).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/PracticeOptionsGodMode.test.tsx', 'packages/sim/src/godMode.test.ts', 'packages/ui/src/godModeStore.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
 ];

@@ -439,6 +439,9 @@ export interface PracticeConfig {
    *  (`BEGINNER_HERO_IDS`: Indy, Warden, Keshi), shown as the usual three-choice pick; `all` = every Practice hero.
    *  Absent on drafts/runs saved before this existed: read it through `practiceHeroMode`. */
   heroes?: 'beginner' | 'all';
+  /** GOD MODE (owner 2026-10-08): 999 Gold, no clock, the God Mode panel, and a chosen-round real board each fight.
+   *  Absent / false = a normal practice run. See `godMode.ts`. */
+  godMode?: boolean;
 }
 
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
@@ -777,6 +780,9 @@ export interface RunState {
    *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
    *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
   sandbox?: boolean;
+  /** GOD MODE practice run (owner 2026-10-08). Always paired with `sandbox: true` (the write barrier: no save, upload,
+   *  XP, replay). Gates `godPrint` / `godGrantRune` and every God Mode UI behaviour. See `godMode.ts`. */
+  godMode?: true;
   /** ANCIENTS (proof of concept, owner 2026-09-25): the Scene Builder turns this on for Set 3 runs only. Off (absent)
    *  on every lobby / practice / normal run, and then nothing in `ancients.ts` reads or writes anything. */
   ancientsEnabled?: boolean;
@@ -2771,6 +2777,10 @@ export type Action =
    *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
    *  reward engine a real buy/completion uses; see the reducer case. */
   | { type: 'devGrant'; kind: 'quest' | 'rune'; id: string; completed?: boolean }
+  /** GOD MODE (owner 2026-10-08): put any card in the shop (any tier). Refused unless `run.godMode`. */
+  | { type: 'godPrint'; cardId: string }
+  /** GOD MODE (owner 2026-10-08): take any rune / epic rune free. Refused unless `run.godMode`. */
+  | { type: 'godGrantRune'; runeId: string }
   /** DEV Scene Builder only: open a real Runeforge (Basic or Epic) on the current turn, rolled by the run's own forge logic. */
   | { type: 'devOpenRuneforge'; epic: boolean }
   /** ANCIENTS: lock in an offered Ancient (the awakening Discover). */

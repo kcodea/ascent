@@ -74,6 +74,8 @@ export const ACTION_CATALOG = {
   // The recruit clock reaching 0:00 (R-TIMER-LOCK-01): the UI's tick dispatches it. A bot has no clock.
   shopClockExpired: { generation: 'automatic', reveal: false, note: 'locks the Shop at 0:00; driven by the UI clock, never a choice' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
+  godPrint: { generation: 'never', reveal: false, note: 'God Mode practice tooling — not available to a bot' },
+  godGrantRune: { generation: 'never', reveal: false, note: 'God Mode practice tooling — not available to a bot' },
   devOpenRuneforge: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
   pickAncient: { generation: 'never', reveal: false, note: 'Ancients proof of concept — Scene Builder only, not available to a bot' },
   ancientSetMeter: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },

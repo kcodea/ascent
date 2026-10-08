@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Practice option: God Mode. 999 Gold, no timer, and a panel to put any minion or spell in your shop and take any rune.',
+        details: [
+          'Practice now offers two modes: God Mode and Sandbox Mode (the Practice game you already know).',
+          'When you end your turn, pick a round from 1 to 15 and fight a real player\'s board from that round.',
+          'Filter minions and spells by tier and tribe. Nothing in God Mode is saved or earns rewards.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Settings controls are clearer: on/off options are now red/green switches, Audio shows Master with an Advanced Controls button for the other channels, and the frame cap is a Max Frame Rate dropdown.',
         details: [
           'Each button now shows only its name; the explanation sits beside it.',

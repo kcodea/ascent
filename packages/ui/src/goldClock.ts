@@ -123,3 +123,9 @@ export function pinMedalAtStart<R extends Pick<RunState, 'mode' | 'sandbox' | 'l
   run.rankAtStart = rankAtStartOf(rank);
   return run;
 }
+
+/** The sandbox's untimed shop: the DEV Scene Builder under God rules, or a God Mode practice run (owner 2026-10-08,
+ *  independent of the DEV rules preference). `goldClockOf` already returns null for every sandbox run. */
+export function shopClockInfinite(run: { sandbox?: boolean | undefined; godMode?: true | undefined }, sbRules: 'god' | 'normal'): boolean {
+  return run.sandbox === true && (sbRules === 'god' || run.godMode === true);
+}

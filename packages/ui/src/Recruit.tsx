@@ -1,5 +1,5 @@
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
-import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -80,7 +80,7 @@ import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
-import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult } from './goldClock';
+import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult, shopClockInfinite } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
@@ -227,7 +227,13 @@ import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFo
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { TAP_SLOP } from './touchInput';
+import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
+import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
+import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/godPick';
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
+
+/** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
+const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ default: m.GodModePanel })));
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */
@@ -1209,7 +1215,8 @@ export function Recruit() {
   // NORMAL rules (2026-09-09) the sandbox runs the REAL clock — 1×, not the practice multiplier, since the point
   // of the switch is to feel the shipped pace.
   // Practice's UNLIMITED time (owner 2026-09-27, `practiceTimer` 0) is the same effectively-infinite clock.
-  const infiniteClock = (run.sandbox === true && sbRules === 'god') || run.mode === 'tutorial'
+  // GOD MODE (owner 2026-10-08) has no clock either, independent of the DEV rules preference (`shopClockInfinite`).
+  const infiniteClock = shopClockInfinite(run, sbRules) || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
   // THE GOLD FUSE (goldClock.ts): every LOBBY turn and every Practice turn (R-TIMER-FUSE-01: 10 Gold, then this
   // round's standard seconds, times Practice's 1-4x) and every GAUNTLET round (R-GAUNTLET-04: 30 Gold, then 60 s)
@@ -6836,6 +6843,9 @@ export function Recruit() {
     // lives), so check it here at the single End Turn entry — covering both the authoritative and legacy paths.
     const gate = tutorialGateBlocks({ type: 'faceOmen' }, run);
     if (gate.blocked) { if (gate.reason) notifyTutorialGateNudge(gate.reason); return; }
+    // GOD MODE (owner 2026-10-08): End Turn first asks which round the opponent board should be from; the pick
+    // (`pickGodRound`) fetches + pins a real board and re-enters here with the gate open.
+    if (godEndTurnNeedsPick(run, godFoeReadyRef.current)) { if (!godPrompt) setGodPrompt({ busy: false, message: null }); return; }
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
     // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
@@ -7169,6 +7179,23 @@ export function Recruit() {
   const endTurnRef = useRef(endTurn);
   endTurnRef.current = endTurn;
   const endTurnStable = useCallback((): void => { endTurnRef.current(); }, []);
+  // GOD MODE (owner 2026-10-08): End Turn asks for the opponent's round first; a pick fetches + pins a real board,
+  // then re-enters endTurn with the gate open. Double-pick guard: the prompt's buttons are disabled while `busy`,
+  // and a board that arrives after the shop moved on (phase / round changed) is dropped, never pinned.
+  const [godPrompt, setGodPrompt] = useState<GodPromptState>(null);
+  const godFoeReadyRef = useRef(false);
+  const pickGodRound = useCallback(async (round: number): Promise<void> => {
+    await runGodPick(round, {
+      getRun: () => useGame.getState().run,
+      setRun: (r) => useGame.setState({ run: r }),
+      findBoard: (r, setId) => findGodBoard(r, setId, liveGodBoardDeps()),
+      setId: (r) => r.setId ?? activeSet().id,
+      setPrompt: setGodPrompt,
+      remember: (r) => { try { localStorage.setItem(GOD_ROUND_KEY, String(r)); } catch { /* ignore */ } },
+      fight: () => { godFoeReadyRef.current = true; try { endTurnRef.current(); } finally { godFoeReadyRef.current = false; } },
+    });
+  }, []);
+  const closeGodPrompt = useCallback((): void => { setGodPrompt((p) => (p?.busy ? p : null)); }, []);
   /* REPLAY VIEWER: play a RECORDED End of Turn when the replay player asks (owner report 2026-10-02: "when
      watching this back, the end of turn with lasting cadence etc wasnt showing any animation or beats at all").
      The cue carries the batch the live End Turn played (`CombatFrame.eot`); it runs through the SAME compiler,
@@ -7611,15 +7638,24 @@ export function Recruit() {
       {/* A GAUNTLET run is a 2-seat table against one authored foe: no rail at all, just the opponent's emblem
           portrait + name floating on the right (round / 10 + the Gauntlet cap under it), nothing to scout
           (GauntletFoe.tsx; owner ask 2026-09-29). */}
-      {run.lobby && (run.mode === 'gauntlet'
+      {/* GOD MODE (owner 2026-10-08): the background table is invisible — the player picks each round's foe. */}
+      {run.lobby && !run.godMode && (run.mode === 'gauntlet'
         ? <GauntletFoe />
         : <LobbyPanel lobby={run.lobby} />)}
+      {/* GOD MODE panel: shop phase only — gone for the fight (owner: "the panel should not be visible during the
+          fight phase") and while End of Turn plays out (the same interaction lock as the shop / board); also kept off
+          hero select, the Good Luck intro and the full-screen pages (title, Compendium, …), which it would float over. */}
+      {run.godMode && !inCombat && !eotAnimating && !heroSelecting && !introPlaying && !overlayOpen && <Suspense fallback={null}><GodModePanel /></Suspense>}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
 
+      {godPrompt && run.godMode && !inCombat && (
+        <GodRoundPrompt lastRound={loadGodRound()} busy={godPrompt.busy} message={godPrompt.message}
+          onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
+      )}
       <ShopControls
-        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} goldClockGold={goldClockGold}
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold}
         replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
@@ -7959,12 +7995,14 @@ export function Recruit() {
  *  between the HUD and the drag zones. Memoized on primitives + stable handlers (perf 2026-09-16: a drag
  *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
 const ShopControls = memo(function ShopControls({
-  fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
+  fighting, inCombat, mode, sandbox, godMode, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
   onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
+  /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
+  godMode: boolean;
   /** The gold-spend clock's threshold this turn (`goldClockOf(run)?.gold`), null for the standard clock. */
   goldClockGold: number | null;
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
@@ -7991,7 +8029,8 @@ const ShopControls = memo(function ShopControls({
             (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
         {/* The turn timer is hidden entirely in the tutorial — a first-time player is never on the clock
             (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
-        {mode !== 'tutorial' && (
+        {/* GOD MODE (owner 2026-10-08) has no clock either: hide the plaque rather than count down an untimed turn. */}
+        {mode !== 'tutorial' && !godMode && (
           <div className="statstrip">
             <ShopTimer practice={mode === 'practice' && !sandbox} goldGoal={goldClockGold} />
           </div>
@@ -8109,8 +8148,10 @@ const ShopControls = memo(function ShopControls({
       )}
 
       {/* ROUND X — white, top-centre, just above the Skip button (owner ask 2026-09-25). Mounted for the WHOLE
-          fight (replay + settled screen), so it stays after Skip unmounts. Shares Skip's stage anchor in CSS. */}
-      {inCombat && <CombatRoundLabel round={combatRoundNo} />}
+          fight (replay + settled screen), so it stays after Skip unmounts. Shares Skip's stage anchor in CSS.
+          Hidden in God Mode: the player picks each fight's round there, so the label means nothing (owner
+          2026-10-08, R-GODMODE-06). */}
+      {inCombat && !godMode && <CombatRoundLabel round={combatRoundNo} />}
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}

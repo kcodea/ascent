@@ -160,6 +160,55 @@ Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board st
 
 ---
 
+## Practice: God Mode and Sandbox Mode (owner design 2026-10-08)
+
+The Practice screen offers two modes side by side in two equal halves, **Sandbox Mode** on the left and **God
+Mode** on the right, each with a **Select** button and a short description, then **Start** (R-GODMODE-08).
+**Sandbox Mode** is the Practice game that already existed (its options are described under *Unverified / confirm*
+below) and is selected every time the Practice screen opens; its options (heroes, health, time, tribes) are greyed
+out and can't be changed while God Mode is selected.
+
+### God Mode
+
+A learning playground: all the Gold, no clock, and any card or rune on demand.
+
+- **Fixed setup.** God Mode ignores the Sandbox options and always plays with every hero, Unlimited health, every
+  tribe and no timer; the player's Sandbox settings are left as they were (R-GODMODE-08).
+- **Gold and clock.** It starts with 999 Gold. Everything costs Gold as normal, but whenever the Gold drops below
+  900 it tops back up to 999. The shop never has a clock: no timer, no Gold Fuse (R-GODMODE-03).
+- **The God Mode panel** shows only in the shop, never during a fight (R-GODMODE-06). It can be dragged by its
+  **GOD MODE** header and collapsed. From the top:
+  - **Tier Filter:** chips for Tiers 1 to 7. **Tribe Filter:** a chip per tribe plus **Neutral** (R-GODMODE-07).
+  - Then the list buttons: **Minions**, **Spells**, and **Runes** / **Epic runes** side by side. Each button opens
+    its searchable list in a side window beside the panel, one window at a time; pressing the same button again,
+    the window's ✕ or Esc closes it. Hovering a row shows the card or rune.
+  - Clicking a minion or spell puts it in your shop (any tier, even past the shop's normal slots); clicking a rune
+    or Epic rune gives it to you free, with a "Gained …" confirmation. A card put in the shop this way is an ordinary
+    shop card: normal price, Freeze keeps it, a roll replaces it, it counts toward triples. A rune taken a second
+    time works exactly like buying a second copy; a rune that can't stack is marked owned (R-GODMODE-02).
+  - While a Discover, Runeforge, quest or Ancients choice is open, the panel is greyed out and says to finish that
+    choice first (R-GODMODE-02).
+- **Filters.** Several chips can be on at once in each filter; no chip on means no filter. Spells follow the Tier
+  Filter and ignore the Tribe Filter. Both filters combine with a list's search text (R-GODMODE-07).
+- **Choosing the opponent.** End Turn asks *"What round should your opponent board be on?"* with buttons 1 to 15.
+  Clicking one starts the fight at once against a random real player's board from that round, from the same card set
+  (and from the current game version once the online board finder is switched on; until then it can be a board
+  from an earlier version). If none is found, the prompt says so and no fight starts; it never fights an empty board. Closing
+  the prompt stays in the shop (R-GODMODE-04).
+- **It never ends on its own.** No last round and no lobby finish (the other seats can't be knocked out); with
+  Unlimited health, the game ends when the player leaves (R-GODMODE-05).
+- **What's hidden.** The lobby rail never shows in God Mode, and the "ROUND X" label at the top of a fight is hidden
+  too (you choose each fight's round yourself) (R-GODMODE-06).
+- **Nothing is kept.** No save or Continue, no XP, no crate, no Practice upload, no replay. The player's real saved
+  game is untouched and is still offered as Continue afterwards (R-GODMODE-01).
+
+Source: `packages/sim/src/godMode.ts`, `packages/sim/src/reducer.ts` (`godPrint`, `godGrantRune`),
+`packages/ui/src/godMode/` (panel, round prompt, board finder), `packages/ui/src/PracticeOptions.tsx`,
+`supabase/migrations/2026-10-08-god-board-sample.sql` (`god_board_sample`; until it is deployed, boards come from
+the set downloaded at startup).
+
+---
+
 ## Gauntlet
 
 Single-player stages, each a 10-round duel against one hand-built opponent whose board grows every round
@@ -262,7 +311,7 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   settles whatever placement a client sends, so builds from before the switch keep charging abandons until replaced.
 - **What Continue resumes** (owner 2026-09-30, R-PERSIST-01). A game is saved only once a hero is picked and it has
   started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
-  (Play, Practice, the tutorial) is ever saved or resumed. A saved run in the retired 17-round course format is
+  (Play, Sandbox Mode Practice, the tutorial; never a God Mode game) is ever saved or resumed. A saved run in the retired 17-round course format is
   dropped at load (not a quit, no settlement) and no Continue is offered; no menu starts a course run any more.
 - **Continue on any device** (owner 2026-09-30, verbatim: *"if a player is playing on one device and they save/quit,
   can we allow that to be picked up from another device they are signed in on?"*; R-PERSIST-CLOUD-01..03). A

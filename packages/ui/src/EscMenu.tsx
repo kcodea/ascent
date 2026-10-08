@@ -44,6 +44,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // nowhere to go, so the section is omitted; a run saves & quits.
   const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showCollection || s.titleView !== 'menu');
   const primary: 'replay' | 'menu' | 'none' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : 'run';
+  // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
+  const godMode = useGame((s) => s.run.godMode === true);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -107,8 +109,10 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         )}
         {primary === 'run' && (
           <ActionButton
-            label="Save & Quit"
-            note="Saves this exact moment and returns to the menu. Continue picks up right here."
+            label={godMode ? 'Leave God Mode' : 'Save & Quit'}
+            note={godMode
+              ? 'Returns to the menu. Nothing from this game is saved.'
+              : 'Saves this exact moment and returns to the menu. Continue picks up right here.'}
             primary
             onPress={() => { openTitle(); onClose(); }}
           />

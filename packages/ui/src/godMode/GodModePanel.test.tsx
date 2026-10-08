@@ -115,7 +115,9 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
   });
   it('titles: Tier Filter and Tribe Filter in the panel, the open list titled in its window', () => {
     const el = show();
-    expect([...el.querySelectorAll('.godp .godp-lh')].map((h) => h.textContent)).toEqual(['Tier Filter', 'Tribe Filter']);
+    expect([...el.querySelectorAll('.godp .godp-lh')].map((h) => h.textContent)).toEqual(['Tier Filter', 'Tribe Filter', 'Add to Shop']);
+    // ADD TO SHOP heads the list buttons, in the same section.
+    expect(el.querySelector('.godp-sects')!.parentElement!.querySelector('.godp-lh')!.textContent).toBe('Add to Shop');
     press(el, 'Epic runes');
     expect(el.querySelector('.godp-fly .godp-lh')!.textContent).toBe('Epic runes');
   });
@@ -138,6 +140,13 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     const tiers = el.querySelector('[aria-label="Tier filter"]')!;
     expect(tiers.classList.contains('godp-tiers')).toBe(true);
     expect(rule('.godp-chips.godp-tiers')).toContain('grid-template-columns: repeat(3, 1fr)');
+    // rounded rectangles (not circles), 30% smaller than the 50u chips they replaced
+    expect(rule('.godp-chip.godp-tier')).not.toContain('50%;');
+    expect(rule('.godp-chip.godp-tier')).toContain('width: 70%; min-height: calc(35 * var(--u))');
+    expect(rule('.godp-chip.godp-tier')).toContain('border-radius: 9px');
+    // tribe chips: text at 1.5x the base chip (11u), with roomier padding on both axes
+    expect(el.querySelector('[aria-label="Tribe filter (minions)"]')!.classList.contains('godp-tribes')).toBe(true);
+    expect(rule('.godp-chip.godp-tribe')).toContain('padding: calc(7 * var(--u)) calc(16 * var(--u)); font-size: calc(16.5 * var(--u))');
     act(() => { [...el.querySelectorAll<HTMLButtonElement>('.godp-tier')].find((b) => b.textContent === '7')!.click(); });
     expect(JSON.parse(localStorage.getItem('ascent.godmode.panel')!).tiers).toEqual([7]);
   });
@@ -147,6 +156,20 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     expect(cls('Minions').contains('wide') && cls('Spells').contains('wide')).toBe(true);
     expect(cls('Runes').contains('half') && cls('Epic runes').contains('half')).toBe(true);
     expect(rule('.godp-sects')).toContain('grid-template-columns: 1fr 1fr');
+    expect(rule('.godp-sects')).toContain('row-gap: calc(16 * var(--u))');
+    // breathing room under every section title: panel sections + the side window's title
+    expect(rule('.godp-filter')).toContain('gap: calc(12 * var(--u))');
+    expect(rule('.godp-fly-head')).toContain('margin-bottom: calc(6 * var(--u))');
+  });
+  it('collapsed, GOD MODE and the caret sit on one row (the title never wraps)', () => {
+    const el = show();
+    act(() => { el.querySelector<HTMLButtonElement>('.godp-fold')!.click(); });
+    expect(el.querySelector('.godp')!.classList.contains('collapsed')).toBe(true);
+    expect(el.querySelector('.godp-head .godp-title')!.textContent).toBe('God Mode');
+    expect(rule('.godp-title')).toContain('white-space: nowrap');
+    expect(rule('.godp.collapsed')).toContain('width: max-content');
+    expect(rule('.godp-fold')).toContain('font-size: calc(24 * var(--u))'); // the caret at 2x (was 12u)
+    expect(rule('.godp')).toContain('padding: calc(5 * var(--u))'); // a little padding on every side, both states
     expect(rule('.godp-sect.wide')).toContain('grid-column: 1 / -1');
   });
   it('the side window list has the themed scroll bar: a gold thumb on a navy (not purple) track', () => {

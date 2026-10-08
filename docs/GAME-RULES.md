@@ -179,7 +179,7 @@ A learning playground: all the Gold, no clock, and any card or rune on demand.
 - **The God Mode panel** shows only in the shop, never during a fight (R-GODMODE-06). It can be dragged by its
   **GOD MODE** header and collapsed. From the top:
   - **Tier Filter:** chips for Tiers 1 to 7. **Tribe Filter:** a chip per tribe plus **Neutral** (R-GODMODE-07).
-  - Then the list buttons: **Minions**, **Spells**, and **Runes** / **Epic runes** side by side. Each button opens
+  - Then **Add to Shop**, the list buttons: **Minions**, **Spells**, and **Runes** / **Epic runes** side by side. Each button opens
     its searchable list in a side window beside the panel, one window at a time; pressing the same button again,
     the window's ✕ or Esc closes it. Hovering a row shows the card or rune.
   - Clicking a minion or spell puts it in your shop (any tier, even past the shop's normal slots); clicking a rune

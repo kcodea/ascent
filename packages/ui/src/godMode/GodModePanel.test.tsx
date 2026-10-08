@@ -149,8 +149,10 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     expect(rule('.godp-sects')).toContain('grid-template-columns: 1fr 1fr');
     expect(rule('.godp-sect.wide')).toContain('grid-column: 1 / -1');
   });
-  it('the side window list has the themed (gold on dark) scroll bar', () => {
-    expect(rule('.godp-rows, .godp, .godp-fly')).toContain('scrollbar-color: var(--ui-title) var(--ui-chip-bg)');
+  it('the side window list has the themed scroll bar: a gold thumb on a navy (not purple) track', () => {
+    expect(rule('.godp-rows, .godp, .godp-fly')).toContain('--godp-scroll-track: #0e1a3a');
+    expect(rule('.godp-rows, .godp, .godp-fly')).toContain('scrollbar-color: var(--ui-title) var(--godp-scroll-track)');
+    expect(rule('.godp-rows::-webkit-scrollbar-track')).toContain('var(--godp-scroll-track)');
     expect(rule('.godp-rows::-webkit-scrollbar-thumb')).toContain('var(--ui-title)');
   });
 });

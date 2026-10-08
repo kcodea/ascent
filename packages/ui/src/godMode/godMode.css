@@ -61,12 +61,13 @@
 .godp-fly .godp-search { height: calc(36 * var(--u)); font-size: calc(16 * var(--u)); padding: 0 calc(10 * var(--u)); }
 .godp-fly .godp-row { font-size: calc(16 * var(--u)); padding: calc(6 * var(--u)) calc(8 * var(--u)); }
 .godp-fly .godp-meta { font-size: calc(14 * var(--u)); }
-/* Themed scroll bar (owner: "more thematically in line with the blue and gold"): the plate's dark tone for the track,
-   the UI gold for the thumb. Static. `scrollbar-color` for Firefox / new Chromium, ::-webkit-scrollbar for the rest. */
-.godp-rows, .godp, .godp-fly { scrollbar-width: thin; scrollbar-color: var(--ui-title) var(--ui-chip-bg); }
+/* Themed scroll bar (owner: "more thematically in line with the blue and gold"): a deep NAVY track (the Practice / HUD
+   navy, not the purple plate) under a UI-gold thumb. Static. `scrollbar-color` for Firefox / new Chromium,
+   ::-webkit-scrollbar for the rest. */
+.godp-rows, .godp, .godp-fly { --godp-scroll-track: #0e1a3a; scrollbar-width: thin; scrollbar-color: var(--ui-title) var(--godp-scroll-track); }
 .godp-rows::-webkit-scrollbar { width: calc(10 * var(--u)); }
-.godp-rows::-webkit-scrollbar-track { background: var(--ui-chip-bg); border-radius: 999px; }
-.godp-rows::-webkit-scrollbar-thumb { background: var(--ui-title); border-radius: 999px; border: 2px solid var(--ui-chip-bg); }
+.godp-rows::-webkit-scrollbar-track { background: var(--godp-scroll-track); border-radius: 999px; }
+.godp-rows::-webkit-scrollbar-thumb { background: var(--ui-title); border-radius: 999px; border: 2px solid var(--godp-scroll-track); }
 .godp-rows::-webkit-scrollbar-thumb:hover { background: var(--ui-hover-edge-main); }
 /* Section titles — Tier Filter, Tribe Filter, Minions, Spells, Runes, Epic runes: larger and gold (owner 2026-10-08:
    "make it gold instead of light blue"), the same --ui-title gold as the GOD MODE header. */

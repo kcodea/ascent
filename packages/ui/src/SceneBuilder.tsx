@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
@@ -11,6 +11,7 @@ import { StatBadgeField, CountStepper } from './StatBadgeField';
 import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview';
 import { toStage } from './stage';
 import { HeroPicker, HeroPickerTrigger } from './SceneBuilderHeroPicker';
+import { cardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
 import './sceneBuilder.css';
 
 /**
@@ -31,22 +32,12 @@ import './sceneBuilder.css';
  * panel collapses to a strip so it can tuck out of the way while you watch a fight. It wears the tuner
  * panels' slate (`.scenebuilder` in styles.css). Stripped from production with the rest of the dev tooling.
  */
-type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string; kind?: 'ruby' | 'gift' };
 /** The Library's three lists (owner ask 2026-09-16): the set pool's minions, its spells, and the set-scoped
  *  runes. Rubies (tokens) and Gifts (outside every set manifest) are not DRAWABLE, so neither list carries
  *  them — `poolFor` already excludes both; the shop cannot offer them, so the rig doesn't either. */
 type LibTab = 'minions' | 'spells' | 'runes';
-type RuneRow = { id: string; name: string; cost: number; epic: boolean; isNew: boolean; hay: string };
 
-/** Everything a row can be matched on, lowercased once at module load. Searching the card's TEXT (not just
- *  its name/tribe) is what makes keyword queries work — "avenge", "deathrattle", "taunt", "magnetic" all live
- *  in the rules text or the keyword list rather than the title. Effect trigger/factory ids go in too, so a
- *  mechanic can be found even when the printed text words it differently. */
-const hay = (...parts: (string | undefined)[]): string => parts.filter(Boolean).join(' ').toLowerCase();
-
-/** Split a query on whitespace and require EVERY term to match (AND), so "avenge beast" narrows instead of
- *  widening. Each term is a plain substring test against the row's haystack. */
-const matches = (haystack: string, terms: string[]): boolean => terms.every((t) => haystack.includes(t));
+/* Row shapes, the haystack builder and the AND-term matcher live in cardSearch.ts (shared with God Mode). */
 
 function mutate(fn: (r: RunState) => RunState): void {
   const run = useGame.getState().run;
@@ -239,41 +230,17 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const setId: SetId = run?.setId ?? activeSet().id;
   const pool = useMemo(() => poolFor(setId), [setId]);
 
-  const all = useMemo<CardRow[]>(() => {
-    const row = (c: (typeof pool.all)[number], kind?: 'ruby' | 'gift'): CardRow => ({
-      id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell || kind !== undefined, tribe: c.tribe ?? 'neutral', kind,
-      // Keywords + rules text + effect ids, so "avenge" / "deathrattle" / "magnetic" find their cards.
-      hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' '),
-        (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' '), kind ?? ''),
-    });
-    // RUBIES + GIFTS (owner ask 2026-09-16): neither is drawable (Rubies are tokens, Gifts a card class outside every
-    // set manifest), so `pool.all` never lists them — but both are cast from the Shop row like a spell and are exactly
-    // what a Kobold / Gift rune test needs on the table. They join the Spells tab, labelled by class.
-    const rubies = Object.values(CARD_INDEX).filter((c) => c.ruby).map((c) => row(c, 'ruby'));
-    const gifts = GIFTS.map((c) => row(c, 'gift'));
-    return [...pool.all.filter((c) => !c.token).map((c) => row(c)), ...rubies, ...gifts]
-      .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
-  }, [pool]);
+  // The set pool (tokens excluded) plus RUBIES + GIFTS, which join the Spells tab labelled by class (cardSearch.ts).
+  const all = useMemo<CardRow[]>(() => cardRowsFor(setId), [setId]);
 
   // SET SCOPING (owner ask 2026-09-16): only the runes THIS set can forge — the same `sets` rule the Runeforge
   // applies (`runeforgePool`: absent = every set) — so a Set 3-only rune never shows up in a Set 2 sandbox. The
   // tribe gate is deliberately NOT applied here: a tribe-gated rune of the set is exactly what you come here to
   // test without rolling the tribe first. `isNew` marks the Set 3-original batch (`sets: ['set3']` alone, the
   // 2026-09-16 sheet) with a NEW tag; searching "new" lists them.
-  const allRunes = useMemo<RuneRow[]>(() =>
-    [...RUNES, ...EPIC_RUNES]
-      .filter((r) => !r.sets || r.sets.includes(setId))
-      .map((r) => {
-        const isNew = !!r.sets && r.sets.length === 1 && r.sets[0] === 'set3';
-        return {
-          id: r.id, name: r.name, cost: r.cost, epic: !!r.epic, isNew,
-          hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic', isNew ? 'new' : ''),
-        };
-      })
-      .sort((a, b) => Number(a.epic) - Number(b.epic) || a.name.localeCompare(b.name)),
-  [setId]);
+  const allRunes = useMemo<RuneRow[]>(() => runeRowsFor(setId), [setId]);
 
-  const terms = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
+  const terms = useMemo(() => searchTerms(query), [query]);
   // EVERY match is listed (owner 2026-09-16: no row cap — it's a scrolling list, and a few hundred plain
   // buttons is cheap); the tab counts are the same numbers.
   const minionResults = useMemo(() => all.filter((c) => !c.spell && matches(c.hay, terms)), [all, terms]);

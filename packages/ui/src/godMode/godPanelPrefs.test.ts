@@ -6,8 +6,10 @@ import { clampGodPanelPos, loadGodPanelPrefs, saveGodPanelPrefs } from './godPan
 afterEach(() => localStorage.clear());
 describe('godPanelPrefs', () => {
   it('round-trips and survives junk', () => {
-    saveGodPanelPrefs({ x: 40, y: 90, collapsed: true, tiers: [3, 5], tribes: ['demon', 'neutral'] });
-    expect(loadGodPanelPrefs()).toEqual({ x: 40, y: 90, collapsed: true, tiers: [3, 5], tribes: ['demon', 'neutral'] });
+    saveGodPanelPrefs({ x: 40, y: 90, collapsed: true, tiers: [3, 5, 7], tribes: ['demon', 'neutral'] });
+    expect(loadGodPanelPrefs()).toEqual({ x: 40, y: 90, collapsed: true, tiers: [3, 5, 7], tribes: ['demon', 'neutral'] });
+    localStorage.setItem('ascent.godmode.panel', JSON.stringify({ tiers: [0, 7, 8, 2.5] }));
+    expect(loadGodPanelPrefs().tiers).toEqual([7]);
     localStorage.setItem('ascent.godmode.panel', '{nope');
     expect(loadGodPanelPrefs().tiers).toEqual([]);
   });

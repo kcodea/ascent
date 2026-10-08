@@ -26,15 +26,18 @@ import './godMode.css';
  * the reducer refuses God Mode actions behind) the panel is visibly INERT: greyed, rows disabled, with a line saying why —
  * never a click that silently does nothing.
  */
-const TIERS = [1, 2, 3, 4, 5, 6];
+/** Tiers 1-7 (Tier 7 included, owner 2026-10-08), shown 3 to a row. */
+const TIERS = [1, 2, 3, 4, 5, 6, 7];
 const tribeLabel = (t: string): string => (t === 'neutral' ? 'Neutral' : t.charAt(0).toUpperCase() + t.slice(1));
 
 const tierMeta = (r: CardRow): string => `T${r.tier}`;
 const noMeta = (): string => '';
 
 type Section = 'minions' | 'spells' | 'runes' | 'epic';
-const SECTIONS: readonly { id: Section; label: string }[] = [
-  { id: 'minions', label: 'Minions' }, { id: 'spells', label: 'Spells' }, { id: 'runes', label: 'Runes' }, { id: 'epic', label: 'Epic runes' },
+/** Minions and Spells each get a full row; Runes and Epic runes share one (owner 2026-10-08). */
+const SECTIONS: readonly { id: Section; label: string; wide: boolean }[] = [
+  { id: 'minions', label: 'Minions', wide: true }, { id: 'spells', label: 'Spells', wide: true },
+  { id: 'runes', label: 'Runes', wide: false }, { id: 'epic', label: 'Epic runes', wide: false },
 ];
 
 export function GodModePanel() {
@@ -165,7 +168,7 @@ export function GodModePanel() {
             {/* Section titles (owner 2026-10-08: "have the sections at the top labeled like Tier Filter and Tribe Filter"). */}
             <div className="godp-filter">
               <div className="godp-lh" aria-hidden>Tier Filter</div>
-              <div className="godp-chips" role="group" aria-label="Tier filter">
+              <div className="godp-chips godp-tiers" role="group" aria-label="Tier filter">
                 {TIERS.map((t) => (
                   <button key={t} type="button" className={`godp-chip godp-tier${prefs.tiers.includes(t) ? ' on' : ''}`} aria-pressed={prefs.tiers.includes(t)}
                     onClick={() => update({ tiers: toggle(prefs.tiers, t) })}>{t}</button>
@@ -183,7 +186,7 @@ export function GodModePanel() {
             </div>
             <div className="godp-sects" role="group" aria-label="Lists">
               {SECTIONS.map((sec) => (
-                <button key={sec.id} type="button" className={`godp-sect${open === sec.id ? ' on' : ''}`} aria-expanded={open === sec.id}
+                <button key={sec.id} type="button" className={`godp-sect ${sec.wide ? 'wide' : 'half'}${open === sec.id ? ' on' : ''}`} aria-expanded={open === sec.id}
                   onClick={() => toggleFly(sec.id)}>
                   <span>{sec.label}</span><span className="godp-sect-arrow" aria-hidden>▸</span>
                 </button>

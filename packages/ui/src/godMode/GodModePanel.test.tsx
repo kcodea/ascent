@@ -7,6 +7,12 @@ import { mount, type Mounted } from '../renderedText.mount';
 import { useGame } from '../store';
 import { GodModePanel } from './GodModePanel';
 import { placeGodFlyout } from './GodFlyout';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const CSS = readFileSync(join(__dirname, 'godMode.css'), 'utf8');
+/** One rule's body, matched at the start of a line (so `.godp-sects` doesn't hit `.godp-filter + .godp-sects`). */
+const rule = (sel: string): string => { const i = CSS.indexOf(`\n${sel} {`); return i < 0 ? '' : CSS.slice(i, CSS.indexOf('}', i)); };
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; localStorage.clear(); });
@@ -20,7 +26,7 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
   it('the panel holds the tier + tribe chips and four list buttons — no list until a button is pressed', () => {
     const el = show();
     expect([...el.querySelectorAll('.godp-sect')].map((b) => b.textContent!.replace('▸', ''))).toEqual(['Minions', 'Spells', 'Runes', 'Epic runes']);
-    expect([...el.querySelectorAll('.godp-tier')].map((b) => b.textContent)).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect([...el.querySelectorAll('.godp-tier')].map((b) => b.textContent)).toEqual(['1', '2', '3', '4', '5', '6', '7']);
     expect([...el.querySelectorAll('.godp-tribe')].some((b) => b.textContent === 'Neutral')).toBe(true);
     expect(el.querySelector('[aria-label="Tier filter"]')).not.toBeNull();
     expect(el.querySelector('[aria-label="Tribe filter (minions)"]')).not.toBeNull();
@@ -126,6 +132,26 @@ describe('GodModePanel', { timeout: 60_000 }, () => {
     const first = el.querySelector('[aria-label="Runes"] .godp-row');
     act(() => { useGame.getState().dispatch({ type: 'godPrint', cardId: useGame.getState().run.shop[0]?.cardId ?? 'sandbag' }); });
     expect(el.querySelector('[aria-label="Runes"] .godp-row')).toBe(first);
+  });
+  it('tier chips 1-7 sit 3 to a row, and include Tier 7 (which filters)', () => {
+    const el = show();
+    const tiers = el.querySelector('[aria-label="Tier filter"]')!;
+    expect(tiers.classList.contains('godp-tiers')).toBe(true);
+    expect(rule('.godp-chips.godp-tiers')).toContain('grid-template-columns: repeat(3, 1fr)');
+    act(() => { [...el.querySelectorAll<HTMLButtonElement>('.godp-tier')].find((b) => b.textContent === '7')!.click(); });
+    expect(JSON.parse(localStorage.getItem('ascent.godmode.panel')!).tiers).toEqual([7]);
+  });
+  it('Minions and Spells each take a full row; Runes and Epic runes share one row', () => {
+    const el = show();
+    const cls = (label: string): DOMTokenList => sect(el, label).classList;
+    expect(cls('Minions').contains('wide') && cls('Spells').contains('wide')).toBe(true);
+    expect(cls('Runes').contains('half') && cls('Epic runes').contains('half')).toBe(true);
+    expect(rule('.godp-sects')).toContain('grid-template-columns: 1fr 1fr');
+    expect(rule('.godp-sect.wide')).toContain('grid-column: 1 / -1');
+  });
+  it('the side window list has the themed (gold on dark) scroll bar', () => {
+    expect(rule('.godp-rows, .godp, .godp-fly')).toContain('scrollbar-color: var(--ui-title) var(--ui-chip-bg)');
+    expect(rule('.godp-rows::-webkit-scrollbar-thumb')).toContain('var(--ui-title)');
   });
 });
 

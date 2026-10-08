@@ -12,7 +12,7 @@ export function loadGodPanelPrefs(): GodPanelPrefs {
       x: Number.isFinite(p.x) ? Number(p.x) : DEFAULTS.x,
       y: Number.isFinite(p.y) ? Number(p.y) : DEFAULTS.y,
       collapsed: p.collapsed === true,
-      tiers: Array.isArray(p.tiers) ? p.tiers.filter((t): t is number => Number.isInteger(t) && t >= 1 && t <= 6) : [],
+      tiers: Array.isArray(p.tiers) ? p.tiers.filter((t): t is number => Number.isInteger(t) && t >= 1 && t <= 7) : [],
       tribes: Array.isArray(p.tribes) ? p.tribes.filter((t): t is string => typeof t === 'string') : [],
     };
   } catch { return { ...DEFAULTS, tiers: [], tribes: [] }; }

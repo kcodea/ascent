@@ -24,17 +24,23 @@
 .godp-title { font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: calc(24 * var(--u)); line-height: 1.1; color: var(--ui-title); }
 .godp.collapsed .godp-head { border-bottom: 0; }
 .godp-fold { background: none; border: 0; color: var(--ui-muted); font-size: calc(12 * var(--u)); }
-.godp-body { display: flex; flex-direction: column; gap: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u)); }
+/* Roomy sections (owner 2026-10-08: "add some spacing vertically between each section"). */
+.godp-body { display: flex; flex-direction: column; gap: calc(18 * var(--u)); padding: calc(16 * var(--u)) calc(14 * var(--u)) calc(16 * var(--u)); }
 /* A divider between each section: Tier Filter | Tribe Filter | the list buttons. Static 1px theme line. */
-.godp-filter + .godp-filter, .godp-filter + .godp-sects { border-top: 1px solid var(--ui-chip-edge); padding-top: calc(10 * var(--u)); }
+.godp-filter + .godp-filter, .godp-filter + .godp-sects { border-top: 1px solid var(--ui-chip-edge); padding-top: calc(18 * var(--u)); }
 .godp-chips { display: flex; flex-wrap: wrap; gap: calc(4 * var(--u)); }
 .godp-chip { padding: calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
   color: var(--ui-chip-text); font-family: inherit; font-size: calc(11 * var(--u)); font-weight: 700; }
 .godp-chip.on { border-color: var(--ui-title); color: var(--ui-title); }
+/* Tier chips: ~3x the tribe chips, 3 to a row - 1 2 3 / 4 5 6 / 7 (owner 2026-10-08). */
+.godp-chips.godp-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(8 * var(--u)); }
+.godp-chip.godp-tier { min-height: calc(50 * var(--u)); padding: calc(6 * var(--u)); border-radius: 12px; font-size: calc(28 * var(--u)); font-weight: 900; line-height: 1; }
 .godp-list { display: flex; flex-direction: column; gap: calc(6 * var(--u)); flex: 1 1 auto; min-height: 0; }
 /* The four section buttons (Minions / Spells / Runes / Epic runes); the open one reads pressed. */
 /* The four list buttons, each on its own full-width line (owner: "wider and taller"). */
-.godp-sects { display: flex; flex-direction: column; gap: calc(8 * var(--u)); }
+/* Minions and Spells each on their own row; Runes + Epic runes share one row, two equal halves. */
+.godp-sects { display: grid; grid-template-columns: 1fr 1fr; gap: calc(8 * var(--u)); }
+.godp-sect.wide { grid-column: 1 / -1; }
 .godp-sect { display: flex; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); width: 100%; min-height: calc(40 * var(--u)); padding: calc(8 * var(--u)) calc(14 * var(--u));
   border-radius: 10px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-title); font-family: inherit;
   font-size: calc(15 * var(--u)); font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; }
@@ -43,13 +49,25 @@
 .godp-sect-arrow { color: var(--ui-muted); font-size: calc(13 * var(--u)); }
 .godp-sect.on .godp-sect-arrow { color: var(--ui-title); }
 /* The SIDE WINDOW: one list beside the panel (seated + max-height set from JS in stage px); only its rows scroll. */
-.godp-fly { position: fixed; z-index: 455; width: calc(300 * var(--u)); display: flex; flex-direction: column; padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u));
+.godp-fly { position: fixed; z-index: 455; width: calc(360 * var(--u)); display: flex; flex-direction: column; padding: calc(10 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u));
   border: 2px solid transparent; border-radius: 14px; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text);
   font-family: var(--font-ui); box-shadow: 0 22px 50px -14px rgb(0 0 0 / 0.85); }
 .godp-fly-head { display: flex; align-items: center; justify-content: space-between; }
-.godp-fly-x { background: none; border: 0; color: var(--ui-muted); font-size: calc(14 * var(--u)); }
+.godp-fly-x { background: none; border: 0; color: var(--ui-muted); font-size: calc(19 * var(--u)); }
 .godp-fly-x:hover { color: var(--ui-title); }
-.godp-empty { padding: calc(6 * var(--u)); color: var(--ui-muted); font-size: calc(12 * var(--u)); text-align: center; }
+.godp-empty { padding: calc(6 * var(--u)); color: var(--ui-muted); font-size: calc(16 * var(--u)); text-align: center; }
+/* Larger text inside the side window (owner 2026-10-08: "increase the text size of the text within the popup window"). */
+.godp-fly .godp-lh { font-size: calc(18 * var(--u)); }
+.godp-fly .godp-search { height: calc(36 * var(--u)); font-size: calc(16 * var(--u)); padding: 0 calc(10 * var(--u)); }
+.godp-fly .godp-row { font-size: calc(16 * var(--u)); padding: calc(6 * var(--u)) calc(8 * var(--u)); }
+.godp-fly .godp-meta { font-size: calc(14 * var(--u)); }
+/* Themed scroll bar (owner: "more thematically in line with the blue and gold"): the plate's dark tone for the track,
+   the UI gold for the thumb. Static. `scrollbar-color` for Firefox / new Chromium, ::-webkit-scrollbar for the rest. */
+.godp-rows, .godp, .godp-fly { scrollbar-width: thin; scrollbar-color: var(--ui-title) var(--ui-chip-bg); }
+.godp-rows::-webkit-scrollbar { width: calc(10 * var(--u)); }
+.godp-rows::-webkit-scrollbar-track { background: var(--ui-chip-bg); border-radius: 999px; }
+.godp-rows::-webkit-scrollbar-thumb { background: var(--ui-title); border-radius: 999px; border: 2px solid var(--ui-chip-bg); }
+.godp-rows::-webkit-scrollbar-thumb:hover { background: var(--ui-hover-edge-main); }
 /* Section titles — Tier Filter, Tribe Filter, Minions, Spells, Runes, Epic runes: larger and gold (owner 2026-10-08:
    "make it gold instead of light blue"), the same --ui-title gold as the GOD MODE header. */
 .godp-filter { display: flex; flex-direction: column; gap: calc(4 * var(--u)); }

@@ -2042,8 +2042,15 @@ export function simulate(
     // the side's left-most LIVING Demon, read at this moment (its current Attack/Health) — no longer captured
     // at Start of Combat. First summon only: a summon with no living Demon spends the one chance and pays
     // nothing, which is what the text says. The captured stats land × copies held (boolean-flag family).
-    if (modsFor(side).runeFoodChain && !foodChainUsed[side]) {
+    //
+    // LANDED SUMMONS ONLY (owner 2026-10-08: "this should only work on first actual summon on board, not an
+    // overflow"; R-FOODCHAIN-LANDED-01): a summon lost to the 7-slot cap is not the first summon and does not spend
+    // the chance — the same gate as Rune of the Undertow below. A deferred (attack-on-summon) body that took it and
+    // then overflows at land time hands it back in `placeSummon`. A Rise / Rebirth return always lands.
+    const overflowsNow = !capJudgedElsewhere && !out.attackNow && occupied(side) >= 7;
+    if (modsFor(side).runeFoodChain && !foodChainUsed[side] && !overflowsNow) {
       foodChainUsed[side] = true;
+      foodChainTaken.add(minion);
       // `m !== minion`: a returning Demon (Rise / Rebirth) is already back on the board — it never feeds itself.
       const demon = boards[side].find((m) => m !== minion && !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe));
       if (demon) {
@@ -2068,7 +2075,6 @@ export function simulate(
     // (attack-on-summon queue) is judged when it lands; `placeSummon` refunds its Ward if it overflows then. A
     // Rise / Rebirth return always lands (its body still holds its own slot), so it passes `capJudgedElsewhere`.
     const undertow = modsFor(side).runeUndertow;
-    const overflowsNow = !capJudgedElsewhere && !out.attackNow && occupied(side) >= 7;
     if (undertow && !overflowsNow && !minion.divineShield && undertowUsed[side] < (typeof undertow === 'number' ? undertow : 4)) {
       fireTrigger('runeUndertow', side);
       undertowUsed[side] += 1;
@@ -2138,6 +2144,9 @@ export function simulate(
       // Rune of the Undertow: a deferred body that took a Ward at queue time but never landed gives it back
       // (R-UNDERTOW-LANDED-01) — the allowance counts bodies that were really summoned.
       if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
+      // Rune of the Food Chain: likewise, a deferred body that never landed was not the first summon
+      // (R-FOODCHAIN-LANDED-01) — the chance re-opens for the next body that does land.
+      if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
       bus.emit('summonOverflow', { side });
       // Rune of Overflow: a summon that does not fit buffs your whole board PERMANENTLY. Buffed live here so it
       // matters this fight, and banked for the carry-back so it survives the settle — the word "permanently" is
@@ -2506,6 +2515,8 @@ export function simulate(
   /** Rune of the Food Chain: has this side's FIRST summon already happened? The rune reads the left-most living
    *  Demon's stats at that moment (owner rework 2026-09-23; it used to capture them at Start of Combat). */
   const foodChainUsed: Record<Side, boolean> = { player: false, enemy: false };
+  /** The body that spent this side's Food Chain chance, so a deferred one that overflows can hand it back. */
+  const foodChainTaken = new WeakSet<Minion>();
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *

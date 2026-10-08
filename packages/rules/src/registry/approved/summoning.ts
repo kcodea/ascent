@@ -139,4 +139,33 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-08',
     },
   },
+  {
+    id: 'R-FOODCHAIN-LANDED-01',
+    title: 'Rune of the Food Chain feeds the first summon that LANDS, never an overflow',
+    statement:
+      'Rune of the Food Chain ("The first minion you summon in combat gains the stats of your left-most Demon") is '
+      + 'spent only by the first friendly body that actually lands on the board in that combat. A summon lost to the '
+      + '7-slot cap (an overflow) is not the first summon: it takes nothing and spends nothing. An attack-on-summon body '
+      + 'that took the chance when it queued and then overflows when it lands hands the chance back, so the next body '
+      + 'that lands is fed. A Rise or Rebirth return always lands and counts as a summon (R-SUMMON-RETURN-01). One '
+      + 'chance per combat per side, read from the left-most living Demon at that moment, x copies held.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling, 2026-10-08 (Rune of the Food Chain, on the Undertow fix)', quote: 'this should only work on first actual summon on board, not an overflow' },
+      { kind: 'owner-chat', ref: 'Owner ruling, 2026-10-08 (same review, given separately for Rune of Packcraft and for Rune of the Hatchery)', quote: 'this is fine' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts applyCombatSummonGrants (Food Chain block: overflowsNow) + placeSummon overflow branch (foodChainTaken refund)' },
+    ],
+    contentIds: ['rune_food_chain'],
+    currentBehaviour:
+      'Conforms as of 2026-10-08. Before: the chance was spent in applyCombatSummonGrants, before the board-cap check, '
+      + 'so a summon onto a full board used it up and the first body that really landed came in plain. Rune of '
+      + 'Packcraft (an overflow still grows its level) and Rune of the Hatchery (an overflow still pulses) keep their '
+      + 'behaviour by owner ruling ("this is fine").',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/foodChainLanded.test.ts'],
+      lastVerifiedAt: '2026-10-08',
+    },
+  },
 ];

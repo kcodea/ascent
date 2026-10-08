@@ -2083,4 +2083,27 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (2026-10-07). Owner-confirmed on PR #1974: the attacker is buffed, the rune spreads Sunmane's Rally (not its own trigger), and both fire beside a real Sunmane. With both, every bank is exactly the rune's plus Sunmane's (pinned against a reference model).",
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/sunponyRune.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-SCRIPTURE-01',
+    title: 'Rune of Shared Scripture: the first Shop spell your side casts in combat, from ANY caster, fires the left-most Shout and Rally',
+    statement:
+      'Combat only, once per fight per side (the latch resets every combat). The first Shop spell (R-SHOPSPELL-01: a '
+      + "spell from the set's Shop-spell pool; never a Ruby, a Clue or other Gift, or a token spell) cast by your side "
+      + 'in combat, by ANY caster (a minion Rally or Echo, an ally-attack trigger, a rune, a repeat), fires the left-most '
+      + 'minion that HAS a Shout and the left-most minion that HAS a Rally (two different bodies when they differ). The '
+      + 'Shout is a real Shout (R-SHOUT-TRIGGER-01, Battlecry multipliers folded); the Rally is a forced Rally '
+      + '(R-RALLY-FORCED-01, Rally multipliers folded). One fire of each per copy held. It works for a served enemy '
+      + "board the same way, and only that side's own casts spend it. The rune hears casts at the shared per-cast "
+      + 'chokepoint (`spellResolved`), so no caster can bypass it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-07 (Rune of Shared Scripture)', quote: 'this rune is not working at all, can you please branch off and fix this?' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts spellResolved -> sharedScripture (was a resolveCombatSpellCast-only hook that castRepeat / random-stat-spell casters never reached)' },
+    ],
+    contentIds: ['rune_shared_scripture'],
+    cardText: 'The first **Shop spell** cast by your warband in combat triggers your left-most **Shout** and **Rally**.',
+    currentBehaviour: 'Conforms (2026-10-07). Before the fix it only heard casters that went through resolveCombatSpellCast (Sporebat, Quil, Badgington, Dragonflame), so Growth / Lantern of Souls / Staff of Guel / random-stat-spell casts never fired it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeSharedScripture.test.ts', 'packages/sim/src/runeBatch4T4.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
 ];

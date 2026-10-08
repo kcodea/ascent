@@ -862,10 +862,6 @@ export function withCastingSpell<T>(ctx: CombatContext, spellId: string | undefi
 
 function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: CardDef, targets?: Minion[]): boolean {
   const side = self.side;
-  // Rune of Shared Scripture listens here — every combat Shop-spell cast that RESOLVES reports itself, so the
-  // rune sees real casts rather than attempts. Announced up front: the rune's Shout/Rally is a reaction to the
-  // cast happening, and the spell's own effects land immediately after.
-  ctx.onCombatSpellCast?.(side);
   const sp = ctx.spellPowerFor(side);
   const alive = (): Minion[] => ctx.living(side);
   const chosen = (): Minion[] => (targets && targets.length > 0 ? targets : alive().filter((m) => m !== self).slice(0, 1));

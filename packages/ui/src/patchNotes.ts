@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Rise now reads "Returns once when destroyed with 1 health." Rules text no longer says "printed stats" anywhere.',
+        details: [
+          'The Rise keyword pill, glossary and Rules entries use the new line. How Rise works is unchanged: the minion comes back once as a fresh copy with 1 Health.',
+          'Rules answers about Rise, plain copies and older patch notes now say "a fresh copy" or "its original Attack" instead of "printed".',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: Rune of the Undertow and Rune of the Food Chain now only count minions that actually land on the board. Summons that could not fit on a full board used to use them up.',
         details: [
           'Rune of the Undertow: the first 4 minions that land in each combat gain Ward, every round. Before, it often seemed to stop working on a full board.',
@@ -3806,7 +3814,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Amplified pill: "An Amplified Equipment will trigger its effect twice for no additional gold." It shows on Rune of Amplification, Rune of the Grand Workshop, the Calibration Wrench and Calibration Master, and is coloured in text like other keywords.',
           'Runes now show keyword pills on hover (the same column a card hover shows), and the Equipment slot tooltip lists the pills its text uses.',
-          'Definitions checked against the rules: Rise returns the printed stats at 1 Health; Rebirth returns the full body; Dawn is the left half of your board, Dusk the right, the exact middle counts as both; Attachment fuses onto a friendly minion that shares its type; Stealth is lost when the minion attacks.',
+          'Definitions checked against the rules: Rise returns a fresh copy with 1 Health; Rebirth returns the full body; Dawn is the left half of your board, Dusk the right, the exact middle counts as both; Attachment fuses onto a friendly minion that shares its type; Stealth is lost when the minion attacks.',
           'The Compendium glossary is sectioned Triggers / Combat keywords / Build & shop / Spells & tokens and no longer carries its own copy of any definition.',
         ],
       },
@@ -4193,7 +4201,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'New keyword: Rebirth. When a minion with Rebirth dies it returns once with everything it had: its full stats, buffs, keywords and effects. Rise still brings back the printed card at 1 Health.',
+        text: 'New keyword: Rebirth. When a minion with Rebirth dies it returns once with everything it had: its full stats, buffs, keywords and effects. Rise still brings back a fresh copy with 1 Health.',
         details: [
           'Rebirth resolves before Rise: a minion holding both comes back whole first, and its Rise is still there for the next death.',
           'Its Echo fires on the Rebirth death, and the death counts for Avenge and death-watchers, just like a Rise.',
@@ -4659,7 +4667,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: 'Set 3 Celestials: sixteen new minions, a new spell and a new Equipment built around the Starform. The Starform is a 1/1 Celestial token that lives in your Shop, grows from every shop buff and consume, and is cashed in by your Celestials.',
         details: [
-          'The Starform sits in the Shop like any offer. Its printed stats are the counter, with no rules text. It survives every refresh in its own slot, keeps "this shop" buffs the others lose, and eats the right-most Shop minion when it is created into a full row. Buying it costs 0 Gold and simply dismisses it (that still counts as a minion bought).',
+          'The Starform sits in the Shop like any offer. Its Attack and Health are the counter, with no rules text. It survives every refresh in its own slot, keeps "this shop" buffs the others lose, and eats the right-most Shop minion when it is created into a full row. Buying it costs 0 Gold and simply dismisses it (that still counts as a minion bought).',
           'Star Seed (T1): Shout, create a Starform, or give the one you have +2/+2. Dawn Sentinel (T1): Taunt. Echo, a random friendly Celestial +2/+1.',
           'Stardust Peddler (T2): whenever you buy a minion, your Starform +1/+1. Wishing Star (T2): Shout AND Echo, this shop +2/+2.',
           'Accretion Warden (T3): Shout, your Starform consumes the highest-Tier Shop minion (ties go right). Shooting Star (T3): Flurry. Shout, this shop +3/+3 for each Shop spell you cast this turn. The card prints the live total. Eclipse Warden (T3): Avenge (3), get a Star Crash.',
@@ -5029,7 +5037,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Balance', text: 'Rise now has watchers in both phases: a minion that Rises in the shop triggers Revenant and Rising Tide, and those gains are permanent.' },
       { category: 'Balance', text: 'Fixed: destroying a minion in the shop no longer fires the Echoes of your OTHER minions (a Footman Captain beside the victim was summoning a Footman).' },
       { category: 'Systems', text: 'A minion that Rises in the shop now plays out in beats: the keyword flash, the full death, then the reborn re-form on its return.' },
-      { category: 'Balance', text: 'A risen minion is the card as printed: improvements it had grown (the Echo of Sergey) reset, and it comes back wearing your Auras (Spear Warden, Undead Aura).' },
+      { category: 'Balance', text: 'A risen minion is a fresh copy of the card: improvements it had grown (the Echo of Sergey) reset, and it comes back wearing your Auras (Spear Warden, Undead Aura).' },
       { category: 'Balance', text: 'Rising Tide is now Undead / Spirit. Spirit and Celestial are Set 3 tribes.' },
       { category: 'Balance', text: 'A minion with Rise keeps its slot while it dies: its Echo fires first, and on a full board an Echo summon overflows instead of taking that slot. The minion comes back.' },
     ],

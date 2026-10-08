@@ -260,7 +260,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'plain-copy',
     topic: 'glossary',
     q: 'Does a "plain copy" keep the original\'s buffs?',
-    a: "No. A **plain copy** is a **fresh card as printed**: no extra stats, no granted keywords, no progress, and not Gilded. It does still get any **Auras** you have, since those apply to every card that fits.",
+    a: "No. A **plain copy** is a **fresh copy of the card**: no extra stats, no granted keywords, no progress, and not Gilded. It does still get any **Auras** you have, since those apply to every card that fits.",
     aliases: ['plain copy', 'copy', 'copies', 'duplicate', 'clone', 'does a copy keep buffs'],
     seeAlso: ['exact-copy', 'aura-meaning'],
     covers: [{ rule: 'R-COPY-01', fp: '31bb49a1' }, { rule: 'R-AVWIN-04', fp: 'b0ceb0fc' }],

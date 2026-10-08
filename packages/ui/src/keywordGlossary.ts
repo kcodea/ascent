@@ -101,7 +101,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'flurry', name: 'Flurry', aliases: ['Windfury'], badge: 'W', section: 'combat', mechanic: 'flurry', def: 'When attacking in combat, attacks twice.' },
   { id: 'crit', name: 'Critical Strike', aliases: ['Crit', 'Critical'], badge: 'CR', section: 'combat', mechanic: 'crit', def: 'Its attack has a chance to deal double damage.' },
   // Rise returns the PRINTED body at 1 Health; Rebirth returns the full current body (GAME-RULES, 2026-09-16).
-  { id: 'rise', name: 'Rise', aliases: ['Reborn'], badge: 'R', section: 'combat', mechanic: 'rise', def: 'Returns once when destroyed, with its printed stats at 1 Health.' },
+  { id: 'rise', name: 'Rise', aliases: ['Reborn'], badge: 'R', section: 'combat', mechanic: 'rise', def: 'Returns once when destroyed with 1 health.' },
   { id: 'rebirth', name: 'Rebirth', aliases: [], badge: 'RB', section: 'combat', mechanic: 'rebirth', def: 'Returns once when destroyed with all of its stats, buffs and keywords.' },
   { id: 'cleave', name: 'Cleave', aliases: [], badge: 'C', section: 'combat', mechanic: 'cleave', def: 'Its attack also strikes the minions on both sides of its target.' },
   { id: 'immune', name: 'Immune', aliases: [], badge: 'IMM', section: 'combat', mechanic: 'immune', def: 'Takes no damage.' },

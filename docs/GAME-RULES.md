@@ -176,21 +176,29 @@ A learning playground: all the Gold, no clock, and any card or rune on demand.
   tribe and no timer; the player's Sandbox settings are left as they were (R-GODMODE-08).
 - **Gold and clock.** It starts with 999 Gold. Everything costs Gold as normal, but whenever the Gold drops below
   900 it tops back up to 999. The shop never has a clock: no timer, no Gold Fuse (R-GODMODE-03).
-- **The God Mode panel** (shop only, never during a fight; R-GODMODE-06) is a floating, draggable, collapsible
-  panel with four searchable lists: **Minions** and **Spells** (click to put the card in your shop, any tier, even
-  past the shop's normal slots) and **Runes** and **Epic Runes** (click to take one free). A printed card is an
-  ordinary shop card: normal price, Freeze keeps it, a roll replaces it, it counts toward triples. A rune taken a
-  second time behaves exactly as a bought second copy; a rune that can't stack shows as owned. The panel greys out
-  while a Discover, quest or Runeforge window is open (R-GODMODE-02).
-- **Filters.** Tier chips (1 to 6) and Tribe chips, several on at once; no chip on = no filter. Spells follow Tier
-  and ignore Tribe. The no-tribe chip reads **Neutral** (R-GODMODE-07).
+- **The God Mode panel** shows only in the shop, never during a fight (R-GODMODE-06). It can be dragged by its
+  **GOD MODE** header and collapsed. From the top:
+  - **Tier Filter:** chips for Tiers 1 to 7. **Tribe Filter:** a chip per tribe plus **Neutral** (R-GODMODE-07).
+  - Then the list buttons: **Minions**, **Spells**, and **Runes** / **Epic runes** side by side. Each button opens
+    its searchable list in a side window beside the panel, one window at a time; pressing the same button again,
+    the window's ✕ or Esc closes it. Hovering a row shows the card or rune.
+  - Clicking a minion or spell puts it in your shop (any tier, even past the shop's normal slots); clicking a rune
+    or Epic rune gives it to you free, with a "Gained …" confirmation. A card put in the shop this way is an ordinary
+    shop card: normal price, Freeze keeps it, a roll replaces it, it counts toward triples. A rune taken a second
+    time works exactly like buying a second copy; a rune that can't stack is marked owned (R-GODMODE-02).
+  - While a Discover, Runeforge, quest or Ancients choice is open, the panel is greyed out and says to finish that
+    choice first (R-GODMODE-02).
+- **Filters.** Several chips can be on at once in each filter; no chip on means no filter. Spells follow the Tier
+  Filter and ignore the Tribe Filter. Both filters combine with a list's search text (R-GODMODE-07).
 - **Choosing the opponent.** End Turn asks *"What round should your opponent board be on?"* with buttons 1 to 15.
   Clicking one starts the fight at once against a random real player's board from that round, from the same card set
   (and from the current game version once the online board finder is switched on; until then it can be a board
   from an earlier version). If none is found, the prompt says so and no fight starts; it never fights an empty board. Closing
   the prompt stays in the shop (R-GODMODE-04).
 - **It never ends on its own.** No last round and no lobby finish (the other seats can't be knocked out); with
-  Unlimited health, the game ends when the player leaves (R-GODMODE-05). The lobby rail is hidden (R-GODMODE-06).
+  Unlimited health, the game ends when the player leaves (R-GODMODE-05).
+- **What's hidden.** The lobby rail never shows in God Mode, and the "ROUND X" label at the top of a fight is hidden
+  too (you choose each fight's round yourself) (R-GODMODE-06).
 - **Nothing is kept.** No save or Continue, no XP, no crate, no Practice upload, no replay. The player's real saved
   game is untouched and is still offered as Continue afterwards (R-GODMODE-01).
 

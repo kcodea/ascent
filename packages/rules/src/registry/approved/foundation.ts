@@ -4763,8 +4763,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'tier, even past the shop\'s normal slots) or take any rune or Epic Rune for free. A printed card is an ordinary '
       + 'shop card: it costs its normal price, Freeze keeps it, a roll replaces it and it counts toward triples. A rune '
       + 'taken a second time behaves exactly as a bought second copy; a rune that cannot stack is shown as owned and '
-      + 'cannot be taken again. Neither works in any other mode, outside the shop, or while a Discover, quest or '
-      + 'Runeforge window is open.',
+      + 'cannot be taken again. Neither works in any other mode, outside the shop, or while a Discover, Runeforge, '
+      + 'quest or Ancients choice is open, and the God Mode panel greys out then.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4875,10 +4875,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-GODMODE-07',
     title: 'God Mode\'s tier and tribe filters are multi-select; spells ignore tribe; the no-tribe chip reads Neutral',
     statement:
-      'The God Mode panel filters minions and spells with Tier chips (1 to 6) and Tribe chips, and several chips in a '
-      + 'group can be on at once (a minion matches any chosen tier and any chosen tribe; a dual-tribe minion matches '
-      + 'either tribe). No chip on in a group means no filter. Spells follow the Tier chips and ignore the Tribe chips. '
-      + 'The chip for minions with no tribe reads "Neutral". The chips combine with the search text.',
+      'The God Mode panel filters the Minions and Spells lists (each opened from its button in a side window beside '
+      + 'the panel) with a Tier Filter (chips for Tiers 1 to 7) and a Tribe Filter (a chip per tribe), and several '
+      + 'chips in a filter can be on at once (a minion matches any chosen tier and any chosen tribe; a dual-tribe '
+      + 'minion matches either tribe). No chip on in a filter means no filter. Spells follow the Tier Filter and '
+      + 'ignore the Tribe Filter. The chip for minions with no tribe reads "Neutral". The chips combine with each '
+      + 'list\'s search text.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4887,7 +4889,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/cardSearch.ts (tier + tribe filters, tribesIn); packages/ui/src/godMode/GodModePanel.tsx (the chips); packages/ui/src/godMode/godPanelPrefs.ts (chip choices remembered)' },
     ],
     currentBehaviour:
-      'Conforms, built 2026-10-08 (packages/ui/src/cardSearch.ts, packages/ui/src/godMode/GodModePanel.tsx).',
+      'Conforms, built 2026-10-08 (packages/ui/src/cardSearch.ts, packages/ui/src/godMode/GodModePanel.tsx): Tier 7 '
+      + 'chip added and the lists moved into side windows the same day (GodModePanel.test.tsx pins the 1-7 chips with '
+      + 'Tier 7 filtering, the Tier / Tribe Filter titles and the side windows).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardSearch.test.ts', 'packages/ui/src/godMode/GodModePanel.test.tsx', 'packages/ui/src/godMode/godPanelPrefs.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
   {

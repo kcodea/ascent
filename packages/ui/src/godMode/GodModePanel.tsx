@@ -177,20 +177,24 @@ export function GodModePanel() {
             </div>
             <div className="godp-filter">
               <div className="godp-lh" aria-hidden>Tribe Filter</div>
-              <div className="godp-chips" role="group" aria-label="Tribe filter (minions)">
+              <div className="godp-chips godp-tribes" role="group" aria-label="Tribe filter (minions)">
                 {tribes.map((t) => (
                   <button key={t} type="button" className={`godp-chip godp-tribe${prefs.tribes.includes(t) ? ' on' : ''}`} aria-pressed={prefs.tribes.includes(t)}
                     onClick={() => update({ tribes: toggle(prefs.tribes, t) })}>{tribeLabel(t)}</button>
                 ))}
               </div>
             </div>
-            <div className="godp-sects" role="group" aria-label="Lists">
-              {SECTIONS.map((sec) => (
-                <button key={sec.id} type="button" className={`godp-sect ${sec.wide ? 'wide' : 'half'}${open === sec.id ? ' on' : ''}`} aria-expanded={open === sec.id}
-                  onClick={() => toggleFly(sec.id)}>
-                  <span>{sec.label}</span><span className="godp-sect-arrow" aria-hidden>▸</span>
-                </button>
-              ))}
+            {/* "ADD TO SHOP" (owner 2026-10-08): the list buttons get a section title like the filters above. */}
+            <div className="godp-filter">
+              <div className="godp-lh" aria-hidden>Add to Shop</div>
+              <div className="godp-sects" role="group" aria-label="Lists">
+                {SECTIONS.map((sec) => (
+                  <button key={sec.id} type="button" className={`godp-sect ${sec.wide ? 'wide' : 'half'}${open === sec.id ? ' on' : ''}`} aria-expanded={open === sec.id}
+                    onClick={() => toggleFly(sec.id)}>
+                    <span>{sec.label}</span><span className="godp-sect-arrow" aria-hidden>▸</span>
+                  </button>
+                ))}
+              </div>
             </div>
             {toast && <div className="godp-toast" role="status">{toast}</div>}
           </div>

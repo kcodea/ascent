@@ -3688,6 +3688,17 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hplabel { color: #fff; border-color: var(--acc); }
+/* The power's COUNTER (Ayse's "0/3", progress, countdowns) in the SAME dark pill as the name, seated on the art's
+   top rim as the name pill sits on the bottom (owner ask 2026-10-08). Static paint only — the inherited one-shot
+   `stepbump` still animates transform alone. The die face / centre readout / Clearance pip keep their own looks. */
+.statusbar .hpwrap .hpb-tally.hpb-pill {
+  font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.05;
+  color: #f4ecdb; text-shadow: none;
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u));
+  box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
+}
+.statusbar .heropanel.ready .hpwrap .hpb-tally.hpb-pill { color: #fff; border-color: var(--acc); }
 /* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
    (the dark gradient + gold-mix border the `.hplabel` already uses) instead of the old cream/white boxes. */
 .statusbar .hero {

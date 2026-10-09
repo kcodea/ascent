@@ -39,6 +39,7 @@ import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 import { rectToStage, stageHost, stageViewport } from './stage';
+import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 
 
@@ -543,7 +544,10 @@ export function StatusBar() {
   // picker's dispatch so the prize charges the slot that asked for it.
   const [pickerSlot, setPickerSlot] = useState(0);
   const [pickingFlash, setPickingFlash] = useState(false);
-  const [hunchTip, setHunchTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
+  const [hunchTip, setHunchTip] = useState<RefPopupPos | null>(null);
+  // Measured pass: re-place on the preview's real size so it never runs off screen (2026-10-08).
+  const hunchPopRef = useRef<HTMLDivElement | null>(null);
+  useFitRefPopup(hunchPopRef, hunchTip, setHunchTip);
   const hunchHover = hunchTip !== null;
   /** Place the preview to the SIDE of the power (owner ask 2026-08-14) — the same floating side-popup a minion
    *  hover uses (`.cardref`), portalled to <body> so nothing in the status bar clips it, and flipped to the
@@ -561,6 +565,7 @@ export function StatusBar() {
       left: flip ? Math.max(6, r.left - gap - cardW) : r.right + gap,
       top: Math.max(6, Math.min(r.top - estH / 3, vp.h - estH - 6)),
       origin: flip ? 'right' : 'left',
+      anchorLeft: r.left, anchorRight: r.right, prefTop: r.top - estH / 3,
     });
   };
   // Powers whose HOVER shows the card they would hand you (owner asks 2026-08-14 Hunch, 2026-08-24 Fibbsy) —
@@ -1018,7 +1023,7 @@ export function StatusBar() {
                 judge the price without knowing what you're buying. Rendered from the same live view the shop
                 uses, so its printed value is the real one. */}
             {hunchPreview && hunchTip && createPortal(
-              <div className="cardref" style={{ left: hunchTip.left, top: hunchTip.top }}>
+              <div className="cardref" ref={hunchPopRef} style={{ left: hunchTip.left, top: hunchTip.top }}>
                 <div className="cardref-inner" style={{ transformOrigin: `${hunchTip.origin} center` }}>
                   <Card card={hunchPreview} forceFull plated />
                 </div>

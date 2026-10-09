@@ -254,8 +254,8 @@ export const WORDING_PENDING: GameRule[] = [
     "domain": "text",
     "status": "needs-ruling",
     "currentBehaviour": "Both spellings are live: \"Consume\" in 27 printed texts, \"devour\" in 2. Approving picks \"Consume\"; the LG-VERB-02 guide predicate then watches new text.",
-    "cardText": "\"Consume\" — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · \"devour\" — Channeling the Devourer: \"Devour a friendly minion and spit its stats onto a random other friend.\"",
-    "example": "Channeling the Devourer would be re-worded to the \"Consume\" form; mechanics untouched.",
+    "cardText": "\"Consume\" — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · \"devour\" — Devour Soul: \"Devour a friendly minion and spit its stats onto a random other friend.\"",
+    "example": "Devour Soul would be re-worded to the \"Consume\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",

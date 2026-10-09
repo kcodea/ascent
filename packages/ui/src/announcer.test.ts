@@ -1896,7 +1896,7 @@ describe('the moment catalog\'s third batch (owner 2026-09-25, group C): new tal
   it('the special lines key on stable ids, found here by name', () => {
     const c = ANNOUNCER_BATCH_3_CARDS;
     const names: Record<string, string> = {
-      [c.floRida]: 'Flo Rida', [c.goldilox]: 'Goldilox', [c.golem]: 'Gemheart Golem', [c.greatPot]: 'Great Pot', [c.picnic]: 'Picnic',
+      [c.floRida]: 'Vicious', [c.goldilox]: 'Goldilox', [c.golem]: 'Gemheart Golem', [c.greatPot]: 'Great Pot', [c.picnic]: 'Picnic',
       [c.starform]: 'Starform', [c.yazzus]: 'Yazzus', [c.darkRuby]: 'Dark Ruby', [c.rippleRuby]: 'Ripple Ruby',
     };
     for (const [id, name] of Object.entries(names)) expect(CARD_INDEX[id]?.name, id).toBe(name);
@@ -2222,7 +2222,7 @@ describe('the moment catalog\'s third batch (owner 2026-09-25, group C): new tal
     });
     it('FloRida the first time Flo Rida\'s Beast buff lands in the Shop', async () => {
       const r = openShop({ board: [{ ...m(BEAST.id), buffs: [] }] });
-      go({ ...r, board: [{ ...m(BEAST.id), buffs: [{ source: 'Flo Rida', attack: 4, health: 4 }] }] });
+      go({ ...r, board: [{ ...m(BEAST.id), buffs: [{ source: 'Vicious', attack: 4, health: 4 }] }] });
       expect(await first()).toBe('flo-rida');
     });
     it('Goldilox when it grows PAST +20/+20 in hand (exactly +20/+20 says nothing)', async () => {

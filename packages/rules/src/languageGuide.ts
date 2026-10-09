@@ -236,7 +236,7 @@ export const LANGUAGE_GUIDE: LanguageGuideEntry[] = [
     id: 'LG-TARGET-01',
     topic: 'targeting-wording',
     rule: '"other" / "another" excludes only THIS body — a same-named copy is still a legal target. "different" excludes every copy of the same-named card. Use "different" whenever the implementation filters by card identity; "other" whenever it filters by instance. A Discover triggered by playing a card never offers that card and prints no qualifier for it (R-TARGET-02).',
-    example: 'Hank Pepe: "give 3 other Dwarves +1/+1" (a second Hank Pepe may receive it) · Lieutenant Thane: "2 different friendly minions" (never another Thane) · Menagerie Mammoth: "3 random different Beasts".',
+    example: 'Hank Pepe: "give 3 other Dwarves +1/+1" (a second Hank Pepe may receive it) · Lieutenant Thane: "2 different friendly minions" (never another Thane) · Wooly: "3 random different Beasts".',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-10 (vocabulary ruling; R-TARGET-02)' },
       survey('21 targeting uses of other/another in live text; 19 exclude by instance, 2 (Thane, Mammoth) by card identity — those two now print "different"'),

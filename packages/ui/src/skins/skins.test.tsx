@@ -82,7 +82,7 @@ describe('the catalog <-> the bundle', () => {
     ['skin_sylus_1', 'epic', 'sylus', 'Sylus', 'SylusSkinRare.png'],
     ['skin_sylus_2', 'ancient', 'sylus', 'Sylus', 'SylusSkinLegendary.png'],
     ['skin_venom_1', 'legendary', 'venom', 'Venom', 'VenomSkinEpic.png'],
-    ['skin_zyff_1', 'common', 'zyff', 'Zyff, the Betrayer', 'ZyffSkinRare.png'],
+    ['skin_zyff_1', 'common', 'zyff', 'Zyff', 'ZyffSkinRare.png'],
   ];
   it.each(BATCH2)('batch 2: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
     const c = cosmeticOf(id)!;
@@ -204,15 +204,15 @@ describe('the catalog <-> the bundle', () => {
   // Rarity is the art folder (R-PROG-SKINS-11). The three Commander masters are Commander Warpath (d2_blazingkeeper),
   // never Commander Impala. Same checks as batch 5.
   const BATCH6: [id: string, rarity: string, cardId: string, cardName: string, master: string][] = [
-    ['skin_deepvein_1', 'common', 'k_deepvein', 'Deepvein Tender', 'AmberDeepveinTender.png'],
-    ['skin_deepvein_2', 'common', 'k_deepvein', 'Deepvein Tender', 'StaticDeepveinTender.png'],
+    ['skin_deepvein_1', 'common', 'k_deepvein', 'Ruby Mender', 'AmberDeepveinTender.png'],
+    ['skin_deepvein_2', 'common', 'k_deepvein', 'Ruby Mender', 'StaticDeepveinTender.png'],
     ['skin_wardkeeper_2', 'common', 'dw_wardkeeper', 'Wardkeeper', 'FrostWardkeeper.png'],
     ['skin_wayfinder_2', 'common', 'wayfinder', 'Wayfinder', 'InfernalWayfinder.png'],
     ['skin_wayfinder_3', 'rare', 'wayfinder', 'Wayfinder', 'WaterdragonWayfinder.png'],
     ['skin_spellsword_2', 'rare', 'n2_spellsword', 'Spellsword', 'TimewornSpellsword.png'],
-    ['skin_blazingkeeper_1', 'rare', 'd2_blazingkeeper', 'Commander Warpath', 'FrostCommander.png'],
-    ['skin_blazingkeeper_2', 'epic', 'd2_blazingkeeper', 'Commander Warpath', 'NatureCommander.png'],
-    ['skin_blazingkeeper_3', 'legendary', 'd2_blazingkeeper', 'Commander Warpath', 'CyberneticWarpath.png'],
+    ['skin_blazingkeeper_1', 'rare', 'd2_blazingkeeper', 'Warpath', 'FrostCommander.png'],
+    ['skin_blazingkeeper_2', 'epic', 'd2_blazingkeeper', 'Warpath', 'NatureCommander.png'],
+    ['skin_blazingkeeper_3', 'legendary', 'd2_blazingkeeper', 'Warpath', 'CyberneticWarpath.png'],
   ];
   it.each(BATCH6)('batch 6: %s (%s) exists, targets %s, and ships its art', (id, rarity, cardId, cardName, master) => {
     const c = cosmeticOf(id)!;

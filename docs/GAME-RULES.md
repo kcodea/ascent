@@ -972,7 +972,7 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   spell, each tick its own instance on every offer's ledger; the card prints how many times it lands right now,
   *"(×3)"*. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
 - **Stardust Peddler** (2026-09-18, 2/5): **when you spend 5 Gold** (a per-instance Gold meter while it stands — the
-  Coinfire Forewoman / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
+  Coinfire / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
   N/5) it **creates** a Starform if you have none, else the token gains **+3/+3** (gilded +6/+6).
 - **The Stellar Lens** (2026-09-14) **creates** a Starform if you have none, then gives **this shop +5/+5** (gilded
   +10/+10; +7/+7 and +14/+14 until the owner balance 2026-10-07) — the fresh token is one of the offers that takes it.
@@ -1652,7 +1652,7 @@ the multiple and before the payout's own events), which the replay presents with
 fires when THIS minion is sold from your board (a shop action; it has no combat meaning). Every minion with
 an `onSell` effect reads "**Sell:** …" (owner ask 2026-09-23: *"any card that operates on a 'When you sell
 this' should now say 'Sell: xyz' with sell being a highlighted keyword. no mechanical change"*): Hoard Whelp,
-Salvatore McKlusky, River Drake, Beggy, Cheap Date, Traveling Salesman, and the three Revelers. The hover
+Salvatore McKlusky, Riverback, Beggy, Cheap Date, Traveling Salesman, and the three Revelers. The hover
 pill and the Compendium row carry the definition above; the word is coloured in card text.
 
 The keyword is pinned to its FORM. A card that reacts to selling **another** minion (Arcane Behemoth "When
@@ -1712,7 +1712,7 @@ Every effect that makes a spell cast more times applies only to a spell **you ca
 Grimoire, Orivax, Nimbus, Comet (Cometius), Edward Keg-hands, Constellation Prime, Spell Thesis, Ancient Runes, the
 Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes. A
 spell cast by a minion (a Mage-Pup, an End-of-Turn caster), a rune (Rune of Recurrence, a rune threshold) or an
-Equipment (Pourman's Keg) casts once, and it never uses up a one-shot multiplier: the Living Grimoire charge,
+Equipment (Pourman's Keg) casts once, and it never uses up a one-shot multiplier: the Grimoire charge,
 Orivax's first spell, the Spell Thesis freebie, a Nimbus or Comet charge and Shared Pour's first Ale all wait for your
 next spell from hand. A re-cast of the spell you are casting from hand (Mirrorwing, Yirin's Reflector, Runefire,
 Crash Course, Rune of Shared Reflection) is that same cast happening again and keeps its multiplier. A minion's or

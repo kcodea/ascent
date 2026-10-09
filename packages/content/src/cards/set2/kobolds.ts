@@ -11,7 +11,7 @@ import type { CardDef } from '@game/core';
 export const SET2_KOBOLDS: CardDef[] = [
   {
     id: 'k_chipwick',
-    name: 'Chipwick Prospector',
+    name: 'Prospector', // was 'Chipwick Prospector' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 1,
     attack: 3,
@@ -23,7 +23,7 @@ export const SET2_KOBOLDS: CardDef[] = [
   },
   {
     id: 'k_deepvein',
-    name: 'Deepvein Tender',
+    name: 'Ruby Mender', // was 'Deepvein Tender' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 2,
     attack: 2, // owner balance 2026-09-23: 1/2 → 2/3
@@ -37,7 +37,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
     // carried back to the run board). `rubies` is per-minion (matching Crownvein's "a Ruby on 2 minions").
     id: 'k_gemstorm',
-    name: 'Gemstorm Mage', // was 'Gemstorm Instigator' (owner 2026-10-09: names fit on one line); id unchanged
+    name: 'Party Crasher', // was 'Gemstorm Instigator', then 'Gemstorm Mage' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 6,
     attack: 5,
@@ -52,7 +52,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
     // minion. `count` = the Avenge threshold on each half.
     id: 'k_gemline',
-    name: 'Gemline Martyr',
+    name: 'Gemling', // was 'Gemline Martyr' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 4,
     attack: 4, // owner balance 2026-09-23: 3/5 → 4/6
@@ -69,7 +69,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
     // baked with the run's live rubyBonus.
     id: 'k_tunnelcharger',
-    name: 'Tunnelcharger Rikk',
+    name: 'Tunneller Rik', // was 'Tunnelcharger Rikk' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 3,
     attack: 3,
@@ -83,7 +83,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Avenge (combat): every 3 friendly deaths, raise your Ruby strength — grows held + future Rubies (carried
     // back from combat).
     id: 'k_veinbreaker',
-    name: 'Veinbreaker',
+    name: 'Cave Cutter', // was 'Veinbreaker' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 4,
     attack: 5,
@@ -121,7 +121,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Echo (owner change 2026-07-25, was an onDamaged trigger) → raise your Ruby strength for the rest of the
     // run. `deathrattleRubyStatGain` carries the gain back out of combat, so dying in the fight still pays.
     id: 'k_faultline',
-    name: 'Faultline Scrapper',
+    name: 'Scrapper', // was 'Faultline Scrapper' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 3,
     attack: 5,
@@ -151,7 +151,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // both the shop-phase ones (its `Ruby` buff entry) and any played mid-fight (`rubyGain`). Golden doubles
     // the whole Shard, base included. It always summons, even with no Rubies on it (owner 2026-07-24).
     id: 'k_gemheart',
-    name: 'Gemheart Carver',
+    name: 'Gem Carver', // was 'Gemheart Carver' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 3, // T4 6/5 → T3 5/3 (owner 2026-09-19)
     attack: 5,
@@ -168,7 +168,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // at Start of Combat and Rubies already on the board are untouched: it purely doubles what each in-combat
     // Ruby grants. Implemented as a passive marker that `playRubyOn` reads, so there is no trigger to mis-time.
     id: 'k_deepdelve',
-    name: 'Deepdelve Paragon',
+    name: 'Delvey', // was 'Deepdelve Paragon' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 6,
     attack: 4,
@@ -181,7 +181,7 @@ export const SET2_KOBOLDS: CardDef[] = [
   {
     // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).
     id: 'k_gemgorge',
-    name: 'Gemgorge Fiend',
+    name: 'Cavern Fiend', // was 'Gemgorge Fiend' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tribe2: 'demon',
     tier: 6,
@@ -275,7 +275,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the
     // run's buyable pool. `avengeRubyStatGain` + `avengeGrantRandomTribeMinion` both already exist.
     id: 'k_portsmith',
-    name: 'Gem Portsmith',
+    name: 'Portsmith', // was 'Gem Portsmith' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
     tier: 5,
     attack: 6,

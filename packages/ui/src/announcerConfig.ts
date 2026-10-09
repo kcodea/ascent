@@ -174,7 +174,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   greatPot: 'Great Pot / Picnic cast on a full board (0 ms)',
   yazzusDouble: 'Yazzus doubles a targeted spell from hand (0 ms)',
   starformCollapse: 'Starform over 30 Attack collapses (0 ms)',
-  floRida: 'Flo Rida\'s Beast buff, first time in the Shop (0 ms)',
+  floRida: 'Vicious\'s Beast buff, first time in the Shop (0 ms)',
   goldilox: 'Goldilox past +20/+20 in hand (0 ms)',
   gemheartGolem: '3+ Gemheart Golems on board (0 ms, 3 s into a fight)',
   idle: 'No action for 20 s of Shop clock (0 ms)',

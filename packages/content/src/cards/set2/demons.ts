@@ -174,7 +174,7 @@ export const SET2_DEMONS: CardDef[] = [
     // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
     // Legion is the Imp line. Gilded doubles whichever you picked.
     id: 'dm_malphas',
-    name: 'Lord of Want', // was 'Malphas, Lord of Want' (owner 2026-10-09: too long for the gilded name); id unchanged
+    name: 'Malphas', // was 'Malphas, Lord of Want', then 'Lord of Want' (owner 2026-10-09); id unchanged
     tribe: 'demon',
     tier: 7,
     attack: 10,

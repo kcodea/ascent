@@ -86,6 +86,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
 // without this, any non-identity default baked into that file would silently never apply to players.
 import './cardPillsConfig';
+import { GIFT_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC } from './spellMedallion';
 import { artFor, artVariantKey } from './art';
 import { useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
@@ -834,6 +835,12 @@ export const Card = memo(function Card({
   // cards — the gem now prints ALL instead, so the exclusion is obsolete and the label sits where the eye
   // already looks for it.
   const tribePlated = usePlate && isTribePlated(card.tribe) && !spellLike;
+  // A spell's KIND prints where a minion's tribe does (owner ask 2026-10-09): a Ruby is not a Shop Spell, and a
+  // Gift (a rune/hero hand-out, never in the shop) is neither. Every other spell — token spells like Ruby Blast
+  // and the Triple Reward included — reads Shop Spell. Gift is read off the DEF, like `universalTribe`, so no
+  // CardView builder has to remember to carry it.
+  const spellKind = card.ruby ? 'Ruby' : CARD_INDEX[card.cardId]?.gift ? 'Gift' : 'Shop Spell';
+  const spellKindAttr = spellKind === 'Ruby' ? 'ruby' : spellKind === 'Gift' ? 'gift' : 'spell';
   const useSpellFrame = spellLike && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   // The FRAME and the hand PLATE obey the same rule as the art (art pop-in fix 2026-09-29): until decoded they are
@@ -928,6 +935,7 @@ export const Card = memo(function Card({
           />
           {/* Tribe NAME on the plate's bottom gem — the tribe-plated card's tribe label lives here (no icon)
               instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
+          {spellLike && <div className="plate-tribe spellkind" data-kind={spellKindAttr} aria-hidden="true">{spellKind}</div>}
           {tribePlated && (
             <div className="plate-tribe" aria-hidden="true">
               {/* ALL replaces the printed tribe for an every-type card — NEUTRAL would say the opposite of
@@ -1206,7 +1214,9 @@ export const Card = memo(function Card({
             the gold arch frame so a tripled minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><FadeImg className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
         {spellLike ? (
-          <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
+          <span className="ctype spell spellmed" data-med={spellKindAttr} role="img" aria-label={spellKind}>
+            <FadeImg className="spellmed-img" src={spellKind === 'Ruby' ? RUBY_MEDALLION_SRC : spellKind === 'Gift' ? GIFT_MEDALLION_SRC : SPELL_MEDALLION_SRC} alt="" aria-hidden="true" draggable={false} />
+          </span>
         ) : (
           <>
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
@@ -1272,6 +1282,7 @@ export const Card = memo(function Card({
             <span dangerouslySetInnerHTML={{ __html: rulesHtmlMemo }} />
           </div>
         )}
+        {spellLike && !usePlate && <div className="dtribe spellkind" data-kind={spellKindAttr}>{spellKind}</div>}
         {!spellLike && !tribePlated && (
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data

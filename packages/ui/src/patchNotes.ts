@@ -58,6 +58,8 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      { category: 'Systems', text: 'Spell cards now wear a crystal medallion in place of the purple type pill: a blue star for Shop Spells, a red gem for Rubies and a purple box for Gifts.' },
+      { category: 'Systems', text: 'Spell cards now name their kind under the card, where a minion shows its tribe: Shop Spell, Ruby or Gift.' },
       { category: 'Systems', text: 'The Compendium has a new Guides tab. It shows the same build guides as the lobby rail, all open at once, with bigger minion portraits. Filter them by tribe or search them, and they follow the set you pick. The Gilded toggle now sits next to the tier filters.' },
       {
         category: 'Balance',

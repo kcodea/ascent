@@ -1693,4 +1693,102 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
+  {
+    id: "R-CASSEN-01",
+    title: "Cassen: Commission always offers Discover / Gold / Spell (the rare Citadel and Fortress are removed)",
+    statement:
+      "Cassen's Commission offer is always the three ordinary jobs: Discover (3 turns), Gold (2 turns) and Spell (1 turn). The rare Citadel and Fortress jobs and their 25% roll are gone, and the offer no longer excludes the job taken last. A save that is already working a Citadel or a Fortress still pays it out (a free Shop upgrade / a Triple Reward), so nothing in flight is lost.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "let's change cassen and remove citadel and fortress so he just has the 3 options instead." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts commissionOffer; packages/sim/src/reducer.ts payCommissionOnce" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Live in every mode.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-01",
+    title: "Cassen × Ancient of Death: Avenge (7) on one running count advances the running commission a turn",
+    statement:
+      "With the Ancient of Death, Cassen has a hero Avenge (7) on ONE running count of friendly deaths across the Shop and combat. Each fire makes the running commission land one turn sooner; with none running it does nothing. A Shop fire that brings it due pays it at once (the next action boundary); a combat fire is counted at settle, so it lands at the next Shop's opening payout. The power prints the deaths left and the commission's due turn, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (7): advance your commission 1 turn.\" With no commission running it does nothing." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAdvanceCommission / ancientCommissionDueNow; packages/core/src/combat/simulate.ts ancientAvengePulse; packages/sim/src/reducer.ts action boundary" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-02",
+    title: "Cassen × Ancient of Fortune: a commission payout also banks 5 free Refreshes",
+    statement:
+      "With the Ancient of Fortune, each commission payout also adds 5 free Refreshes to the bank.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Commission also grants 5 free refreshes.\" This applies on payout." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionFreeRefreshes / ancientAfterCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-03",
+    title: "Cassen × Ancient of War: a commission payout gives your board minions +8/+8 permanently",
+    statement:
+      "With the Ancient of War, each commission payout gives every board minion +8/+8, permanently, on the payout's beat.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Your minions gain +8/+8 when a commission triggers.\" Board minions, permanent." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionBuffsBoard / ancientAfterCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-04",
+    title: "Cassen × Ancient of Genesis: a commission payout also gives a random minion of your Shop tier",
+    statement:
+      "With the Ancient of Genesis, each commission payout also gives a random minion of exactly your current Shop tier, to hand (a full hand gets none).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Commission also grants a minion of your tier.\" A random minion of your current Shop tier, to hand." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionGrantsTierMinion / ancientAfterCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-05",
+    title: "Cassen × Ancient of Time: every commission pays out next turn",
+    statement:
+      "With the Ancient of Time, every commission's delay is 1 turn, whatever the job; a commission already running at the pick becomes due next turn. The picker and the printed rule show the live delay.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"Commissions all trigger next turn.\" The delay becomes 1." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionDelay / commissionDelayOf / commissionLineOf; packages/ui/src/StatusBar.tsx commission picker" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-06",
+    title: "Cassen × Ancient of Bonds: a commission pays out twice",
+    statement:
+      "With the Ancient of Bonds, a commission's payout resolves twice (two Discovers, 4 Gold, or two spells).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Commission pays out twice.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionPaysTwice / ancientCommissionReps; packages/sim/src/reducer.ts payCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
 ];

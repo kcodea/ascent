@@ -98,6 +98,8 @@ const ALIASES: Record<string, string> = {
   cometconductor: 'ce3_conductor',     // the card is Neptus
   orreyartificer: 'ce3_artificer',     // the card is Cometius; the file also drops the second 'r' of Orrery
   groveweaveralt: 'b2_groveweaver',  // "GroveweaverAlt2" -> the b2_groveweaver2 variant slot
+  // 2026-10-09: the owner's new master carries the card's UPCOMING name (Deepdelve Paragon -> Delvey); id unchanged.
+  delvey: 'k_deepdelve',
   // 2026-09-14 owner rename handoff (30 set-3 minions; ids + art unchanged): the masters on disk carry the
   // PRE-rename names, so each old name keeps landing on its card until the owner re-files the art.
   horizoncourier: 'ce3_courier',       // now Cosmo Express

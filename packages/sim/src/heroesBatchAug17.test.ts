@@ -141,37 +141,19 @@ describe('Flash — First or Last', () => {
   });
 });
 
-describe("Cassen's rare jobs", () => {
+describe("Cassen's commissions (the rare jobs were removed, owner 2026-10-09)", () => {
   const at = (over: object): RunState => ({ ...createRun(3), phase: 'recruit', heroId: 'cassen', ...over }) as RunState;
 
   it('the offer is DERIVED, so the panel and the reducer always agree', () => {
-    // Same inputs -> same offer, every call. An rngCursor draw would fail this.
     const s = at({ wave: 4, tier: 3 });
-    const a = commissionOffer(s), b = commissionOffer(s), c = commissionOffer({ ...s } as RunState);
-    expect(a).toEqual(b);
-    expect(a).toEqual(c);
+    expect(commissionOffer(s)).toEqual(commissionOffer({ ...s } as RunState));
   });
 
-  it('offers a rare job sometimes, and always keeps three options', () => {
-    let sawRare = false;
+  it('always offers exactly Discover / Gold / Spell, never a rare job ("he just has the 3 options")', () => {
     for (let wave = 1; wave <= 40; wave++) {
-      const o = commissionOffer(at({ wave, tier: 3 }));
-      expect(o.length, 'always three to choose from').toBe(3);
-      if (o.includes('citadel') || o.includes('fortress')) sawRare = true;
-    }
-    expect(sawRare, 'a 25% chance shows up across 40 turns').toBe(true);
-  });
-
-  it('never offers Citadel above Tier 4', () => {
-    for (let wave = 1; wave <= 60; wave++) {
-      expect(commissionOffer(at({ wave, tier: 5 })), `wave ${wave}`).not.toContain('citadel');
+      for (const tier of [1, 4, 6]) expect(commissionOffer(at({ wave, tier })), `wave ${wave}`).toEqual(['discover', 'gold', 'spell']);
     }
   });
-
-  // NOT COVERED HERE: the two payouts firing at maturity. They ride the same `payCommission` path the three
-  // ordinary jobs already use (only the branch differs), and I could not pin the turn-advance action from a
-  // fixture in reasonable time — so the DERIVED OFFER above, which is the part with real failure modes, is
-  // what these tests guard. The payouts themselves are a free `s.tier += 1` and a `grantGoldenDiscover`.
 });
 
 describe('Juggler — Baldgecoin', () => {

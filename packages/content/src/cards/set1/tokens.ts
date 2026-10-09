@@ -3,6 +3,21 @@ import type { CardDef } from '@game/core';
 /** Non-buyable tokens summoned by other cards. */
 export const TOKENS: CardDef[] = [
   {
+    // Rayse × Ancient of Death (owner 2026-10-09): "Avenge (4): Summon a 1/1 Sprout and improve this." A NEW plain neutral
+    // body, NOT the `sprout` spell (hence the id). Printed at the 1/1 BASE: the run's Sprout size (+1/+1 per fire) is set
+    // at summon time by the Ancient, so this def stays a plain stat line. No art yet (art is wired only on ask).
+    id: 'raysesprout',
+    name: 'Sprout',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    text: "A Sprout from Rayse's garden.",
+    token: true,
+  },
+  {
     id: 'pup',
     name: 'Pup',
     tribe: 'beast',

@@ -58,6 +58,8 @@ const ART_PENDING = new Set<string>([
   'sp3_grovereveler', 'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_grandprocession',
   // …tranche 2 (the hand-summon cards): Hearth Whisperer, Seedling Spirit + Tide Caller have masters; the rest are pending.
   'sp3_slumbering', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
+  // RAYSE × ANCIENT OF DEATH (2026-10-09): the Sprout token is authored ahead of its art (art is wired only on the owner's ask).
+  'raysesprout',
   // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (Yazzus is one card for every set since
   // 2026-09-16 and wears the original Yazzus portrait).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.

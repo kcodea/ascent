@@ -554,10 +554,9 @@ describe('Cassen — Commission (owner rework 2026-08-16)', () => {
     expect(h.power.cost ?? 0, 'free to activate').toBe(0);
   });
 
-  it('offers all three the first time, then never the one taken last', () => {
-    expect(commissionOffer({} as RunState).sort()).toEqual(['discover', 'gold', 'spell']);
-    expect(commissionOffer({ lastCommission: 'gold' } as RunState)).not.toContain('gold');
-    expect(commissionOffer({ lastCommission: 'gold' } as RunState).length).toBe(2);
+  it('always offers all three (owner 2026-10-09: "he just has the 3 options"), the one taken last included', () => {
+    expect(commissionOffer({} as RunState)).toEqual(['discover', 'gold', 'spell']);
+    expect(commissionOffer({ lastCommission: 'gold' } as RunState)).toEqual(['discover', 'gold', 'spell']);
   });
 
   it('starts a commission with the right due wave and records it as last-taken', () => {
@@ -567,9 +566,9 @@ describe('Cassen — Commission (owner rework 2026-08-16)', () => {
     expect(after.lastCommission).toBe('gold');
   });
 
-  it('refuses a commission that is not on offer', () => {
+  it('refuses a commission that is not on offer (the removed rare jobs)', () => {
     const s = at({ heroId: 'cassen', heroReady: true, wave: 4, lastCommission: 'gold' });
-    const after = reduce(s, { type: 'heroPower', commission: 'gold' } as never);
+    const after = reduce(s, { type: 'heroPower', commission: 'citadel' } as never);
     expect([after.commission, after.heroReady]).toEqual([undefined, true]);
   });
 
@@ -585,7 +584,7 @@ describe('Cassen — Commission (owner rework 2026-08-16)', () => {
     expect(running).toContain('2 Gold');
     const offering = heroPowerText({ ...createRun(3, 'cassen'), lastCommission: 'gold' } as RunState);
     expect(offering).toContain('Choose one');
-    expect(offering, 'the last-taken option is not re-offered').not.toContain('2 Gold');
+    expect(offering, 'all three are offered, the last-taken one included').toContain('2 Gold');
   });
 });
 

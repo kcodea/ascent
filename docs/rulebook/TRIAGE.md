@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (103) — NOT owner questions
+## Doc Bot verification backlog (104) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -27,6 +27,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod ancientEdgeShouts — ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): Start of Combat, trigger this side's left-most and right-most living minions with a Shout (once when they are the same minion), through the shared combat Shout path (`fireShout`), so every Shout watcher and tally hears them. Player-only; never snapshotted.
 - combat mod ancientShoutAdjacent — ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26): whenever one of this side's Shouts triggers (`battlecryTriggered`), the living minions next to the Shouting minion gain +attack/+health, right then. Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted.
 - combat mod ancientUndying — ANCIENTS × Lord of the Risen: the run-board uids of the minions Undying marked for this fight (`tempReborn`), matched against each combat body's `sourceUid`. `regainRise` (Death): the body regains Rise right after its first Rise, once per combat (a BLUE Rise). `war` (War): every Rise of the body returns it with double Attack and it attacks immediately (a RED Rise). Player-only; never snapshotted.
+- combat mod ancientSummonExtraLimit — ANCIENT OF GENESIS × Rayse (owner 2026-10-09): "The first 2 minions you summon in combat summon twice." A budget on `ancientSummonExtra`: only the first N friendly summons this fight (a Rise / Rebirth return counts, the Risen precedent) make their extra copies; the copies themselves never spend it. Absent = unlimited (Risen's rule). Player-only; never snapshotted.
 - combat mod ancientRiseEcho — ANCIENT OF BONDS × Lord of the Risen: whenever a friendly minion Rises, trigger the Echo of a living minion next to it (random between two, nothing with none), through the shared Echo path. Player-only; never snapshotted.
 - combat mod ancientSpellCastExtra — ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat." Seeds the side's extra combat casts (`spellCastRepsFor`, Runebloom Matriarch's channel) at the start of the fight.
 - combat mod ancientSpellEdges — ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3." Every combat spell cast (`ctx.castSpell`, once per repetition) buffs the side's left-most and right-most LIVING minions (once when they are the same body). A combat buff: it lasts the fight. Player-only.

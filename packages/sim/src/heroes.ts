@@ -86,7 +86,7 @@ export interface HeroPower {
   kind: HeroPowerKind;
   /** Once-per-game powers lock after a single use (vs the default once-per-wave). */
   oncePerGame?: boolean;
-  /** Total-game activation cap (Gildmaster: 2). Still gated once-per-turn by `heroReady`; the count rides
+  /** Total-game activation cap (Gildmaster: 3; an Ancient's `powerOverride.maxUses` can raise it). Still gated once-per-turn by `heroReady`; the count rides
    *  in `RunState.heroPowerUses`. Distinct from `oncePerGame` (which is a hard single use). */
   maxUses?: number;
   /** PER-TURN activation cap (Fibbsy: 2). The power may fire this many times each turn, resetting every turn —
@@ -123,7 +123,8 @@ export interface HeroDef {
    *  The owner's "archive" rulings all land here (Fi + Coran 2026-08-28, Void 2026-09-16, and the 2026-09-24
    *  batch: Aevor, Cindara, Devourer, Emissary, Fibbsy, Harlan, Odelle, Tiff, Underdweller, Runesmith,
    *  Guardian, Foreman Flint, Gorun, Jensen, Membrance, Pete, Rayse, Sable, Yirin). Restore a hero by deleting
-   *  its flag. */
+   *  its flag. Several of those have since been restored (Rayse among them): the live `wip: true` flags are the
+   *  truth, never this list. */
   wip?: boolean;
   /** PRACTICE-ONLY: playable, but withheld from PLAY mode — the Ascent picker and generated rival seats.
    *  Distinct from `wip`, which hides a hero from every picker including Practice. This is for a hero that

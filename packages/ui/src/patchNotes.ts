@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Match length now counts only the time you were actually in the game.',
+        details: [
+          'Time with the game minimised, in a background tab or on another window is not counted, and neither is time on the menus.',
+          'Quitting and pressing Continue later no longer adds the time the game was closed.',
+          'Older games recorded before this change show their length up to 35 minutes, and "35+ min" past that.',
+        ],
+      },
       { category: 'Balance', text: 'Renamed two cards to fit their names on the card: Coppercoat Spellsword is now Spellsword, and Malphas, Lord of Want is now Lord of Want. They work exactly the same.' },
       {
         category: 'Systems',

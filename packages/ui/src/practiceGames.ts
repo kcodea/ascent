@@ -15,6 +15,9 @@ export function practiceGameOf(run: RunState, opts: {
   patch: string;
   finalBoard: BoardSnapshot | null;
   frames: ReadonlyArray<{ tMs: number }>;
+  /** The run's frozen ACTIVE play ms (R-MATCH-LENGTH-01) — THE length. Null/absent = unknown (a run resumed
+   *  from a pre-clock save): the frames' raw span is stored, and the reader caps it at "35+ min". */
+  activeMs?: number | null;
 }): PracticeGameUpload {
   const seat = run.lobby?.seats.find((x) => x.id === 's0');
   const placement = run.lobby ? seat?.placement ?? run.lobby.seats.filter((x) => x.alive).length : null;
@@ -32,9 +35,15 @@ export function practiceGameOf(run: RunState, opts: {
     wave: run.wave,
     finalBoard: opts.finalBoard,
     runes: opts.finalBoard?.runes ?? [],
-    // WHOLE milliseconds: the frame clock is fractional (performance.now), and `practice_games.duration_ms` is an int
-    // column, so an unrounded value made Postgres reject EVERY practice row (22P02, found 2026-09-27).
-    durationMs: typeof first === 'number' && typeof last === 'number' && last >= first ? Math.round(last - first) : null,
+    // ACTIVE play time (owner 2026-10-09, R-MATCH-LENGTH-01), never the frames' wall-clock span (which counted the
+    // hours a shop sat open in a background tab). Unknown active time (a run resumed from a pre-clock save) stores
+    // the raw span: its replay carries no `activeMs`, so the reader treats the column as legacy and caps it at
+    // "35+ min". WHOLE milliseconds: `practice_games.duration_ms` is an int column, so an unrounded value made
+    // Postgres reject EVERY practice row (22P02, found 2026-09-27).
+    durationMs: roundOrNull(activeMsOf(opts.activeMs) ?? (typeof first === 'number' && typeof last === 'number' && last >= first ? last - first : null)),
     config: { opponents: cfg.opponents, botDifficulty: normalizeBotDifficulty(cfg.botDifficulty), health: cfg.health, timeMult: cfg.timeMult ?? 1 },
   };
 }
+
+const roundOrNull = (n: number | null): number | null => (n === null ? null : Math.round(n));
+const activeMsOf = (n: number | null | undefined): number | null => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : null);

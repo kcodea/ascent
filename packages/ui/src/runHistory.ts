@@ -53,6 +53,10 @@ export interface RunHistoryEntry {
    *  is no longer shown (owner 2026-08-04) — absent on pre-lobby entries, which fall back to the Line. */
   placement?: number;
   mode?: string;
+  /** ACTIVE PLAY TIME (owner 2026-10-09, R-MATCH-LENGTH-01): ms the player was actually in this game — the
+   *  Career's "Length". Absent on older entries (the Career then falls back to a recording
+   *  span capped at "35+ min", see `matchLength`) and on a run resumed from a save that predates the clock. */
+  activeMs?: number;
   /** LOBBY STRENGTH (owner 2026-09-22): how hard the seven opponents were, 0–100 with a tier. On THIS row it is
    *  the SERVER's computation: `settle_rank` stamps a value + tier (`inputs: []`) from the fight ledger's view
    *  when the settlement commits — the client never delays the history insert for its own fetch (that stamp,

@@ -8,6 +8,7 @@
  * exist on `main` when this shipped, and the two branches must merge without touching each other's files.
  * Once both are in, fold these into ONE module (careerData's copies are the canonical ones) and delete these.
  */
+import { lengthText } from './activePlayClock';
 
 /** 1st / 2nd / 3rd / 4th … (11th–13th handled). */
 export function ordinalOf(n: number): string {
@@ -24,11 +25,9 @@ export function outcomeOf(placement: number | null): { label: string; cls: 'won'
   return { label: ordinalOf(placement).toUpperCase(), cls: placement <= 4 ? 'top4' : 'lost' };
 }
 
-/** "36 min" for the outcome block; "<1 min" under a minute; "—" when unknown. */
-export function runLengthText(durationMs: number | null): string {
-  if (durationMs === null || durationMs < 0) return '—';
-  const mins = Math.round(durationMs / 60_000);
-  return mins < 1 ? '<1 min' : `${mins} min`;
+/** "36 min" for the outcome block; "<1 min" under a minute; "35+ min" past the legacy cap; "—" when unknown. */
+export function runLengthText(durationMs: number | null, overCap = false): string {
+  return lengthText(durationMs, overCap);
 }
 
 /** "Sep 19, 2026" — the date a run was played; '' when unknown. */

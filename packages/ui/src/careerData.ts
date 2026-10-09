@@ -1,5 +1,6 @@
 import type { Tribe } from '@game/core';
 import { parseBoardStrength, parseLobbyStrength, parseMatchDetails, type BoardSnapshot, type LobbyStrength, type MatchDetails, type ReplayV2 } from '@game/sim';
+import { lengthText, matchLength, matchLengthMs, type MatchLength } from './activePlayClock';
 
 /**
  * CAREER PAGE DATA (owner rebuild 2026-09-19) — the pure half of the Career page: the run row model the page
@@ -61,8 +62,14 @@ export interface CareerRun {
   /** `run_telemetry.id` of a WATCHABLE v2 replay for this run — the handle `fetchReplayPayload` takes. Null =
    *  no replay (the button renders disabled). */
   replayRowId: number | null;
-  /** The recording's clock span (last frame − first frame), ms. Null without a telemetry row. */
+  /** THE match length, ms (R-MATCH-LENGTH-01): the run's recorded ACTIVE play time (`entry.activeMs`, else the
+   *  telemetry replay's `activeMs`); on an older run, the recording's clock span (last frame − first frame) only
+   *  up to 35 minutes (`matchLength`). Null = no number: "—", or "35+ min" when `lengthOverCap`. */
   durationMs: number | null;
+  /** A legacy recording span past the 35-minute cap (owner 2026-10-09): the Length prints "35+ min". */
+  lengthOverCap?: boolean;
+  /** The run's recorded active play ms (`entry.activeMs`); null on entries from before 2026-10-09. */
+  activeMs?: number | null;
   /** The LOBBY STRENGTH the run was played at (owner 2026-09-22): `entry.lobbyStrength`, stamped at run end
    *  (or back-filled by `settle_rank`). Null on rows without a stamp — the row then prints nothing for it. */
   lobbyStrength: LobbyStrength | null;
@@ -93,6 +100,8 @@ export interface RunHistoryRowLike {
   lobby_strength?: unknown;
   /** `board_strength:entry->>boardStrength` (text). */
   board_strength?: unknown;
+  /** `active_ms:entry->>activeMs` (text) — the run's active play ms (R-MATCH-LENGTH-01). */
+  active_ms?: unknown;
 }
 
 /** One `run_telemetry` row as the LIGHT probe projects it — scalars only, never the replay payload. */
@@ -105,6 +114,8 @@ export interface TelemetryProbeRow {
   /** `replay->v2->frames->0->>tMs` / `replay->v2->frames->-1->>tMs` (text numbers). */
   first_t?: unknown;
   last_t?: unknown;
+  /** `replay->v2->>activeMs` (text) — the recorded active play ms (R-MATCH-LENGTH-01); absent on older rows. */
+  active_ms?: unknown;
   placement?: unknown;
   created_at?: unknown;
 }
@@ -138,6 +149,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
   const board = e.board && typeof e.board === 'object' && Array.isArray((e.board as BoardSnapshot).minions)
     ? (e.board as BoardSnapshot) : null;
   const runes = board && Array.isArray(board.runes) ? (board.runes as unknown[]).filter((id): id is string => typeof id === 'string' && id !== '') : [];
+  const activeMs = nonNegative(num(e.activeMs) ?? num(row.active_ms));
   return {
     id: num(row.id),
     heroId: str(e.heroId) ?? str(row.hero_id) ?? '',
@@ -160,7 +172,9 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     detailed,
     runes,
     replayRowId: null,
-    durationMs: null,
+    // The entry's own active time is THE length; a run without one waits for the telemetry join (legacy span).
+    durationMs: activeMs,
+    activeMs,
     lobbyStrength: parseLobbyStrength(e.lobbyStrength) ?? parseLobbyStrength(row.lobby_strength),
     boardStrength: parseBoardStrength(e.boardStrength) ?? parseBoardStrength(row.board_strength),
     match: parseMatchDetails(e.match),
@@ -168,16 +182,20 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
 }
 
 const positive = (n: number | null): number | null => (n !== null && n > 0 ? n : null);
+/** A `MatchLength` as the row fields every Length surface reads. */
+export const lengthFieldsOf = (l: MatchLength): { durationMs: number | null; lengthOverCap: boolean } => ({ durationMs: l.ms, lengthOverCap: l.overCap });
+const nonNegative = (n: number | null): number | null => (n !== null && n >= 0 ? n : null);
 
 /** A telemetry probe row → the per-run facts the page wants from it. `hasReplay` needs BOTH a v2 version
- *  stamp and a numeric row id (the fetch handle). `durationMs` needs both frame clocks. */
-export function telemetryFactsOf(r: TelemetryProbeRow): { rowId: number | null; seed: number | null; hasReplay: boolean; durationMs: number | null; placement: number | null } {
+ *  stamp and a numeric row id (the fetch handle). `durationMs` is the RAW frame span (needs both clocks) and
+ *  `activeMs` the recorded active play time; `joinTelemetry` picks the length from them (`matchLengthMs`). */
+export function telemetryFactsOf(r: TelemetryProbeRow): { rowId: number | null; seed: number | null; hasReplay: boolean; durationMs: number | null; activeMs: number | null; placement: number | null } {
   const rowId = num(r.id);
   const v2 = r.v2_version === 2 || r.v2_version === '2';
   const first = num(r.first_t);
   const last = num(r.last_t);
   const durationMs = first !== null && last !== null && last >= first ? last - first : null;
-  return { rowId, seed: num(r.seed), hasReplay: v2 && rowId !== null, durationMs, placement: positive(num(r.placement)) };
+  return { rowId, seed: num(r.seed), hasReplay: v2 && rowId !== null, durationMs, activeMs: nonNegative(num(r.active_ms)), placement: positive(num(r.placement)) };
 }
 
 /**
@@ -198,7 +216,8 @@ export function joinTelemetry(runs: CareerRun[], probe: TelemetryProbeRow[]): Ca
     return {
       ...run,
       replayRowId: f.hasReplay ? f.rowId : null,
-      durationMs: f.durationMs,
+      // R-MATCH-LENGTH-01: active time first (the entry's, then the replay's); a legacy span up to 35 min, else "35+".
+      ...lengthFieldsOf(matchLength({ activeMs: run.activeMs ?? f.activeMs, spanMs: f.durationMs })),
       placement: run.placement ?? f.placement,
     };
   });
@@ -221,10 +240,8 @@ export function apmOf(run: Pick<CareerRun, 'apt' | 'wave' | 'durationMs'>): numb
 }
 
 /** "36 min" for the outcome block; "<1 min" under a minute; "—" when unknown. */
-export function runLengthText(durationMs: number | null): string {
-  if (durationMs === null || durationMs < 0) return '—';
-  const mins = Math.round(durationMs / 60_000);
-  return mins < 1 ? '<1 min' : `${mins} min`;
+export function runLengthText(durationMs: number | null, overCap = false): string {
+  return lengthText(durationMs, overCap);
 }
 
 /** 1st / 2nd / 3rd / 4th … (11th–13th handled). Duplicated from runHistory.ts on purpose: this module must
@@ -284,7 +301,9 @@ export function replaySummary(replay: ReplayV2): {
   const frames = replay.frames;
   const first = frames[0];
   const last = frames[frames.length - 1];
-  const durationMs = first && last && last.tMs >= first.tMs ? last.tMs - first.tMs : null;
+  const spanMs = first && last && last.tMs >= first.tMs ? last.tMs - first.tMs : null;
+  // R-MATCH-LENGTH-01: the recorded active play time; an older replay's span only up to the 35-minute cap.
+  const durationMs = matchLengthMs({ activeMs: replay.activeMs, spanMs });
   let actions = 0;
   let goldSpent: number | null = null;
   for (const f of frames) {

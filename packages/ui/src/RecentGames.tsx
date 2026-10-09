@@ -156,7 +156,7 @@ export function RecentGames(): JSX.Element | null {
               const busy = watching === key;
               const unplayable = noReplay === key;
               const when = playedAtText(r.createdAt);
-              const length = runLengthText(r.durationMs);
+              const length = runLengthText(r.durationMs, r.lengthOverCap);
               const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
               const inner = (
                 <>

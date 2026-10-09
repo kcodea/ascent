@@ -84,6 +84,13 @@ describe('fetchPracticeGames / asPracticeGameRow', () => {
     expect(r.durationMs).toBeNull();
     expect(r.placement).toBeNull();
   });
+  it('R-MATCH-LENGTH-01: the replay probe\'s active time is the length; a legacy duration_ms shows up to 35 min, "35+" past it', async () => {
+    const m = await load();
+    expect(m.asPracticeGameRow({ ...PRACTICE_ROW, wave: 16, duration_ms: 246 * 60_000, active_ms: '1860000' }).durationMs).toBe(1_860_000);
+    expect(m.asPracticeGameRow({ ...PRACTICE_ROW, wave: 16, duration_ms: 246 * 60_000 }).durationMs).toBeNull();
+    expect(m.asPracticeGameRow({ ...PRACTICE_ROW, wave: 16, duration_ms: 246 * 60_000 }).lengthOverCap).toBe(true);
+    expect(m.asPracticeGameRow({ ...PRACTICE_ROW, wave: 16, duration_ms: 31 * 60_000 }).durationMs).toBe(31 * 60_000);
+  });
   it('pre-migration (the table does not exist yet) reads as an empty list', async () => {
     respond = () => ({ data: null, error: { code: 'PGRST205' } });
     expect(await (await load()).fetchPracticeGames()).toEqual([]);
@@ -193,6 +200,14 @@ describe('practice replays (owner 2026-09-27)', () => {
 
 describe('practiceGameOf', () => {
   const run = (over: Partial<RunState> = {}): RunState => ({ ...createLobbyRun(42, 'brackus', {}, 'practice', { ...DEFAULT_PRACTICE_CONFIG, opponents: 'bots', botDifficulty: 7 }), ...over });
+  it('R-MATCH-LENGTH-01: the stored length is the ACTIVE play time, never the wall-clock frame span', () => {
+    const r = run({ wave: 16 });
+    const frames = [{ tMs: 0 }, { tMs: 246 * 60_000 }];
+    expect(practiceGameOf(r, { author: 'Kev', patch: 'p', finalBoard: null, frames, activeMs: 1_860_000.4 }).durationMs).toBe(1_860_000);
+    // Unknown active time (resumed from a pre-clock save): the raw span is stored; its replay has no activeMs, so
+    // the reader treats it as legacy and prints "35+ min".
+    expect(practiceGameOf(r, { author: 'Kev', patch: 'p', finalBoard: null, frames, activeMs: null }).durationMs).toBe(246 * 60_000);
+  });
   it('placement = the seat’s stamped placement, record from the history, length from the frame clocks, the options', () => {
     const r = run({ wave: 9, history: ['win', 'lose', 'win', 'win', 'lose', 'draw', 'win', 'win', 'lose'] });
     r.lobby!.seats.find((s) => s.id === 's0')!.placement = 4;

@@ -149,6 +149,7 @@ describe('leaderboardData — the labels the pages print', () => {
   it('ordinals, run length, record and history folding', () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinalOf)).toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd']);
     expect(runLengthText(null)).toBe('—');
+    expect(runLengthText(null, true)).toBe('35+ min');
     expect(runLengthText(20_000)).toBe('<1 min');
     expect(runLengthText(18 * 60_000 + 10_000)).toBe('18 min');
     expect(recordText({ wins: 9, losses: 4, draws: 0 })).toBe('9–4');
@@ -176,6 +177,13 @@ describe('asRecentGameRow — the widened light-list mapper', () => {
     expect(row.runes).toEqual(['rune_warding']);
     expect(row.wave).toBe(15);
     expect(asRecentGameRow({ ...base, final_board: { ...board(0) } }).board).toBeNull();
+    // R-MATCH-LENGTH-01: the replay's ACTIVE time is the length; an older row's span shows up to 35 min, "35+" past it.
+    expect(asRecentGameRow({ ...base, first_t: '0', last_t: String(246 * 60_000), final_wave: '16', active_ms: '1860000' }).durationMs).toBe(1_860_000);
+    const longLegacy = asRecentGameRow({ ...base, first_t: '0', last_t: String(246 * 60_000), final_wave: '16' });
+    expect(longLegacy.durationMs).toBeNull();
+    expect(runLengthText(longLegacy.durationMs, longLegacy.lengthOverCap)).toBe('35+ min');
+    expect(asRecentGameRow({ ...base, first_t: '0', last_t: String(31 * 60_000), final_wave: '16' }).durationMs).toBe(31 * 60_000);
+    expect(asRecentGameRow({ ...base, first_t: '0', last_t: String(31 * 60_000), final_wave: '16' }).lengthOverCap).toBe(false);
     // The lobby-strength stamp (`replay->v2->result->lobbyStrength`, a JSON object): parsed when present, null otherwise.
     expect(asRecentGameRow({ ...base, lobby_strength: { value: 74, tier: 'Brutal', inputs: [] } }).lobbyStrength).toEqual({ value: 74, tier: 'Brutal', inputs: [] });
     expect(asRecentGameRow({ ...base, lobby_strength: null }).lobbyStrength).toBeNull();

@@ -192,6 +192,11 @@ export interface ReplayV2 {
   patch: string;
   /** Stamped on upload; capture scripts can't be trusted with Date.now(). */
   createdAtMs?: number;
+  /** ACTIVE PLAY TIME (owner 2026-10-09, R-MATCH-LENGTH-01): ms the player was actually in the game (app visible
+   *  + focused, run on screen, no step over a minute; closed time never counts). THE match length every surface
+   *  prints. Display only: it is wall-clock, never read by playback or the sim. Absent on older recordings,
+   *  whose length is the frames' span, shown up to 35 minutes and as "35+ min" past it (`matchLength`). */
+  activeMs?: number;
   /** A recording that does NOT begin at wave 1. Since 2026-08-20 the capture layer persists frames per round
    *  to IndexedDB, so an ordinary quit-and-resume produces a COMPLETE replay; this is now reserved for the
    *  cases where that failed (see `partialReason`). Viewers must label the recorded range rather than imply

@@ -112,6 +112,7 @@ import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { recordActionEntry } from './bug-report/actionRing';
 import { createDeferredWriter } from './idleWork';
+import { ACTIVE_HEARTBEAT_MS, createActivePlayClock, documentIsActive } from './activePlayClock';
 import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
@@ -993,6 +994,13 @@ export function loadCombatRampUp(): boolean {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
+// ACTIVE PLAY TIME (owner bug 2026-10-09, R-MATCH-LENGTH-01): the match length counts only the time the player is
+// actually in the game (see activePlayClock.ts). Module-level like the replay frame clock; reset by every new run
+// (`beginReplayCapture`), restored from the save on a resume (`activeMs` rides in `ascent.save`, so the time the
+// app was closed is never observed), sampled by the heartbeat + visibility/focus listeners at the bottom of this
+// file, and frozen at run end into the history entry / replay / practice row. Never reaches core/sim.
+const activePlay = createActivePlayClock();
+const activeNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0);
 /**
  * May this run occupy the save slot (and so be offered as Continue)? Only a STARTED, unfinished LOBBY run:
  * Play, Practice and the tutorial all carry `run.lobby`. A run without one is the retired 17-round course
@@ -1001,7 +1009,7 @@ const SAVE_KEY = 'ascent.save';
 export function isResumableRun(run: RunState): boolean {
   return !!run.lobby && !run.sandbox && run.phase !== 'gameover' && run.phase !== 'victory';
 }
-interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; }
+interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; /** Active play ms so far (R-MATCH-LENGTH-01); absent on saves from before the clock. */ activeMs?: number; }
 function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -1017,7 +1025,7 @@ function loadSave(): SavedGame | null {
  *  finished, the retired course format, or a card this build no longer has. Never touches storage. */
 function parseSave(raw: string): SavedGame | null {
   try {
-    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice };
+    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; activeMs?: unknown };
     const run = deserialize(o.run, { turnRemaining: o.turnRemaining }); // heals older-schema saves (+ closes a Thymepiece window the saved clock is past)
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // THE RETIRED COURSE (owner 2026-09-30, R-PERSIST-01): a save with no lobby is the old 17-round wave format
@@ -1039,7 +1047,8 @@ function parseSave(raw: string): SavedGame | null {
       console.warn(`[ascent] discarding a saved run that references ${missing.length} card(s) this build no longer has:`, missing.join(', '));
       return null;
     }
-    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive, turnRemaining: o.turnRemaining, announced: o.announced };
+    const activeMs = typeof o.activeMs === 'number' && Number.isFinite(o.activeMs) && o.activeMs >= 0 ? o.activeMs : undefined;
+    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive, turnRemaining: o.turnRemaining, announced: o.announced, ...(activeMs != null ? { activeMs } : {}) };
   } catch { return null; }
 }
 function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog, derive?: DeriveState, turnRemaining?: number, announced?: AnnouncedSlice): void {
@@ -1066,7 +1075,10 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
     // (owner ask 2026-08-24 — quitting at 51s must not come back at 0). Only `flushSave` (the mid-turn path)
     // passes it; the turn-boundary autosave omits it, so resuming from a boundary starts the next turn at full.
     // `announced` (the announcer's spoken lines, announcerSlice.ts) rides along so a Continue never replays a line.
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}), ...(announced ? { announced } : {}) }));
+    // `activeMs` (R-MATCH-LENGTH-01) rides along so a resume continues the match length from here: the hours the
+    // app is closed are never observed. Omitted when unknown (a run resumed from a save that predates the clock).
+    const activeMs = activePlay.read(activeNow());
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}), ...(announced ? { announced } : {}), ...(activeMs != null ? { activeMs } : {}) }));
   } catch { return; }
   // CROSS-DEVICE SAVES: the local write above always comes first (offline play is unchanged). The cloud copy
   // follows at the start of each shop phase (a new run opens on one too); Save & Quit / tab hide push it from
@@ -1141,6 +1153,7 @@ const autosave = createDeferredWriter<Parameters<typeof writeSave>>((args) => {
   perfMonitor.measure('autosave', () => writeSave(...args));
 }, AUTOSAVE_IDLE_TIMEOUT_MS);
 const BOOT_SAVE = loadSave();
+if (BOOT_SAVE) activePlay.restore(BOOT_SAVE.activeMs);
 
 // ── REPLAY V2 (state replay, Phase A — docs/replay-v2-handoff.md §5) ──────────────────────────────────────
 // The frame clock: `tMs` is cumulative ms from run start, accumulated as clamped deltas between committed
@@ -1261,12 +1274,16 @@ function persistReplayWave(run: RunState, frames: readonly ReplayFrame[], trail:
 function assembleReplayV2(next: RunState, o: {
   author: string; partial: boolean; frames: ReplayFrame[]; inspectTrail: InspectEvent[];
   cursorTrail: ReturnType<typeof takeCursorTrail>; placement: number; finalBoard: BoardSnapshot | null;
+  /** The run's frozen active play ms (R-MATCH-LENGTH-01); null = unknown (omitted from the payload). */
+  activeMs: number | null;
 }): ReplayV2 {
   return {
     version: 2,
     seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
     author: o.author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
     createdAtMs: Date.now(),
+    // THE match length (R-MATCH-LENGTH-01): active play time, not the frames' wall-clock span.
+    ...(o.activeMs != null ? { activeMs: o.activeMs } : {}),
     // A recording that does not reach back to wave 1 — draft persistence missing or failed. Carry the
     // RANGE and the REASON, so a viewer can say "rounds 7-18 recorded" instead of implying the earlier
     // rounds were filtered out.
@@ -1306,6 +1323,9 @@ function beginReplayCapture(run: RunState): ReplayFrame[] {
   // here — the one chokepoint every new-run path shares — or a low uid from this run inherits a prior run's
   // ≥5000 latch and wears the blue ring without being a milestone unit (owner report 2026-09-23).
   resetMilestoneLatches();
+  // A new run's match length starts at zero. Paused here: the store has not shown the run yet, so the
+  // subscription at the bottom of this file starts it the moment the run is on screen.
+  activePlay.reset(activeNow(), false);
   const frames = seedReplayFrames(run);
   startReplayDraft(run);
   return frames;
@@ -1610,6 +1630,10 @@ function commitResolvedAction(
         }
       }
     });
+    // ACTIVE PLAY TIME (R-MATCH-LENGTH-01): the run just ended → freeze its length NOW (the uploads below are
+    // deferred, and the end screen must not keep adding to it). Null = unknown (resumed from a pre-clock save).
+    const endedActiveMs = (next.phase === 'gameover' || next.phase === 'victory') && s.run.phase !== 'gameover' && s.run.phase !== 'victory'
+      ? activePlay.freeze(activeNow()) : null;
     const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
       ? [...s.capturedBoards, snapshotBoard(next)]
       : s.capturedBoards;
@@ -1782,7 +1806,7 @@ function commitResolvedAction(
         // rides along (the same value the run's pool key and fight-ledger key carry) so the Hall can join a
         // run's own career row by its full run key, never by seed + hero alone.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
-        void uploadRunHistory({ ...entry, ...(match ? { match } : {}), ...(unratedLobby ? { unrated: 'all-generated' } : {}), ...(boardStrength?.value != null ? { boardStrength: boardStrength.value } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+        void uploadRunHistory({ ...entry, ...(endedActiveMs != null ? { activeMs: endedActiveMs } : {}), ...(match ? { match } : {}), ...(unratedLobby ? { unrated: 'all-generated' } : {}), ...(boardStrength?.value != null ? { boardStrength: boardStrength.value } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
           .then(() => fetchRunHistory<RunHistoryEntry>())
           .then((remote) => {
             // A FAILED read returns null, and we skip the profile write entirely rather than upserting
@@ -1820,7 +1844,7 @@ function commitResolvedAction(
         // it back locally; the lobby telemetry upload below rides the same object.
         const v2Base = assembleReplayV2(next, {
           author, partial: s.replayPartial, frames: replayFrames, inspectTrail, cursorTrail,
-          placement: lobbyPlacement ?? 0, finalBoard,
+          placement: lobbyPlacement ?? 0, finalBoard, activeMs: endedActiveMs,
         });
         // BOARD STRENGTH rides on the recorded result, for the Recent Games row (which reads this, never the history).
         const v2: ReplayV2 = boardStrength?.value != null ? { ...v2Base, result: { ...v2Base.result, boardStrength: boardStrength.value } } : v2Base;
@@ -1936,9 +1960,9 @@ function commitResolvedAction(
         try {
           const finalBoard = endStateBoard(next);
           const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`;
-          const row = practiceGameOf(next, { author, patch, finalBoard, frames });
+          const row = practiceGameOf(next, { author, patch, finalBoard, frames, activeMs: endedActiveMs });
           // The recorded outcome is the placement the practice end screen showed (the row's own placement).
-          const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, placement: row.placement ?? 0, finalBoard });
+          const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, placement: row.placement ?? 0, finalBoard, activeMs: endedActiveMs });
           // MATCH DETAILS (owner ask 2026-09-28): the table at this game's end, for the end screen now and the
           // Practice tab later. It rides inside the row's `replay` jsonb (`replay.match`), so no new column.
           const match = matchDetailsOf(next, author, finalBoard, row.placement);
@@ -3106,6 +3130,7 @@ export function adoptCloudRun(row: CloudRow): boolean {
   if (save.run.lobby) resetLobbyDrivers(save.run.lobby.seats);
   dropBoardFx();
   const run = save.run;
+  activePlay.restore(save.activeMs); // R-MATCH-LENGTH-01: continue the adopted run's length (never the time between)
   useGame.setState({
     run, savedRun: run, savedTurnRemaining: save.turnRemaining ?? null,
     replayActions: save.actions, capturedBoards: save.boards,
@@ -3143,6 +3168,7 @@ function restoreSaveSlot(): void {
   // The God Mode table's drivers are not this run's; evict any cached for its seats so they rebuild from the save.
   if (save.run.lobby) resetLobbyDrivers(save.run.lobby.seats);
   const run = save.run;
+  activePlay.restore(save.activeMs); // R-MATCH-LENGTH-01: back to the real run's length (the God Mode game reset it)
   useGame.setState({
     run, savedRun: run, savedTurnRemaining: save.turnRemaining ?? null,
     replayActions: save.actions, capturedBoards: save.boards,
@@ -3319,3 +3345,30 @@ if (import.meta.hot) {
 export const isPreRun = (
   s: Pick<GameStore, 'showTitle' | 'heroChoices' | 'practiceSetupOpen'>,
 ): boolean => s.showTitle || s.heroChoices !== null || s.practiceSetupOpen;
+
+// ACTIVE PLAY TIME (owner bug 2026-10-09, R-MATCH-LENGTH-01). The clock counts only while the player is actually in
+// the game: the app is visible + focused, and a started, unfinished, non-sandbox run is ON SCREEN (not the title,
+// menus or hero picker (`isPreRun`), not a replay). Sampled (a) whenever that answer flips (the store subscription
+// compares one boolean, so it costs nothing per state change), (b) on visibility/focus/blur, and (c) on a
+// heartbeat, so every live step is far inside the 60 s gap cap and only a stall (sleep, suspend, a frozen tab) is
+// ever clipped.
+/** Is the player in a game right now? Exported for tests. */
+export function activePlayLive(
+  st: Pick<GameStore, 'run' | 'showTitle' | 'heroChoices' | 'practiceSetupOpen' | 'replaying'>,
+  docActive: boolean = documentIsActive(),
+): boolean {
+  return docActive && !isPreRun(st) && !st.replaying && isResumableRun(st.run);
+}
+if (typeof window !== 'undefined') {
+  let wasLive = activePlayLive(useGame.getState());
+  const sample = (): void => { wasLive = activePlayLive(useGame.getState()); activePlay.tick(activeNow(), wasLive); };
+  sample();
+  useGame.subscribe((st) => {
+    const live = activePlayLive(st);
+    if (live !== wasLive) { wasLive = live; activePlay.tick(activeNow(), live); }
+  });
+  document.addEventListener('visibilitychange', sample);
+  window.addEventListener('focus', sample);
+  window.addEventListener('blur', sample);
+  window.setInterval(sample, ACTIVE_HEARTBEAT_MS);
+}

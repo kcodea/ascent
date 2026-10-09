@@ -23,9 +23,10 @@ import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
 import { idbPoolCache } from './opponentPool/poolCache';
 import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPool/poolFetch';
-import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
+import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
+import { matchLength } from './activePlayClock';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -819,9 +820,11 @@ export interface RecentGameRow {
   /** The recorded fight record (`replay->v2->result->record`); null when the row has no v2 replay — the
    *  scalar `wins` column is then all the banner can print. */
   record: { wins: number; losses: number; draws: number } | null;
-  /** The recording's clock span (last frame − first frame), ms — the run length. Null without both clocks
-   *  (no v2 replay, or a PostgREST that can't index `frames->-1`). */
+  /** THE match length, ms (R-MATCH-LENGTH-01): the recorded active play time, else the recording's clock span
+   *  (last frame − first frame) up to 35 minutes. Null = no number: "—", or "35+ min" when `lengthOverCap`. */
   durationMs: number | null;
+  /** A legacy recording span past the 35-minute cap (owner 2026-10-09): the Length prints "35+ min". */
+  lengthOverCap?: boolean;
   /** A recording that does NOT start at round 1 (`replay->v2->partial`), with the first round it holds. */
   partial: boolean;
   firstRecordedWave: number | null;
@@ -883,6 +886,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     : null;
   const first = numOf(r.first_t);
   const last = numOf(r.last_t);
+  const wave = numOf(r.final_wave);
   const picked = Array.isArray(r.picked_runes) ? (r.picked_runes as unknown[]).filter((x): x is string => typeof x === 'string') : [];
   return {
     userId: (r.user_id as string | null) ?? null,
@@ -897,11 +901,13 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     hasReplay: (r.replay_v2_version === 2 || r.replay_v2_version === '2') && typeof r.id === 'number',
     board,
     record,
-    durationMs: first !== null && last !== null && last >= first ? last - first : null,
+    // THE match length (R-MATCH-LENGTH-01): the recorded ACTIVE play time; an older row falls back to the
+    // frames' wall-clock span up to 35 minutes, and prints "35+ min" past it.
+    ...lengthFieldsOf(matchLength({ activeMs: numOf(r.active_ms), spanMs: first !== null && last !== null && last >= first ? last - first : null })),
     partial: r.partial === true || r.partial === 'true',
     firstRecordedWave: numOf(r.first_wave),
     runes: picked.length > 0 ? picked : (board?.runes ?? []),
-    wave: numOf(r.final_wave),
+    wave,
     lobbyStrength: parseLobbyStrength(r.lobby_strength),
     boardStrength: parseBoardStrength(r.board_strength),
   };
@@ -913,7 +919,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
  *  `picked_runes` / `replay` need their migrations. A backend that rejects a select falls to the next,
  *  plainer rung, costing only what that rung reads (run length → banner facts → Watch). Exported for tests. */
 const RECENT_BASE = 'id, user_id, author, hero_id, wins, placement, created_at';
-const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength, board_strength:replay->v2->result->>boardStrength';
+const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength, board_strength:replay->v2->result->>boardStrength, active_ms:replay->v2->>activeMs';
 export const RECENT_GAMES_SELECTS: readonly string[] = [
   `${RECENT_BASE}, ${RECENT_FACTS}, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs`,
   `${RECENT_BASE}, ${RECENT_FACTS}`,
@@ -1475,7 +1481,7 @@ export interface PracticeGameRow extends RecentGameRow {
 const PRACTICE_BASE = 'id, user_id, author, hero_id, wins, placement, created_at, picked_runes, final_board, record, wave, duration_ms, config';
 /** The practice list selects, richest first: with the light replay probe (`replay->v2->version`, never the
  *  payload), then without it for a backend that has not run the 2026-09-27 `replay` migration. */
-const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version, match:replay->match`, PRACTICE_BASE];
+const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version, match:replay->match, active_ms:replay->v2->>activeMs`, PRACTICE_BASE];
 
 /** Run one practice list query down the select ladder: a query ERROR (the `replay` column missing) tries the
  *  plainer select; a timeout or a clean answer ends the walk. Null on timeout. */
@@ -1497,12 +1503,16 @@ export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
   const base = asRecentGameRow({ ...r, final_wave: r.wave, replay_v2_version: null });
   const cfg = r.config && typeof r.config === 'object' ? (r.config as Record<string, unknown>) : null;
   const duration = numOf(r.duration_ms);
+  // `duration_ms` held the frames' wall-clock span before 2026-10-09 and the ACTIVE play time since; the replay's
+  // own `activeMs` (light probe) tells the two apart. Without it the column is treated as legacy: shown up to 35
+  // minutes, "35+ min" past it (R-MATCH-LENGTH-01).
+  const activeMs = numOf(r.active_ms);
   return {
     ...base,
     // The light probe (`replay_v2_version`): a watchable v2 replay rides on the row. Older rows (before
     // 2026-09-27) and the pre-migration fallback select have none, so they offer no Watch.
     hasReplay: (r.replay_v2_version === 2 || r.replay_v2_version === '2') && typeof r.id === 'number',
-    durationMs: duration !== null && duration >= 0 ? duration : null,
+    ...lengthFieldsOf(matchLength({ activeMs, spanMs: duration })),
     practice: cfg && (cfg.opponents === 'players' || cfg.opponents === 'bots')
       ? { opponents: cfg.opponents, botDifficulty: numOf(cfg.botDifficulty) ?? 0, health: cfg.health === 'normal' ? 'normal' : 'unlimited' }
       : null,
@@ -1639,14 +1649,14 @@ export const CAREER_DETAIL_ROWS = 25;
  *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is
  *  the MMR after settle that `settle_rank` stamps onto the row (the MMR trend); a row the stamp never reached
  *  simply projects NULL for it — a JSON path to a missing key is never an error. */
-const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength, board_strength:entry->>boardStrength';
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength, board_strength:entry->>boardStrength, active_ms:entry->>activeMs';
 
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as
  *  the last element; on a DB whose PostgREST predates negative indices the select errors and the probe
  *  retries WITHOUT the clocks (Watch still works; run length prints "—"). */
-const TELEMETRY_PROBE_SELECT = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs';
-const TELEMETRY_PROBE_SELECT_NO_CLOCK = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version';
+const TELEMETRY_PROBE_SELECT = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs, active_ms:replay->v2->>activeMs';
+const TELEMETRY_PROBE_SELECT_NO_CLOCK = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version, active_ms:replay->v2->>activeMs';
 
 /**
  * The Career page's runs — newest first, `limit` rows in all (light), the newest `CAREER_DETAIL_ROWS` of

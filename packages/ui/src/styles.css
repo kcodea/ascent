@@ -4422,6 +4422,53 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .card.compact.spellframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
 /* the "✦ Spell" ribbon rides the frame's bottom gem instead of the arch base (tracks --dy / --frameY) */
 .card.compact.spellframe .ctype.spell { bottom: calc(var(--ccw) * (0.5 - 0.42 * var(--sh) - var(--dy) - var(--frameY))); }
+/* SPELL / RUBY MEDALLION (owner art 2026-10-09) — a crystal medallion (blue star for a Shop Spell, red gem for a Ruby, purple box
+   for a Gift) replaces the purple "✦ Spell" / "◆ Ruby" pill. The wrapper keeps the pill's seat (the `bottom` rules above + the
+   🏷️ Card Pills tuner's `--cpl-spell-t`) but shrinks to a pill-height square with no chrome; the art overflows it,
+   centred on the spot the pill's centre used to be. Each medallion has its own size + offset (card-relative,
+   × --ccw/--ccw-ref), drop shadow and glow — all from the 💠 Spell & Ruby Medallions tuner
+   (spellMedallionConfig.ts), fallbacks MUST mirror its DEFAULTS. Static (no animation), so the filter is a one-off
+   paint, not a per-frame cost. */
+/* Selector out-specifies the pill's `.card.compact.spellcard .ctype.spell` (0,5,0) — at equal or lower weight the
+   purple fill, gold border and shadow showed behind the medallion (owner report 2026-10-09). */
+.card.compact.spellcard .ctype.spell.spellmed, .card .ctype.spell.spellmed {
+  width: calc(var(--ccw) * 0.13); height: calc(var(--ccw) * 0.13); flex: none; padding: 0;
+  background: none; border: 0; border-radius: 0; box-shadow: none;
+}
+.spellmed[data-med='spell'], .smedprev-cell[data-med='spell'] {
+  --m-size: var(--smed-spell-size, 0.94); --m-dx: var(--smed-spell-dx, 4px); --m-dy: var(--smed-spell-dy, 0px);
+  --m-sx: var(--smed-spell-shadow-x, 0px); --m-sy: var(--smed-spell-shadow-y, 4.5px); --m-sblur: var(--smed-spell-shadow-blur, 6.5px);
+  --m-scolor: var(--smed-spell-shadow-color, rgba(0, 0, 0, 1));
+  --m-gsize: var(--smed-spell-glow-size, 2px); --m-gcolor: var(--smed-spell-glow-color, rgba(77, 243, 255, 0));
+}
+.spellmed[data-med='ruby'], .smedprev-cell[data-med='ruby'] {
+  --m-size: var(--smed-ruby-size, 0.84); --m-dx: var(--smed-ruby-dx, 3px); --m-dy: var(--smed-ruby-dy, -3px);
+  --m-sx: var(--smed-ruby-shadow-x, 0px); --m-sy: var(--smed-ruby-shadow-y, 4.5px); --m-sblur: var(--smed-ruby-shadow-blur, 6.5px);
+  --m-scolor: var(--smed-ruby-shadow-color, rgba(0, 0, 0, 1));
+  --m-gsize: var(--smed-ruby-glow-size, 3px); --m-gcolor: var(--smed-ruby-glow-color, rgba(255, 59, 74, 1));
+}
+.spellmed[data-med='gift'], .smedprev-cell[data-med='gift'] {
+  --m-size: var(--smed-gift-size, 0.74); --m-dx: var(--smed-gift-dx, 4px); --m-dy: var(--smed-gift-dy, -3px);
+  --m-sx: var(--smed-gift-shadow-x, 0px); --m-sy: var(--smed-gift-shadow-y, 4.5px); --m-sblur: var(--smed-gift-shadow-blur, 6.5px);
+  --m-scolor: var(--smed-gift-shadow-color, rgba(0, 0, 0, 1));
+  --m-gsize: var(--smed-gift-glow-size, 9px); --m-gcolor: var(--smed-gift-glow-color, rgba(196, 91, 255, 0.68));
+}
+.card .ctype.spell.spellmed .spellmed-img {
+  position: absolute; left: 50%; top: 50%;
+  width: calc(var(--ccw) * 0.36); height: calc(var(--ccw) * 0.36);
+  transform: translate(-50%, -50%)
+    translate(calc(var(--m-dx) * (var(--ccw) / var(--ccw-ref))), calc(var(--m-dy) * (var(--ccw) / var(--ccw-ref))))
+    scale(var(--m-size));
+  filter: drop-shadow(var(--m-sx) var(--m-sy) var(--m-sblur) var(--m-scolor)) drop-shadow(0 0 var(--m-gsize) var(--m-gcolor));
+  pointer-events: none; user-select: none;
+}
+/* 💠 tuner preview (SpellMedallionTuner.tsx) — every medallion outside a card, reading the same vars. */
+.smedprev { display: flex; justify-content: center; gap: 28px; padding: 22px; background: rgba(0, 0, 0, 0.28); border-radius: 8px; }
+.smedprev-cell { display: grid; place-items: center; width: 72px; height: 72px; }
+.smedprev-img {
+  width: 66px; height: 66px; object-fit: contain; transform: scale(var(--m-size));
+  filter: drop-shadow(var(--m-sx) var(--m-sy) var(--m-sblur) var(--m-scolor)) drop-shadow(0 0 var(--m-gsize) var(--m-gcolor));
+}
 
 /* ---- selection / combat glows (shared) — same shape-fix as Taunt: drop the rectangular box-shadow and glow the
    frame PNG's alpha via a state-coloured drop-shadow, so the highlight hugs the oval / square silhouette. ------ */
@@ -4585,6 +4632,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.75);
 }
 .card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
+/* A spell's KIND label (Card.tsx `spellKind`) wears its medallion's colour instead of the tribe tint (owner
+   2026-10-09): Shop Spell blue, Ruby red, Gift purple. Covers the plate gem and the unplated drawer line. */
+.card.plated .plate-tribe.spellkind[data-kind='spell'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='spell'] { color: #7cc4ff; }
+.card.plated .plate-tribe.spellkind[data-kind='ruby'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='ruby'] { color: #ff6b6b; }
+.card.plated .plate-tribe.spellkind[data-kind='gift'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='gift'] { color: #d08cff; }
 /* STEP COUNTER on a PLATED card (the hover / full preview): the plate reaches far below the card box, so the
    compact rule's `bottom: -44px` lands right on the NAME line (owner report 2026-09-14 — Aspect's "2/3" over
    "Aspect"; every tribe did it, Guel included). Ride the plate instead: pinned just under its bottom gem, on the

@@ -60,6 +60,7 @@ import { SPEC as ModePickSpec } from './ModePickTuner';
 import { SPEC as MedallionSpec } from './medallionConfig';
 import { SPEC as GildedBadgeSpec } from './gildedBadgeConfig';
 import { SPEC as EpicMedallionSpec } from './epicMedallionConfig';
+import { SPEC as SpellMedallionSpec } from './spellMedallionConfig';
 import { SPEC as MilestoneFrameSpec } from './milestoneFrameConfig';
 import { SPEC as HeroDuelSpec } from './HeroDuelTuner';
 import { SPEC as HeroBlastSpec } from './HeroBlastTuner';
@@ -159,6 +160,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   MedallionSpec,
   GildedBadgeSpec,
   EpicMedallionSpec,
+  SpellMedallionSpec,
   HeroDuelSpec,
   HeroBlastSpec,
   HeroQuakeSpec,

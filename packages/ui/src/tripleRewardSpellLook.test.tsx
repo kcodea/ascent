@@ -45,7 +45,7 @@ describe('Triple Reward renders through the spell-in-hand path', () => {
     expect(el.classList.contains('spellcard')).toBe(true);
     expect(el.classList.contains('spellframe')).toBe(true);
     expect(el.classList.contains('triplecard')).toBe(false);
-    expect(el.querySelector('.ctype.spell')?.textContent).toContain('Spell');
+    expect(el.querySelector('.ctype.spell.spellmed')?.getAttribute('aria-label')).toBe('Shop Spell');
     // Still carries its live, grant-tier-frozen text (one tier above the tier it was granted at).
     expect(el.querySelector('.desc')?.textContent).toContain('Tier 4');
   });

@@ -330,7 +330,7 @@ export const DEMONS: CardDef[] = [
     // The True Contract reward. Battlecry: every friendly Demon Consumes a Fodder; Rally: each attack hands you
     // a fresh copy of the Herald — a snowballing board-wide feed.
     id: 'heraldapoc',
-    name: 'Herald of the Apocalypse',
+    name: 'Herald of Doom', // was 'Herald of the Apocalypse' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'demon',
     tier: 6,
     attack: 5,

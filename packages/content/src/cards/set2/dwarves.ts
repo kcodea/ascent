@@ -429,7 +429,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     // Owner add 2026-08-19. The steal package's body: a Shout that hands over a Deep Delve Writ (steal a random
     // Dwarf from the Shop). Reuses the trigger-agnostic `battlecryGrantSpell`; golden hands over two.
     id: 'dw_sharpshooter',
-    name: 'Dwarven Sharpshooter',
+    name: 'Dwarven Sniper', // was 'Dwarven Sharpshooter' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'dwarf',
     tier: 4,
     attack: 4,

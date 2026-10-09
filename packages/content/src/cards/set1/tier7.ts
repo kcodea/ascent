@@ -52,7 +52,7 @@ export const TIER7: CardDef[] = [
     // The Mech capstone: every Attachment in the run lands twice. Multiplies Banksly, Combinator, Cling
     // Drones, Money Bots AND the Beatbot mirror. Best-copy-counts (no stacking) — see conductorWelds.
     id: 'attachmentconductor',
-    name: 'Attachment Conductor',
+    name: 'Arc Conductor', // was 'Attachment Conductor' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'mech',
     tier: 7,
     attack: 7,

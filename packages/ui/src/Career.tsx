@@ -254,7 +254,7 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   const o = outcomeOf(run.placement);
   const result = matchResultOf(run.placement);
   const when = playedOnText(run.atMs);
-  const length = runLengthText(run.durationMs);
+  const length = runLengthText(run.durationMs, run.lengthOverCap);
   const watchable = run.replayRowId !== null;
   const hasBoard = !!run.board && run.board.minions.length > 0;
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
@@ -380,7 +380,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
           <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
           <div className="cv2-row-meta">
             <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs)}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs, game.lengthOverCap)}</span></span>
             <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '—'}</span></span>
           </div>
         </div>

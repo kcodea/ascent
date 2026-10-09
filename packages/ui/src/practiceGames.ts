@@ -1,6 +1,5 @@
 import { DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, runRecord, type BoardSnapshot, type RunState } from '@game/sim';
 import type { PracticeGameUpload } from './remoteBoards';
-import { matchLengthMs } from './activePlayClock';
 
 /**
  * PRACTICE GAMES (owner ask 2026-09-24: a Practice tab on Recent Games) — the pure half of the practice-game
@@ -17,7 +16,7 @@ export function practiceGameOf(run: RunState, opts: {
   finalBoard: BoardSnapshot | null;
   frames: ReadonlyArray<{ tMs: number }>;
   /** The run's frozen ACTIVE play ms (R-MATCH-LENGTH-01) — THE length. Null/absent = unknown (a run resumed
-   *  from a pre-clock save): the frames' span is then used only when plausible for the rounds played. */
+   *  from a pre-clock save): the frames' raw span is stored, and the reader caps it at "35+ min". */
   activeMs?: number | null;
 }): PracticeGameUpload {
   const seat = run.lobby?.seats.find((x) => x.id === 's0');
@@ -37,15 +36,14 @@ export function practiceGameOf(run: RunState, opts: {
     finalBoard: opts.finalBoard,
     runes: opts.finalBoard?.runes ?? [],
     // ACTIVE play time (owner 2026-10-09, R-MATCH-LENGTH-01), never the frames' wall-clock span (which counted the
-    // hours a shop sat open in a background tab). WHOLE milliseconds: `practice_games.duration_ms` is an int column,
-    // so an unrounded value made Postgres reject EVERY practice row (22P02, found 2026-09-27).
-    durationMs: roundOrNull(matchLengthMs({
-      activeMs: opts.activeMs,
-      spanMs: typeof first === 'number' && typeof last === 'number' && last >= first ? last - first : null,
-      rounds: run.wave,
-    })),
+    // hours a shop sat open in a background tab). Unknown active time (a run resumed from a pre-clock save) stores
+    // the raw span: its replay carries no `activeMs`, so the reader treats the column as legacy and caps it at
+    // "35+ min". WHOLE milliseconds: `practice_games.duration_ms` is an int column, so an unrounded value made
+    // Postgres reject EVERY practice row (22P02, found 2026-09-27).
+    durationMs: roundOrNull(activeMsOf(opts.activeMs) ?? (typeof first === 'number' && typeof last === 'number' && last >= first ? last - first : null)),
     config: { opponents: cfg.opponents, botDifficulty: normalizeBotDifficulty(cfg.botDifficulty), health: cfg.health, timeMult: cfg.timeMult ?? 1 },
   };
 }
 
 const roundOrNull = (n: number | null): number | null => (n === null ? null : Math.round(n));
+const activeMsOf = (n: number | null | undefined): number | null => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : null);

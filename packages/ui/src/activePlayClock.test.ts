@@ -5,12 +5,12 @@
  *  - hidden / away / off-screen time is never counted;
  *  - no single step counts for more than the gap cap (sleep, suspend, a frozen tab);
  *  - a resume continues from the saved total and never counts the time the app was closed;
- *  - an old record (no active time) shows its span only when plausible for the rounds played, else "—";
+ *  - an old record (no active time) shows its span up to 35 minutes, else "35+ min"; recorded active time is never capped;
  *  - the clock is presentation-only: it never touches run state, so simulation determinism is unaffected.
  */
 import { describe, expect, it } from 'vitest';
 import { createLobbyRun, reduce, serialize, DEFAULT_BOT, type RunState } from '@game/sim';
-import { ACTIVE_GAP_CAP_MS, ACTIVE_HEARTBEAT_MS, LEGACY_MAX_MS_PER_ROUND, createActivePlayClock, matchLengthMs } from './activePlayClock';
+import { ACTIVE_GAP_CAP_MS, ACTIVE_HEARTBEAT_MS, LEGACY_LENGTH_CAP_MS, createActivePlayClock, lengthText, matchLength, matchLengthMs } from './activePlayClock';
 
 const MIN = 60_000;
 
@@ -79,22 +79,27 @@ describe('createActivePlayClock — counts only time in the game', () => {
   });
 });
 
-describe('matchLengthMs — what every "Length" prints', () => {
-  it('the recorded active time wins', () => {
-    expect(matchLengthMs({ activeMs: 31 * MIN, spanMs: 246 * MIN, rounds: 16 })).toBe(31 * MIN);
-    expect(matchLengthMs({ activeMs: 0, spanMs: 5 * MIN, rounds: 3 })).toBe(0);
+describe('matchLength — what every "Length" prints', () => {
+  it('the recorded active time wins, and is NEVER capped (owner: over 35 minutes shows the actual time)', () => {
+    expect(matchLength({ activeMs: 31 * MIN, spanMs: 246 * MIN })).toEqual({ ms: 31 * MIN, overCap: false });
+    expect(matchLength({ activeMs: 0, spanMs: 5 * MIN })).toEqual({ ms: 0, overCap: false });
+    expect(matchLength({ activeMs: 52 * MIN, spanMs: 300 * MIN })).toEqual({ ms: 52 * MIN, overCap: false });
+    expect(lengthText(matchLengthMs({ activeMs: 52 * MIN }))).toBe('52 min');
   });
-  it('a legacy record shows its span only while plausible for the rounds played', () => {
-    expect(matchLengthMs({ spanMs: 31 * MIN, rounds: 16 })).toBe(31 * MIN);
-    expect(matchLengthMs({ spanMs: 246 * MIN, rounds: 16 }), "the owner's 246-minute 16-round game").toBeNull();
-    expect(matchLengthMs({ spanMs: 16 * LEGACY_MAX_MS_PER_ROUND, rounds: 16 })).toBe(16 * LEGACY_MAX_MS_PER_ROUND);
-    expect(matchLengthMs({ spanMs: 16 * LEGACY_MAX_MS_PER_ROUND + 1, rounds: 16 })).toBeNull();
+  it('a legacy record (no active time) shows its span up to 35 minutes, "35+ min" past it', () => {
+    expect(matchLength({ spanMs: 31 * MIN })).toEqual({ ms: 31 * MIN, overCap: false });
+    expect(matchLength({ spanMs: LEGACY_LENGTH_CAP_MS })).toEqual({ ms: LEGACY_LENGTH_CAP_MS, overCap: false });
+    const owners = matchLength({ spanMs: 246 * MIN }); // the owner's 246-minute 16-round game
+    expect(owners).toEqual({ ms: null, overCap: true });
+    expect(lengthText(owners.ms, owners.overCap)).toBe('35+ min');
+    expect(matchLength({ spanMs: LEGACY_LENGTH_CAP_MS + 1 })).toEqual({ ms: null, overCap: true });
   });
-  it('nothing usable → null ("—")', () => {
-    expect(matchLengthMs({ spanMs: 10 * MIN, rounds: null })).toBeNull();
-    expect(matchLengthMs({ spanMs: null, rounds: 9 })).toBeNull();
-    expect(matchLengthMs({ activeMs: Number.NaN, spanMs: -1, rounds: 9 })).toBeNull();
-    expect(matchLengthMs({})).toBeNull();
+  it('nothing usable → no number, no cap ("—")', () => {
+    expect(matchLength({ spanMs: null })).toEqual({ ms: null, overCap: false });
+    expect(matchLength({ activeMs: Number.NaN, spanMs: -1 })).toEqual({ ms: null, overCap: false });
+    expect(matchLength({})).toEqual({ ms: null, overCap: false });
+    expect(lengthText(null)).toBe('—');
+    expect(lengthText(20_000)).toBe('<1 min');
   });
 });
 

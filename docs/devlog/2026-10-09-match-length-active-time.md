@@ -27,12 +27,15 @@ add closed time (the draft resume shifts frames by `RESUME_GAP_MS`), but any tim
   Practice tabs (`asPracticeGameRow`). The light selects gained `active_ms` JSON paths (`entry->>activeMs`,
   `replay->v2->>activeMs`); a missing key projects NULL, never an error. APM follows the corrected length.
 
-## Legacy records (judgement call, flagged to the owner)
+## Legacy records (owner ruling)
 
-A record without `activeMs` has only the wall-clock span. It is shown only while it is at most 5 minutes per round
-played (`LEGACY_MAX_MS_PER_ROUND`; a real round is about 2), otherwise the row prints "—". So the earlier "31 min"
-game still shows 31 min and the 246-min 16-round game shows "—". A run resumed from a save written before this
-build has an UNKNOWN active time (the clock never stamps a partial number) and takes the same fallback.
+A record without `activeMs` has only the wall-clock span. It is shown as-is up to 35 minutes; a longer one prints
+"35+ min" (owner 2026-10-09: "lets just default any games over 35 minutes to 35+ historically";
+`LEGACY_LENGTH_CAP_MS`). So the earlier "31 min" game still shows 31 min and the 246-min 16-round game shows
+"35+ min". No number is kept past the cap, so no APM is derived from it. The cap is a BACKFILL for old records
+only: a game with recorded active time prints its real length however long it is (owner: "rounds over 35 minutes
+should show their actual time"). A run resumed from a save written before this build has an UNKNOWN active time
+(the clock never stamps a partial number): a practice row stores its raw span and the reader caps it the same way.
 
 ## Not changed
 

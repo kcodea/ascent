@@ -715,13 +715,16 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'minute. Time the app is closed never counts: the running total rides in the save and a Continue resumes it '
       + 'paused. The total is frozen when the run ends and stored on the history entry (entry.activeMs), the replay '
       + '(replay.v2.activeMs) and the practice row (duration_ms). A game recorded before this existed has only the '
-      + 'recording\'s wall-clock span: it is shown only while it is at most 5 minutes per round played, otherwise the row '
-      + 'prints "—". The clock is presentation only and never touches run state, simulation or replay playback.',
+      + 'recording\'s wall-clock span: it is shown as-is up to 35 minutes, and a longer one prints "35+ min" (never a '
+      + 'number past the cap, so no APM is derived from it). The cap is for those old records ONLY: a game with recorded '
+      + 'active time always prints its real length, however long. The clock is presentation only and never touches run state, simulation or replay playback.',
     domain: 'persistence',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner bug 2026-10-09 (a Recent Games row read LENGTH 246 min for a 16-round game)', quote: 'it should only count time while a player is actually in a game' },
-      { kind: 'code', ref: 'packages/ui/src/activePlayClock.ts (createActivePlayClock, matchLengthMs); packages/ui/src/store.ts (activePlay: reset in beginReplayCapture, restore from the save, activePlayLive + heartbeat/visibility/focus sampling, freeze at run end into uploadRunHistory / assembleReplayV2 / practiceGameOf); packages/ui/src/careerData.ts + remoteBoards.ts (every Length read through matchLengthMs)' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-09 (legacy lengths)', quote: 'lets just default any games over 35 minutes to 35+ historically' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-09 (new games stay exact)', quote: 'rounds over 35 minutes should show their actual time' },
+      { kind: 'code', ref: 'packages/ui/src/activePlayClock.ts (createActivePlayClock, matchLength, lengthText); packages/ui/src/store.ts (activePlay: reset in beginReplayCapture, restore from the save, activePlayLive + heartbeat/visibility/focus sampling, freeze at run end into uploadRunHistory / assembleReplayV2 / practiceGameOf); packages/ui/src/careerData.ts + remoteBoards.ts (every Length read through matchLength); Career.tsx + RecentGames.tsx (runLengthText with lengthOverCap)' },
     ],
     currentBehaviour:
       'Conforms, FIXED 2026-10-09: the length was the replay frame clock\'s span, which adds the real time between two '

@@ -23,10 +23,10 @@ import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
 import { idbPoolCache } from './opponentPool/poolCache';
 import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPool/poolFetch';
-import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
+import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
-import { matchLengthMs } from './activePlayClock';
+import { matchLength } from './activePlayClock';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -820,9 +820,11 @@ export interface RecentGameRow {
   /** The recorded fight record (`replay->v2->result->record`); null when the row has no v2 replay — the
    *  scalar `wins` column is then all the banner can print. */
   record: { wins: number; losses: number; draws: number } | null;
-  /** The recording's clock span (last frame − first frame), ms — the run length. Null without both clocks
-   *  (no v2 replay, or a PostgREST that can't index `frames->-1`). */
+  /** THE match length, ms (R-MATCH-LENGTH-01): the recorded active play time, else the recording's clock span
+   *  (last frame − first frame) up to 35 minutes. Null = no number: "—", or "35+ min" when `lengthOverCap`. */
   durationMs: number | null;
+  /** A legacy recording span past the 35-minute cap (owner 2026-10-09): the Length prints "35+ min". */
+  lengthOverCap?: boolean;
   /** A recording that does NOT start at round 1 (`replay->v2->partial`), with the first round it holds. */
   partial: boolean;
   firstRecordedWave: number | null;
@@ -900,8 +902,8 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     board,
     record,
     // THE match length (R-MATCH-LENGTH-01): the recorded ACTIVE play time; an older row falls back to the
-    // frames' wall-clock span only while it is plausible for the rounds played (else "—").
-    durationMs: matchLengthMs({ activeMs: numOf(r.active_ms), spanMs: first !== null && last !== null && last >= first ? last - first : null, rounds: wave }),
+    // frames' wall-clock span up to 35 minutes, and prints "35+ min" past it.
+    ...lengthFieldsOf(matchLength({ activeMs: numOf(r.active_ms), spanMs: first !== null && last !== null && last >= first ? last - first : null })),
     partial: r.partial === true || r.partial === 'true',
     firstRecordedWave: numOf(r.first_wave),
     runes: picked.length > 0 ? picked : (board?.runes ?? []),
@@ -1502,15 +1504,15 @@ export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
   const cfg = r.config && typeof r.config === 'object' ? (r.config as Record<string, unknown>) : null;
   const duration = numOf(r.duration_ms);
   // `duration_ms` held the frames' wall-clock span before 2026-10-09 and the ACTIVE play time since; the replay's
-  // own `activeMs` (light probe) tells the two apart. Without it the column is treated as legacy: shown only while
-  // plausible for the rounds played (R-MATCH-LENGTH-01).
+  // own `activeMs` (light probe) tells the two apart. Without it the column is treated as legacy: shown up to 35
+  // minutes, "35+ min" past it (R-MATCH-LENGTH-01).
   const activeMs = numOf(r.active_ms);
   return {
     ...base,
     // The light probe (`replay_v2_version`): a watchable v2 replay rides on the row. Older rows (before
     // 2026-09-27) and the pre-migration fallback select have none, so they offer no Watch.
     hasReplay: (r.replay_v2_version === 2 || r.replay_v2_version === '2') && typeof r.id === 'number',
-    durationMs: matchLengthMs({ activeMs, spanMs: duration, rounds: numOf(r.wave) }),
+    ...lengthFieldsOf(matchLength({ activeMs, spanMs: duration })),
     practice: cfg && (cfg.opponents === 'players' || cfg.opponents === 'bots')
       ? { opponents: cfg.opponents, botDifficulty: numOf(cfg.botDifficulty) ?? 0, health: cfg.health === 'normal' ? 'normal' : 'unlimited' }
       : null,

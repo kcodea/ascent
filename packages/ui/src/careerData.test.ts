@@ -139,7 +139,7 @@ describe('the telemetry probe → replay availability + run length, joined by se
   });
 
   // R-MATCH-LENGTH-01 (owner 2026-10-09): "it should only count time while a player is actually in a game."
-  it('the length is ACTIVE play time: the entry first, then the replay; a legacy span only while plausible', () => {
+  it('the length is ACTIVE play time: the entry first, then the replay; a legacy span up to 35 min, else "35+"', () => {
     const withEntry = careerRunOf(detailedRow({ entry: { ...detailedRow().entry, activeMs: 31 * 60_000 } }));
     expect(withEntry.durationMs, 'before any join').toBe(31 * 60_000);
     const lightWithActive = careerRunOf(lightRow({ active_ms: '1860000' }));
@@ -154,8 +154,11 @@ describe('the telemetry probe → replay availability + run length, joined by se
       { id: 4, seed: '79', v2_version: '2', first_t: '0', last_t: String(246 * 60_000), active_ms: '1500000' },
     ]);
     expect(joined[0]!.durationMs, "the entry's active time beats the span").toBe(31 * 60_000);
-    expect(joined[1]!.durationMs, 'an implausible legacy span prints "—"').toBeNull();
-    expect(joined[2]!.durationMs, 'a plausible legacy span still shows').toBe(31 * 60_000);
+    expect(joined[1]!.durationMs, 'a legacy span past 35 min has no number…').toBeNull();
+    expect(joined[1]!.lengthOverCap, '…and prints "35+ min"').toBe(true);
+    expect(runLengthText(joined[1]!.durationMs, joined[1]!.lengthOverCap)).toBe('35+ min');
+    expect(joined[2]!.durationMs, 'a legacy span up to 35 min still shows').toBe(31 * 60_000);
+    expect(joined[2]!.lengthOverCap).toBe(false);
     expect(joined[3]!.durationMs, "the replay's active time").toBe(1_500_000);
   });
 });
@@ -208,6 +211,7 @@ describe('per-run text + derivations', () => {
     expect(runLengthText(36 * 60_000 + 20_000)).toBe('36 min');
     expect(runLengthText(20_000)).toBe('<1 min');
     expect(runLengthText(null)).toBe('—');
+    expect(runLengthText(null, true), 'a legacy span past the cap').toBe('35+ min');
   });
 
   it('the outcome headline: 1st = VICTORY (green), otherwise the ordinal — top-4 neutral, 5th+ red, none = "—"', () => {

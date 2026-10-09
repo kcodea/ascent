@@ -91,24 +91,43 @@ export function documentIsActive(): boolean {
 
 /**
  * A LEGACY length (a record from before the active clock: only the recording's wall-clock span exists) is
- * shown only while it is believable — at most this many ms per round played. A real round (shop turn + fight)
- * runs about two minutes, so five is generous; a span past it necessarily includes time away from the game,
- * and the row prints "—" instead of a number we know is wrong.
+ * shown as-is up to this cap; past it the row prints "35+ min" (owner 2026-10-09: "lets just default any games
+ * over 35 minutes to 35+ historically"). An old span can include hours the game sat open in the background, so
+ * a number beyond the cap is not trusted, but "35+" still says the game was a long one.
  */
-export const LEGACY_MAX_MS_PER_ROUND = 5 * 60_000;
+export const LEGACY_LENGTH_CAP_MS = 35 * 60_000;
+
+/** A match length ready to print: `ms` (null = no number) and `overCap` (a legacy span past the cap → "35+"). */
+export interface MatchLength {
+  ms: number | null;
+  overCap: boolean;
+}
 
 /**
- * The match length to PRINT, in ms, or null ("—"):
+ * The match length to PRINT:
  *  - the recorded ACTIVE time when the record has one (every run finished on or after 2026-10-09);
- *  - otherwise the legacy recording span, but only when it is plausible for the rounds played;
- *  - null when neither is usable (no span, no round count to judge it by, or an implausible span).
+ *  - otherwise the legacy recording span while it is at most `LEGACY_LENGTH_CAP_MS`;
+ *  - a longer legacy span → `{ ms: null, overCap: true }` ("35+ min"; never a number, so APM stays "—");
+ *  - nothing usable → `{ ms: null, overCap: false }` ("—").
  */
-export function matchLengthMs(o: { activeMs?: number | null; spanMs?: number | null; rounds?: number | null }): number | null {
+export function matchLength(o: { activeMs?: number | null; spanMs?: number | null }): MatchLength {
   const a = o.activeMs;
-  if (typeof a === 'number' && Number.isFinite(a) && a >= 0) return a;
+  if (typeof a === 'number' && Number.isFinite(a) && a >= 0) return { ms: a, overCap: false };
   const span = o.spanMs;
-  if (typeof span !== 'number' || !Number.isFinite(span) || span < 0) return null;
-  const rounds = o.rounds;
-  if (typeof rounds !== 'number' || !Number.isFinite(rounds) || rounds <= 0) return null;
-  return span <= rounds * LEGACY_MAX_MS_PER_ROUND ? span : null;
+  if (typeof span !== 'number' || !Number.isFinite(span) || span < 0) return { ms: null, overCap: false };
+  return span <= LEGACY_LENGTH_CAP_MS ? { ms: span, overCap: false } : { ms: null, overCap: true };
+}
+
+/** `matchLength(o).ms` — for the readers that only want a number (APM, the replay summary). */
+export function matchLengthMs(o: { activeMs?: number | null; spanMs?: number | null }): number | null {
+  return matchLength(o).ms;
+}
+
+/** "36 min" for a Length cell; "<1 min" under a minute; "35+ min" for a legacy span past the cap; "—" when
+ *  unknown. The one formatter every Length surface prints through. */
+export function lengthText(durationMs: number | null, overCap = false): string {
+  if (overCap) return `${Math.round(LEGACY_LENGTH_CAP_MS / 60_000)}+ min`;
+  if (durationMs === null || durationMs < 0) return '—';
+  const mins = Math.round(durationMs / 60_000);
+  return mins < 1 ? '<1 min' : `${mins} min`;
 }

@@ -4,10 +4,17 @@ Owner ask: "add a guides tab in the compendium that pulls the same guides from t
 
 ## What shipped
 
-- **Tab** (`MinionBook.tsx`): a `guides` category at the foot of the Compendium's left rail (Book icon), an
-  own-gallery tab like Runes / Heroes. The tier bar's chart space carries the tribe pills (the Runes tab's
-  `.book-runetribe` style) plus an "All" pill. Neutral matches the tribe-less guides. The search box matches title,
-  tagline and write-up.
+- **Toggle** (`MinionBook.tsx`): a **Guides** header button right after Glossary, in the same `book-gloss` style
+  (owner 2026-10-09: "move the guides button to the top next to glossary"; it started as a left-rail tab). It is
+  exclusive with Rules / Glossary. Unlike them it keeps the tier bar, whose chart space carries the tribe pills (the
+  Runes tab's `.book-runetribe` style plus an "All" pill), the set picker and the search box. While Guides is up the
+  rail tabs are unlit, and clicking one leaves Guides for that tab. Neutral matches the tribe-less guides. The search
+  box matches title, tagline and write-up.
+- **Gilded** moved from the header into the tier row (owner: "move the Gilded button next to the minion tiers, and
+  make it fit in that row better/cleanly"). It is the same 38px chip, set off from the tiers by a short rule, and is
+  disabled with the tier chips on the untiered tabs (Runes, Heroes, Guides), where it never changed anything. The
+  tribe-pill clusters (Runes, Guides) now sit in the row's flow instead of being absolutely centred, so they can't
+  run under Gilded.
 - **Data**: the same `GUIDES` through the same `guidesFor(setId, tribes)` the rail uses. It follows the set picker.
   From the title that is the active set's whole tribe roster; mid-run, on the run's own set, it is the run's tribes,
   so it lists exactly what the rail lists.
@@ -36,4 +43,5 @@ gallery's own existing mount.
 
 `guides/compendiumGuides.test.tsx` checks three things. The tab renders every guide `guidesFor` gives the active
 set, each with its full write-up and portraits, and with no `title=`. The pills narrow the list and All clears
-them. The tab follows the set picker. `compendiumSetPicker.test.tsx` now counts seven fixed rail tabs.
+them. The tab follows the set picker. Guides sits beside Glossary, Gilded sits in the tier row (and still gilds the
+gallery), and a rail tab leaves Guides.

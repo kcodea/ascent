@@ -7886,6 +7886,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    under the Inspect overlay (500), which must keep covering everything. */
 body:has(.book-ov) .cardref { z-index: 490; }
 .book-tier:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* GILDED IN THE TIER ROW (owner 2026-10-09: "move the Gilded button next to the minion tiers, and make it fit in that
+   row better/cleanly"). Same 38px chip as the tiers, set off from them by a short rule, and dimmed + disabled with
+   them on the untiered tabs (Runes, Heroes, Guides). */
+.book-tiers-div { flex: none; width: 2px; height: 24px; margin: 0 6px; border-radius: 1px; background: var(--line); opacity: 0.45; }
+.book-tiers .book-gilded { margin-left: 0; }
+.book-gilded:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* With Gilded in the row, the tribe-pill clusters (Runes, Guides) are too wide to stay absolutely centred: they join
+   the flow and centre in the space between the chips and the set picker, so they never run under Gilded. */
+.book-chart:has(.book-runetribes) { position: static; transform: none; margin: 0 auto; }
+.book-chart:has(.book-runetribes) + .book-tiers-end { margin-left: 0; }
 /* THE SET PICKER (owner ask 2026-09-24): the far-right cluster of the tier bar holds the keyword chip (when on)
    and a custom dropdown that swaps which card set the book shows. Same chip grammar as the tier buttons and the
    Gilded toggle (2px frame, bg2 face, UI font, lift on hover); the open list reads as a small dark tome page with

@@ -2145,7 +2145,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Reconfiguration',
     cost: 6,
     epic: true,
-    text: 'Get **Reconfigured Combinator**.',
+    text: 'Get **Reconfigurator**.',
     reward: { kind: 'grant', cards: ['reconfiguredcombinator'] },
   },
   // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
@@ -2801,7 +2801,7 @@ export const EPIC_RUNES: RuneDef[] = [
     tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Ancient Den',
     cost: 4, // balance 9/23 (was 6)
-    text: 'Get a **Mossmemory Colossus**.',
+    text: 'Get a **Moss Colossus**.',
     previewCards: ['mossmemory_colossus'],
     epic: true,
     reward: { kind: 'grant', cards: ['mossmemory_colossus'] },
@@ -4366,7 +4366,7 @@ export const ARCHIVED_RUNES: RuneDef[] = [
     name: 'Rune of the Matriarch',
     cost: 5,
     epic: true,
-    text: 'Your **Runebloom Matriarchs** trigger spells in combat an **additional time**.',
+    text: 'Your **Matriarchs** trigger spells in combat an **additional time**.',
     previewCards: ['b2_runebloom'], // text names it — the forge hover shows the card
     reward: { kind: 'runeMatriarch' },
     sets: ['set2'], // Runebloom Matriarch is a set-2 Beast

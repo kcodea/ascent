@@ -392,7 +392,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // combat cast path (`castInCombat`), so it reaches every caster at once rather than a hand-kept list.
     // Start of Combat, so the grant is locked in and does not retract if the Matriarch dies.
     id: 'b2_runebloom',
-    name: 'Runebloom Matriarch',
+    name: 'Matriarch', // was 'Runebloom Matriarch' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'beast',
     tier: 6,
     attack: 5,
@@ -538,7 +538,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // T1 opener: a Shout that pays either way, so the tribe has a turn-1 body whose value doesn't depend on
     // having built anything yet. Which half you get is the first alignment decision a player ever makes.
     id: 'c3_courier',
-    name: 'Horizon Courier (Orbit)', // suffixed 2026-09-11: the reworked roster reuses the name (ce3_courier)
+    name: 'Horizon Courier', // was 'Horizon Courier (Orbit)' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'celestial',
     tier: 1,
     attack: 1,
@@ -574,7 +574,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // Economy Orbit. The Dawn half compounds on the Vendor itself (capped, so it can't run away); the Dusk
     // half pays forward into the Shop — the two halves are "save" and "spend".
     id: 'c3_vendor',
-    name: 'Starpath Vendor (Orbit)', // suffixed 2026-09-11: the reworked roster reuses the name (ce3_vendor)
+    name: 'Starpath Vendor', // was 'Starpath Vendor (Orbit)' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'celestial',
     tier: 2,
     attack: 2,
@@ -796,7 +796,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // own Orbit (3) is the Broker writ large — the parcel is split across every Celestial you own rather than
     // handed to one, so it rewards the wide board the rest of the tribe has been building toward.
     id: 'c3_orrery',
-    name: 'Orrery, World Devourer',
+    name: 'World Eater', // was 'Orrery, World Devourer' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'celestial',
     tier: 7,
     attack: 8,
@@ -1144,7 +1144,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // The tribe's combat headline: one Start of Combat that fires the whole board's Shouts. Pairs with
     // Karwind (also a Dragon) — every trigger procs it, so the two together are the tribe's payoff turn.
     id: 'd2_sovereign',
-    name: 'Thunderous Sovereign',
+    name: 'Thunderous', // was 'Thunderous Sovereign' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'dragon',
     tier: 6,
     attack: 8,

@@ -116,7 +116,7 @@ export const SPELLS: CardDef[] = [
     // stats. `singleCast` keeps spell-quantity multipliers from devouring twice. No spell-power scaling
     // (it transfers existing stats, not a flat grant).
     id: 'devour',
-    name: 'Channeling the Devourer',
+    name: 'Devour Soul', // was 'Channeling the Devourer' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'neutral',
     tier: 5,
     attack: 0,

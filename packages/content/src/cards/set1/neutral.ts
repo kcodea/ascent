@@ -411,7 +411,7 @@ export const NEUTRAL: CardDef[] = [
     // Impossible Shop reward. A huge body that Engraves your WHOLE board at Start of Combat (before other SoC
     // effects), so every minion keeps its combat gains for the run.
     id: 'taurustruth',
-    name: 'Taurus the Truth Bringer',
+    name: 'Truth Bringer', // was 'Taurus the Truth Bringer' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'neutral',
     tier: 6,
     attack: 12,

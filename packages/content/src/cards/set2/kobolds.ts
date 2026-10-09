@@ -37,7 +37,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
     // carried back to the run board). `rubies` is per-minion (matching Crownvein's "a Ruby on 2 minions").
     id: 'k_gemstorm',
-    name: 'Gemstorm Instigator',
+    name: 'Gemstorm Mage', // was 'Gemstorm Instigator' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'kobold',
     tier: 6,
     attack: 5,

@@ -58,7 +58,7 @@ export const BEASTS: CardDef[] = [
   },
   {
     id: 'gnash',
-    name: 'Gnasher, the Overrun',
+    name: 'Gnasher', // was 'Gnasher, the Overrun' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'beast',
     tier: 6,
     attack: 7,
@@ -390,7 +390,7 @@ export const BEASTS: CardDef[] = [
     // EARLIEST come back, as their printed bodies (the Rise precedent), so it rewards a wide Beast board that
     // has already been ground down rather than a single fat survivor. Reached through Rune of the Ancient Den.
     id: 'mossmemory_colossus',
-    name: 'Mossmemory Colossus',
+    name: 'Moss Colossus', // was 'Mossmemory Colossus' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'beast',
     tier: 6,
     attack: 5,

@@ -8855,7 +8855,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const rng = makeRng(ctx.state.rngCursor);
     const recipient = board[rng.int(board.length)]!;
     ctx.state.rngCursor = rng.state();
-    addBuff(recipient, 'Channeling the Devourer', attack, health);
+    addBuff(recipient, 'Devour Soul', attack, health);
     ctx.state.devourFx = { toUid: recipient.uid, attack, health };
   },
 

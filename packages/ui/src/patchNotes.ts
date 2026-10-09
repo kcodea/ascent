@@ -60,6 +60,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Balance', text: 'Renamed two cards to fit their names on the card: Coppercoat Spellsword is now Spellsword, and Malphas, Lord of Want is now Lord of Want. They work exactly the same.' },
       {
+        category: 'Balance',
+        text: 'Shortened more card names so every name fits on one line. The cards work exactly the same.',
+        details: [
+          'Taurus the Truth Bringer is now Truth Bringer, and Herald of the Apocalypse is now Herald of Doom.',
+          'Channeling the Devourer is now Devour Soul, and Orrery, World Devourer is now World Eater.',
+          'Starpath Vendor (Orbit) and Horizon Courier (Orbit) drop the "(Orbit)".',
+          'Dwarven Sharpshooter is now Dwarven Sniper, and Mossmemory Colossus is now Moss Colossus.',
+          'Thunderous Sovereign is now Thunderous, Gemheart Legionnaire is now Gemheart, and Runebloom Matriarch is now Matriarch.',
+          'Attachment Mechanic is now Mechanic, Flamebanner Marshal is now Flamebanner, and Gnasher, the Overrun is now Gnasher.',
+          'Gemstorm Instigator is now Gemstorm Mage, Reconfigured Combinator is now Reconfigurator, and Attachment Conductor is now Arc Conductor.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Card names have a new gilded look: a bolder serif in pale gold, with layered edges and a deeper shadow.',
         details: [

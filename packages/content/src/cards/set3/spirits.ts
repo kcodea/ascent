@@ -77,7 +77,7 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   {
     // Rally: 2 friendly Spirits gain the Attack of the highest-Attack minion in your hand — combat-only.
     id: 'sp3_flamebanner',
-    name: 'Flamebanner Marshal',
+    name: 'Flamebanner', // was 'Flamebanner Marshal' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'spirit',
     tier: 6,
     attack: 8,

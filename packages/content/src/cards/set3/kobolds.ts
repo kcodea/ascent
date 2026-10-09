@@ -325,7 +325,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     // and in combat (`onSummon` is dispatched by both phases' summon chokepoints). PERMANENT, so a combat Golem's
     // Rubies carry back to the run card. Gilded: 10.
     id: 'k3_legionnaire',
-    name: 'Gemheart Legionnaire',
+    name: 'Gemheart', // was 'Gemheart Legionnaire' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'kobold',
     tier: 4,
     attack: 4,

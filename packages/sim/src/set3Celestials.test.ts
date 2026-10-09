@@ -60,15 +60,19 @@ describe('the roster', () => {
     expect(CARD_INDEX['ce3_seer']!.tribe2).toBe('undead');
     expect(poolFor('set2').buyable.some((c) => c.tribe === 'celestial'), 'set 2 has none').toBe(false);
   });
-  it('the two archived name-twins carry an (Orbit) suffix, so no two cards share a display name', () => {
-    expect(CARD_INDEX['c3_courier']!.name).toBe('Horizon Courier (Orbit)');
-    expect(CARD_INDEX['c3_vendor']!.name).toBe('Starpath Vendor (Orbit)');
-    // 2026-09-14 rename handoff: the live twins are Cosmo Express / Sugarnova now, so the (Orbit) suffix is
-    // belt-and-braces — but every display name must still be unique.
+  it('the archived Orbit twins share no display name with any card (owner 2026-10-09 dropped their "(Orbit)")', () => {
+    expect(CARD_INDEX['c3_courier']!.name).toBe('Horizon Courier');
+    expect(CARD_INDEX['c3_vendor']!.name).toBe('Starpath Vendor');
+    // The suffix existed because the live twins reused these names; they became Cosmo Express / Sugarnova on
+    // 2026-09-14, so the plain names are free again. The rule that matters: no two cards share a display name.
     const names = Object.values(CARD_INDEX).map((c) => c.name);
     expect(names.filter((n) => n === 'Cosmo Express')).toHaveLength(1);
     expect(names.filter((n) => n === 'Sugarnova')).toHaveLength(1);
-    expect(names.filter((n) => n === 'Horizon Courier')).toHaveLength(0);
+    // Every name this rename batch introduced is held by exactly one card.
+    const renamed = ['Horizon Courier', 'Starpath Vendor', 'Truth Bringer', 'Herald of Doom', 'Devour Soul', 'World Eater',
+      'Dwarven Sniper', 'Moss Colossus', 'Thunderous', 'Gemheart', 'Matriarch', 'Mechanic', 'Flamebanner', 'Gnasher',
+      'Gemstorm Mage', 'Reconfigurator', 'Arc Conductor'];
+    for (const r of renamed) expect(names.filter((n) => n === r), r).toHaveLength(1);
   });
   it('Yazzus is Tier 7 4/8 — the one card for every set (owner 2026-09-16; T7 since 2026-09-11, "as he is in set 2")', () => {
     const d = CARD_INDEX['yazzus']!;

@@ -113,7 +113,7 @@ export const MECHS: CardDef[] = [
     // instead of End of Turn: whenever a Battlecry triggers, magnetize a random Magnetic Mech onto 2 friendly Mechs
     // (reuses the Combinator's `endOfTurnMagnetizeMechs` factory on the `battlecryTriggered` trigger).
     id: 'reconfiguredcombinator',
-    name: 'Reconfigured Combinator',
+    name: 'Reconfigurator', // was 'Reconfigured Combinator' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'mech',
     tier: 5,
     attack: 8,
@@ -285,7 +285,7 @@ export const MECHS: CardDef[] = [
     // Magnetic (board + hand) and every future one (bought/conjured/summoned/Reborn), the Magnetic sibling of
     // Squirl Scout's Beast aura but with a Health half. Excludes ones already welded into a host. Golden → +4/+4.
     id: 'scrapherald',
-    name: 'Attachment Mechanic',
+    name: 'Mechanic', // was 'Attachment Mechanic' (owner 2026-10-09: names fit on one line); id unchanged
     tribe: 'mech',
     tier: 4,
     attack: 3,

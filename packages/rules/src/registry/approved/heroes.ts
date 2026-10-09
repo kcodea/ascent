@@ -1607,4 +1607,90 @@ export const HEROES_RULES: GameRule[] = [
       + "still own more rack runes than the three sockets.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgePowerSlot.test.ts', 'packages/ui/src/heroSlotRune.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: "R-ANCRAYSE-01",
+    title: "Rayse × Ancient of Death: Avenge (4) on one running count across Shop and combat summons a growing Sprout",
+    statement:
+      "With the Ancient of Death, Rayse has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire summons a Sprout (a NEW 1/1 neutral token, `raysesprout`, not the Sprout spell) at the current size, then every later Sprout is +1/+1 bigger (1/1, 2/2, 3/3, ...). A combat Sprout is a real combat summon, so Empowering Vines gives it +2/+3 and Taunt; a Shop Sprout lands on the board as a Shop summon (a full board overflows, the size still grows). Rune of Fury fires the combat half again. The power prints the next Sprout's size and the deaths left, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (4): Summon a 1/1 Sprout and improve this.\"" },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "every hero Avenge: ONE running count of friendly minion deaths across Shop AND combat" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeSummonSprout / ancientHeroAvengeShopDeath / batch5AfterCombat; packages/core/src/combat/simulate.ts ancientSproutAvenge; packages/content/src/cards/set1/tokens.ts raysesprout" },
+    ],
+    contentIds: ["raysesprout"],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-02",
+    title: "Rayse × Ancient of Fortune: summons gain +1 Attack per Gold spent this turn, in the Shop and in combat",
+    statement:
+      "With the Ancient of Fortune, every friendly minion summoned gains +1 Attack for each Gold spent this turn. Cross-phase by default: a Shop summon (a play, a token) gains it permanently at the summon chokepoint; a combat summon gains it as a combat buff, using the Gold spent in the Shop turn that just ended (frozen for the fight).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Your summons gain +1 attack for every gold spent this turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts summonGainPerGoldSpent / ancientOnShopSummon / batch5CombatMods (ancientSummonGain)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-03",
+    title: "Rayse × Ancient of War: the first 3 minions summoned each combat attack immediately",
+    statement:
+      "With the Ancient of War, the first 3 friendly minions to enter play in each combat (a Rise / Rebirth return counts, being a summon) attack immediately through the shared attacks-immediately queue (R-ORD-05).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Your first 3 summoned minions attack immediately.\" (per combat, the attacks-immediately interrupt)" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts applyCombatSummonGrants (ancientSummonsAttack)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-04",
+    title: "Rayse × Ancient of Genesis: the first 2 minions summoned each combat summon twice",
+    statement:
+      "With the Ancient of Genesis, the first 2 friendly summons in each combat each summon one extra copy (Lord of the Risen's Genesis with a budget, `ancientSummonExtraLimit`). A Rise / Rebirth return counts toward the 2, following the Risen precedent. The extra copies never spend the budget themselves.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"The first 2 minions you summon in combat summon twice.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts summonsSummonExtra (limit); packages/core/src/combat/simulate.ts summonExtraFor" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-05",
+    title: "Rayse × Ancient of Time: End of Turn, a random friendly minion without Rise gains Rise permanently",
+    statement:
+      "With the Ancient of Time, a recurring End-of-Turn entry (its own beat) gives a random friendly minion that does not already have Rise the Rise keyword, permanently. If every minion already has Rise, nothing happens.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"End of turn give a minion Rise.\" OWNER: a random friendly minion without Rise gains Rise permanently." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotGrantRise / ancientRunRayseEotRise; packages/sim/src/recruit.ts recurringEotEffects (ancientRayseEotRise)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-06",
+    title: "Rayse × Ancient of Bonds: each combat summon gives 2 other random friendly minions +3/+3",
+    statement:
+      "With the Ancient of Bonds, every friendly minion summoned in combat (a return included) gives 2 distinct random OTHER living friendly minions +3/+3 as a combat buff. The summoned minion never picks itself.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"When a minion is summoned in combat, give 2 friendly minions +3/+3.\"" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts summonEntryEffects (ancientSummonBuffOthers)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
 ];

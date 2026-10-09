@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COMPRESSOR, TARGET_LUFS, TRUE_PEAK, applyFilter, isSilent, measureFilter, parseLoudnorm, planNormalize, readFilter,
+  COMPRESSOR, HERO_SELECT_LUFS, TARGET_LUFS, TRUE_PEAK, applyFilter, isSilent, measureFilter, parseLoudnorm, planNormalize, readFilter,
 } from './sfx-normalize.lib';
 
 const REPORT = `[Parsed_loudnorm_1 @ 000001] \n{\n\t"input_i" : "-42.40",\n\t"input_tp" : "-25.00",\n\t"input_lra" : "3.10",`
@@ -17,6 +17,12 @@ describe('sfx-normalize', () => {
     expect(f.startsWith(`${COMPRESSOR},loudnorm=`)).toBe(true);
     expect(f).toContain('measured_I=-42.40:measured_TP=-25.00:measured_LRA=3.10:measured_thresh=-52.80:offset=0.30');
     expect(f).toContain('linear=true');
+  });
+
+  it('can normalize to another target (the Hero Select lines sit at the owner recordings’ level)', () => {
+    expect(measureFilter(HERO_SELECT_LUFS)).toContain(`loudnorm=I=${HERO_SELECT_LUFS}:`);
+    expect(applyFilter(parseLoudnorm(REPORT), HERO_SELECT_LUFS)).toContain(`loudnorm=I=${HERO_SELECT_LUFS}:`);
+    expect(HERO_SELECT_LUFS).not.toBe(TARGET_LUFS);
   });
 
   it('reads the last JSON block out of ffmpeg stderr and rejects a missing report', () => {

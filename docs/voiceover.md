@@ -138,3 +138,9 @@ It is idempotent: `packages/ui/src/audio/fx/normalized.json` records each clip's
 replaced clips are touched. The target and compressor live in `packages/tools/src/sfx-normalize.lib.ts`. ffmpeg comes
 from the `ffmpeg-static` dev dependency (installed by `npm install`, never shipped to players).
 
+**Hero Select lines** (`packages/ui/src/audio/heroes/<heroId>.mp3`) use the same chain at a different target:
+**−22.8 LUFS** (`HERO_SELECT_LUFS`), the average of the owner's 10 hand-recorded hero lines, so generated and recorded
+heroes sound alike (2026-10-09). `vo:approve` does NOT normalize them and `sfx:normalize` does not see them: after
+approving a hero line, run `normalizeFile(file, HERO_SELECT_LUFS)` from `sfx-normalize.run.ts` on it (once — running
+it twice compresses twice).
+

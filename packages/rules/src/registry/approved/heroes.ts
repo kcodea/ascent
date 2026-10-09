@@ -1791,4 +1791,89 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
+  {
+    id: "R-ANCDRAKKO-01",
+    title: "Drakko × Ancient of Death: your Drakkos become Undead and Beast (Rune of Drakko still adds Dragon / Spirit)",
+    statement:
+      "With the Ancient of Death, every Drakko (the `drummer` card) in the run is Undead and Beast, everywhere (Shop, hand, board, combat, snapshots), through the run-level type override. Drakko has no printed type, so these replace it rather than sit beside one. A Rune of Drakko still adds Dragon and Spirit on top.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Your Drakkos become Undead/Beast.\" OWNER: REPLACE their types with Undead + Beast. Rune of Drakko, if bought, still adds Dragon/Spirit on top." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts drakkoRetype / batch5OnPick; RunState.cardTribes" },
+    ],
+    contentIds: ["drummer"],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-02",
+    title: "Drakko × Ancient of Fortune: Shout minions cost 1 Gold less",
+    statement:
+      "With the Ancient of Fortune, every Shop minion with a Shout costs 1 Gold less, floored at 0 together with every other discount.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Shout minions cost 1 Gold less.\" Floor at 0." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientShoutDiscount; packages/sim/src/reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-03",
+    title: "Drakko × Ancient of War: Start of Combat, +1/+1 to a random minion, repeated per Shout triggered this turn",
+    statement:
+      "With the Ancient of War, Start of Combat gives a random friendly minion +1/+1, then repeats once per Shout FIRE in the Shop turn that just ended (a Drakko repeat is its own fire). Each step is its own beat and re-draws its random minion (the repeat-vs-lump rule). A combat buff.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered this turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts socBuffPerShout; packages/core/src/combat/simulate.ts ancientSocRandomBuffs" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-04",
+    title: "Drakko × Ancient of Genesis: Drumline completes up to 3 times, needing 5, then 4, then 3 Shout buys",
+    statement:
+      "With the Ancient of Genesis, Drumline resets after each completion until it has completed 3 times, and each completion needs one Shout buy fewer: 5, then 4, then 3. A Drumline completed before the pick counts as the first completion and reopens at 4.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Drumline can be completed 3 times and costs 1 Shout less per reset.\" 5, then 4, then 3 Shout buys." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts drumlineRepeats / ancientDrumlineNeed / ancientDrumlineComplete; packages/sim/src/reducer.ts drakkoQuestBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-05",
+    title: "Drakko × Ancient of Time: End of Turn triggers your left-most Shout minion",
+    statement:
+      "With the Ancient of Time, a recurring End-of-Turn entry (its own beat) re-fires the Shout of your left-most Shout minion through the shared Shout replay, so every Shout multiplier and tally hears it and a targeted Shout follows the replay's normal target rule (Echoing Roar's rule).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"End of turn: trigger your left-most Shout minion.\"" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runRecurringEndOfTurn (ancientDrakkoEotShout) / replayBattlecry" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-06",
+    title: "Drakko × Ancient of Bonds: every Shout fire gives your Drakkos +2/+2 permanently, Shop and combat",
+    statement:
+      "With the Ancient of Bonds, every Shout FIRE gives each of your board Drakkos +2/+2, permanently and in real time: in the Shop at the shared Shout-fire hook, in combat on the Shout-triggered bus (the gain carries home).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Your Drakkos gain +2/+2 when you trigger a Shout.\" Board Drakkos, permanent, cross-phase." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnShopShout; packages/core/src/combat/simulate.ts ancientShoutBuffsCard" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
 ];

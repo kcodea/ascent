@@ -337,8 +337,9 @@ function shuffleRuns<T>(runs: readonly T[], rng: { int: (n: number) => number })
 export interface LobbySeatOptions {
   /** MATCHMAKING BAND (R-LOBBY-09, split early / late since R-LOBBY-13): draw recorded seats only from runs whose
    *  match score for the band (`matchScoreOf`: the band's early weight x EARLY + the rest x LATE) is inside it (an
-   *  unscored run is inside every band), widening step by step (`bandSteps`) while the table cannot be filled.
-   *  Null / absent = no band, exactly the selection of before. */
+   *  unscored run is inside every band), widening step by step (`bandSteps`) while the table cannot be filled. A band's
+   *  OVERALL cap (R-LOBBY-15: Bronze 40, Silver 60, Gold 75 on the weighted strength) holds at every step and never
+   *  widens. Null / absent = no band, exactly the selection of before. */
   strengthBand?: StrengthBand | null;
 }
 
@@ -400,7 +401,8 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   const tableFull = (): boolean => picked >= r.seatCount - 1 || seats.filter((x) => x.kind === 'snapshot').length >= maxSnapshotSeats;
   // THE MATCHMAKING BAND (R-LOBBY-09, owner 2026-09-30). The same shuffle, walked once per band step: first only the
   // runs inside the player's band (an unscored run is inside every band), then, while the table is not full, the
-  // band widened by 10 on each capped side, until it is uncapped. A run considered once is never reconsidered (a
+  // band widened by 10 on each capped side, until it is uncapped (a band with an overall cap, R-LOBBY-15, ends on the
+  // cap alone instead: a run over the cap is outside every step). A run considered once is never reconsidered (a
   // run passed over for its hero, the cap or its recording stays passed over), so inside each step every run keeps
   // its equal chance. With no band this is one pass over the whole shuffle: the selection of before, seat for seat.
   const steps = bandSteps(opts.strengthBand ?? null);

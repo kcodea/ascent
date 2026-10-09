@@ -20,8 +20,17 @@
  * `p_early_weight`, PostgREST answers "function not found", and the session drops ONLY the weight
  * (`PoolFetchSession.splitBandsMissing`): the same min/max is sent the 2026-09-30 way and filters the weighted
  * `strength`, and seat selection agrees (those rows carry no early/late, so `matchScoreOf` reads `strength`).
+ *
+ * OVERALL STRENGTH CAPS (R-LOBBY-15, 2026-10-09): a band with an `overallCap` (Bronze 40, Silver 60, Gold 75) also sends
+ * `p_strength_cap`, and the server drops every run whose weighted `strength` is above it
+ * (supabase/migrations/2026-10-09-strength-overall-caps.sql). Before the owner runs that SQL the RPC has no
+ * `p_strength_cap`, PostgREST answers "function not found", and the session drops ONLY the cap
+ * (`PoolFetchSession.capsMissing`): the same band (min/max, early weight) is asked for as before. The cap still holds:
+ * every delivered row carries its `strength`, the loader stamps it on each board (`runStrength`), and seat selection
+ * (`runInStrengthBand`, runLobby.ts) refuses a run over the cap at every widening step. The widening here also counts
+ * only the delivered runs under the cap (`runUnderOverallCap`), so a sample padded with over-cap runs still widens.
  */
-import { MIN_RUN_WAVES, OPPONENT_SEATS, bandSteps, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
+import { MIN_RUN_WAVES, OPPONENT_SEATS, bandSteps, runUnderOverallCap, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
 import type { PoolFetch, PoolRun } from './poolLoader';
 
@@ -48,6 +57,9 @@ export interface SampleArgs {
   /** The band's early weight (R-LOBBY-13): min/max then filter the blended score. Only sent once the server has it
    *  (`PoolFetchSession.splitBandsMissing`). */
   p_early_weight?: number;
+  /** The band's overall cap (R-LOBBY-15): runs whose weighted `strength` is above it are not drawn. Only sent once the
+   *  server has it (`PoolFetchSession.capsMissing`). */
+  p_strength_cap?: number;
 }
 export interface LightRow { author: string | null; hero_id: string; seed: number | null; wave: number; user_id: string | null; set_id: string | null }
 export interface ApiError { code?: string; message: string }
@@ -73,8 +85,10 @@ export interface PoolFetchOptions {
 /** Session memory: once the RPC answered "not found", go straight to the fallback. `bandsMissing`: the RPC exists
  *  but does not take a band yet (the 2026-09-30 SQL has not been run), so the band is not sent this session.
  *  `splitBandsMissing`: the RPC takes a band but no early weight yet (the 2026-10-06 early/late SQL has not been run),
- *  so the band's min/max is sent without the weight (it then filters the weighted strength) this session. */
-export interface PoolFetchSession { rpcMissing: boolean; bandsMissing?: boolean; splitBandsMissing?: boolean }
+ *  so the band's min/max is sent without the weight (it then filters the weighted strength) this session.
+ *  `capsMissing`: the RPC takes no overall cap yet (the 2026-10-09 caps SQL has not been run), so the cap is not sent
+ *  this session and holds client-side only (seat selection, R-LOBBY-15). */
+export interface PoolFetchSession { rpcMissing: boolean; bandsMissing?: boolean; splitBandsMissing?: boolean; capsMissing?: boolean }
 
 /** PostgREST's "no such function" (schema cache miss), Postgres' undefined_function, or a bare 404. */
 export function isMissingFunction(error: ApiError | null | undefined): boolean {
@@ -126,8 +140,16 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
       const band = session.bandsMissing ? null : steps[i]!;
       const plainBand: SampleArgs | null = band ? { ...base, p_strength_min: band.min, p_strength_max: band.max } : null;
       const split = !!band && typeof band.earlyWeight === 'number' && !session.splitBandsMissing;
-      const args: SampleArgs = plainBand ? (split ? { ...plainBand, p_early_weight: band!.earlyWeight } : plainBand) : base;
+      const splitArgs: SampleArgs | null = plainBand ? (split ? { ...plainBand, p_early_weight: band!.earlyWeight } : plainBand) : null;
+      const capped = !!splitArgs && typeof band?.overallCap === 'number' && !session.capsMissing && !session.splitBandsMissing;
+      const args: SampleArgs = splitArgs ? (capped ? { ...splitArgs, p_strength_cap: band!.overallCap } : splitArgs) : base;
       let res = await api.sample(args, signal);
+      if (res.error && capped && isMissingFunction(res.error)) {
+        // The RPC takes no overall cap yet (R-LOBBY-15 SQL not run): drop the cap for the session and ask for the same
+        // band without it. Seat selection still refuses every run over the cap (the rows carry `strength`).
+        session.capsMissing = true;
+        res = await api.sample(splitArgs!, signal);
+      }
       if (res.error && split && isMissingFunction(res.error)) {
         // The RPC takes a band but not an early weight yet (R-LOBBY-13 SQL not run): drop the weight for the session
         // and send the same min/max the 2026-09-30 way (it filters the weighted strength).
@@ -156,8 +178,10 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
           ...(early !== undefined ? { early } : {}), ...(late !== undefined ? { late } : {}),
         });
       }
-      // Enough runs to seat a table (or nothing narrower to ask for): stop widening.
-      if (session.bandsMissing || !steps[i] || seatableRuns([...byKey.values()].map(ownerOfRun)) >= OPPONENT_SEATS) break;
+      // Enough runs to seat a table (or nothing narrower to ask for): stop widening. Only runs under the overall cap
+      // count (R-LOBBY-15): before the caps SQL the server delivers over-cap runs that seat selection will refuse.
+      const seatable = [...byKey.values()].filter((r) => runUnderOverallCap(r, opts.band));
+      if (session.bandsMissing || !steps[i] || seatableRuns(seatable.map(ownerOfRun)) >= OPPONENT_SEATS) break;
     }
     if (!session.rpcMissing) return { runs: [...byKey.values()], path: 'rpc', ...(opts.band && !session.bandsMissing ? { widenings } : {}) };
   }

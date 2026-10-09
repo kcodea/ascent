@@ -719,10 +719,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'LATE ratings, Bronze 0-20 early only, Silver 10-30 at 80% early, Gold 10-50 at 60% early, no band from '
       + 'Platinum; before, the weighted strength itself through Bronze 0-30, Silver 10-40, Gold 20-65, Platinum uncapped, '
       + 'Diamond 10-100, Ascendant 20-100, and from 2026-10-03 to 2026-10-06 Gold 15-65, Platinum 15-100, Diamond '
-      + '25-100, Ascendant 35-100 for the final-board scale); every division of a medal shares its band, still whole runs, at '
+      + '25-100, Ascendant 35-100 for the final-board scale); since 2026-10-09 an OVERALL cap on the weighted strength sits on '
+      + 'top (R-LOBBY-15: over 40 never in Bronze, over 60 never in Silver, over 75 never in Gold, none from Platinum); '
+      + 'every division of a medal shares its band, still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
-      + 'generated seats fill the rest. Practice and the tutorial have no band. The player\'s own game shows '
+      + 'generated seats fill the rest; the overall cap never widens. Practice and the tutorial have no band. The player\'s own game shows '
       + '"Game strength N" (the display name, owner 2026-09-30: "game strength for the display"; the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
       + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
       + 'game that was not scored shows nothing.',
@@ -814,7 +816,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the set by the same tie-halving percentile rule. It is NOT the final board\'s percentile on its own: that rule '
       + 'was tried from 2026-10-03 to 2026-10-06 and reverted by the owner. That number is pool_runs.strength (its average '
       + 'in pool_runs.strength_avg); the rated matchmaking bands filtered it directly until the split early / late bands '
-      + '(R-LOBBY-13, 2026-10-06), and it stays the fallback score of a run with no early / late rating. It is the "Game strength" a player sees in '
+      + '(R-LOBBY-13, 2026-10-06), and it stays the fallback score of a run with no early / late rating; since 2026-10-09 '
+      + 'it is also the number the per-medal overall caps read (R-LOBBY-15). It is the "Game strength" a player sees in '
       + 'the Career, Recent Games and Match details rows (the player\'s own game frozen when it ends, ranked against the '
       + 'pool\'s run averages; an opponent seat as the pool delivered it). Numbers frozen earlier keep their value. The '
       + 'round percentiles in Match details are unchanged.',
@@ -4582,8 +4585,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'x LATE, or EARLY alone when LATE is empty; a run with neither is unscored and is inside every band. A rated '
       + 'lobby seats recorded runs whose score is inside its medal\'s band (every division of a medal shares it): '
       + 'Bronze weight 1.0, band 0-20; Silver 0.8, 10-30; Gold 0.6, 10-50; Platinum, Diamond and Ascendant have NO '
-      + 'band (anything goes: R-LOBBY-08\'s uniform selection). A band that cannot fill the table widens by 10 on '
-      + 'each capped side, step by step and logged, before generated seats; at most 4 seats per player. Practice and '
+      + 'band (anything goes: R-LOBBY-08\'s uniform selection). Since 2026-10-09 Bronze, Silver and Gold also carry an '
+      + 'overall cap on the weighted strength (R-LOBBY-15: 40, 60, 75) that a run must pass as well. A band that cannot '
+      + 'fill the table widens by 10 on each capped side, step by step and logged, before generated seats (the overall '
+      + 'cap never widens); at most 4 seats per player. Practice and '
       + 'the tutorial have no band. The "Game strength" players see (Career, Recent Games, Match details, frozen at run '
       + 'end) stays the weighted number of R-LOBBY-12: only matchmaking reads EARLY and LATE.',
     domain: 'foundation',
@@ -4923,5 +4928,47 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the draft\'s heroes / health / tribes survive a God Mode game (reopening Practice is pinned to keep the '
       + 'draft\'s time setting only).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/PracticeOptionsGodMode.test.tsx', 'packages/sim/src/godMode.test.ts', 'packages/ui/src/godModeStore.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  // ── Overall strength caps per medal, on top of the early / late bands (owner 2026-10-09) ─────────────────────────
+  {
+    id: 'R-LOBBY-15',
+    title: 'Bronze, Silver and Gold lobbies never seat a run whose overall strength is over 40, 60 and 75; the cap never widens',
+    statement:
+      'On top of its medal\'s early / late band (R-LOBBY-13), a rated lobby seats a recorded run only if the run\'s '
+      + 'OVERALL strength (its weighted run strength of R-LOBBY-12, the "Game strength" number, not the early / late '
+      + 'score) is at or under the medal\'s cap: Bronze 40, Silver 60, Gold 75. A run must pass both; a run exactly at '
+      + 'the cap is allowed, anything above it is not. Platinum, Diamond and Ascendant have no cap (and no band). The cap '
+      + 'is HARD: when a band cannot fill the table and widens (+10 per capped side), only the early / late band widens; '
+      + 'the overall cap stays, and whatever the table still lacks is filled by generated seats. A run with no overall '
+      + 'strength yet (unscored) stays eligible. Practice and the tutorial have no band and no cap. The rule holds whether '
+      + 'or not the server applies the cap: the game re-checks every delivered run when it picks the seats.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask relayed verbatim by the coordinator, 2026-10-09 (overall strength caps)',
+        quote: 'we want to add overall board strength caps on TOP of the existing early rating strength matching. if a boards overall strength is over 40, it should n ever be in bronze. if a boards overall stength is over 60 it should never be in silver. if a boards overall strength is over 75 it should never be in gold. from there, theres no additional cap',
+      },
+      { kind: 'fix-pr', ref: 'PR feat/strength-overall-caps (2026-10-09): per-medal overallCap, hard through widening, p_strength_cap in pool_runs_sample, client-side fallback' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/strengthBands.ts STRENGTH_BANDS.overallCap / runUnderOverallCap / runInStrengthBand / widenBand / bandSteps; packages/sim/src/lobby/runLobby.ts createRunLobby; packages/ui/src/opponentPool/poolFetch.ts (p_strength_cap + capsMissing fallback); supabase/migrations/2026-10-09-strength-overall-caps.sql (pool_runs_sample p_strength_cap)' },
+    ],
+    example: 'A run with EARLY rating 5 (deep inside Bronze\'s 0-20 band) and Game strength 41 is never in a Bronze lobby; the same run at Game strength 40 can be. Live pool 2026-10-09 (npm run strength -- measure, 212 eligible runs): Bronze 44 -> 38 runs (20 seats under the 4-per-player cap), Silver 39 -> 38 (17), Gold 97 -> 95 (21); no band needs to widen.',
+    currentBehaviour:
+      'Conforms in code from 2026-10-09: seat selection applies the cap at every widening step, and the client sends it to '
+      + 'the pool sample as p_strength_cap. The server filters it only once the owner runs '
+      + 'supabase/migrations/2026-10-09-strength-overall-caps.sql; until then the RPC rejects p_strength_cap, the client '
+      + 'drops it for the session and asks for the same band without it, and seat selection still refuses every delivered '
+      + 'run over the cap (each row carries its weighted strength, stamped on its boards). The pool fetch counts only '
+      + 'under-cap runs when deciding whether to widen, so a sample padded with over-cap runs still widens.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/strengthBands.test.ts',
+        'packages/sim/src/lobby/boardStrength.db.test.ts',
+        'packages/ui/src/boardStrength/boardStrength.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-09',
+    },
   },
 ];

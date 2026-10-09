@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      {
+        category: 'Systems',
+        text: 'The Compendium has a new framed look and opens, scrolls and searches much faster.',
+        details: [
+          'The window now wears the gold frame from the Runeforge, with the name in the centre of a new title bar.',
+          'Rules, Glossary and Guides are tabs in the title bar. Search, card size and close sit on the right.',
+          'The left menu shows a small portrait for every tribe and section.',
+          'Cards load as you scroll, so opening the book, switching tabs and typing a search no longer stall.',
+        ],
+      },
       { category: 'Systems', text: 'Every hero now has a voice. Pick a hero in Hero Select and they greet you with a line of their own, and every hero line now plays at the same volume.' },
       { category: 'Systems', text: 'Spell cards now wear a crystal medallion in place of the purple type pill: a blue star for Shop Spells, a red gem for Rubies and a purple box for Gifts.' },
       { category: 'Systems', text: 'Spell cards now name their kind under the card, where a minion shows its tribe: Shop Spell, Ruby or Gift.' },

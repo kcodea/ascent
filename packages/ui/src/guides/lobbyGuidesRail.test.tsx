@@ -85,7 +85,7 @@ describe('lobby rail guides view', () => {
     expect(c.querySelector('.lobbyguides-group')).toBeNull();
   });
 
-  it('the write-up highlights mentioned cards and aliases (Eyes of Aresmar, "Oona")', () => {
+  it('the write-up highlights mentioned cards and aliases (Eyes of Aresmar, Staff of Guel, "Oona")', () => {
     const run = createLobbyRun(5150, 'warden');
     run.tribes = ['beast', 'dragon', 'kobold', 'dwarf', 'demon'];
     act(() => { useGame.setState({ run, combatStaged: false }); });
@@ -102,6 +102,7 @@ describe('lobby rail guides view', () => {
     };
     expect(names('Shout Dragons')).toEqual(expect.arrayContaining(['Eyes of Aresmar', 'Drakko']));
     expect(names('Oona')).toEqual(expect.arrayContaining(['Oona', 'Grim', 'Sylus']));
+    expect(names('Consume')).toEqual(expect.arrayContaining(['Staff of Guel', 'Chipper', 'Bob Blart', 'Grevlin & Co.']));
   });
 
   it('a new game starts on Opponents', () => {

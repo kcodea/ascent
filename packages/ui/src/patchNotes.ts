@@ -60,15 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'Sunmane Herald is now called Sunmane. It works exactly as before.',
+        text: 'Sunmane Herald is now called Sunmane, and Crownvein Vanguard is now called Crownvein. Both work exactly as before.',
         details: ['Rune of Living Echoes now summons a Sunmane.'],
       },
       {
         category: 'Systems',
-        text: 'Four more build guides are written: Sunmane, Oona, Dragonflame and Shout Dragons.',
+        text: 'Every build guide now has a full write-up.',
         details: [
-          'Each has a write-up and its Core and Enabler minions.',
-          'The Dragon Breath guide is now called Dragonflame, and the Shout guide is now Shout Dragons.',
+          'Sunmane, Oona, Dragonflame, Shout Dragons, Combat Rubies, APM Mountainbond, APM Spend, Consume, Imps and Paragon Rally each have a write-up and their Core and Enabler minions.',
+          'Renamed guides: Dragon Breath is now Dragonflame, Shout is now Shout Dragons, In-combat is now Combat Rubies, APM / Spend is now APM Spend, and Paragon Rally comp is now Paragon Rally.',
           'Card names in a write-up can be hovered for the full card, including cards it mentions that are not in its rows.',
         ],
       },
@@ -84,7 +84,6 @@ export const PATCH_NOTES: PatchNote[] = [
           "Only guides for this game's set and the tribes in your lobby are shown. Neutral guides always show.",
           'Each build is its own card. Click one to open it and see its Core and Enabler minions; hover a minion for its full card.',
           "Each guide shows its signature card art and its tribe in colour. An open guide's Detailed button widens the rail and adds the write-up; Simple folds it back.",
-          'Most guides are placeholders for now. The Dwarves Ale guide is the first one written.',
         ],
       },
       {

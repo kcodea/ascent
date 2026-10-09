@@ -11,9 +11,8 @@
  * Neutral guides always show. `pairsWith` is display only: a second tribe chip the card wears when that tribe is
  * also in the lobby (the Kobold line's Dwarven Ale crossover); it never decides visibility.
  *
- * PLACEHOLDERS: the guides the owner has not written yet (all but Sunmane, Oona, Dragonflame, Shout Dragons and Ale,
- * as of 2026-10-09) are placeholders until the owner writes it. Its body starts
- * with PLACEHOLDER_BODY so it reads as unfinished, and its core / enabler picks are a best guess from the owner's
+ * PLACEHOLDERS: every Set 2 guide has the owner's text (2026-10-09). A future guide not yet written is a placeholder
+ * until the owner writes it: its body is PLACEHOLDER_BODY so it reads as unfinished, and its core / enabler picks are a best guess from the owner's
  * name hints, there so the layout can be judged.
  */
 import type { Tribe } from '@game/core';
@@ -105,11 +104,12 @@ export const GUIDES: readonly Guide[] = [
     iconCard: 'k_deepdelve',
     set: 'set2',
     tribes: ['kobold'],
-    title: 'In-combat',
+    title: 'Combat Rubies',
     tagline: 'Rubies cast in combat hit twice as hard.',
-    body: PLACEHOLDER_BODY,
-    core: ['k_deepdelve'],
-    enablers: ['k_blazer', 'k_tunnelcharger', 'k_kobabyboldies'],
+    // The owner's text, verbatim (2026-10-09).
+    body: 'Combat Rubies utilizes Ruby casts in combat to scale units. This can be done through many sources, but the key and core to the build is Ruby buffs and using Deepdelve Paragon to double/triple their values.',
+    core: ['k_deepdelve', 'k_crownvein'],
+    enablers: ['k_kobabyboldies', 'k_boulderdash', 'k_mineralmaster'],
   },
   {
     id: 'set2-kobold-mountainbond',
@@ -119,9 +119,10 @@ export const GUIDES: readonly Guide[] = [
     pairsWith: ['dwarf'],
     title: 'APM Mountainbond',
     tagline: 'Spend Gold to rain Rubies.',
-    body: PLACEHOLDER_BODY,
-    core: ['dw_mountainbond'],
-    enablers: ['k_mineralmaster', 'dw_pimm', 'k3_jeweler'],
+    // The owner's text (2026-10-09), typo fix only ("Moutnainbond").
+    body: `APM Mountainbond is a dual type synergy that typically uses Dwarven Ales to aid in economy generation while spending gold to trigger Mountainbond. Keys to this comp are finding Ruby buffs to strengthen Mountainbond's output, and leveraging a cycling strategy like Ales to go "infinite" and play as fast as you can.`,
+    core: ['dw_mountainbond', 'dw_tapkeeper', 'dw_edward'],
+    enablers: ['drummer', 'dw_brunni', 'k_crownvein'],
   },
   {
     id: 'set2-dwarf-ale',
@@ -140,11 +141,12 @@ export const GUIDES: readonly Guide[] = [
     iconCard: 'dw_billings',
     set: 'set2',
     tribes: ['dwarf'],
-    title: 'APM / Spend',
+    title: 'APM Spend',
     tagline: 'Every Gold spent grows your Dwarves.',
-    body: PLACEHOLDER_BODY,
-    core: ['dw_billings', 'dw_coinfire'],
-    enablers: ['dw_pimm', 'dw_dorrin', 'ropewrangler'],
+    // The owner's text, verbatim (2026-10-09).
+    body: 'APM Spend comp uses "Spend x gold" or Chef Gary Toast to scale your board. This typically relies on Drakko and other economy enablement to cycle as many cards as you can per turn.',
+    core: ['dw_billings', 'drummer', 'dw_chef'],
+    enablers: ['dw_gangplank', 'dw_coinfire', 'dw_foreman'],
   },
   {
     id: 'set2-demon-consume',
@@ -153,9 +155,11 @@ export const GUIDES: readonly Guide[] = [
     tribes: ['demon'],
     title: 'Consume',
     tagline: 'Feed the Shop to your Demons.',
-    body: PLACEHOLDER_BODY,
-    core: ['dm_glutton', 'dm_jumbo'],
-    enablers: ['dm_agent', 'dm_gourmand', 'dm_grevlin'],
+    // The owner's text (2026-10-09), card-name fix only ("Grevlin & Co" -> "Grevlin & Co.").
+    body: 'Consume comp leverages shop stat buffs to consume onto your board. There are multiple variations of this comp, but the straightforward versions use minions that grant or cast Staff of Guel to grow the shop, with Chipper, Bob Blart, and Grevlin & Co. as your consuming mechanic. Look for Shop Spell buffs to scale up your Staff of Guel casts.',
+    core: ['dm_glutton', 'dm_grevlin', 'dm_curator'],
+    enablers: ['dm_gourmand', 'dm_hungerling', 'dm_velvet'],
+    mentions: ['staffofguel'],
   },
   {
     id: 'set2-demon-imps',
@@ -164,20 +168,22 @@ export const GUIDES: readonly Guide[] = [
     tribes: ['demon'],
     title: 'Imps',
     tagline: 'Swarm the board with buffed Imps.',
-    body: PLACEHOLDER_BODY,
-    core: ['dm_todd', 'dm_shepherd'],
-    enablers: ['impoverseer', 'dm_knocked', 'brood'],
+    // The owner's text, verbatim (2026-10-09). Rows may hold any tribe (Sylus is Neutral).
+    body: 'Imps are a fairly straightforward comp to play. They rely on an Aura style buff, which affects all Imps both on board and future Imps summoned. This comp relies on methods of scaling your Imps and then having enough minions on board to then summon them.',
+    core: ['dm_todd', 'dm_felspikes', 'sylus'],
+    enablers: ['brood', 'dm_shepherd'],
   },
   {
     id: 'set2-neutral-paragon',
     iconCard: 'n2_paragon',
     set: 'set2',
     tribes: [],
-    title: 'Paragon Rally comp',
+    title: 'Paragon Rally',
     tagline: 'Rally into a minion of every type.',
-    body: PLACEHOLDER_BODY,
-    core: ['n2_paragon', 'n2_standardbearer'],
-    enablers: ['uron', 'tauntbreaker'],
+    // The owner's text, verbatim (2026-10-09).
+    body: 'This is a menagerie comp that can be extremely strong if found early and/or with direct rune support. It relies on Paragon, and then piecing together Rally minions from different tribes to scale your board permanently in combat.',
+    core: ['n2_paragon', 'dw_thane'],
+    enablers: ['n2_standardbearer', 'b2_raven', 'k_blazer'],
   },
 ];
 

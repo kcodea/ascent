@@ -104,7 +104,7 @@ export const SET2_KOBOLDS: CardDef[] = [
   {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
     id: 'k_crownvein',
-    name: 'Crownvein Vanguard',
+    name: 'Crownvein', // 'Crownvein Vanguard' until 2026-10-09 (owner rename; id + art unchanged)
     tribe: 'kobold',
     tier: 5,
     attack: 4,

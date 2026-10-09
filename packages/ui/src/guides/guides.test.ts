@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
 import { artFor } from '../art';
-import { GUIDES, guidesFor } from './guides';
+import { GUIDES, PLACEHOLDER_BODY, guidesFor } from './guides';
 
 describe('lobby rail guides', () => {
   it('has unique ids and at least one core unit per guide', () => {
@@ -75,6 +75,21 @@ describe('lobby rail guides', () => {
     expect(title('set2-dragon-shout')).toBe('Shout Dragons');
     expect(names('set2-dragon-shout', 'core')).toEqual(['Karwind', 'Drakko', 'Voicekeeper']);
     expect(names('set2-dragon-shout', 'enablers')).toEqual(['Karwind', 'Roarcollector']);
+    const pins: [string, string, string[], string[]][] = [
+      ['set2-kobold-combat', 'Combat Rubies', ['Deepdelve Paragon', 'Crownvein'], ['Kobebes', 'Boulderdash', 'Mineral Master']],
+      ['set2-kobold-mountainbond', 'APM Mountainbond', ['Mountainbond', 'Tapkeeper', 'Edward Keg-hands'], ['Drakko', 'Brunni', 'Crownvein']],
+      ['set2-dwarf-spend', 'APM Spend', ['Billings', 'Drakko', 'Chef Gary Toast'], ['Gangplank', 'Coinfire Forewoman', 'Kringle']],
+      ['set2-demon-consume', 'Consume', ['Chipper', 'Grevlin & Co.', 'Soul Defiler'], ['Bob Blart', 'Demon Horse', 'Big Huggies']],
+      ['set2-demon-imps', 'Imps', ['Impossible Todd', 'Fel Spikes', 'Sylus'], ['Brood Matron', 'Legion Shepherd']],
+      ['set2-neutral-paragon', 'Paragon Rally', ['Paragon', 'Lieutenant Thane'], ['Standard Bearer', 'Raven', 'Blazer']],
+    ];
+    for (const [id, t, core, enablers] of pins) {
+      expect(title(id), id).toBe(t);
+      expect(names(id, 'core'), id).toEqual(core);
+      expect(names(id, 'enablers'), id).toEqual(enablers);
+    }
+    // Every Set 2 guide is written now: no placeholder left.
+    for (const g of GUIDES.filter((x) => x.set === 'set2')) expect(g.body, g.id).not.toBe(PLACEHOLDER_BODY);
     for (const g of GUIDES) expect(g.body, g.id).not.toMatch(/—|--/); // no em dashes in player text
   });
 

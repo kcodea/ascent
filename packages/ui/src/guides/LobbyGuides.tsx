@@ -180,11 +180,11 @@ function useGuideViews(ids: readonly string[]): { views: Map<string, CardView>; 
 }
 
 function GuideBody({ guide, full, onMode }: { guide: Guide; full: boolean; onMode: (m: GuidesMode) => void }): JSX.Element {
-  const ids = useMemo(() => [...guide.core, ...guide.enablers], [guide]);
+  const ids = useMemo(() => [...guide.core, ...guide.enablers, ...(guide.mentions ?? [])], [guide]);
   const { views, refs } = useGuideViews(ids);
   return (
     <div className="lobbyguide-body">
-      {full && <p className="lobbyguide-text">{linkCardNames(guide.body, ids, views, refs)}</p>}
+      {full && <p className="lobbyguide-text">{linkCardNames(guide.body, ids, views, refs, guide.aliases)}</p>}
       <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} />
       {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} />}
       {/* DETAILED / SIMPLE, per open card: Detailed widens the rail to the left and adds the write-up; Simple folds
@@ -218,10 +218,12 @@ function GuideUnits({ label, ids, views, refs }: {
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The body paragraph with every named guide card turned into a hoverable highlight (case-insensitive, so the
- *  owner's "Edward Keg-Hands" finds the card "Edward Keg-hands"). */
-function linkCardNames(text: string, ids: readonly string[], views: Map<string, CardView>, refs: Map<string, CardView[]>): ReactNode[] {
+ *  owner's "Edward Keg-Hands" finds the card "Edward Keg-hands"). A guide's `aliases` add shorter names ("Oona"). */
+function linkCardNames(text: string, ids: readonly string[], views: Map<string, CardView>, refs: Map<string, CardView[]>,
+  aliases?: Readonly<Record<string, string>>): ReactNode[] {
   const byName = new Map<string, string>();
   for (const id of ids) { const v = views.get(id); if (v) byName.set(v.name.toLowerCase(), id); }
+  for (const [word, id] of Object.entries(aliases ?? {})) if (views.has(id)) byName.set(word.toLowerCase(), id);
   if (byName.size === 0) return [text];
   const names = [...byName.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
   const re = new RegExp(`(${names.join('|')})`, 'gi');

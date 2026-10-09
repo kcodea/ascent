@@ -1510,7 +1510,7 @@ risen body in the payload. Pinned in `set3Undead.test.ts` for both phases and fo
 
 *"a "attacks immediately" mechanic cuts the line. this doesn't interrupt a flurry attack, but it does interrupt
 other attack orderings if something is summoned to attack immediately."* Every source (Rune of Living Echoes'
-Sunmane Herald, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear Warden, Charging Soldier, Trooper):
+Sunmane, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear Warden, Charging Soldier, Trooper):
 
 - The minion **lands, then strikes at once**, after the event that summoned it has settled (a death cascade, an
   Avenge, a "while you have space" fill) and **before the next normal attacker is chosen**.

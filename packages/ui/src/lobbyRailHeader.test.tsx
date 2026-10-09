@@ -77,6 +77,30 @@ describe('lobby rail header (above the rail)', () => {
     }
   });
 
+  it('the max damage punches ONCE when the cap moves to its next step, never on mount or an unchanged round', async () => {
+    // A round whose cap differs from the next one's, and a round whose cap does not.
+    const step = [...Array(20).keys()].map((i) => i + 1).find((r) => lossDamageCap(r) !== lossDamageCap(r + 1))!;
+    const flat = [...Array(20).keys()].map((i) => i + 1).find((r) => lossDamageCap(r) === lossDamageCap(r + 1))!;
+    const Live = (): JSX.Element => <LobbyPanel lobby={useGame((s) => s.run.lobby)!} />;
+    const pill = (): Element => ui!.container.querySelector('.lobbyrailhead .lobbymax')!;
+    const go = (round: number): void => { act(() => { useGame.setState({ run: atRound(round) }); }); };
+
+    go(flat);
+    ui = mount(<Live />);
+    expect(pill().classList.contains('lobbymax-pop')).toBe(false); // mount: no punch
+    go(flat + 1);
+    expect(pill().classList.contains('lobbymax-pop')).toBe(false); // same cap: no punch
+    ui.unmount(); ui = null;
+
+    go(step);
+    ui = mount(<Live />);
+    expect(pill().classList.contains('lobbymax-pop')).toBe(false);
+    go(step + 1);
+    await act(async () => { await new Promise<void>((r) => requestAnimationFrame(() => r())); });
+    expect(pill().classList.contains('lobbymax-pop')).toBe(true); // the cap moved: one punch
+    expect(pill().textContent).toBe(Number.isFinite(lossDamageCap(step + 1)) ? `Max dmg ${lossDamageCap(step + 1)}` : 'No cap');
+  });
+
   it('player text has no em dash and no native tooltip anywhere in the header', () => {
     const head = render(3).querySelector('.lobbyrailhead')!;
     expect(head.querySelector('[title]')).toBeNull();

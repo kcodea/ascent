@@ -248,5 +248,42 @@
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 -2px 6px -3px rgba(0, 0, 0, 0.5);
 }
 .lobbyrailhead .lobbymax svg { width: 1.05em; height: 1.05em; color: var(--ui-heart); }
+
+/* ── THE MAX-DAMAGE PUNCH (owner ask 2026-10-09: "an obvious animation that draws attention") ─────────────────────
+   Played ONCE when the round's cap moves to its next step (LobbyPanel adds `.lobbymax-pop` and re-keys the pill per
+   change, never on mount). Compositor-only: a `scale` punch (the individual property, so the pill's static
+   `transform` lift is untouched) with a little overshoot and a wobble, plus a gold-to-red flash: a pre-rendered glow
+   on `::after` whose OPACITY is the only thing that animates. ~800 ms, no loop. */
+.lobbyrailhead .lobbymax.lobbymax-pop {
+  position: relative; transform-origin: 72% 100%; /* grows mostly leftward: the pill sits near the screen edge */
+  animation: lobbymaxPunch 0.8s cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+.lobbyrailhead .lobbymax.lobbymax-pop::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 226, 140, 0.75), rgba(255, 92, 60, 0.55));
+  box-shadow: 0 0 calc(14 * var(--lu)) calc(4 * var(--lu)) rgba(255, 170, 70, 0.85), 0 0 calc(30 * var(--lu)) rgba(255, 70, 50, 0.6);
+  opacity: 0;
+  animation: lobbymaxFlash 0.8s ease-out both;
+}
+@keyframes lobbymaxPunch {
+  0% { scale: 1; rotate: 0deg; }
+  22% { scale: 1.35; rotate: -3deg; }
+  36% { scale: 1.28; rotate: 3deg; }
+  50% { scale: 1.3; rotate: -1.5deg; }
+  72% { scale: 0.94; rotate: 0deg; }
+  86% { scale: 1.04; }
+  100% { scale: 1; rotate: 0deg; }
+}
+@keyframes lobbymaxFlash {
+  0% { opacity: 0; }
+  14% { opacity: 1; }
+  45% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+/* Reduced motion: no punch or wobble, just the brief highlight. */
+@media (prefers-reduced-motion: reduce) {
+  .lobbyrailhead .lobbymax.lobbymax-pop { animation: none; }
+  .lobbyrailhead .lobbymax.lobbymax-pop::after { animation-duration: 0.6s; }
+}
 /* The seats-left pill reads the same size as the Guides view's "11 GUIDES" (owner 2026-10-09). */
 .lobbyrail .lobbyalive { font-size: calc(11 * var(--lfont) * 0.85 * var(--lby-guide-text, 1.6)); }

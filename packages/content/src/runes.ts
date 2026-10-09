@@ -2517,10 +2517,10 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Living Echoes',
     cost: 5,
     epic: true,
-    text: 'When you have **space** on your board, summon a **Sunmane Herald** that **attacks immediately**. **3 times** per combat.',
+    text: 'When you have **space** on your board, summon a **Sunmane** that **attacks immediately**. **3 times** per combat.',
     previewCards: ['b2_sunmane'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeLivingEchoes', amount: 3 },
-    sets: ['set2'], // Sunmane Herald is a set-2 Beast
+    sets: ['set2'], // Sunmane is a set-2 Beast
   },
   {
     // Owner rework 2026-09-23: the Demon's stats are read WHEN THE FIRST SUMMON LANDS (its current stats at that

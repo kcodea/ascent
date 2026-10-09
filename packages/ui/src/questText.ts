@@ -230,7 +230,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeBrood':
           return `When you have space in combat, summon an Imp with Ward and Taunt (${r.amount ?? 3} times per combat)`;
         case 'runeLivingEchoes':
-          return `When you have space, summon a Sunmane Herald that attacks immediately (${r.amount ?? 3} times per combat)`;
+          return `When you have space, summon a Sunmane that attacks immediately (${r.amount ?? 3} times per combat)`;
         case 'runeWarChorus':
           return 'Your first Rally each combat triggers your left-most Shout';
         case 'runeHuntingBell':

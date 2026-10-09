@@ -1876,4 +1876,88 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
+  {
+    id: "R-ANCFLASH-01",
+    title: "Flash × Ancient of Death: with First or Last armed, the 2nd enemy minion you kill is copied too",
+    statement:
+      "With the Ancient of Death, while First or Last is armed, the 2nd enemy minion killed in that combat is also copied to hand, the moment it dies. Unarmed, nothing (it is an addition to the claim).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Also get a copy of the 2nd minion that dies.\" OWNER: the 2nd ENEMY minion you kill in combat." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts noteKill (ancientFlash.second)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-02",
+    title: "Flash × Ancient of Fortune: First or Last costs 0 Gold",
+    statement:
+      "With the Ancient of Fortune, arming First or Last costs nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"First or Last costs 0 Gold.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts flash.fortune power override" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-03",
+    title: "Flash × Ancient of War: Pummel (400), once per combat, copies a random enemy minion",
+    statement:
+      "With the Ancient of War, a hero-level Pummel (400) on the shared lifetime damage tally pays once per combat: a copy of a random living enemy minion, to hand, the moment the threshold is crossed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Pummel (400): get a copy of a random enemy minion (once per combat).\" Use the hero Pummel tally." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts noteAncientPummel (ancientFlash.pummel)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-04",
+    title: "Flash × Ancient of Genesis: First or Last's claim grants 2 copies (times Rune of Wishbone's)",
+    statement:
+      "With the Ancient of Genesis, First or Last's claim grants 2 copies. Rune of Wishbone multiplies it (2 copies per Wishbone repeat).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"First or Last grants 2 copies.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientFlashCopies; packages/sim/src/reducer.ts flashCopies" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-05",
+    title: "Flash × Ancient of Time: Start of Combat, a copy of a random enemy minion",
+    statement:
+      "With the Ancient of Time, Start of Combat gives a copy of a random living enemy minion, to hand, with no arming needed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: OWNER completed the line: \"Start of Combat: get a copy of a random enemy minion.\"" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts Start of Combat (ancientFlash.soc)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-06",
+    title: "Flash × Ancient of Bonds: Flash's copies are exact (stats, keywords, Gilded)",
+    statement:
+      "With the Ancient of Bonds, every copy Flash gets is an exact copy of the body: its Attack, its maximum Health, its keywords and its Gilded state, as it stood when it died (or was copied), set as the card lands in hand.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"The minion you get is an exact copy.\" Copies to hand keep stats, keywords and Gilded." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts flashToHand (ShoutCarry.handExact); packages/sim/src/reducer.ts hand-grant settle" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
 ];

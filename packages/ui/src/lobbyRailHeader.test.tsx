@@ -57,7 +57,7 @@ describe('lobby rail header (above the rail)', () => {
   it.each([1, 4, 8, 12, 14])('round %i prints the live cap and the tooltip says the same number', (round) => {
     const cap = lossDamageCap(round);
     const max = render(round).querySelector('.lobbyrailhead .lobbymax')!;
-    expect(readout(max)).toBe(`−${cap}`);
+    expect(readout(max)).toBe(`Max dmg ${cap}`);
     const tip = tipOf(max);
     expect(tip.title).toBe('Max damage this round');
     expect(tip.rule).toBe(`A loss this round costs at most ${cap} Health.`);

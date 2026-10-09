@@ -56,6 +56,26 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-09',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The lobby rail has a Guides tab: flip it from the opponents to short build guides for this game.',
+        details: [
+          "A tab on the rail's left edge switches between Opponents and Guides. Every new game starts on Opponents.",
+          "Only guides for this game's set and the tribes in your lobby are shown. Neutral guides always show.",
+          'Each build is its own card. Click one to open it and see its Core and Enabler minions; hover a minion for its full card.',
+          "Each guide shows its signature card art and its tribe in colour. An open guide's Detailed button widens the rail and adds the write-up; Simple folds it back.",
+          'Most guides are placeholders for now. The Dwarves Ale guide is the first one written.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby rail is a little wider, with larger names and health, when your screen has room beside it.',
+      },
+    ],
+  },
+  {
     date: '2026-10-08',
     changes: [
       { category: 'Systems', text: 'Fixed: the Runeforge now always offers at least one rune for your tribe when your board has enough of it. That is 2 of a tribe at a Basic Runeforge and 3 at an Epic one.' },

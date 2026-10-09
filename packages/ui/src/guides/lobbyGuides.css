@@ -1,0 +1,224 @@
+/* ── LOBBY RAIL GUIDES (owner ask 2026-10-09) ──────────────────────────────────────────────────────────────────
+   The tab on the rail's left edge and the Guides face of the rail (LobbyPanel.tsx + guides/LobbyGuides.tsx).
+
+   PERFORMANCE. No looping animation here. The view swap is a one-shot opacity + transform fade-in; a guide's
+   expansion is a one-shot `grid-template-rows` 0fr -> 1fr transition (no height is ever measured); the chevron turn
+   is a one-shot transform. The portraits are the memoized `Card`, fed stabilized views.
+   CURSOR. Every control here is a `button`, so the global gauntlet rule paints it; nothing sets `cursor`. */
+
+/* ── The tab ───────────────────────────────────────────────────────────────────────────────────────────────── */
+/* A SIBLING of the rail (the Gem rail clips its children), placed off the rail's own expressions: its right edge on
+   the rail's left edge, vertically centred on the rail. The centre re-derives Classic's rail height (the same recipe
+   as `--lgem-h` in lobbyRail.css; Gem holds exactly that height), so both looks centre it. */
+.lobbyrailtab {
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  --lu: calc(var(--u) * var(--lby-scale, 0.82));
+  --lrow: calc(var(--lu) * var(--lby-row, 1.91));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9));
+  --ltab-cell: calc(42 * var(--lu));
+  --ltab-pad: calc(5 * var(--lu));
+  --ltab-h: calc(2 * var(--ltab-cell) + 2 * var(--ltab-pad) + 4px);
+  --ltab-rail-h: calc(
+    16 * var(--lu) * var(--lby-pad, 4.5)
+    + 11 * var(--lfont) * 1.4042 + 5 * var(--lu)
+    + var(--lby-n, 8) * (7 * var(--lrow) * var(--lby-seat-pad, 0.75) + 11 * var(--lfont) * var(--lby-name-size, 1.5) * 1.3622 + 18 * var(--lrow) * var(--lby-face, 1.74))
+    + (var(--lby-n, 8) - 1) * 2 * var(--lrow) * var(--lby-gap, 0.65)
+    - 0.41 * var(--lu));
+  position: absolute; z-index: 59; /* just under the rail, so the rail's edge sits over the tab's seam */
+  /* On the rail's LEFT edge, which the rightward growth never moves; in the Full guides view the rail grows LEFT by
+     (`--lby-guide-w` - 1) of its own (grown) width, and the tab rides out with it. Re-derives the rail's `--lr-w`. */
+  --lr-right0: calc((var(--lby-right, 0) - var(--lby-x, -23)) * var(--lu));
+  --lr-w0: calc(var(--lby-w, 251) * var(--lu));
+  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px - (var(--lvw, 100vw) - var(--gw)) / 2));
+  --lr-w: calc(var(--lr-w0) + var(--lr-right0) - var(--lr-right));
+  right: calc(var(--lr-right0) + var(--lr-w0) + var(--lr-w) * (var(--ltab-wmul, 1) - 1) - 2px);
+  top: calc(var(--lby-top, 13.5%) + var(--lby-y, 10) * var(--lu) + var(--ltab-rail-h) / 2 - var(--ltab-h) / 2);
+  height: var(--ltab-h); width: calc(var(--ltab-cell) + 2 * var(--ltab-pad) + 4px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  padding: var(--ltab-pad); margin: 0;
+  border: 1px solid transparent; border-right: none;
+  border-radius: calc(10 * var(--lu)) 0 0 calc(10 * var(--lu));
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), -2px 3px 8px -3px rgba(0, 0, 0, 0.65);
+  color: var(--ui-muted);
+  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
+}
+.lobbyrailtab-cell {
+  display: grid; place-items: center; width: var(--ltab-cell); height: var(--ltab-cell);
+  border-radius: calc(7 * var(--lu)); color: var(--ui-muted); opacity: 0.7;
+}
+.lobbyrailtab-cell svg { width: 66%; height: 66%; }
+/* The CURRENT view's glyph is lit: a gold glyph on a sunk chip. */
+.lobbyrailtab-cell.on {
+  opacity: 1; color: var(--ui-title);
+  background: color-mix(in srgb, var(--ui-chip-bg) 92%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ui-edge-main), inset 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.lobbyrailtab:hover .lobbyrailtab-cell:not(.on) { opacity: 1; color: var(--ui-text); }
+.lobbyrailtab:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
+/* The tip opens to the tab's left, clear of the rail. */
+.lobbyrailtab.gtip[data-tip]::after { left: auto; right: calc(100% + 8px); bottom: auto; top: 50%; transform: translateY(-50%) translateX(4px); }
+.lobbyrailtab.gtip[data-tip]:hover::after, .lobbyrailtab.gtip[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
+/* It leaves with the rail when combat stages (same curve as `.app.staged .lobbyrail`), and goes inert. */
+.app.staged .lobbyrailtab {
+  transform: translateX(calc(var(--lr-w) * var(--ltab-wmul, 1) * 1.15 + 100%)); opacity: 0; pointer-events: none;
+}
+
+/* ── The wide Guides rail (owner ask 2026-10-09: "expanding the rail out to the left so we can increase text +
+   minion size") ─────────────────────────────────────────────────────────────────────────────────────────────────
+   In the Guides view the rail, its header and the tab take `--lby-guide-w` times the rail width (🪑 Lobby Rail →
+   Guides → Expanded width). The rail is anchored by `right`, so it grows LEFT and its right edge never moves.
+   It covers the board's right side (and the End Turn / Refresh controls behind it) while open: the player chose to
+   open it, and the tab flips it back.
+   THE SWAP is one-shot and compositor-only: the rail switches width at once, then plays a `scaleX` from its old
+   footprint to its new one (origin: its right edge) while the new face fades in after it; the tab and the header
+   slide from their old spot. Classes `swap-wide` / `swap-narrow` are set only by a toggle, never on mount. */
+.lobbyrail.guides-full, .lobbyrailhead.guides-full { width: calc(var(--lr-w) * var(--lby-guide-w, 1.55)); }
+.lobbyrailtab.guides-full { --ltab-wmul: var(--lby-guide-w, 1.55); }
+.lobbyrail.swap-wide { transform-origin: 100% 50%; animation: lobbyrailwiden 240ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.lobbyrail.swap-narrow { transform-origin: 100% 50%; animation: lobbyrailnarrow 220ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes lobbyrailwiden { from { transform: scaleX(calc(1 / var(--lby-guide-w, 1.55))); } to { transform: none; } }
+@keyframes lobbyrailnarrow { from { transform: scaleX(var(--lby-guide-w, 1.55)); } to { transform: none; } }
+.lobbyrailtab.swap-wide, .lobbyrailhead.swap-wide { animation: lobbytabwiden 240ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.lobbyrailtab.swap-narrow, .lobbyrailhead.swap-narrow { animation: lobbytabnarrow 220ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes lobbytabwiden { from { transform: translateX(calc((var(--lby-guide-w, 1.55) - 1) * var(--lr-w))); } to { transform: none; } }
+@keyframes lobbytabnarrow { from { transform: translateX(calc((1 - var(--lby-guide-w, 1.55)) * var(--lr-w))); } to { transform: none; } }
+
+/* ── SIMPLE mode (owner ask 2026-10-09): the rail keeps its normal width (End Turn and Refresh stay clear), an open
+   guide shows only its Core / Enablers rows, two portraits across (🪑 Lobby Rail → Guides → Simple portrait size).
+   The TEXT is the same size as FULL (owner: "the text should be the same size as the full size"); a title too long
+   for the narrow rail ellipsizes. FULL mode is everything above. ── */
+.lobbyrail.guides-simple .lobbyguide-unit { --lgu-s: min(var(--lby-guide-unit-simple, 0.5), var(--lgu-fit, 0.4)); }
+/* The fit probe (LobbyGuides): a zero-height row with a real row's insets + gap, holding one board-width card box. */
+.lobbyguides-probe { position: absolute; left: 0; right: 0; height: 0; overflow: hidden; visibility: hidden; pointer-events: none;
+  margin: 0 calc(2 * var(--lrow)); }
+.lobbyguides-probe .lobbyguide-unitscale { position: static; transform: none; height: 0; }
+.lobbyrail.guides-simple .lobbyguide-body { padding-left: calc(2 * var(--lrow)); padding-right: calc(2 * var(--lrow)); }
+.lobbyrail.guides-simple .lobbyguide-unitrow { justify-content: center; }
+
+/* THE DETAILED / SIMPLE BUTTON at the foot of an open card: a small Gem pill, centred. A button, so the global
+   gauntlet cursor paints it. */
+.lobbyguide-modebtn {
+  align-self: center; margin: calc(1 * var(--lrow)) 0 0; padding: calc(3 * var(--lu)) calc(12 * var(--lu));
+  border: 1px solid transparent; border-radius: 999px; font: inherit;
+  font-size: calc(11 * var(--lfont) * 0.85 * var(--lgt, 1.6)); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.6);
+}
+.lobbyguide-modebtn:hover { color: #fff; }
+.lobbyguide-modebtn:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
+
+/* ── The view swap: the new face fades in once the frame has (mostly) resized ──────────────────────────────── */
+.lobbyview-in { animation: lobbyviewin 200ms ease-out 110ms both; }
+@keyframes lobbyviewin { from { opacity: 0; transform: translateX(calc(10 * var(--lu))); } to { opacity: 1; transform: none; } }
+
+/* The Guides face fills what the rail has under the pill and SCROLLS inside it (the Gem rail holds a fixed height),
+   with the scrollbar hidden like the rail's own. Classic sizes to content and the rail itself scrolls. */
+.lobbyview { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.lobbyguides {
+  /* The Guides text dial (🪑 Lobby Rail → Guides → Text size): every guide font and the row's emblem ride it. */
+  --lgt: var(--lby-guide-text, 1.6);
+  position: relative; flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: calc(2 * var(--lrow) * var(--lby-gap, 0.65) * 1.4);
+}
+.lobbyguides::-webkit-scrollbar { width: 0; height: 0; display: none; }
+:root[data-lobby-rail="classic"] :is(.lobbyview, .lobbyguides) { flex: none; overflow: visible; }
+.lobbyguides-empty { padding: calc(8 * var(--lu)); text-align: center; color: var(--ui-muted); font-size: calc(11 * var(--lfont) * 1.2); }
+
+/* ── A guide card: the opponent row's look ─────────────────────────────────────────────────────────────────── */
+.lobbyguide {
+  flex: none; border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 0.55)); color: var(--ui-text);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 40%, color-mix(in srgb, var(--ui-chip-bg) 70%, transparent)), color-mix(in srgb, var(--ui-chip-bg) 88%, transparent));
+  box-shadow: inset 0 0 0 1px var(--ui-divider), inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -2px 3px -2px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+.lobbyguide { position: relative; }
+/* The tribe accent (restrained): a thin left bar in the tribe's ink and a faint wash off it. Static paint. */
+.lobbyguide::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(1.6 * var(--lrow)); pointer-events: none;
+  border-radius: inherit; border-top-right-radius: 0; border-bottom-right-radius: 0;
+  background: linear-gradient(180deg, var(--gc), var(--gc2, var(--gc)));
+}
+.lobbyguide-tribename { font-weight: 900; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+.lobbyguide.open { box-shadow: inset 0 0 0 1px var(--ui-edge-main), inset 0 0 0 2px var(--ui-ring), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+.lobbyguide-head {
+  --lgd-face: calc(18 * var(--lrow) * var(--lby-face, 1.74) * 0.68 * var(--lgt));
+  display: grid; grid-template-columns: var(--lgd-face) minmax(0, 1fr) auto; grid-template-rows: auto auto;
+  align-items: center; column-gap: calc(3.2 * var(--lrow)); row-gap: calc(0.6 * var(--lrow));
+  width: 100%; margin: 0; border: none; color: inherit; font: inherit; text-align: left; border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gc) 13%, transparent), transparent 55%);
+  padding: calc(3 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(4.4 * var(--lrow) * var(--lby-seat-pad, 0.75));
+}
+.lobbyguide-head:focus-visible { outline: 2px solid var(--ui-title); outline-offset: -2px; border-radius: inherit; }
+/* The ART icon stands where the opponent's portrait does: the guide's signature card art (`iconCard`), cropped round,
+   in a gold edge with a tribe-coloured inner rim. A crossover guide's rim runs from one tribe's ink to the other's. */
+.lobbyguide-emblem {
+  grid-column: 1; grid-row: 1 / -1; position: relative; width: var(--lgd-face); height: var(--lgd-face); border-radius: 50%;
+  padding: 2px; background: linear-gradient(160deg, var(--ui-edge-hi), var(--ui-edge-main) 45%, var(--ui-edge-deep));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.lobbyguide-emblem::after {
+  content: ''; position: absolute; inset: 2px; border-radius: 50%; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--gc), inset 0 0 6px rgba(0, 0, 0, 0.45);
+}
+.lobbyguide-emblem.duo::after { box-shadow: inset 0 0 0 2px transparent, inset 0 0 6px rgba(0, 0, 0, 0.45); }
+.lobbyguide-emblem.duo { background: linear-gradient(135deg, var(--gc) 0%, var(--gc) 48%, var(--gc2) 52%, var(--gc2) 100%); }
+.lobbyguide-art { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: 50% 30%; background: #14111c; }
+.lobbyguide-title {
+  grid-column: 2; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5) * 0.8 * var(--lgt)); font-weight: 900; line-height: 1.15;
+  letter-spacing: -0.01em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+.lobbyguide.open .lobbyguide-title { color: var(--ui-title); }
+.lobbyguide-tag {
+  grid-column: 2 / -1; grid-row: 2; min-width: 0; font-size: calc(11 * var(--lfont) * 0.95 * var(--lgt)); line-height: 1.25;
+  color: var(--ui-muted); font-weight: 700;
+}
+.lobbyguide-dot { opacity: 0.6; }
+.lobbyguide-chev { grid-column: 3; grid-row: 1; width: calc(11 * var(--lfont) * 1.1 * var(--lgt)); height: calc(11 * var(--lfont) * 1.1 * var(--lgt)); color: var(--ui-muted);
+  transition: transform 200ms ease-out; }
+.lobbyguide-chev svg { width: 100%; height: 100%; display: block; }
+.lobbyguide.open .lobbyguide-chev { transform: rotate(180deg); color: var(--ui-title); }
+
+/* ── The fold: expands DOWNWARD in place, pushing the cards below ──────────────────────────────────────────── */
+.lobbyguide-fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 220ms cubic-bezier(0.4, 0, 0.2, 1); }
+.lobbyguide.open .lobbyguide-fold { grid-template-rows: 1fr; }
+.lobbyguide-foldin { min-height: 0; overflow: hidden; }
+.lobbyguide-body {
+  display: flex; flex-direction: column; gap: calc(3 * var(--lrow));
+  padding: calc(1 * var(--lrow)) calc(4.4 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(4 * var(--lrow));
+}
+.lobbyguide-text { margin: 0; font-size: calc(11 * var(--lfont) * 1.05 * var(--lgt)); line-height: 1.4; font-weight: 600; color: var(--ui-text); }
+/* A card name in the text: a gold highlight; hover opens the card's preview. */
+.lobbyguide-name { color: var(--ui-title); font-weight: 800; border-bottom: 1px dotted color-mix(in srgb, var(--ui-title) 60%, transparent); }
+.lobbyguide-name:hover { color: #fff; }
+.lobbyguide-unitslabel {
+  font-size: calc(11 * var(--lfont) * 0.85 * var(--lgt)); font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-muted);
+  margin-bottom: calc(1 * var(--lrow));
+  /* Inset off the card's left edge (and its tribe bar), level with the head's content (owner 2026-10-09: "not hugging
+     the left side"). */
+  padding-left: calc(4 * var(--lrow));
+}
+/* The portraits: the real compact board `Card` at its BOARD size, shrunk as one piece by `transform: scale()` (owner
+   bug 2026-10-09: sizing the card down through --ccw left the milestone-framed stat coins, which are fixed px, at full
+   board size). The frame, coins and digits scale together, so the coins sit on the portrait exactly as on the board.
+   The layout box is the scaled footprint (`--lgu-s` times the board card's width / height incl. the coins' overhang),
+   so rows never overlap. Static transform, no animation. */
+.lobbyguide-unitrow { display: flex; flex-wrap: wrap; column-gap: calc(3 * var(--lrow)); row-gap: calc(3 * var(--lrow)); justify-content: flex-start; }
+.lobbyguide-unit {
+  /* The board card's own size (the warband's recipe at its default dial). `--lgu-w` is the card box once shrunk. */
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85);
+  /* The shrink: a fraction of the board minion (🪑 Lobby Rail → Guides → Portrait size). */
+  --lgu-s: var(--lby-guide-unit, 0.6);
+  --lgu-w: calc(var(--ccw) * var(--lgu-s));
+  /* The frame art overhangs the card box (measured on a board card, as fractions of its width): 0.29 above (the
+     crest), 0.21 below (the medallion), 0.10 left / 0.09 right (the coins). The slot reserves that footprint, so the
+     label above and the row below never sit under a crest or a coin. */
+  flex: none; position: relative; width: calc(var(--lgu-w) * 1.2); height: calc(var(--lgu-w) * 1.52);
+}
+.lobbyguide-unitscale {
+  position: absolute; left: calc(var(--lgu-w) * 0.1); top: calc(var(--lgu-w) * 0.3); width: var(--ccw);
+  transform: scale(var(--lgu-s)); transform-origin: 0 0;
+}
+
+/* The in-rail count pill ("11 GUIDES" here, "8 LEFT" on the table) is sized in lobbyRail.css, one rule for both. */

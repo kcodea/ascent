@@ -339,6 +339,19 @@ export function simulate(
     if (!adj || !minion) return;
     for (const n of livingNeighbours(ctx, minion)) ctx.buff(n, adj.attack, adj.health, adj.label);
   });
+  // ANCIENT OF BONDS × Drakko (owner 2026-10-09): "Your Drakkos gain +2/+2 when you trigger a Shout." Every friendly Shout
+  // FIRE (a Drakko repeat is its own fire) gives every living Drakko body +a/+h, permanently (`permaGain`, the Indy War
+  // carry-back; an Engraved body already keeps its gains).
+  bus.on('battlecryTriggered', (payload) => {
+    const { side } = payload as { side: Side };
+    const sb = modsFor(side).ancientShoutBuffsCard;
+    if (!sb) return;
+    for (const m of boards[side]) {
+      if (m.dead || m.health <= 0 || m.cardId !== sb.cardId) continue;
+      ctx.buff(m, sb.attack, sb.health, sb.label);
+      if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + sb.attack, health: (m.permaGain?.health ?? 0) + sb.health };
+    }
+  });
   bus.on('battlecryTriggered', (payload) => {
     const { side } = payload as { side: Side };
     shoutFires[side] += 1;
@@ -506,8 +519,8 @@ export function simulate(
   /** ANCIENT OF WAR × Albus: the side-wide hero-Pummel tally (seeded LIFETIME, like the keyword) and its
    *  once-per-combat latch. Only read for a side whose mods carry `ancientPummel`. */
   const ancientPummelDealt: Record<Side, number> = {
-    player: modsFor('player').ancientPummel?.dealt ?? modsFor('player').ancientPummelCopy?.dealt ?? modsFor('player').ancientPummelCharge?.dealt ?? 0,
-    enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? 0,
+    player: modsFor('player').ancientPummel?.dealt ?? modsFor('player').ancientPummelCopy?.dealt ?? modsFor('player').ancientPummelCharge?.dealt ?? modsFor('player').ancientFlash?.pummel?.dealt ?? 0,
+    enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? modsFor('enemy').ancientFlash?.pummel?.dealt ?? 0,
   };
   const ancientPummelPaid: Record<Side, boolean> = { player: false, enemy: false };
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
@@ -795,20 +808,44 @@ export function simulate(
     enemy: Math.max(1, enemyState.questMods?.flashCopies ?? 1),
   };
   const flashDone: Record<Side, boolean> = { player: false, enemy: false };
-  /** A body of `victimSide` died: the OTHER side put it down. */
-  const noteKill = (cardId: string, uid: string, victimSide: Side): void => {
-    const killer: Side = victimSide === 'player' ? 'enemy' : 'player';
+  /** ANCIENTS × Flash: the body each kill copies (its stats / keywords / Gilded as it died, for Bonds' exact copy),
+   *  the last one per side, and the kill count (Death pays on the 2nd). */
+  type FlashBody = { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean };
+  const flashBodyOf = (m: Minion): FlashBody =>
+    ({ cardId: m.cardId, attack: Math.max(0, m.attack), health: Math.max(1, m.maxHealth ?? m.health), keywords: [...m.keywords], golden: !!m.golden });
+  const lastKillBody: Record<Side, FlashBody | undefined> = { player: undefined, enemy: undefined };
+  const killCount: Record<Side, number> = { player: 0, enemy: 0 };
+  /** ONE Flash copy to hand (a live `toHand`). Under Ancient of Bonds the grant's index rides `ShoutCarry.handExact`,
+   *  so settle lands it as an EXACT copy of `body` rather than the printed card. A spell / Ruby is never copied. */
+  function flashToHand(side: Side, body: FlashBody, sourceUid?: string): void {
+    const def = cards[body.cardId];
+    if (!def || def.spell || def.ruby) return;
+    const idx = handGrants[side].length;
+    ctx.grantToHand(body.cardId, side, sourceUid);
+    if (modsFor(side).ancientFlash?.exact && handGrants[side].length > idx) {
+      (shoutCarry[side].handExact ??= []).push({ idx, attack: body.attack, health: body.health, keywords: [...body.keywords], golden: body.golden });
+    }
+  }
+  /** A body of the victim's side died: the OTHER side put it down. */
+  const noteKill = (victim: Minion): void => {
+    const { cardId, uid } = victim;
+    const killer: Side = victim.side === 'player' ? 'enemy' : 'player';
     const k = kills[killer];
     k.first ??= cardId;
     k.last = cardId;
+    const body = flashBodyOf(victim);
+    lastKillBody[killer] = body;
+    killCount[killer] += 1;
     // FIRST is knowable the instant it happens, so it flies to hand right then. LAST cannot be known until the
     // fight ends — it is granted at the final step below, still inside the replay so it animates the same way.
     // (The enemy side's claim is a silent carry-back — see the symmetric carry-back note at the top.)
     if (flashPickFor[killer] === 'first' && !flashDone[killer]) {
       flashDone[killer] = true;
-      const def = cards[cardId];
-      if (def && !def.spell && !def.ruby) for (let i = 0; i < flashCopiesFor[killer]; i++) ctx.grantToHand(cardId, killer, uid);
+      for (let i = 0; i < flashCopiesFor[killer]; i++) flashToHand(killer, body, uid);
     }
+    // ANCIENT OF DEATH × Flash (owner 2026-10-09): "Also get a copy of the 2nd minion that dies." The 2nd enemy minion
+    // this side kills, while First or Last is armed (it is an addition to that claim), live.
+    if (killCount[killer] === 2 && flashPickFor[killer] && modsFor(killer).ancientFlash?.second) flashToHand(killer, body, uid);
   };
 
   // ── Combat-phase quest tallies (carried back via playerQuestTally) ──────────────────────────────────────
@@ -1995,6 +2032,13 @@ export function simulate(
    */
   function applyCombatSummonGrants(minion: Minion, side: Side, capJudgedElsewhere = false): { attackNow: boolean; ward: boolean } {
     const out = { attackNow: false, ward: false };
+    // ANCIENT OF WAR × Rayse (owner 2026-10-09): "Your first 3 summoned minions attack immediately." The first N friendly
+    // bodies to enter play this fight (a return included, R-SUMMON-RETURN-01) ride the attacks-immediately queue.
+    const sa = modsFor(side).ancientSummonsAttack;
+    if (sa && minion.side === side && summonsAttackUsed[side] < sa.count) {
+      summonsAttackUsed[side] += 1;
+      out.attackNow = true;
+    }
     const hatch = modsFor(side).runeHatchery;
     if (hatch) {
       fireTrigger('runeHatchery', side); // owner call 2026-08-19: a continuous modifier bursts on each body it buffs
@@ -2244,17 +2288,34 @@ export function simulate(
    * guard). Called from BOTH halves of `placeSummon` (landed or overflowed).
    */
   function summonGenesisExtras(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: Parameters<typeof summonMinion>[6], doubled: boolean): void {
-    const n = doubled ? 0 : modsFor(side).ancientSummonExtra ?? 0;
+    const n = doubled ? 0 : summonExtraFor(side);
     for (let k = 0; k < n; k++) summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, true);
+  }
+
+  /** ANCIENT OF GENESIS: how many extra copies THIS summon makes (`ancientSummonExtra`), spending one from Rayse's
+   *  `ancientSummonExtraLimit` budget when the side has one (the first N summons only). 0 once it is spent. */
+  const summonExtraBudget: Record<Side, number | undefined> = {
+    player: modsFor('player').ancientSummonExtraLimit,
+    enemy: modsFor('enemy').ancientSummonExtraLimit,
+  };
+  function summonExtraFor(side: Side): number {
+    const n = modsFor(side).ancientSummonExtra ?? 0;
+    if (n <= 0) return 0;
+    const left = summonExtraBudget[side];
+    if (left === undefined) return n;
+    if (left <= 0) return 0;
+    summonExtraBudget[side] = left - 1;
+    return n;
   }
 
   /** ANCIENT OF GENESIS for a RETURN (a Rise or a Rebirth, which re-slot the same body rather than place a new
    *  one): one more copy of the returned body beside it, at its return stats, WITHOUT the returning keyword. When
    *  the return itself overflowed (`overflow`), the copy is attempted too, so it overflows as well. */
   function summonReturnExtras(minion: Minion, overflow = false): void {
-    const n = modsFor(minion.side).ancientSummonExtra ?? 0;
     const def = cards[minion.cardId];
-    if (n <= 0 || !def) return;
+    if (!def) return;
+    const n = summonExtraFor(minion.side);
+    if (n <= 0) return;
     const hp = Math.max(1, overflow ? 1 : minion.health);
     const stats = { attack: minion.attack, health: hp, maxHealth: Math.max(hp, minion.maxHealth), divineShield: !overflow && minion.divineShield, stripReturn: true };
     const kws = minion.keywords.filter((k) => k !== 'R' && k !== 'RB');
@@ -2275,6 +2336,8 @@ export function simulate(
     player: playerState.questMods?.summonTaunts ?? 0,
     enemy: enemyState.questMods?.summonTaunts ?? 0,
   };
+  /** ANCIENT OF WAR × Rayse: friendly summons that have already used the "attacks immediately" grant this fight. */
+  const summonsAttackUsed: Record<Side, number> = { player: 0, enemy: 0 };
   function summonEntryEffects(minion: Minion, side: Side): void {
     syncUnityCombat(side); // Rune of Unity: a summon can complete the full house, and a new body joins it
     if (summonTauntsLeft[side] > 0 && !minion.dead && !minion.keywords.includes('T')) {
@@ -2341,6 +2404,19 @@ export function simulate(
     const spoilsGain = modsFor(side).ancientSummonGain;
     if (spoilsGain && minion.side === side && !minion.dead && (spoilsGain.attack > 0 || spoilsGain.health > 0)) {
       ctx.buff(minion, spoilsGain.attack, spoilsGain.health, spoilsGain.label);
+    }
+    // ANCIENT OF BONDS × Rayse (owner 2026-10-09): "When a minion is summoned in combat, give 2 friendly minions +3/+3."
+    // N distinct random OTHER living friendly minions (the arriving body never picks itself), a combat buff.
+    const sbo = modsFor(side).ancientSummonBuffOthers;
+    if (sbo && minion.side === side) {
+      const pool = boards[side].filter((m) => m !== minion && !m.dead && m.health > 0);
+      if (pool.length > 0) {
+        const draw = grantRngFor(side);
+        const chosen: Minion[] = [];
+        for (let i = 0; i < sbo.count && pool.length > 0; i++) chosen.push(pool.splice(draw.int(pool.length), 1)[0]!);
+        nextStep();
+        for (const m of chosen) ctx.buff(m, sbo.attack, sbo.health, sbo.label);
+      }
     }
     // RUNE OF THE SECOND LITTER: the FIRST Beast summoned each combat summons another copy. `doubled: true`
     // on the copy is the standard no-recursion guard (Echo Warden's) — the copy must not itself be "the first
@@ -2999,7 +3075,8 @@ export function simulate(
     const ap = modsFor(dealer.side).ancientPummel;
     const pc = modsFor(dealer.side).ancientPummelCopy;
     const pch = modsFor(dealer.side).ancientPummelCharge;
-    if ((!ap && !pc && !pch) || amount <= 0) return;
+    const pf = modsFor(dealer.side).ancientFlash?.pummel;
+    if ((!ap && !pc && !pch && !pf) || amount <= 0) return;
     const side = dealer.side;
     const heavy = modsFor(side).runeHeavyHand ? flagCopiesOf(side, 'runeHeavyHand') : 0;
     const before = ancientPummelDealt[side];
@@ -3022,6 +3099,14 @@ export function simulate(
     if (pch && !ancientPummelPaid[side] && Math.floor(after / Math.max(1, pch.every)) - Math.floor(before / Math.max(1, pch.every)) > 0) {
       ancientPummelPaid[side] = true;
       fireTrigger(pch.flag, side);
+    }
+    // ANCIENT OF WAR × Flash (owner 2026-10-09): "Pummel (400): get a copy of a random enemy minion (once per combat)."
+    // Albus' latch: the first crossing this fight pays one copy of a random LIVING enemy body, live (Bonds: exact).
+    if (pf && !ancientPummelPaid[side] && Math.floor(after / Math.max(1, pf.every)) - Math.floor(before / Math.max(1, pf.every)) > 0) {
+      ancientPummelPaid[side] = true;
+      const foe: Side = side === 'player' ? 'enemy' : 'player';
+      const band = boards[foe].filter((m) => !m.dead && m.health > 0);
+      if (band.length > 0) flashToHand(side, flashBodyOf(band[grantRngFor(side).int(band.length)]!), dealer.uid);
     }
     if (!ap) return;
     if (ancientPummelPaid[side]) return;
@@ -3083,7 +3168,7 @@ export function simulate(
       fireOwnDeathrattles(minion, killer);
       bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
       if (minion.side === 'enemy') enemyDeaths++;
-      noteKill(minion.cardId, minion.uid, minion.side);
+      noteKill(minion);
       questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       beastialSwarmImprove(minion.side); // R-DEATH-RETURN-01: the Avenge-paced watchers count this death too
       emitAvenge(minion.side, deaths[minion.side], minion);
@@ -3177,7 +3262,7 @@ export function simulate(
       // rattle, which `fireOwnDeathrattles` handled a line above — see the guard in `registerEffect`.
       bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
       if (minion.side === 'enemy') enemyDeaths++;
-      noteKill(minion.cardId, minion.uid, minion.side);
+      noteKill(minion);
       // (`deaths[side]` was incremented above, before the Echo — R-AVWIN-02.)
       questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       beastialSwarmImprove(minion.side); // R-DEATH-RETURN-01: the Avenge-paced watchers count this death too
@@ -3325,7 +3410,7 @@ export function simulate(
     // Count enemy deaths (Cassen's Collision banks them toward its 5-kill payoff) and remember WHICH bodies
     // they were, first and last, for Flash.
     if (minion.side === 'enemy') enemyDeaths++;
-    noteKill(minion.cardId, minion.uid, minion.side);
+    noteKill(minion);
     // Count your Deathrattles as they trigger (before firing, so Grim's own death counts toward its buff).
     const hasDeathrattle = minion.effects.some((e) => e.on === 'onDeath');
     if (hasDeathrattle) bumpDeathrattles(1, minion.side);
@@ -4649,6 +4734,31 @@ export function simulate(
         for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
       }
     }
+    // ANCIENT OF WAR × Drakko (owner 2026-10-09): "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered
+    // this turn." The repeat-vs-lump rule: the base step plus one repeat per Shout, EACH its own beat, each a random
+    // living friendly minion (re-drawn per step).
+    const srb = smods.ancientSocRandomBuffs;
+    if (srb && (srb.attack > 0 || srb.health > 0)) {
+      const draw = grantRngFor(scSide);
+      for (let r = 0; r < srb.reps; r++) {
+        const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
+        if (band.length === 0) break;
+        nextStep();
+        ctx.buff(band[draw.int(band.length)]!, srb.attack, srb.health, srb.label);
+      }
+    }
+    // ANCIENT OF TIME × Flash (owner 2026-10-09): "Start of Combat: get a copy of a random enemy minion." A random living
+    // enemy body, to hand right now (a live `toHand`; Bonds makes it exact).
+    if (smods.ancientFlash?.soc) {
+      const foe: Side = scSide === 'player' ? 'enemy' : 'player';
+      const band = boards[foe].filter((m) => !m.dead && m.health > 0);
+      if (band.length > 0) {
+        const pick = band[grantRngFor(scSide).int(band.length)]!;
+        nextStep();
+        emit({ type: 'sc', source: pick.uid, text: `${smods.ancientFlash.label}: a copy of ${pick.name}`, side: scSide, heroPower: true });
+        flashToHand(scSide, flashBodyOf(pick), pick.uid);
+      }
+    }
     // ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
     // minion." The left-most living Tier 7; an exact copy (`xeroxCopy`) right now when there is room, else it waits in
     // `pendingSummitCopies` for the first open slot (flushed with Reclaim's queue).
@@ -5652,6 +5762,43 @@ export function simulate(
       }
     }
   });
+  // ANCIENT OF DEATH × Rayse (owner 2026-10-09): "Avenge (4): Summon a 1/1 Sprout and improve this." The Xerox Death
+  // running count. Each fire summons the Sprout at the CURRENT size (a real combat summon, so Empowering Vines' +2/+3
+  // and Taunt land on it), then the size grows by 1; the `questTrigger` pulse is what settle counts to bank the growth.
+  // Rune of Fury fires it again, like every hero Avenge.
+  const sproutSize: Record<Side, number> = {
+    player: modsFor('player').ancientSproutAvenge?.size ?? 1,
+    enemy: modsFor('enemy').ancientSproutAvenge?.size ?? 1,
+  };
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const sp = modsFor(side).ancientSproutAvenge;
+    if (!sp || (sp.tick + count) % Math.max(1, sp.every) !== 0) return;
+    const def = cards[sp.cardId];
+    if (!def) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      const n = Math.max(1, sproutSize[side]);
+      nextStep();
+      fireTrigger(sp.flag, side);
+      if (victim) emit({ type: 'sc', source: victim.uid, text: `${sp.label}: a ${n}/${n} ${def.name}`, side, heroPower: true });
+      summonMinion(side, def, undefined, undefined, false, false, { attack: n, health: n, maxHealth: n });
+      sproutSize[side] = n + 1;
+    }
+  });
+  // ANCIENT OF DEATH × Cassen (owner 2026-10-09): "Avenge (7): advance your commission 1 turn." The Xerox Death running
+  // count; each fire (Rune of Fury repeats) is a `questTrigger` pulse, counted at settle to move the commission.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const ap = modsFor(side).ancientAvengePulse;
+    if (!ap || (ap.tick + count) % Math.max(1, ap.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      nextStep();
+      fireTrigger(ap.flag, side);
+      if (victim) emit({ type: 'sc', source: victim.uid, text: ap.label, side, heroPower: true });
+    }
+  });
   // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
   // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then
   // (`grantFreeRolls`, the Gryphon carry-back) and pulses a `questTrigger` the replay counts for the live text. Rune of
@@ -6074,12 +6221,13 @@ export function simulate(
   // The enemy's claim is a silent carry-back (its `grantToHand` records without emitting).
   for (const side of ['player', 'enemy'] as const) {
     const last = kills[side].last;
-    if (flashPickFor[side] === 'last' && !flashDone[side] && last) {
+    const lastBody = lastKillBody[side];
+    if (flashPickFor[side] === 'last' && !flashDone[side] && last && lastBody) {
       const lastDef = cards[last];
       if (lastDef && !lastDef.spell && !lastDef.ruby) {
         flashDone[side] = true;
         const holder = boards[side].find((m) => !m.dead)?.uid;
-        for (let i = 0; i < flashCopiesFor[side]; i++) ctx.grantToHand(last, side, holder);
+        for (let i = 0; i < flashCopiesFor[side]; i++) flashToHand(side, lastBody, holder);
       }
     }
   }
@@ -6223,7 +6371,7 @@ export function simulate(
       wardWindow: modsFor(side).ancientWardCopy ? [...wardWindow[side]] : undefined,
       rises: modsFor(side).ancientCountRises ? riseLog[side] : undefined,
       summonsMade: modsFor(side).ancientCountSummons ? summonLog[side] : undefined,
-      ancientPummelDealt: modsFor(side).ancientPummel || modsFor(side).ancientPummelCopy || modsFor(side).ancientPummelCharge ? ancientPummelDealt[side] : undefined,
+      ancientPummelDealt: modsFor(side).ancientPummel || modsFor(side).ancientPummelCopy || modsFor(side).ancientPummelCharge || modsFor(side).ancientFlash?.pummel ? ancientPummelDealt[side] : undefined,
       ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
       ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
       ancientMaxGoldFires: modsFor(side).ancientMaxGoldAvenge ? maxGoldAvengeFires[side] : undefined,

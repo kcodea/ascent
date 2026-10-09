@@ -182,6 +182,7 @@ export type EntryPathRef =
  *  the reason each is legitimately unreachable. A card that gains a path makes its entry stale. */
 export const ENTRY_ORPHAN_EXCUSED: Readonly<Record<string, string>> = {
   b2_ninjapal: "an authored token of the Learn Ascent tutorial's seats (packages/sim/src/tutorial/learnAscent.ts) — never minted, summoned or offered in a normal run",
+  raysesprout: "Rayse × Ancient of Death's Sprout (owner 2026-10-09): summoned only by the Ancient (ancients.ts `ancientHeroAvengeShopDeath` in the Shop, the `ancientSproutAvenge` combat mod), and ancients.ts is not an entry-site file; Ancients are dev-only (the Scene Builder's Set 3 flag)",
 };
 
 export const pathLabel = (p: EntryPathRef): string =>

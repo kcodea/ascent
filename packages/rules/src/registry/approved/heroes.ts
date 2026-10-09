@@ -1607,4 +1607,442 @@ export const HEROES_RULES: GameRule[] = [
       + "still own more rack runes than the three sockets.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgePowerSlot.test.ts', 'packages/ui/src/heroSlotRune.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
+  {
+    id: "R-ANCRAYSE-01",
+    title: "Rayse × Ancient of Death: Avenge (4) on one running count across Shop and combat summons a growing Sprout",
+    statement:
+      "With the Ancient of Death, Rayse has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire summons a Sprout (a NEW 1/1 neutral token, `raysesprout`, not the Sprout spell) at the current size, then every later Sprout is +1/+1 bigger (1/1, 2/2, 3/3, ...). A combat Sprout is a real combat summon, so Empowering Vines gives it +2/+3 and Taunt; a Shop Sprout lands on the board as a Shop summon (a full board overflows, the size still grows). Rune of Fury fires the combat half again. The power prints the next Sprout's size and the deaths left, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (4): Summon a 1/1 Sprout and improve this.\"" },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "every hero Avenge: ONE running count of friendly minion deaths across Shop AND combat" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeSummonSprout / ancientHeroAvengeShopDeath / batch5AfterCombat; packages/core/src/combat/simulate.ts ancientSproutAvenge; packages/content/src/cards/set1/tokens.ts raysesprout" },
+    ],
+    contentIds: ["raysesprout"],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-02",
+    title: "Rayse × Ancient of Fortune: summons gain +1 Attack per Gold spent this turn, in the Shop and in combat",
+    statement:
+      "With the Ancient of Fortune, every friendly minion summoned gains +1 Attack for each Gold spent this turn. Cross-phase by default: a Shop summon (a play, a token) gains it permanently at the summon chokepoint; a combat summon gains it as a combat buff, using the Gold spent in the Shop turn that just ended (frozen for the fight).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Your summons gain +1 attack for every gold spent this turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts summonGainPerGoldSpent / ancientOnShopSummon / batch5CombatMods (ancientSummonGain)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-03",
+    title: "Rayse × Ancient of War: the first 3 minions summoned each combat attack immediately",
+    statement:
+      "With the Ancient of War, the first 3 friendly minions to enter play in each combat (a Rise / Rebirth return counts, being a summon) attack immediately through the shared attacks-immediately queue (R-ORD-05).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Your first 3 summoned minions attack immediately.\" (per combat, the attacks-immediately interrupt)" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts applyCombatSummonGrants (ancientSummonsAttack)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-04",
+    title: "Rayse × Ancient of Genesis: the first 2 minions summoned each combat summon twice",
+    statement:
+      "With the Ancient of Genesis, the first 2 friendly summons in each combat each summon one extra copy (Lord of the Risen's Genesis with a budget, `ancientSummonExtraLimit`). A Rise / Rebirth return counts toward the 2, following the Risen precedent. The extra copies never spend the budget themselves.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"The first 2 minions you summon in combat summon twice.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts summonsSummonExtra (limit); packages/core/src/combat/simulate.ts summonExtraFor" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-05",
+    title: "Rayse × Ancient of Time: End of Turn, a random friendly minion without Rise gains Rise permanently",
+    statement:
+      "With the Ancient of Time, a recurring End-of-Turn entry (its own beat) gives a random friendly minion that does not already have Rise the Rise keyword, permanently. If every minion already has Rise, nothing happens.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"End of turn give a minion Rise.\" OWNER: a random friendly minion without Rise gains Rise permanently." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotGrantRise / ancientRunRayseEotRise; packages/sim/src/recruit.ts recurringEotEffects (ancientRayseEotRise)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCRAYSE-06",
+    title: "Rayse × Ancient of Bonds: each combat summon gives 2 other random friendly minions +3/+3",
+    statement:
+      "With the Ancient of Bonds, every friendly minion summoned in combat (a return included) gives 2 distinct random OTHER living friendly minions +3/+3 as a combat buff. The summoned minion never picks itself.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"When a minion is summoned in combat, give 2 friendly minions +3/+3.\"" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts summonEntryEffects (ancientSummonBuffOthers)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-CASSEN-01",
+    title: "Cassen: Commission always offers Discover / Gold / Spell (the rare Citadel and Fortress are removed)",
+    statement:
+      "Cassen's Commission offer is always the three ordinary jobs: Discover (3 turns), Gold (2 turns) and Spell (1 turn). The rare Citadel and Fortress jobs and their 25% roll are gone, and the offer no longer excludes the job taken last. A save that is already working a Citadel or a Fortress still pays it out (a free Shop upgrade / a Triple Reward), so nothing in flight is lost.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "let's change cassen and remove citadel and fortress so he just has the 3 options instead." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts commissionOffer; packages/sim/src/reducer.ts payCommissionOnce" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Live in every mode.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-01",
+    title: "Cassen × Ancient of Death: Avenge (7) on one running count advances the running commission a turn",
+    statement:
+      "With the Ancient of Death, Cassen has a hero Avenge (7) on ONE running count of friendly deaths across the Shop and combat. Each fire makes the running commission land one turn sooner; with none running it does nothing. A Shop fire that brings it due pays it at once (the next action boundary); a combat fire is counted at settle, so it lands at the next Shop's opening payout. The power prints the deaths left and the commission's due turn, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (7): advance your commission 1 turn.\" With no commission running it does nothing." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAdvanceCommission / ancientCommissionDueNow; packages/core/src/combat/simulate.ts ancientAvengePulse; packages/sim/src/reducer.ts action boundary" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-02",
+    title: "Cassen × Ancient of Fortune: a commission payout also banks 5 free Refreshes",
+    statement:
+      "With the Ancient of Fortune, each commission payout also adds 5 free Refreshes to the bank.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Commission also grants 5 free refreshes.\" This applies on payout." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionFreeRefreshes / ancientAfterCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-03",
+    title: "Cassen × Ancient of War: a commission payout gives your board minions +8/+8 permanently",
+    statement:
+      "With the Ancient of War, each commission payout gives every board minion +8/+8, permanently, on the payout's beat.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Your minions gain +8/+8 when a commission triggers.\" Board minions, permanent." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionBuffsBoard / ancientAfterCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-04",
+    title: "Cassen × Ancient of Genesis: a commission payout also gives a random minion of your Shop tier",
+    statement:
+      "With the Ancient of Genesis, each commission payout also gives a random minion of exactly your current Shop tier, to hand (a full hand gets none).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Commission also grants a minion of your tier.\" A random minion of your current Shop tier, to hand." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionGrantsTierMinion / ancientAfterCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-05",
+    title: "Cassen × Ancient of Time: every commission pays out next turn",
+    statement:
+      "With the Ancient of Time, every commission's delay is 1 turn, whatever the job; a commission already running at the pick becomes due next turn. The picker and the printed rule show the live delay.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"Commissions all trigger next turn.\" The delay becomes 1." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionDelay / commissionDelayOf / commissionLineOf; packages/ui/src/StatusBar.tsx commission picker" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCCASSEN-06",
+    title: "Cassen × Ancient of Bonds: a commission pays out twice",
+    statement:
+      "With the Ancient of Bonds, a commission's payout resolves twice (two Discovers, 4 Gold, or two spells).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Commission pays out twice.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionPaysTwice / ancientCommissionReps; packages/sim/src/reducer.ts payCommission" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-01",
+    title: "Drakko × Ancient of Death: your Drakkos become Undead and Beast (Rune of Drakko still adds Dragon / Spirit)",
+    statement:
+      "With the Ancient of Death, every Drakko (the `drummer` card) in the run is Undead and Beast, everywhere (Shop, hand, board, combat, snapshots), through the run-level type override. Drakko has no printed type, so these replace it rather than sit beside one. A Rune of Drakko still adds Dragon and Spirit on top.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Your Drakkos become Undead/Beast.\" OWNER: REPLACE their types with Undead + Beast. Rune of Drakko, if bought, still adds Dragon/Spirit on top." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts drakkoRetype / batch5OnPick; RunState.cardTribes" },
+    ],
+    contentIds: ["drummer"],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-02",
+    title: "Drakko × Ancient of Fortune: Shout minions cost 1 Gold less",
+    statement:
+      "With the Ancient of Fortune, every Shop minion with a Shout costs 1 Gold less, floored at 0 together with every other discount.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Shout minions cost 1 Gold less.\" Floor at 0." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientShoutDiscount; packages/sim/src/reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-03",
+    title: "Drakko × Ancient of War: Start of Combat, +1/+1 to a random minion, repeated per Shout triggered this turn",
+    statement:
+      "With the Ancient of War, Start of Combat gives a random friendly minion +1/+1, then repeats once per Shout FIRE in the Shop turn that just ended (a Drakko repeat is its own fire). Each step is its own beat and re-draws its random minion (the repeat-vs-lump rule). A combat buff.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered this turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts socBuffPerShout; packages/core/src/combat/simulate.ts ancientSocRandomBuffs" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-04",
+    title: "Drakko × Ancient of Genesis: Drumline completes up to 3 times, needing 5, then 4, then 3 Shout buys",
+    statement:
+      "With the Ancient of Genesis, Drumline resets after each completion until it has completed 3 times, and each completion needs one Shout buy fewer: 5, then 4, then 3. A Drumline completed before the pick counts as the first completion and reopens at 4.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Drumline can be completed 3 times and costs 1 Shout less per reset.\" 5, then 4, then 3 Shout buys." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts drumlineRepeats / ancientDrumlineNeed / ancientDrumlineComplete; packages/sim/src/reducer.ts drakkoQuestBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-05",
+    title: "Drakko × Ancient of Time: End of Turn triggers your left-most Shout minion",
+    statement:
+      "With the Ancient of Time, a recurring End-of-Turn entry (its own beat) re-fires the Shout of your left-most Shout minion through the shared Shout replay, so every Shout multiplier and tally hears it and a targeted Shout follows the replay's normal target rule (Echoing Roar's rule).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"End of turn: trigger your left-most Shout minion.\"" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts runRecurringEndOfTurn (ancientDrakkoEotShout) / replayBattlecry" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCDRAKKO-06",
+    title: "Drakko × Ancient of Bonds: every Shout fire gives your Drakkos +2/+2 permanently, Shop and combat",
+    statement:
+      "With the Ancient of Bonds, every Shout FIRE gives each of your board Drakkos +2/+2, permanently and in real time: in the Shop at the shared Shout-fire hook, in combat on the Shout-triggered bus (the gain carries home).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Your Drakkos gain +2/+2 when you trigger a Shout.\" Board Drakkos, permanent, cross-phase." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnShopShout; packages/core/src/combat/simulate.ts ancientShoutBuffsCard" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-01",
+    title: "Flash × Ancient of Death: with First or Last armed, the 2nd enemy minion you kill is copied too",
+    statement:
+      "With the Ancient of Death, while First or Last is armed, the 2nd enemy minion killed in that combat is also copied to hand, the moment it dies. Unarmed, nothing (it is an addition to the claim).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Also get a copy of the 2nd minion that dies.\" OWNER: the 2nd ENEMY minion you kill in combat." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts noteKill (ancientFlash.second)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-02",
+    title: "Flash × Ancient of Fortune: First or Last costs 0 Gold",
+    statement:
+      "With the Ancient of Fortune, arming First or Last costs nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"First or Last costs 0 Gold.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts flash.fortune power override" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-03",
+    title: "Flash × Ancient of War: Pummel (400), once per combat, copies a random enemy minion",
+    statement:
+      "With the Ancient of War, a hero-level Pummel (400) on the shared lifetime damage tally pays once per combat: a copy of a random living enemy minion, to hand, the moment the threshold is crossed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Pummel (400): get a copy of a random enemy minion (once per combat).\" Use the hero Pummel tally." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts noteAncientPummel (ancientFlash.pummel)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-04",
+    title: "Flash × Ancient of Genesis: First or Last's claim grants 2 copies (times Rune of Wishbone's)",
+    statement:
+      "With the Ancient of Genesis, First or Last's claim grants 2 copies. Rune of Wishbone multiplies it (2 copies per Wishbone repeat).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"First or Last grants 2 copies.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientFlashCopies; packages/sim/src/reducer.ts flashCopies" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-05",
+    title: "Flash × Ancient of Time: Start of Combat, a copy of a random enemy minion",
+    statement:
+      "With the Ancient of Time, Start of Combat gives a copy of a random living enemy minion, to hand, with no arming needed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: OWNER completed the line: \"Start of Combat: get a copy of a random enemy minion.\"" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts Start of Combat (ancientFlash.soc)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCFLASH-06",
+    title: "Flash × Ancient of Bonds: Flash's copies are exact (stats, keywords, Gilded)",
+    statement:
+      "With the Ancient of Bonds, every copy Flash gets is an exact copy of the body: its Attack, its maximum Health, its keywords and its Gilded state, as it stood when it died (or was copied), set as the card lands in hand.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"The minion you get is an exact copy.\" Copies to hand keep stats, keywords and Gilded." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts flashToHand (ShoutCarry.handExact); packages/sim/src/reducer.ts hand-grant settle" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-01",
+    title: "Gildmaster × Ancient of Death: Avenge (14) on one running count gets a Goldcrafter",
+    statement:
+      "With the Ancient of Death, Gildmaster has a hero Avenge (14) on ONE running count of friendly deaths across the Shop and combat. Each fire gets a Goldcrafter (the spell token), to hand: in the Shop right then, in combat mid-fight. Rune of Fury fires the combat half again.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (14): Get a Goldcrafter.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantCard / ancientHeroAvengeShopDeath; packages/core/src/combat/simulate.ts ancientGorrAvenge" },
+    ],
+    contentIds: ["goldcrafter"],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-02",
+    title: "Gildmaster × Ancient of Fortune: every Triple Reward also gains 5 Gold",
+    statement:
+      "With the Ancient of Fortune, every Triple Reward you get also gains 5 Gold right then (Braum's Fortune primitive).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Triple Rewards also grant 5 Gold.\" Reuse tripleRewardGold {gold:5}." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tripleRewardGold / ancientOnTripleReward" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-03",
+    title: "Gildmaster × Ancient of War: Pummel (1000), once per combat, adds a use to Gildcrafter",
+    statement:
+      "With the Ancient of War, a hero-level Pummel (1000) on the shared lifetime damage tally pays once per combat: Gildcrafter's whole-game use budget grows by 1 (3, then 4, ...), banked at settle. It is still once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Pummel (1000): Gain a charge of Gildmaster.\" This is +1 to the use budget." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pummelPowerUse / batch5AfterCombat (powerOverride.maxUses)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-04",
+    title: "Gildmaster × Ancient of Genesis: every Triple Reward triggers twice",
+    statement:
+      "With the Ancient of Genesis, EVERY Triple Reward (a Gilded play, a Keshi crown, a Corrupted Tome extra) is granted twice. The repeat never repeats itself.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Triple Rewards trigger twice.\" OWNER: EVERY Triple Reward, hooked in grantGoldenDiscover." },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts grantGoldenDiscover (tripleRewardRepeating)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-05",
+    title: "Gildmaster × Ancient of Time: Gildcrafter turns passive; Start of Turn gilds a random friendly minion",
+    statement:
+      "With the Ancient of Time, Gildcrafter becomes passive, and every Start of Turn (its own beat) makes a random non-Gilded friendly board minion Gilded. No such minion: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"Gildcrafter becomes: Start of Turn: Make a random friendly minion Gilded.\" The power becomes passive and gilds a random non-Gilded friendly minion at Start of Turn." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotGildRandom / gildmasterStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-06",
+    title: "Gildmaster × Ancient of Bonds: playing a Gilded minion gives your Gilded minions +5/+5, repeated per Gilded minion this game",
+    statement:
+      "With the Ancient of Bonds, playing a Gilded minion gives every Gilded board minion (the played one included) +5/+5, then repeats once for every minion made Gilded this game (the run's gild count, from the start of the run, before the pick included). Each step is its own tick (the repeat-vs-lump rule), from the hero power.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Playing a triple grants your Gilded minions +5/+5. Repeat for every Gilded minion this game.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts gildedPlayBuffsGilded / gildmasterOnPlay" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
 ];

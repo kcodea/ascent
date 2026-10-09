@@ -11,7 +11,7 @@
  *     it starts empty, every Shop refresh ADDS `refresh` (1, paid or free, no distinction), every combat fought ADDS
  *     `combat` (2), and it awakens when it reaches `cost` (16). All three are tuner values stamped on the run at
  *     creation, and `ANCIENT_METER_BY_HERO` is the per-hero override seam.
- *  2. AT FULL the Ancient awakens ONCE: the Shop pauses behind a Discover of 3 of the 5 Ancients, a seeded pick off a
+ *  2. AT FULL the Ancient awakens ONCE: the Shop pauses behind a Discover of 3 of the 6 Ancients, a seeded pick off a
  *     salted stream (never the run cursor, so the rest of the run's RNG is unaffected by when it awakens).
  *  3. THE PICK locks it for the run. Its effect is the PAIRING for the current hero: DATA in `ANCIENT_PAIRINGS`
  *     (Ancient × hero → text + effect primitives). A hero with no written pairing shows "Not written yet" and
@@ -353,18 +353,83 @@
  *                                 once per real play: minions, spells and Rubies): your OTHER Tier 7 minions (board and
  *                                 hand) gain +a/+h per tier of the played card, permanently. Combat has no play. (Bonds)
  *
+ *  THE 2026-10-09 BATCH (owner pairings 2026-10-09). Every hero Avenge below (Rayse 4, Cassen 7, Gildmaster 14) is ONE
+ *  running count of friendly deaths across the Shop AND combat (owner ruling, the Xerox / Gorr / Nadja / Brackus shape):
+ *  SHOP deaths tick it at `fireOnFriendDeath` (`ancientHeroAvengeShopDeath`); COMBAT carries it in and settle adds the
+ *  fight's deaths. Rune of Fury fires the combat half again (every hero Avenge's rule).
+ *  RAYSE (Empowering Vines, `empoweringVines`, PASSIVE: "Minions summoned in combat gain +2/+3 and Taunt").
+ *  · `avengeSummonSprout`         each fire summons a Sprout (`RAYSE_SPROUT_ID`, a neutral token) at the current size, then
+ *                                 the size grows +1/+1 (`AncientsState.rayseSproutSize`). SHOP: onto the board as a summon
+ *                                 (full board: an overflow); COMBAT: `QuestCombatMods.ancientSproutAvenge`, a real combat
+ *                                 summon, so Vines' +2/+3 and Taunt land on it. (Death)
+ *  · `summonGainPerGoldSpent`     a summon gains +attack x the Gold spent this turn: SHOP at the `onSummon` chokepoint
+ *                                 (`ancientOnShopSummon`, permanent); COMBAT through Robin's `ancientSummonGain` (frozen
+ *                                 for the fight: the Shop turn that just ended), a combat buff. (Fortune)
+ *  · `firstSummonsAttack`         COMBAT: `QuestCombatMods.ancientSummonsAttack`, the first N summons each fight attack
+ *                                 immediately (the R-ORD-05 queue). (War)
+ *  · `summonsSummonExtra` + limit COMBAT: Risen's Genesis with a budget (`ancientSummonExtraLimit`): only the first N
+ *                                 summons each fight make their extra copy. A Rise / Rebirth return counts. (Genesis)
+ *  · `eotGrantRise`               a virtual recurring End-of-Turn entry (`ancientRayseEotRise`): a random friendly minion
+ *                                 without Rise gains Rise, permanently. (Time)
+ *  · `summonBuffsOthers`          COMBAT: `QuestCombatMods.ancientSummonBuffOthers` at the summon-entry chokepoint: N other
+ *                                 random friendly minions gain +a/+h, a combat buff. (Bonds)
+ *  CASSEN (Commission, `commission`). The owner's hero change (2026-10-09): the rare Citadel / Fortress jobs are gone;
+ *  the offer is always Discover / Gold / Spell. Commissions resolve in the reducer (`payCommission`), which reads
+ *  `commissionDelayOf`, `ancientCommissionReps` and `ancientAfterCommission`.
+ *  · `avengeAdvanceCommission`    each fire: the running commission lands 1 turn sooner. SHOP: right then, and a
+ *                                 commission that is now due pays at once (the reducer's action boundary,
+ *                                 `ancientCommissionDueNow`); COMBAT: `QuestCombatMods.ancientAvengePulse`, counted at
+ *                                 settle. No commission running: nothing. (Death)
+ *  · `commissionFreeRefreshes`    each payout also banks N free Refreshes (`freeRolls`). (Fortune)
+ *  · `commissionBuffsBoard`       each payout: your board minions gain +a/+h, permanently. (War)
+ *  · `commissionGrantsTierMinion` each payout: a random minion of your current Shop tier to hand. (Genesis)
+ *  · `commissionDelay`            every commission (a running one too, at the pick) is due next turn. (Time)
+ *  · `commissionPaysTwice`        the payout runs twice. (Bonds)
+ *  DRAKKO (Drumline, `quest`, PASSIVE: "After you buy 5 Shout minions, get Drakko").
+ *  · `drakkoRetype`               at the pick: the run's Drakkos (`drummer`) become Undead / Beast through
+ *                                 `RunState.cardTribes` (the Rune of Drakko channel). Drakko has no printed type, so these
+ *                                 REPLACE it; a Rune of Drakko still adds Dragon / Spirit on top. (Death)
+ *  · `shoutMinionsDiscount`       `offerBuyPrice`: a Shout minion costs N Gold less (floor 0). (Fortune)
+ *  · `socBuffPerShout`            COMBAT: `QuestCombatMods.ancientSocRandomBuffs`: 1 + the Shouts fired this turn
+ *                                 (`shoutFiresThisTurn`, Drakko repeats included) steps, each a random minion. (War)
+ *  · `drumlineRepeats`            Drumline completes up to N times, each needing one Shout buy fewer (5, 4, 3):
+ *                                 `ancientDrumlineNeed` / `ancientDrumlineComplete`, read by the reducer's quest buy. (Genesis)
+ *  · `eotTriggerLeftmostShout`    a virtual recurring End-of-Turn entry (`ancientDrakkoEotShout`): `replayBattlecry` on
+ *                                 the left-most Shout minion (Echoing Roar's rule). (Time)
+ *  · `shoutBuffsDrakkos`          every Shout FIRE: your Drakkos gain +a/+h, permanently. SHOP: `ancientOnShopShout`;
+ *                                 COMBAT: `QuestCombatMods.ancientShoutBuffsCard` (`permaGain`). (Bonds)
+ *  FLASH (First or Last, `firstOrLast`, 1 Gold). Combat halves ride `QuestCombatMods.ancientFlash`.
+ *  · `flashSecondKill`            with First or Last armed, the 2nd enemy minion killed is also copied, live. (Death)
+ *  · (Fortune)                    no primitive: the pairing's `power` override (`cost: 0`).
+ *  · `pummelEnemyCopy`            a hero Pummel (N) on Albus' lifetime tally, once per combat: a copy of a random living
+ *                                 enemy minion, live. (War)
+ *  · `flashCopies`                First or Last's claim grants N copies (times Rune of Wishbone's). (Genesis)
+ *  · `socEnemyCopy`               COMBAT, Start of Combat: a copy of a random enemy minion, live. (Time)
+ *  · `flashExactCopies`           every Flash copy is EXACT (`ShoutCarry.handExact`: stats, keywords, Gilded). (Bonds)
+ *  GILDMASTER (Gildcrafter, `gildcrafter`, 3 Gold, 3 uses per game).
+ *  · `avengeGrantCard`            each fire: a `goldcrafter` to hand. SHOP: right then; COMBAT: Gorr's
+ *                                 `ancientGorrAvenge` (a live `toHand`). (Death)
+ *  · `tripleRewardGold`           Braum's Fortune primitive, reused: every Triple Reward also gains N Gold. (Fortune)
+ *  · `pummelPowerUse`             a hero Pummel (N), once per combat (Darah's `ancientPummelCharge`, own flag): +1 to
+ *                                 Gildcrafter's whole-game use budget (`powerOverride.maxUses`). (War)
+ *  · `tripleRewardTwice`          EVERY Triple Reward triggers twice (`grantGoldenDiscover`, guarded). (Genesis)
+ *  · `sotGildRandom`              Gildcrafter turns passive; Start of Turn gilds a random non-Gilded board minion. (Time)
+ *  · `gildedPlayBuffsGilded`      playing a Gilded minion: your Gilded minions gain +a/+h, then again once per Gilded
+ *                                 minion this game (`AncientsState.gilds`), each its own step. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { inRunTribes, makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { handCap, mixSeed, type BoardCard, type RunState, type ShopCard, type SotBeatFx } from './state';
+import { handCap, mixSeed, type BoardCard, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
-import { hasPower, type HeroPower } from './heroes';
+import { getHero, hasPower, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
 import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
+import { COMMISSION_DELAY, COMMISSION_TEXT, hasBattlecry, syncRunTribes } from './recruit'; // the 2026-10-09 batch
 import { poolOf } from './cardPool';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -445,8 +510,9 @@ export type AncientEffect =
   | { do: 'riseGold'; gold: number }
   /** The Undying body returns from its Rise with double Attack and attacks immediately. */
   | { do: 'undyingReturnsDoubleAndAttacks' }
-  /** Every friendly summon in combat (a Rise and a Rebirth included) summons `extra` more copies. */
-  | { do: 'summonsSummonExtra'; extra: number }
+  /** Every friendly summon in combat (a Rise and a Rebirth included) summons `extra` more copies. `limit`: only the
+   *  first N summons each combat do (Rayse's Genesis); absent = every summon. */
+  | { do: 'summonsSummonExtra'; extra: number; limit?: number }
   /** Start of Turn: your minions gain +a/+h for every friendly minion summoned in the last combat. */
   | { do: 'sotBuffPerCombatSummon'; attack: number; health: number }
   /** Whenever a friendly minion Rises (Shop AND combat), trigger the Echo of a minion next to it. */
@@ -630,7 +696,66 @@ export type AncientEffect =
   /** `turns` turns after the pick, at Start of Turn: Discover a Tier 7 minion. Once. */
   | { do: 'discoverTier7InTurns'; turns: number }
   /** Whenever you play a card, your other Tier 7 minions gain +a/+h per tier of the played card. */
-  | { do: 'playBuffsTier7PerTier'; attack: number; health: number };
+  | { do: 'playBuffsTier7PerTier'; attack: number; health: number }
+  // ── Rayse (Empowering Vines) ──
+  /** Avenge (`every`), Shop AND combat (one running count): summon a Sprout at its current size, then grow it +1/+1. */
+  | { do: 'avengeSummonSprout'; every: number }
+  /** Your summons gain +`attack` Attack for every Gold spent this turn (Shop AND combat). */
+  | { do: 'summonGainPerGoldSpent'; attack: number }
+  /** The first `count` minions you summon each combat attack immediately. */
+  | { do: 'firstSummonsAttack'; count: number }
+  /** End of Turn: a random friendly minion without Rise gains Rise, permanently. */
+  | { do: 'eotGrantRise' }
+  /** When a minion is summoned in combat, `count` other random friendly minions gain +a/+h (combat). */
+  | { do: 'summonBuffsOthers'; count: number; attack: number; health: number }
+  // ── Cassen (Commission) ──
+  /** Avenge (`every`), Shop AND combat (one running count): the running commission lands 1 turn sooner. */
+  | { do: 'avengeAdvanceCommission'; every: number }
+  /** A commission paying out also banks `count` free Refreshes. */
+  | { do: 'commissionFreeRefreshes'; count: number }
+  /** A commission paying out gives your minions +a/+h, permanently. */
+  | { do: 'commissionBuffsBoard'; attack: number; health: number }
+  /** A commission paying out also gets a random minion of your Shop tier. */
+  | { do: 'commissionGrantsTierMinion' }
+  /** Every commission is due in `turns` turns. */
+  | { do: 'commissionDelay'; turns: number }
+  /** A commission pays out twice. */
+  | { do: 'commissionPaysTwice' }
+  // ── Drakko (Drumline) ──
+  /** Your Drakkos' types become `tribes` (a run-level override; Drakko has no printed type to keep). */
+  | { do: 'drakkoRetype'; tribes: Tribe[] }
+  /** Shout minions cost `gold` less (floor 0). */
+  | { do: 'shoutMinionsDiscount'; gold: number }
+  /** Start of Combat: a random minion gains +a/+h; repeat for every Shout triggered this turn. */
+  | { do: 'socBuffPerShout'; attack: number; health: number }
+  /** Drumline completes up to `times` times, each needing one Shout buy fewer. */
+  | { do: 'drumlineRepeats'; times: number }
+  /** End of Turn: trigger your left-most Shout minion. */
+  | { do: 'eotTriggerLeftmostShout' }
+  /** Whenever you trigger a Shout (Shop AND combat), your Drakkos gain +a/+h, permanently. */
+  | { do: 'shoutBuffsDrakkos'; attack: number; health: number }
+  // ── Flash (First or Last) ──
+  /** With First or Last armed, the 2nd enemy minion killed is also copied. */
+  | { do: 'flashSecondKill' }
+  /** Hero-level Pummel (`every`), once per combat: a copy of a random enemy minion. */
+  | { do: 'pummelEnemyCopy'; every: number }
+  /** First or Last's claim grants `count` copies. */
+  | { do: 'flashCopies'; count: number }
+  /** Start of Combat: a copy of a random enemy minion. */
+  | { do: 'socEnemyCopy' }
+  /** Flash's copies are exact (stats, keywords, Gilded). */
+  | { do: 'flashExactCopies' }
+  // ── Gildmaster (Gildcrafter) ──
+  /** Avenge (`every`), Shop AND combat (one running count): get `cardId`. */
+  | { do: 'avengeGrantCard'; every: number; cardId: string }
+  /** Hero-level Pummel (`every`), once per combat: +1 use of the hero power's whole-game budget. */
+  | { do: 'pummelPowerUse'; every: number }
+  /** Every Triple Reward triggers twice. */
+  | { do: 'tripleRewardTwice' }
+  /** Start of Turn: a random non-Gilded friendly minion becomes Gilded (the power turns passive via `power`). */
+  | { do: 'sotGildRandom' }
+  /** Playing a Gilded minion gives your Gilded minions +a/+h, repeated once per Gilded minion this game. */
+  | { do: 'gildedPlayBuffsGilded'; attack: number; health: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -675,7 +800,7 @@ export interface AncientPairing {
 }
 
 /** The hero-power fields a pairing may override. */
-export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>>;
+export type AncientPowerOverride = Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn' | 'maxUses'>>;
 
 /** Shown for a hero × Ancient with no written pairing. Has no effect. */
 export const ANCIENT_NOT_WRITTEN = 'Not written yet.';
@@ -1429,6 +1554,209 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'playBuffsTier7PerTier', attack: 1, health: 1 }],
     },
   },
+  // RAYSE (owner pairings 2026-10-09, quoted above each entry). Empowering Vines (passive) = "Minions summoned in combat
+  // gain +2/+3 and Taunt."
+  rayse: {
+    death: {
+      // "Avenge (4): Summon a 1/1 Sprout and improve this." (owner: a NEW 1/1 neutral token; each fire makes future
+      // Sprouts +1/+1 bigger; Sprouts summoned in combat take Vines too; one running count across Shop and combat)
+      offerText: '**Avenge (4):** summon a **1/1** Sprout and improve this by **+1/+1**.',
+      powerText: '{base} **Avenge (4):** summon a **{rSprout}/{rSprout}** Sprout and improve this by **+1/+1** (**{rDeathLeft}** more to go).',
+      effects: [{ do: 'avengeSummonSprout', every: 4 }],
+    },
+    fortune: {
+      // "Your summons gain +1 attack for every gold spent this turn." (cross-phase by default: Shop and combat summons)
+      offerText: 'Minions you summon gain **+1 Attack** for each Gold you spent this turn.',
+      powerText: '{base} Minions you summon gain **+1 Attack** for each Gold you spent this turn (**{rSpent}** spent: **+{rGain}** Attack).',
+      effects: [{ do: 'summonGainPerGoldSpent', attack: 1 }],
+    },
+    war: {
+      // "Your first 3 summoned minions attack immediately." (owner: per combat, the attacks-immediately interrupt)
+      offerText: 'In combat, the first **3** minions you summon attack immediately.',
+      powerText: '{base} In combat, the first **3** minions you summon attack immediately.',
+      effects: [{ do: 'firstSummonsAttack', count: 3 }],
+    },
+    genesis: {
+      // "The first 2 minions you summon in combat summon twice."
+      offerText: 'The first **2** minions you summon in combat summon twice.',
+      powerText: '{base} The first **2** minions you summon each combat summon twice.',
+      effects: [{ do: 'summonsSummonExtra', extra: 1, limit: 2 }],
+    },
+    time: {
+      // "End of turn give a minion Rise." (owner: a random friendly minion without Rise gains Rise permanently)
+      offerText: '**End of Turn:** give a random friendly minion without **Rise** **Rise**.',
+      powerText: '{base} **End of Turn:** give a random friendly minion without **Rise** **Rise**.',
+      effects: [{ do: 'eotGrantRise' }],
+    },
+    bonds: {
+      // "When a minion is summoned in combat, give 2 friendly minions +3/+3."
+      offerText: 'When a minion is summoned in combat, give **2** other random friendly minions **+3/+3**.',
+      powerText: '{base} When a minion is summoned in combat, give **2** other random friendly minions **+3/+3** for that combat.',
+      effects: [{ do: 'summonBuffsOthers', count: 2, attack: 3, health: 3 }],
+    },
+  },
+  // CASSEN (owner pairings 2026-10-09, quoted above each entry). Commission = "Choose a commission. It pays out in a few
+  // turns." (the offer is always Discover / Gold / Spell since the owner's 2026-10-09 hero change).
+  cassen: {
+    death: {
+      // "Avenge (7): advance your commission 1 turn." (no commission running: nothing)
+      offerText: '**Avenge (7):** your commission pays out **1** turn sooner.',
+      powerText: '{base} **Avenge (7):** your commission pays out **1** turn sooner (**{cDeathLeft}** more to go).',
+      effects: [{ do: 'avengeAdvanceCommission', every: 7 }],
+    },
+    fortune: {
+      // "Commission also grants 5 free refreshes." (on payout)
+      offerText: 'Commissions also give you **5** free Refreshes.',
+      powerText: '{base} When it pays out, also get **5** free Refreshes.',
+      effects: [{ do: 'commissionFreeRefreshes', count: 5 }],
+    },
+    war: {
+      // "Your minions gain +8/+8 when a commission triggers." (board minions, permanent)
+      offerText: 'When a commission pays out, your minions gain **+8/+8**.',
+      powerText: '{base} When it pays out, your minions gain **+8/+8**.',
+      effects: [{ do: 'commissionBuffsBoard', attack: 8, health: 8 }],
+    },
+    genesis: {
+      // "Commission also grants a minion of your tier." (a random minion of your current Shop tier, to hand)
+      offerText: 'Commissions also give you a random minion of your Tier.',
+      powerText: '{base} When it pays out, also get a random minion of your Tier (Tier **{cTier}**).',
+      effects: [{ do: 'commissionGrantsTierMinion' }],
+    },
+    time: {
+      // "Commissions all trigger next turn." (the delay becomes 1)
+      offerText: 'Every commission pays out next turn.',
+      powerText: '{base} Every commission pays out next turn.',
+      effects: [{ do: 'commissionDelay', turns: 1 }],
+    },
+    bonds: {
+      // "Commission pays out twice."
+      offerText: 'Commissions pay out **twice**.',
+      powerText: '{base} It pays out **twice**.',
+      effects: [{ do: 'commissionPaysTwice' }],
+    },
+  },
+  // DRAKKO (owner pairings 2026-10-09, quoted above each entry). Drumline (passive) = "After you buy 5 Shout minions, get
+  // Drakko." Drakko (the `drummer` card) makes your Shouts trigger twice.
+  drakko: {
+    death: {
+      // "Your Drakkos become Undead/Beast." (owner: REPLACE their types; Rune of Drakko still adds Dragon/Spirit on top)
+      offerText: 'Your Drakkos become **Undead** and **Beast**.',
+      powerText: '{base} Your Drakkos are **Undead** and **Beast**.',
+      effects: [{ do: 'drakkoRetype', tribes: ['undead', 'beast'] }],
+    },
+    fortune: {
+      // "Shout minions cost 1 Gold less." (floor 0)
+      offerText: '**Shout** minions cost **1 Gold** less.',
+      powerText: '{base} **Shout** minions cost **1 Gold** less.',
+      effects: [{ do: 'shoutMinionsDiscount', gold: 1 }],
+    },
+    war: {
+      // "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered this turn."
+      offerText: '**Start of Combat:** give a random friendly minion **+1/+1**. Repeat for every **Shout** you triggered this turn.',
+      powerText: '{base} **Start of Combat:** give a random friendly minion **+1/+1**. Repeat for every **Shout** you triggered this turn (**{dkShouts}** this turn: **{dkReps}** times).',
+      effects: [{ do: 'socBuffPerShout', attack: 1, health: 1 }],
+    },
+    genesis: {
+      // "Drumline can be completed 3 times and costs 1 Shout less per reset." (5, then 4, then 3 Shout buys)
+      offerText: 'Drumline can be completed **3** times. Each time, it needs **1** fewer **Shout** minion.',
+      powerText: 'After you buy **{dkNeed}** **Shout** minions, get **Drakko**. Completions left: **{dkLeft}**.',
+      effects: [{ do: 'drumlineRepeats', times: 3 }],
+    },
+    time: {
+      // "End of turn: trigger your left-most Shout minion."
+      offerText: '**End of Turn:** trigger your left-most **Shout** minion.',
+      powerText: '{base} **End of Turn:** trigger your left-most **Shout** minion.',
+      effects: [{ do: 'eotTriggerLeftmostShout' }],
+    },
+    bonds: {
+      // "Your Drakkos gain +2/+2 when you trigger a Shout." (board Drakkos, permanent, cross-phase)
+      offerText: 'Whenever you trigger a **Shout**, your Drakkos gain **+2/+2**.',
+      powerText: '{base} Whenever you trigger a **Shout**, your Drakkos gain **+2/+2**.',
+      effects: [{ do: 'shoutBuffsDrakkos', attack: 2, health: 2 }],
+    },
+  },
+  // FLASH (owner pairings 2026-10-09, quoted above each entry). First or Last (1 Gold) = "Claim a copy of the first or
+  // last minion you kill next combat."
+  flash: {
+    death: {
+      // "Also get a copy of the 2nd minion that dies." (owner: the 2nd ENEMY minion you kill in combat)
+      offerText: 'First or Last also gets you a copy of the **2nd** minion you kill.',
+      powerText: '{base} Also get a copy of the **2nd** minion you kill.',
+      effects: [{ do: 'flashSecondKill' }],
+    },
+    fortune: {
+      // "First or Last costs 0 Gold."
+      offerText: 'First or Last costs **0 Gold**.',
+      powerText: '{base} It costs **0 Gold**.',
+      power: { cost: 0 },
+      effects: [],
+    },
+    war: {
+      // "Pummel (400): get a copy of a random enemy minion (once per combat)." (the hero Pummel tally)
+      offerText: '**Pummel (400):** get a copy of a random enemy minion. Once per combat. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (400):** get a copy of a random enemy minion. Once per combat. Counts damage dealt by all your minions (**{fPummelNow}/{fPummelEvery}**).',
+      effects: [{ do: 'pummelEnemyCopy', every: 400 }],
+    },
+    genesis: {
+      // "First or Last grants 2 copies."
+      offerText: 'First or Last gets you **2** copies.',
+      powerText: 'Claim **2** copies of the **first** or **last** minion you kill next combat.',
+      effects: [{ do: 'flashCopies', count: 2 }],
+    },
+    time: {
+      // Owner completed the line: "Start of Combat: get a copy of a random enemy minion."
+      offerText: '**Start of Combat:** get a copy of a random enemy minion.',
+      powerText: '{base} **Start of Combat:** get a copy of a random enemy minion.',
+      effects: [{ do: 'socEnemyCopy' }],
+    },
+    bonds: {
+      // "The minion you get is an exact copy." (copies to hand keep stats, keywords and Gilded)
+      offerText: 'The minions you copy are **exact** copies: they keep their stats, keywords and **Gilded**.',
+      powerText: '{base} It is an **exact** copy: it keeps its stats, keywords and **Gilded**.',
+      effects: [{ do: 'flashExactCopies' }],
+    },
+  },
+  // GILDMASTER (owner pairings 2026-10-09, quoted above each entry). Gildcrafter (3 Gold, 3 uses per game) = "When you
+  // have 2 copies of a minion, this grants a third." A Goldcrafter is the `goldcrafter` spell token.
+  gildmaster: {
+    death: {
+      // "Avenge (14): Get a Goldcrafter."
+      offerText: '**Avenge (14):** get a **Goldcrafter**.',
+      powerText: '{base} **Avenge (14):** get a **Goldcrafter** (**{gmDeathLeft}** more to go).',
+      effects: [{ do: 'avengeGrantCard', every: 14, cardId: 'goldcrafter' }],
+    },
+    fortune: {
+      // "Triple Rewards also grant 5 Gold."
+      offerText: 'Triple Rewards also give you **5 Gold**.',
+      powerText: '{base} Triple Rewards also give you **5 Gold** (**{bTripleGold} Gold** so far).',
+      effects: [{ do: 'tripleRewardGold', gold: 5 }],
+    },
+    war: {
+      // "Pummel (1000): Gain a charge of Gildmaster." (+1 to the use budget)
+      offerText: '**Pummel (1000):** Gildcrafter gains a use. Once per combat. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (1000):** it gains a use. Once per combat. Counts damage dealt by all your minions (**{gmPummelNow}/{gmPummelEvery}**). Uses left: **{gmUses}**.',
+      effects: [{ do: 'pummelPowerUse', every: 1000 }],
+    },
+    genesis: {
+      // "Triple Rewards trigger twice." (owner: EVERY Triple Reward)
+      offerText: 'Triple Rewards trigger **twice**.',
+      powerText: '{base} Triple Rewards trigger **twice**.',
+      effects: [{ do: 'tripleRewardTwice' }],
+    },
+    time: {
+      // "Gildcrafter becomes: Start of Turn: Make a random friendly minion Gilded." (passive; a random non-Gilded one)
+      offerText: 'Gildcrafter becomes passive. **Start of Turn:** make a random friendly minion **Gilded**.',
+      powerText: '**Start of Turn:** make a random friendly minion **Gilded**.',
+      power: { passive: true },
+      effects: [{ do: 'sotGildRandom' }],
+    },
+    bonds: {
+      // "Playing a triple grants your Gilded minions +5/+5. Repeat for every Gilded minion this game."
+      offerText: 'Playing a **Gilded** minion gives your **Gilded** minions **+5/+5**. Repeat for every **Gilded** minion this game.',
+      powerText: '{base} Playing a **Gilded** minion gives your **Gilded** minions **+5/+5**. Repeat for every **Gilded** minion this game (**{gmGilds}** so far: **{gmReps}** times).',
+      effects: [{ do: 'gildedPlayBuffsGilded', attack: 5, health: 5 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1612,6 +1940,16 @@ export interface AncientsState {
   brackusTimeDone?: boolean;
   /** BRACKUS × BONDS: the per-Tier 7 gain Bonds has given so far (printed live). */
   brackusBondsTotal?: number;
+  /** RAYSE × DEATH: friendly deaths since the last Sprout (Shop + combat), the running Avenge (4) count. */
+  rayseDeaths?: number;
+  /** RAYSE × DEATH: the size (N/N) the next Sprout is summoned at (starts 1, +1 per fire). */
+  rayseSproutSize?: number;
+  /** CASSEN × DEATH: friendly deaths since the last advance (Shop + combat), the running Avenge (7) count. */
+  cassenDeaths?: number;
+  /** DRAKKO × GENESIS: Drumline completions so far (each later one needs one Shout buy fewer). */
+  drakkoCompletions?: number;
+  /** GILDMASTER × DEATH: friendly deaths since the last Goldcrafter (Shop + combat), the running Avenge (14) count. */
+  gildDeaths?: number;
 }
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
@@ -1693,6 +2031,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   const aWar = effectOf(state, 'enchantedBuyBuffImproves');
   if (aWar) a.ayseWarGain = aWar.amount; // AYSE × WAR: starts at the printed amount
   brackusOnPick(state, a); // BRACKUS × GENESIS / TIME: the Summit lock grows, the countdown starts
+  batch5OnPick(state, a); // RAYSE / CASSEN / DRAKKO / GILDMASTER: the pick-time stamps
   return true;
 }
 
@@ -1824,6 +2163,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{smGoldLeft}', String(brackusGoldLeft(state))).replace('{smWarCopy}', brackusWarText(state))
     .replace('{smLock}', String(a?.brackusLock ?? SUMMIT_LOCK_GOLD)).replace('{smGenesis}', brackusGenesisText(state))
     .replace('{smTimeLeft}', brackusTimeText(state)).split('{smBondsTotal}').join(String(a?.brackusBondsTotal ?? 0));
+  text = batch5PowerText(state, text, base, combat);
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -1880,7 +2220,8 @@ export function ancientSpellbookAvengeLeft(state: RunState, deaths = state.fxFri
  */
 export function ancientAvengeCountdown(state: RunState, deaths = 0): number | null {
   return ancientClearanceAvengeLeft(state, deaths) ?? ancientSpellbookAvengeLeft(state, deaths) ?? ancientXeroxAvengeLeft(state, deaths)
-    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths) ?? ancientNadjaAvengeLeft(state, deaths) ?? ancientBrackusAvengeLeft(state, deaths);
+    ?? ancientTradesAvengeLeft(state, deaths) ?? ancientGorrAvengeLeft(state, deaths) ?? ancientNadjaAvengeLeft(state, deaths) ?? ancientBrackusAvengeLeft(state, deaths)
+    ?? ancientHeroAvengeLeft(state, deaths);
 }
 
 // ── Hooks ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1965,7 +2306,10 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   }
   if (effectOf(state, 'riseGold')) out.ancientCountRises = true;
   const extra = effectOf(state, 'summonsSummonExtra');
-  if (extra) out.ancientSummonExtra = extra.extra;
+  if (extra) {
+    out.ancientSummonExtra = extra.extra;
+    if (extra.limit !== undefined) out.ancientSummonExtraLimit = extra.limit; // RAYSE × GENESIS: the first N summons only
+  }
   if (effectOf(state, 'sotBuffPerCombatSummon')) out.ancientCountSummons = true;
   if (effectOf(state, 'riseTriggersAdjacentEcho')) out.ancientRiseEcho = { label: ANCIENTS.bonds.name };
   const pummel = effectOf(state, 'pummelGrantsCards');
@@ -2036,6 +2380,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const bd = effectOf(state, 'avengeBuffTier7');
   if (bd) out.ancientBrackusAvenge = { every: bd.every, tick: live(state)?.brackusDeaths ?? 0, attack: bd.attack, health: bd.health, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: ANCIENTS.death.name };
   if (effectOf(state, 'socCopyTier7')) out.ancientSummitCopy = { label: ANCIENTS.war.name };
+  Object.assign(out, batch5CombatMods(state));
   return out;
 }
 
@@ -2144,7 +2489,8 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // RISEN × TIME: the count the next Start of Turn pays on.
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
-  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge') || effectOf(state, 'pummelEnemyCopy') || effectOf(state, 'pummelPowerUse')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  batch5AfterCombat(state, a, result); // RAYSE / CASSEN / GILDMASTER: the running Avenge counts + the fight's pulses
   // DARAH × WAR: the Swap charge the fight's Pummel paid (one flag per payout, already shown live) joins the bank.
   if (effectOf(state, 'pummelSwapCharge')) {
     const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
@@ -2235,6 +2581,12 @@ export function ancientAfterPulse(state: RunState, card: BoardCard): void {
 export function ancientOnShopShout(state: RunState, source: BoardCard | undefined): void {
   const a = live(state);
   if (!a) return;
+  // DRAKKO × BONDS: every Shout fire gives your board Drakkos +a/+h, permanently, in real time.
+  const dk = effectOf(state, 'shoutBuffsDrakkos');
+  if (dk) {
+    const drakkos = state.board.filter((c) => c.cardId === DRAKKO_CARD_ID);
+    if (drakkos.length > 0) captureBuffFx(state, source, source ? 'minion' : 'spell', () => { for (const c of drakkos) addBuff(c, ANCIENTS.bonds.name, dk.attack, dk.health); });
+  }
   const gold = effectOf(state, 'shopShoutGold');
   if (gold) {
     state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + gold.gold;
@@ -2271,6 +2623,7 @@ export function ancientStartOfTurn(state: RunState): void {
   sorenStartOfTurn(state);
   bramStartOfTurn(state);
   brackusStartOfTurn(state);
+  gildmasterStartOfTurn(state);
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -2350,6 +2703,7 @@ export function ancientOnEmpowerPick(state: RunState, def: CardDef, offer?: Shop
  *  +a/+h, permanently, in real time. The played minion is not included. */
 export function ancientOnPlay(state: RunState, played: BoardCard): void {
   bramOnPlay(state, played); // BRAUM: War's Gilded-play count, Bonds' grant
+  gildmasterOnPlay(state, played); // GILDMASTER × BONDS: a Gilded play buffs your Gilded minions, repeated per gild
   const e = effectOf(state, 'playParityBuff');
   if (!e) return;
   const tier = CARD_INDEX[played.cardId]?.tier;
@@ -2924,6 +3278,10 @@ export function robinSpoilsThisTurn(state: Pick<RunState, 'ancientsEnabled' | 'a
 /** ROBIN × DEATH, Shop half: a friendly minion was summoned (`fire`'s `onSummon`: a play from hand, a token summon). It
  *  gains +a/+h for every Spoils count this turn, permanently. */
 export function ancientOnShopSummon(state: RunState, minion: BoardCard): void {
+  // RAYSE × FORTUNE: +attack per Gold spent this turn, permanently (a Shop summon).
+  const rf = live(state) ? effectOf(state, 'summonGainPerGoldSpent') : undefined;
+  const spent = Math.max(0, state.goldSpentThisTurn ?? 0);
+  if (rf && spent > 0 && state.board.includes(minion)) captureBuffFx(state, undefined, 'spell', () => addBuff(minion, ANCIENTS.fortune.name, rf.attack * spent, 0));
   const e = live(state) ? effectOf(state, 'summonGainPerSpoils') : undefined;
   const n = e ? robinSpoilsThisTurn(state) : 0;
   if (!e || n <= 0 || !state.board.includes(minion)) return;
@@ -3804,3 +4162,344 @@ export function ancientOnCardPlayed(state: RunState, played: BoardCard): void {
   captureBuffFx(state, undefined, 'spell', () => { for (const c of mates) addBuff(c, ANCIENTS.bonds.name, e.attack * tier, e.health * tier); });
 }
 
+
+// ── The 2026-10-09 batch: Rayse / Cassen / Drakko / Flash / Gildmaster ───────────────────────────────────────
+/** RAYSE × DEATH: the Sprout token (a NEW 1/1 neutral minion; not the `sprout` spell). Its size comes from the run. */
+export const RAYSE_SPROUT_ID = 'raysesprout';
+/** DRAKKO: the card his Drumline grants ("Drakko"). */
+export const DRAKKO_CARD_ID = 'drummer';
+/** The `questTrigger` flags this batch's combat halves pulse (settle and the replay count them). */
+export const ANCIENT_SPROUT_FLAG = 'ancientSprout';
+export const ANCIENT_COMMISSION_FLAG = 'ancientCommissionAdvance';
+export const ANCIENT_GILD_CHARGE_FLAG = 'ancientGildCharge';
+
+/** Rune of Fury's extra combat fires of a hero Avenge (0 without the rune), the simulator's own rule. */
+function furyExtra(state: RunState): number {
+  return state.questFlags?.runeFury ? Math.max(1, state.flagCopies?.runeFury ?? 1) : 0;
+}
+
+/** This batch's hero Avenge, when one is picked: its N and the carried running count (Rayse 4, Cassen 7, Gildmaster 14). */
+function heroAvengeOf(state: RunState): { every: number; tick: number } | undefined {
+  const a = live(state);
+  if (!a) return undefined;
+  const r = effectOf(state, 'avengeSummonSprout');
+  if (r) return { every: Math.max(1, r.every), tick: a.rayseDeaths ?? 0 };
+  const c = effectOf(state, 'avengeAdvanceCommission');
+  if (c) return { every: Math.max(1, c.every), tick: a.cassenDeaths ?? 0 };
+  const g = effectOf(state, 'avengeGrantCard');
+  if (g) return { every: Math.max(1, g.every), tick: a.gildDeaths ?? 0 };
+  return undefined;
+}
+
+/** RAYSE / CASSEN / GILDMASTER × DEATH: friendly deaths still needed for the next fire (the carried count plus `deaths` so
+ *  far in the fight on screen). Null when none of them is picked. Shares the hero power's Avenge disc. */
+export function ancientHeroAvengeLeft(state: RunState, deaths = 0): number | null {
+  const h = heroAvengeOf(state);
+  if (!h) return null;
+  return h.every - ((h.tick + Math.max(0, deaths)) % h.every);
+}
+
+/** The fires this batch's hero Avenge has made SO FAR in the fight on screen (Rune of Fury's extra fires included). */
+function heroAvengeLiveFires(state: RunState, deaths: number): number {
+  const h = heroAvengeOf(state);
+  if (!h || deaths <= 0) return 0;
+  return Math.floor((h.tick + deaths) / h.every) * (1 + furyExtra(state));
+}
+
+/**
+ * A friendly minion died in the Shop (`fireOnFriendDeath`: every Shop death path once; a sale never). The running count
+ * of whichever hero Avenge is picked ticks; every Nth death fires it right then.
+ * RAYSE: a Sprout at the current size (then +1/+1). CASSEN: the commission lands a turn sooner (a now-due one pays at the
+ * reducer's action boundary). GILDMASTER: a Goldcrafter to hand.
+ */
+export function ancientHeroAvengeShopDeath(state: RunState, dead: BoardCard): void {
+  const a = live(state);
+  if (!a) return;
+  const r = effectOf(state, 'avengeSummonSprout');
+  if (r) {
+    a.rayseDeaths = ((a.rayseDeaths ?? 0) + 1) % Math.max(1, r.every);
+    if (a.rayseDeaths === 0) rayseShopSprout(state, a, dead);
+  }
+  const c = effectOf(state, 'avengeAdvanceCommission');
+  if (c) {
+    a.cassenDeaths = ((a.cassenDeaths ?? 0) + 1) % Math.max(1, c.every);
+    if (a.cassenDeaths === 0) advanceCommission(state, 1);
+  }
+  const g = effectOf(state, 'avengeGrantCard');
+  if (g) {
+    a.gildDeaths = ((a.gildDeaths ?? 0) + 1) % Math.max(1, g.every);
+    const def = CARD_INDEX[g.cardId];
+    if (a.gildDeaths === 0 && def && state.hand.length < handCap(state)) conjureToHand(state, [def], 1);
+  }
+}
+
+/** RAYSE × DEATH, Shop half: summon a Sprout at the current size onto the board (a Shop summon: `fireSummonBuffs`), then
+ *  grow the size. No room (the dying body never holds a slot): an overflow, and the size still grows. */
+function rayseShopSprout(state: RunState, a: AncientsState, dead: BoardCard): void {
+  const n = Math.max(1, a.rayseSproutSize ?? 1);
+  a.rayseSproutSize = n + 1;
+  const def = CARD_INDEX[RAYSE_SPROUT_ID];
+  if (!def) return;
+  const standing = state.board.filter((c) => c.uid !== dead.uid && c.uid !== state.vacatingUid).length;
+  if (standing >= CONFIG.boardMax) { fireSummonOverflow(state); return; }
+  const card: BoardCard = { uid: `b${state.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: n, health: n, keywords: [...def.keywords], golden: false };
+  state.board.push(card);
+  fireSummonBuffs(state, card);
+}
+
+/** CASSEN × DEATH: the running commission lands `turns` sooner (nothing running: nothing). */
+function advanceCommission(state: RunState, turns: number): void {
+  if (!state.commission || turns <= 0) return;
+  state.commission = { ...state.commission, dueWave: state.commission.dueWave - turns };
+}
+
+/** CASSEN × DEATH: a Shop Avenge has brought the running commission due NOW (the reducer's action boundary pays it at
+ *  once). Only in the Shop: a combat advance lands at the next Shop's opening payout. */
+export function ancientCommissionDueNow(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'avengeAdvanceCommission') && state.phase === 'recruit'
+    && !!state.commission && state.wave >= state.commission.dueWave;
+}
+
+/** CASSEN: how many turns a commission of `kind` takes (Time: next turn, every kind). */
+export function commissionDelayOf(state: RunState, kind: CommissionKind): number {
+  const t = live(state) ? effectOf(state, 'commissionDelay') : undefined;
+  return t ? Math.max(1, t.turns) : COMMISSION_DELAY[kind];
+}
+
+/** CASSEN: a commission's printed line, with its LIVE delay (Time's "next turn" included). */
+export function commissionLineOf(state: RunState, kind: CommissionKind): string {
+  const d = commissionDelayOf(state, kind);
+  if (d === COMMISSION_DELAY[kind]) return COMMISSION_TEXT[kind];
+  return COMMISSION_TEXT[kind].replace(/In \*\*\d+ turns?\*\*/, `In **${d} turn${d === 1 ? '' : 's'}**`);
+}
+
+/** CASSEN × BONDS: how many times a commission pays out. */
+export function ancientCommissionReps(state: RunState): number {
+  return live(state) && effectOf(state, 'commissionPaysTwice') ? 2 : 1;
+}
+
+/** CASSEN: one commission payout just resolved (`payCommission`). FORTUNE: free Refreshes; WAR: the board gains, permanently;
+ *  GENESIS: a random minion of your current Shop tier to hand (hand full: none). */
+export function ancientAfterCommission(state: RunState): void {
+  if (!live(state)) return;
+  const f = effectOf(state, 'commissionFreeRefreshes');
+  if (f) state.freeRolls = (state.freeRolls ?? 0) + f.count;
+  const w = effectOf(state, 'commissionBuffsBoard');
+  if (w && state.board.length > 0) {
+    const all = [...state.board];
+    captureBuffFx(state, undefined, 'spell', () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack, w.health); });
+  }
+  if (effectOf(state, 'commissionGrantsTierMinion') && state.hand.length < handCap(state)) {
+    const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier === state.tier);
+    if (pool.length > 0) conjureToHand(state, pool, 1);
+  }
+}
+
+/** DRAKKO: the Shout buys the current Drumline needs (5; Genesis: one fewer per completion so far). */
+export function ancientDrumlineNeed(state: RunState): number {
+  const g = live(state) ? effectOf(state, 'drumlineRepeats') : undefined;
+  return Math.max(1, 5 - (g ? live(state)?.drakkoCompletions ?? 0 : 0));
+}
+
+/** DRAKKO × GENESIS: Drumline just completed. True = it resets for another run (completions left), false = it is done
+ *  for the game (the native rule, and Genesis' last completion). */
+export function ancientDrumlineComplete(state: RunState): boolean {
+  const a = live(state);
+  const g = a ? effectOf(state, 'drumlineRepeats') : undefined;
+  if (!a || !g) return false;
+  a.drakkoCompletions = (a.drakkoCompletions ?? 0) + 1;
+  return a.drakkoCompletions < Math.max(1, g.times);
+}
+
+/** DRAKKO × FORTUNE: the Gold a Shop minion's price drops by (a Shout minion: `gold`; else 0). */
+export function ancientShoutDiscount(state: RunState, cardId: string): number {
+  const e = live(state) ? effectOf(state, 'shoutMinionsDiscount') : undefined;
+  const def = e ? CARD_INDEX[cardId] : undefined;
+  return e && def && !def.spell && !def.ruby && hasBattlecry(def) ? Math.max(0, e.gold) : 0;
+}
+
+/** DRAKKO × TIME: is the End-of-Turn Shout trigger live (the `ancientDrakkoEotShout` recurring entry)? */
+export function ancientDrakkoEotShoutLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotTriggerLeftmostShout');
+}
+
+/** RAYSE × TIME: is the End-of-Turn Rise grant live (the `ancientRayseEotRise` recurring entry)? */
+export function ancientRayseEotRiseLive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'eotGrantRise');
+}
+
+/** RAYSE × TIME: End of Turn, a random friendly minion WITHOUT Rise gains Rise, permanently (seeded off the run cursor).
+ *  Every minion already has Rise (or none is out): nothing. `apply` is the recurring runner's `step`. */
+export function ancientRunRayseEotRise(state: RunState, apply: (run: () => void) => void): void {
+  if (!ancientRayseEotRiseLive(state)) return;
+  const bare = state.board.filter((c) => !c.keywords.includes('R'));
+  if (bare.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const pick = bare[rng.int(bare.length)]!;
+  state.rngCursor = rng.state();
+  apply(() => { if (!pick.keywords.includes('R')) pick.keywords.push('R'); });
+}
+
+/** FLASH × GENESIS: how many copies First or Last's claim grants (before Rune of Wishbone's repeats). */
+export function ancientFlashCopies(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'flashCopies') : undefined;
+  return e ? Math.max(1, e.count) : 1;
+}
+
+/** GILDMASTER × GENESIS: does every Triple Reward trigger twice? (`grantGoldenDiscover` guards the repeat.) */
+export function ancientTripleRewardTwice(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'tripleRewardTwice');
+}
+
+/** GILDMASTER × WAR: the hero power's whole-game use budget right now (the base `maxUses` plus Pummel's banked uses). */
+function powerMaxUses(state: RunState, a: AncientsState): number {
+  return a.powerOverride?.maxUses ?? getHero(state.heroId).power.maxUses ?? 0;
+}
+
+/** GILDMASTER × TIME: Start of Turn, a random non-Gilded friendly minion becomes Gilded, on its own beat (R-SOT-BEAT-01). */
+function gildmasterStartOfTurn(state: RunState): void {
+  if (!live(state) || !effectOf(state, 'sotGildRandom')) return;
+  const plain = state.board.filter((c) => { const d = CARD_INDEX[c.cardId]; return !c.golden && !!d && !d.spell && !d.ruby; });
+  if (plain.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const pick = plain[rng.int(plain.length)]!;
+  state.rngCursor = rng.state();
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => gildMinion(pick, state));
+}
+
+/** GILDMASTER × BONDS: a Gilded minion was PLAYED. Your Gilded board minions (the played one included) gain +a/+h, then
+ *  again once per Gilded minion this game (`AncientsState.gilds`, counted from the run's start): the repeat-vs-lump rule,
+ *  each step its own tick, from the hero-power button. */
+function gildmasterOnPlay(state: RunState, played: BoardCard): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'gildedPlayBuffsGilded') : undefined;
+  if (!a || !e || !played.golden) return;
+  const reps = 1 + Math.max(0, a.gilds ?? 0);
+  for (let r = 0; r < reps; r++) {
+    const gilded = state.board.filter((c) => c.golden);
+    if (gilded.length === 0) return;
+    const from = state.recruitBuffFx.length;
+    captureBuffFx(state, undefined, 'spell', () => { for (const c of gilded) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+  }
+}
+
+/** The pick-time stamps. DRAKKO × DEATH: the run's Drakkos take their new types; × GENESIS: a Drumline already completed
+ *  before the pick counts as the first completion and reopens. CASSEN × TIME: a commission already running is due next
+ *  turn at the latest. */
+function batch5OnPick(state: RunState, a: AncientsState): void {
+  const rt = effectOf(state, 'drakkoRetype');
+  if (rt) {
+    const cur = state.cardTribes?.[DRAKKO_CARD_ID] ?? [];
+    state.cardTribes = { ...(state.cardTribes ?? {}), [DRAKKO_CARD_ID]: [...cur, ...rt.tribes.filter((t) => !cur.includes(t))] };
+    syncRunTribes(state);
+  }
+  const dg = effectOf(state, 'drumlineRepeats');
+  if (dg && state.heroPowerSpent && hasPower(state, 'quest')) {
+    a.drakkoCompletions = 1;
+    if (a.drakkoCompletions < Math.max(1, dg.times)) { state.heroPowerSpent = false; state.drakkoBuys = 0; }
+  }
+  const ct = effectOf(state, 'commissionDelay');
+  if (ct && state.commission) state.commission = { ...state.commission, dueWave: Math.min(state.commission.dueWave, state.wave + Math.max(1, ct.turns)) };
+}
+
+/** This batch's combat halves (all player-only, never snapshotted, like every Ancient). */
+function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  const rd = effectOf(state, 'avengeSummonSprout');
+  if (rd) out.ancientSproutAvenge = { every: rd.every, tick: a.rayseDeaths ?? 0, cardId: RAYSE_SPROUT_ID, size: Math.max(1, a.rayseSproutSize ?? 1), flag: ANCIENT_SPROUT_FLAG, label: ANCIENTS.death.name };
+  const rf = effectOf(state, 'summonGainPerGoldSpent');
+  const spent = Math.max(0, state.goldSpentThisTurn ?? 0);
+  if (rf && spent > 0) out.ancientSummonGain = { attack: rf.attack * spent, health: 0, label: ANCIENTS.fortune.name };
+  const rw = effectOf(state, 'firstSummonsAttack');
+  if (rw) out.ancientSummonsAttack = { count: rw.count, label: ANCIENTS.war.name };
+  const rb = effectOf(state, 'summonBuffsOthers');
+  if (rb) out.ancientSummonBuffOthers = { count: rb.count, attack: rb.attack, health: rb.health, label: ANCIENTS.bonds.name };
+  const cd = effectOf(state, 'avengeAdvanceCommission');
+  if (cd) out.ancientAvengePulse = { every: cd.every, tick: a.cassenDeaths ?? 0, flag: ANCIENT_COMMISSION_FLAG, label: ANCIENTS.death.name };
+  const dw = effectOf(state, 'socBuffPerShout');
+  if (dw) out.ancientSocRandomBuffs = { reps: 1 + Math.max(0, state.shoutFiresThisTurn ?? 0), attack: dw.attack, health: dw.health, label: ANCIENTS.war.name };
+  const db = effectOf(state, 'shoutBuffsDrakkos');
+  if (db) out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: db.attack, health: db.health, label: ANCIENTS.bonds.name };
+  const fs = effectOf(state, 'flashSecondKill');
+  const fp = effectOf(state, 'pummelEnemyCopy');
+  const ft = effectOf(state, 'socEnemyCopy');
+  const fx = effectOf(state, 'flashExactCopies');
+  if (fs || fp || ft || fx) {
+    out.ancientFlash = {
+      label: ANCIENTS[a.picked].name,
+      ...(fs ? { second: true } : {}),
+      ...(fp ? { pummel: { every: fp.every, dealt: a.pummelDealt ?? 0 } } : {}),
+      ...(ft ? { soc: true } : {}),
+      ...(fx ? { exact: true } : {}),
+    };
+  }
+  const gd = effectOf(state, 'avengeGrantCard');
+  if (gd) out.ancientGorrAvenge = { every: gd.every, tick: a.gildDeaths ?? 0, ids: [gd.cardId], label: ANCIENTS.death.name };
+  const gw = effectOf(state, 'pummelPowerUse');
+  if (gw) out.ancientPummelCharge = { every: gw.every, dealt: a.pummelDealt ?? 0, flag: ANCIENT_GILD_CHARGE_FLAG, label: ANCIENTS.war.name };
+  return out;
+}
+
+/** Settle: the fight's deaths join this batch's running Avenge count, and its flagged pulses pay. RAYSE: each Sprout grew
+ *  the size (the bodies already fought). CASSEN: each pulse moves the commission a turn sooner. GILDMASTER × WAR: each
+ *  Pummel payout is one more Gildcrafter use. */
+function batch5AfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  const pulses = (flag: string): number => (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === flag).length;
+  const deaths = result.playerDeaths ?? 0;
+  const rd = effectOf(state, 'avengeSummonSprout');
+  if (rd) {
+    a.rayseDeaths = ((a.rayseDeaths ?? 0) + deaths) % Math.max(1, rd.every);
+    const grew = pulses(ANCIENT_SPROUT_FLAG);
+    if (grew > 0) a.rayseSproutSize = Math.max(1, a.rayseSproutSize ?? 1) + grew;
+  }
+  const cd = effectOf(state, 'avengeAdvanceCommission');
+  if (cd) {
+    a.cassenDeaths = ((a.cassenDeaths ?? 0) + deaths) % Math.max(1, cd.every);
+    advanceCommission(state, pulses(ANCIENT_COMMISSION_FLAG));
+  }
+  const gd = effectOf(state, 'avengeGrantCard');
+  if (gd) a.gildDeaths = ((a.gildDeaths ?? 0) + deaths) % Math.max(1, gd.every);
+  if (effectOf(state, 'pummelPowerUse')) {
+    const got = pulses(ANCIENT_GILD_CHARGE_FLAG);
+    if (got > 0) a.powerOverride = { ...(a.powerOverride ?? {}), maxUses: powerMaxUses(state, a) + got };
+  }
+}
+
+/** This batch's live power-text values (see `AncientPairing.powerText`). Live through a fight off the replay's friendly
+ *  deaths / damage so far (R-REALTIME-01), the Nadja / Hunch shape. */
+function batch5PowerText(state: RunState, text: string, base: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  if (!a) return text;
+  const deaths = combat.friendlyDeaths ?? 0;
+  const fires = heroAvengeLiveFires(state, deaths);
+  const left = String(ancientHeroAvengeLeft(state, deaths) ?? 0);
+  const spent = Math.max(0, state.goldSpentThisTurn ?? 0);
+  const rf = effectOf(state, 'summonGainPerGoldSpent');
+  const shouts = Math.max(0, state.shoutFiresThisTurn ?? 0);
+  const dg = effectOf(state, 'drumlineRepeats');
+  const fp = effectOf(state, 'pummelEnemyCopy');
+  const gw = effectOf(state, 'pummelPowerUse');
+  const dealt = (a.pummelDealt ?? 0) + Math.max(0, combat.friendlyDamage ?? 0);
+  // GILDMASTER × WAR: a Pummel crossing the fight on screen has made already counts as a use, live.
+  const gwLive = gw && Math.floor(dealt / Math.max(1, gw.every)) > Math.floor((a.pummelDealt ?? 0) / Math.max(1, gw.every)) ? 1 : 0;
+  const gilds = Math.max(0, a.gilds ?? 0);
+  let out = text.split('{rSprout}').join(String(Math.max(1, a.rayseSproutSize ?? 1) + (effectOf(state, 'avengeSummonSprout') ? fires : 0)))
+    .replace('{rDeathLeft}', left).replace('{cDeathLeft}', left).replace('{gmDeathLeft}', left)
+    .replace('{rSpent}', String(spent)).replace('{rGain}', String((rf?.attack ?? 0) * spent))
+    .replace('{cTier}', String(state.tier))
+    .replace('{dkShouts}', String(shouts)).replace('{dkReps}', String(1 + shouts))
+    .replace('{dkNeed}', String(ancientDrumlineNeed(state))).replace('{dkLeft}', String(dg ? Math.max(0, dg.times - (a.drakkoCompletions ?? 0)) : 0))
+    .replace('{fPummelNow}', String(fp ? dealt % Math.max(1, fp.every) : 0)).replace('{fPummelEvery}', String(fp?.every ?? 0))
+    .replace('{gmPummelNow}', String(gw ? dealt % Math.max(1, gw.every) : 0)).replace('{gmPummelEvery}', String(gw?.every ?? 0))
+    .replace('{gmUses}', String(Math.max(0, powerMaxUses(state, a) + gwLive - (state.heroPowerUses ?? 0))))
+    .replace('{gmGilds}', String(gilds)).replace('{gmReps}', String(1 + gilds));
+  // CASSEN × DEATH: the commission's printed due turn moves with each Avenge the fight on screen has made, live.
+  if (effectOf(state, 'avengeAdvanceCommission') && fires > 0 && state.commission) {
+    const due = Math.max(state.wave + 1, state.commission.dueWave - fires);
+    out = out.replace('{base}', base.replace(/\(due turn \d+\)/, `(due turn ${due})`));
+  }
+  return out;
+}

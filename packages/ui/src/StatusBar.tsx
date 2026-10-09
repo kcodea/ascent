@@ -6,7 +6,7 @@ import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
@@ -110,7 +110,7 @@ function heroPowerTallyOf(
     case 'gild': return spent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD}g` : null; // Indy — recharging
     case 'spellAmplify': return `${(run.spellsCast + (run.fxSpellsCastPreview ?? 0)) % 10}/10`; // Yirin
     case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen
-    case 'quest': return spent ? null : `${run.drakkoBuys}/5`; // Drakko
+    case 'quest': return spent ? null : `${run.drakkoBuys}/${ancientDrumlineNeed(run)}`; // Drakko (Ancient of Genesis: 5, 4, 3)
     case 'questChronos': return spent ? null : `${run.eotMinionBuys ?? 0}/4`; // Chronos
     case 'sellGold': return (run.bonusEmbersNextTurn ?? 0) > 0 ? `${run.bonusEmbersNextTurn}g` : null; // Robin
     case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster
@@ -647,14 +647,14 @@ export function StatusBar() {
   // THE HERO AVENGE COUNTDOWN (owner 2026-09-30): Frank × War's Avenge (3) or Hunch × Death's Avenge (4) owns the
   // centre readout, live through the fight on screen (its friendly deaths so far), back to full after each trigger. One
   // helper, one disc (`.hpb-avenge`) for both.
-  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions' || power.kind === 'summitLock') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
+  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions' || power.kind === 'summitLock' || power.kind === 'empoweringVines' || power.kind === 'commission' || power.kind === 'gildcrafter') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
   const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
       ? `${power.name} · +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)} · ${run.spellsCast % 10}/10`
       : power.kind === 'quest'
-        ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
+        ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/${ancientDrumlineNeed(run)}`}`
         : power.kind === 'questChronos'
           ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.eotMinionBuys ?? 0}/4`}`
           : power.kind === 'collision'
@@ -969,7 +969,7 @@ export function StatusBar() {
                   {heroPowerArt(`cassen-${kind}`) && <img decoding="sync" className="questcard-art" src={heroPowerArt(`cassen-${kind}`)} alt="" aria-hidden />}
                   <span className="questcard-emblem" aria-hidden><Icon name="target" /></span>
                   <div className="questcard-head">
-                    <div className="questcard-tier">Commission · {COMMISSION_DELAY[kind]} turns</div>
+                    <div className="questcard-tier">Commission · {commissionDelayOf(run, kind)} {commissionDelayOf(run, kind) === 1 ? 'turn' : 'turns'}</div>
                     <div className="questcard-name">{COMMISSION_NAME[kind]}</div>
                   </div>
                   <div className="questcard-body">

@@ -99,6 +99,13 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientSocRally: { attack: 3, label: 'Ancient of War' }, // Nadja x War: the left-most staged body gains the Rally graft
   ancientBrackusAvenge: { every: 1, tick: 0, attack: 6, health: 6, flag: 'ancientSummitAvenge', label: 'Ancient of Death' }, // Brackus x Death: Avenge (1) so the staged deaths pulse (the hand / Shop payout flag)
   ancientSummitCopy: { label: 'Ancient of War' }, // Brackus x War: needs a Tier 7 on the board (staged via TIER7_STAGE_KEYS)
+  ancientSummonsAttack: { count: 3, label: 'Ancient of War' }, // Rayse x War: the staged Echo's summons strike on landing
+  ancientSummonBuffOthers: { count: 2, attack: 3, health: 3, label: 'Ancient of Bonds' }, // Rayse x Bonds: each staged summon buffs 2 others
+  ancientSproutAvenge: { every: 1, tick: 0, cardId: 'raysesprout', size: 1, flag: 'ancientSprout', label: 'Ancient of Death' }, // Rayse x Death: Avenge (1) so each staged death summons a Sprout
+  ancientAvengePulse: { every: 1, tick: 0, flag: 'ancientCommissionAdvance', label: 'Ancient of Death' }, // Cassen x Death: Avenge (1) so each staged death pulses
+  ancientSocRandomBuffs: { reps: 2, attack: 1, health: 1, label: 'Ancient of War' }, // Drakko x War: two Start-of-Combat steps
+  ancientShoutBuffsCard: { cardId: 'alley', attack: 2, health: 2, label: 'Ancient of Bonds' }, // Drakko x Bonds: the staged Shout body stands in for Drakko (SHOUT_STAGE_KEYS)
+  ancientFlash: { second: true, soc: true, exact: true, pummel: { every: 1, dealt: 0 }, label: 'Ancient of Time' }, // Flash: the Start-of-Combat copy acts on any fight
   ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
   // The next-combat banks that became per-side mods on 2026-10-07 (Fleeting Vigor, the banked keywords, Open the Gates):
   fleetingVigor: { attack: 2, health: 2 },
@@ -129,7 +136,7 @@ export function namedCardsFor(key: string): string[] {
 /** Mods that only act when a Shout is TRIGGERED IN COMBAT — the generic fight stages none. The pair: a tanky
  *  Pennycat (Battlecry: summon a Stray) beside a fragile Ryme (Echo: re-fire neighbours' Battlecries), so the
  *  carried War Drum / Warm Embers charges (owner ruling 2026-08-26) have a combat Shout to land on. */
-const SHOUT_STAGE_KEYS = new Set(['warDrumExtra', 'shoutDoubleCharges', 'encoreExtra', 'shoutExtraAlways', 'warmEmbersFirst', 'shoutEdgeBuff', 'shoutEdgeTribeBuff', 'shoutMeters']);
+const SHOUT_STAGE_KEYS = new Set(['ancientShoutBuffsCard', 'warDrumExtra', 'shoutDoubleCharges', 'encoreExtra', 'shoutExtraAlways', 'warmEmbersFirst', 'shoutEdgeBuff', 'shoutEdgeTribeBuff', 'shoutMeters']);
 const shoutStageBodies = (): BoardMinion[] => [bm('alley', 'pW0', 1, 30), bm('ryme', 'pW1', 1, 1, ['T'])];
 
 /** Mods that only act on a TIER 7 minion (Brackus × War copies one); the generic fight has none. Stages one sturdy

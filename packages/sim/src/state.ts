@@ -1297,9 +1297,8 @@ export interface RunState {
   /** Cassen: the commission currently in flight, or absent when none is. Only ONE can be active at a time —
    *  the power is unusable while it runs, and the button wears that commission's art until it matures. */
   commission?: Commission;
-  /** Cassen: the commission taken LAST, so the next offer can exclude it — "all 3 are offered first, but then
-   *  they cannot be offered twice in a row" (owner spec 2026-08-16). Absent on the first offer, which is why
-   *  the opening choice shows all three. */
+  /** Cassen: the commission taken LAST. Recorded for saves and replays only: since the owner's 2026-10-09 hero change
+   *  ("he just has the 3 options") the offer is always Discover / Gold / Spell, so nothing excludes it any more. */
   lastCommission?: CommissionKind;
   /** The hero whose power this run WIELDS in place of its own. Two writers, one field:
    *  · MIMIC re-picks it every turn (the turn-start power Discover);
@@ -2462,7 +2461,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

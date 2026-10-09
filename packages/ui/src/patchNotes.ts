@@ -56,6 +56,31 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-09',
+    changes: [
+      {
+        category: 'Balance',
+        text: "Cassen's Commission now always offers the same three jobs: Discover, Gold and Spell.",
+        details: [
+          'The rare Castle (a free Shop upgrade) and Zeppelin (a Triple Reward) jobs are gone.',
+          'All three jobs are offered every time, even the one you took last.',
+          'A Castle or Zeppelin you already started still pays out.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Ancients test mode (Scene Builder, Set 3 only): Rayse, Cassen, Drakko, Flash and Gildmaster now have all six Ancients.',
+        details: [
+          'Rayse: a growing Sprout every 4 friendly deaths, summons that grow with Gold spent, summons that attack at once, double summons, Rise at End of Turn, and buffs on summon.',
+          'Cassen: commissions that land sooner, give free Refreshes, buff your minions, give a minion of your Tier, pay out next turn, or pay out twice.',
+          'Drakko: Undead and Beast Drakkos, cheaper Shout minions, Start of Combat buffs per Shout, Drumline up to 3 times, a Shout at End of Turn, and Drakkos that grow with every Shout.',
+          'Flash: a copy of your 2nd kill, a free First or Last, Pummel and Start of Combat copies of enemy minions, 2 copies per claim, or exact copies.',
+          'Gildmaster: a Goldcrafter every 14 friendly deaths, Gold or a second Triple Reward on every Triple Reward, an extra Gildcrafter use from Pummel, a Start of Turn Gild, and Gilded plays that buff your Gilded minions.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-08',
     changes: [
       { category: 'Systems', text: 'Fixed: the Runeforge now always offers at least one rune for your tribe when your board has enough of it. That is 2 of a tribe at a Basic Runeforge and 3 at an Epic one.' },

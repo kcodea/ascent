@@ -300,6 +300,27 @@ round weighting: mean |change| ${(moved.reduce((a, m) => a + Math.abs(m.after - 
     console.log(`  ${medal.padEnd(9)} split ${bandVersionLabel(cur).padEnd(10)}: ${inCur.length} runs, ${fc.players} players, ${fc.seats} seats, mean early ${early(inCur)} late ${late(inCur)}, widenings to seat 7: ${widen}`
       + `   | weighted ${fmtBand(old).padEnd(8)}: ${inOld.length} runs, ${fo.seats} seats, mean early ${early(inOld)} late ${late(inOld)}`);
   }
+  // OVERALL CAPS (R-LOBBY-15, owner 2026-10-09): per medal, the split band without its cap vs with it (the current
+  // table), the seats each fills under the per-player cap, the widening steps to seat 7, and which overall strengths
+  // the cap removes.
+  console.log('\nOVERALL CAPS (R-LOBBY-15): split band without the cap -> with the cap (runs / players / seats under the 4-per-player cap); overall strengths removed');
+  const fillOf = (inBand: typeof runs): { players: number; seats: number } => {
+    const per = new Map<string, number>();
+    for (const r of inBand) per.set(owners.get(r.key)!, (per.get(owners.get(r.key)!) ?? 0) + 1);
+    return { players: per.size, seats: [...per.values()].reduce((a, n) => a + Math.min(MAX_SEATS_PER_PLAYER, n), 0) };
+  };
+  for (const medal of RANK_MEDALS) {
+    const capped = STRENGTH_BANDS[medal];
+    const uncapped: StrengthBand | null = capped ? { min: capped.min, max: capped.max, ...(typeof capped.earlyWeight === 'number' ? { earlyWeight: capped.earlyWeight } : {}) } : null;
+    const without = runs.filter((r) => runInStrengthBand(ratingsOf(r.key), uncapped));
+    const withCap = runs.filter((r) => runInStrengthBand(ratingsOf(r.key), capped));
+    const removed = without.filter((r) => !withCap.includes(r)).map((r) => strength.get(r.key)).filter((x): x is number => typeof x === 'number').sort((x, y) => y - x);
+    const fw = fillOf(without); const fc = fillOf(withCap);
+    let widen = 0;
+    for (const [si, b] of bandSteps(capped).entries()) { widen = si; if (fillOf(runs.filter((r) => runInStrengthBand(ratingsOf(r.key), b))).seats >= 7) break; }
+    const capLabel = typeof capped?.overallCap === 'number' ? `cap ${capped.overallCap}` : 'no cap';
+    console.log(`  ${medal.padEnd(9)} ${capLabel.padEnd(7)}: ${without.length} -> ${withCap.length} runs, ${fw.players} -> ${fc.players} players, ${fw.seats} -> ${fc.seats} seats, widenings to seat 7: ${widen}${removed.length ? `, removed overall ${removed.join(', ')}` : ''}`);
+  }
   for (const medal of RANK_MEDALS) {
     const band = STRENGTH_BANDS[medal];
     const steps = bandSteps(band);

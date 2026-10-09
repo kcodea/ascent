@@ -63,8 +63,12 @@ behaviour from a legacy symbol.**
   also has EARLY (rounds 1-9) and LATE (10+) ratings (`pool_runs.strength_early` / `_late`, stamped on boards as
   `runStrengthEarly` / `runStrengthLate`), and a band carries an `earlyWeight`: the band filters `matchScoreOf` =
   w x EARLY + (1 - w) x LATE (EARLY alone without LATE; the weighted strength without either). "Game strength" stays the
-  weighted number. A RATED lobby passes `strengthBand` (Bronze 0-20 w1.0, Silver 10-30 w0.8, Gold 10-50 w0.6, none from
-  Platinum) to both the pool fetch (`p_early_weight`, dropped for the session when the RPC lacks it) and
+  weighted number. Since 2026-10-09 (R-LOBBY-15) a band may also carry an `overallCap` on the WEIGHTED `strength`
+  (Bronze 40, Silver 60, Gold 75; exactly the cap is in; `runUnderOverallCap`), a HARD cap: `widenBand` carries it and
+  a capped band's last step is the cap alone `{ min: 0, max: 100, overallCap }`, never null. A RATED lobby passes
+  `strengthBand` (Bronze 0-20 w1.0 c40, Silver 10-30 w0.8 c60, Gold 10-50 w0.6 c75, none from
+  Platinum) to both the pool fetch (`p_early_weight` / `p_strength_cap`, each dropped for the session when the RPC lacks
+  it; the cap then holds in seat selection, since every row carries `strength`) and
   `createRunLobby` (`runInStrengthBand`); unscored runs are in every
   band, and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
   selection is R-LOBBY-08's, seat for seat. Your own boards are scored in idle slices from capture

@@ -95,12 +95,21 @@ medal + division — see *Ranked ladder* below).
     run's **score** for a medal is **weight x EARLY + (1 - weight) x LATE** (EARLY alone when it has no LATE), and the
     band filters that score:
 
-    | Medal | Early weight | Band |
-    |---|---|---|
-    | Bronze | 100% | 0-20 |
-    | Silver | 80% | 10-30 |
-    | Gold | 60% | 10-50 |
-    | Platinum, Diamond, Ascendant | - | none (anything goes) |
+    | Medal | Early weight | Band | Overall cap (R-LOBBY-15) |
+    |---|---|---|---|
+    | Bronze | 100% | 0-20 | 40 |
+    | Silver | 80% | 10-30 | 60 |
+    | Gold | 60% | 10-50 | 75 |
+    | Platinum, Diamond, Ascendant | - | none (anything goes) | none |
+
+    **Overall caps** (owner 2026-10-09, R-LOBBY-15: *"we want to add overall board strength caps on TOP of the existing
+    early rating strength matching. if a boards overall strength is over 40, it should n ever be in bronze. if a boards
+    overall stength is over 60 it should never be in silver. if a boards overall strength is over 75 it should never be
+    in gold. from there, theres no additional cap"*). On top of the band, a run's **weighted strength** (the "Game
+    strength" number, `pool_runs.strength`, not the early / late score) must be **at or under** its medal's cap: a run
+    at 40 can sit in a Bronze lobby, a run at 41 cannot. A run must pass both. The cap is **hard**: widening (below)
+    never relaxes it, so a band that still cannot fill the table after widening fills the rest with generated seats. A
+    run with no weighted strength yet stays eligible.
 
     Before 2026-10-06 the bands filtered the weighted strength directly: Bronze 0-30, Silver 10-40, Gold 20-65,
     Platinum uncapped, Diamond 10-100, Ascendant 20-100 (owner 2026-09-30: *"maybe plat should be 50 and then diamond
@@ -109,9 +118,12 @@ medal + division — see *Ranked ladder* below).
     inside the band (the server samples inside it, and seat selection filters to it), still whole runs, still at most
     4 seats per player (your own runs included, under the same cap). A run with **no score yet counts as inside every
     band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
-    logged to the pool telemetry), until it is uncapped. Only then do generated seats fill the rest. Practice and the
+    logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap is
+    left). Only then do generated seats fill the rest. Practice and the
     tutorial have no band. Until the owner runs `supabase/migrations/2026-10-06-early-late-strength.sql` the pool has no
-    early / late ratings, and the same bands filter the weighted strength instead.
+    early / late ratings, and the same bands filter the weighted strength instead. Until the owner runs
+    `supabase/migrations/2026-10-09-strength-overall-caps.sql` the server does not apply the overall cap; the game then
+    applies it itself when it picks the seats (every run arrives with its weighted strength), so the rule holds either way.
   - Your own boards are scored in the background while you play (idle time only; the last board during its combat)
     and upload with their scores. The pool's strength table is read whole, every page (R-NET-01). When the game ends,
     each round's board percentile and the run's strength (its round-weighted average ranked against the pool's run

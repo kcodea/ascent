@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeRng } from '@game/core';
 import { earlyLateStrengthOf, finalFromSum, meanFromSum, pctFromCounts, percentileOf, rankAmongRuns, runFinalStrengthOf, runPercentileOf, runWeightedAverageOf, weightedAvgFromGroups, type StrengthHistogramEntry } from './boardStrength';
-import { STRENGTH_BANDS, matchScoreOf, runInStrengthBand } from './strengthBands';
+import { STRENGTH_BANDS, bandSteps, matchScoreOf, runInStrengthBand, type StrengthBand } from './strengthBands';
 import LIVE from './strengthLiveScores.fixture.json';
 
 /**
@@ -27,6 +27,9 @@ import LIVE from './strengthLiveScores.fixture.json';
  *    `strength_early` / `strength_late` are the TS `earlyLateStrengthOf` + `rankAmongRuns` numbers (synthetic runs and
  *    the real live pool), the weighted `strength` is untouched by it, and `pool_runs_sample` filters the BLENDED score
  *    with `p_early_weight` and the weighted strength without it (clients from before the split).
+ *  - OVERALL CAPS (R-LOBBY-15, 2026-10-09-strength-overall-caps.sql): `pool_runs_sample` with `p_strength_cap` draws
+ *    exactly the runs the TS `runInStrengthBand` admits for each capped medal band and every widening step (40 in,
+ *    40.1 out, an unscored run in), without it is the 2026-10-06 sample, and the old call shapes still resolve.
  */
 const root = join(__dirname, '../../../..');
 const POOL = readFileSync(join(root, 'supabase/migrations/2026-09-29-pool-whole-runs.sql'), 'utf8');
@@ -35,6 +38,7 @@ const WEIGHTED = readFileSync(join(root, 'supabase/migrations/2026-09-30-weighte
 const FINAL = readFileSync(join(root, 'supabase/migrations/2026-10-03-final-board-strength.sql'), 'utf8');
 const AGAIN = readFileSync(join(root, 'supabase/migrations/2026-10-06-weighted-strength-again.sql'), 'utf8');
 const EARLY_LATE = readFileSync(join(root, 'supabase/migrations/2026-10-06-early-late-strength.sql'), 'utf8');
+const CAPS = readFileSync(join(root, 'supabase/migrations/2026-10-09-strength-overall-caps.sql'), 'utf8');
 
 const STUB = `
   create role anon; create role authenticated;
@@ -98,6 +102,7 @@ beforeAll(async () => {
   await db.exec(FINAL);
   await db.exec(AGAIN);
   await db.exec(EARLY_LATE);
+  await db.exec(CAPS);
 }, 60_000);
 
 const runKey = (s: RunSpec): string => `${s.author}|${s.hero}|${s.seed}`;
@@ -335,6 +340,57 @@ describe('the sample with a band', () => {
     const rows = await q<SampleRow>(`select * from public.pool_runs_sample(p_limit => 5, p_set => 'set2', p_patch_prefix => '0.1.0+', p_exclude_user => null)`);
     expect(rows.length).toBe(5);
   });
+
+  it('with an overall cap, drops every run whose WEIGHTED strength is over it, at every widening step; exactly the cap and unscored runs stay (R-LOBBY-15)', async () => {
+    await db.exec('delete from public.pool_runs');
+    // 62 runs: weighted strength 39, 40, 40.1, 41, 59, 60, 60.5, 61, 74, 75, 75.5, 76 and 1..48 (the boundaries plus a
+    // spread), EARLY / LATE spread so the early / late band also bites; plus one fully unscored run and one with
+    // ratings but no weighted strength.
+    const strengths = [39, 40, 40.1, 41, 59, 60, 60.5, 61, 74, 75, 75.5, 76, ...Array.from({ length: 48 }, (_, i) => (i + 1) * 2)];
+    const values = strengths.map((st, i) => `('K${i}', 'h', ${i + 1}, 'set2', '0.1.0+', 8, 8, 1, 8, 0, true, true, ${st}, ${(i * 7) % 100 + 1}, ${(i * 13) % 100 + 1})`);
+    values.push(`('K-none', 'h', 900, 'set2', '0.1.0+', 8, 8, 1, 8, 0, true, true, null, null, null)`);
+    values.push(`('K-ratings', 'h', 901, 'set2', '0.1.0+', 8, 8, 1, 8, 0, true, true, null, 5, 5)`);
+    await db.exec(`insert into public.pool_runs (author, hero_id, seed, set_id, patch_prefix, boards, wave_count, first_wave, last_wave, max_gap, tiers_ok, eligible, strength, strength_early, strength_late) values ${values.join(', ')};`);
+    const runs = await q<{ k: string; s: string | null; e: string | null; l: string | null }>(`select author || '|' || hero_id || '|' || seed as k, strength::text as s, strength_early::text as e, strength_late::text as l from public.pool_runs`);
+    const num = (v: string | null): number | null => (v === null ? null : Number(v));
+    const sampleCap = async (band: StrengthBand | null): Promise<string[]> => (await q<SampleRow>(
+      'select * from public.pool_runs_sample(p_limit => 300, p_set => $1, p_patch_prefix => $2, p_seed => $3, p_strength_min => $4, p_strength_max => $5, p_early_weight => $6, p_strength_cap => $7)',
+      ['set2', '0.1.0+', 'cap', band?.min ?? null, band?.max ?? null, band?.earlyWeight ?? null, band?.overallCap ?? null])).map((r) => r.run_key).sort();
+    const tsWant = (band: StrengthBand | null): string[] =>
+      runs.filter((r) => runInStrengthBand({ strength: num(r.s), early: num(r.e), late: num(r.l) }, band)).map((r) => r.k).sort();
+    for (const medal of ['Bronze', 'Silver', 'Gold'] as const) {
+      for (const step of bandSteps(STRENGTH_BANDS[medal])) {
+        const got = await sampleCap(step);
+        expect(got, `${medal} ${JSON.stringify(step)}`).toEqual(tsWant(step));
+        expect(got).toContain('K-none|h|900'); // unscored: in every band, under every cap
+        for (const k of got) {
+          const st = num(runs.find((r) => r.k === k)!.s);
+          if (st !== null) expect(st, k).toBeLessThanOrEqual(STRENGTH_BANDS[medal]!.overallCap!);
+        }
+      }
+    }
+    // The boundaries, on the cap alone (the last widening step): 40 in and 40.1 out for Bronze, 60 / 60.5, 75 / 75.5.
+    const capOnly = (cap: number): Promise<string[]> => sampleCap({ min: 0, max: 100, earlyWeight: 1, overallCap: cap });
+    const keyOf = (st: number): string => `K${strengths.indexOf(st)}|h|${strengths.indexOf(st) + 1}`;
+    for (const [cap, inside, outside] of [[40, 40, 40.1], [60, 60, 60.5], [75, 75, 75.5]] as const) {
+      const got = await capOnly(cap);
+      expect(got, `cap ${cap}`).toContain(keyOf(inside));
+      expect(got, `cap ${cap}`).not.toContain(keyOf(outside));
+    }
+    // The rejection-sampling branch (a pool wider than 4 x the limit) honours the cap too.
+    const allowed = new Set(tsWant(STRENGTH_BANDS.Bronze));
+    for (let d = 0; d < 20; d++) {
+      const rows = await q<SampleRow>(
+        'select * from public.pool_runs_sample(p_limit => 3, p_set => $1, p_patch_prefix => $2, p_seed => $3, p_strength_min => 0, p_strength_max => 20, p_early_weight => 1, p_strength_cap => 40)',
+        ['set2', '0.1.0+', `rej${d}`]);
+      for (const r of rows) expect(allowed.has(r.run_key), r.run_key).toBe(true);
+    }
+    // Without a cap (an old client, or Platinum's null band): the 2026-10-06 sample, all 62 runs.
+    expect((await sampleCap(null)).length).toBe(62);
+    expect(await sampleCap({ ...STRENGTH_BANDS.Bronze!, overallCap: undefined })).toEqual(tsWant({ min: 0, max: 20, earlyWeight: 1 }));
+    // The old call shapes still resolve against the new signature (8 named args with a weight, and without).
+    expect((await sample(300, 'cap', { min: 0, max: 100 })).length).toBe(62);
+  });
 });
 
 describe('the histogram and grants', () => {
@@ -368,7 +424,11 @@ describe('the histogram and grants', () => {
     await db.exec(AGAIN);
     await db.exec(EARLY_LATE);
     await db.exec(EARLY_LATE);
+    await db.exec(CAPS);
+    await db.exec(CAPS);
     expect(await q<{ s: string | null }>('select strength::text as s from public.pool_runs order by id')).toEqual(before);
+    // Exactly one pool_runs_sample after a re-run (the caps signature), so a named-argument call is never ambiguous.
+    expect((await q<{ n: string }>(`select count(*)::text as n from pg_proc where proname = 'pool_runs_sample'`))[0]!.n).toBe('1');
     expect((await sample(10, 'again')).length).toBe(2);
   });
 });

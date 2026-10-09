@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-09',
     changes: [
       {
+        category: 'Balance',
+        text: 'Bronze, Silver and Gold opponents now also have a cap on how strong their whole game was.',
+        details: [
+          'A recorded game with a Game strength over 40 never appears in Bronze, over 60 never in Silver, and over 75 never in Gold.',
+          'This sits on top of the early-game matching from October 6. Platinum and above have no cap.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Match length now counts only the time you were actually in the game.',
         details: [

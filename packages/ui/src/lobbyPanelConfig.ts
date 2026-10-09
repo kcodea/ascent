@@ -37,6 +37,18 @@ export interface LobbyPanelConfig {
   fontScale: number;
   /** The Next Foe card (×) — its portrait and text, on top of the panel scale. */
   foeScale: number;
+  /** RAIL WIDTH, GROWN RIGHT (owner ask 2026-10-09): a multiple of `width` the rail grows by into the room on its
+   *  RIGHT; its left edge stays put. Clamped 10px short of the window edge. */
+  growRight: number;
+  /** GUIDES VIEW (owner ask 2026-10-09): the rail's width while it shows the build guides, as a multiple of `width`.
+   *  It grows out to the LEFT; the right edge stays put. */
+  guideWidth: number;
+  /** Guides view text size (×): guide titles, taglines and body text. */
+  guideText: number;
+  /** Guides view portrait size, as a fraction of a board minion (the Core / Enablers rows). */
+  guideUnit: number;
+  /** SIMPLE guides view portrait size, as a fraction of a board minion (normal-width rail, portraits only). */
+  guideUnitSimple: number;
 }
 
 /** Owner-tuned 2026-07-29, re-tuned 2026-08-29 (🪑 Lobby Rail → Copy values). These are what ships — the exe and the itch build
@@ -52,9 +64,14 @@ export const LOBBY_PANEL_DEFAULTS: LobbyPanelConfig = {
   rowScale: 1.91,
   fontScale: 0.9,
   foeScale: 0.5,
+  growRight: 1.3,
+  guideWidth: 1.55,
+  guideText: 1.6,
+  guideUnit: 0.6,
+  guideUnitSimple: 0.5,
 };
 
-export const LOBBY_PANEL_KEYS = ['scale', 'width', 'right', 'top', 'height', 'offsetX', 'offsetY', 'rowScale', 'fontScale', 'foeScale'] as const;
+export const LOBBY_PANEL_KEYS = ['scale', 'width', 'right', 'top', 'height', 'offsetX', 'offsetY', 'rowScale', 'fontScale', 'foeScale', 'growRight', 'guideWidth', 'guideText', 'guideUnit', 'guideUnitSimple'] as const;
 export type LobbyPanelKey = (typeof LOBBY_PANEL_KEYS)[number];
 
 /** [min, max, step] per key. */
@@ -69,6 +86,11 @@ export const LOBBY_PANEL_RANGES: Record<LobbyPanelKey, [number, number, number]>
   rowScale: [0.5, 2.2, 0.01],
   fontScale: [0.5, 2.2, 0.01],
   foeScale: [0.5, 2.2, 0.01],
+  growRight: [1, 1.8, 0.01],
+  guideWidth: [1, 3, 0.05],
+  guideText: [0.6, 2.5, 0.01],
+  guideUnit: [0.25, 1, 0.01],
+  guideUnitSimple: [0.25, 1, 0.01],
 };
 
 export const LOBBY_PANEL_DESC: Record<LobbyPanelKey, string> = {
@@ -82,6 +104,11 @@ export const LOBBY_PANEL_DESC: Record<LobbyPanelKey, string> = {
   rowScale: 'Seat-row box: padding and portrait size.',
   fontScale: 'Seat-row text: name, health and damage.',
   foeScale: 'The Next Foe card — portrait and text.',
+  growRight: 'Rail width: grows the rail to the RIGHT (left edge fixed), clamped short of the window edge.',
+  guideWidth: 'Full guides view: rail width as a multiple of the normal rail width (grows left).',
+  guideText: 'Guides view: title, tagline and body text size.',
+  guideUnit: 'Full guides view: Core / Enablers portrait size, as a fraction of a board minion.',
+  guideUnitSimple: 'Simple guides view: the CAP on portrait size (fraction of a board minion); they shrink below it to fit 3 across.',
 };
 
 const KEY = 'ascent.lobbyPanel';
@@ -115,6 +142,11 @@ export function applyLobbyPanelVars(): void {
   root.setProperty('--lby-row', String(cfg.rowScale));
   root.setProperty('--lby-font', String(cfg.fontScale));
   root.setProperty('--lby-foe', String(cfg.foeScale));
+  root.setProperty('--lby-wgrow', String(cfg.growRight));
+  root.setProperty('--lby-guide-w', String(cfg.guideWidth));
+  root.setProperty('--lby-guide-text', String(cfg.guideText));
+  root.setProperty('--lby-guide-unit', String(cfg.guideUnit));
+  root.setProperty('--lby-guide-unit-simple', String(cfg.guideUnitSimple));
 }
 
 export function setLobbyPanelValue(key: LobbyPanelKey, value: number): void {

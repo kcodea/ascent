@@ -27,10 +27,15 @@ const SPECS: Record<LobbyPanelKey, [string, TunerUnit | undefined, string, strin
   rowScale:  ['Row size', '×', 'Seat-row box: its padding and portrait size.', 'Seat rows'],
   fontScale: ['Text size', '×', 'Seat-row text: name, health and damage.', 'Seat rows'],
   foeScale:  ['Card size', '×', 'The Next Foe card — its portrait and text.', 'Next foe'],
+  growRight:  ['Rail width', '×', 'Grows the rail into the room on its RIGHT; its left edge stays put. Clamped 10px short of the window edge.', 'Rail'],
+  guideWidth: ['Expanded width', '×', 'Rail width in the FULL guides view, as a multiple of Width. Grows to the left.', 'Guides'],
+  guideText:  ['Full text size', '×', 'Full view: guide titles, taglines and body text.', 'Guides'],
+  guideUnit:  ['Full portrait size', '×', 'Full view: Core / Enablers portraits, as a fraction of a board minion.', 'Guides'],
+  guideUnitSimple: ['Simple portrait size', '×', 'Simple view: the largest a portrait may be (fraction of a board minion). They shrink below it to fit 3 across the rail.', 'Guides'],
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
-const ORDER: LobbyPanelKey[] = ['scale', 'width', 'right', 'top', 'height', 'offsetX', 'offsetY', 'rowScale', 'fontScale', 'foeScale'];
+const ORDER: LobbyPanelKey[] = ['scale', 'width', 'right', 'top', 'height', 'offsetX', 'offsetY', 'rowScale', 'fontScale', 'foeScale', 'growRight', 'guideWidth', 'guideText', 'guideUnit', 'guideUnitSimple'];
 
 const controls: TunerControl<Extract<keyof LobbyPanelConfig, string>>[] = ORDER.map((key) => {
   const [label, unit, hint, group] = SPECS[key];

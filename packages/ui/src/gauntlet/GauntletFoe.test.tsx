@@ -173,6 +173,6 @@ describe('lobby rail (regression)', () => {
     const run: RunState = { ...base, wave: 8, lobby: { ...base.lobby!, round: 8 } };
     act(() => { useGame.setState({ run }); });
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    expect(ui.container.querySelector('.lobbymax')!.textContent).toBe('−15');
+    expect(ui.container.querySelector('.lobbymax')!.textContent).toBe('Max dmg 15');
   });
 });

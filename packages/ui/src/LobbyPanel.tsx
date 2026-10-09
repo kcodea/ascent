@@ -16,11 +16,15 @@ import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
+import { LobbyGuides } from './guides/LobbyGuides';
+import { guidesFor, type GuidesMode } from './guides/guides';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
-/** The max-damage readout above the rail: "−5", or "No cap" once the round is uncapped. */
+/** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
+ *  round's LOSS CAP (`roundLossCap`): the most Health a loss can cost. Labelled since 2026-10-09 (owner: "a bit clearer
+ *  on what it's saying"); it used to be a bare "−5". */
 function maxDamageLabel(cap: number): string {
-  return Number.isFinite(cap) ? `−${cap}` : 'No cap';
+  return Number.isFinite(cap) ? `Max dmg ${cap}` : 'No cap';
 }
 
 /** The hover tip on the max-damage readout, with the live number (owner ask 2026-10-02). */
@@ -28,6 +32,20 @@ function maxDamageTip(cap: number): { title: string; rule: string } {
   return Number.isFinite(cap)
     ? { title: 'Max damage this round', rule: `A loss this round costs at most ${cap} Health.` }
     : { title: 'No max damage this round', rule: 'A loss deals full damage.' };
+}
+
+/** Which face the rail shows. Kept per run for the session, so a remount keeps it; a new game starts on Opponents
+ *  (owner ruling 2026-10-09: "it stays until toggled, but every new game starts on the opponent view"). */
+type RailView = 'opponents' | 'guides';
+let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents' };
+
+/** The Guides view's display mode (owner ask 2026-10-09): SIMPLE keeps the rail at its normal width and shows only the
+ *  Core / Enablers portraits; FULL widens the rail to the left and adds the write-up. Remembered across games in
+ *  localStorage (a per-viewer convenience: it falls back to the default whenever storage is unavailable). Default
+ *  SIMPLE, because the wide rail covers End Turn and part of Refresh. */
+const GUIDES_MODE_KEY = 'ascent.guidesMode';
+function readGuidesMode(): GuidesMode {
+  try { return localStorage.getItem(GUIDES_MODE_KEY) === 'full' ? 'full' : 'simple'; } catch { return 'simple'; }
 }
 
 /**
@@ -76,6 +94,35 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     setHovered(null);
     setPinned(null);
   }, [staged]);
+  // THE GUIDES VIEW (owner ask 2026-10-09): the tab on the rail's left edge flips the rail between the table and the
+  // build guides for this game's set + tribes (guides/guides.ts). It rides the rail, so it is gone with it in combat
+  // and comes back on the view it left. Off in the Tutorial, whose coach marks point at the seats.
+  const runKey = useGame((st) => `${st.run.runId ?? ''}:${st.run.seed}`);
+  const setId = useGame((st) => st.run.setId);
+  const runTribes = useGame((st) => st.run.tribes);
+  const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
+  const guides = useMemo(() => guidesFor(setId, runTribes), [setId, runTribes]);
+  const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
+  const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
+  // The swap animation, set only by a toggle (never on mount): the rail widens into the FULL Guides view and narrows
+  // back out of it; any other flip just fades the new face in.
+  const [swap, setSwap] = useState<'wide' | 'narrow' | 'fade' | null>(null);
+  useEffect(() => { if (railViewMemo.run !== runKey) { setView('opponents'); setSwap(null); } }, [runKey]);
+  useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
+  const showGuides = guidesOn && view === 'guides';
+  const toggleView = (): void => {
+    setHovered(null);
+    setPinned(null);
+    setSwap(mode === 'full' ? (view === 'guides' ? 'narrow' : 'wide') : 'fade');
+    setView((v) => (v === 'guides' ? 'opponents' : 'guides'));
+  };
+  const setMode = (m: GuidesMode): void => {
+    if (m === mode) return;
+    setSwap(m === 'full' ? 'wide' : 'narrow');
+    setModeState(m);
+    try { localStorage.setItem(GUIDES_MODE_KEY, m); } catch { /* storage unavailable: the choice lasts this session */ }
+  };
+  const railMods = `${showGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
@@ -197,8 +244,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         is a scroll container and would clip anything placed outside its box. `.lobbyrailhead` is absolutely
         positioned off the rail's own `right` / `top` / `width` (styles.css), so it takes no layout space and
         moves nothing. */}
-    <div className="lobbyrailhead">
-      <span className="lobbyround">Round {lobby.round}</span>
+    <div className={`lobbyrailhead${railMods}`}>
+      <span className="lobbyround">{showGuides ? 'Guides' : `Round ${lobby.round}`}</span>
       {/* Max loss: the most Health a loss this round can cost. Hover explains it with the live number, in the
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
@@ -212,13 +259,30 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
     </div>
+    {/* THE VIEW TAB on the rail's left edge (owner ask 2026-10-09). A SIBLING of the rail like the header (the rail
+        clips its children), placed off the rail's own position + height vars (guides/lobbyGuides.css). Two stacked
+        glyphs, the current view's lit, so the tab always says which face is showing. */}
+    {guidesOn && (
+      <button type="button" className={`lobbyrailtab gtip${railMods}`}
+        style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}
+        aria-label={showGuides ? 'Show opponents' : 'Show build guides'} aria-pressed={showGuides}
+        data-tip={showGuides ? 'Opponents' : 'Guides'} onClick={toggleView}>
+        <span className={`lobbyrailtab-cell${showGuides ? '' : ' on'}`}><Icon name="sword" /></span>
+        <span className={`lobbyrailtab-cell${showGuides ? ' on' : ''}`}><Icon name="book" /></span>
+      </button>
+    )}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
-    <div className="lobbyrail" style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
+    <div className={`lobbyrail${railMods}`} style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{living.length} left</span>
+        <span className="lobbyalive">{showGuides ? `${guides.length} guide${guides.length === 1 ? '' : 's'}` : `${living.length} left`}</span>
       </div>
 
-      <div className="lobbyseats">
+      {showGuides ? (
+        <div className={`lobbyview${swap ? ' lobbyview-in' : ''}`} key="guides">
+          <LobbyGuides guides={guides} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
+        </div>
+      ) : (
+      <div className={`lobbyseats${swap ? ' lobbyview-in' : ''}`} key="seats">
         {rows.map((seat) => {
           const isYou = seat.id === 's0';
           const isFoe = foe?.id === seat.id;
@@ -284,6 +348,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           );
         })}
       </div>
+      )}
     </div>
     </>
   );

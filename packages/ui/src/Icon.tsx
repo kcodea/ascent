@@ -241,6 +241,13 @@ const ICONS: Record<string, ReactNode> = {
       <circle cx="15.3" cy="5.5" r="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
     </>
   ),
+  // Guides — an open book (two facing pages and a spine), the lobby rail's Guides tab (2026-10-09).
+  book: (
+    <>
+      <path fill="currentColor" d="M11 6.2C9 4.8 6.2 4.2 2.8 4.4v13.8c3.3-.2 6 .4 8.2 1.8z" />
+      <path fill="currentColor" d="M13 6.2c2-1.4 4.8-2 8.2-1.8v13.8c-3.3-.2-6 .4-8.2 1.8z" />
+    </>
+  ),
   // Locked — a padlock (shackle + body), for a Gauntlet stage whose predecessor is uncleared.
   lock: (
     <>

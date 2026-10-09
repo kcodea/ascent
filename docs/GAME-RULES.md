@@ -775,6 +775,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   it was 20 through round 15 before). The lobby applies the same cap (`roundLossCap`, which falls back to
   `lossDamageCap` when a mode sets no table of its own) — so a lobby that runs long is uncapped for every
   round from 15 on, not just a "finale". The lobby rail prints the cap above its top edge, next to the round.
+- **Rail guides** (owner ask 2026-10-09): a tab on the lobby rail's left edge flips the rail between the opponents and
+  short BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
+  pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and
+  **Enablers** minions (board portraits with the normal hover preview). Each card wears its signature card's art and
+  its tribe name in the tribe's colour. **Simple** (the default) keeps the rail's width and shows only the portraits;
+  the open card's **Detailed** button widens the rail to the left and adds the write-up (remembered per device). Every new game starts on the opponents. The guides ride the rail: gone in combat (the rail slides away),
+  absent in the Tutorial, the Gauntlet (no rail) and God Mode (no rail). Presentation only; no game effect.
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**
   (`startEmbers: 3`, `embersPerWave: 1`, `embersCap: 10`).
 - **Shop**: minion cost **3**, sell value **1**, refresh (reroll) cost **1**

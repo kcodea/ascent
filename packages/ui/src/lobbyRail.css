@@ -120,12 +120,12 @@
 }
 :root:not([data-lobby-rail="classic"]) .lobbynameline { grid-column: 2 / -1; grid-row: 1; }
 :root:not([data-lobby-rail="classic"]) .lobbyname {
-  font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5) * 1.3); font-weight: 900; line-height: 1.15;
+  font-size: calc(11 * var(--lfont) * var(--lby-name-size, 1.5) * 1.42); font-weight: 900; line-height: 1.15; /* 1.3 -> 1.42 with the wider rail (owner 2026-10-09) */
 }
 :root:not([data-lobby-rail="classic"]) :is(.lobbyhp, .lobbyplace) {
   grid-column: 2; grid-row: 2; justify-self: start; transform: none; min-width: 0;
 }
-:root:not([data-lobby-rail="classic"]) .lobbyhp { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.32); line-height: 1.1; }
+:root:not([data-lobby-rail="classic"]) .lobbyhp { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.42); line-height: 1.1; }
 :root:not([data-lobby-rail="classic"]) .lobbyhp > svg { width: 0.9em; height: 0.9em; }
 :root:not([data-lobby-rail="classic"]) .lobbyplace { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.1); }
 
@@ -229,3 +229,24 @@
   background: color-mix(in srgb, var(--ui-ghost) 42%, #000);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-ghost) 95%, transparent);
 }
+
+/* ── MAX DAMAGE as a rail pill (owner ask 2026-10-09: "make it look more like it's part of the rail") ──────────────
+   The round's loss cap ("Max dmg 5" / "No cap"), restyled from loose red text into the same Gem pill as the "8 LEFT"
+   count, standing ON the rail's top edge at the right as a tab (rounded top, open bottom): the header sits 3 units
+   above the rail, so the pill drops by exactly that to meet the gold edge. It stays above the edge so it never meets
+   the centred count pill on a narrow rail. A static transform, no animation. Its hover stays the standard HUD
+   tip panel (`.herotip.lobbymax-tip`, owner ruling 2026-10-02), not a `data-tip` bubble. Both looks. */
+.lobbyrailhead .lobbymax {
+  --lgem-pp: calc(1.5 * var(--lu));
+  align-self: flex-end; transform: translateY(calc(3 * var(--lu) + 1px));
+  gap: 0.3em; padding: var(--lgem-pp) calc(9 * var(--lu)); margin-right: calc(-6 * var(--lu));
+  border: 1px solid transparent; border-bottom: none; border-radius: calc(8 * var(--lu)) calc(8 * var(--lu)) 0 0;
+  font-size: calc(11 * var(--lfont) * 0.85 * var(--lby-guide-text, 1.6)); font-weight: 900; letter-spacing: 0.08em;
+  text-transform: uppercase; line-height: 1.2; white-space: nowrap;
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 -2px 6px -3px rgba(0, 0, 0, 0.5);
+}
+.lobbyrailhead .lobbymax svg { width: 1.05em; height: 1.05em; color: var(--ui-heart); }
+/* The seats-left pill reads the same size as the Guides view's "11 GUIDES" (owner 2026-10-09). */
+.lobbyrail .lobbyalive { font-size: calc(11 * var(--lfont) * 0.85 * var(--lby-guide-text, 1.6)); }

@@ -107,7 +107,7 @@ export const GUIDES: readonly Guide[] = [
     title: 'Combat Rubies',
     tagline: 'Rubies cast in combat hit twice as hard.',
     // The owner's text, verbatim (2026-10-09).
-    body: 'Combat Rubies utilizes Ruby casts in combat to scale units. This can be done through many sources, but the key and core to the build is Ruby buffs and using Deepdelve Paragon to double/triple their values.',
+    body: 'Combat Rubies utilizes Ruby casts in combat to scale units. This can be done through many sources, but the key and core to the build is Ruby buffs and using Delvey to double/triple their values.',
     core: ['k_deepdelve', 'k_crownvein'],
     enablers: ['k_kobabyboldies', 'k_boulderdash', 'k_mineralmaster'],
   },

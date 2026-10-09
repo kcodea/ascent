@@ -70,7 +70,7 @@ export const SET2_DWARVES: CardDef[] = [
   {
     // The `every` threshold is applied by `applyGoldSpent` itself — the factory only does the buff.
     id: 'dw_coinfire',
-    name: 'Coinfire Forewoman',
+    name: 'Coinfire', // was 'Coinfire Forewoman' (owner 2026-10-09); id unchanged
     tribe: 'dwarf',
     tier: 3,
     attack: 3,
@@ -184,7 +184,7 @@ export const SET2_DWARVES: CardDef[] = [
     // The token's printed 3 Attack is a FLOOR — it inherits the Smith's Attack when that's higher, so buffing
     // the Smith buffs what its death produces.
     id: 'dw_anvilshade',
-    name: 'Anvilshade Smith',
+    name: 'Anvilshade', // was 'Anvilshade Smith' (owner 2026-10-09); id unchanged
     tribe: 'dwarf',
     tier: 5,
     attack: 7,
@@ -429,7 +429,7 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     // Owner add 2026-08-19. The steal package's body: a Shout that hands over a Deep Delve Writ (steal a random
     // Dwarf from the Shop). Reuses the trigger-agnostic `battlecryGrantSpell`; golden hands over two.
     id: 'dw_sharpshooter',
-    name: 'Dwarven Sniper', // was 'Dwarven Sharpshooter' (owner 2026-10-09: names fit on one line); id unchanged
+    name: 'Sharpshooter', // was 'Dwarven Sharpshooter', then 'Dwarven Sniper' (owner 2026-10-09); id unchanged
     tribe: 'dwarf',
     tier: 4,
     attack: 4,

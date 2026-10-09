@@ -104,7 +104,7 @@ export const SET2_BEASTS: CardDef[] = [
     // set pool (`excludeSelf` keeps it from summoning more Mammoths). Golden doubles the count to 6 via
     // `deathrattleSummonRandomTribe`'s built-in `mul(self)`.
     id: 'b2_mammoth',
-    name: 'Menagerie Mammoth',
+    name: 'Wooly', // was 'Menagerie Mammoth' (owner 2026-10-09); id unchanged
     tribe: 'beast',
     tier: 5,
     attack: 7,
@@ -337,7 +337,7 @@ export const SET2_BEASTS: CardDef[] = [
     // HISTORY until 2026-10-07: a summon payoff that pumped the whole pack, this one and the new arrival included. Its own arrival does
     // not trigger it. Shop plays and combat summons both count (`onSummonBuffTribeAll`, one arena body).
     id: 'b2_florida',
-    name: 'Flo Rida',
+    name: 'Vicious', // was 'Flo Rida' (owner 2026-10-09); id unchanged
     tribe: 'beast',
     tier: 6,
     attack: 7,

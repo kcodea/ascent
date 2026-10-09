@@ -20,7 +20,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // Tier-1 tempo: a Shout that pushes another Dragon, so the tribe has an early curve piece that isn't
     // spell-dependent. Buffs ONE other friendly Dragon (never itself), left-most for determinism.
     id: 'd2_embermouth',
-    name: 'Embermouth Whelp',
+    name: 'Ember Whelp', // was 'Embermouth Whelp' (owner 2026-10-09); id unchanged
     tribe: 'dragon',
     tier: 1,
     attack: 2,
@@ -62,7 +62,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // A rechargeable spell amplifier: it doubles your opening spell, then goes quiet until you trigger 3
     // Shouts — so it pulls the tribe's two halves (spells and Shouts) into one card.
     id: 'd2_grimoire',
-    name: 'Living Grimoire',
+    name: 'Grimoire', // was 'Living Grimoire' (owner 2026-10-09); id unchanged
     tribe: 'dragon',
     tier: 6,
     attack: 5,
@@ -193,7 +193,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // means a Dragon with an `onPlay`, which deliberately excludes payoff cards like Karwind that only WATCH
     // Shouts without having one (owner ruling 2026-07-25). Tier-capped by the shop like every other random get.
     id: 'd2_blazingkeeper',
-    name: 'Commander Warpath', // renamed 2026-07-29 (owner); id unchanged so saved runs and pool boards still resolve
+    name: 'Warpath', // renamed 2026-07-29, then from 'Commander Warpath' 2026-10-09 (owner); id unchanged so saved runs and pool boards still resolve
     tribe: 'dragon',
     tier: 5,
     attack: 5,
@@ -319,7 +319,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // Turns a sale into a spell for the recursion line. Uses the same random-spell grant as Scalefeather, on the
     // self-sell trigger. Golden gets two.
     id: 'd2_riverdrake',
-    name: 'River Drake',
+    name: 'Riverback', // was 'River Drake' (owner 2026-10-09); id unchanged
     tribe: 'dragon',
     tier: 3,
     attack: 4,
@@ -333,7 +333,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // A board-wide Dragonflame engine: every Dragon's swing (its own included) casts Dragonflame. Golden casts
     // twice per attack.
     id: 'd2_warflame',
-    name: 'Warflame',
+    name: 'Captain Flamus', // was 'Warflame' (owner 2026-10-09); id unchanged
     tribe: 'dragon',
     tier: 6,
     attack: 5,
@@ -362,7 +362,7 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // Seeds the Flutter combo — hand a Flutter to pump a Dragon into a Flurry threat. Golden gets two.
     id: 'd2_flutterdrake',
-    name: 'Flutterdrake',
+    name: 'Flutterbutter', // was 'Flutterdrake' (owner 2026-10-09); id unchanged
     tribe: 'dragon',
     tier: 4, // owner batch 2026-09-24: T5 → T4
     attack: 4,

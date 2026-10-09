@@ -68,10 +68,15 @@ describe('the roster', () => {
     const names = Object.values(CARD_INDEX).map((c) => c.name);
     expect(names.filter((n) => n === 'Cosmo Express')).toHaveLength(1);
     expect(names.filter((n) => n === 'Sugarnova')).toHaveLength(1);
-    // Every name this rename batch introduced is held by exactly one card.
+    // Every name this rename batch introduced is held by exactly one card. (Dwarven Sniper and Gemstorm Mage were
+    // renamed again the same day: Sharpshooter and Party Crasher, in the 26-minion batch below.)
     const renamed = ['Horizon Courier', 'Starpath Vendor', 'Truth Bringer', 'Herald of Doom', 'Devour Soul', 'World Eater',
-      'Dwarven Sniper', 'Moss Colossus', 'Thunderous', 'Gemheart', 'Matriarch', 'Mechanic', 'Flamebanner', 'Gnasher',
-      'Gemstorm Mage', 'Reconfigurator', 'Arc Conductor'];
+      'Sharpshooter', 'Moss Colossus', 'Thunderous', 'Gemheart', 'Matriarch', 'Mechanic', 'Flamebanner', 'Gnasher',
+      'Party Crasher', 'Reconfigurator', 'Arc Conductor',
+      // The 26-minion rename batch (owner 2026-10-09). Short names, so each must stay unique.
+      'Wooly', 'Vicious', 'Overseer', 'Malphas', 'Prospector', 'Ruby Mender', 'Scrapper', 'Gem Carver', 'Tunneller Rik',
+      'Gemling', 'Cave Cutter', 'Portsmith', 'Delvey', 'Cavern Fiend', 'Ember Whelp', 'Riverback', 'Flutterbutter',
+      'Warpath', 'Grimoire', 'Captain Flamus', 'Coinfire', 'Anvilshade', 'Uron', 'Zyff'];
     for (const r of renamed) expect(names.filter((n) => n === r), r).toHaveLength(1);
   });
   it('Yazzus is Tier 7 4/8 — the one card for every set (owner 2026-09-16; T7 since 2026-09-11, "as he is in set 2")', () => {

@@ -30,7 +30,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 21 'avenge' cards trigger the same way. Gilding doubles their output, except a few that summon a gilded token or add a proc. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "22 effect factories across 21 cards dispatch through the 'avenge' presentation family, all on the single trigger 'avenge' (combat); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline, with Dunkey/Muster General/Steadfast Sentinel summoning a GILDED token at the same count, and Gemstorm Instigator buying one extra proc (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Solaris: \"Avenge (4): gain Ward and attack immediately.\" · Members: Solaris · Tort · Bone Taxer · Brood Matron · Totality · Grobbus · Kurse · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · … and 9 more",
+    "cardText": "Exemplar — Solaris: \"Avenge (4): gain Ward and attack immediately.\" · Members: Solaris · Tort · Bone Taxer · Brood Matron · Totality · Grobbus · Kurse · Party Crasher · Portsmith · Kennelmaster · Muster General · Pit Supplier · … and 9 more",
     "example": "Solaris follows the 'avenge' convention — its trigger fires on avenge. Gilded Dunkey summons ONE gilded Armadiyo, not two plain ones.",
     "contentIds": [
       "b2_solaris",
@@ -141,7 +141,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 66 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "47 effect factories across 66 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 54 more",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Wooly · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 54 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -326,7 +326,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Deepdelve Paragon · Spear Warden · Ancient Wanderer",
+    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Delvey · Spear Warden · Ancient Wanderer",
     "example": "Fuse Aldrin follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_novaherald",
@@ -355,7 +355,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 47 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "52 effect factories across 47 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Beev: \"When a Beast attacks, give it and this +2/+2.\" · Members: Beev · Echohorn · Hawkus · Packstrider · Raven · Sunmane Herald · Neptus · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · … and 35 more",
+    "cardText": "Exemplar — Beev: \"When a Beast attacks, give it and this +2/+2.\" · Members: Beev · Echohorn · Hawkus · Packstrider · Raven · Sunmane · Neptus · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · … and 35 more",
     "example": "Beev follows the 'rally' convention — its trigger fires on onAttack. its printed numbers double when the card is gilded.",
     "contentIds": [
       "b2_beev",
@@ -520,8 +520,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 2 'shoutPayoff' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "2 effect factories across 2 cards dispatch through the 'shoutPayoff' presentation family, all on the single trigger 'battlecryTriggered' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Living Grimoire: \"The first spell you cast from hand each turn casts twice. Once used, trigger 3 Shouts to reset this.\" · Members: Living Grimoire · Reconfigured Combinator",
-    "example": "Living Grimoire follows the 'shoutPayoff' convention — its trigger fires on battlecryTriggered. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Grimoire: \"The first spell you cast from hand each turn casts twice. Once used, trigger 3 Shouts to reset this.\" · Members: Grimoire · Reconfigurator",
+    "example": "Grimoire follows the 'shoutPayoff' convention — its trigger fires on battlecryTriggered. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_grimoire",
       "reconfiguredcombinator"
@@ -547,7 +547,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 5 'shoutReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "5 effect factories across 5 cards dispatch through the 'shoutReact' presentation family, all on the single trigger 'battlecryTriggered' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Members: Bane · Embermouth Whelp · Firebird · Karwind · Sporeling",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Members: Bane · Ember Whelp · Firebird · Karwind · Sporeling",
     "example": "Bane follows the 'shoutReact' convention — its trigger fires on battlecryTriggered. its printed numbers double when the card is gilded.",
     "contentIds": [
       "bane",
@@ -577,7 +577,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 5 'slaughter' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "5 effect factories across 5 cards dispatch through the 'slaughter' presentation family, all on the single trigger 'onKill' (combat); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Bounty Bot: \"Immune while attacking (first 2 attacks each combat). Slaughter: gain 2 Gold next shop.\" · Members: Bounty Bot · Gnasher, the Overrun · Karthus · Moe · Sword and Bored",
+    "cardText": "Exemplar — Bounty Bot: \"Immune while attacking (first 2 attacks each combat). Slaughter: gain 2 Gold next shop.\" · Members: Bounty Bot · Gnasher · Karthus · Moe · Sword and Bored",
     "example": "Bounty Bot follows the 'slaughter' convention — its trigger fires on onKill. its printed numbers double when the card is gilded.",
     "contentIds": [
       "bountybot",
@@ -772,7 +772,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 14 'summonReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "15 effect factories across 14 cards dispatch through the 'summonReact' presentation family, all on the single trigger 'onSummon' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · Flo Rida · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Gemheart Legionnaire · Den Mother · Pack Leader · … and 2 more",
+    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · Vicious · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Gemheart · Den Mother · Pack Leader · … and 2 more",
     "example": "Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ashen_heir",
@@ -957,7 +957,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Gilded multipliers count double. Stacking copies add up; non-stackers use their best copy; the two pools add together. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "multipliers",
     "currentBehaviour": "extraTriggerFires: contribution = extra × (golden ? 2 : 1); stacking summed, non-stacking best, summed + best returned.",
-    "cardText": "Carriers: Elderhorn · Chronos · Drakko · Sylus · Uron, Oathbringer · Zyff, the Betrayer",
+    "cardText": "Carriers: Elderhorn · Chronos · Drakko · Sylus · Uron · Zyff",
     "example": "a gilded Sylus (stacking, extra 1) beside a plain Uron (non-stacking) grants 2 + 1 = 3 extra fires for a shared family.",
     "contentIds": [
       "b2_elderhorn",
@@ -988,7 +988,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Combat counters (Avenge) reset when the fight ends. Shop counters last the whole run. Progress never crosses between them. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "persistence",
     "currentBehaviour": "Avenge progress lives in per-combat instance state; quest/cadence counters live in run state and persist.",
-    "cardText": "Exemplar — Solaris: \"Avenge (4): gain Ward and attack immediately.\" · Avenge carriers: Solaris · Tort · Bone Taxer · Brood Matron · Totality · Grobbus · Kurse · Gemstorm Instigator · Gem Portsmith · Kennelmaster · Muster General · Pit Supplier · … and 9 more",
+    "cardText": "Exemplar — Solaris: \"Avenge (4): gain Ward and attack immediately.\" · Avenge carriers: Solaris · Tort · Bone Taxer · Brood Matron · Totality · Grobbus · Kurse · Party Crasher · Portsmith · Kennelmaster · Muster General · Pit Supplier · … and 9 more",
     "example": "Solaris at 2 of 3 deaths when combat ends starts the next combat at 0 — but a quest at 4 of 5 buys stays at 4 next turn.",
     "contentIds": [
       "b2_solaris",
@@ -1107,7 +1107,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Critical Strike means: a per-card chance to deal double damage on attack — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Critical Strike for all 5 carriers.",
-    "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Warflame · Axeman · Mountainbond · Commander Impala",
+    "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Captain Flamus · Axeman · Mountainbond · Commander Impala",
     "example": "Guardian Drake carries Critical Strike — in play, a per-card chance to deal double damage on attack.",
     "contentIds": [
       "bronzewarden",
@@ -1137,7 +1137,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Ward means: negates the first damage this minion would take, then breaks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Ward for all 14 carriers.",
-    "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Transcendant · Hellrider · Impossible Todd · Warding Drone · Mountainbond · Commander Impala · Mechanical Jouster · Gem Portsmith · Karthus · Karwind · Perfect Core · … and 2 more",
+    "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Transcendant · Hellrider · Impossible Todd · Warding Drone · Mountainbond · Commander Impala · Mechanical Jouster · Portsmith · Karthus · Karwind · Perfect Core · … and 2 more",
     "example": "Guardian Drake carries Ward — in play, negates the first damage this minion would take, then breaks.",
     "contentIds": [
       "bronzewarden",
@@ -1343,7 +1343,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Rally means: triggers its effect each time this minion attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Rally for all 36 carriers.",
-    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Raven · Sunmane Herald · Better Bot · Chimerus · Chorus Engine · Chorus Drake · Cinderchef · Flamebeat Drake · Roarcollector · Deathsayer · … and 24 more",
+    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Raven · Sunmane · Better Bot · Chimerus · Chorus Engine · Chorus Drake · Cinderchef · Flamebeat Drake · Roarcollector · Deathsayer · … and 24 more",
     "example": "Echohorn carries Rally — in play, triggers its effect each time this minion attacks.",
     "contentIds": [
       "b2_echohorn",
@@ -1427,7 +1427,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Start of Combat means: its effect fires once when combat begins, before any attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Start of Combat for all 8 carriers.",
-    "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Carriers: Abhorrent Horror · Quil · Spots · Bucky · Kennelmaster · Speed Demon · Taurus · Taurus the Truth Bringer",
+    "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Carriers: Abhorrent Horror · Quil · Spots · Bucky · Kennelmaster · Speed Demon · Taurus · Truth Bringer",
     "example": "Abhorrent Horror carries Start of Combat — in play, its effect fires once when combat begins, before any attacks.",
     "contentIds": [
       "abhorrenthorror",
@@ -1460,7 +1460,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Slaughter means: triggers its effect each time this minion kills an enemy minion — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Slaughter for all 5 carriers.",
-    "cardText": "Exemplar — Bounty Bot: \"Immune while attacking (first 2 attacks each combat). Slaughter: gain 2 Gold next shop.\" · Carriers: Bounty Bot · Gnasher, the Overrun · Karthus · Moe · Sword and Bored",
+    "cardText": "Exemplar — Bounty Bot: \"Immune while attacking (first 2 attacks each combat). Slaughter: gain 2 Gold next shop.\" · Carriers: Bounty Bot · Gnasher · Karthus · Moe · Sword and Bored",
     "example": "Bounty Bot carries Slaughter — in play, triggers its effect each time this minion kills an enemy minion.",
     "contentIds": [
       "bountybot",
@@ -2353,7 +2353,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 6 of these fire on one trigger: you spend Gold this turn. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "7 effect factories across 6 cards dispatch on 'goldSpent' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Stardust Peddler: \"When you spend 5 Gold, create a Starform, or give it +3/+3.\" · Members: Stardust Peddler · Billings · Dwarf King, Brill · Coinfire Forewoman · Mountainbond · Tapkeeper",
+    "cardText": "Exemplar — Stardust Peddler: \"When you spend 5 Gold, create a Starform, or give it +3/+3.\" · Members: Stardust Peddler · Billings · Dwarf King, Brill · Coinfire · Mountainbond · Tapkeeper",
     "example": "Stardust Peddler fires when you spend Gold this turn, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_peddler",
@@ -2413,7 +2413,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Gem Sage · Reflector",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Cavern Fiend · Gem Sage · Reflector",
     "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
@@ -2442,8 +2442,8 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 15 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 15 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — River Drake: \"Sell: get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
-    "example": "River Drake fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
+    "cardText": "Exemplar — Riverback: \"Sell: get a random Spell.\" · Members: Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
+    "example": "Riverback fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_riverdrake",
       "d2_voicekeeper",

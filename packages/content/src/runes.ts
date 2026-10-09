@@ -822,7 +822,7 @@ export const RUNES: RuneDef[] = [
     cost: 5,
     // Owner 2026-08-11: now also HANDS OVER a Veinbreaker, on top of the both-effects grant.
     // Owner 2026-09-23: the Veinbreaker REPEATS at Start of Turn (`recurringGrant`: one now, one per turn setup).
-    text: 'Get a **Veinbreaker**. Repeat at **Start of Turn**. They grant **both** effects.',
+    text: 'Get a **Cave Cutter**. Repeat at **Start of Turn**. They grant **both** effects.',
     previewCards: ['k_veinbreaker'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['k_veinbreaker'] }, { kind: 'runeUnbrokenVein' }] },
     sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
@@ -4418,13 +4418,13 @@ export const ARCHIVED_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['runesnout_archivist'] },
   },
   {
-    // Archived 2026-08-07 (owner) alongside Menagerie Mammoth's rework — its subject no longer has the
+    // Archived 2026-08-07 (owner) alongside Menagerie Mammoth's (now Wooly's) rework — its subject no longer has the
     // Attack-only grant this rune symmetrised. The def and `runeMammoth` flag stay for saved runs.
     id: 'rune_mammoth',
     name: 'Rune of the Mammoth',
     cost: 4,
     epic: true,
-    text: 'Your **Menagerie Mammoths** also give **Health**, 1:1 with their Attack.',
+    text: 'Each **Wooly** also gives **Health**, 1:1 with its Attack.',
     previewCards: ['b2_mammoth'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeMammoth' },
     sets: ['set2'], // the Mammoth is a set-2 Beast

@@ -1811,7 +1811,7 @@ function hardestHitters(run: AnnouncerRunLike): readonly string[] {
 const golemCount = (units: readonly { cardId?: string | undefined }[]): number =>
   units.filter((u) => u.cardId === ANNOUNCER_BATCH_3_CARDS.golem).length;
 /** Flo Rida's buff on the board and hand, summed (addBuff labels each gain with the buffing card's name). */
-const FLO_RIDA_SOURCE = CARD_INDEX[ANNOUNCER_BATCH_3_CARDS.floRida]?.name ?? 'Flo Rida';
+const FLO_RIDA_SOURCE = CARD_INDEX[ANNOUNCER_BATCH_3_CARDS.floRida]?.name ?? 'Vicious';
 function floRidaBuffs(r: AnnouncerRunLike): number {
   let n = 0;
   for (const c of [...r.board, ...r.hand]) for (const b of c.buffs ?? []) if (b.source === FLO_RIDA_SOURCE) n += b.attack + b.health;

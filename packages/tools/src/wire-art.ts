@@ -134,7 +134,37 @@ const ALIASES: Record<string, string> = {
   twinstar: 'ce3_twinstar',            // now Twinning (2026-09-14)
   sunmaneherald: 'b2_sunmane',         // now Sunmane (owner rename 2026-10-09); the master is SunmaneHerald.png
   crownveinvanguard: 'k_crownvein',   // now Crownvein (owner rename 2026-10-09); the master is CrownveinVanguard.png
-  equipmentshredder: 'n3_shredder',    // the master carries the card's working name; the card is Shredder (2026-09-18)
+  // 2026-10-09 owner rename batch (26 minions; ids + art unchanged): the masters on disk carry the PRE-rename
+  // names, so each old name keeps landing on its card until the owner re-files the art. (Malphas.png and
+  // Delvey.png already match their cards' NEW names exactly, so they need nothing.)
+  menageriemammoth: 'b2_mammoth',      // now Wooly
+  florida: 'b2_florida',               // now Vicious (FloRida.png)
+  impoverseer: 'impoverseer',          // now Overseer
+  chipwickprospector: 'k_chipwick',    // now Prospector
+  deepveintender: 'k_deepvein',        // now Ruby Mender
+  faultlinescrapper: 'k_faultline',    // now Scrapper
+  gemheartcarver: 'k_gemheart',        // now Gem Carver
+  tunnelchargerrikk: 'k_tunnelcharger', // now Tunneller Rik
+  gemlinemartyr: 'k_gemline',          // now Gemling
+  veinbreaker: 'k_veinbreaker',        // now Cave Cutter (Veinbreaker2.png fills the `2` slot)
+  gemportsmith: 'k_portsmith',         // now Portsmith ("Gem Portsmith.png")
+  deepdelveparagon: 'k_deepdelve',     // now Delvey
+  gemgorgefiend: 'k_gemgorge',         // now Cavern Fiend (the master is GemforgeFiend.png, aliased above)
+  gemstorminstigator: 'k_gemstorm',    // now Party Crasher
+  gemstormmage: 'k_gemstorm',          // its short-lived 2026-10-09 name
+  embermouthwhelp: 'd2_embermouth',    // now Ember Whelp
+  riverdrake: 'd2_riverdrake',         // now Riverback (Riverdrake.png)
+  flutterdrake: 'd2_flutterdrake',     // now Flutterbutter
+  commanderwarpath: 'd2_blazingkeeper', // now Warpath
+  livinggrimoire: 'd2_grimoire',       // now Grimoire
+  warflame: 'd2_warflame',             // now Captain Flamus
+  coinfireforewoman: 'dw_coinfire',    // now Coinfire
+  dwarvensharpshooter: 'dw_sharpshooter', // now Sharpshooter
+  dwarvensniper: 'dw_sharpshooter',    // its short-lived 2026-10-09 name
+  anvilshadesmith: 'dw_anvilshade',    // now Anvilshade
+  uronoathbringer: 'uron',             // now Uron
+  zyffthebetrayer: 'zyff',             // now Zyff (ZyffBetrayer.png is aliased above)
+  equipmentshredder: 'n3_shredder',   // the master carries the card's working name; the card is Shredder (2026-09-18)
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
   // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry
   // (and RevolvingMaw.png correctly stops matching anything — Hellrider.png is the current art). Only Void

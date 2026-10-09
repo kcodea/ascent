@@ -67,18 +67,18 @@ describe('lobby rail guides', () => {
     expect(title('set2-beast-sunmane')).toBe('Sunmane');
     expect(names('set2-beast-sunmane', 'core')).toEqual(['Sunmane', 'Solaris']);
     expect(names('set2-beast-sunmane', 'enablers')).toEqual(['Sunmane']);
-    expect(names('set2-beast-oona', 'core')).toEqual(['King Oona', 'Grim', 'Flo Rida']);
+    expect(names('set2-beast-oona', 'core')).toEqual(['King Oona', 'Grim', 'Vicious']);
     expect(names('set2-beast-oona', 'enablers')).toEqual(['Armadiyo', 'Bullseye', 'Beardsley']);
     expect(title('set2-dragon-breath')).toBe('Dragonflame');
-    expect(names('set2-dragon-breath', 'core')).toEqual(['Warflame', 'Transcendant']);
+    expect(names('set2-dragon-breath', 'core')).toEqual(['Captain Flamus', 'Transcendant']);
     expect(names('set2-dragon-breath', 'enablers')).toEqual(['Fel Conjurer', 'Flamebeat Drake', 'Chorus Drake']);
     expect(title('set2-dragon-shout')).toBe('Shout Dragons');
     expect(names('set2-dragon-shout', 'core')).toEqual(['Karwind', 'Drakko', 'Voicekeeper']);
     expect(names('set2-dragon-shout', 'enablers')).toEqual(['Karwind', 'Roarcollector']);
     const pins: [string, string, string[], string[]][] = [
-      ['set2-kobold-combat', 'Combat Rubies', ['Deepdelve Paragon', 'Crownvein'], ['Kobebes', 'Boulderdash', 'Mineral Master']],
+      ['set2-kobold-combat', 'Combat Rubies', ['Delvey', 'Crownvein'], ['Kobebes', 'Boulderdash', 'Mineral Master']],
       ['set2-kobold-mountainbond', 'APM Mountainbond', ['Mountainbond', 'Tapkeeper', 'Edward Keg-hands'], ['Drakko', 'Brunni', 'Crownvein']],
-      ['set2-dwarf-spend', 'APM Spend', ['Billings', 'Drakko', 'Chef Gary Toast'], ['Gangplank', 'Coinfire Forewoman', 'Kringle']],
+      ['set2-dwarf-spend', 'APM Spend', ['Billings', 'Drakko', 'Chef Gary Toast'], ['Gangplank', 'Coinfire', 'Kringle']],
       ['set2-demon-consume', 'Consume', ['Chipper', 'Grevlin & Co.', 'Soul Defiler'], ['Bob Blart', 'Demon Horse', 'Big Huggies']],
       ['set2-demon-imps', 'Imps', ['Impossible Todd', 'Fel Spikes', 'Sylus'], ['Brood Matron', 'Legion Shepherd']],
       ['set2-neutral-paragon', 'Paragon Rally', ['Paragon', 'Lieutenant Thane'], ['Standard Bearer', 'Raven', 'Blazer']],

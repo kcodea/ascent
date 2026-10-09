@@ -235,7 +235,7 @@ export const DEMONS: CardDef[] = [
     // Imp payoff Battlecry: a persistent +2/+2 to every Imp you have or make (board / hand / future copies) —
     // the shared imp enchant (impBuff), like Impala's on-kill but on a Shout. Golden doubles.
     id: 'impoverseer',
-    name: 'Imp Overseer',
+    name: 'Overseer', // was 'Imp Overseer' (owner 2026-10-09); id unchanged
     tribe: 'demon',
     tier: 2,
     attack: 3, // owner balance 2026-09-23: 1/2 → 3/3

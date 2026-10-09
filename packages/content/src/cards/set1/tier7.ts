@@ -116,7 +116,7 @@ export const TIER7: CardDef[] = [
     // not silently 3x. It does NOT touch Yazzus's targeted-spell doubling, which is a spell-cast count
     // rather than a trigger family.
     id: 'uron',
-    name: 'Uron, Oathbringer',
+    name: 'Uron', // was 'Uron, Oathbringer' (owner 2026-10-09); id unchanged
     tribe: 'neutral',
     tier: 7,
     attack: 7,
@@ -134,7 +134,7 @@ export const TIER7: CardDef[] = [
     // Stacks with Drakko (battlecry) and Sylus (deathrattle) the same way any two multipliers do — Sylus
     // sums, Zyff takes the best copy — so a Sylus + Zyff board is +2 Echoes.
     id: 'zyff',
-    name: 'Zyff, the Betrayer',
+    name: 'Zyff', // was 'Zyff, the Betrayer' (owner 2026-10-09); id unchanged
     tribe: 'neutral',
     tier: 7,
     attack: 6,

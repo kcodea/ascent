@@ -96,6 +96,7 @@ import { CROWN_FRAMES } from './rebirthCrown';
 import { colourTerms } from './termColour';
 import { KeywordDefs } from './KeywordDefs';
 import { refPopupLeft } from './refPreviewPlacement';
+import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { detectCardKeywords } from './detectCardKeywords';
 import { Icon } from './Icon';
 import { Sprite } from './Sprite';
@@ -107,7 +108,7 @@ import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
 import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
-import { rectToStage, stageHost, stageViewport, toStage } from './stage';
+import { rectToStage, stageHost, stageViewport } from './stage';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -716,21 +717,14 @@ export const Card = memo(function Card({
   const refPool = refCards?.filter((c) => c.refPick) ?? [];
   const popupCards: CardView[] = [...(showText ? [] : [card]), ...refFixed, ...(refPool.length ? [refPool[pickIdx % refPool.length]!] : [])];
   const hasPopup = popupCards.length > 0;
-  const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right'; cardTop: number } | null>(null);
+  const [refPos, setRefPos] = useState<RefPopupPos | null>(null);
   const refTimer = useRef<number | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
-  // SECOND PASS — re-clamp against the popup's REAL height once it has rendered. The opening estimate
-  // (`estH` below, plate aspect × width × zoom) overshoots the rendered cluster, and for a HAND card — which
-  // sits near the bottom of the screen — that inflated height made the bottom clamp shove the popup ~200px
-  // above the card, floating over the board and the shop row (owner report 2026-09-09, Defender → Tower
-  // Shield). Measuring the mounted element and settling `top` once is what puts it back beside the card.
-  useLayoutEffect(() => {
-    if (!refPos || !popRef.current) return;
-    const h = toStage(popRef.current.getBoundingClientRect().height); // screen -> stage (stage.ts): refPos is stage px
-    if (h <= 0) return;
-    const top = Math.max(6, Math.min(refPos.cardTop, stageViewport().h - h - 6));
-    if (Math.abs(top - refPos.top) > 0.5) setRefPos({ ...refPos, top });
-  }, [refPos]);
+  // SECOND PASS: re-place against the popup's REAL size once it has rendered (`useFitRefPopup`, one measure per
+  // open). The opening estimate is only an estimate. Its height overshoot made the bottom clamp shove a HAND
+  // card's popup ~200px above the card (owner report 2026-09-09, Defender into Tower Shield), and a width that runs
+  // short never flips, so a chain off a right-hand card ran off the screen (player report 2026-10-08).
+  useFitRefPopup(popRef, refPos, setRefPos);
   // Open after a short hover (so it doesn't flash while skimming the board); position is measured when
   // it opens, so it tracks the card even if it popped up (hand) meanwhile. The full card is taller than
   // a compact tile, so the top is clamped to keep the popup on-screen.
@@ -768,7 +762,7 @@ export const Card = memo(function Card({
       const flip = left < r.left;
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, vp.h - estH - 6));
-      setRefPos({ left, top, origin: flip ? 'right' : 'left', cardTop: r.top });
+      setRefPos({ left, top, origin: flip ? 'right' : 'left', anchorLeft: r.left, anchorRight: r.right, prefTop: r.top });
     }), showText ? 250 : 100);
   };
   const hideRefTip = (): void => {

@@ -1,10 +1,17 @@
 /* ══ THE COMPENDIUM (Tab) ═══════════════════════════════════════════════════════════════════════════════════════════
    A filterable codex of minions, spells, runes, heroes, rules, keywords and guides. Moved out of styles.css and
-   restyled 2026-10-09 (owner: "this stands out as left behind and unkept ... make a massive polish pass") into the
-   game's MODERN chrome: the Gem plate family the HUD pills, the lobby rail, the tooltips and the Runeforge wear.
+   restyled 2026-10-09 (owner: "this stands out as left behind and unkept ... make a massive polish pass"; second pass
+   the same day: "it looks super mobile app-y", so less pill, more game) into the game's own chrome:
+   - THE WINDOW is framed in PAINTED ART: the Runeforge's ornate gold frame (`runeforgebg2.webp`), re-cut once into a
+     9-slice (`/frames/compendium-frame.webp`: its parchment cleared, its four centre ornaments swapped for plain rail so
+     the rails stretch cleanly) plus its top and foot crests (`compendium-crest*.webp`). Corners and crests keep their
+     painted size at any window size; only the plain rails stretch, along their length.
+   - THE HEADER is a title bar: the views as menu tabs (the lit one underlined by the painted name divider), the name in
+     the centre under the crest, search / card size / close on the right.
+   - THE LEFT MENU is a lobby-rail panel: a framed Gem plate of rows, each with a round PORTRAIT of real card art.
 
    THE LANGUAGE (shared with uiTheme.css / healthPills.css / lobbyRail.css / runeforgeLook.css):
-   - a CONTROL is a Gem pill: the plate gradient inside a 2px gold gradient edge, the theme ring + bevel, light text;
+   - a CONTROL is a Gem plate (the HUD pills' plate + 2px gold edge + ring + bevel), squared to a 7px corner;
    - a LIT control (selected) takes the theme's hover plate + hover edge, title-coloured text and a soft gold glow;
    - a ROW (the left menu, glossary rows) is the lobby rail's seat: a darker inset panel with a hairline; the selected
      row gets the rail's "you" treatment (gold hairline, ring, glow) plus a tribe-coloured accent bar;
@@ -16,31 +23,47 @@
    the real cards inside read them, and the cards must render exactly as before. Nothing below paints with them.
 
    PERFORMANCE. Static paint only. Hovers and presses are one-shot `transform` transitions; nothing loops. The gallery
-   scrolls over a TRANSPARENT background: the backdrop (gradient + vignette) is painted once on `.book`, behind the
-   scroller, so scrolling never repaints it. No layout reads. Native scrollbars stay hidden (styles.css, the shared
+   scroller keeps an OPAQUE background (as before the restyle), so it scrolls composited; no blurred inset shadows on
+   big surfaces; the cards' own paint is untouched. The frame is one static overlay (border-image), rasterised once.
+   No layout reads. Native scrollbars stay hidden (styles.css, the shared
    rule near the top): a native bar forces the OS cursor over the gauntlet.
    CURSOR. No bare keyword cursors: buttons take the global gauntlet rule; the few non-button controls (set picker
    options, glossary rows) use the gauntlet URL form. ══ */
 
 /* ── The overlay + the window ─────────────────────────────────────────────────────────────────────────────────── */
 .book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(4, 3, 12, 0.68); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-/* The surface tokens the CARDS read stay exactly as owner-tuned 2026-08-10 (see the header note). The window itself:
-   a 2px gold Gem edge (lit at the top and foot, deep through the long sides, like the lobby rail) around the plate,
-   with a soft light from the top centre and a dark vignette at the edges. */
+/* The surface tokens the CARDS read stay exactly as owner-tuned 2026-08-10 (see the header note).
+   THE WINDOW: `.book` itself paints nothing. `::before` is the backdrop (the dark plate), inset to the middle of the
+   frame's rails so nothing shows outside the painted corners. `::after` is the painted frame, a 9-slice on top of
+   everything (pointer-events none, transparent inside). `--bf-s` scales the art (source px x --bf-s = screen px); the
+   content padding clears the rails. */
 .book {
   --card: #000000; --line: #e7dcc7; --ink: #f5c6ad; --ink3: #d1c3ad; --bg2: #ffe5b8; --bg3: #ffe5b8;
+  --bf-s: 0.25;
   width: min(2300px, calc(95 * var(--vw, 1vw))); height: min(1450px, calc(93 * var(--vh, 1vh)));
-  display: flex; flex-direction: column; position: relative; overflow: hidden;
-  border: 2px solid transparent; border-radius: 20px;
-  background:
-    radial-gradient(70% 55% at 50% 18%, color-mix(in srgb, var(--ui-plate-top) 55%, transparent), transparent 72%) padding-box,
-    linear-gradient(180deg, var(--ui-plate-mid) 0%, var(--ui-plate-bot) 60%, color-mix(in srgb, var(--ui-plate-bot) 80%, #000) 100%) padding-box,
-    linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-edge-main) 6%, var(--ui-edge-deep) 50%, var(--ui-edge-main) 94%, var(--ui-edge-lo) 100%) border-box;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), inset 0 0 140px rgba(0, 0, 0, 0.42), 0 28px 80px -20px rgba(0, 0, 0, 0.8);
+  display: flex; flex-direction: column; position: relative; isolation: isolate;
+  padding: calc(146px * var(--bf-s)) calc(140px * var(--bf-s)) calc(146px * var(--bf-s));
   color: var(--ui-text);
   animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
 }
+.book::before {
+  content: ''; position: absolute; z-index: -1; inset: calc(70px * var(--bf-s)); border-radius: calc(110px * var(--bf-s));
+  background: radial-gradient(60% 40% at 50% 0%, color-mix(in srgb, var(--ui-plate-top) 45%, transparent), transparent 70%), linear-gradient(180deg, var(--ui-plate-mid) 0%, var(--ui-plate-bot) 45%, color-mix(in srgb, var(--ui-plate-bot) 82%, #000) 100%);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.85);
+}
+.book::after {
+  content: ''; position: absolute; z-index: 40; inset: 0; pointer-events: none;
+  border: calc(270px * var(--bf-s)) solid transparent;
+  border-image: url('/frames/compendium-frame.webp') 270 stretch;
+}
+/* The crests: the frame's own top and foot ornaments, at the frame's scale, over the rail centres. */
+.book-crest {
+  position: absolute; z-index: 41; left: 50%; top: 0; width: calc(360px * var(--bf-s)); height: calc(240px * var(--bf-s));
+  transform: translateX(-50%); pointer-events: none;
+  background: url('/frames/compendium-crest.webp') 50% 0 / 100% 100% no-repeat;
+}
+.book-crest-foot { top: auto; bottom: 0; background-image: url('/frames/compendium-crest-foot.webp'); }
 /* Gentle fade + slight pop (NOT inspectpop — that scales 1.45→1.9 for the inspect card, which rests at 1.9;
    the book rests at scale 1, so inspectpop made it balloon then snap down). */
 @keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
@@ -53,7 +76,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 
 /* ── The shared control grammar ───────────────────────────────────────────────────────────────────────────────── */
 /* A Gem pill: every button in the header and the tier row. */
-:is(.book-views, .book-zoom, .book-close, .book-tier, .book-gilded, .book-setpick-btn, .book-runetribe, .book-kwchip, .wiki-chip) {
+:is(.book-zoom, .book-close, .book-tier, .book-gilded, .book-setpick-btn, .book-runetribe, .book-kwchip, .wiki-chip) {
   border: 2px solid transparent;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
@@ -70,7 +93,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
   transform: translateY(1px); transition-duration: 0.05s;
 }
 /* LIT: the selected state. The hover plate + edge, title-coloured text, and a soft gold halo. Static. */
-:is(.book-tier, .book-gilded, .book-gloss, .book-runetribe, .wiki-chip).on {
+:is(.book-tier, .book-gilded, .book-runetribe, .wiki-chip).on {
   color: var(--ui-title);
   background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-title) 45%, transparent),
@@ -83,14 +106,13 @@ body:has(.book-ov) .cardref { z-index: 490; }
   background: linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-title) 45%, var(--ui-edge-main) 100%) padding-box, var(--ui-edge) border-box;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 3px -1px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.45), 0 0 14px -2px color-mix(in srgb, var(--ui-title) 60%, transparent);
 }
-.book-gilded.on svg { color: var(--ui-chip-bg); }
 :is(.book-tier, .book-gilded).on:hover:not(:disabled) { color: var(--ui-chip-bg); background: linear-gradient(180deg, #fff 0%, var(--ui-edge-hi) 40%, var(--ui-title) 100%) padding-box, var(--ui-hover-edge) border-box; }
 :is(.book-tier, .book-gilded, .book-runetribe):disabled { opacity: 0.34; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; }
 :is(.book-close, .book-tier, .book-gilded, .book-setpick-btn, .book-runetribe, .book-kwchip, .wiki-chip, .book-gloss, .book-zoom-btn):focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
 
 /* An inset FIELD (the search boxes): the chip well the HUD's speed chip uses, a gold hairline on focus. */
 :is(.book-search, .wiki-search) {
-  border: 1px solid var(--ui-chip-edge); border-radius: 10px;
+  border: 1px solid var(--ui-chip-edge); border-radius: 7px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 92%, #000), var(--ui-chip-bg));
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.05);
   color: var(--ui-text); font-family: var(--font-body), sans-serif; font-weight: 600;
@@ -98,51 +120,57 @@ body:has(.book-ov) .cardref { z-index: 490; }
 :is(.book-search, .wiki-search):focus { outline: none; border-color: var(--ui-edge-main); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--ui-ring); }
 :is(.book-search, .wiki-search)::placeholder { color: color-mix(in srgb, var(--ui-muted) 70%, transparent); }
 
-/* ── The header ───────────────────────────────────────────────────────────────────────────────────────────────── */
+/* ── The header: a title bar under the crest ──────────────────────────────────────────────────────────────────── */
 .book-head {
-  display: flex; align-items: center; gap: 14px; padding: 12px 20px 12px 18px; flex: none; position: relative; z-index: 31;
-  background: var(--ui-sheen), var(--ui-plate);
-  box-shadow: inset 0 -1px 0 var(--ui-divider), 0 1px 0 rgba(0, 0, 0, 0.5);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px;
+  padding: 14px 14px 12px; flex: none; position: relative; z-index: 31;
+  box-shadow: inset 0 -1px 0 var(--ui-divider);
 }
-.book-titleblock { display: flex; align-items: center; gap: 12px; min-width: 0; margin-right: auto; }
-.book-title-art { flex: none; width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); pointer-events: none; }
-.book-titletext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.book-title { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: 24px; line-height: 1.05; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ui-title); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7); }
-.book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; line-height: 1.25; color: var(--ui-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-head-l { justify-self: start; display: flex; align-items: center; min-width: 0; }
+.book-head-c { justify-self: center; text-align: center; min-width: 0; }
+.book-head-r { justify-self: end; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.book-titletext { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.book-title { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: 27px; line-height: 1; letter-spacing: 0.16em; padding-left: 0.16em; text-transform: uppercase; color: var(--ui-title); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.75), 0 0 16px color-mix(in srgb, var(--ui-title) 25%, transparent); }
+/* The painted name divider (the cards' own, `name-divider.webp`) under the name. */
+.book-title::after { content: ''; display: block; width: 240px; height: 12px; margin: 5px auto 0; background: url('/frames/name-divider.webp') 50% 50% / 100% 100% no-repeat; }
+.book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 13.5px; line-height: 1.25; color: var(--ui-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46ch; }
 
-.book-search { flex: none; height: 38px; width: min(260px, calc(20 * var(--vw, 1vw))); padding: 0 14px; font-size: 14px; }
-
-/* The three views as ONE segmented Gem bar: Rules · Glossary · Guides. The bar is the pill; each view is a segment,
-   and the live one is lit inside it. */
-.book-views { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 40px; padding: 2px; border-radius: 11px; }
+/* THE VIEWS as menu tabs, not a segmented control: caps labels, the lit one in gold over the painted divider. */
+.book-views { display: flex; align-items: center; gap: 2px; }
 .book-gloss {
-  display: inline-flex; align-items: center; gap: 7px; height: 100%; padding: 0 14px; border: 1px solid transparent; border-radius: 8px;
-  background: transparent; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.07em; text-transform: uppercase;
+  position: relative; display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 13px; border: 0; border-radius: 0;
+  background: none; color: var(--ui-muted); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+  font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase;
   transition: transform 0.1s ease;
 }
-.book-gloss svg { width: 16px; height: 16px; color: var(--ui-icon); }
-.book-gloss:hover:not(.on) { color: #fff; background: color-mix(in srgb, var(--ui-hover-mid) 85%, transparent); }
+.book-gloss svg { width: 16px; height: 16px; color: var(--ui-icon); opacity: 0.75; }
+.book-gloss::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: 0; height: 10px; background: url('/frames/name-divider.webp') 50% 50% / 100% 100% no-repeat; opacity: 0; transition: opacity 0.12s ease; }
+.book-gloss:hover { color: var(--ui-text); }
+.book-gloss:hover svg { opacity: 1; }
 .book-gloss:active, .book-gloss:hover:active { transform: translateY(1px); transition-duration: 0.05s; }
-.book-gloss.on { border-color: transparent; }
-/* The Rules segment wears the owner's golden question mark (rules-question.png), not a glyph. */
+.book-gloss.on { color: var(--ui-title); }
+.book-gloss.on svg { opacity: 1; }
+.book-gloss.on::after { opacity: 1; }
+/* The Rules tab wears the owner's golden question mark (rules-question.png), not a glyph. */
 .book-rules-ico { width: 20px; height: 20px; pointer-events: none; }
 
-/* Card size: a Gem pill holding two small round chips and the readout. */
-.book-zoom { flex: none; display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px; border-radius: 999px; }
+.book-search { flex: 0 1 auto; height: 36px; width: min(240px, calc(16 * var(--vw, 1vw))); min-width: 120px; padding: 0 13px; font-size: 14px; }
+
+/* Card size: one Gem plate holding two small round chips and the readout. */
+.book-zoom { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 36px; padding: 0 5px; border-radius: 7px; }
 .book-zoom-btn {
-  width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border-radius: 50%;
+  width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border-radius: 50%;
   border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-text);
-  font-family: var(--font-ui); font-size: 17px; font-weight: 800; line-height: 1;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui); font-size: 16px; font-weight: 800; line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: transform 0.1s ease;
 }
-.book-zoom-btn:hover:not(:disabled) { border-color: var(--ui-edge-main); color: var(--ui-title); transform: translateY(-1px); }
+.book-zoom-btn:hover:not(:disabled) { border-color: var(--ui-edge-main); color: var(--ui-title); }
 .book-zoom-btn:active:not(:disabled), .book-zoom-btn:hover:active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
 .book-zoom-btn:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.book-zoom-val { min-width: 46px; text-align: center; font-family: var(--font-ui); font-size: 13px; font-weight: 800; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--ui-text); }
+.book-zoom-val { min-width: 42px; text-align: center; font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--ui-text); }
 
-.book-close { flex: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border-radius: 11px; font-size: 16px; line-height: 1; }
+.book-close { flex: none; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 7px; font-size: 15px; line-height: 1; }
 .book-close:hover:not(:disabled) { color: var(--ui-warn); }
 
 /* ── The tier row ─────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -150,20 +178,21 @@ body:has(.book-ov) .cardref { z-index: 490; }
    jumped a row). On those tabs the chips dim + disable instead. `min-height` pins the bar's height to the chart's,
    so the chart's presence/absence can't move the gallery either. */
 .book-tiers {
-  display: flex; align-items: center; gap: 8px; padding: 10px 20px; flex: none; min-height: 88px; position: relative; z-index: 30;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 70%, transparent), color-mix(in srgb, var(--ui-chip-bg) 45%, transparent));
-  box-shadow: inset 0 -1px 0 var(--ui-divider), 0 6px 14px -8px rgba(0, 0, 0, 0.7);
+  display: flex; align-items: center; gap: 7px; padding: 8px 16px; flex: none; min-height: 84px; position: relative; z-index: 30;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.18));
+  box-shadow: inset 0 -1px 0 var(--ui-divider), inset 0 2px 4px -2px rgba(0, 0, 0, 0.6);
 }
 .book-axislabel, .book-chart-cap, .book-chart-quiet, .book-railcap {
   font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ui-muted);
 }
 .book-axislabel { margin-right: 4px; }
-.book-tier { width: 38px; height: 38px; padding: 0; border-radius: 10px; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.book-tier { width: 36px; height: 36px; padding: 0; border-radius: 7px; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; }
 /* GILDED IN THE TIER ROW (owner 2026-10-09): the same 38px chip height as the tiers, set off from them by a short
    rule, and dimmed + disabled with them on the untiered tabs (Runes, Heroes, Guides). */
 .book-tiers-div { flex: none; width: 1px; height: 26px; margin: 0 6px; background: var(--ui-divider); }
-.book-gilded { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 10px; font-size: 13px; letter-spacing: 0.07em; text-transform: uppercase; }
-.book-gilded svg { width: 16px; height: 16px; color: var(--ui-icon); }
+.book-gilded { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 9px; border-radius: 7px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+/* The Gilded toggle wears the game's painted crown (`frames/gilded.webp`, the golden cards' crown). */
+.book-gilded-ico { flex: none; width: 24px; height: 24px; background: url('/frames/gilded.webp') 50% 50% / contain no-repeat; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
 
 /* The chart: centred on the WINDOW, not on the space left beside the chips (owner ask 2026-09-18). Bars stack by
    tribe (data colours); every frame around them is a theme token. Each bar sits in a dark track so an empty tier
@@ -194,7 +223,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-chart:has(.book-runetribes) { position: static; transform: none; margin: 0 auto; }
 .book-chart:has(.book-runetribes) + .book-tiers-end { margin-left: 0; }
 .book-runetribes { display: flex; align-items: center; justify-content: center; gap: 7px; align-self: center; }
-.book-runetribe { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px 0 10px; border-radius: 999px; font-size: 13px; letter-spacing: 0.01em; }
+.book-runetribe { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 9px; border-radius: 7px; font-size: 13px; letter-spacing: 0.01em; }
 .book-runetribe svg { width: 15px; height: 15px; color: var(--c); filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
 /* A lit tribe pill keeps the gold halo and adds its tribe colour as the inner ring. */
 .book-runetribe.on { box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--c) 70%, transparent), 0 0 0 1px color-mix(in srgb, var(--ui-title) 30%, transparent), 0 0 14px -2px color-mix(in srgb, var(--c) 60%, transparent); }
@@ -202,7 +231,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 /* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER, always last. */
 .book-tiers-end { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; z-index: 30; }
 /* The active keyword filter: a clearable pill; the ✕ warms to the warning colour on hover. */
-.book-kwchip { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px 0 11px; border-radius: 999px; font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ui-title); }
+.book-kwchip { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 10px; border-radius: 7px; font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ui-title); }
 .book-kwchip svg { width: 15px; height: 15px; color: var(--ui-icon); }
 .book-kwchip .cgem-img { width: 16px; height: 16px; object-fit: contain; }
 .book-kwx { font-size: 11px; opacity: 0.8; margin-left: 2px; }
@@ -212,11 +241,11 @@ body:has(.book-ov) .cardref { z-index: 490; }
    `--atip-*` aliases of the theme). Open/close is a ONE-SHOT opacity + transform transition. The `li` options take
    the gauntlet URL cursor form (no bare `cursor: pointer`). */
 .book-setpick { position: relative; }
-.book-setpick-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px 0 14px; border-radius: 10px; font-size: 13.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+.book-setpick-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 13px; border-radius: 7px; font-size: 13.5px; letter-spacing: 0.05em; text-transform: uppercase; }
 .book-setpick.is-open .book-setpick-btn { background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
 .book-setpick-cap { font-size: 10.5px; letter-spacing: 0.14em; color: var(--ui-muted); }
 .book-setpick-name { white-space: nowrap; }
-.book-setpick-live { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 999px; background: var(--ui-title); color: var(--ui-chip-bg); text-shadow: none; font-family: var(--font-ui); font-weight: 900; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.book-setpick-live { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 4px; background: var(--ui-title); color: var(--ui-chip-bg); text-shadow: none; font-family: var(--font-ui); font-weight: 900; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4); }
 .book-setpick-caret { width: 16px; height: 16px; color: var(--ui-icon); transition: transform 0.14s ease; }
 .book-setpick.is-open .book-setpick-caret { transform: rotate(180deg); }
 .book-setpick-list {
@@ -239,49 +268,57 @@ body:has(.book-ov) .cardref { z-index: 490; }
 
 /* ── The body: the left menu + the gallery ────────────────────────────────────────────────────────────────────── */
 .book-main { flex: 1; display: flex; min-height: 0; }
+/* The gallery (and the guides list) is a recessed well beside the menu panel: the same top/bottom margins as the
+   panel, a squared corner and a gold hairline. */
+.book-main > :is(.book-grid, .bookguides, .book-empty) { margin: 12px 2px 6px 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--ui-divider); }
 
-/* THE LEFT MENU: the lobby rail's row grammar. Two captioned groups (the minion tribes, then the other galleries).
-   Each row: a small tribe-tinted medallion and the name. The selected row is lit like the rail's "you" seat (gold
-   hairline, ring, glow) with its tribe colour as the accent bar. */
+/* THE LEFT MENU: a lobby-rail panel. A framed Gem plate (the rail's own frame: plate, gold edge, inner ring) holding
+   two captioned groups of rows (the minion tribes, then the other galleries). A row is the rail's seat: a darker
+   inset panel with a round PORTRAIT of real card art (ringed in the row's tribe colour) and the name. The selected
+   row is lit like the rail's "you" seat (gold hairline, ring, glow) with its tribe colour as the accent bar. */
 .book-rail {
-  flex: none; width: 196px; display: flex; flex-direction: column; gap: 5px; padding: 14px 12px 18px; overflow-y: auto;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 75%, transparent), color-mix(in srgb, var(--ui-chip-bg) 55%, transparent));
-  box-shadow: inset -1px 0 0 var(--ui-divider), 4px 0 12px -8px rgba(0, 0, 0, 0.7);
+  flex: none; width: 206px; display: flex; flex-direction: column; gap: 4px; margin: 12px 12px 6px 2px; padding: 10px 8px 12px; overflow-y: auto;
+  border: 2px solid transparent; border-radius: 10px;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-edge-main) 8%, var(--ui-edge-deep) 50%, var(--ui-edge-main) 92%, var(--ui-edge-lo) 100%) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 8px 18px -8px rgba(0, 0, 0, 0.75);
 }
-.book-railcap { display: flex; align-items: center; gap: 8px; padding: 2px 4px 3px; }
-.book-railcap::after { content: ''; flex: 1; height: 1px; background: var(--ui-divider); }
-.book-railcap:not(:first-child) { margin-top: 12px; }
+.book-railcap { display: flex; align-items: center; gap: 8px; padding: 2px 6px 4px; color: var(--ui-title); font-size: 10.5px; letter-spacing: 0.16em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+.book-railcap::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--ui-divider), transparent); }
+.book-railcap:not(:first-child) { margin-top: 10px; }
 .book-cat {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: 40px; flex: none; padding: 0 12px 0 7px; border: 0; border-radius: 10px;
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 46px; flex: none; padding: 0 10px 0 6px; border: 0; border-radius: 7px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 40%, color-mix(in srgb, var(--ui-chip-bg) 70%, transparent)), color-mix(in srgb, var(--ui-chip-bg) 88%, transparent));
   box-shadow: inset 0 0 0 1px var(--ui-divider), inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -2px 3px -2px rgba(0, 0, 0, 0.55);
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); text-align: left;
-  font-family: var(--font-ui); font-weight: 800; font-size: 14px; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 800; font-size: 15px; white-space: nowrap;
   transition: transform 0.1s ease;
 }
-.book-catico {
-  flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c) 30%, var(--ui-chip-bg)), var(--ui-chip-bg) 75%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent), 0 1px 2px rgba(0, 0, 0, 0.5);
+/* The portrait: the rail's round face, ringed in the row's colour over a thin dark keyline. */
+.book-catface, .book-catico {
+  flex: none; width: 36px; height: 36px; border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 80%, #000), 0 0 0 3px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.6);
 }
-.book-cat svg { width: 15px; height: 15px; color: var(--c); filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
+.book-catface { object-fit: cover; background: var(--ui-chip-bg); }
+.book-catico { display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c) 30%, var(--ui-chip-bg)), var(--ui-chip-bg) 75%); }
+.book-cat svg { width: 17px; height: 17px; color: var(--c); filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
 .book-catlabel { overflow: hidden; text-overflow: ellipsis; }
 .book-cat:hover { color: #fff; transform: translateX(2px); background: linear-gradient(180deg, color-mix(in srgb, var(--ui-hover-top) 70%, transparent), color-mix(in srgb, var(--ui-hover-bot) 85%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-edge-main) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
 .book-cat:active, .book-cat:hover:active { transform: translateX(2px) translateY(1px); transition-duration: 0.05s; }
 .book-cat.on {
   color: var(--ui-title);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 75%, var(--ui-chip-bg)), color-mix(in srgb, var(--ui-chip-bg) 88%, transparent));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 20%, var(--ui-chip-bg)) 0%, color-mix(in srgb, var(--ui-plate-top) 70%, var(--ui-chip-bg)) 60%, color-mix(in srgb, var(--ui-chip-bg) 88%, transparent) 100%);
   box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 1px var(--ui-edge-main), inset 0 0 0 2px var(--ui-ring), inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 0 10px color-mix(in srgb, var(--ui-title) 28%, transparent);
 }
+.book-cat.on :is(.book-catface, .book-catico) { box-shadow: 0 0 0 2px var(--ui-title), 0 0 0 3px rgba(0, 0, 0, 0.55), 0 0 8px color-mix(in srgb, var(--ui-title) 45%, transparent); }
 .book-cat:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 1px; }
 
 /* THE GALLERY. Columns never squeeze below a full card width (auto-fill drops a column instead of overlapping), and
    the row gap reserves space for the text plate hanging under each oval (owner report 2026-07-16).
    `--book-zoom` (owner ask 2026-08-02) scales the ONE metric the rest derive from, so a zoom step resizes the card,
    its drawer and the column width together — and `auto-fill` re-flows the columns for free.
-   TRANSPARENT: the backdrop is `.book`'s, behind the scroller, so a scroll never repaints it. */
-.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 24px 40px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, calc(28.6 * var(--vh, 1vh)), 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+   OPAQUE: the scroller paints its own dark background (as it always did), so it scrolls composited. */
+.book-grid { background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-mid) 70%, var(--ui-plate-bot)) 0%, var(--ui-plate-bot) 100%); flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 24px 40px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, calc(28.6 * var(--vh, 1vh)), 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
 /* A PLATED card is wider than its frame (the plate overhangs), so the cell has to allow for it or the grid clips the
    carved edge — the same allowance `.cardref .card.plated` makes for the hover preview. */
 .book-grid .card.plated {
@@ -311,17 +348,6 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-grid .book-cell > .bookhero { min-height: 0; height: 100%; }
 .book-cell { transition: transform 0.12s ease; }
 .book-cell:hover { transform: scale(1.05); z-index: 3; position: relative; }
-/* THE TRIBE LABEL under each card (the plate's bottom-gem name, Card.tsx `.plate-tribe`): in the gallery it reads as a
-   small tribe-tinted pill, so a wall of cards scans by tribe at a glance. Geometry is the card's own (it still rides
-   the plate); only its paint changes, and only here. */
-.book-grid .card.plated .plate-tribe {
-  padding: 0.3em 0.85em 0.26em; border-radius: 999px; letter-spacing: 0.12em;
-  font-size: calc(var(--ccw) * var(--plate-tribe-sf, 0.072) * 0.86);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 22%, var(--ui-chip-bg)), color-mix(in srgb, var(--c) 10%, var(--ui-chip-bg)));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px -2px rgba(0, 0, 0, 0.75);
-  color: color-mix(in srgb, var(--c) 40%, #fff); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85);
-}
-
 /* EMPTY + NO-RESULTS: a calm line under a small gold stud, centred in the space. */
 .book-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px 24px; text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: 17px; color: var(--ui-muted); }
 .book-empty::before { content: ''; width: 10px; height: 10px; background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); transform: rotate(45deg); }
@@ -329,12 +355,12 @@ body:has(.book-ov) .cardref { z-index: 490; }
 /* ── Heroes tab: a read-only champion card on the plate ───────────────────────────────────────────────────────── */
 .bookhero {
   width: var(--cw); min-height: var(--ch); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 12px 12px 16px;
-  border: 2px solid transparent; border-radius: 16px;
+  border: 2px solid transparent; border-radius: 10px;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 10px 22px -8px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 4px 8px -4px rgba(0, 0, 0, 0.7);
   color: var(--ui-text);
 }
-.bookhero-art { width: 100%; aspect-ratio: 1 / 1; border-radius: 11px; overflow: hidden; background: var(--ui-chip-bg); display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--ui-chip-edge), 0 2px 6px -2px rgba(0, 0, 0, 0.6); }
+.bookhero-art { width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden; background: var(--ui-chip-bg); display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--ui-chip-edge), 0 2px 6px -2px rgba(0, 0, 0, 0.6); }
 .bookhero-art img { width: 100%; height: 100%; object-fit: cover; }
 .bookhero-art svg { width: 40%; height: 40%; color: var(--ui-icon); }
 .bookhero-name { margin-top: 2px; font-family: var(--font-ui); font-weight: 800; font-size: 18px; letter-spacing: 0.01em; color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
@@ -353,9 +379,9 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-gloss-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* A PANEL: the dark plate well with a hairline edge, like the Settings rows. */
 :is(.gloss-group, .wiki-group) {
-  border-radius: 14px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 35%, color-mix(in srgb, var(--ui-chip-bg) 75%, transparent)), color-mix(in srgb, var(--ui-chip-bg) 85%, transparent));
-  box-shadow: inset 0 0 0 1px var(--ui-divider), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 20px -10px rgba(0, 0, 0, 0.7);
+  border: 2px solid transparent; border-radius: 10px;
+  background: var(--ui-sheen) padding-box, linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot)) padding-box, var(--ui-edge) border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring);
 }
 .gloss-group { padding: 6px 12px 14px; align-self: start; }
 /* Section heads read like the Settings sections: gold caps with a rule running out to the right. */
@@ -384,13 +410,13 @@ body:has(.book-ov) .cardref { z-index: 490; }
 /* ── Rules wiki (CompendiumRules.tsx): a search + topic-pill bar over one centred column of answer panels ─────────── */
 .wiki-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .wiki-bar {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 14px 26px; flex: none; position: relative; z-index: 1;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 70%, transparent), color-mix(in srgb, var(--ui-chip-bg) 45%, transparent));
-  box-shadow: inset 0 -1px 0 var(--ui-divider), 0 6px 14px -8px rgba(0, 0, 0, 0.7);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 22px; flex: none; position: relative; z-index: 1;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.18));
+  box-shadow: inset 0 -1px 0 var(--ui-divider), inset 0 2px 4px -2px rgba(0, 0, 0, 0.6);
 }
 .wiki-search { height: 40px; width: min(420px, 100%); padding: 0 16px; font-size: 15px; }
 .wiki-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-.wiki-chip { height: 34px; padding: 0 14px; border-radius: 999px; font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; }
+.wiki-chip { height: 32px; padding: 0 13px; border-radius: 7px; font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; }
 .wiki-list { flex: 1; overflow-y: auto; padding: 22px 26px 32px; display: flex; flex-direction: column; gap: 18px; align-items: stretch; scrollbar-width: none; -ms-overflow-style: none; }
 .wiki-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .wiki-group { width: min(980px, 100%); align-self: center; padding: 6px 12px 12px; }

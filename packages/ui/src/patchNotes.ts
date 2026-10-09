@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-08',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Hover previews now always stay on screen. A rune on the right of the Runeforge shows its cards to the left instead of off the edge.',
+        details: [
+          'Fixes the Rune of Lassoing preview, where the Lasso spell was cut off when the rune was the rightmost offer.',
+          'The same fix covers card hovers in the Shop and hand, quest cards and hero power previews.',
+        ],
+      },
       { category: 'Systems', text: 'Hero power counters (like 0/3) and Equipment charge counts now sit in a pill that matches the hero power name.' },
       {
         category: 'Systems',

@@ -11,6 +11,7 @@ import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
 import { rectToStage, stageHost, stageViewport } from './stage';
+import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
  *  (Frontline Glory's Gilded Yazzus) are included and marked, so the preview shows the golden card. */
@@ -90,8 +91,12 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
   const kwCard = { keywords: NO_KEYWORDS, text: rune.text };
   const hasDefs = detectCardKeywords(kwCard).length > 0;
   const hasPreview = rewardCards.length > 0 || hasDefs;
-  const [tip, setTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
+  const [tip, setTip] = useState<RefPopupPos | null>(null);
   const timer = useRef<number | null>(null);
+  // The estimate below opens the chain; the measured pass re-places it on the REAL width (player report
+  // 2026-10-08: the Lasso spell ran off screen when the Rune of Lassoing was the rightmost offer).
+  const popRef = useRef<HTMLDivElement | null>(null);
+  useFitRefPopup(popRef, tip, setTip);
   const show = (el: HTMLElement): void => {
     if (!hasPreview) return;
     if (timer.current) window.clearTimeout(timer.current);
@@ -107,7 +112,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.34;
       const top = Math.max(6, Math.min(r.top, vp.h - estH - 6));
-      setTip({ left, top, origin: flip ? 'right' : 'left' });
+      setTip({ left, top, origin: flip ? 'right' : 'left', anchorLeft: r.left, anchorRight: r.right, prefTop: r.top });
     }, 220);
   };
   const hide = (): void => {
@@ -168,7 +173,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       </div>
       {!affordable && <div className="runecard-lock">Not enough Gold</div>}
       {tip && hasPreview && createPortal(
-        <div className="cardref questref" style={{ left: tip.left, top: tip.top } as CSSProperties}>
+        <div className="cardref questref" ref={popRef} style={{ left: tip.left, top: tip.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
             {rewardCards.map((rv, i) => (
               <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />

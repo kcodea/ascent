@@ -354,6 +354,27 @@ export const TEXT_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancients/ancientPreviewFit.test.ts'], lastVerifiedAt: '2026-09-27' },
   },
   {
+    id: 'R-TEXT-REFPREVIEW-01',
+    title: 'A hover preview chain always sits fully on screen, whichever slot it opens from',
+    statement:
+      'Every hover preview that shows a chain of cards (a Runeforge rune with the card it grants and the spell that '
+      + 'card casts; a Shop, hand or warband card with its referenced cards; a quest card; the hero power preview) is '
+      + 'placed from its REAL rendered size: to the right if it fits, else to the left, else centred, with the top '
+      + 'clamped. No card of the chain is ever cut off by a screen edge. The size is read once when it opens, never per frame.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Tester IonLime via the owner, 2026-10-08', quote: "minor UI complaint, I can't read the Lasso spell when the Rune of Lassoing is the rightmost rune" },
+      { kind: 'fix-pr', ref: 'fix/rune-hover-preview-edge: packages/ui/src/useFitRefPopup.ts, packages/ui/src/refPreviewPlacement.ts (fitRefPopup), RuneCard.tsx, QuestCard.tsx, Card.tsx, StatusBar.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-08: each surface placed its popup from an estimated width (the rune card used 0.82 of '
+      + 'its own width per previewed card), which ran far short of the plated cards, so the chain never flipped and '
+      + 'the Lasso spell ran off the right edge.',
+    example: 'At 1440 wide, hovering the Rune of Lassoing in the rightmost forge slot shows Rope Wrangler and Lasso to its left.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/refPreview.placement.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
+  {
     id: 'R-TEXT-ANNOUNCER-01',
     title: 'An announcer line never names a value its moment does not guarantee',
     statement:

@@ -8,6 +8,7 @@ import { Icon } from './Icon';
 import { questArt } from './art';
 import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
 import { rectToStage, stageHost, stageViewport } from './stage';
+import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 
 const TIER_LABEL: Record<QuestDef['tier'], string> = { lesser: 'Lesser', greater: 'Greater', capstone: 'Capstone' };
 /** Each tribe's emblem glyph — the canonical set (mirrors Card.tsx's footer icons). */
@@ -47,8 +48,11 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
   const art = questArt(quest.id);
   const rewardCards = rewardCardIds(quest.reward).map(cardViewOf).filter((v): v is CardView => v !== null);
   const hasPreview = rewardCards.length > 0;
-  const [tip, setTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
+  const [tip, setTip] = useState<RefPopupPos | null>(null);
   const timer = useRef<number | null>(null);
+  // Measured pass: re-place on the popup's real size so the chain never runs off screen (2026-10-08).
+  const popRef = useRef<HTMLDivElement | null>(null);
+  useFitRefPopup(popRef, tip, setTip);
   // Open after a short hover; measured on open so it tracks the card. Floats to the right, flipping left if it
   // would run off-screen — mirrors the Card component's referenced-card popup.
   const show = (el: HTMLElement): void => {
@@ -65,7 +69,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.34;
       const top = Math.max(6, Math.min(r.top, vp.h - estH - 6));
-      setTip({ left, top, origin: flip ? 'right' : 'left' });
+      setTip({ left, top, origin: flip ? 'right' : 'left', anchorLeft: r.left, anchorRight: r.right, prefTop: r.top });
     }, 220);
   };
   const hide = (): void => {
@@ -103,7 +107,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
       </div>
       <span className="questcard-gem" aria-hidden />
       {tip && hasPreview && createPortal(
-        <div className="cardref questref" style={{ left: tip.left, top: tip.top } as CSSProperties}>
+        <div className="cardref questref" ref={popRef} style={{ left: tip.left, top: tip.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${tip.origin} center` } as CSSProperties}>
             {rewardCards.map((rv, i) => (
               <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />

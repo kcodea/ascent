@@ -1942,6 +1942,43 @@ export interface QuestCombatMods {
    *  body it summoned (a Rise and a Rebirth included: the copy comes without the returning keyword). A copy never
    *  makes copies. On a full board the copy is a real overflow. Player-only; never snapshotted. */
   ancientSummonExtra?: number;
+  /** ANCIENT OF GENESIS × Rayse (owner 2026-10-09): "The first 2 minions you summon in combat summon twice." A budget on
+   *  `ancientSummonExtra`: only the first N friendly summons this fight (a Rise / Rebirth return counts, the Risen
+   *  precedent) make their extra copies; the copies themselves never spend it. Absent = unlimited (Risen's rule).
+   *  Player-only; never snapshotted. */
+  ancientSummonExtraLimit?: number;
+  /** ANCIENT OF WAR × Rayse (owner 2026-10-09): "Your first 3 summoned minions attack immediately." The first `count`
+   *  friendly summons this fight (a return included) strike the moment they land, through the shared
+   *  attacks-immediately queue (R-ORD-05). Player-only; never snapshotted. */
+  ancientSummonsAttack?: { count: number; label: string };
+  /** ANCIENT OF BONDS × Rayse (owner 2026-10-09): "When a minion is summoned in combat, give 2 friendly minions +3/+3."
+   *  Every friendly summon (the summon-entry chokepoint, so a return too): `count` distinct random OTHER living friendly
+   *  minions gain +a/+h, a combat buff. Player-only; never snapshotted. */
+  ancientSummonBuffOthers?: { count: number; attack: number; health: number; label: string };
+  /** ANCIENT OF DEATH × Rayse (owner 2026-10-09): "Avenge (4): Summon a 1/1 Sprout and improve this." A hero Avenge on
+   *  ONE running count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire (Rune of Fury
+   *  repeats) summons `cardId` at `size`/`size` (a real combat summon: Empowering Vines and every summon watcher apply),
+   *  pulses a `questTrigger` of `flag`, and grows `size` by 1 for the rest of the fight; settle banks the growth.
+   *  Player-only; never snapshotted. */
+  ancientSproutAvenge?: { every: number; tick: number; cardId: string; size: number; flag: string; label: string };
+  /** ANCIENT OF DEATH × Cassen (owner 2026-10-09): "Avenge (7): advance your commission 1 turn." A hero Avenge on ONE
+   *  running count across Shop and combat; each fire (Rune of Fury repeats) pulses a `questTrigger` of `flag`, which
+   *  settle counts to move the running commission. Player-only; never snapshotted. */
+  ancientAvengePulse?: { every: number; tick: number; flag: string; label: string };
+  /** ANCIENT OF WAR × Drakko (owner 2026-10-09): "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered
+   *  this turn." `reps` steps (the base + one per Shout fired in the Shop turn that just ended), each its own beat, each
+   *  a random living friendly minion gaining +a/+h, a combat buff. Player-only; never snapshotted. */
+  ancientSocRandomBuffs?: { reps: number; attack: number; health: number; label: string };
+  /** ANCIENT OF BONDS × Drakko (owner 2026-10-09): "Your Drakkos gain +2/+2 when you trigger a Shout." Every friendly
+   *  Shout fire in combat gives every living `cardId` body +a/+h, PERMANENTLY (`permaGain` carries it home).
+   *  Player-only; never snapshotted. */
+  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string };
+  /** ANCIENTS × Flash (owner 2026-10-09). `second` (Death): with First or Last armed, the 2nd enemy minion killed is also
+   *  copied to hand, live. `pummel` (War): a hero Pummel (X) on the shared lifetime tally, once per combat, a copy of a
+   *  random living enemy minion to hand. `soc` (Time): Start of Combat, a copy of a random enemy minion to hand.
+   *  `exact` (Bonds): every one of Flash's copies arrives EXACT (`ShoutCarry.handExact`: its stats, keywords and Gilded).
+   *  Player-only; never snapshotted. */
+  ancientFlash?: { second?: boolean; pummel?: { every: number; dealt: number }; soc?: boolean; exact?: boolean; label: string };
   /** ANCIENT OF TIME × Lord of the Risen: count every friendly minion summoned this fight
    *  (`CombatCarryBacks.summonsMade`); the next Start of Turn pays per summon. Player-only; never snapshotted. */
   ancientCountSummons?: boolean;
@@ -3695,6 +3732,9 @@ export interface ShoutCarry {
   handEchoes?: number[];
   /** Ancient of Death × Braum: indices into `handGrants` whose arrived card is GILDED at settle (a random Gilded minion). */
   handGilds?: number[];
+  /** Ancient of Bonds × Flash: indices into `handGrants` whose arrived card is an EXACT copy (these stats, keywords and
+   *  Gilded, set as it lands; never re-based on the printed card). */
+  handExact?: { idx: number; attack: number; health: number; keywords: Keyword[]; golden: boolean }[];
   /** Gravetwin (R-TARGET-06): a combat re-fire copied a random friendly Echo. Keyed by the body's run card
    *  (`sourceUid`); settle sets that card's `copiedEcho` (the last copy wins, as in the Shop). */
   copiedEchoes?: { uid: string; effects: EffectDef[]; name?: string }[];

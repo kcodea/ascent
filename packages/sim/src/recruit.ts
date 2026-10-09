@@ -5,6 +5,7 @@ import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
+import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1062,38 +1063,17 @@ export function aegisGrantOf(state: RunState): { attack: number; health: number 
   return { attack: 5, health: 0 };
 }
 
-/** Which commissions may be offered right now: all three on the first use, then everything except the one
- *  taken last, so the same commission can never be picked twice running (owner spec 2026-08-16). Lives here
- *  rather than in the reducer because the panel needs it too, and reducer -> recruit is the allowed direction. */
-/** The two RARE jobs. Both take 3 turns; Citadel is gated on being able to USE a free upgrade. */
-const RARE: CommissionKind[] = ['citadel', 'fortress'];
-
 /**
- * Which commissions may be offered right now.
- *
- * All three ordinary jobs on the first use, then everything except the one taken last, so the same commission
- * can never be picked twice running. On top of that a **25% chance** to swap one slot for a RARE job (owner
- * 2026-08-17): Citadel (a free Shop upgrade) is only offered at Tier 4 or lower, where the upgrade is still
- * worth something.
- *
- * DERIVED, not rolled. This function is read by BOTH the reducer (to validate the pick) and the panel (to draw
- * the options), so it must be pure: it hashes `(seed, wave, lastCommission)` rather than drawing from
- * `rngCursor`. An impure roll would let the panel show one set of options while the reducer validated against
- * another, and it would not replay.
+ * Which commissions may be offered right now: ALWAYS the three ordinary jobs, Discover / Gold / Spell (owner hero change
+ * 2026-10-09: "let's change cassen and remove citadel and fortress so he just has the 3 options instead"). The rare
+ * Citadel / Fortress roll (owner 2026-08-17, a 25% slot swap) is gone; both kinds stay in `CommissionKind` and in
+ * `payCommission` only so an old save that is already WORKING one still pays it out. Lives here rather than in the
+ * reducer because the panel needs it too, and reducer -> recruit is the allowed direction. Pure: the reducer (to validate
+ * the pick) and the panel (to draw the options) always agree.
  */
 export function commissionOffer(state: Pick<RunState, 'lastCommission' | 'seed' | 'wave' | 'tier'>): CommissionKind[] {
-  const all: CommissionKind[] = ['discover', 'gold', 'spell'];
-  const base = state.lastCommission ? all.filter((k) => k !== state.lastCommission) : all;
-  // A stable hash of the run + turn: same inputs, same offer, every time it is asked.
-  const h = Math.abs(mixSeed(state.seed ?? 0, state.wave ?? 0, TAG.QUEST));
-  if (h % 100 >= 25) return base;
-  const pool = RARE.filter((k) => (k !== 'citadel' || (state.tier ?? 1) <= 4) && k !== state.lastCommission);
-  if (pool.length === 0) return base;
-  const rare = pool[h % pool.length]!;
-  // Swap the rare job into a stable slot rather than appending, so the picker keeps three options.
-  const out = [...base];
-  out[h % out.length] = rare;
-  return out;
+  void state;
+  return ['discover', 'gold', 'spell'];
 }
 
 /** Cassen's commissions: how long each takes to mature. The delay IS the trade — a longer wait buys a bigger
@@ -1233,9 +1213,11 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
   if (power.kind === 'commission') {
     // While one is running the panel prints THAT commission and when it lands; otherwise it prints the
     // options actually on offer (never the one taken last).
+    // Each line prints its LIVE delay (Cassen × Ancient of Time: next turn).
     const live = state.commission;
-    if (live) return `Working: ${COMMISSION_TEXT[live.kind]} (due turn ${live.dueWave})`;
-    return `Choose one — ${commissionOffer(state).map((k) => COMMISSION_TEXT[k]).join(' · ')}`;
+    // The running one prints its reward and its live due turn (Cassen × Ancient of Death moves it), never a stale delay.
+    if (live) return `Working: ${COMMISSION_REWARD[live.kind]} (due turn ${live.dueWave}).`;
+    return `Choose one: ${commissionOffer(state).map((k) => commissionLineOf(state, k)).join(' · ')}`;
   }
   return power.text;
 }
@@ -10772,6 +10754,7 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard, opts?: { ret
   ancientBramShopDeath(state); // BRAUM × DEATH: the Shop half of the running "when 16 friendly minions die"
   ancientNadjaShopDeath(state); // NADJA × DEATH: the Shop half of the running Avenge (6), +1 max Gold
   ancientBrackusShopDeath(state, dead); // BRACKUS × DEATH: the Shop half of the running Avenge (3)
+  ancientHeroAvengeShopDeath(state, dead); // RAYSE / CASSEN / GILDMASTER × DEATH: the Shop half of the running hero Avenge
   for (const card of [...state.board]) {
     if (card.uid === dead.uid) continue;
     for (const effect of instanceEffects(card)) {
@@ -13640,6 +13623,8 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientGorrEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientAyseTime') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientDarahEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientDrakkoEotShout') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientRayseEotRise') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -14219,6 +14204,10 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...(ancientAyseTimeLive(state) ? ['ancientAyseTime' as const] : []),
     // ANCIENT OF TIME × Darah: "End of Turn: Get a copy of the minion you swapped." The same virtual entry.
     ...(ancientDarahEotCopyLive(state) ? ['ancientDarahEotCopy' as const] : []),
+    // ANCIENT OF TIME × Drakko: "End of turn: trigger your left-most Shout minion." The same virtual entry.
+    ...(ancientDrakkoEotShoutLive(state) ? ['ancientDrakkoEotShout' as const] : []),
+    // ANCIENT OF TIME × Rayse: "End of turn give a minion Rise." The same virtual entry.
+    ...(ancientRayseEotRiseLive(state) ? ['ancientRayseEotRise' as const] : []),
   ];
 }
 
@@ -14272,6 +14261,13 @@ function runRecurringEndOfTurn(
     ancientRunAyseTime(state, step);
   } else if (effect === 'ancientDarahEotCopy') {
     ancientRunDarahEotCopy(state);
+  } else if (effect === 'ancientDrakkoEotShout') {
+    // DRAKKO × TIME: Echoing Roar's rule exactly: the left-most Shout minion's Shout re-fires (`replayBattlecry`, so every
+    // Shout multiplier and tally hears it; a targeted Shout follows the replay's normal target rule).
+    const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    if (leftmost) replayBattlecry(state, leftmost);
+  } else if (effect === 'ancientRayseEotRise') {
+    ancientRunRayseEotRise(state, step);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -14867,6 +14863,8 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientGorrEotCopy: 'Ancient of Time',
   ancientAyseTime: 'Ancient of Time',
   ancientDarahEotCopy: 'Ancient of Time',
+  ancientDrakkoEotShout: 'Ancient of Time',
+  ancientRayseEotRise: 'Ancient of Time',
   quickStudy: 'Rune of Quick Study',
   runeAncestralRoar: 'Rune of Ancestral Roar',
 };

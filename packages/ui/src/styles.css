@@ -4,6 +4,9 @@
   --font-title: 'Outfit', sans-serif;
   --font-ui: 'Outfit', sans-serif;
   --font-body: 'Nunito Sans', sans-serif;
+  /* Card NAMES (owner 2026-10-09): a soft, heavy serif standing in for Belwe Bold until a licensed copy lands —
+     swap this one token to change every card name. Loaded in apps/web/index.html. */
+  --font-cardname: 'Fraunces', var(--font-ui);
   /* tribe hues (drive each card's accent --c): Beast green · Dragon red/orange · Mech blue ·
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
@@ -2705,6 +2708,29 @@ img.tierbadge.tierstars,
    Unset the clip and the radius too — on the full card the name wraps instead of ellipsing, so neither the
    overflow nor the ellipsis has anything left to do. */
 .card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; overflow: visible; text-overflow: clip; border-radius: 0; }
+/* GILDED NAME (owner spec 2026-10-09). The letters are filled with the #fbfcf7 → #decca9 gradient here; the
+   strokes (#775a33 outside the edge, #c7ad88 and #f4e9d4 inside it) and the drop shadow come from the SVG filter
+   in cardNameFilter.ts, which CardName hands over as `--cn-filter` sized to this name. NO text-shadow: on
+   gradient-clipped text it paints OVER the gradient — the filter carries the shadow instead. The inline padding
+   (cancelled by an equal negative margin, so layout is unchanged) only widens the box the filter region is
+   measured from, so a short name's halo isn't cropped. Static — the filter renders once per paint, never loops. */
+.card.compact.showtext .drawer .cn {
+  font-family: var(--font-cardname); font-weight: 900; font-variation-settings: 'SOFT' 100;
+  font-size: calc(var(--ccw) * var(--cn-size, 0.094) * var(--cn-fit, 1)); letter-spacing: 0.02em;
+  /* ONE line, always (owner 2026-10-09): never wraps; an over-long name is shrunk to fit by trackCardName. The box
+     sizes to the text and centres itself in the drawer. */
+  white-space: nowrap; width: max-content; max-width: none;
+  padding-inline: 0.35em; margin-inline: -0.35em;
+  color: transparent; background: none;
+  text-shadow: none; filter: var(--cn-filter, none);
+}
+/* The fill: on the inline span. Names are one line now, but it is cloned per line box anyway, so if a name ever did
+   wrap each line would get its own full gradient rather than one gradient across both. */
+.card.compact.showtext .drawer .cn .cn-t {
+  background: linear-gradient(180deg, #fbfcf7 30%, #decca9 70%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
 /* BACKBOX — the authored dark shape behind the rules-text panel. Its whole job is contrast: it darkens the
    plate's stone under the text so the copy reads without needing a hard slab. Sized by WIDTH (× --ccw) with
    `height: auto`, so the art's 853×621 ratio is preserved at any card size. Centred on the panel and nudged by
@@ -2733,9 +2759,30 @@ img.tierbadge.tierstars,
    z-index here would lift the text out past the frame, whose oval overflows down over the panel's top edge
    (the same trap documented on `.drawer` itself). `position: relative` on a flex child changes no layout. */
 .card.compact.showtext .drawer .cn,
+.card.compact.showtext .drawer .namediv,
 .card.compact.showtext .drawer .desc,
 .card.compact.showtext .drawer .dtribe,
 .card.compact.showtext .drawer .plate-tribe { position: relative; }
+/* NAME DIVIDER (owner art 2026-10-09) — the gold diamond rule between the name and the rules text. Sized by WIDTH
+   (× --ccw) with `height: auto` so the art's ratio holds at every card size; the negative top margin tucks it into
+   the name's bottom margin so the rules text doesn't drop by the divider's full height. In-flow and
+   `position: relative` (above) so it paints over the backbox like the text around it. */
+.card.compact.showtext .drawer .namediv {
+  display: block; flex: none; align-self: center;
+  width: calc(var(--ccw) * var(--namediv-w, 0.84)); max-width: none; height: auto;
+  margin: calc(var(--ccw) * -0.0085) 0 calc(var(--ccw) * 0.0305);
+  pointer-events: none; user-select: none;
+}
+.card.compact.showtext .drawer .namediv {
+  /* A subtle static drop shadow to lift the gold off the stone (owner 2026-10-09). Static, never animated. */
+  filter: drop-shadow(0 calc(var(--ccw) * 0.007) calc(var(--ccw) * 0.008) rgba(0, 0, 0, 0.55));
+}
+/* SPELL cards (shop spells + rubies): the text panel sat a bit low under the square art + SPELL pill, so it rides
+   up a touch (owner 2026-10-09). Minions keep the shared --ctx-top. */
+.card.compact.showtext.spellcard .drawer { top: calc(var(--ccw) * (var(--ctx-top, 1.085) - var(--spell-txt-lift, 0.05))); }
+/* …but the backbox is a CARD-body silhouette that lives inside the drawer, so the lift would drag it up off the
+   plate. Push it back down by the same amount so it stays put and only the text moves. */
+.card.compact.showtext.spellcard .drawer .descbox { top: calc(var(--ccw) * (var(--ctx-box-y, -1.235) + var(--spell-txt-lift, 0.05))); }
 .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.34); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 /* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
    2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
@@ -7931,6 +7978,12 @@ body:has(.book-ov) .cardref { z-index: 490; }
    lower it… seated perfectly in the live game"); as a relative context it re-seats on the card exactly as it
    does in the hand. Scoped to `.book-grid`, so the hand is untouched. */
 .book-grid .card.compact.showtext .drawer { position: relative; inset: auto; margin-top: calc(var(--ccw) * 0.15); }
+/* Spell cards lift their text here too (the in-flow Compendium drawer ignores the absolute `top` lift above). */
+.book-grid .card.compact.showtext.spellcard .drawer { margin-top: calc(var(--ccw) * (0.15 - var(--spell-txt-lift, 0.05))); }
+/* …and minions ride up slightly in the Compendium (owner 2026-10-09). The backbox lives inside the drawer, so it
+   is pushed back down by the same amount to stay on the plate. */
+.book-grid .card.compact.showtext:not(.spellcard) .drawer { margin-top: calc(var(--ccw) * (0.15 - var(--book-minion-txt-lift, 0.04))); }
+.book-grid .card.compact.showtext:not(.spellcard) .drawer .descbox { top: calc(var(--ccw) * (var(--ctx-box-y, -1.235) + var(--book-minion-txt-lift, 0.04))); }
 /* With the drawer in flow the cell owns its full height, so the hover scale needs a transform origin that
    doesn't push a tall card under its neighbour. */
 .book-grid .book-cell { display: flex; justify-content: center; width: 100%; }

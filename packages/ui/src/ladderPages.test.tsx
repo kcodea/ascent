@@ -176,6 +176,10 @@ describe('asRecentGameRow — the widened light-list mapper', () => {
     expect(row.runes).toEqual(['rune_warding']);
     expect(row.wave).toBe(15);
     expect(asRecentGameRow({ ...base, final_board: { ...board(0) } }).board).toBeNull();
+    // R-MATCH-LENGTH-01: the replay's ACTIVE time is the length; an older row's span shows only while plausible.
+    expect(asRecentGameRow({ ...base, first_t: '0', last_t: String(246 * 60_000), final_wave: '16', active_ms: '1860000' }).durationMs).toBe(1_860_000);
+    expect(asRecentGameRow({ ...base, first_t: '0', last_t: String(246 * 60_000), final_wave: '16' }).durationMs).toBeNull();
+    expect(asRecentGameRow({ ...base, first_t: '0', last_t: String(31 * 60_000), final_wave: '16' }).durationMs).toBe(31 * 60_000);
     // The lobby-strength stamp (`replay->v2->result->lobbyStrength`, a JSON object): parsed when present, null otherwise.
     expect(asRecentGameRow({ ...base, lobby_strength: { value: 74, tier: 'Brutal', inputs: [] } }).lobbyStrength).toEqual({ value: 74, tier: 'Brutal', inputs: [] });
     expect(asRecentGameRow({ ...base, lobby_strength: null }).lobbyStrength).toBeNull();

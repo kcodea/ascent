@@ -113,7 +113,7 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
 describe('the telemetry probe → replay availability + run length, joined by seed', () => {
   it('a v2 row with a numeric id is watchable; the clock span is last − first frame tMs', () => {
     const f = telemetryFactsOf({ id: 97, seed: '4242', v2_version: '2', first_t: '0', last_t: '883179.2', placement: 1 });
-    expect(f).toEqual({ rowId: 97, seed: 4242, hasReplay: true, durationMs: 883179.2, placement: 1 });
+    expect(f).toEqual({ rowId: 97, seed: 4242, hasReplay: true, durationMs: 883179.2, activeMs: null, placement: 1 });
   });
 
   it('no v2 stamp → not watchable; a missing clock → no length (Watch still works)', () => {
@@ -136,6 +136,27 @@ describe('the telemetry probe → replay availability + run length, joined by se
     expect(joined[0]).toMatchObject({ replayRowId: 97, durationMs: 600000, placement: 2 });
     expect(joined[1]).toMatchObject({ replayRowId: null, durationMs: null });
     expect(joined[2]).toMatchObject({ replayRowId: null, placement: 4 });
+  });
+
+  // R-MATCH-LENGTH-01 (owner 2026-10-09): "it should only count time while a player is actually in a game."
+  it('the length is ACTIVE play time: the entry first, then the replay; a legacy span only while plausible', () => {
+    const withEntry = careerRunOf(detailedRow({ entry: { ...detailedRow().entry, activeMs: 31 * 60_000 } }));
+    expect(withEntry.durationMs, 'before any join').toBe(31 * 60_000);
+    const lightWithActive = careerRunOf(lightRow({ active_ms: '1860000' }));
+    expect(lightWithActive.durationMs).toBe(1_860_000);
+    const legacy = careerRunOf(lightRow({ id: 11, seed: '77', wave: 16 }));
+    const legacyOk = careerRunOf(lightRow({ id: 12, seed: '78', wave: 16 }));
+    const fromReplay = careerRunOf(lightRow({ id: 13, seed: '79', wave: 16 }));
+    const joined = joinTelemetry([withEntry, legacy, legacyOk, fromReplay], [
+      { id: 1, seed: '4242', v2_version: '2', first_t: '0', last_t: String(246 * 60_000) },
+      { id: 2, seed: '77', v2_version: '2', first_t: '0', last_t: String(246 * 60_000) }, // the owner's 246-min 16-round game
+      { id: 3, seed: '78', v2_version: '2', first_t: '0', last_t: String(31 * 60_000) },
+      { id: 4, seed: '79', v2_version: '2', first_t: '0', last_t: String(246 * 60_000), active_ms: '1500000' },
+    ]);
+    expect(joined[0]!.durationMs, "the entry's active time beats the span").toBe(31 * 60_000);
+    expect(joined[1]!.durationMs, 'an implausible legacy span prints "—"').toBeNull();
+    expect(joined[2]!.durationMs, 'a plausible legacy span still shows').toBe(31 * 60_000);
+    expect(joined[3]!.durationMs, "the replay's active time").toBe(1_500_000);
   });
 });
 

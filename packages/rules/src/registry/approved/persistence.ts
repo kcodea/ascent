@@ -704,4 +704,33 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'pre-combat count (the carry-back now includes every risen body, for every summonBonus card).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/floRidaPermanent1008.test.ts', 'packages/ui/src/floRidaPermanentText.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
+  {
+    id: 'R-MATCH-LENGTH-01',
+    title: 'A match length counts only the time the player was actually in the game',
+    statement:
+      'Every "Length" a finished game prints (Recent Games, its Practice tab, the Career Match History and Practice tabs, '
+      + 'and the APM derived from it) is ACTIVE play time: it counts only while the app is visible and focused AND a '
+      + 'started, unfinished run is on screen (not the title, menus, hero picker or a replay). No single step between two '
+      + 'samples counts for more than 60 seconds, so a machine that sleeps or suspends with the game open adds at most a '
+      + 'minute. Time the app is closed never counts: the running total rides in the save and a Continue resumes it '
+      + 'paused. The total is frozen when the run ends and stored on the history entry (entry.activeMs), the replay '
+      + '(replay.v2.activeMs) and the practice row (duration_ms). A game recorded before this existed has only the '
+      + 'recording\'s wall-clock span: it is shown only while it is at most 5 minutes per round played, otherwise the row '
+      + 'prints "—". The clock is presentation only and never touches run state, simulation or replay playback.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug 2026-10-09 (a Recent Games row read LENGTH 246 min for a 16-round game)', quote: 'it should only count time while a player is actually in a game' },
+      { kind: 'code', ref: 'packages/ui/src/activePlayClock.ts (createActivePlayClock, matchLengthMs); packages/ui/src/store.ts (activePlay: reset in beginReplayCapture, restore from the save, activePlayLive + heartbeat/visibility/focus sampling, freeze at run end into uploadRunHistory / assembleReplayV2 / practiceGameOf); packages/ui/src/careerData.ts + remoteBoards.ts (every Length read through matchLengthMs)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-09: the length was the replay frame clock\'s span, which adds the real time between two '
+      + 'actions with no ceiling, so a shop left open in a background tab for hours (the turn clock waits for 10 Gold '
+      + 'spent) became hours of "game". The replay frame clock itself is unchanged (replay pacing is a separate contract).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/activePlayClock.test.ts', 'packages/ui/src/activePlaySave.test.ts', 'packages/ui/src/careerData.test.ts', 'packages/ui/src/practiceGames.test.ts', 'packages/ui/src/ladderPages.test.tsx'],
+      lastVerifiedAt: '2026-10-09',
+    },
+  },
 ];

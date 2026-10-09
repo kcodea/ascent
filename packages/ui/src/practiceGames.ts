@@ -1,5 +1,6 @@
 import { DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, runRecord, type BoardSnapshot, type RunState } from '@game/sim';
 import type { PracticeGameUpload } from './remoteBoards';
+import { matchLengthMs } from './activePlayClock';
 
 /**
  * PRACTICE GAMES (owner ask 2026-09-24: a Practice tab on Recent Games) — the pure half of the practice-game
@@ -15,6 +16,9 @@ export function practiceGameOf(run: RunState, opts: {
   patch: string;
   finalBoard: BoardSnapshot | null;
   frames: ReadonlyArray<{ tMs: number }>;
+  /** The run's frozen ACTIVE play ms (R-MATCH-LENGTH-01) — THE length. Null/absent = unknown (a run resumed
+   *  from a pre-clock save): the frames' span is then used only when plausible for the rounds played. */
+  activeMs?: number | null;
 }): PracticeGameUpload {
   const seat = run.lobby?.seats.find((x) => x.id === 's0');
   const placement = run.lobby ? seat?.placement ?? run.lobby.seats.filter((x) => x.alive).length : null;
@@ -32,9 +36,16 @@ export function practiceGameOf(run: RunState, opts: {
     wave: run.wave,
     finalBoard: opts.finalBoard,
     runes: opts.finalBoard?.runes ?? [],
-    // WHOLE milliseconds: the frame clock is fractional (performance.now), and `practice_games.duration_ms` is an int
-    // column, so an unrounded value made Postgres reject EVERY practice row (22P02, found 2026-09-27).
-    durationMs: typeof first === 'number' && typeof last === 'number' && last >= first ? Math.round(last - first) : null,
+    // ACTIVE play time (owner 2026-10-09, R-MATCH-LENGTH-01), never the frames' wall-clock span (which counted the
+    // hours a shop sat open in a background tab). WHOLE milliseconds: `practice_games.duration_ms` is an int column,
+    // so an unrounded value made Postgres reject EVERY practice row (22P02, found 2026-09-27).
+    durationMs: roundOrNull(matchLengthMs({
+      activeMs: opts.activeMs,
+      spanMs: typeof first === 'number' && typeof last === 'number' && last >= first ? last - first : null,
+      rounds: run.wave,
+    })),
     config: { opponents: cfg.opponents, botDifficulty: normalizeBotDifficulty(cfg.botDifficulty), health: cfg.health, timeMult: cfg.timeMult ?? 1 },
   };
 }
+
+const roundOrNull = (n: number | null): number | null => (n === null ? null : Math.round(n));

@@ -1,10 +1,11 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { Tribe } from '@game/core';
 import type { RunState } from '@game/sim';
 import { type Guide } from './guides';
 import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
+import { LazyCell, LazyRootProvider } from '../bookLazy';
 
 /**
  * THE COMPENDIUM'S GUIDES TAB (owner ask 2026-10-09: "a guides tab in the compendium that pulls the same guides from
@@ -13,7 +14,7 @@ import './compendiumGuides.css';
  * narrow one, each with its art icon, title, tribe line + tagline, the full write-up (card names hoverable) and bigger
  * Core / Enablers portraits. Which guides show (set, tribe pills, search) is decided by the caller (MinionBook).
  *
- * PERFORMANCE. Each guide card is memoized and its portraits are the memoized `Card` fed stabilized views. Off-screen
+ * PERFORMANCE. Guides mount lazily (all but the first two wait until near the viewport). Each guide card is memoized and its portraits are the memoized `Card` fed stabilized views. Off-screen
  * cards skip layout + paint (`content-visibility: auto`, compendiumGuides.css). Nothing animates.
  */
 export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes, run }: {
@@ -23,10 +24,17 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The run to print live values from, only while the Compendium shows that run's own set. */
   run: RunState | undefined;
 }): JSX.Element {
+  // Lazy (perf 2026-10-09): the first two guides mount with the tab, the rest as they near the viewport (bookLazy.tsx),
+  // so opening Guides builds two guides' portraits instead of every guide's.
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
   if (guides.length === 0) return <div className="book-empty">No guides match these filters.</div>;
   return (
-    <div className="bookguides">
-      {guides.map((g) => <CompendiumGuide key={g.id} guide={g} tribes={tribes} run={run} />)}
+    <div className="bookguides" ref={setRoot}>
+      <LazyRootProvider root={root}>
+        {guides.map((g, i) => (
+          <LazyCell key={g.id} eager={i < 2} className="bookguide-slot">{() => <CompendiumGuide guide={g} tribes={tribes} run={run} />}</LazyCell>
+        ))}
+      </LazyRootProvider>
     </div>
   );
 });

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, memo, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { inRunTribes, type CardDef, type QuestReward, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -20,6 +20,7 @@ import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordG
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
 import { CompendiumRules } from './CompendiumRules';
+import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
 import './compendium.css';
 
@@ -155,6 +156,10 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
 const NON_TRIBE_CATS = new Set<Category>(['spells', 'gifts', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes']);
 
 const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
+const NOOP = (): void => {};
+/** The glossary's clickable terms per set + tribe scope (see `clickableTerms`). */
+const CLICKABLE_TERMS = new Map<string, Set<string>>();
+const EMPTY_TERMS: ReadonlySet<string> = new Set();
 /** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
 // (Was a hardcoded set-1 five — with set 2 live the title-screen book showed Mechs/Undead and no
 // Kobolds/Dwarves. The ACTIVE set's tribe list is the truth; a mid-run book uses the run's own tribes.)
@@ -264,6 +269,26 @@ export function toView(c: CardDef, gilded = false, run?: RunState): CardView {
   };
 }
 
+/** The related-card hover previews for one card (the token it summons, the spell it casts, the Ruby it makes) at
+ *  PRINTED stats, or the run's live ones while the book shows the run's set. */
+function refViewsFor(id: string, liveRun?: RunState): CardView[] | undefined {
+  const views = [
+    ...relatedCardIds(id).map((rid) => CARD_INDEX[rid]).filter((d): d is CardDef => !!d).map((d) => toView(d, false, liveRun)),
+    ...relatedPickOneIds(id).map((rid) => CARD_INDEX[rid]).filter((d): d is CardDef => !!d).map((d) => ({ ...toView(d, false, liveRun), refPick: true })),
+  ];
+  return views.length ? views : undefined;
+}
+
+/** ONE gallery card (perf pass 2026-10-09). Memoised on its def + the gilded switch + the run, so a search keystroke or
+ *  a tier toggle re-renders only the cells that appear or go, never the whole wall; and lazy (bookLazy.tsx), so a card
+ *  mounts only when it nears the viewport. Its view and its hover previews are built here, once, for this card only
+ *  (they used to be rebuilt for every in-scope card on every open). */
+const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean }) {
+  const view = useMemo(() => toView(card, gilded, liveRun), [card, gilded, liveRun]);
+  const refs = useMemo(() => refViewsFor(card.id, liveRun), [card.id, liveRun]);
+  return <LazyCell eager={eager}>{() => <Card card={view} forceFull suppressPop plated refCards={refs} />}</LazyCell>;
+});
+
 /**
  * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
@@ -298,6 +323,9 @@ export function MinionBook() {
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
   const [search, setSearch] = useState(''); // free-text search over card/quest/rune name + text ("Imp", "Ward", …)
+  // The filters read a DEFERRED copy (perf 2026-10-09): the box updates on the keystroke, the gallery a beat later at
+  // low priority, and an older filter pass is dropped when a newer keystroke lands.
+  const searchQ = useDeferredValue(search);
   const [gilded, setGilded] = useState(false); // show every card's tripled/golden form
   // ZOOM (owner ask 2026-08-02): scales the grid's card size so more/fewer cards fit. Persisted, because a
   // browsing preference that resets every open is one the player has to re-set every time. Clamped to the
@@ -372,16 +400,16 @@ export function MinionBook() {
   // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
   const heroesToShow = useMemo(() => {
-    const m = makeSearchMatcher(search);
+    const m = makeSearchMatcher(searchQ);
     return HEROES.filter((h) => !h.wip)
       .filter((h) => m(h.name) || m(h.power.name) || m(h.power.text))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [search]);
+  }, [searchQ]);
 
   // Every rune (both forges) for the Runes tab — Basic set first, then Epic, each alphabetical. Not run-scoped
   // (runes aren't tribe-bound); shown as read-only RuneCards.
   const runesToShow = useMemo(() => {
-    const m = makeSearchMatcher(search);
+    const m = makeSearchMatcher(searchQ);
     const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
     // NEUTRAL (owner ask 2026-09-24) = the runes with NO tribe gate (`tribes` absent or empty: the forge offers them
     // in every run). It ORs with the tribe pills like any other pill, and a tribe-gated rune never matches it.
@@ -391,31 +419,31 @@ export function MinionBook() {
     // is offered everywhere; otherwise its scope must name this set.
     const setOk = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(setId);
     return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => setOk(r) && match(r) && tribeOk(r));
-  }, [search, runeTribes, setId]);
+  }, [searchQ, runeTribes, setId]);
 
   // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
   // view"): the SAME data the lobby rail reads (`guidesFor`), for the SHOWN set (it follows the set picker) and its
   // tribes (the run's, while browsing the run). Narrowed by the tribe pills (a tribe-less guide is Neutral) and the
   // search box (title, tagline, write-up).
   const guidesToShow = useMemo(() => {
-    const m = makeSearchMatcher(search);
+    const m = makeSearchMatcher(searchQ);
     return guidesFor(setId, tribes)
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
       .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
-  }, [setId, tribes, guideTribes, search]);
+  }, [setId, tribes, guideTribes, searchQ]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
   const questTierOrder = { lesser: 0, greater: 1, capstone: 2 } as const;
   const questsToShow = useMemo(() => {
     const tribeSel = [...cats].filter((x): x is Tribe => !NON_TRIBE_CATS.has(x));
-    const m = makeSearchMatcher(search);
+    const m = makeSearchMatcher(searchQ);
     return QUEST_DEFS
       .filter((qd) => qd.tribe === 'neutral' || tribes.includes(qd.tribe))
       .filter((qd) => tribeSel.length === 0 || tribeSel.includes(qd.tribe))
       .filter((qd) => m(qd.name)) // search matches the quest name
       .sort((a, b) => questTierOrder[a.tier] - questTierOrder[b.tier] || a.name.localeCompare(b.name));
-  }, [tribes, cats, search]);
+  }, [tribes, cats, searchQ]);
 
   // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell and every
   // quest-reward card whose granting quest is in scope. Buyable tokens are dropped by `BUYABLE_CARDS`; the
@@ -440,10 +468,10 @@ export function MinionBook() {
   }, [tribes, pool, RUBIES]); // `pool` changes only when the run's set does — but it IS an input now
 
 
-  const query = search.trim().toLowerCase();
+  const query = searchQ.trim().toLowerCase();
   // Free-text match over a card's name + printed text (and golden text) — powers the search box. Quote the query
   // ("Imp") for a whole-word match; leave it unquoted (Imp) for a loose substring.
-  const searchMatch = makeSearchMatcher(search);
+  const searchMatch = makeSearchMatcher(searchQ);
   const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '');
 
   // The Runes / Heroes / Quests tabs render their own galleries — the card gallery (and its tier chart) is empty there.
@@ -532,25 +560,25 @@ export function MinionBook() {
   // While the book shows the run's own set, a preview reads the run (a Ruby preview prints the grant it would
   // mint at now, like the shop's); browsing the title or another set, it stays printed.
   const liveRun = browsingRun ? run : undefined;
-  const refViews = useMemo(() => {
-    const m = new Map<string, CardView[]>();
-    for (const c of allCards) {
-      const views = [
-        ...relatedCardIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => toView(d, false, liveRun)),
-        ...relatedPickOneIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => ({ ...toView(d, false, liveRun), refPick: true })),
-      ];
-      if (views.length) m.set(c.id, views);
-    }
-    return m;
-  }, [allCards, liveRun]);
+  // The gallery scroller, the root the lazy cells observe; and how many cells mount up front (about two rows).
+  const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
+  const eagerN = useMemo(() => eagerCellCount(zoom), [zoom]);
+  // (The previews are built per mounted card, in BookCardCell.)
 
   // A glossary term is a live filter only if at least one in-scope card matches it — otherwise the row
   // renders inert (no dead-end clicks). Scope-aware: a keyword absent from this run's tribes reads inert.
+  // Built only while the glossary is up (perf 2026-10-09: it scanned every card's keywords on every open).
+  // Cached per set + tribe scope for the session: the answer only changes when the in-scope cards do.
   const clickableTerms = useMemo(() => {
+    if (!glossary) return EMPTY_TERMS;
+    const key = `${setId}|${tribes.join(',')}`;
+    const hit = CLICKABLE_TERMS.get(key);
+    if (hit) return hit;
     const s = new Set<string>();
     for (const g of GLOSSARY) for (const it of g.items) if (it.match && allCards.some(it.match)) s.add(it.term);
+    CLICKABLE_TERMS.set(key, s);
     return s;
-  }, [allCards]);
+  }, [allCards, glossary, setId, tribes]);
 
   const toggleTier = (t: number): void =>
     setTiers((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; });
@@ -621,7 +649,7 @@ export function MinionBook() {
                     : query
                       ? `${(guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
                           (guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
-                        } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
+                        } for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`
                     : guidesOn
                       ? `${guidesToShow.length} guide${guidesToShow.length === 1 ? '' : 's'}. Build lines for ${SETS[setId].name}.`
                     : cats.has('heroes')
@@ -853,7 +881,7 @@ export function MinionBook() {
             <CompendiumGuides guides={guidesToShow} tribes={tribes} run={liveRun} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
-              <div className="book-grid">
+              <div className="book-grid is-heroes">
                 {heroesToShow.map((h) => {
                   const art = heroArt(h.id);
                   return (
@@ -880,12 +908,12 @@ export function MinionBook() {
               <div className="book-empty">No heroes match your search.</div>
             )
           ) : cats.has('runes') ? (
-            <div className="book-grid">
-              {runesToShow.map((r) => (
-                <div className="book-cell" key={r.id}>
-                  <RuneCard rune={r} affordable onBuy={() => {}} />
-                </div>
-              ))}
+            <div className="book-grid is-runes" ref={setGridEl}>
+              <LazyRootProvider root={gridEl}>
+                {runesToShow.map((r, i) => (
+                  <LazyCell key={r.id} eager={i < eagerN}>{() => <RuneCard rune={r} affordable onBuy={NOOP} />}</LazyCell>
+                ))}
+              </LazyRootProvider>
             </div>
           ) : cats.has('quests') ? (
             questsToShow.length > 0 ? (
@@ -902,12 +930,12 @@ export function MinionBook() {
           ) : filtered.length > 0 ? (
             // `--book-zoom` scales the grid's card metrics (see styles.css); `plated` gives every card the
             // same carved PLATE it wears in hand, so the Compendium reads as the game does (owner 2026-08-02).
-            <div className="book-grid" style={{ '--book-zoom': zoom } as CSSProperties}>
-              {filtered.map((c) => (
-                <div className="book-cell" key={c.id}>
-                  <Card card={toView(c, gilded, browsingRun ? run : undefined)} forceFull suppressPop plated refCards={refViews.get(c.id)} />
-                </div>
-              ))}
+            <div className="book-grid" ref={setGridEl} style={{ '--book-zoom': zoom } as CSSProperties}>
+              <LazyRootProvider root={gridEl}>
+                {filtered.map((c, i) => (
+                  <BookCardCell key={c.id} card={c} gilded={gilded} liveRun={liveRun} eager={i < eagerN} />
+                ))}
+              </LazyRootProvider>
             </div>
           ) : (
             <div className="book-empty">No cards match these filters.</div>

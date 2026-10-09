@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { RUNE_INDEX, runeSynergies } from '@game/content';
 import { createRun, deserialize, reduce, serialize, type RunState } from './index';
-import { BASIC_FORGE_TRIBE_FIT, EPIC_FORGE_TRIBE_FIT, boardSynergyTags, boardTribeCounts, pendingEpicForges } from './reducer';
+import { BASIC_FORGE_TRIBE_FIT, EPIC_FORGE_TRIBE_FIT, boardSynergyTags, boardTribeCounts, pendingEpicForges, runeFitTags } from './reducer';
 
 const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
@@ -208,7 +208,7 @@ describe('The board-fit rule (owner 2026-09-22: "at least 2 of a tribe type" Bas
       wave: 5, phase: 'combat', hand: [], board, lastCombat: win };
     return reduce(s, { type: 'resolveCombat' });
   };
-  const followsBoard = (s: RunState, id: string): boolean => { const tags = boardSynergyTags(s); return runeSynergies(RUNE_INDEX[id]!).some((t) => tags.has(t)); };
+  const followsBoard = (s: RunState, id: string): boolean => { const tags = boardSynergyTags(s); return runeFitTags(RUNE_INDEX[id]!).some((t) => tags.has(t)); };
   const beastOnly = (id: string): boolean => { const t = runeSynergies(RUNE_INDEX[id]!); return t.length === 1 && t[0] === 'beast'; };
 
   it('the guarantee swaps in a fitting rune under the new rule: 2 Pups (a tribe tag and nothing else) always see a Beast rune', () => {

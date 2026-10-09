@@ -1125,7 +1125,9 @@ weighted **equally**: no rarity tiers, no pity timer.
 **"Fits the board"** (owner 2026-09-22: "for basic, it should be at least 2 of a tribe type, and for epic
 it should be at least 3 of a tribe type. make sure all types count as 1 of everything"). A rune's synergy
 tags come from its printed text (`packages/content/src/runeSynergy.ts`: the tribes it names plus the named
-mechanics — Rally, Echo, Shout, Avenge, Consume, Ruby, Ale, spells, Gold, summon). The board's tags come from
+mechanics — Rally, Echo, Shout, Avenge, Consume, Ruby, Ale, spells, Gold, summon) PLUS its tribe gate
+(`tribes`, via `runeFitTags` in the reducer), so a gated rune that never prints the tribe word (Rune of Baal,
+Rune of Chimerus, Rune of the Whelps) is still that tribe's rune (2026-10-08). The board's tags come from
 its cards (`boardSynergyTags`):
 - A **tribe** tag needs at least **2** minions of that tribe on the board at a **Basic** forge and at
   least **3** at an **Epic** forge (`BASIC_FORGE_TRIBE_FIT` / `EPIC_FORGE_TRIBE_FIT`). Only the **7 board
@@ -1140,7 +1142,10 @@ its cards (`boardSynergyTags`):
 
 **The guarantee and the pivot discount** (`drawRuneOffer`, owner ask 2026-07-31): if an offer's 4 draws
 contain nothing that follows the board but a following rune exists in the pool, one seeded slot is swapped
-for one that does. Every offered rune that does NOT follow the board rolls a **40%** chance of a **pivot
+for one that does. **Tribe first** (owner 2026-10-08: "he should have at least 1 rune that is tribe aligned
+here"): when the board holds a tribe at the threshold, the guaranteed slot must be a rune of one of those
+tribes; a rune that only shares a mechanic tag (a Demon rune that says "summon") no longer satisfies it. A
+board with no tribe at the threshold keeps the mechanic guarantee. Every offered rune that does NOT follow the board rolls a **40%** chance of a **pivot
 discount**: **1–2 Gold** at a Basic forge, **2–4 Gold** at an Epic forge — a nudge toward changing
 direction, never a tax on staying the course. A rune that fits the board never carries one.
 

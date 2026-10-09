@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-08',
     changes: [
+      { category: 'Systems', text: 'Fixed: the Runeforge now always offers at least one rune for your tribe when your board has enough of it. That is 2 of a tribe at a Basic Runeforge and 3 at an Epic one.' },
       {
         category: 'Systems',
         text: 'Hover previews now always stay on screen. A rune on the right of the Runeforge shows its cards to the left instead of off the edge.',

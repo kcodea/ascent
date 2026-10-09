@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { inRunTribes, type CardDef, type QuestReward, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -21,6 +21,8 @@ import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
 import { CompendiumRules } from './CompendiumRules';
 import rulesQuestionArt from './rules-question.png';
+import compendiumBookArt from './compendium-book.png';
+import './compendium.css';
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -553,29 +555,35 @@ export function MinionBook() {
     <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
       <div className="book" onClick={(e) => e.stopPropagation()}>
         <div className="book-head">
-          <div className="book-title"><Icon name="house" /> Compendium</div>
-          <div className="book-sub">
-            {rules
-              ? 'Rules & how-to. Search any question.'
-              : glossary
-              ? 'Keywords & abilities. Click one to see its minions.'
-              : query
-                ? `${(guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
-                    (guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
-                  } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
-              : guidesOn
-                ? `${guidesToShow.length} guide${guidesToShow.length === 1 ? '' : 's'}. Build lines for ${SETS[setId].name}.`
-              : cats.has('heroes')
-                ? `${heroesToShow.length} heroes. Every champion and their power.`
-                : cats.has('runes')
-                ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
-                : cats.has('quests')
-                ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
-                : `${filtered.length} ${
-                    [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
-                      .filter(Boolean)
-                      .join(' & ') || 'minions'
-                  } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
+          {/* Title block (polish 2026-10-09): the HUD book's own painted art, the name, and the live subtitle under it. */}
+          <div className="book-titleblock">
+            <img className="book-title-art" decoding="sync" src={compendiumBookArt} alt="" draggable={false} />
+            <div className="book-titletext">
+              <div className="book-title">Compendium</div>
+              <div className="book-sub">
+                {rules
+                  ? 'Rules & how-to. Search any question.'
+                  : glossary
+                  ? 'Keywords & abilities. Click one to see its minions.'
+                  : query
+                    ? `${(guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
+                        (guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
+                      } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
+                  : guidesOn
+                    ? `${guidesToShow.length} guide${guidesToShow.length === 1 ? '' : 's'}. Build lines for ${SETS[setId].name}.`
+                  : cats.has('heroes')
+                    ? `${heroesToShow.length} heroes. Every champion and their power.`
+                    : cats.has('runes')
+                    ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
+                    : cats.has('quests')
+                    ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
+                    : `${filtered.length} ${
+                        [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
+                          .filter(Boolean)
+                          .join(' & ') || 'minions'
+                      } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
+              </div>
+            </div>
           </div>
           {!codex && (
             <input
@@ -587,48 +595,51 @@ export function MinionBook() {
               aria-label="Search cards, quests, and runes by name or text"
             />
           )}
-          <button
-            className={`book-gloss book-rules${rules ? ' on' : ''}`}
-            onClick={() => { setRules((r) => !r); setGlossary(false); setGuidesOn(false); }}
-            aria-pressed={rules}
-            aria-description="Rules. Search how anything in the game works."
-          >
-            <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
-          </button>
-          <button
-            className={`book-gloss${glossary ? ' on' : ''}`}
-            onClick={() => { setGlossary((g) => !g); setRules(false); setGuidesOn(false); }}
-            aria-pressed={glossary}
-            aria-description="Glossary. Every keyword and trigger, defined."
-          >
-            <Icon name="sc" /> Glossary
-          </button>
-          <button
-            className={`book-gloss${guidesOn ? ' on' : ''}`}
-            onClick={() => { setGuidesOn((g) => !g); setRules(false); setGlossary(false); }}
-            aria-pressed={guidesOn}
-            aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
-          >
-            <Icon name="book" /> Guides
-          </button>
+          {/* The three view switches as one segmented Gem bar. */}
+          <div className="book-views" role="group" aria-label="Compendium views">
+            <button
+              className={`book-gloss book-rules${rules ? ' on' : ''}`}
+              onClick={() => { setRules((r) => !r); setGlossary(false); setGuidesOn(false); }}
+              aria-pressed={rules}
+              aria-description="Rules. Search how anything in the game works."
+            >
+              <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
+            </button>
+            <button
+              className={`book-gloss${glossary ? ' on' : ''}`}
+              onClick={() => { setGlossary((g) => !g); setRules(false); setGuidesOn(false); }}
+              aria-pressed={glossary}
+              aria-description="Glossary. Every keyword and trigger, defined."
+            >
+              <Icon name="sc" /> Glossary
+            </button>
+            <button
+              className={`book-gloss${guidesOn ? ' on' : ''}`}
+              onClick={() => { setGuidesOn((g) => !g); setRules(false); setGlossary(false); }}
+              aria-pressed={guidesOn}
+              aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
+            >
+              <Icon name="book" /> Guides
+            </button>
+          </div>
           {!codex && (
             <div className="book-zoom" role="group" aria-label="Card size">
               <button
-                className="book-zoom-btn pressable"
+                className="book-zoom-btn"
                 onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10))}
                 disabled={zoom <= ZOOM_MIN}
                 aria-label="Smaller cards (more per screen)"
               >−</button>
               <span className="book-zoom-val">{Math.round(zoom * 100)}%</span>
               <button
-                className="book-zoom-btn pressable"
+                className="book-zoom-btn"
                 onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10))}
                 disabled={zoom >= ZOOM_MAX}
                 aria-label="Bigger cards (fewer per screen)"
               >+</button>
             </div>
           )}
-          <button className="book-close pressable" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
+          <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
         </div>
 
         {rules ? (
@@ -785,18 +796,22 @@ export function MinionBook() {
         <div className="book-main">
           {/* Tribe + Spells filters down the left (multi-select). */}
           <div className="book-rail">
-            {categories.map((c) => (
-              <button
-                key={c}
-                className={`book-cat${!guidesOn && cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
-                onClick={() => toggleCat(c)}
-                aria-pressed={!guidesOn && cats.has(c)}
-                aria-label={CAT_META[c].label}
-              >
-                <Icon name={CAT_META[c].icon} />
-                <span className="book-catlabel">{CAT_META[c].label}</span>
-              </button>
+            {categories.map((c, i) => (
+              <Fragment key={c}>
+                {/* Group captions (polish 2026-10-09): the minion tribes first, then the other galleries. */}
+                {i === 0 && <span className="book-railcap">Minions</span>}
+                {c === 'spells' && <span className="book-railcap">Library</span>}
+                <button
+                  className={`book-cat${!guidesOn && cats.has(c) ? ' on' : ''}`}
+                  style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
+                  onClick={() => toggleCat(c)}
+                  aria-pressed={!guidesOn && cats.has(c)}
+                  aria-label={CAT_META[c].label}
+                >
+                  <span className="book-catico"><Icon name={CAT_META[c].icon} /></span>
+                  <span className="book-catlabel">{CAT_META[c].label}</span>
+                </button>
+              </Fragment>
             ))}
           </div>
 

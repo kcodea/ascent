@@ -1,0 +1,267 @@
+/* ── Compendium (Tab) — a filterable codex of minions + spells. Blurred overlay styled like an open tome:
+   tier filters across the top, tribe/Spells filters down the left, a single scrolling gallery. ── */
+.book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(26, 16, 6, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* Compendium scale (owner call): the window fills the viewport and the cards are 10% larger. The palette
+   is deliberately NOT overridden here — the book uses the game's standard cream surface (`--card`/`--ink`/
+   `--line` from `:root`). A blue scheme was tried and reverted (owner call); the `📖 Compendium Palette` dev
+   tuner is the way to explore another one, and its defaults mirror these shipped values. */
+/* Compendium palette (owner-tuned, baked from the DEV Compendium tuner 2026-08-10): the shared surface tokens
+   are RE-DECLARED on `.book` so every child rule reading var(--card)/--line/--ink/… reskins from this one
+   block — a dark face with a cream rule and a warm peach ink. The three surfaces below (body/head/rail) carry
+   explicit fills the tokens can't express as a gradient. */
+.book { --card: #000000; --line: #e7dcc7; --ink: #f5c6ad; --ink3: #d1c3ad; --bg2: #ffe5b8; --bg3: #ffe5b8; width: min(2300px, calc(95 * var(--vw, 1vw))); height: min(1450px, calc(93 * var(--vh, 1vh))); display: flex; flex-direction: column; background: linear-gradient(180deg, #e8f1fd 0%, #000000 14%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* Gentle fade + slight pop (NOT inspectpop — that scales 1.45→1.9 for the inspect card, which rests at 1.9;
+   the book rests at scale 1, so inspectpop made it balloon then snap down). */
+@keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+.book-head { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 2px solid var(--line); background: #1b1a21; flex: none; }
+.book-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 27.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+.book-title svg { width: 27.5px; height: 27.5px; color: var(--acc); }
+.book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15.4px; color: var(--ink3); }
+/* Gilded toggle — show every card's tripled form. Pushed to the right, beside the close button. */
+.book-gilded { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-gilded svg { width: 17px; height: 17px; }
+.book-gilded:hover { transform: translateY(-2px); border-color: #e7b53d; }
+.book-gilded.on { background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; border-color: #c8922e; box-shadow: 0 3px 0 #c8922e; }
+.book-close { width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-size: 17px; font-weight: 800; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.book-close:hover { border-color: var(--threat); color: var(--threat-dk); }
+.book-tiers { display: flex; align-items: center; gap: 8px; padding: 11px 22px; border-bottom: 2px solid var(--line); flex: none; }
+.book-axislabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-right: 4px; }
+.book-tier { width: 38px; height: 38px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-tier:hover { transform: translateY(-2px); border-color: var(--acc); }
+.book-tier.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+/* THE TIER BAR NEVER LEAVES (owner report 2026-09-18: switching to Runes/Heroes unmounted it and the whole window
+   jumped a row). On those tabs the chips dim + disable instead. `min-height` pins the bar's height to the chart's,
+   so the chart's presence/absence can't move the gallery either. */
+.book-tiers { min-height: 92px; position: relative; }
+/* The hover previews (a card's related cards, a rune's granted cards) portal to <body> at z 460 — UNDER the book
+   overlay's 480, so inside the Compendium they rendered invisibly behind the tome (owner report 2026-09-18:
+   "add mouseover previews" — they were there, just covered). Lift them over the book while it is open; still
+   under the Inspect overlay (500), which must keep covering everything. */
+body:has(.book-ov) .cardref { z-index: 490; }
+.book-tier:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* GILDED IN THE TIER ROW (owner 2026-10-09: "move the Gilded button next to the minion tiers, and make it fit in that
+   row better/cleanly"). Same 38px chip as the tiers, set off from them by a short rule, and dimmed + disabled with
+   them on the untiered tabs (Runes, Heroes, Guides). */
+.book-tiers-div { flex: none; width: 2px; height: 24px; margin: 0 6px; border-radius: 1px; background: var(--line); opacity: 0.45; }
+.book-tiers .book-gilded { margin-left: 0; }
+.book-gilded:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* With Gilded in the row, the tribe-pill clusters (Runes, Guides) are too wide to stay absolutely centred: they join
+   the flow and centre in the space between the chips and the set picker, so they never run under Gilded. */
+.book-chart:has(.book-runetribes) { position: static; transform: none; margin: 0 auto; }
+.book-chart:has(.book-runetribes) + .book-tiers-end { margin-left: 0; }
+/* THE SET PICKER (owner ask 2026-09-24): the far-right cluster of the tier bar holds the keyword chip (when on)
+   and a custom dropdown that swaps which card set the book shows. Same chip grammar as the tier buttons and the
+   Gilded toggle (2px frame, bg2 face, UI font, lift on hover); the open list reads as a small dark tome page with
+   the gold Gilded face on the picked row. No bare `cursor: pointer` (the global gauntlet rule paints the button;
+   the `li` options take the gauntlet URL form). Open/close is a ONE-SHOT opacity + transform transition. */
+.book-tiers-end { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; z-index: 30; }
+.book-tiers-end .book-kwchip { margin-left: 0; }
+.book-setpick { position: relative; }
+.book-setpick-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 2px 0 color-mix(in srgb, var(--line) 55%, #000); transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; }
+.book-setpick-btn:hover { transform: translateY(-2px); border-color: #e7b53d; box-shadow: 0 4px 0 #c8922e; }
+.book-setpick-btn:active { transform: translateY(2px); box-shadow: 0 0 0 #c8922e; transition-duration: 0.06s; }
+.book-setpick-btn:focus-visible { outline: 2px solid #e7b53d; outline-offset: 2px; }
+.book-setpick.is-open .book-setpick-btn { border-color: #e7b53d; }
+.book-setpick-cap { font-size: 10.5px; letter-spacing: 0.1em; opacity: 0.6; }
+.book-setpick-name { white-space: nowrap; }
+.book-setpick-live { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 6px; background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; font-family: var(--font-ui); font-weight: 800; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.book-setpick-caret { width: 16px; height: 16px; transition: transform 0.14s ease; }
+.book-setpick.is-open .book-setpick-caret { transform: rotate(180deg); }
+.book-setpick-list { position: absolute; top: calc(100% + 8px); right: 0; min-width: 100%; width: max-content; margin: 0; padding: 6px; list-style: none; display: flex; flex-direction: column; gap: 4px; background: #1b1a21; border: 2px solid #e7b53d; border-radius: 12px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 216, 90, 0.12); opacity: 0; visibility: hidden; transform: translateY(-6px) scale(0.97); transform-origin: top right; transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s; }
+.book-setpick.is-open .book-setpick-list { opacity: 1; visibility: visible; transform: none; transition: opacity 0.12s ease, transform 0.14s cubic-bezier(0.34, 1.2, 0.64, 1), visibility 0s; }
+.book-setpick-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 150px; height: 36px; padding: 0 12px; border-radius: 9px; border: 2px solid transparent; color: var(--ink); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; transition: background 0.08s, border-color 0.08s; }
+.book-setpick-opt.is-focus { background: rgba(255, 216, 90, 0.1); border-color: color-mix(in srgb, #e7b53d 60%, transparent); }
+.book-setpick-opt.on { background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; border-color: #c8922e; }
+.book-setpick-opt.on .book-setpick-live { background: #6e5008; color: #ffd85a; }
+/* THE TIER CHART — one bar per tier, centred in the bar's spare width. `--h` (0..1) is the bar's share of the
+   tallest tier; the number rides above, the tier below. A picked tier (a lit chip) reads accented; the rest dim
+   while any chip is on so the selection reads in the chart too. Bars are buttons and toggle the tier chips. */
+/* Centred on the WINDOW, not on the space left beside the chips (owner ask 2026-09-18: 'centered in the compendium'). */
+.book-chart { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: flex-end; justify-content: center; gap: 10px; height: 70px; }
+.book-chart-quiet { align-self: center; font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); opacity: 0.55; }
+.book-chart-cap { align-self: center; margin-right: 14px; max-width: 74px; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: 10.5px; line-height: 1.15; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.book-bar { --bar-c: var(--acc); width: 40px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; padding: 0; border: 0; background: none; color: var(--ink3); font-family: var(--font-ui); transition: opacity 0.12s; }
+.book-bar-n { font-weight: 800; font-size: 12px; line-height: 1; color: var(--ink); }
+.book-bar-fill { display: flex; flex-direction: column-reverse; width: 100%; height: max(3px, calc(var(--h, 0) * 42px)); border-radius: 5px 5px 2px 2px; overflow: hidden; background: color-mix(in srgb, var(--line) 35%, transparent); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); transition: height 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); }
+/* One segment per tribe (rail order, bottom-up), painted in that tribe's colour — `--seg-h` is its share of the
+   tallest tier, so the segments add up to exactly the bar's `--h`. */
+.book-bar-seg { display: block; width: 100%; height: calc(var(--seg-h, 0) * 42px); background: linear-gradient(180deg, color-mix(in srgb, var(--seg-c) 88%, #fff) 0%, var(--seg-c) 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); transition: height 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.book-bar-seg + .book-bar-seg { border-bottom: 1px solid rgba(0, 0, 0, 0.35); }
+/* RUNES TAB — the chart space holds one tribe button per run tribe, painted in the tribe colour like the rail. */
+.book-runetribes { display: flex; align-items: center; justify-content: center; gap: 8px; align-self: center; }
+.book-runetribe { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px 0 9px; border-radius: 10px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 12.5px; letter-spacing: 0.02em; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-runetribe svg { width: 16px; height: 16px; color: var(--c); }
+.book-runetribe:hover { transform: translateY(-2px); border-color: var(--c); }
+.book-runetribe.on { background: color-mix(in srgb, var(--c) 22%, var(--card)); border-color: var(--c); color: var(--ink); }
+
+.book-bar-t { font-weight: 800; font-size: 11px; line-height: 1; letter-spacing: 0.06em; }
+.book-bar:hover .book-bar-fill { filter: brightness(1.15); }
+.book-bar.is-empty .book-bar-fill { box-shadow: none; }
+.book-bar.is-empty .book-bar-n { color: var(--ink3); opacity: 0.6; }
+.book-bar.is-off { opacity: 0.38; }
+.book-bar.is-picked .book-bar-fill { --bar-c: var(--gold); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent), 0 1px 0 color-mix(in srgb, var(--gold) 60%, #000); }
+.book-bar.is-picked .book-bar-t { color: var(--gold); }
+.book-main { flex: 1; display: flex; min-height: 0; }
+.book-rail { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; border-right: 2px solid var(--line); background: #2c2320; overflow-y: auto; flex: none; }
+.book-cat { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px 9px 11px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 700; font-size: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; white-space: nowrap; transition: border-color 0.1s, background 0.1s; }
+.book-cat svg { width: 18px; height: 18px; color: var(--c); flex: none; }
+.book-cat:hover { border-color: var(--c); }
+.book-cat.on { background: color-mix(in srgb, var(--c) 20%, var(--card)); border-color: var(--c); color: var(--ink); }
+/* Columns never squeeze below a full card width (auto-fill drops a column instead of overlapping), and the
+   row gap reserves space for the text plate hanging under each oval (owner report 2026-07-16: cards were
+   stacking on top of each other). */
+/* `--book-zoom` (owner ask 2026-08-02) scales the ONE metric the rest derive from, so a zoom step resizes
+   the card, its drawer and the column width together — and `auto-fill` re-flows the columns for free. */
+/* A PLATED card's stone slab is fully opaque and larger than the card, so on the book's pale surface it read
+   as a grey rectangle sticking out on all four sides (owner report 2026-08-02: "what are these card
+   shadows"). In hand the same plate reads as carved framing because the board behind it is dark — so the
+   GRID gets a dark surface of its own rather than the plates being dropped. Scoped to the grid: the rail,
+   header and glossary keep the book's light treatment. */
+.book-grid { background: linear-gradient(180deg, #1b1a21 0%, #141319 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 18.4px), 1fr)); gap: 72px 25.3px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: calc(clamp(233px, calc(28.6 * var(--vh, 1vh)), 304px) * var(--book-zoom, 1)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+/* A PLATED card is wider than its frame (the plate overhangs), so the cell has to allow for it or the grid
+   clips the carved edge — the same allowance `.cardref .card.plated` makes for the hover preview. */
+.book-grid .card.plated {
+  margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2);
+  /* The plate is ABSOLUTELY positioned, so it overflows the cell the grid measures: 37px above (`--plate-top`)
+     and ~0.1 x --ccw below. Measured 2026-08-02 at the shipped row gap: consecutive rows' plates OVERLAPPED by
+     6px — a bigger gap alone can never fix that, because the grid is still sizing rows to the un-plated card.
+     Reserve the overhang as margin (the same doctrine as `margin-inline` above), THEN let the row gap be pure
+     breathing room. */
+  margin-block: calc(-1 * var(--plate-top, -37px)) calc(var(--ccw) * 0.34);
+}
+/* The Compendium is a BROWSING grid, so the text drawer must sit IN FLOW here: rows then size to the real
+   panel height and can never collide, however long a card's text runs (Uron and Amun Rab overflowed the old
+   fixed `--ch * 0.45` row gap and crashed into the row below). Everywhere else the drawer stays absolutely
+   positioned on purpose — in centered contexts (Discover, inspect, rows) in-flow growth moved the frame
+   itself, which is the owner call from 2026-07-19 that this rule deliberately does NOT undo.
+   Use `relative` (still in flow, so row-sizing is unchanged) rather than `static`, and `inset: auto` to drop
+   the absolute-mode offsets: the drawer must stay a POSITIONING CONTEXT because its `.descbox` (the dark
+   desc-backbox panel) is `position:absolute; top:-184px` anchored to it. Under `static` the descbox escaped to
+   a higher ancestor and floated ~184px ABOVE the card (owner report 2026-08-18: "the dark [panel]… is way above,
+   lower it… seated perfectly in the live game"); as a relative context it re-seats on the card exactly as it
+   does in the hand. Scoped to `.book-grid`, so the hand is untouched. */
+.book-grid .card.compact.showtext .drawer { position: relative; inset: auto; margin-top: calc(var(--ccw) * 0.15); }
+/* Spell cards lift their text here too (the in-flow Compendium drawer ignores the absolute `top` lift above). */
+.book-grid .card.compact.showtext.spellcard .drawer { margin-top: calc(var(--ccw) * (0.15 - var(--spell-txt-lift, 0.05))); }
+/* …and minions ride up slightly in the Compendium (owner 2026-10-09). The backbox lives inside the drawer, so it
+   is pushed back down by the same amount to stay on the plate. */
+.book-grid .card.compact.showtext:not(.spellcard) .drawer { margin-top: calc(var(--ccw) * (0.15 - var(--book-minion-txt-lift, 0.04))); }
+.book-grid .card.compact.showtext:not(.spellcard) .drawer .descbox { top: calc(var(--ccw) * (var(--ctx-box-y, -1.235) + var(--book-minion-txt-lift, 0.04))); }
+/* With the drawer in flow the cell owns its full height, so the hover scale needs a transform origin that
+   doesn't push a tall card under its neighbour. */
+.book-grid .book-cell { display: flex; justify-content: center; width: 100%; }
+/* (Book scroll areas hide the native scrollbar — see the shared rule near the top; a styled webkit
+   scrollbar can't keep the custom cursor, so we hide it and scroll by wheel/trackpad.) */
+.book-cell { transition: transform 0.12s ease; }
+/* Zoom control — sits in the Compendium header beside Gilded, matching its pill treatment. */
+.book-zoom { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.14); }
+.book-zoom-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.07); color: var(--ink, #f2ead9); font-size: 17px; line-height: 1; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.book-zoom-btn:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.book-zoom-val { min-width: 44px; text-align: center; font-size: 13px; letter-spacing: 0.04em; opacity: 0.85; }
+.book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
+.book-empty { flex: 1; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: var(--ink3); }
+/* Heroes tab — a read-only champion card (portrait + Resolve/Armor + power) sized to the book grid cell. */
+/* Heroes wear the SAME dark-glass panel as the minion text drawer (owner call) — the cream `--card` panel
+   read as a different component sitting in the same grid. Colours mirror `.card.compact.showtext .drawer`. */
+.bookhero { width: var(--cw); min-height: var(--ch); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 12px 16px; border-radius: 16px; border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); background: linear-gradient(180deg, #241a13, #17110c); color: #f4ecdb; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px -6px rgba(0, 0, 0, 0.45); }
+.bookhero-art { width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: #0f0b07; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--gold) 30%, #000); }
+.bookhero-art img { width: 100%; height: 100%; object-fit: cover; }
+.bookhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.02em; color: #f4ecdb; }
+.bookhero-hp { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #ef6a6a; }
+.bookhero-hp svg { width: 15px; height: 15px; }
+.bookhero-armor { color: #8fbce6; }
+.bookhero-pw { font-size: 12px; line-height: 1.4; color: #d8ccb6; font-weight: 600; }
+.bookhero-pw b { color: #f0c168; font-weight: 800; }
+.bookhero-lock { margin-top: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #a2957f; }
+
+/* Glossary toggle — swaps the gallery for the keyword codex. Sits left of Gilded, same pill shape; both
+   carry margin-left:auto so the pair (or just Glossary, when Gilded is hidden) hugs the close button. */
+.book-gloss { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.book-gloss svg { width: 17px; height: 17px; }
+.book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
+.book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+/* Search box in the compendium header — becomes the right-side pusher; the Glossary/Gilded buttons flow after it. */
+.book-search { margin-left: auto; height: 38px; width: min(240px, calc(28 * var(--vw, 1vw))); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); /* the rail chips' grey/black, not the orange ink (owner 2026-09-18) */ font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
+.book-search:focus { outline: none; border-color: var(--acc); }
+.book-search::placeholder { color: var(--ink3); }
+.book-search ~ .book-gloss, .book-search ~ .book-gilded { margin-left: 12px; }
+/* The codex body — the glossary's sections as columns that FILL the compendium width (auto-fit, not auto-fill:
+   auto-fill/340px crammed the groups left and left a big empty gutter; auto-fit stretches the tracks). Four
+   sections since the 2026-09-18 true-up. Scrolls like the gallery (native bar hidden). */
+.book-gloss-body { flex: 1; overflow-y: auto; padding: 26px 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; align-content: start; scrollbar-width: none; -ms-overflow-style: none; }
+.book-gloss-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* The groups are CREAM panels inside the black book, and `.book` re-pins `--ink` to a pale orange for the black
+   surround — so a term name inheriting it was pale orange on cream and barely readable (owner screenshot
+   2026-09-18). Re-pin the ink to the root's dark values inside the panels: names in near-black, definitions in
+   the same dark grey the rail chips use (`--ink2`). Medallions keep the accent. */
+.gloss-group { --ink: #2a2017; --ink2: #6c5d48; background: var(--bg2); border: 2px solid var(--line); border-radius: 14px; padding: 8px 14px 15px; }
+.gloss-grouphead { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin: 13px 0 5px; padding: 0 3px; }
+/* Rows share one base (button reset included, since clickable rows are <button>). Menu-item feel:
+   rounded hover tint, no hairline separators — the icon chips anchor each row. */
+.gloss-row { display: flex; gap: 13px; align-items: flex-start; width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; background: transparent; text-align: left; font: inherit; color: inherit; }
+.gloss-row.is-click { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: background 0.1s; }
+.gloss-row.is-click:hover { background: color-mix(in srgb, var(--acc) 13%, transparent); }
+.gloss-row.is-click:hover .gloss-term { color: var(--acc-dk); }
+.gloss-row.is-click:hover .gloss-ico { background: var(--acc); color: #fff; }
+.gloss-ico { flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc); margin-top: 1px; transition: background 0.1s, color 0.1s; }
+.gloss-ico svg { width: 19px; height: 19px; }
+.gloss-ico .cgem-img { width: 19px; height: 19px; object-fit: contain; }
+.gloss-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gloss-term { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: var(--ink); }
+.gloss-def { font-family: var(--font-body), sans-serif; font-size: 13px; line-height: 1.4; color: var(--ink2); }
+/* RULES WIKI (the Compendium's Rules panel, CompendiumRules.tsx): a sticky search + topic-chip bar over a scrolling
+   list of cream question panels (the Glossary's panel look, ink re-pinned dark the same way). One column so
+   answers read as prose; the list is capped in width and centred on wide books. */
+.book-rules + .book-gloss { margin-left: 12px; }
+/* The Rules button wears the owner's golden question mark (rules-question.png), not a glyph. */
+.book-rules-ico { width: 22px; height: 22px; pointer-events: none; }
+.wiki-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wiki-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 18px 30px 14px; border-bottom: 2px solid var(--line); }
+.wiki-search { height: 42px; width: min(420px, 100%); padding: 0 16px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15px; }
+.wiki-search:focus { outline: none; border-color: var(--acc); }
+.wiki-search::placeholder { color: var(--ink3); }
+.wiki-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wiki-chip { height: 34px; padding: 0 13px; border-radius: 10px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
+.wiki-chip:hover { transform: translateY(-2px); border-color: var(--acc); }
+.wiki-chip.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
+.wiki-list { flex: 1; overflow-y: auto; padding: 20px 30px 30px; display: flex; flex-direction: column; gap: 18px; align-items: stretch; scrollbar-width: none; -ms-overflow-style: none; }
+.wiki-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.wiki-group { --ink: #2a2017; --ink2: #6c5d48; width: min(980px, 100%); align-self: center; background: var(--bg2); border: 2px solid var(--line); border-radius: 14px; padding: 6px 12px 12px; }
+.wiki-grouphead { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin: 12px 0 4px; padding: 0 6px; }
+.wiki-item { border-radius: 10px; }
+.wiki-item.is-open { background: color-mix(in srgb, var(--acc) 8%, transparent); }
+.wiki-q { display: flex; gap: 12px; align-items: baseline; width: 100%; padding: 10px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: var(--ink); transition: background 0.1s; }
+.wiki-q:hover { background: color-mix(in srgb, var(--acc) 13%, transparent); }
+.wiki-caret { flex: none; width: 16px; text-align: center; color: var(--acc); font-size: 18px; line-height: 1; }
+.wiki-a { padding: 0 14px 12px 38px; font-family: var(--font-body), sans-serif; font-size: 15px; line-height: 1.5; color: var(--ink2); user-select: text; -webkit-user-select: text; }
+.wiki-a b { color: var(--ink); }
+.wiki-see { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-top: 8px; }
+.wiki-see-cap { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); }
+.wiki-see-link { border: 0; padding: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--acc-dk); text-decoration: underline; text-underline-offset: 2px; }
+.wiki-see-link:hover { color: var(--acc); }
+.wiki-empty { padding: 40px 0; text-align: center; }
+/* Active keyword filter — a clearable chip at the right of the tier bar (accent normally, threat on hover). */
+.book-kwchip { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 10px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: background 0.1s, border-color 0.1s, color 0.1s; }
+.book-kwchip svg { width: 16px; height: 16px; color: var(--acc); transition: color 0.1s; }
+.book-kwchip .cgem-img { width: 16px; height: 16px; object-fit: contain; }
+.book-kwchip:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 14%, var(--card)); color: var(--threat-dk); }
+.book-kwchip:hover svg { color: var(--threat); }
+.book-kwx { font-size: 12px; opacity: 0.75; }
+
+/*CHIPS*/
+.book-kwchip {
+  box-shadow: 0 2px 0 var(--acc-dk);
+  transition: background 0.1s, border-color 0.1s, color 0.1s, transform 0.12s ease, box-shadow 0.12s ease;
+}
+.book-kwchip:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--acc-dk); }
+.book-kwchip:active, .book-kwchip:hover:active {
+  transform: translateY(2px); box-shadow: 0 0 0 var(--acc-dk); transition-duration: 0.06s;
+}
+
+
+/*ROWS*/
+.gloss-row:active, .gloss-row:hover:active {
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  transition-duration: 0.06s;
+}

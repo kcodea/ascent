@@ -867,7 +867,7 @@ export function MinionBook() {
                   aria-label={CAT_META[c].label}
                 >
                   {railArt.get(c)
-                    ? <img className="book-catface" decoding="async" src={railArt.get(c)} alt="" draggable={false} />
+                    ? <img className="book-catface" decoding="sync" src={railArt.get(c)} alt="" draggable={false} />
                     : <span className="book-catico"><Icon name={CAT_META[c].icon} /></span>}
                   <span className="book-catlabel">{CAT_META[c].label}</span>
                 </button>

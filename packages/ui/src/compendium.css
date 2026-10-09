@@ -31,7 +31,9 @@
    options, glossary rows) use the gauntlet URL form. ══ */
 
 /* ── The overlay + the window ─────────────────────────────────────────────────────────────────────────────────── */
-.book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(4, 3, 12, 0.68); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* No backdrop-filter (perf 2026-10-09): a full-screen blur re-runs every frame the game behind it animates. A deeper
+   scrim does the job. */
+.book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(4, 3, 12, 0.8); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The surface tokens the CARDS read stay exactly as owner-tuned 2026-08-10 (see the header note).
    THE WINDOW: `.book` itself paints nothing. `::before` is the backdrop (the dark plate), inset to the middle of the
    frame's rails so nothing shows outside the painted corners. `::after` is the painted frame, a 9-slice on top of
@@ -56,6 +58,7 @@
   content: ''; position: absolute; z-index: 40; inset: 0; pointer-events: none;
   border: calc(270px * var(--bf-s)) solid transparent;
   border-image: url('/frames/compendium-frame.webp') 270 stretch;
+  will-change: transform; /* its own static layer: rastered once, never repainted by the scroll under it */
 }
 /* The crests: the frame's own top and foot ornaments, at the frame's scale, over the rail centres. */
 .book-crest {
@@ -340,14 +343,25 @@ body:has(.book-ov) .cardref { z-index: 490; }
    pushed back down by the same amount to stay on the plate. */
 .book-grid .card.compact.showtext:not(.spellcard) .drawer { margin-top: calc(var(--ccw) * (0.15 - var(--book-minion-txt-lift, 0.04))); }
 .book-grid .card.compact.showtext:not(.spellcard) .drawer .descbox { top: calc(var(--ccw) * (var(--ctx-box-y, -1.235) + var(--book-minion-txt-lift, 0.04))); }
-.book-grid .book-cell { display: flex; justify-content: center; width: 100%; }
+.book-grid .book-cell { display: flex; justify-content: center; width: 100%; position: relative; }
+/* PERF (2026-10-09). Each card is ITS OWN compositor layer, so it is rastered once and the scroll only moves layers.
+   Without this the scroller is one huge layer whose tiles re-raster every card's ten filtered images (drop shadows, a
+   7px-blurred frame copy, the gilded-name SVG filter) piecemeal as each tile scrolls in: measured ~11 ms of GPU raster
+   per frame and dozens of frames over 20 ms per fling; with it, a steady refresh-rate scroll. Cards mount lazily
+   (bookLazy.tsx), so only the visited ones ever hold a layer. */
+.book-grid .book-cell:not(.is-pending) { will-change: transform; }
+/* A cell whose card has not mounted yet holds the row's height, so the scrollbar stays honest. */
+.book-grid .book-cell.is-pending { height: calc(var(--ch) * 1.62); }
+.book-grid.is-runes .book-cell.is-pending { height: 470px; }
+/* The scroller paints and lays out on its own. */
+.book-grid { contain: layout paint; }
 /* Runes: the tier coin rides above each rune card, so the first row needs headroom under the tier bar. Heroes: one
    card height per row (the tallest power text sets it) and a tighter row gap, since they carry no hanging plate. */
-.book-grid:has(> .book-cell > .runecard) { padding-top: 40px; }
-.book-grid:has(> .book-cell > .bookhero) { align-items: stretch; row-gap: 32px; padding-top: 24px; }
+.book-grid.is-runes { padding-top: 40px; }
+.book-grid.is-heroes { align-items: stretch; row-gap: 32px; padding-top: 24px; }
 .book-grid .book-cell > .bookhero { min-height: 0; height: 100%; }
 .book-cell { transition: transform 0.12s ease; }
-.book-cell:hover { transform: scale(1.05); z-index: 3; position: relative; }
+.book-cell:hover { transform: scale(1.05); z-index: 3; }
 /* EMPTY + NO-RESULTS: a calm line under a small gold stud, centred in the space. */
 .book-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px 24px; text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: 17px; color: var(--ui-muted); }
 .book-empty::before { content: ''; width: 10px; height: 10px; background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); transform: rotate(45deg); }

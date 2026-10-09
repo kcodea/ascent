@@ -17,6 +17,11 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-mid) 70%, var(--ui-plate-bot)) 0%, var(--ui-plate-bot) 100%);
 }
 
+/* A guide's grid slot (lazy, bookLazy.tsx): holds a guide-sized box until its guide mounts. */
+.bookguide-slot { display: flex; flex-direction: column; min-width: 0; }
+.bookguide-slot > .bookguide { flex: 1; }
+.bookguide-slot.is-pending { height: 640px; }
+
 /* ── A guide: the Compendium's card panel ───────────────────────────────────────────────────────────────────── */
 .bookguide {
   content-visibility: auto; contain-intrinsic-size: auto 640px;

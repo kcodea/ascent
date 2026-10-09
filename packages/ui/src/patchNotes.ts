@@ -59,6 +59,24 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-09',
     changes: [
       {
+        category: 'Balance',
+        text: 'Sunmane Herald is now called Sunmane. It works exactly as before.',
+        details: ['Rune of Living Echoes now summons a Sunmane.'],
+      },
+      {
+        category: 'Systems',
+        text: 'Four more build guides are written: Sunmane, Oona, Dragonflame and Shout Dragons.',
+        details: [
+          'Each has a write-up and its Core and Enabler minions.',
+          'The Dragon Breath guide is now called Dragonflame, and the Shout guide is now Shout Dragons.',
+          'Card names in a write-up can be hovered for the full card, including cards it mentions that are not in its rows.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Max dmg pill on the lobby rail now pops and flashes when it steps up to a new value, including No cap.',
+      },
+      {
         category: 'Systems',
         text: 'The lobby rail has a Guides tab: flip it from the opponents to short build guides for this game.',
         details: [

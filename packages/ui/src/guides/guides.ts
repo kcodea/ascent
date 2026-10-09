@@ -11,7 +11,8 @@
  * Neutral guides always show. `pairsWith` is display only: a second tribe chip the card wears when that tribe is
  * also in the lobby (the Kobold line's Dwarven Ale crossover); it never decides visibility.
  *
- * PLACEHOLDERS: every guide but the Dwarves' Ale line is a placeholder until the owner writes it. Its body starts
+ * PLACEHOLDERS: the guides the owner has not written yet (all but Sunmane, Oona, Dragonflame, Shout Dragons and Ale,
+ * as of 2026-10-09) are placeholders until the owner writes it. Its body starts
  * with PLACEHOLDER_BODY so it reads as unfinished, and its core / enabler picks are a best guess from the owner's
  * name hints, there so the layout can be judged.
  */
@@ -33,6 +34,12 @@ export interface Guide {
   body: string;
   core: readonly string[];
   enablers: readonly string[];
+  /** Other cards the body names (owner 2026-10-09: Eyes of Aresmar in the Shout Dragons write-up). Not shown as
+   *  portraits; only their names in the body become hoverable highlights, like the core and enabler names. */
+  mentions?: readonly string[];
+  /** Body words that stand for a card under a shorter name than its printed one ("Oona" for King Oona), so they
+   *  highlight too. Word → card id; the id must also be in core, enablers or mentions. */
+  aliases?: Readonly<Record<string, string>>;
 }
 
 /** The Guides view's display mode: SIMPLE = the normal-width rail, portraits only; FULL = the wide rail + write-up. */
@@ -48,9 +55,10 @@ export const GUIDES: readonly Guide[] = [
     tribes: ['beast'],
     title: 'Sunmane',
     tagline: 'Rally Attack into the pack, in combat.',
-    body: PLACEHOLDER_BODY,
-    core: ['b2_sunmane'],
-    enablers: ['b2_elderhorn', 'b2_beev', 'b2_packstrider'],
+    // The owner's text (2026-10-09), typo fixes only ("propegate", card-name capitals).
+    body: "Sunmane comp relies on great positioning in order to propagate the Sunmane's rally attack effect to fresh bodies to multiplicatively stack its attack effect. The comp is simple in that it really only relies on 2 minions, but you need summons to protect your Solaris from dying early. Attack immediately related Rune support helps take this comp to the next level.",
+    core: ['b2_sunmane', 'b2_solaris'],
+    enablers: ['b2_sunmane'], // owner listed Sunmane as both Core and Enabler (2026-10-09), kept as given
   },
   {
     id: 'set2-beast-oona',
@@ -59,31 +67,38 @@ export const GUIDES: readonly Guide[] = [
     tribes: ['beast'],
     title: 'Oona',
     tagline: 'Double every Beast summoned in combat.',
-    body: PLACEHOLDER_BODY,
-    core: ['b2_oona'],
-    enablers: ['b2_mammoth', 'b2_bullseye', 'b2_trex'],
+    // The owner's text, verbatim (2026-10-09). "Oona" is King Oona.
+    body: 'Oona comp utilizes various Beast buffs to then multiply their stat gains using Oona. Look out for early enablers and commit once you find Grim and Oona, or Sylus.',
+    core: ['b2_oona', 'grim', 'b2_florida'],
+    enablers: ['b2_armadiyo', 'b2_bullseye', 'b2_beardsley'],
+    mentions: ['sylus'],
+    aliases: { oona: 'b2_oona' },
   },
   {
     id: 'set2-dragon-breath',
     iconCard: 'sp_dragonflame',
     set: 'set2',
     tribes: ['dragon'],
-    title: 'Dragon Breath',
+    title: 'Dragonflame',
     tagline: 'Cast Dragonflame again and again.',
-    body: PLACEHOLDER_BODY,
-    core: ['d2_warflame', 'd2_flamebeat'],
-    enablers: ['d2_skald', 'd2_cinderchef'],
+    // The owner's text, verbatim (2026-10-09).
+    body: 'Dragonflame comp uses in-combat Dragonflame casts that scale with spell power to buff your Dragons over and over. Transcendant allows these buffs to carry through combat. Spell power buffs are very important if you want to win with this comp, and a gilded Transcendant further multiplies its stat gain potential.',
+    core: ['d2_warflame', 'd2_transcendence'],
+    enablers: ['d2_felconjurer', 'd2_flamebeat', 'd2_chorus'],
+    mentions: ['sp_dragonflame'],
   },
   {
     id: 'set2-dragon-shout',
-    iconCard: 'd2_orivax',
+    iconCard: 'karwind', // was Orivax, who is no longer in the guide (2026-10-09)
     set: 'set2',
     tribes: ['dragon'],
-    title: 'Shout',
+    title: 'Shout Dragons',
     tagline: 'Stack Shout triggers to grow your Dragons.',
-    body: PLACEHOLDER_BODY,
-    core: ['karwind', 'd2_orivax'],
-    enablers: ['drummer', 'd2_broodfire', 'd2_embermouth'],
+    // The owner's text, verbatim (2026-10-09).
+    body: 'Shout Dragons is an APM comp that has extremely high tempo, but a difficult time scaling into late game without Rune support or multiple Gilded Karwinds. Look for Eyes of Aresmar late game to Gild Karwinds, and cycle using Drakko and any token creation methods to go full APM.',
+    core: ['karwind', 'drummer', 'd2_voicekeeper'],
+    enablers: ['karwind', 'd2_roarcollector'], // owner's list ended in a trailing comma (2026-10-09): may be unfinished
+    mentions: ['aresmar'],
   },
   {
     id: 'set2-kobold-combat',

@@ -206,6 +206,24 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   }, [lobby]);
   useEffect(() => () => { for (const stop of koTimers.current) stop(); }, []);
 
+  // THE MAX-DAMAGE PUNCH (owner ask 2026-10-09: "add a small animation to the max dmg thing in the rail when it
+  // updates to the next threshold. it should be an obvious animation that draws attention"). Diffed against the cap
+  // this panel last saw FOR THIS RUN, so it fires once per real change (into "No cap" too), never on mount, a reload,
+  // a new game or a re-render. Held for the combat -> shop curtain like the damage float, so it plays where the
+  // player can see it. `capPop` keys the pill: each bump remounts it, which restarts the one-shot CSS animation.
+  const capNow = lobby ? roundLossCap(lobby.rules, lobby.round) : null;
+  const seenCap = useRef<{ run: string; cap: number } | null>(null);
+  const [capPop, setCapPop] = useState(0);
+  useEffect(() => {
+    if (capNow === null) return;
+    const prev = seenCap.current;
+    seenCap.current = { run: runKey, cap: capNow };
+    if (!prev || prev.run !== runKey || prev.cap === capNow) return;
+    let raf = 0;
+    const cancel = whenCurtainDown(() => { raf = requestAnimationFrame(() => setCapPop((n) => n + 1)); });
+    return () => { cancel(); cancelAnimationFrame(raf); };
+  }, [capNow, runKey]);
+
   if (!lobby) return null;
   const next = playerOpponent(lobby);
   const foe = next?.seat ?? null;
@@ -249,7 +267,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       {/* Max loss: the most Health a loss this round can cost. Hover explains it with the live number, in the
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
-      <span className="lobbymax" aria-label={`${capTip.title}. ${capTip.rule}`}>
+      <span key={capPop} className={`lobbymax${capPop ? ' lobbymax-pop' : ''}`} aria-label={`${capTip.title}. ${capTip.rule}`}>
         <Icon name="heart" />{maxDamageLabel(cap)}
       </span>
       {/* The chip's SIBLING (opened by `.lobbymax:hover + .lobbymax-tip`, the opponent-power tip's pattern), so the

@@ -34,7 +34,7 @@ export const SET2_BEASTS: CardDef[] = [
     // Sunmane never buffs itself, so it keeps granting its printed +3 while the Beasts it feeds grow. The
     // accumulation lives on the combat instance, so death loses the stacks. See `rallySpreadTribeBuff`.
     id: 'b2_sunmane',
-    name: 'Sunmane Herald',
+    name: 'Sunmane', // 'Sunmane Herald' until 2026-10-09 (owner rename; id + art unchanged)
     tribe: 'beast',
     tier: 5,
     attack: 5, // owner balance 2026-09-23: 3/3 → 5/3

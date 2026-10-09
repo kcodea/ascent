@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      { category: 'Balance', text: 'Renamed two cards to fit their names on the card: Coppercoat Spellsword is now Spellsword, and Malphas, Lord of Want is now Lord of Want. They work exactly the same.' },
+      {
+        category: 'Systems',
+        text: 'Card names have a new gilded look: a bolder serif in pale gold, with layered edges and a deeper shadow.',
+        details: [
+          'A gold divider now separates the name from the card text.',
+          'Applies to every minion and spell card, wherever its name shows.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'The lobby rail has a Guides tab: flip it from the opponents to short build guides for this game.',

@@ -64,7 +64,7 @@ const ROLES: Record<string, CardRole> = {
   d2_embermouth: R(0, 'the study: 4% survival past wave 6', { filler: true }),
   karwind: R(1, 'Karwind', { fromWave: 10 }),
   // Neutral engines the recorded Dragon boards carried.
-  n2_spellsword: R(2, 'Coppercoat Spellsword: spell power on Shout'),
+  n2_spellsword: R(2, 'Spellsword: spell power on Shout'),
   dw_wardkeeper: R(1, 'Wardkeeper: +1 Attack to the Shop spells'),
   n2_standardbearer: R(2, 'Rally +3/+3 to one of each type', { fromWave: 5 }),
   n2_lastlight: R(2, 'Echo: Ward to two bodies', { fromWave: 8 }),

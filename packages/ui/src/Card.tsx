@@ -109,6 +109,20 @@ import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
 import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 import { rectToStage, stageHost, stageViewport } from './stage';
+import { trackCardName } from './cardNameFilter';
+
+/** The card NAME on the full card: always ONE line, gilded by an SVG filter sized to it. `trackCardName`
+ *  (cardNameFilter.ts) fits an over-long name by shrinking its font and hands the matching filter to CSS as
+ *  `--cn-filter`, so only the `.drawer .cn` rule decides whether it applies. The gradient lives on the inline
+ *  span. */
+function CardName({ name }: { name: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    return el === null ? undefined : trackCardName(el);
+  }, [name]);
+  return <div ref={ref} className="cn"><span className="cn-t">{name}</span></div>;
+}
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -199,6 +213,8 @@ const tierPlateSrc = (golden: boolean): string =>
 const GILDED_BADGE_SRC = `${import.meta.env.BASE_URL}frames/gilded.webp`;
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
+/** The gold diamond divider between the card NAME and its rules text (owner art, 2026-10-09). */
+const NAME_DIVIDER_SRC = `${import.meta.env.BASE_URL}frames/name-divider.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 // Milestone frame art — the disc a stat badge sits in once it crosses a value tier (see choreo/statMilestones.ts).
 // One per stat (`atk` sword motif / `hp` heart motif) per tier 1..5; tier 0 (below the first threshold) has no
@@ -1247,7 +1263,10 @@ export const Card = memo(function Card({
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
             tuner (backbox · size/x/y/opacity/blend). */}
         <FadeImg className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
-        <div className="cn">{card.name}</div>
+        <CardName name={card.name} />
+        {/* DIVIDER — separates the name from the rules text. Only when there IS rules text: on a vanilla card it
+            would just sit between the name and the tribe line. Sized/placed by `.namediv` in styles.css. */}
+        {card.text && <FadeImg className="namediv" src={NAME_DIVIDER_SRC} alt="" aria-hidden="true" draggable={false} />}
         {card.text && (
           <div className="desc">
             <span dangerouslySetInnerHTML={{ __html: rulesHtmlMemo }} />

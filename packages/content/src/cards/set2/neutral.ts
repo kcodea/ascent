@@ -12,7 +12,7 @@ export const SET2_NEUTRAL: CardDef[] = [
     // The spell-power enabler for a spell build, as a Choose One so you commit to the axis you need. Both
     // options are the same factory with mirrored params.
     id: 'n2_spellsword',
-    name: 'Coppercoat Spellsword',
+    name: 'Spellsword', // was 'Coppercoat Spellsword' (owner 2026-10-09: too long for the gilded name); id unchanged
     tribe: 'neutral',
     tier: 2,
     attack: 3,

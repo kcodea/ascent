@@ -1,0 +1,57 @@
+/* ── THE COMPENDIUM'S GUIDES TAB (owner ask 2026-10-09) ─────────────────────────────────────────────────────────────
+   The rail's guides in the Compendium, always open, dressed as the Compendium's OWN cards (owner 2026-10-09: "clean up
+   the view in general as it looks a bit out of place"): the hero card's panel (`.bookhero`: dark wood-brown fill, a
+   2px gold-mix edge, 16px radius), the Compendium gallery's background + gutters, its UI font and its ink colours.
+   Only the shared inner pieces (art emblem, tribe names, highlighted card names, portrait rows) come from
+   lobbyGuides.css; the rail-only frame (the opponent-row plate, the tribe left bar, the fold) is not used here.
+   The tribe colour stays a subtle accent: the tribe names under the title.
+
+   PERFORMANCE. Nothing animates. Each card skips layout + paint while off screen (`content-visibility: auto`, with an
+   intrinsic size so the scrollbar stays honest). The portraits are the memoized compact `Card`.
+   CURSOR. No `cursor` here: the hoverable names and the cards keep their own. */
+.bookguides {
+  flex: 1; min-width: 0; overflow-y: auto; align-content: start;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 640px), 1fr)); gap: 28px;
+  padding: 26px 26px 40px;
+  background: linear-gradient(180deg, #1b1a21 0%, #141319 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ── A guide: the Compendium's card panel ───────────────────────────────────────────────────────────────────── */
+.bookguide {
+  content-visibility: auto; contain-intrinsic-size: auto 640px;
+  display: flex; flex-direction: column; min-width: 0;
+  border-radius: 16px; border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  background: linear-gradient(180deg, #241a13, #17110c); color: #f4ecdb;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px -6px rgba(0, 0, 0, 0.45);
+}
+
+/* The header: a large art icon beside the title, tribes and tagline, ruled off from the body. */
+.bookguide-head {
+  display: flex; align-items: center; gap: 20px;
+  padding: 22px 26px 20px; border-bottom: 1px solid color-mix(in srgb, var(--gold) 28%, #000);
+}
+/* The art icon wears the hero card's art tile (rounded square, thin gold-mix edge) rather than the rail's round,
+   tribe-rimmed medallion, so it reads as a Compendium card. */
+.bookguide-head .lobbyguide-emblem {
+  flex: none; width: 88px; height: 88px; padding: 0; border-radius: 12px; overflow: hidden;
+  background: #0f0b07; border: 1px solid color-mix(in srgb, var(--gold) 30%, #000); box-shadow: none;
+}
+.bookguide-head .lobbyguide-emblem::after { content: none; }
+.bookguide-head .lobbyguide-art { border-radius: 0; object-position: 50% 25%; }
+.bookguide-headtext { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bookguide-title { margin: 0; font-family: var(--font-ui); font-weight: 800; font-size: 28px; line-height: 1.1; letter-spacing: 0.01em; color: #f4ecdb; }
+.bookguide-tribes { font-family: var(--font-ui); font-size: 14px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.bookguide-tagline { font-size: 15px; font-weight: 600; line-height: 1.35; color: #d8ccb6; }
+
+/* The body: write-up, then Core, then Enablers, each on its own line, evenly spaced. */
+.bookguide-body { display: flex; flex-direction: column; gap: 20px; padding: 20px 26px 26px; }
+.bookguide .lobbyguide-text { margin: 0; max-width: 72ch; font-size: 15.5px; line-height: 1.6; font-weight: 600; color: #d8ccb6; }
+.bookguide .lobbyguide-name { color: #f0c168; border-bottom-color: color-mix(in srgb, #f0c168 55%, transparent); }
+.bookguide .lobbyguide-name:hover { color: #fff; }
+.bookguide .lobbyguide-unitslabel {
+  margin: 0 0 6px; padding: 0;
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #a2957f;
+}
+/* Portraits: left-aligned, evenly spaced, bigger than the rail's (its Detailed view is 0.6 of a board minion). */
+.bookguide .lobbyguide-unitrow { gap: 14px 18px; justify-content: flex-start; }
+.bookguide .lobbyguide-unit { --lgu-s: 0.7; }

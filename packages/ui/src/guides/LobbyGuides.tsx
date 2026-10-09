@@ -1,25 +1,11 @@
-import { Fragment, memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import type { CardDef, Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
-import { Card, type CardView } from '../Card';
-import { toView } from '../MinionBook';
-import { relatedCardIds, relatedPickOneIds } from '../cardRefs';
-import { stabilizeRefMap, stabilizeViewMap } from '../cardViewEqual';
-import { artFor } from '../art';
-import { FadeImg } from '../FadeImg';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import type { Tribe } from '@game/core';
 import { Icon } from '../Icon';
-import { lastPointerWasTouch } from '../touchInput';
-import { rectToStage, stageHost, toStage } from '../stage';
-import { useFitRefPopup, type RefPopupPos } from '../useFitRefPopup';
+import { toStage } from '../stage';
 import { useGame } from '../store';
-import { tribeInk, type Guide, type GuidesMode } from './guides';
+import { type Guide, type GuidesMode } from './guides';
+import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
 import './lobbyGuides.css';
-
-const TRIBE_NAME: Partial<Record<Tribe, string>> = {
-  beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs', demon: 'Demons', kobold: 'Kobolds', dwarf: 'Dwarves',
-  spirit: 'Spirits', celestial: 'Celestials', neutral: 'Neutral',
-};
 
 /** The open guide, kept per run for the session (the rail can remount; a new game starts collapsed). */
 let openMemo: { run: string; id: string | null } = { run: '', id: null };
@@ -125,24 +111,15 @@ function GuideRow({ guide, tribes, open, full, onMode, onToggle }: {
   const [mounted, setMounted] = useState(open);
   useEffect(() => { if (open) setMounted(true); }, [open]);
   // The chips: the guide's own tribes, plus a crossover tribe only when it is in this lobby too.
-  const chips: Tribe[] = guide.tribes.length ? [...guide.tribes, ...(guide.pairsWith ?? []).filter((t) => tribes.includes(t))] : ['neutral'];
+  const chips = guideChips(guide, tribes);
   const bodyId = `lobbyguide-body-${guide.id}`;
   return (
-    <div className={`lobbyguide${open ? ' open' : ''}`} data-guide={guide.id}
-      style={{ '--gc': tribeInk(chips[0]!), '--gc2': tribeInk(chips[chips.length - 1]!) } as CSSProperties}>
+    <div className={`lobbyguide${open ? ' open' : ''}`} data-guide={guide.id} style={guideAccent(chips)}>
       <button type="button" className="lobbyguide-head" aria-expanded={open} aria-controls={bodyId} onClick={onToggle}>
-        {/* The guide's ART icon: its signature card's illustration in a round, tribe-rimmed frame (a crossover guide's
-            rim runs from one tribe's colour to the other's). */}
-        <span className={`lobbyguide-emblem${chips.length > 1 ? ' duo' : ''}`} aria-hidden="true">
-          <FadeImg className="lobbyguide-art" src={artFor(guide.iconCard)} alt="" />
-        </span>
+        {/* The guide's ART icon (a crossover guide's rim runs from one tribe's colour to the other's). */}
+        <GuideEmblem guide={guide} chips={chips} />
         <span className="lobbyguide-title">{guide.title}</span>
-        <span className="lobbyguide-tag">
-          {chips.map((t, i) => (
-            <Fragment key={t}>{i > 0 && ' + '}<span className="lobbyguide-tribename" style={{ color: tribeInk(t) }}>{TRIBE_NAME[t]}</span></Fragment>
-          ))}
-          {full && <><span className="lobbyguide-dot"> · </span>{guide.tagline}</>}
-        </span>
+        <span className="lobbyguide-tag"><GuideTribes chips={chips} tagline={full ? guide.tagline : undefined} /></span>
         <span className="lobbyguide-chev" aria-hidden="true"><Icon name="chevron" /></span>
       </button>
       <div className="lobbyguide-fold" id={bodyId} role="region" aria-label={guide.title} aria-hidden={!open}>
@@ -154,37 +131,13 @@ function GuideRow({ guide, tribes, open, full, onMode, onToggle }: {
   );
 }
 
-/** Every card a guide names, as views + hover-preview chains. Stabilized so `Card`'s memo holds across run updates. */
-function useGuideViews(ids: readonly string[]): { views: Map<string, CardView>; refs: Map<string, CardView[]> } {
-  const run = useGame((st) => st.run);
-  const viewCache = useRef(new Map<string, CardView>());
-  const refCache = useRef(new Map<string, CardView[]>());
-  return useMemo(() => {
-    const views = new Map<string, CardView>();
-    const refs = new Map<string, CardView[]>();
-    const def = (id: string): CardDef | undefined => CARD_INDEX[id];
-    for (const id of ids) {
-      const d = def(id);
-      if (!d) continue;
-      views.set(id, toView(d, false, run));
-      const r = [
-        ...relatedCardIds(id).map(def).filter((x): x is CardDef => !!x).map((x) => toView(x, false, run)),
-        ...relatedPickOneIds(id).map(def).filter((x): x is CardDef => !!x).map((x) => ({ ...toView(x, false, run), refPick: true })),
-      ];
-      if (r.length) refs.set(id, r);
-    }
-    viewCache.current = stabilizeViewMap(views, viewCache.current);
-    refCache.current = stabilizeRefMap(refs, refCache.current);
-    return { views: viewCache.current, refs: refCache.current };
-  }, [ids, run]);
-}
-
 function GuideBody({ guide, full, onMode }: { guide: Guide; full: boolean; onMode: (m: GuidesMode) => void }): JSX.Element {
-  const ids = useMemo(() => [...guide.core, ...guide.enablers, ...(guide.mentions ?? [])], [guide]);
-  const { views, refs } = useGuideViews(ids);
+  const run = useGame((st) => st.run);
+  const ids = useMemo(() => guideCardIds(guide), [guide]);
+  const { views, refs } = useGuideViews(ids, run);
   return (
     <div className="lobbyguide-body">
-      {full && <p className="lobbyguide-text">{linkCardNames(guide.body, ids, views, refs, guide.aliases)}</p>}
+      {full && <GuideText guide={guide} ids={ids} views={views} refs={refs} />}
       <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} />
       {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} />}
       {/* DETAILED / SIMPLE, per open card: Detailed widens the rail to the left and adds the write-up; Simple folds
@@ -195,80 +148,5 @@ function GuideBody({ guide, full, onMode }: { guide: Guide; full: boolean; onMod
         {full ? 'Simple' : 'Detailed'}
       </button>
     </div>
-  );
-}
-
-/** A row of small board-style portraits: the real compact `Card`, so hover opens the game's own preview chain. */
-function GuideUnits({ label, ids, views, refs }: {
-  label: string; ids: readonly string[]; views: Map<string, CardView>; refs: Map<string, CardView[]>;
-}): JSX.Element {
-  return (
-    <div className="lobbyguide-units">
-      <div className="lobbyguide-unitslabel">{label}</div>
-      <div className="lobbyguide-unitrow">
-        {ids.map((id) => {
-          const v = views.get(id);
-          return v ? <div className="lobbyguide-unit" key={id}><div className="lobbyguide-unitscale"><Card card={v} forceCompact suppressPop refCards={refs.get(id)} /></div></div> : null;
-        })}
-      </div>
-    </div>
-  );
-}
-
-const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** The body paragraph with every named guide card turned into a hoverable highlight (case-insensitive, so the
- *  owner's "Edward Keg-Hands" finds the card "Edward Keg-hands"). A guide's `aliases` add shorter names ("Oona"). */
-function linkCardNames(text: string, ids: readonly string[], views: Map<string, CardView>, refs: Map<string, CardView[]>,
-  aliases?: Readonly<Record<string, string>>): ReactNode[] {
-  const byName = new Map<string, string>();
-  for (const id of ids) { const v = views.get(id); if (v) byName.set(v.name.toLowerCase(), id); }
-  for (const [word, id] of Object.entries(aliases ?? {})) if (views.has(id)) byName.set(word.toLowerCase(), id);
-  if (byName.size === 0) return [text];
-  const names = [...byName.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
-  const re = new RegExp(`(${names.join('|')})`, 'gi');
-  return text.split(re).map((part, i) => {
-    const id = i % 2 === 1 ? byName.get(part.toLowerCase()) : undefined;
-    const v = id ? views.get(id) : undefined;
-    return v ? <GuideCardLink key={i} view={v} refs={refs.get(id!)}>{part}</GuideCardLink> : <Fragment key={i}>{part}</Fragment>;
-  });
-}
-
-/** A card name in the guide text. Hover opens the same `.cardref` preview chain a card does, placed by the shared
- *  measured pass (`useFitRefPopup`, one measure per open). */
-function GuideCardLink({ view, refs, children }: { view: CardView; refs?: CardView[]; children: ReactNode }): JSX.Element {
-  const [pos, setPos] = useState<RefPopupPos | null>(null);
-  const [pick, setPick] = useState(0);
-  const popRef = useRef<HTMLDivElement | null>(null);
-  const timer = useRef<number | null>(null);
-  useFitRefPopup(popRef, pos, setPos);
-  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
-  const fixed = refs?.filter((c) => !c.refPick) ?? [];
-  const pool = refs?.filter((c) => c.refPick) ?? [];
-  const cards = [view, ...fixed, ...(pool.length ? [pool[pick % pool.length]!] : [])];
-  const show = (el: HTMLElement): void => {
-    if (timer.current) window.clearTimeout(timer.current);
-    if (pool.length > 1) setPick(Math.floor(Math.random() * pool.length)); // presentation only, like Card's
-    timer.current = window.setTimeout(() => {
-      const r = rectToStage(el.getBoundingClientRect()); // one read per open
-      // The rail is at the stage's right edge: open LEFT; the measured pass corrects it to the real size.
-      setPos({ left: Math.max(6, r.left - 10 - 320 * cards.length), top: r.top, origin: 'right', anchorLeft: r.left, anchorRight: r.right, prefTop: r.top });
-    }, 100);
-  };
-  const hide = (): void => { if (timer.current) { window.clearTimeout(timer.current); timer.current = null; } setPos(null); };
-  return (
-    <span className="lobbyguide-name"
-      onMouseEnter={(e) => { if (!lastPointerWasTouch()) show(e.currentTarget); }}
-      onMouseLeave={hide}>
-      {children}
-      {pos && createPortal(
-        <div className="cardref" ref={popRef} style={{ left: pos.left, top: pos.top } as CSSProperties}>
-          <div className="cardref-inner" style={{ transformOrigin: `${pos.origin} center` } as CSSProperties}>
-            {cards.map((c, i) => <Card key={`${c.cardId ?? i}-${i}`} card={c} forceFull plated />)}
-          </div>
-        </div>,
-        stageHost(),
-      )}
-    </span>
   );
 }

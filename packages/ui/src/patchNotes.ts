@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      { category: 'Systems', text: 'The Compendium has a new Guides tab. It shows the same build guides as the lobby rail, all open at once, with bigger minion portraits. Filter them by tribe or search them, and they follow the set you pick.' },
       {
         category: 'Systems',
         text: 'Match length now counts only the time you were actually in the game.',

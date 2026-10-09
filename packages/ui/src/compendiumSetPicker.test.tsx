@@ -69,8 +69,8 @@ describe('Compendium set picker', () => {
     expect(m.container.querySelectorAll('.book-grid .book-cell').length).not.toBe(beforeCells);
     const rail = railLabels(m.container);
     expect(rail).not.toEqual(beforeRail);
-    // Rail = the set's tribes, then the six fixed tabs (Neutral, Spells, Gifts, Runes, Rune Rewards, Heroes).
-    expect(rail).toHaveLength(SETS[other].tribes.length + 6);
+    // Rail = the set's tribes, then the seven fixed tabs (Neutral, Spells, Gifts, Runes, Rune Rewards, Heroes, Guides).
+    expect(rail).toHaveLength(SETS[other].tribes.length + 7);
 
     // View-only: nothing global moved.
     expect(activeSet().id).toBe(live);

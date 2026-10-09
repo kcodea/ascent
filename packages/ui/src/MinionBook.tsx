@@ -10,6 +10,8 @@ import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker';
+import { CompendiumGuides } from './guides/CompendiumGuides';
+import { guidesFor } from './guides/guides';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
@@ -126,7 +128,7 @@ function poolIds(setId: Parameters<typeof poolFor>[0]): PoolIds {
 
 /** Left-rail category: a real tribe, the tribe-less "spells" bucket, the "rewards" (quest-reward cards) bucket,
  *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
-type Category = Tribe | 'spells' | 'gifts' | 'rewards' | 'quests' | 'runes' | 'runeRewards' | 'heroes';
+type Category = Tribe | 'spells' | 'gifts' | 'rewards' | 'quests' | 'runes' | 'runeRewards' | 'heroes' | 'guides';
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
@@ -146,10 +148,11 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   runes: { label: 'Runes', icon: 'anvil' },
   runeRewards: { label: 'Rune Rewards', icon: 'gift' },
   heroes: { label: 'Heroes', icon: 'shield' },
+  guides: { label: 'Guides', icon: 'book' },
 };
 
 /** Left-rail categories that are NOT tribes — used to derive the selected-tribe subset from `cats`. */
-const NON_TRIBE_CATS = new Set<Category>(['spells', 'gifts', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes']);
+const NON_TRIBE_CATS = new Set<Category>(['spells', 'gifts', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes', 'guides']);
 
 const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
 /** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
@@ -311,6 +314,8 @@ export function MinionBook() {
   // is "related" to a tribe when its `tribes` gate names it (the gate exists exactly where the text names a
   // tribe — ruling 2026-09-16). No button lit = every rune.
   const [runeTribes, setRuneTribes] = useState<Set<Tribe>>(() => new Set());
+  // GUIDES TAB tribe filter (owner ask 2026-10-09), the Runes tab's pills: no pill lit (or "All") = every guide.
+  const [guideTribes, setGuideTribes] = useState<Set<Tribe>>(() => new Set());
 
   // Browsing the run's own set → scope to its active tribes (mirrors `stockPool`: neutral is always findable, so
   // it's added below regardless). The title, or any other set picked → that set's WHOLE tribe roster.
@@ -324,6 +329,7 @@ export function MinionBook() {
     const nextTribes = new Set<Tribe>(!showTitle && next === runSetId ? runTribes : SETS[next].tribes);
     setCats((prev) => new Set([...prev].filter((c) => NON_TRIBE_CATS.has(c) || c === 'neutral' || nextTribes.has(c as Tribe))));
     setRuneTribes((prev) => new Set([...prev].filter((t) => t === 'neutral' || nextTribes.has(t))));
+    setGuideTribes((prev) => new Set([...prev].filter((t) => t === 'neutral' || nextTribes.has(t))));
     setSetId(next);
   };
 
@@ -336,7 +342,7 @@ export function MinionBook() {
   // than being deleted, so restoring the tab when quests come back is a one-line change here. A quest-reward
   // token that is ALSO a real minion still shows in its tribe gallery (BUYABLE_CARDS membership is unchanged);
   // only the pure reward-only tokens, which needed the now-absent bucket to appear, go dark.
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'gifts', 'runes', 'runeRewards', 'heroes'], [tribes]);
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'gifts', 'runes', 'runeRewards', 'heroes', 'guides'], [tribes]);
 
   // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
@@ -361,6 +367,17 @@ export function MinionBook() {
     const setOk = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(setId);
     return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => setOk(r) && match(r) && tribeOk(r));
   }, [search, runeTribes, setId]);
+
+  // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
+  // view"): the SAME data the lobby rail reads (`guidesFor`), for the SHOWN set (it follows the set picker) and its
+  // tribes (the run's, while browsing the run). Narrowed by the tribe pills (a tribe-less guide is Neutral) and the
+  // search box (title, tagline, write-up).
+  const guidesToShow = useMemo(() => {
+    const m = makeSearchMatcher(search);
+    return guidesFor(setId, tribes)
+      .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
+      .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
+  }, [setId, tribes, guideTribes, search]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -405,7 +422,7 @@ export function MinionBook() {
   const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '');
 
   // The Runes / Heroes / Quests tabs render their own galleries — the card gallery (and its tier chart) is empty there.
-  const ownGalleryTab = cats.has('quests') || cats.has('runes') || cats.has('heroes');
+  const ownGalleryTab = cats.has('quests') || cats.has('runes') || cats.has('heroes') || cats.has('guides');
 
   // Every card the CURRENT category / keyword / search selection yields, BEFORE the tier chips narrow it — the
   // tier chart counts these (so selecting Tier 3 highlights that bar instead of emptying the other six).
@@ -536,9 +553,11 @@ export function MinionBook() {
               : glossary
               ? 'Keywords & abilities. Click one to see its minions.'
               : query
-                ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
-                    (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
+                ? `${(cats.has('guides') ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
+                    (cats.has('guides') ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
                   } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
+              : cats.has('guides')
+                ? `${guidesToShow.length} guide${guidesToShow.length === 1 ? '' : 's'}. Build lines for ${SETS[setId].name}.`
               : cats.has('heroes')
                 ? `${heroesToShow.length} heroes. Every champion and their power.`
                 : cats.has('runes')
@@ -677,6 +696,34 @@ export function MinionBook() {
                   </button>
                 ))}
               </div>
+            ) : cats.has('guides') ? (
+              /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
+              <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">
+                <span className="book-chart-cap">guides by tribe</span>
+                <button
+                  className={`book-runetribe${guideTribes.size === 0 ? ' on' : ''}`}
+                  style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+                  onClick={() => setGuideTribes(new Set())}
+                  aria-pressed={guideTribes.size === 0}
+                  aria-label="Every guide"
+                >
+                  <Icon name="book" />
+                  <span>All</span>
+                </button>
+                {[...tribes, 'neutral' as Tribe].map((t) => (
+                  <button
+                    key={t}
+                    className={`book-runetribe${guideTribes.has(t) ? ' on' : ''}`}
+                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
+                    onClick={() => setGuideTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
+                    aria-pressed={guideTribes.has(t)}
+                    aria-label={t === 'neutral' ? 'Neutral guides' : `${CAT_META[t].label} guides`}
+                  >
+                    <Icon name={CAT_META[t].icon} />
+                    <span>{CAT_META[t].label}</span>
+                  </button>
+                ))}
+              </div>
             ) : ownGalleryTab ? (
               <span className="book-chart-quiet">not tiered</span>
             ) : (
@@ -725,7 +772,7 @@ export function MinionBook() {
               <button
                 key={c}
                 className={`book-cat${cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
+                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : c === 'guides' ? '#8fd3c4' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
                 aria-label={CAT_META[c].label}
@@ -738,7 +785,9 @@ export function MinionBook() {
 
           {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), the runes (Runes tab), or the
               heroes (Heroes tab). */}
-          {cats.has('heroes') ? (
+          {cats.has('guides') ? (
+            <CompendiumGuides guides={guidesToShow} tribes={tribes} run={liveRun} />
+          ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
               <div className="book-grid">
                 {heroesToShow.map((h) => {

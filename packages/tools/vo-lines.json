@@ -157,19 +157,549 @@
         "similarity_boost": 0.75,
         "style": 0.5
       }
+    },
+    "hero-aevor": {
+      "id": "ib8aaABAPZQpTo6hx8Jr",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-albus": {
+      "id": "MKlLqCItoCkvdhrxgtLv",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-aster": {
+      "id": "HBDoL4wkcalemIO0nUAu",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-brackus": {
+      "id": "HAvvFKatz0uu0Fv55Riy",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-bram": {
+      "id": "M5E055lOUxMi0kJpGyE9",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-cassen": {
+      "id": "q1h5HGdnfVxp4TXTJRNN",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-chaos": {
+      "id": "6IwYbsNENZgAB1dtBZDp",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-chronoshero": {
+      "id": "wzVFxVZCBIi6KBxNhQDI",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-cia": {
+      "id": "CKfuQaJKfvUG2Wtrda3Y",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-cindara": {
+      "id": "si0svtk05vPEuvwAW93c",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-darah": {
+      "id": "Df0A8fHl2LOO7kDNIlpg",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-devourer": {
+      "id": "DKSYnVsGaIwlOF31S3sV",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-discodan": {
+      "id": "mKoqwDP2laxTdq1gEgU6",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-djinn": {
+      "id": "5GM4aByyJu1ecbL4rKms",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-drakko": {
+      "id": "kTSNDDkx34wKsrujmdm1",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-fibbsy": {
+      "id": "Jr72SE8p9OcJmr8hyX0D",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-flash": {
+      "id": "unWb9iRIK7Xxf4A5Hfis",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-flint": {
+      "id": "DGzg6RaUqxGRTHSBjfgF",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-frank": {
+      "id": "MjEQaRiSe6jP1b0vagRU",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-gildmaster": {
+      "id": "7cOBG34AiHrAzs842Rdi",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-gorun": {
+      "id": "WzVKtqQpTUUQ2JNx8YxI",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-harlan": {
+      "id": "qA5SHJ9UjGlW2QwXWR7w",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-hermithank": {
+      "id": "4Vl3K2x290GidNvuaLm7",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-hunch": {
+      "id": "BBfN7Spa3cqLPH1xAS22",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-indy": {
+      "id": "9q9deeS9jAvkExj8rb2Q",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-jenkins": {
+      "id": "AvJGBaciluXMwNZi5iDk",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-juggler": {
+      "id": "pt0Iailp6NXMdRw1n3c5",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-kindness": {
+      "id": "Nggzl2QAXh3OijoXD116",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-membrance": {
+      "id": "bIQlQ61Q7WgbyZAL7IWj",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-midas": {
+      "id": "TDTTIZEngvvWARkECefs",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-mimic": {
+      "id": "alwWf0yOMMykcrIh8BlE",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-myra": {
+      "id": "stSAI9Ueb8B6BAnFSvia",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-nadja": {
+      "id": "USEQXnsXRJlw2k9LUzG4",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-odelle": {
+      "id": "WMKg7TxPpPWCryaXE42r",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-pete": {
+      "id": "BRruTxiLM2nszrcCIpz1",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-quillen": {
+      "id": "Veg2qijYoJAS8VPKOOmi",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-rayse": {
+      "id": "aqLKRpwa1nsQ5MqiAh53",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-repete": {
+      "id": "EaX6rnyDKjJx35tchi80",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-rohan": {
+      "id": "7DTpboyigwqXiCkvQjMX",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-runeguard": {
+      "id": "Qbw4VpyUrHEG7NigKzty",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-runesmith": {
+      "id": "7squ7rvxEIZ2rYy7KYPP",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-sable": {
+      "id": "6aO1exAR9bDruq155LzQ",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-soren": {
+      "id": "agL69Vji082CshT65Tcy",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-tiff": {
+      "id": "o80picuztV1xYiPeIrpa",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-underdweller": {
+      "id": "Vs5CmVCVJwW4odQS2pVf",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-vale": {
+      "id": "zrqsh6pldVPsh0XysNNZ",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-voidhero": {
+      "id": "TsHrPyMlNFuIYnbODF01",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-warden": {
+      "id": "Sth0oyItcRdvk3sFrPiq",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
+    },
+    "hero-xerox": {
+      "id": "weA4Q36twV5kwSaTEL0Q",
+      "model": "eleven_multilingual_v2",
+      "dest": "packages/ui/src/audio/heroes"
     }
   },
   "lines": [
-    { "id": "gauntlet-round-1", "voice": "announcer", "text": "Round 1" },
-    { "id": "gauntlet-round-2", "voice": "announcer", "text": "Round 2" },
-    { "id": "gauntlet-round-3", "voice": "announcer", "text": "Round 3" },
-    { "id": "gauntlet-round-4", "voice": "announcer", "text": "Round 4" },
-    { "id": "gauntlet-round-5", "voice": "announcer", "text": "Round 5" },
-    { "id": "gauntlet-round-6", "voice": "announcer", "text": "Round 6" },
-    { "id": "gauntlet-round-7", "voice": "announcer", "text": "Round 7" },
-    { "id": "gauntlet-round-8", "voice": "announcer", "text": "Round 8" },
-    { "id": "gauntlet-round-9", "voice": "announcer", "text": "Round 9" },
-    { "id": "gauntlet-round-10", "voice": "announcer", "text": "Round 10" }
+    {
+      "id": "gauntlet-round-1",
+      "voice": "announcer",
+      "text": "Round 1"
+    },
+    {
+      "id": "gauntlet-round-2",
+      "voice": "announcer",
+      "text": "Round 2"
+    },
+    {
+      "id": "gauntlet-round-3",
+      "voice": "announcer",
+      "text": "Round 3"
+    },
+    {
+      "id": "gauntlet-round-4",
+      "voice": "announcer",
+      "text": "Round 4"
+    },
+    {
+      "id": "gauntlet-round-5",
+      "voice": "announcer",
+      "text": "Round 5"
+    },
+    {
+      "id": "gauntlet-round-6",
+      "voice": "announcer",
+      "text": "Round 6"
+    },
+    {
+      "id": "gauntlet-round-7",
+      "voice": "announcer",
+      "text": "Round 7"
+    },
+    {
+      "id": "gauntlet-round-8",
+      "voice": "announcer",
+      "text": "Round 8"
+    },
+    {
+      "id": "gauntlet-round-9",
+      "voice": "announcer",
+      "text": "Round 9"
+    },
+    {
+      "id": "gauntlet-round-10",
+      "voice": "announcer",
+      "text": "Round 10"
+    },
+    {
+      "id": "aevor",
+      "voice": "hero-aevor",
+      "text": "The storm is gathering."
+    },
+    {
+      "id": "albus",
+      "voice": "hero-albus",
+      "text": "Let me improve that for you."
+    },
+    {
+      "id": "aster",
+      "voice": "hero-aster",
+      "text": "Prepare yourselves. I'll lead the way."
+    },
+    {
+      "id": "brackus",
+      "voice": "hero-brackus",
+      "text": "I have seen the summit. Now climb."
+    },
+    {
+      "id": "bram",
+      "voice": "hero-bram",
+      "text": "Every coin into the vault."
+    },
+    {
+      "id": "cassen",
+      "voice": "hero-cassen",
+      "text": "Let them come. I'll leave my mark."
+    },
+    {
+      "id": "chaos",
+      "voice": "hero-chaos",
+      "text": "Order is so very boring."
+    },
+    {
+      "id": "chronoshero",
+      "voice": "hero-chronoshero",
+      "text": "Every tick brings you closer."
+    },
+    {
+      "id": "cia",
+      "voice": "hero-cia",
+      "text": "Welcome. Your table is ready."
+    },
+    {
+      "id": "cindara",
+      "voice": "hero-cindara",
+      "text": "Wake up, my little whelps."
+    },
+    {
+      "id": "darah",
+      "voice": "hero-darah",
+      "text": "Fate deals the cards. I shuffle them."
+    },
+    {
+      "id": "devourer",
+      "voice": "hero-devourer",
+      "text": "Feed me. Feed them all."
+    },
+    {
+      "id": "discodan",
+      "voice": "hero-discodan",
+      "text": "Disco Dan is in the building!"
+    },
+    {
+      "id": "djinn",
+      "voice": "hero-djinn",
+      "text": "Your wish, at last, is granted."
+    },
+    {
+      "id": "drakko",
+      "voice": "hero-drakko",
+      "text": "A-one, a-two, a-one two three four!"
+    },
+    {
+      "id": "fibbsy",
+      "voice": "hero-fibbsy",
+      "text": "Rubies! Shiny, shiny rubies!"
+    },
+    {
+      "id": "flash",
+      "voice": "hero-flash",
+      "text": "First strike. Last strike."
+    },
+    {
+      "id": "flint",
+      "voice": "hero-flint",
+      "text": "Dwarves, on the clock!"
+    },
+    {
+      "id": "frank",
+      "voice": "hero-frank",
+      "text": "Everything must go! Today only!"
+    },
+    {
+      "id": "gildmaster",
+      "voice": "hero-gildmaster",
+      "text": "The gold never stops."
+    },
+    {
+      "id": "gorun",
+      "voice": "hero-gorun",
+      "text": "Steel sharpens with every swing."
+    },
+    {
+      "id": "harlan",
+      "voice": "hero-harlan",
+      "text": "I'll take all of it."
+    },
+    {
+      "id": "hermithank",
+      "voice": "hero-hermithank",
+      "text": "Cheap to browse. Dear to climb."
+    },
+    {
+      "id": "hunch",
+      "voice": "hero-hunch",
+      "text": "I remember every page."
+    },
+    {
+      "id": "indy",
+      "voice": "hero-indy",
+      "text": "One moment is all I need."
+    },
+    {
+      "id": "jenkins",
+      "voice": "hero-jenkins",
+      "text": "Fire in the hole!"
+    },
+    {
+      "id": "juggler",
+      "voice": "hero-juggler",
+      "text": "Keep your eyes on the coins."
+    },
+    {
+      "id": "kindness",
+      "voice": "hero-kindness",
+      "text": "I brought presents!"
+    },
+    {
+      "id": "membrance",
+      "voice": "hero-membrance",
+      "text": "I remember what you fought."
+    },
+    {
+      "id": "midas",
+      "voice": "hero-midas",
+      "text": "Everything I touch turns to gold."
+    },
+    {
+      "id": "mimic",
+      "voice": "hero-mimic",
+      "text": "Who do you need me to be?"
+    },
+    {
+      "id": "myra",
+      "voice": "hero-myra",
+      "text": "Ladies and gentlemen, take your seats!"
+    },
+    {
+      "id": "nadja",
+      "voice": "hero-nadja",
+      "text": "The well is deep today."
+    },
+    {
+      "id": "odelle",
+      "voice": "hero-odelle",
+      "text": "Behold, my finest arrangement."
+    },
+    {
+      "id": "pete",
+      "voice": "hero-pete",
+      "text": "Psst. Got something special."
+    },
+    {
+      "id": "quillen",
+      "voice": "hero-quillen",
+      "text": "Nothing is lost. Only filed."
+    },
+    {
+      "id": "rayse",
+      "voice": "hero-rayse",
+      "text": "Grow, and hold the line."
+    },
+    {
+      "id": "repete",
+      "voice": "hero-repete",
+      "text": "Again! Again!"
+    },
+    {
+      "id": "rohan",
+      "voice": "hero-rohan",
+      "text": "Let it come back to you."
+    },
+    {
+      "id": "runeguard",
+      "voice": "hero-runeguard",
+      "text": "The epic forge awaits the worthy."
+    },
+    {
+      "id": "runesmith",
+      "voice": "hero-runesmith",
+      "text": "The forge is warming up."
+    },
+    {
+      "id": "sable",
+      "voice": "hero-sable",
+      "text": "Two souls, one fate."
+    },
+    {
+      "id": "soren",
+      "voice": "hero-soren",
+      "text": "Death is only a doorway."
+    },
+    {
+      "id": "tiff",
+      "voice": "hero-tiff",
+      "text": "Who wants to meet a dragon?"
+    },
+    {
+      "id": "underdweller",
+      "voice": "hero-underdweller",
+      "text": "The fallen still serve me."
+    },
+    {
+      "id": "vale",
+      "voice": "hero-vale",
+      "text": "Together, we stand united."
+    },
+    {
+      "id": "voidhero",
+      "voice": "hero-voidhero",
+      "text": "Two powers, drawn from nothing."
+    },
+    {
+      "id": "warden",
+      "voice": "hero-warden",
+      "text": "Stand behind me."
+    },
+    {
+      "id": "xerox",
+      "voice": "hero-xerox",
+      "text": "Print, print, print."
+    }
   ],
   "sfx": [
     {

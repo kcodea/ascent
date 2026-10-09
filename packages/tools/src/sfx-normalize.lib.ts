@@ -15,6 +15,10 @@ import { createHash } from 'node:crypto';
 
 /** Target integrated loudness (LUFS) every card clip is normalized to. */
 export const TARGET_LUFS = -20;
+/** Target for the Hero Select lines (audio/heroes/<heroId>.mp3): the average integrated loudness of the owner's 10
+ *  hand-recorded hero lines (measured 2026-10-09, they spanned -29.7 to -16.7 LUFS), so the generated lines sit with
+ *  them instead of at the card-clip level. */
+export const HERO_SELECT_LUFS = -22.8;
 /** True-peak ceiling (dBTP). */
 export const TRUE_PEAK = -1;
 /** Loudness range allowed through loudnorm (LU). */
@@ -35,8 +39,8 @@ export interface LoudnormMeasure {
 }
 
 /** The pass-1 filter: compress, then measure. */
-export function measureFilter(): string {
-  return `${COMPRESSOR},loudnorm=I=${TARGET_LUFS}:TP=${TRUE_PEAK}:LRA=${LRA}:print_format=json`;
+export function measureFilter(target = TARGET_LUFS): string {
+  return `${COMPRESSOR},loudnorm=I=${target}:TP=${TRUE_PEAK}:LRA=${LRA}:print_format=json`;
 }
 
 /** A plain loudness reading (no compressor): used to report a clip's loudness after normalizing. */
@@ -45,8 +49,8 @@ export function readFilter(): string {
 }
 
 /** The pass-2 filter: compress, then one linear gain to the target from the pass-1 measurement. */
-export function applyFilter(m: LoudnormMeasure): string {
-  return `${COMPRESSOR},loudnorm=I=${TARGET_LUFS}:TP=${TRUE_PEAK}:LRA=${LRA}:measured_I=${m.input_i}:measured_TP=${m.input_tp}`
+export function applyFilter(m: LoudnormMeasure, target = TARGET_LUFS): string {
+  return `${COMPRESSOR},loudnorm=I=${target}:TP=${TRUE_PEAK}:LRA=${LRA}:measured_I=${m.input_i}:measured_TP=${m.input_tp}`
     + `:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
 }
 

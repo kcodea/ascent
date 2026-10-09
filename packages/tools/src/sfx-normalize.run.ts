@@ -5,7 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, renameSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { applyFilter, clipHash, isSilent, measureFilter, parseLoudnorm, readFilter } from './sfx-normalize.lib';
+import { TARGET_LUFS, applyFilter, clipHash, isSilent, measureFilter, parseLoudnorm, readFilter } from './sfx-normalize.lib';
 
 const ffmpegPath = createRequire(import.meta.url)('ffmpeg-static') as string | null;
 
@@ -25,13 +25,13 @@ export interface NormalizeResult {
   skipped?: string;
 }
 
-/** Compress + two-pass loudnorm `file` (an mp3) in place, 44.1 kHz / 128 kbps mp3 out. */
-export function normalizeFile(file: string): NormalizeResult {
-  const pass1 = ffmpeg(['-i', file, '-af', measureFilter(), '-f', 'null', '-']);
+/** Compress + two-pass loudnorm `file` (an mp3) in place to `target` LUFS, 44.1 kHz / 128 kbps mp3 out. */
+export function normalizeFile(file: string, target = TARGET_LUFS): NormalizeResult {
+  const pass1 = ffmpeg(['-i', file, '-af', measureFilter(target), '-f', 'null', '-']);
   const m = parseLoudnorm(pass1.stderr);
   if (isSilent(m)) return { hash: clipHash(readFileSync(file)), before: m.input_i, after: m.input_i, skipped: 'silent' };
   const tmp = `${file}.norm.mp3`;
-  const pass2 = ffmpeg(['-y', '-i', file, '-af', applyFilter(m), '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', '128k', tmp]);
+  const pass2 = ffmpeg(['-y', '-i', file, '-af', applyFilter(m, target), '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', '128k', tmp]);
   if (pass2.status !== 0) { rmSync(tmp, { force: true }); throw new Error(`ffmpeg failed on ${file}: ${pass2.stderr.slice(-300)}`); }
   renameSync(tmp, file);
   const check = parseLoudnorm(ffmpeg(['-i', file, '-af', readFilter(), '-f', 'null', '-']).stderr);

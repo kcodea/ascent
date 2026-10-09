@@ -1960,4 +1960,89 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlash.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
+  {
+    id: "R-ANCGILD-01",
+    title: "Gildmaster × Ancient of Death: Avenge (14) on one running count gets a Goldcrafter",
+    statement:
+      "With the Ancient of Death, Gildmaster has a hero Avenge (14) on ONE running count of friendly deaths across the Shop and combat. Each fire gets a Goldcrafter (the spell token), to hand: in the Shop right then, in combat mid-fight. Rune of Fury fires the combat half again.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Avenge (14): Get a Goldcrafter.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantCard / ancientHeroAvengeShopDeath; packages/core/src/combat/simulate.ts ancientGorrAvenge" },
+    ],
+    contentIds: ["goldcrafter"],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-02",
+    title: "Gildmaster × Ancient of Fortune: every Triple Reward also gains 5 Gold",
+    statement:
+      "With the Ancient of Fortune, every Triple Reward you get also gains 5 Gold right then (Braum's Fortune primitive).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Fortune: \"Triple Rewards also grant 5 Gold.\" Reuse tripleRewardGold {gold:5}." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tripleRewardGold / ancientOnTripleReward" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-03",
+    title: "Gildmaster × Ancient of War: Pummel (1000), once per combat, adds a use to Gildcrafter",
+    statement:
+      "With the Ancient of War, a hero-level Pummel (1000) on the shared lifetime damage tally pays once per combat: Gildcrafter's whole-game use budget grows by 1 (3, then 4, ...), banked at settle. It is still once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "War: \"Pummel (1000): Gain a charge of Gildmaster.\" This is +1 to the use budget." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pummelPowerUse / batch5AfterCombat (powerOverride.maxUses)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-04",
+    title: "Gildmaster × Ancient of Genesis: every Triple Reward triggers twice",
+    statement:
+      "With the Ancient of Genesis, EVERY Triple Reward (a Gilded play, a Keshi crown, a Corrupted Tome extra) is granted twice. The repeat never repeats itself.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Triple Rewards trigger twice.\" OWNER: EVERY Triple Reward, hooked in grantGoldenDiscover." },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts grantGoldenDiscover (tripleRewardRepeating)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-05",
+    title: "Gildmaster × Ancient of Time: Gildcrafter turns passive; Start of Turn gilds a random friendly minion",
+    statement:
+      "With the Ancient of Time, Gildcrafter becomes passive, and every Start of Turn (its own beat) makes a random non-Gilded friendly board minion Gilded. No such minion: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"Gildcrafter becomes: Start of Turn: Make a random friendly minion Gilded.\" The power becomes passive and gilds a random non-Gilded friendly minion at Start of Turn." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotGildRandom / gildmasterStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
+  {
+    id: "R-ANCGILD-06",
+    title: "Gildmaster × Ancient of Bonds: playing a Gilded minion gives your Gilded minions +5/+5, repeated per Gilded minion this game",
+    statement:
+      "With the Ancient of Bonds, playing a Gilded minion gives every Gilded board minion (the played one included) +5/+5, then repeats once for every minion made Gilded this game (the run's gild count, from the start of the run, before the pick included). Each step is its own tick (the repeat-vs-lump rule), from the hero power.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Playing a triple grants your Gilded minions +5/+5. Repeat for every Gilded minion this game.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts gildedPlayBuffsGilded / gildmasterOnPlay" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
+  },
 ];

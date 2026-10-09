@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, runeSynergies, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { HEROES } from './heroes';
-import { boardSynergyTags, openEpicRuneforge, questCombatMods, reduce } from './reducer';
+import { boardSynergyTags, openEpicRuneforge, questCombatMods, reduce, runeFitTags } from './reducer';
 import { buffFodderRunWide, buffImpsRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, noteFodderConsumed, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
@@ -52,7 +52,7 @@ describe('Runeforge — synergy offers + pivot discounts (owner ask 2026-07-31)'
       const offer = opened.runeforgeOffer;
       if (!offer) continue; // (a hero-power edge — not what this test is about)
       const tags = boardSynergyTags(opened);
-      expect(offer.some((id) => runeSynergies(RUNE_INDEX[id]!).some((t) => tags.has(t))),
+      expect(offer.some((id) => runeFitTags(RUNE_INDEX[id]!).some((t) => tags.has(t))),
         `seed ${seed}: no offered rune follows the board`).toBe(true);
     }
   });

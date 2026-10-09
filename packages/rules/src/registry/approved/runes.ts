@@ -2106,4 +2106,25 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-07). Before the fix it only heard casters that went through resolveCombatSpellCast (Sporebat, Quil, Badgington, Dragonflame), so Growth / Lantern of Souls / Staff of Guel / random-stat-spell casts never fired it.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeSharedScripture.test.ts', 'packages/sim/src/runeBatch4T4.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-RUNE-FORGEFIT-01',
+    title: 'The Runeforge guarantee is tribe-aligned: a board with a tribe at the fit threshold is always offered a rune of that tribe',
+    statement:
+      'When the board holds a tribe at the board-fit threshold of the forge (R-RUNE-03: 2 at a Basic forge, 3 at an Epic '
+      + 'forge, All types count as one of every tribe), the ONE guaranteed offer slot is a rune of one of those '
+      + 'tribes whenever the eligible pool has one. A rune that only shares a MECHANIC tag (a Demon rune whose text '
+      + 'says "summon") does not satisfy it. The tribe of a rune is its tribe gate (`tribes`) plus any tribe word in its '
+      + 'text, so a gated rune that never prints the tribe word (Rune of Baal, Rune of Chimerus, Rune of the Whelps) '
+      + 'counts, both for the guarantee and for the pivot discount (a fitting rune is never discounted). A board with '
+      + 'no tribe at the threshold keeps the mechanic guarantee unchanged.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-08 (4 Dragons + 3 Dwarves at the Epic forge, offered Broodpit / Wild Hunt / Food Chain / Gemstorm)', quote: 'he should have at least 1 rune that is tribe aligned here for one of those' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts runeFitTags / drawRuneOffer (tribePool before the mechanic synergyPool)' },
+    ],
+    contentIds: [],
+    currentBehaviour: 'Conforms as of 2026-10-08. Before, the guarantee accepted any tag overlap: mechanic tags are presence tags, so a Dragon/Dwarf board already "matched" a Demon summon rune and the swap never fired (Epic 4 Dragon + 3 Dwarf boards saw no Dragon or Dwarf rune in about 33% of forges), and gate-only tribe runes were not tribe runes to the forge at all.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgeTribeFitGuarantee.test.ts', 'packages/sim/src/runeforgeClockEpicBoardfit.test.ts'], lastVerifiedAt: '2026-10-08' },
+  },
 ];

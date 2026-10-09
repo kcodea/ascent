@@ -6193,11 +6193,24 @@ export function boardSynergyTags(s: RunState, epic: boolean = !!s.runeforgeEpic)
  *  (basic 1–2, epic 2–4) — a nudge toward changing direction rather than a tax on staying the course. */
 const PIVOT_DISCOUNT_CHANCE = 0.4;
 
+/** The tags a rune follows for the forge: its text-derived `runeSynergies` PLUS its tribe gate (`tribes`). A
+ *  gated rune whose text never prints the tribe word (Rune of Baal, Rune of Chimerus, Rune of the Whelps, …) is
+ *  still a Dwarf / Dragon rune: the gate is the content's own statement of which tribe it serves. */
+export function runeFitTags(rn: RuneDef): readonly SynergyTag[] {
+  const text = runeSynergies(rn);
+  if (!rn.tribes || rn.tribes.length === 0) return text;
+  return [...text, ...rn.tribes.filter((t) => !text.includes(t))];
+}
+
 /** Build a forge offer with the synergy guarantee (owner ask 2026-07-31): ONE slot is drawn from the runes
- *  that follow something on the player's board (a tribe at the forge's board-fit threshold, or a mechanic),
- *  when any such rune exists; the rest draw uniformly, every eligible rune weighted equally (no pity). Returns
- *  the ids plus the aligned pivot discounts, both seeded off `rng` so replays hold. `avoid` = runes a re-roll
- *  or an earlier forge this turn already showed (preferred fresh, never a hard exclusion). */
+ *  that follow something on the player's board, when any such rune exists; the rest draw uniformly, every
+ *  eligible rune weighted equally (no pity). TRIBE FIRST (owner 2026-10-08, a 4 Dragon + 3 Dwarf board shown
+ *  Broodpit / Wild Hunt / Food Chain / Gemstorm: "he should have at least 1 rune that is tribe aligned here"):
+ *  when the board holds a tribe at the forge's board-fit threshold, the guaranteed slot is a rune of one of
+ *  those tribes, and a rune that only shares a MECHANIC tag (a Demon rune that says "summon") no longer
+ *  satisfies it. A board with no tribe at the threshold keeps the mechanic guarantee. Returns the ids plus the
+ *  aligned pivot discounts, both seeded off `rng` so replays hold. `avoid` = runes a re-roll or an earlier
+ *  forge this turn already showed (preferred fresh, never a hard exclusion). */
 function drawRuneOffer(s: RunState, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): { offer: string[]; discounts: (number | undefined)[] } {
   // TUTORIAL: an AUTHORED offer, never a draw. The coach names what each rune does, which it can only do for
   // runes the course chose. No pivot discounts either — a discounted price is a lesson of its own, and this
@@ -6211,12 +6224,21 @@ function drawRuneOffer(s: RunState, rng: ReturnType<typeof makeRng>, avoid: Set<
   const tags = boardSynergyTags(s);
   const matches = (id: string): boolean => {
     const rn = RUNE_INDEX[id];
-    return !!rn && runeSynergies(rn).some((t) => tags.has(t));
+    return !!rn && runeFitTags(rn).some((t) => tags.has(t));
   };
-  const synergyPool = pool.filter((id) => matches(id) && !avoid.has(id));
+  // The board's tribes at the forge's threshold (`tags` holds tribes only when they reach it).
+  const fitTribes = TRIBES.filter((t) => t !== 'neutral' && tags.has(t));
+  const tribeMatches = (id: string): boolean => {
+    const rn = RUNE_INDEX[id];
+    return !!rn && runeFitTags(rn).some((t) => (fitTribes as readonly SynergyTag[]).includes(t));
+  };
+  const tribePool = pool.filter((id) => tribeMatches(id) && !avoid.has(id));
+  const synergyPool = tribePool.length > 0 ? tribePool : pool.filter((id) => matches(id) && !avoid.has(id));
+  const satisfied = tribePool.length > 0 ? tribeMatches : matches;
   const offer = drawRunes(pool, RUNEFORGE_OFFER, rng, avoid);
-  // Guarantee: if nothing drawn follows the board but a follower exists, swap one in at a seeded slot.
-  if (synergyPool.length > 0 && !offer.some(matches)) {
+  // Guarantee: if nothing drawn follows the board but a follower exists, swap one in at a seeded slot. A
+  // tribe-aligned rune is the follower whenever the board has a tribe at the threshold (see above).
+  if (synergyPool.length > 0 && !offer.some(satisfied)) {
     const pick = synergyPool[rng.int(synergyPool.length)]!;
     offer[rng.int(offer.length)] = pick;
   }

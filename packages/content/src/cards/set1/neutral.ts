@@ -285,8 +285,10 @@ export const NEUTRAL: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'spellCopyRecent' }],
-    text: '**End of Turn:** get a copy of the most recent Shop spell cast.',
-    goldenText: '**End of Turn:** get **2** copies of the most recent Shop spell cast.',
+    // Live text (owner 2026-10-09): the UI appends " (X)", X = the spell it would copy right now
+    // (`stewardText` in packages/ui/src/cardText.ts). No suffix until a spell has been cast.
+    text: '**End of Turn:** Get a copy of the last spell cast.',
+    goldenText: '**End of Turn:** Get **2** copies of the last spell cast.',
   },
   {
     // Start of Combat: give the enemy minion OPPOSITE this Taunt, then ATTACK IT IMMEDIATELY (owner rework

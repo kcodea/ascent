@@ -494,4 +494,25 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Hovering the Rise pill shows "Returns once when destroyed with 1 health."',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/plainRulesWording.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
+  {
+    id: 'R-TEXT-STEWARD-01',
+    title: 'Steward of Spells prints "End of Turn: Get a copy of the last spell cast. (X)", X = the spell it would copy now',
+    statement:
+      'Steward of Spells reads "End of Turn: Get a copy of the last spell cast." (golden: "Get 2 copies") on every '
+      + 'surface, and whenever a spell has been cast this run it appends " (X)", X being the name of the run lastSpellCastId '
+      + 'spell: the exact field spellCopyRecent copies (run-lifetime, any real cast, never a Gift or a '
+      + 'Ruby). Before any cast, and on static surfaces with no run state, the base text shows with no parentheses. '
+      + 'The suffix renders on the shop chain (liveCardText) and the combat chain (Unit), player and foe side.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-09', quote: "steward of spells text always needs to say 'End of Turn: Get a copy of the last spell cast. (X)' with X being the last spell cast" },
+      { kind: 'fix-pr', ref: 'fix/steward-of-spells-text: packages/ui/src/cardText.ts (stewardText), packages/content/src/cards/set1/neutral.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-09: stewardText appends " ({{name}})" to the printed rule; the name is highlighted green '
+      + 'like every live value.',
+    example: 'After casting Growth, Steward of Spells reads "End of Turn: Get a copy of the last spell cast. (Growth)".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stewardLiveText.test.tsx'], lastVerifiedAt: '2026-10-09' },
+  },
 ];

@@ -257,6 +257,7 @@ const CROSS: CrossExemplar[] = [
   { id: 'sp3_luminary', run: { revelerX: 3 } },
   { id: 'sp3_kindled', run: { playedThisTurn: ['sp3_tidebud', 'sp3_nurturer'] } }, // Spirits played this turn
   { id: 'u3_bicyclebob', run: { playedThisTurn: ['u3_noggin', 'mumi'] } }, // Undead played this turn — the per-tribe map rides the snapshot to the foe side (2026-09-18)
+  { id: 'stewardofspells', run: { lastSpellCastId: 'growth' } }, // run-lifetime last spell: the " (X)" suffix (owner 2026-10-09)
 ];
 
 const runFor = (x: CrossExemplar): RunState => ({ ...createRun(7), ...x.run }) as RunState;

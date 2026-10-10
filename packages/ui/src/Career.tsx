@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { LazyRow, LazyRowsProvider } from './lazyRows';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
@@ -17,8 +18,9 @@ import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
-import { fetchMyPracticeGames, fetchMyRuns, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
+import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
+import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankBar } from './rank/RankBar';
 import { cosmeticOf, isMasterTitle, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
@@ -83,10 +85,6 @@ import { rectToStage, stageHost, stageViewport } from './stage';
  * Read-only; opened by the title's Career button (and by the leaderboard / Recent Games for another player).
  */
 
-/** Rows fetched light (scalars only) for the trends, the tiles and the Heroes tab — effectively every run the
- *  account has (a light row is ~200 bytes); the newest `CAREER_DETAIL_ROWS` of them also carry the board. The
- *  trends' "All time" window is therefore, precisely, the newest 1000 runs — honest today by a wide margin. */
-const FETCH_LIMIT = 1000;
 /** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
 const TAB_KEY = 'ascent.career.tab';
 type CenterTab = 'history' | 'heroes' | 'practice' | 'achievements';
@@ -99,6 +97,8 @@ function loadTab(): CenterTab {
 function saveTab(t: CenterTab): void {
   try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
 }
+/** Banners mounted with the page; the rest mount as they near the viewport (`lazyRows.tsx`). Two fill the view. */
+const EAGER_ROWS = 3;
 /** Banners in Match History — the newest 25 server runs (owner 2026-09-20; was 10). Matches `CAREER_DETAIL_ROWS`. */
 const MATCH_ROWS = 25;
 
@@ -247,9 +247,10 @@ function LobbyPanel({ match, id }: { match: MatchDetails | null | undefined; id:
   );
 }
 
-/** One match banner. */
-function MatchRow({ run, focus, busy, unplayable, onWatch }: {
-  run: CareerRun; focus: boolean; busy: boolean; unplayable: boolean; onWatch: () => void;
+/** One match banner. Memoised (perf 2026-10-09): a trend-window click or a Watch press re-renders the page, never the
+ *  25 banners' 175 cards; `onWatch` is the page's stable callback and gets the run back. */
+const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch }: {
+  run: CareerRun; focus: boolean; busy: boolean; unplayable: boolean; onWatch: (run: CareerRun) => void;
 }) {
   const o = outcomeOf(run.placement);
   const result = matchResultOf(run.placement);
@@ -321,7 +322,7 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
             type="button"
             className="cv2-btn cv2-watch pressable"
             disabled={!watchable || busy || unplayable}
-            onClick={onWatch}
+            onClick={() => onWatch(run)}
             aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
           >
             <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
@@ -331,7 +332,7 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
       {lobbyOpen && <LobbyPanel match={run.match} id={lobbyId} />}
     </article>
   );
-}
+});
 
 /** "Bots · Level 5" / "Players": the practice row's opponents pill. */
 export function practiceOpponentsPill(cfg: PracticeGameConfig): string {
@@ -522,13 +523,16 @@ export function Career() {
   const careerVersion = useGame((s) => s.careerVersion);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const cache = useGame((s) => s.careerCache);
-  const setCache = useGame((s) => s.setCareerCache);
 
   const viewing = careerOf;
   const userId = viewing?.userId ?? myId;
   const cacheKey = `${userId ?? ''}|${careerVersion}`;
   // `undefined` = loading; `null` = couldn't ask (no session / server unreachable); [] = no runs yet.
-  const [runs, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
+  const [loadedRuns, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
+  // The FIRST render of an open already shows the cached rows (this key's, else the same player's older answer), not
+  // a loading frame waiting on the effect below to copy them in (perf 2026-10-09). `loadedRuns` is cleared on close.
+  const cachedRuns = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
+  const runs = loadedRuns !== undefined ? loadedRuns : cachedRuns;
   const [fetchTick, setFetchTick] = useState(0); // the Retry button
   const [window_, setWindow] = useState<TrendWindow>(30);
   const [tabPicked, setTab] = useState<CenterTab>(loadTab);
@@ -544,26 +548,38 @@ export function Career() {
   const [watchingPractice, setWatchingPractice] = useState<number | null>(null); // practice row id whose replay is loading
   const [noPracticeReplay, setNoPracticeReplay] = useState<number | null>(null); // practice row id whose payload came back unplayable
 
+  const lastTick = useRef(fetchTick);
   useEffect(() => {
-    if (!show) return;
+    if (!show) { setRuns(undefined); return; }
     let live = true;
-    // Paint the cached list at once (no loading flash on reopen), then refresh behind it.
-    const cached = cache && cache.key === cacheKey ? cache.runs : undefined;
-    setRuns(cached);
+    // STALE-WHILE-REVALIDATE (perf 2026-10-09): paint the cached list at once, the exact answer for this key or the
+    // same player's previous-version answer (a run finished since), and refresh behind it. A fresh exact answer
+    // (read under `CAREER_FRESH_MS` ago) asks nothing. The refresh paints its run_history rows as soon as they land
+    // and the telemetry join (Watch, length, APM) after, carrying the older answer's Watch handles meanwhile.
+    const exact = cache && cache.key === cacheKey ? cache.runs : undefined;
+    const sameUser = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
+    const shown = exact ?? sameUser;
+    setRuns(shown);
     setWatching(null);
     setNoReplay(null);
     if (!userId || !remoteEnabled()) { setRuns(null); return; }
-    void fetchMyRuns(FETCH_LIMIT, viewing ? { userId: viewing.userId } : undefined).then((rows) => {
-      if (!live) return;
-      if (rows) setCache(cacheKey, rows);
-      setRuns(rows ?? (cached ?? null));
-    });
-    // …and re-read YOUR OWN rating from the server while we're here — the profile is a local mirror of the
-    // `profiles` row and this is the number the Seasonal Ranked card prints (the same one the leaderboard shows).
+    // Re-read YOUR OWN rating from the server on every open — the profile is a local mirror of the `profiles` row and
+    // this is the number the Seasonal Ranked card prints (the same one the leaderboard shows). One small read, even
+    // when the runs below are fresh enough to skip.
     if (!viewing) syncProfileFromServer(playerName);
+    const retry = lastTick.current !== fetchTick;
+    lastTick.current = fetchTick;
+    if (!retry && exact && careerFresh(cacheKey)) return () => { live = false; };
+    void loadCareer(cacheKey, {
+      ...(viewing ? { userId: viewing.userId } : {}),
+      onHistory: (partial) => { if (live) setRuns(carryTelemetry(partial, shown)); },
+    }).then((rows) => {
+      if (!live) return;
+      setRuns(rows ?? (shown ?? null));
+    });
     return () => { live = false; };
-    // `cache` is deliberately NOT a dep: the effect writes it, and re-running on that write would refetch forever.
-  }, [show, cacheKey, userId, viewing, playerName, fetchTick, setCache]);
+    // `cache` is deliberately NOT a dep: the load writes it, and re-running on that write would refetch forever.
+  }, [show, cacheKey, userId, viewing, playerName, fetchTick]);
 
   // MEDAL RANK for a VIEWED player (owner 2026-09-21). The entry point hands the rank over when it already
   // holds it (`careerOf.rank`: a Rankings row, Recent Games' profile fetch); otherwise (the Hall, a stale link)
@@ -620,6 +636,16 @@ export function Career() {
   // A hero title's master version is the golden embroidered plate (owner 2026-09-29).
   const headerTitleMaster = isMasterTitle(accountProgression?.equippedTitleId ?? null);
 
+  // SKINS: whose page this is, and the page owner's CURRENT loadout (public, read with their progression). Memoised
+  // (perf 2026-10-09) so the context value is stable and the memoised banners below skip unrelated re-renders.
+  const pageLoadout = accountProgression?.loadout ?? null;
+  const careerSkins = useMemo(() => ({ own: !viewing, loadout: pageLoadout }), [viewing, pageLoadout]);
+  // The scroller element the lazy banners observe (a callback ref, so the provider sees it once it exists).
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
+  const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
+  const onWatchRun = useCallback((run: CareerRun) => watchRunRef.current(run), []);
+
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
@@ -641,6 +667,8 @@ export function Career() {
       .finally(() => setWatching(null));
   };
 
+  watchRunRef.current = watchRun;
+
   // Watch a practice game back: the twin of `watchRun`, reading the practice row's own `replay->v2` by id.
   const watchPractice = (game: PracticeGameRow): void => {
     if (!game.hasReplay || game.rowId === null || watchingPractice !== null) return;
@@ -657,10 +685,6 @@ export function Career() {
   };
 
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
-  // SKINS: whose page this is, and the page owner's CURRENT loadout (public, read with their progression).
-  const pageLoadout = accountProgression?.loadout ?? null;
-  // (After Career's early return, so a plain object: this page re-renders rarely and its consumers are few.)
-  const careerSkins = { own: !viewing, loadout: pageLoadout };
   const heroName = heroId ? getHero(heroId).name : '—';
   const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
   const pickTab = (t: CenterTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); saveTab(t); };
@@ -750,7 +774,7 @@ export function Career() {
               <AchievementsTab userId={userId} own={!viewing} ownerName={shownName} />
             </div>
           ) : tab === 'practice' ? (
-            <div className="cv2-list cv2-practicelist" role="tabpanel">
+            <div className="cv2-list cv2-practicelist" role="tabpanel" ref={setListEl}>
               {practiceRows === undefined ? (
                 <div className="cv2-panel cv2-none" role="status" aria-busy="true">
                   <div className="cv2-state-ico spin"><Icon name="refresh" /></div>
@@ -770,15 +794,22 @@ export function Career() {
                   <div className="cv2-state-title">No practice games yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.'}</div>
                 </div>
-              ) : practiceRows.map((g, i) => (
-                <PracticeRow
-                  key={g.rowId ?? `${g.createdAt ?? ''}-${i}`}
-                  game={g}
-                  busy={watchingPractice !== null && watchingPractice === g.rowId}
-                  unplayable={noPracticeReplay !== null && noPracticeReplay === g.rowId}
-                  onWatch={() => watchPractice(g)}
-                />
-              ))}
+              ) : (
+                <LazyRowsProvider list={listEl}>
+                  {practiceRows.map((g, i) => (
+                    <LazyRow key={g.rowId ?? `${g.createdAt ?? ''}-${i}`} eager={i < EAGER_ROWS} className="cv2-lazy">
+                      {() => (
+                        <PracticeRow
+                          game={g}
+                          busy={watchingPractice !== null && watchingPractice === g.rowId}
+                          unplayable={noPracticeReplay !== null && noPracticeReplay === g.rowId}
+                          onWatch={() => watchPractice(g)}
+                        />
+                      )}
+                    </LazyRow>
+                  ))}
+                </LazyRowsProvider>
+              )}
             </div>
           ) : tab === 'heroes' ? (
             <div className="cv2-list cv2-herolist" role="tabpanel">
@@ -795,23 +826,30 @@ export function Career() {
               )}
             </div>
           ) : (
-            <div className="cv2-list" role="tabpanel">
+            <div className="cv2-list" role="tabpanel" ref={setListEl}>
               {matchRows.length === 0 ? (
                 <div className="cv2-panel cv2-none">
                   <div className="cv2-state-ico"><Icon name="sword" /></div>
                   <div className="cv2-state-title">No runs yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.'}</div>
                 </div>
-              ) : matchRows.map((run, i) => (
-                <MatchRow
-                  key={run.id ?? i}
-                  run={run}
-                  focus={i === focusIndex}
-                  busy={watching !== null && watching === run.id}
-                  unplayable={noReplay !== null && noReplay === run.id}
-                  onWatch={() => watchRun(run)}
-                />
-              ))}
+              ) : (
+                <LazyRowsProvider list={listEl}>
+                  {matchRows.map((run, i) => (
+                    <LazyRow key={run.id ?? i} eager={i < EAGER_ROWS || i === focusIndex} className="cv2-lazy">
+                      {() => (
+                        <MatchRow
+                          run={run}
+                          focus={i === focusIndex}
+                          busy={watching !== null && watching === run.id}
+                          unplayable={noReplay !== null && noReplay === run.id}
+                          onWatch={onWatchRun}
+                        />
+                      )}
+                    </LazyRow>
+                  ))}
+                </LazyRowsProvider>
+              )}
             </div>
           )}
         </section>

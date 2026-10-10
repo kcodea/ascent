@@ -471,7 +471,7 @@ describe('states', () => {
     useGame.setState({ careerOf: { userId: 'them-9', author: 'Mika', rating: 763, gamesPlayed: 4 }, careerCache: null });
     ui = mount(<Career />);
     await flush();
-    expect(fetchMyRuns).toHaveBeenCalledWith(1000, { userId: 'them-9' }); // ALL their runs (the Heroes tab folds every one)
+    expect(fetchMyRuns).toHaveBeenCalledWith(1000, expect.objectContaining({ userId: 'them-9' })); // ALL their runs (the Heroes tab folds every one)
     expect(ui.container.querySelector('.lbtitle .cv2-name')?.textContent).toBe('Mika');
     expect(ui.container.querySelector('.lbtitle .cv2-kicker')?.textContent).toBe('Career');
     // No rank handed over → the page asks the server ONCE by user id; a viewed profile without a medal rank

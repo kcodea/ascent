@@ -669,6 +669,29 @@ The rules:
   and the cost is measured in `docs/devlog/2026-09-30-art-loading-gate.md`. A new art family MUST join
   `preloadBootArt`'s gate, or it can pop in (only the placeholder safety net stands between it and a blank frame).
 
+## 3f. Menus and Social: lists of real cards, list reads, caches (2026-10-09)
+
+Owner report: *"our social tab takes forever to load and is also laggy"*. Numbers and the measuring rig are in
+`docs/devlog/2026-10-09-menus-social-perf.md`. The rules that came out of it:
+
+- **Never read a fact out of a replay jsonb in a LIST read.** `replay->v2->frames->-1->>tMs` over 90 rows made Postgres
+  decompress and parse every replay whole (0.6-5 s, statement timeouts). List reads select the stored generated `tp_*`
+  columns (`supabase/migrations/2026-10-09-replay-facts.sql`); a new fact a list needs gets a new `tp_*` column, not a
+  new JSON path. The full replay is fetched by id, one row, only on Watch.
+- **A best-effort read never blocks a page's paint.** The Career paints from `run_history` and joins the telemetry
+  probe behind it (`fetchMyRuns({ onHistory })`). Anything that only adds buttons or a chart line streams in.
+- **Menu pages are stale-while-revalidate.** A reopen or sidebar hop paints the last answer at once
+  (`socialCache.ts`, the Career's `careerLoad.ts`); one request per key in flight; an empty answer never blanks a list;
+  the title prefetches on idle. Never `setRows(null)` on open.
+- **A list of real `Card`s is lazy and pauses offscreen.** Each card carries looping keyword FX; 25 banners of 7 cards
+  was 752 running animations and a 24 ms idle frame. Use `lazyRows.tsx` (`LazyRowsProvider` + `LazyRow`): rows mount
+  near the view, one per frame, and far rows get `.is-far` (animations paused). Do NOT use `content-visibility` for
+  far rows that come back: un-skipping a row of cards measured a ~290 ms frame.
+- **No `getComputedStyle` on a freshly mounted page.** It forces the whole recalc the next frame would have done
+  (25-46 ms on the Career open). Read after the first paint (rAF then a timeout), when styles are clean.
+- **Memo list rows with stable callbacks and a memoised context value.** A context provider value built inline
+  re-renders every consumer through `memo`.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

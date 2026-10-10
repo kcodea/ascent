@@ -227,7 +227,10 @@ function audio(): AudioContext | null {
       };
       tap('master', master);
       for (const b of BUS_NAMES) tap(b, busNodes.get(b)!.input);
-      prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
+      // Decode the mp3 SFX once the context exists (first user gesture), on the NEXT task: queueing ~400 samples
+      // inside the gesture cost ~10 ms of the first menu click's frame (perf 2026-10-09). The clip this click plays
+      // is unaffected: a play of an unloaded sample asks for it itself.
+      setTimeout(prefetchSamples, 0);
     }
     return ctx;
   } catch {

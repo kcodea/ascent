@@ -6,6 +6,8 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
+import { useSocial } from './socialCache';
+import { LazyRow, LazyRowsProvider } from './lazyRows';
 import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbLabel, LbRunes, LbTeam } from './LadderBits';
@@ -32,6 +34,8 @@ import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from 
  * Each tab fetches when it is first shown and keeps its rows while the page stays open.
  */
 const FEED_ROWS = 20;
+/** Banners mounted with the page; the rest mount as they near the view (`lazyRows.tsx`). */
+const EAGER_ROWS = 4;
 
 export type RecentGamesTab = 'ranked' | 'practice';
 
@@ -40,35 +44,30 @@ export function practiceOpponentsText(cfg: PracticeGameConfig): string {
   return cfg.opponents === 'bots' ? `Bots Lv ${cfg.botDifficulty}` : 'Players';
 }
 
+/** The two feeds' cache keys + loaders (shared with the title's idle prefetch). */
+export const RECENT_RANKED_KEY = 'recent:ranked';
+export const RECENT_PRACTICE_KEY = 'recent:practice';
+export const loadRecentRanked = (): Promise<RecentGameRow[]> => fetchRecentGames(FEED_ROWS);
+export const loadRecentPractice = (): Promise<PracticeGameRow[]> => fetchPracticeGames(FEED_ROWS);
+
 export function RecentGames(): JSX.Element | null {
   const show = useGame((s) => s.showRecentGames);
   const close = useGame((s) => s.closeRecentGames);
   const openCareer = useGame((s) => s.openCareer);
   const [tab, setTab] = useState<RecentGamesTab>('ranked');
-  const [rows, setRows] = useState<RecentGameRow[] | null>(null);
-  const [practiceRows, setPracticeRows] = useState<PracticeGameRow[] | null>(null);
+  // Each tab's list is cached across opens (socialCache.ts): it reads the first time the tab is shown, a revisit paints
+  // the last list at once and refreshes behind it when stale, and switching back and forth never flashes a spinner.
+  const rows = useSocial<RecentGameRow[]>(show && tab === 'ranked' ? RECENT_RANKED_KEY : null, loadRecentRanked) ?? null;
+  const practiceRows = useSocial<PracticeGameRow[]>(show && tab === 'practice' ? RECENT_PRACTICE_KEY : null, loadRecentPractice) ?? null;
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null); // the list the lazy banners observe
   const [opening, setOpening] = useState<string | null>(null); // row key currently being opened
   const [watching, setWatching] = useState<string | null>(null); // row key whose replay payload is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // row key whose payload came back unplayable
 
-  // Every open starts on RANKED with both lists cleared (a fresh read each visit, as before).
+  // Every open starts on RANKED (reset on close, so a reopen never reads the practice feed for a frame first).
   useEffect(() => {
-    if (!show) return;
-    setTab('ranked');
-    setRows(null);
-    setPracticeRows(null);
+    if (!show) setTab('ranked');
   }, [show]);
-
-  // Each tab reads its list the first time it is shown during this open, then keeps it (switching back and
-  // forth never refetches or flashes the loading state).
-  const loaded = tab === 'ranked' ? rows !== null : practiceRows !== null;
-  useEffect(() => {
-    if (!show || loaded) return;
-    let alive = true;
-    if (tab === 'ranked') void fetchRecentGames(FEED_ROWS).then((r) => { if (alive) setRows(r); });
-    else void fetchPracticeGames(FEED_ROWS).then((r) => { if (alive) setPracticeRows(r); });
-    return () => { alive = false; };
-  }, [show, tab, loaded]);
 
   if (!show) return null;
   const back = (): void => { sfx.pulse(); close(); };
@@ -146,7 +145,8 @@ export function RecentGames(): JSX.Element | null {
             ? <div className="lbempty lb-state"><Icon name="target" /><div>No practice games yet. Finish a practice game to see it here.</div></div>
             : <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>
         ) : (
-          <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`}>
+          <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`} ref={setListEl}>
+            <LazyRowsProvider list={listEl}>
             {shown.map((r, i) => {
               const cfg = 'practice' in r ? r.practice : null;
               const hero = r.heroId ? getHero(r.heroId) : null;
@@ -201,12 +201,12 @@ export function RecentGames(): JSX.Element | null {
               // A banner with a known player opens their Career (that run focused); a pre-accounts row (no
               // user_id) has nothing to open, so it stays a plain, non-interactive banner. A div[role=button],
               // not a <button>: the banner nests the Watch button and a button can't nest a button.
-              return r.userId ? (
+              // LAZY (perf 2026-10-09, lazyRows.tsx): each banner is seven real cards; only those near the view mount.
+              const row = r.userId ? (
                 <div
                   role="button"
                   tabIndex={0}
                   className={`lb-row lb-row-btn${r.partial ? ' partial' : ''}`}
-                  key={key}
                   onClick={() => void openGame(r, key, !practice)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void openGame(r, key, !practice); }}
                   aria-disabled={opening === key}
@@ -215,9 +215,11 @@ export function RecentGames(): JSX.Element | null {
                   {inner}
                 </div>
               ) : (
-                <div className={`lb-row${r.partial ? ' partial' : ''}`} key={key}>{inner}</div>
+                <div className={`lb-row${r.partial ? ' partial' : ''}`}>{inner}</div>
               );
+              return <LazyRow key={key} eager={i < EAGER_ROWS} className="lb-lazy">{() => row}</LazyRow>;
             })}
+            </LazyRowsProvider>
           </div>
         )}
       </div>

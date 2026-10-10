@@ -48,6 +48,7 @@ import { heroBulletTimePreviewSpeed } from '../heroBulletTime/heroBulletTimeConf
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
+import { detachPixiDomEvents } from '../pixiNoDomEvents';
 
 /** The styles the sandbox can play, and the runner for each (every runner takes the same options). */
 const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null }) => HeroAttackHandle; speed: () => number }> = {
@@ -114,6 +115,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
       try {
         const a = new Application();
         await a.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2) * stageScale(), preference: 'webgl' });
+        detachPixiDomEvents(a); // no Pixi DOM events: see pixiNoDomEvents.ts
         if (gone.current) { a.destroy(true, { children: true, texture: false }); return null; }
         a.canvas.setAttribute('aria-hidden', 'true');
         host.appendChild(a.canvas);

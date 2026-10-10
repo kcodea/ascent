@@ -23,6 +23,7 @@
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { RectSnapshot } from './heroCeremonyMachine';
 import { stageScale } from '../stage';
+import { detachPixiDomEvents } from '../pixiNoDomEvents';
 
 // ─── pure math (exported for tests) ───────────────────────────────────────────────────────────────────────
 
@@ -248,6 +249,7 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
       preference: 'webgl',
       powerPreference: 'high-performance',
     });
+    detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     // The ceremony may have unmounted before init resolved; only attach if still wanted (mirrors pixiFx).
     if (this.destroyed) {
       app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });

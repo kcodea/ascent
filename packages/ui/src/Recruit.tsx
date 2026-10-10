@@ -4294,6 +4294,14 @@ export function Recruit() {
         handFlipRef.current = m;
         handFlipSelRef.current = flipZoneSel; // remember which row to FLIP when the commit lands
       }
+      // The release box of the floating `.dragcard` (its true visual spot, lag included) for the place-slide below.
+      // READ HERE, BEFORE `body.dragging` comes off (gameplay perf 2026-10-09): that class gates a `body.dragging *`
+      // cursor rule, so removing it restyles the whole document, and a rect read after it forced that full restyle
+      // synchronously inside this handler (~31 ms on a heavy board). Nothing between here and the old read moves
+      // the drag card, so it is the same box; the restyle now lands in the next frame's own style pass.
+      const placeBox = (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel
+        ? document.querySelector<HTMLElement>('.dragcard')?.getBoundingClientRect()
+        : undefined;
       document.body.classList.remove('dragging'); // cursor reverts on release
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
@@ -4336,8 +4344,7 @@ export function Recruit() {
       // slide, a sell removes the card. The release box is the live `.dragcard` rect (its true visual spot,
       // lag included), captured before the session ends and unmounts it below.
       if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel) {
-        const dc = document.querySelector<HTMLElement>('.dragcard');
-        const b = dc?.getBoundingClientRect();
+        const b = placeBox;
         if (b && b.width > 0) {
           placePendingRef.current = { uid: d.uid, sel: flipZoneSel, from: { x: b.left, y: b.top, w: b.width, h: b.height } };
         }
@@ -8646,7 +8653,17 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
   // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
   const flipKey = rowsKey + '|' + shopGapIndex + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
   // Snapshot each shop card's centre + size (declared in Recruit, near the consume state that also reads it).
+  // SKIPPED WHEN THE TAVERN CANNOT HAVE MOVED (gameplay perf 2026-10-09): the flip key also carries the WARBAND's
+  // drop gap, so a board drag re-ran this sweep on every slot crossing, a `getBoundingClientRect` per shop card
+  // right after the row's own writes (a forced style + layout each time: 71 ms across three board drags in the
+  // heavy-shop capture). The tavern only re-lays out when its own composition, its own gap or the lifted-card
+  // collapse changes, so the sweep keys on exactly those; an identical sweep would only have copied `cur` to
+  // `prev` with the same rects.
+  const tavernLayoutKey = rowsKey + '|' + shopGapIndex + '|' + (collapsedLift ? '1' : '0');
+  const lastTavernSweepRef = useRef<string | null>(null);
   useLayoutEffect(() => {
+    if (dragActive && lastTavernSweepRef.current === tavernLayoutKey) return;
+    lastTavernSweepRef.current = tavernLayoutKey;
     const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
     for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
       const uid = el.dataset.uid;

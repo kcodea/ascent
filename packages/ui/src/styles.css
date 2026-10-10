@@ -1709,9 +1709,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.reborncard .reborn-wisps { position: absolute; inset: 0; }
 .card.compact.reborncard .wisp {
   position: absolute; bottom: 8%; left: 50%; width: var(--wisp-size, 27%); aspect-ratio: 1 / 2.4;
-  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(69, 232, 192, 0.95) 0%, rgba(23, 143, 134, 0.5) 45%, rgba(23, 143, 134, 0) 78%);
-  filter: blur(7.5px); mix-blend-mode: screen;
+  mix-blend-mode: screen;
   animation: rebornwisp 10.3s ease-in-out infinite; will-change: transform, opacity;
+}
+/* The wisp's gradient + blur paint on this pseudo child, so they rasterise once into the rising layer instead of a
+   per-frame GPU blur pass on the animated element (perf 2026-10-09). Filter-then-transform is what CSS already
+   did with both on one element, so the picture is unchanged. The Rise tints recolour this, not `.wisp`. */
+.card.compact.reborncard .wisp::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(69, 232, 192, 0.95) 0%, rgba(23, 143, 134, 0.5) 45%, rgba(23, 143, 134, 0) 78%);
+  filter: blur(7.5px);
 }
 @keyframes rebornwisp {
   0%   { transform: translateX(-50%) translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
@@ -1732,7 +1739,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   background: radial-gradient(circle at 50% 46%,
     rgba(70, 178, 255, 0) 0%, rgba(14, 108, 220, 0) calc(52% - 13%), rgba(14, 108, 220, 1) 62%, rgba(70, 178, 255, 0.51) 80%, rgba(70, 178, 255, 0) 100%);
 }
-.card.compact.reborncard.risetint-blue .wisp {
+.card.compact.reborncard.risetint-blue .wisp::before {
   background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(70, 178, 255, 0.95) 0%, rgba(14, 108, 220, 0.5) 45%, rgba(14, 108, 220, 0) 78%);
 }
 .card.compact.stdframe.reborncard.risetint-blue .cframe,
@@ -1745,7 +1752,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   background: radial-gradient(circle at 50% 46%,
     rgba(255, 96, 84, 0) 0%, rgba(168, 24, 24, 0) calc(52% - 13%), rgba(168, 24, 24, 1) 62%, rgba(255, 96, 84, 0.51) 80%, rgba(255, 96, 84, 0) 100%);
 }
-.card.compact.reborncard.risetint-red .wisp {
+.card.compact.reborncard.risetint-red .wisp::before {
   background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(255, 96, 84, 0.95) 0%, rgba(168, 24, 24, 0.5) 45%, rgba(168, 24, 24, 0) 78%);
 }
 .card.compact.stdframe.reborncard.risetint-red .cframe,
@@ -1850,10 +1857,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 .card.compact.flurrycard .fl-ring {
   position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
+  animation: flspin var(--fl-s, 3s) linear infinite; animation-direction: var(--fl-dir, normal);
+}
+/* The ring's look (comet gradient, band mask, blur, opacity — inline from flurryConfig) is painted by this plain
+   child, so it is rasterised once into the spinning layer instead of re-applied as a GPU filter/mask pass every
+   frame (perf 2026-10-09, see `flurryRingStyle`). */
+.card.compact.flurrycard .fl-ring-paint {
+  position: absolute; inset: 0; border-radius: 50%;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
   -webkit-mask-position: center; mask-position: center;
-  animation: flspin var(--fl-s, 3s) linear infinite; animation-direction: var(--fl-dir, normal);
 }
 @keyframes flspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
@@ -1879,8 +1892,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.venomcard .ex-smoke { position: absolute; inset: 0; animation: exspin 26s linear infinite; will-change: transform; }
 .card.compact.venomcard .ex-blob {
   position: absolute; left: 50%; top: 50%; border-radius: 50%; will-change: transform, opacity;
-  background: radial-gradient(circle at 50% 50%, var(--ex-blob-hot) 0%, var(--ex-blob-mid) 42%, transparent 72%);
   animation: exblob var(--ex-blob-s, 7s) ease-in-out infinite;
+}
+/* The blob's gradient + blur live on this plain child so they rasterise once into the moving layer, instead of a
+   per-frame GPU filter pass on the animated one (perf 2026-10-09, Card.tsx `splitPaint`). */
+.card.compact.venomcard .ex-blob-paint {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, var(--ex-blob-hot) 0%, var(--ex-blob-mid) 42%, transparent 72%);
 }
 @keyframes exblob {
   0%, 100% { transform: translate(-50%, -50%) rotate(var(--ex-rot)) translateY(var(--ex-r)) scale(var(--ex-sc0)); opacity: var(--ex-a0); }
@@ -1892,10 +1910,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.venomcard .ex-arcwrap { position: absolute; inset: 0; will-change: transform; }
 .card.compact.venomcard .ex-arc {
   position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
+  animation: exspin 7s linear infinite;
+}
+/* The arc's comet gradient, band mask, blur and opacity: a plain child, rasterised once (see `.ex-blob-paint`). */
+.card.compact.venomcard .ex-arc-paint {
+  position: absolute; inset: 0; border-radius: 50%;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
   -webkit-mask-position: center; mask-position: center;
-  animation: exspin 7s linear infinite;
 }
 @keyframes exspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
@@ -1928,7 +1950,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 .card.compact.venomcard .ex-shard > * { position: absolute; left: 50%; top: 50%; }
 .card.compact.venomcard .ex-shardbody {
-  width: var(--ex-ss); height: var(--ex-ss); background: var(--ex-shard-c);
+  width: var(--ex-ss); height: var(--ex-ss);
   animation: exshardspin 9s linear infinite; will-change: transform;
 }
 @keyframes exshardspin {
@@ -1938,9 +1960,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.venomcard .ex-shardtail {
   width: var(--ex-ss); height: var(--ex-stail);
   transform: translate(-50%, -100%); transform-origin: 50% 100%;   /* grow FROM the shard so it stays rooted */
-  background: linear-gradient(to top, var(--ex-shard-c), transparent);
   animation: exshardtail 9s linear infinite; will-change: transform;
 }
+/* Each shard piece's colour + the shard blur, painted by a plain child so it rasterises into the moving piece
+   (perf 2026-10-09; the blur used to sit on the drifting wrapper and ran as a GPU pass every frame). */
+.card.compact.venomcard .ex-shard .ex-shard-paint { position: absolute; inset: 0; left: 0; top: 0; }
+.card.compact.venomcard .ex-shardbody > .ex-shard-paint { background: var(--ex-shard-c); }
+.card.compact.venomcard .ex-shardtail > .ex-shard-paint { background: linear-gradient(to top, var(--ex-shard-c), transparent); }
 @keyframes exshardtail {
   0%   { transform: translate(-50%, -100%) scale(0.6); }
   100% { transform: translate(-50%, -100%) scale(1); }

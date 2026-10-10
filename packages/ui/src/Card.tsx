@@ -104,7 +104,7 @@ import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 import { lastPointerWasTouch, tapInspectAllowed } from './touchInput';
-import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from './flurryConfig';
+import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle, flurryRingPaintStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
@@ -1086,7 +1086,7 @@ export const Card = memo(function Card({
             <div className="fl-breathe">
               {FLURRY_RINGS.map((r, i) => (
                 <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
-                  <div className="fl-ring" style={flurryRingStyle(r)} />
+                  <div className="fl-ring" style={flurryRingStyle(r)}><div className="fl-ring-paint" style={flurryRingPaintStyle(r)} /></div>
                 </div>
               ))}
             </div>
@@ -1421,6 +1421,26 @@ const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean })
  * to executeConfig's snapshot, which is a stable frozen reference that only changes when the DEV tuner writes.
  * In production nothing ever notifies, so every card renders the module-load snapshot once and never again.
  */
+/** The STATIC-PAINT half of an Execute layer's inline style (gameplay perf pass 2026-10-09): its gradient, band
+ *  mask, blur and opacity go on a plain child, and the animated element keeps only its motion. A filter or mask on
+ *  an element that is itself a COMPOSITED, animating layer (`will-change: transform`) is re-applied by the GPU
+ *  compositor as a render pass on every frame; on a non-composited child it is rasterised once into the moving
+ *  layer's texture. Same picture: CSS applies an element's filter / mask / opacity in its local space BEFORE its
+ *  transform, which is exactly what the parent's transform does to the child's painted result. Memoised per style
+ *  object, so the split runs once per config build, not per render. */
+const PAINT_KEYS = ['background', 'WebkitMaskImage', 'maskImage', 'filter', 'opacity'] as const;
+const paintSplits = new WeakMap<CSSProperties, [CSSProperties, CSSProperties]>();
+function splitPaint(style: CSSProperties): [CSSProperties, CSSProperties] {
+  const hit = paintSplits.get(style);
+  if (hit) return hit;
+  const motion: Record<string, unknown> = { ...style };
+  const paint: Record<string, unknown> = {};
+  for (const k of PAINT_KEYS) if (k in motion) { paint[k] = motion[k]; delete motion[k]; }
+  const out: [CSSProperties, CSSProperties] = [motion as CSSProperties, paint as CSSProperties];
+  paintSplits.set(style, out);
+  return out;
+}
+
 const ExecuteAura = memo(function ExecuteAura() {
   const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);
   return (
@@ -1428,28 +1448,35 @@ const ExecuteAura = memo(function ExecuteAura() {
       <div className="ex-breathe">
         {layers.smoke.map((ring, i) => (
           <div key={`s${i}`} className="ex-smoke" style={ring.ring}>
-            {ring.blobs.map((b, j) => (
-              <div key={j} className="ex-blob" style={b} />
-            ))}
+            {ring.blobs.map((b, j) => {
+              const [motion, paint] = splitPaint(b);
+              return <div key={j} className="ex-blob" style={motion}><div className="ex-blob-paint" style={paint} /></div>;
+            })}
           </div>
         ))}
         {layers.arcs.length > 0 && (
           <div className="ex-arcwrap" style={layers.arcWrap}>
-            {layers.arcs.map((a, i) => (
-              <div key={i} className="ex-arc" style={a} />
-            ))}
+            {layers.arcs.map((a, i) => {
+              const [motion, paint] = splitPaint(a);
+              return <div key={i} className="ex-arc" style={motion}><div className="ex-arc-paint" style={paint} /></div>;
+            })}
           </div>
         )}
         {layers.glints.map((g, i) => (
           <div key={`g${i}`} className="ex-glint" style={g} />
         ))}
-        {layers.shards.map((s, i) => (
-          <div key={`d${i}`} className="ex-shard" style={s.outer}>
-            {/* tail first so the diamond paints on top of its own streak */}
-            {s.tail && <div className="ex-shardtail" style={s.tail} />}
-            <div className="ex-shardbody" style={s.body} />
-          </div>
-        ))}
+        {layers.shards.map((s, i) => {
+          // The shard's blur moves from the drifting wrapper (a composited group, so a GPU blur pass per shard per
+          // frame) onto a plain paint child of each moving piece, where it rasterises once (perf 2026-10-09).
+          const [outer, paint] = splitPaint(s.outer);
+          return (
+            <div key={`d${i}`} className="ex-shard" style={outer}>
+              {/* tail first so the diamond paints on top of its own streak */}
+              {s.tail && <div className="ex-shardtail" style={s.tail}><div className="ex-shard-paint" style={paint} /></div>}
+              <div className="ex-shardbody" style={s.body}><div className="ex-shard-paint" style={paint} /></div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

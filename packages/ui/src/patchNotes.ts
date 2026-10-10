@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      {
+        category: 'Balance',
+        text: "The Leaderboard now shows each player's MMR in its own column, next to their rank.",
+        details: [
+          'MMR counts 100 for every division climbed plus the points in the current one, so Bronze II at 78 reads 178.',
+        ],
+      },
       { category: 'Systems', text: 'Menus and the Social tab load and scroll much faster.' },
       {
         category: 'Systems',

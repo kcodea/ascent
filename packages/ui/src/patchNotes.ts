@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-09',
     changes: [
       {
+        category: 'Systems',
+        text: 'Steward of Spells now names the spell it will copy.',
+        details: [
+          'Its text reads "End of Turn: Get a copy of the last spell cast." followed by the name of that spell in brackets.',
+          'The name updates as soon as you cast a spell, in the Shop and in combat. Before your first spell it shows no name.',
+        ],
+      },
+      {
         category: 'Balance',
         text: "The Leaderboard now shows each player's MMR in its own column, next to their rank.",
         details: [

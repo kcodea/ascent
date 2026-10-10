@@ -43,8 +43,8 @@ describe('questObjectiveLines — compound objectives', () => {
 
 describe('stewardText — Steward of Spells live copy target', () => {
   it('names the most recent spell (highlighted), for normal + golden', () => {
-    expect(stewardText('stewardofspells', false, 'Growth')).toBe('**End of Turn:** get a copy of {{Growth}}.');
-    expect(stewardText('stewardofspells', true, 'Growth')).toBe('**End of Turn:** get **2** copies of {{Growth}}.');
+    expect(stewardText('stewardofspells', false, 'Growth')).toBe('**End of Turn:** Get a copy of the last spell cast. ({{Growth}})');
+    expect(stewardText('stewardofspells', true, 'Growth')).toBe('**End of Turn:** Get **2** copies of the last spell cast. ({{Growth}})');
   });
   it('is null until a spell has been cast, and null for other cards', () => {
     expect(stewardText('stewardofspells', false, undefined)).toBeNull();

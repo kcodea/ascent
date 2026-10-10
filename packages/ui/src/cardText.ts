@@ -872,9 +872,6 @@ export function thundeerText(cardId: string, summonBonus: number, golden: boolea
   return src.replace(/gain \*\*\+\d+\/\+\d+\*\*/, `gain {{+${cur}/+${cur}}}`);
 }
 
-/** Steward of Spells — name the ACTUAL spell it will copy at End of Turn (the run's most recent spell cast,
- *  `lastSpellCastId` → its name), so mousing over it shows exactly what you'll get. Null until a spell has been
- *  cast this run (then the printed "…the most recent spell cast" is the honest fallback). */
 /**
  * King Oona / Broodwright — a summon-buff whose base magnitude IMPROVES on Avenge. Same contract as
  * `summonBuffText` (which covers the other summon-buff shapes): null until the bonus has actually climbed, so
@@ -954,10 +951,18 @@ export function copyCastSpellText(cardId: string, golden: boolean, names: {
   return null;
 }
 
+/** Steward of Spells — the printed rule plus a live " (X)" suffix naming the ACTUAL spell it will copy at End of
+ *  Turn (owner 2026-10-09: "End of Turn: Get a copy of the last spell cast. (X)"). X is the run's
+ *  `lastSpellCastId` → its name, the exact field `spellCopyRecent` reads: run-lifetime, any real spell cast
+ *  (hand, minion or rune casts), never a Gift or a Ruby. Highlighted green like every other live value. Null
+ *  until a spell has been cast, so the base text (no parentheses) stands; static surfaces with no run state
+ *  pass no name and print the base text too. */
 export function stewardText(cardId: string, golden: boolean, lastSpellName: string | undefined): string | null {
   if (cardId !== 'stewardofspells' || !lastSpellName) return null;
-  const name = `{{${lastSpellName}}}`;
-  return golden ? `**End of Turn:** get **2** copies of ${name}.` : `**End of Turn:** get a copy of ${name}.`;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return `${src} ({{${lastSpellName}}})`;
 }
 
 /** Sporebat (rework 2026-08-07) stores the run's last-cast spell — its printed text must NAME what it will

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-09',
     changes: [
+      { category: 'Systems', text: 'Menus and the Social tab load and scroll much faster.' },
       {
         category: 'Systems',
         text: 'The Compendium has a new framed look and opens, scrolls and searches much faster.',

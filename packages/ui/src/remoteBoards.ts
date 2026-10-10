@@ -32,6 +32,31 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const TABLE = 'boards';
 const FETCH_TIMEOUT_MS = 4000; // never block boot on a slow / absent network
+/** A list read that no longer blocks a page (the Career's telemetry join streams in behind the painted rows) may wait
+ *  longer: before the replay-facts SQL a rich probe can take ~3 s and fail, then retry. */
+const BACKGROUND_TIMEOUT_MS = 9000;
+
+/**
+ * REPLAY FACTS (perf 2026-10-09, `supabase/migrations/2026-10-09-replay-facts.sql`). The list reads used to pull a few
+ * scalars out of each row's replay jsonb, which made Postgres decompress and parse every listed replay whole (0.6-3.5 s,
+ * sometimes a statement timeout). The SQL adds STORED generated `tp_*` columns holding those facts. A list read asks
+ * for them first; an error (the SQL not run yet) flips this to false for the session and every later read goes straight
+ * to the old JSON-path selects. null = not asked yet. Exported for the tests and the idle prefetch (which only warms
+ * the heavy reads once the cheap columns are known to exist).
+ */
+const replayFacts: Record<'run_telemetry' | 'practice_games', boolean | null> = { run_telemetry: null, practice_games: null };
+export const replayFactsState = (table: 'run_telemetry' | 'practice_games'): boolean | null => replayFacts[table];
+
+/** Run `fast` when the facts columns may exist, falling back to `slow` (and remembering) when they don't. */
+async function withReplayFacts<T extends { error: unknown } | null>(
+  table: 'run_telemetry' | 'practice_games', fast: () => Promise<T>, slow: () => Promise<T>,
+): Promise<T> {
+  if (replayFacts[table] === false) return slow();
+  const r = await fast();
+  if (r && !r.error) { replayFacts[table] = true; return r; }
+  if (r && r.error) { replayFacts[table] = false; return slow(); }
+  return r; // a timeout says nothing about the columns
+}
 
 /** True when a backend is configured (both env vars present). */
 export const remoteEnabled = (): boolean => !!(SUPABASE_URL && SUPABASE_KEY);
@@ -920,6 +945,8 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
  *  plainer rung, costing only what that rung reads (run length → banner facts → Watch). Exported for tests. */
 const RECENT_BASE = 'id, user_id, author, hero_id, wins, placement, created_at';
 const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength, board_strength:replay->v2->result->>boardStrength, active_ms:replay->v2->>activeMs';
+/** The richest rung over the precomputed `tp_*` columns (REPLAY FACTS): the same facts, no replay opened. */
+export const RECENT_GAMES_FAST_SELECT = `${RECENT_BASE}, picked_runes, replay_v2_version:tp_v2_version, final_board:tp_final_board, record:tp_record, partial:tp_partial, first_wave:tp_first_wave, final_wave:derived->>finalWave, lobby_strength:tp_lobby_strength, board_strength:tp_board_strength, active_ms:tp_active_ms, first_t:tp_first_t, last_t:tp_last_t`;
 export const RECENT_GAMES_SELECTS: readonly string[] = [
   `${RECENT_BASE}, ${RECENT_FACTS}, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs`,
   `${RECENT_BASE}, ${RECENT_FACTS}`,
@@ -940,11 +967,16 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
     ]);
     // Walk the ladder: a query ERROR (an unknown column / an unsupported path on this backend) tries the
     // next, plainer select; a timeout or a clean answer ends the walk.
-    let result: Awaited<ReturnType<typeof query>> = null;
-    for (const select of RECENT_GAMES_SELECTS) {
-      result = await query(select);
-      if (!result || !result.error) break;
-    }
+    const ladder = async (): Promise<Awaited<ReturnType<typeof query>>> => {
+      let result: Awaited<ReturnType<typeof query>> = null;
+      for (const select of RECENT_GAMES_SELECTS) {
+        result = await query(select);
+        if (!result || !result.error) break;
+      }
+      return result;
+    };
+    // The precomputed replay-facts columns first (one cheap read); the JSON-path ladder without them.
+    const result = await withReplayFacts('run_telemetry', () => query(RECENT_GAMES_FAST_SELECT), ladder);
     if (!result || result.error || !result.data) return [];
     // Runtime-built select list → supabase-js can't infer the row type; read the columns by hand.
     return (result.data as unknown as Array<Record<string, unknown>>).map(asRecentGameRow);
@@ -1482,6 +1514,8 @@ const PRACTICE_BASE = 'id, user_id, author, hero_id, wins, placement, created_at
 /** The practice list selects, richest first: with the light replay probe (`replay->v2->version`, never the
  *  payload), then without it for a backend that has not run the 2026-09-27 `replay` migration. */
 const PRACTICE_SELECTS: readonly string[] = [`${PRACTICE_BASE}, replay_v2_version:replay->v2->version, match:replay->match, active_ms:replay->v2->>activeMs`, PRACTICE_BASE];
+/** The rich practice select over the precomputed `tp_*` columns (REPLAY FACTS): the same facts, no replay opened. */
+const PRACTICE_FAST_SELECT = `${PRACTICE_BASE}, replay_v2_version:tp_v2_version, match:tp_match, active_ms:tp_active_ms`;
 
 /** Run one practice list query down the select ladder: a query ERROR (the `replay` column missing) tries the
  *  plainer select; a timeout or a clean answer ends the walk. Null on timeout. */
@@ -1489,12 +1523,15 @@ async function practiceQuery(
   build: (select: string) => PromiseLike<{ data: unknown; error: unknown }>,
 ): Promise<{ data: unknown; error: unknown } | null> {
   const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-  let result: { data: unknown; error: unknown } | null = null;
-  for (const select of PRACTICE_SELECTS) {
-    result = await Promise.race([Promise.resolve(build(select)), timeout()]);
-    if (!result || !result.error) break;
-  }
-  return result;
+  const run = (select: string) => Promise.race([Promise.resolve(build(select)), timeout()]);
+  return withReplayFacts('practice_games', () => run(PRACTICE_FAST_SELECT), async () => {
+    let result: { data: unknown; error: unknown } | null = null;
+    for (const select of PRACTICE_SELECTS) {
+      result = await run(select);
+      if (!result || !result.error) break;
+    }
+    return result;
+  });
 }
 
 /** Map one raw `practice_games` row → a `PracticeGameRow` (the Recent Games mapper, then the practice-only
@@ -1657,6 +1694,8 @@ const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mod
  *  retries WITHOUT the clocks (Watch still works; run length prints "—"). */
 const TELEMETRY_PROBE_SELECT = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs, active_ms:replay->v2->>activeMs';
 const TELEMETRY_PROBE_SELECT_NO_CLOCK = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version, active_ms:replay->v2->>activeMs';
+/** The same probe over the precomputed `tp_*` columns (REPLAY FACTS above): identical values, no replay opened. */
+export const TELEMETRY_PROBE_SELECT_FAST = 'id, created_at, placement, seed:tp_seed, v2_version:tp_v2_version, first_t:tp_first_t, last_t:tp_last_t, active_ms:tp_active_ms';
 
 /**
  * The Career page's runs — newest first, `limit` rows in all (light), the newest `CAREER_DETAIL_ROWS` of
@@ -1667,13 +1706,16 @@ const TELEMETRY_PROBE_SELECT_NO_CLOCK = 'id, created_at, placement, seed:replay-
  * query failed / timed out — so the page can say "couldn't reach the server" rather than "no runs yet". The
  * telemetry probe is best-effort: its failure only costs Watch buttons + run lengths, never the page.
  */
-export async function fetchMyRuns(limit = 100, opts?: { userId?: string }): Promise<CareerRun[] | null> {
+export async function fetchMyRuns(
+  limit = 100,
+  opts?: { userId?: string; onHistory?: (runs: CareerRun[]) => void },
+): Promise<CareerRun[] | null> {
   const c = client();
   const userId = opts?.userId ?? currentUserId();
   if (!c || !userId || (!opts?.userId && !currentUserId())) return null;
   const detailLimit = Math.min(CAREER_DETAIL_ROWS, limit);
   try {
-    const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const timeout = (ms = FETCH_TIMEOUT_MS) => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
     const light = Promise.race([
       Promise.resolve(c.from('run_history').select(CAREER_LIGHT_SELECT).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)),
       timeout(),
@@ -1682,17 +1724,28 @@ export async function fetchMyRuns(limit = 100, opts?: { userId?: string }): Prom
       Promise.resolve(c.from('run_history').select('id, created_at, placement, entry').eq('user_id', userId).order('created_at', { ascending: false }).limit(detailLimit)),
       timeout(),
     ]);
+    // The probe is best-effort and (with `onHistory`) never blocks the page, so it gets the longer background budget.
     const probe = (select: string) => Promise.race([
       Promise.resolve(c.from('run_telemetry').select(select).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)),
-      timeout(),
+      timeout(opts?.onHistory ? BACKGROUND_TIMEOUT_MS : FETCH_TIMEOUT_MS),
     ]);
-    const [lightRes, detailRes, probeRes0] = await Promise.all([light, detailed, probe(TELEMETRY_PROBE_SELECT)]);
+    // All three start together. The precomputed facts columns first; without them, the JSON-path ladder (rich, then
+    // without the frame clocks for a PostgREST that can't resolve `frames->-1`).
+    const probeDone = withReplayFacts('run_telemetry', () => probe(TELEMETRY_PROBE_SELECT_FAST), async () => {
+      const rich = await probe(TELEMETRY_PROBE_SELECT);
+      return rich && rich.error ? probe(TELEMETRY_PROBE_SELECT_NO_CLOCK) : rich;
+    });
+    const [lightRes, detailRes] = await Promise.all([light, detailed]);
     if (!lightRes || lightRes.error || !lightRes.data) return null;
     // A failed detailed read degrades to light rows everywhere (outcome-only banners), never to a failed page.
     const detailRows = detailRes && !detailRes.error && detailRes.data ? (detailRes.data as unknown as RunHistoryRowLike[]) : [];
-    const probeRes = probeRes0 && probeRes0.error ? await probe(TELEMETRY_PROBE_SELECT_NO_CLOCK) : probeRes0;
+    const lightRows = lightRes.data as unknown as RunHistoryRowLike[];
+    // PROGRESSIVE (perf 2026-10-09): the history is the page; the probe only adds Watch buttons, run lengths and the
+    // APM line. Hand the rows over now so the page paints, and finish the join when the probe lands.
+    opts?.onHistory?.(careerRunsOf(lightRows, detailRows, []));
+    const probeRes = await probeDone;
     const probeRows = probeRes && !probeRes.error && probeRes.data ? (probeRes.data as unknown as TelemetryProbeRow[]) : [];
-    return careerRunsOf(lightRes.data as unknown as RunHistoryRowLike[], detailRows, probeRows);
+    return careerRunsOf(lightRows, detailRows, probeRows);
   } catch {
     return null;
   }

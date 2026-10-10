@@ -144,15 +144,17 @@ describe('practice replays (owner 2026-09-27)', () => {
   it('the list probes replay->v2->version only, never the payload; hasReplay = a v2 probe on a row with an id', async () => {
     respond = () => ({ data: [{ ...PRACTICE_ROW, replay_v2_version: 2 }, { ...PRACTICE_ROW, id: 6, replay_v2_version: null }], error: null });
     const rows = await (await load()).fetchPracticeGames(20);
-    expect(queries[0]!.select).toContain('replay_v2_version:replay->v2->version');
-    expect(queries[0]!.select).not.toMatch(/replay->v2(,|$)|frames/);
+    // The precomputed replay-facts column first (2026-10-09): the replay itself is never opened by a list read.
+    expect(queries[0]!.select).toContain('replay_v2_version:tp_v2_version');
+    expect(queries[0]!.select).not.toMatch(/replay->|frames/);
     expect(rows.map((r) => r.hasReplay)).toEqual([true, false]);
   });
   it('a backend without the replay column falls back to the plain select (rows, no Watch)', async () => {
     respond = (q) => (q.select?.includes('replay') ? { data: null, error: { code: '42703' } } : { data: [PRACTICE_ROW], error: null });
     const rows = await (await load()).fetchMyPracticeGames('me-1');
-    expect(queries).toHaveLength(2);
-    expect(queries[1]!.select).not.toContain('replay');
+    expect(queries).toHaveLength(3); // the facts columns, the JSON-path probe, then the plain select
+    expect(queries[1]!.select).toContain('replay_v2_version:replay->v2->version');
+    expect(queries[2]!.select).not.toContain('replay');
     expect(rows).toHaveLength(1);
     expect(rows![0]!.hasReplay).toBe(false);
   });

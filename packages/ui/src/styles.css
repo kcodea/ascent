@@ -7685,6 +7685,18 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-center-head { margin-left: 2px; }
 /* The first banner's top edge is the panels' top edge: no top padding here. */
 .cv2-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 0 6px 24px 2px; }
+/* LAZY + PAUSED ROWS (perf 2026-10-09, lazyRows.tsx): a list row's wrapper. A pending row reserves its height so the
+   scrollbar stays honest; a mounted row far outside the view has its looping card FX PAUSED (they resume, unseen, before
+   it scrolls back in). No containment anywhere, so tooltips and glows paint as before. (`content-visibility: hidden`
+   for far rows idled cheaper but measured a ~290 ms frame each time a row came back; pausing never spikes.)
+   `flex-shrink: 0` because an empty pending box has no content to stop a flex column shrinking it. */
+.lazy-row { flex-shrink: 0; }
+/* The title under an opaque menu page (Title.tsx `covered`, perf 2026-10-09): skipped, never painted or animated. */
+.titlescreen.covered { content-visibility: hidden; }
+.lazy-row.is-pending { height: var(--lazy-h, 300px); }
+.lazy-row.is-far, .lazy-row.is-far *, .lazy-row.is-far *::before, .lazy-row.is-far *::after { animation-play-state: paused !important; }
+.cv2-lazy { --lazy-h: 425px; }
+.lb-lazy { --lazy-h: 300px; }
 .cv2-list::-webkit-scrollbar, .cv2-right::-webkit-scrollbar, .cv2-left::-webkit-scrollbar { width: 8px; }
 .cv2-list::-webkit-scrollbar-thumb, .cv2-right::-webkit-scrollbar-thumb, .cv2-left::-webkit-scrollbar-thumb { background: rgba(196, 160, 92, 0.35); border-radius: 6px; }
 .cv2-none { align-items: center; text-align: center; padding: 44px 24px; margin-top: 8px; }

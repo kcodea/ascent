@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { peekSocial, putSocial, useSocial } from './socialCache';
+import { LazyRow, LazyRowsProvider } from './lazyRows';
 import { getHero, rankLabel, type BoardSnapshot } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -33,47 +35,61 @@ import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winR
  * the same end-state board the Career shows — no extra query); a run with no career row falls back to its
  * highest-wave snapshot in the pool.
  */
+/** Everything the Hall shows, assembled by `loadHall`. */
+export interface HallData {
+  records: RunFightRecord[];
+  history: Map<string, HallHistoryFacts>;
+  ownGames: Map<string, HallOwnRecord>;
+  boards: Map<string, BoardSnapshot>;
+}
+export const HALL_KEY = 'hall';
+const EMPTY_MAP = new Map<never, never>();
+
+/**
+ * The Hall's three dependent reads (shared with the title's idle prefetch). The records come first and are published
+ * at once, so the rows paint while the career facts + the own-game ledger (side by side) and then the pool lookup for
+ * any board the career rows lack stream in behind them. An empty records answer (no backend, a failure) never
+ * replaces a cached Hall.
+ */
+export async function loadHall(): Promise<HallData> {
+  const recs = await fetchHallRecords(HALL_ROWS, HALL_MIN_FIGHTS);
+  const prev = peekSocial<HallData>(HALL_KEY)?.data;
+  // No records = no backend, a failed read or a truly empty Hall: a cached Hall stays up rather than blanking.
+  if (recs.length === 0 && prev && prev.records.length > 0) return prev;
+  let data: HallData = { records: recs, history: new Map(), ownGames: new Map(), boards: new Map() };
+  // A refresh keeps the previous facts on screen until the new ones land (no flash back to "no warband stored").
+  putSocial(HALL_KEY, prev ? { ...prev, records: recs } : data);
+  const parsed = recs.map((r) => ({ key: r.runKey, ...parseRunKey(r.runKey) })).filter((p): p is { key: string; author: string; heroId: string; seed: number } => typeof p.seed === 'number');
+  // The career facts and the own-game ledger rows are independent: one read each, side by side.
+  const [h, og] = await Promise.all([fetchHallHistory(parsed.map((p) => p.seed)), fetchHallOwnGames(parsed)]);
+  data = { records: recs, history: h, ownGames: og, boards: prev?.boards ?? new Map() };
+  putSocial(HALL_KEY, data);
+  // The pool lookup only for runs whose career row carried no board (or had no career row at all).
+  const missing = parsed.filter((p) => !hallHistoryFor(h, p.key)?.board);
+  if (missing.length === 0) return data;
+  return { ...data, boards: await fetchRunFinalBoards(missing) };
+}
+
 export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
   const close = useGame((s) => s.closeLeaderboard);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // recorded titles ride the opponent cosmetics switch
-  const [records, setRecords] = useState<RunFightRecord[] | null>(null);
-  const [history, setHistory] = useState<Map<string, HallHistoryFacts>>(new Map());
-  const [boards, setBoards] = useState<Map<string, BoardSnapshot>>(new Map());
-  const [ownGames, setOwnGames] = useState<Map<string, HallOwnRecord>>(new Map());
+  // Cached across opens (socialCache.ts): a revisit paints the last Hall at once and refreshes behind it.
+  const hall = useSocial<HallData>(show ? HALL_KEY : null, loadHall);
+  const records = hall?.records ?? null;
+  const history = hall?.history ?? EMPTY_MAP;
+  const boards = hall?.boards ?? EMPTY_MAP;
+  const ownGames = hall?.ownGames ?? EMPTY_MAP;
   const [sort, setSort] = useState<HallSort>('rate');
-
-  useEffect(() => {
-    if (!show) return;
-    setRecords(null); // reset to the loading state each time it opens
-    setHistory(new Map());
-    setBoards(new Map());
-    setOwnGames(new Map());
-    let alive = true;
-    void fetchHallRecords(HALL_ROWS, HALL_MIN_FIGHTS).then(async (recs) => {
-      if (!alive) return;
-      setRecords(recs);
-      const parsed = recs.map((r) => ({ key: r.runKey, ...parseRunKey(r.runKey) })).filter((p): p is { key: string; author: string; heroId: string; seed: number } => typeof p.seed === 'number');
-      // The career facts and the own-game ledger rows are independent: one read each, side by side.
-      const [h, og] = await Promise.all([fetchHallHistory(parsed.map((p) => p.seed)), fetchHallOwnGames(parsed)]);
-      if (!alive) return;
-      setHistory(h);
-      setOwnGames(og);
-      // The pool lookup only for runs whose career row carried no board (or had no career row at all).
-      const missing = parsed.filter((p) => !hallHistoryFor(h, p.key)?.board);
-      if (missing.length === 0) return;
-      const b = await fetchRunFinalBoards(missing);
-      if (!alive) return;
-      setBoards(b);
-    });
-    return () => { alive = false; };
-  }, [show]);
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null); // the list the lazy rows observe
+  const rows = useMemo(
+    () => (records === null ? null : hallRowsOf(records, history, boards, { minFights: HALL_MIN_FIGHTS, limit: HALL_ROWS, sort }, ownGames)),
+    [records, history, boards, sort, ownGames],
+  );
 
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
-
-  const rows = records === null ? null : hallRowsOf(records, history, boards, { minFights: HALL_MIN_FIGHTS, limit: HALL_ROWS, sort }, ownGames);
 
   return (
     <SidebarHost className="lbpage lb-ladder lb-hall">
@@ -101,14 +117,18 @@ export function Leaderboard() {
         ) : rows.length === 0 ? (
           <div className="lbempty lb-state"><Icon name="crown" /><div>No records yet. A warband enters the Hall after {HALL_MIN_FIGHTS} fights.</div></div>
         ) : (
-          <div className="lb-rows">
+          <div className="lb-rows" ref={setListEl}>
+            <LazyRowsProvider list={listEl}>
             {rows.map((r, i) => {
               const hero = getHero(r.heroId);
               const board = r.board && r.board.minions.length > 0 ? (r.board as BoardSnapshot) : null;
               const lastFight = playedOnText(r.record.lastFightAt);
               const lobbies = `${r.record.lobbies} ${r.record.lobbies === 1 ? 'lobby' : 'lobbies'}`;
+              // LAZY (perf 2026-10-09, lazyRows.tsx): ten rows of seven real cards; those near the view mount, and rows far
+              // outside it pause their card FX.
               return (
-                <div className="lb-row" key={r.key}>
+                <LazyRow key={r.key} eager={i < 4} className="lb-lazy">{() => (
+                <div className="lb-row">
                   <div className="lb-row-rank"><LbMedallion rank={i + 1} /></div>
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.heroId} frameId={frameIdOf(opponentSkins(showOppCosmetics, (r.board as BoardSnapshot | null)?.cosmetics))} />
@@ -137,8 +157,10 @@ export function Leaderboard() {
                     {r.rank && <div className="lb-hallrank">{rankLabel(r.rank)}</div>}
                   </div>
                 </div>
+                )}</LazyRow>
               );
             })}
+            </LazyRowsProvider>
           </div>
         )}
       </div>

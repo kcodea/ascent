@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
+import { useSocial } from './socialCache';
 import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { TitleBadge } from './titles/TitleBadge';
 import { startReplay } from './replay/replayPlayer';
@@ -46,24 +47,21 @@ export function sortRankAware(rows: PlayerRow[]): PlayerRow[] {
     .map((x) => x.r);
 }
 
+/** The Leaderboard's cache key + loader (shared with the title's idle prefetch). */
+export const RANKINGS_KEY = 'rankings';
+export const loadRankings = async (): Promise<PlayerRow[]> => sortRankAware(await fetchTopPlayers(RANKED_ROWS));
+
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
   const close = useGame((s) => s.closeRankings);
   const myId = useGame((s) => s.account.userId);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
-  const [rows, setRows] = useState<PlayerRow[] | null>(null);
+  // Cached across opens (socialCache.ts): a revisit paints the last ladder at once and refreshes behind it.
+  const rows = useSocial<PlayerRow[]>(show ? RANKINGS_KEY : null, loadRankings) ?? null;
   const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // userId with no watchable v2 run
   const mineRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!show) return;
-    setRows(null); // loading state each open
-    let alive = true;
-    void fetchTopPlayers(RANKED_ROWS).then((r) => { if (alive) setRows(sortRankAware(r)); });
-    return () => { alive = false; };
-  }, [show]);
 
   // Bring YOUR row into view once the list has painted — one scroll, not a per-frame read.
   useEffect(() => {

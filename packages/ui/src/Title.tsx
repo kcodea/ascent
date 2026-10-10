@@ -23,6 +23,7 @@ import { rankLabel } from './rank/rankFormat';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { StageSelect } from './gauntlet/StageSelect';
 import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
+import { schedulePrefetchSocial } from './socialPrefetch';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -106,6 +107,21 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // non-signed in players change the portrait either, they need to sign in for that"). Read fresh per click.
   const [portraitGate, setPortraitGate] = useState(false);
   const closePortraitGate = useCallback(() => setPortraitGate(false), []);
+  // COVERED (perf 2026-10-09): a full-screen menu page (Career, Leaderboard, Hall, Recent Games, Collection) sits on
+  // top of the title, which stays mounted under it so Back is instant. Once the page's 0.2 s fade-in is done the
+  // title is skipped by the browser (`.titlescreen.covered`: no style, paint or animation work under an opaque page);
+  // closing the page un-skips it at once.
+  const pageOpen = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showCollection);
+  const [covered, setCovered] = useState(false);
+  useEffect(() => {
+    if (!pageOpen) { setCovered(false); return undefined; }
+    const t = window.setTimeout(() => setCovered(true), 300);
+    return () => window.clearTimeout(t);
+  }, [pageOpen]);
+
+  // SOCIAL PREFETCH (perf 2026-10-09): while the title is up, warm the Social pages' reads on idle time so Social
+  // opens on cached rows (socialPrefetch.ts; fresh answers are not re-read, so coming back here is cheap).
+  useEffect(() => (showTitle && !pageOpen ? schedulePrefetchSocial() : undefined), [showTitle, pageOpen]);
 
   if (!showTitle) return null;
 
@@ -138,7 +154,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   );
 
   return (
-    <div className="titlescreen">
+    <div className={`titlescreen${covered ? ' covered' : ''}`}>
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 

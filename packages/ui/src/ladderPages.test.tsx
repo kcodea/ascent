@@ -53,6 +53,7 @@ import { Rankings } from './Rankings';
 import { Leaderboard } from './Leaderboard';
 import { RecentGames } from './RecentGames';
 import { useGame } from './store';
+import { clearSocialCache } from './socialCache';
 import { asRecentGameRow, RECENT_GAMES_SELECTS } from './remoteBoards';
 import { medalOf, ordinalOf, outcomeOf, partialText, recordOfHistory, recordText, runLengthText } from './leaderboardData';
 
@@ -114,6 +115,7 @@ const text = (sel: string): string[] => [...ui.container.querySelectorAll(sel)].
 const click = (el: Element | null): void => { act(() => { (el as HTMLElement).click(); }); };
 
 beforeEach(() => {
+  clearSocialCache(); // the ladder lists are cached across opens (socialCache.ts); every case starts cold
   remote = true;
   fetchTopPlayers.mockReset().mockResolvedValue(PLAYERS);
   fetchLatestReplayForUser.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
@@ -384,6 +386,7 @@ describe('Leaderboard — the Hall of Champions banners', () => {
 
   it('an empty view (pre-migration, or nobody at 10 fights yet) shows the designed empty state', async () => {
     ui.unmount();
+    clearSocialCache(); // a cached Hall would (by design) stay up over an empty answer
     fetchHallRecords.mockResolvedValue([]);
     useGame.setState({ showLeaderboard: true });
     ui = mount(<Leaderboard />);

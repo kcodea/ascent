@@ -93,12 +93,48 @@ describe('fetchMyRuns — the query shape', () => {
     expect(light.limit).toBe(100);
     // The detailed select is capped to the match-history rows.
     expect(queries.find(isDetail)!.limit).toBe((await load()).CAREER_DETAIL_ROWS);
-    // The probe never selects the replay payload — only JSON-path scalars.
+    // The probe asks for the precomputed replay-facts columns first (2026-10-09): it never opens the replay at all.
     const probe = queries.find(isProbe)!;
-    expect(probe.select).toContain('replay->v2->>version');
-    expect(probe.select).toContain('replay->v2->frames->-1->>tMs');
-    expect(probe.select).not.toMatch(/replay->v2(,|$)/);
-    expect(probe.select).not.toMatch(/(^|, )replay(,|$)/);
+    expect(probe.select).toContain('v2_version:tp_v2_version');
+    expect(probe.select).toContain('last_t:tp_last_t');
+    expect(probe.select).not.toContain('replay');
+  });
+
+  it('without the replay-facts columns (SQL not run) the probe falls back to JSON-path scalars, and stops asking for the columns', async () => {
+    respond = (q) => {
+      if (isProbe(q) && q.select!.includes('tp_')) return { data: null, error: { message: 'column run_telemetry.tp_seed does not exist' } };
+      return { data: isLight(q) ? LIGHT : isDetail(q) ? DETAIL : isProbe(q) ? PROBE : [], error: null };
+    };
+    const mod = await load();
+    const runs = (await mod.fetchMyRuns(100))!;
+    expect(runs[0]).toMatchObject({ replayRowId: 97, durationMs: 883179.2 });
+    const probes = queries.filter(isProbe);
+    expect(probes).toHaveLength(2);
+    // The fallback never selects the replay payload — only JSON-path scalars.
+    const slow = probes[1]!;
+    expect(slow.select).toContain('replay->v2->>version');
+    expect(slow.select).toContain('replay->v2->frames->-1->>tMs');
+    expect(slow.select).not.toMatch(/replay->v2(,|$)/);
+    expect(slow.select).not.toMatch(/(^|, )replay(,|$)/);
+    // The session remembers: the next read goes straight to the JSON-path select.
+    expect(mod.replayFactsState('run_telemetry')).toBe(false);
+    queries.length = 0;
+    await mod.fetchMyRuns(100);
+    expect(queries.filter(isProbe).map((q) => q.select!.includes('tp_'))).toEqual([false]);
+  });
+
+  it('hands the history rows over BEFORE the probe lands (the page paints them; the join follows)', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    respond = (q) => ({ data: isLight(q) ? LIGHT : isDetail(q) ? DETAIL : isProbe(q) ? PROBE : [], error: null });
+    const mod = await load();
+    const seen: Array<{ id: number | null; replayRowId: number | null }[]> = [];
+    const done = mod.fetchMyRuns(100, { onHistory: (runs) => { seen.push(runs.map((r) => ({ id: r.id, replayRowId: r.replayRowId }))); release(); } });
+    await gate;
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.map((r) => r.id)).toEqual([12, 11, 10]);
+    expect(seen[0]!.every((r) => r.replayRowId === null)).toBe(true); // no join yet
+    expect((await done)![0]!.replayRowId).toBe(97);
   });
 
   it('assembles the rows: boards from the detailed twin, replay id + length from the probe, "—"-able nulls elsewhere', async () => {
@@ -118,11 +154,11 @@ describe('fetchMyRuns — the query shape', () => {
   it('retries the telemetry probe WITHOUT the frame clocks when the rich select errors (older PostgREST)', async () => {
     let probeCalls = 0;
     respond = (q) => {
-      if (isProbe(q)) { probeCalls++; return q.select!.includes('frames->-1') ? { data: null, error: { message: 'bad path' } } : { data: [{ id: 97, seed: '1465984878', v2_version: '2', placement: 1 }], error: null }; }
+      if (isProbe(q)) { probeCalls++; return q.select!.includes('frames->-1') || q.select!.includes('tp_') ? { data: null, error: { message: 'bad path' } } : { data: [{ id: 97, seed: '1465984878', v2_version: '2', placement: 1 }], error: null }; }
       return { data: isLight(q) ? LIGHT : isDetail(q) ? DETAIL : [], error: null };
     };
     const runs = (await (await load()).fetchMyRuns(100))!;
-    expect(probeCalls).toBe(2);
+    expect(probeCalls).toBe(3); // the facts columns (missing), the rich JSON-path select, then the clock-less one
     expect(runs[0]).toMatchObject({ replayRowId: 97, durationMs: null }); // Watch still offered; length prints "—"
   });
 

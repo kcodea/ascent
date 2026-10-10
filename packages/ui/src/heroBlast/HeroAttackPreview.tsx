@@ -49,6 +49,7 @@ import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
+import { destroyPixiApp, guardAppRender } from '../pixiAppSafety';
 
 /** The styles the sandbox can play, and the runner for each (every runner takes the same options). */
 const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null }) => HeroAttackHandle; speed: () => number }> = {
@@ -101,7 +102,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
     gone.current = true;
     live.current?.cancel();
     live.current = null;
-    app.current?.destroy(true, { children: true, texture: false });
+    if (app.current) destroyPixiApp(app.current, { children: true, texture: false }); // never destroy(true): pixiAppSafety.ts
     app.current = null;
     booting.current = null;
   }; }, []);
@@ -116,7 +117,8 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
         const a = new Application();
         await a.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2) * stageScale(), preference: 'webgl' });
         detachPixiDomEvents(a); // no Pixi DOM events: see pixiNoDomEvents.ts
-        if (gone.current) { a.destroy(true, { children: true, texture: false }); return null; }
+        guardAppRender(a, 'heroAttackPreview');
+        if (gone.current) { destroyPixiApp(a, { children: true, texture: false }); return null; }
         a.canvas.setAttribute('aria-hidden', 'true');
         host.appendChild(a.canvas);
         app.current = a;

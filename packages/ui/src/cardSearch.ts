@@ -1,12 +1,13 @@
-import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, poolFor, type SetId } from '@game/content';
+import { ARCHIVED_CARDS, ARCHIVED_RUNES, CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, poolFor, type SetId } from '@game/content';
 
 /**
  * Card + rune search shared by the DEV Scene Builder and the player-facing God Mode panel (owner 2026-10-08).
  * Pure: no React, no store. Lists are the run's set pool (tokens excluded) plus Rubies and gifts, and the set's
- * runes / epic runes. Archived content is never listed (poolFor covers set manifests only).
+ * runes / epic runes. Archived content is never listed by the set lists (poolFor covers set manifests only); the
+ * Scene Builder's "Archived" library view reads `archivedCardRows` / `archivedRuneRows` instead (owner ask 2026-10-10).
  */
-export type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; tribe2?: string; hay: string; kind?: 'ruby' | 'gift' };
-export type RuneRow = { id: string; name: string; cost: number; epic: boolean; isNew: boolean; hay: string };
+export type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; tribe2?: string; hay: string; kind?: 'ruby' | 'gift'; archived?: true };
+export type RuneRow = { id: string; name: string; cost: number; epic: boolean; isNew: boolean; hay: string; archived?: true };
 
 /** Everything a row can be matched on, lowercased once. Searching the card's TEXT (not just its name/tribe) is
  *  what makes keyword queries work — "avenge", "deathrattle", "taunt", "magnetic" all live in the rules text or
@@ -23,6 +24,14 @@ export const searchTerms = (query: string): string[] => query.trim().toLowerCase
 
 const cardCache = new Map<SetId, CardRow[]>();
 
+type CardDefLike = (typeof ARCHIVED_CARDS)[number];
+const cardRow = (c: CardDefLike, kind?: 'ruby' | 'gift', archived?: true): CardRow => ({
+  id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell || kind !== undefined, tribe: c.tribe ?? 'neutral',
+  ...(c.tribe2 ? { tribe2: c.tribe2 } : {}), kind, ...(archived ? { archived } : {}),
+  hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' '),
+    (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' '), kind ?? '', archived ? 'archived' : ''),
+});
+
 /** The set pool's cards (tokens excluded), plus RUBIES + GIFTS (owner ask 2026-09-16): neither is drawable (Rubies
  *  are tokens, Gifts a card class outside every set manifest), so `pool.all` never lists them — but both are cast
  *  from the Shop row like a spell, so they list as spells, labelled by class (`kind`). Sorted tier, then name.
@@ -31,12 +40,7 @@ export function cardRowsFor(setId: SetId): CardRow[] {
   const hit = cardCache.get(setId);
   if (hit) return hit;
   const pool = poolFor(setId);
-  const row = (c: (typeof pool.all)[number], kind?: 'ruby' | 'gift'): CardRow => ({
-    id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell || kind !== undefined, tribe: c.tribe ?? 'neutral',
-    ...(c.tribe2 ? { tribe2: c.tribe2 } : {}), kind,
-    hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' '),
-      (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' '), kind ?? ''),
-  });
+  const row = (c: CardDefLike, kind?: 'ruby' | 'gift'): CardRow => cardRow(c, kind);
   const rubies = Object.values(CARD_INDEX).filter((c) => c.ruby).map((c) => row(c, 'ruby'));
   const gifts = GIFTS.map((c) => row(c, 'gift'));
   const rows = [...pool.all.filter((c) => !c.token).map((c) => row(c)), ...rubies, ...gifts]
@@ -60,6 +64,28 @@ export function runeRowsFor(setId: SetId): RuneRow[] {
       };
     })
     .sort((a, b) => Number(a.epic) - Number(b.epic) || a.name.localeCompare(b.name));
+}
+
+let archivedCards: CardRow[] | null = null;
+
+/** The ARCHIVE (owner ask 2026-10-10, Scene Builder "Archived" set option): every archived minion and spell
+ *  (`ARCHIVED_CARDS`, tokens excluded), each flagged `archived` and searchable by "archived". An archived Gift or
+ *  Ruby keeps its class label. These ids resolve through the global `CARD_INDEX`, so a row is added to the shop
+ *  exactly like a live one. Set-independent, so cached once. Sorted tier, then name. */
+export function archivedCardRows(): CardRow[] {
+  archivedCards ??= ARCHIVED_CARDS.filter((c) => !c.token)
+    .map((c) => cardRow(c, c.gift ? 'gift' : c.ruby ? 'ruby' : undefined, true))
+    .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+  return archivedCards;
+}
+
+/** Every archived rune (`ARCHIVED_RUNES`), flagged `archived`. They resolve through `RUNE_INDEX`, so the rig's
+ *  grant path takes them like a live rune. Basic first, then epic; by name. */
+export function archivedRuneRows(): RuneRow[] {
+  return ARCHIVED_RUNES.map((r): RuneRow => ({
+    id: r.id, name: r.name, cost: r.cost, epic: !!r.epic, isNew: false, archived: true,
+    hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic', 'archived'),
+  })).sort((a, b) => Number(a.epic) - Number(b.epic) || a.name.localeCompare(b.name));
 }
 
 /** One list's filter: which tab (`spell`), the search terms, and the tier / tribe chips (multi-select; an empty chip

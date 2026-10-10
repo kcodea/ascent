@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CARD_INDEX } from '@game/content';
+import { ARCHIVED_CARDS, ARCHIVED_RUNES, CARD_INDEX, SETS } from '@game/content';
 import { HEROES, isArchivedHero } from '@game/sim';
 
 vi.mock('./remoteBoards', async (importOriginal) => {
@@ -36,7 +36,7 @@ vi.mock('./remoteBoards', async (importOriginal) => {
 });
 
 import { mount, type Mounted } from './renderedText.mount';
-import { SceneBuilder } from './SceneBuilder';
+import { SB_ARCHIVED_OPTION, SceneBuilder } from './SceneBuilder';
 import { foeSnapshotOf } from './sandboxEdit';
 import { useGame } from './store';
 
@@ -136,3 +136,69 @@ describe('the Scene Builder is the one place an archived hero still shows (owner
     }
   });
 });
+
+describe('the "Archived" set option (owner ask 2026-10-10): a library view, never a run set', () => {
+  const setSelect = (): HTMLSelectElement => ui!.container.querySelector<HTMLSelectElement>('select.sb-select')!;
+  const pick = (value: string): void => {
+    act(() => {
+      const sel = setSelect();
+      sel.value = value;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  };
+  const tab = (label: string): HTMLButtonElement => [...ui!.container.querySelectorAll<HTMLButtonElement>('.sb-tab')].find((b) => b.textContent?.startsWith(label))!;
+  const rowNames = (): string[] => [...ui!.container.querySelectorAll('.sb-results .sb-card .sb-name')].map((n) => n.textContent ?? '');
+
+  it('lists the archived minions, spells and runes, each tagged, while the run keeps its real set', () => {
+    const run0 = useGame.getState().run;
+    const set0 = run0.setId!;
+    expect(set0).toBeDefined();
+    const option = [...setSelect().options].find((o) => o.value === SB_ARCHIVED_OPTION)!;
+    expect(option.textContent).toBe(`Archived (on ${SETS[set0].name}) · library only`);
+    pick(SB_ARCHIVED_OPTION);
+    // No restart: the same run object, still on a real SetId.
+    expect(useGame.getState().run).toBe(run0);
+    expect(useGame.getState().run.setId).toBe(set0);
+    expect(Object.keys(SETS)).toContain(useGame.getState().run.setId);
+    expect(setSelect().value).toBe(SB_ARCHIVED_OPTION);
+
+    const live = ARCHIVED_CARDS.filter((c) => !c.token);
+    click(tab('minions'));
+    expect(rowNames().sort()).toEqual(live.filter((c) => !c.spell && !c.gift && !c.ruby).map((c) => c.name).sort());
+    click(tab('spells'));
+    expect(rowNames().sort()).toEqual(live.filter((c) => c.spell || c.gift || c.ruby).map((c) => c.name).sort());
+    click(tab('runes'));
+    expect(rowNames().sort()).toEqual(ARCHIVED_RUNES.map((r) => r.name).sort());
+    for (const row of ui!.container.querySelectorAll('.sb-results .sb-card')) expect(row.querySelector('.sb-tag.archived')?.textContent).toBe('(archived)');
+
+    // Back to the run's own set: the live library returns, still no restart.
+    pick(set0);
+    expect(useGame.getState().run).toBe(run0);
+    expect(ui!.container.querySelector('.sb-tag.archived')).toBeNull();
+  });
+
+  it('an archived minion spawns into the shop, buys into the hand and plays onto the board; an archived rune grants', () => {
+    pick(SB_ARCHIVED_OPTION);
+    click(tab('minions'));
+    const row = ui!.container.querySelector<HTMLButtonElement>('.sb-results .sb-card')!;
+    const name = row.querySelector('.sb-name')!.textContent;
+    const def = ARCHIVED_CARDS.find((c) => c.name === name && !c.spell)!;
+    act(() => { useGame.setState({ run: { ...useGame.getState().run, shop: [], board: [], hand: [] } }); });
+    click(row);
+    const shop = useGame.getState().run.shop;
+    expect(shop.map((c) => c.cardId)).toEqual([def.id]);
+    act(() => { useGame.getState().dispatch({ type: 'buy', uid: shop[0]!.uid }); });
+    const hand = useGame.getState().run.hand;
+    expect(hand.map((c) => c.cardId)).toContain(def.id);
+    act(() => { useGame.getState().dispatch({ type: 'play', uid: hand.find((c) => c.cardId === def.id)!.uid }); });
+    expect(useGame.getState().run.board.map((c) => c.cardId)).toContain(def.id);
+    expect(Object.keys(SETS)).toContain(useGame.getState().run.setId);
+
+    click(tab('runes'));
+    const runeRow = ui!.container.querySelector<HTMLButtonElement>('.sb-results .sb-card')!;
+    const rune = ARCHIVED_RUNES.find((r) => r.name === runeRow.querySelector('.sb-name')!.textContent)!;
+    click(runeRow);
+    expect(useGame.getState().run.ownedRunes).toContain(rune.id);
+  });
+});
+

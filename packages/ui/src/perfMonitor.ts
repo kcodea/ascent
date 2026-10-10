@@ -352,6 +352,7 @@ class PerfMonitor {
   private context: ContextFn = () => ({});
   private readonly buckets: PerfBucket[] = [];
   private observer: PerformanceObserver | null = null;
+  private loafObserver: PerformanceObserver | null = null;
   private readonly listeners = new Set<(b: PerfBucket) => void>();
   /** Running display-refresh estimate. Fed one window per bucket close — never per frame. */
   private refresh: RefreshState = initialRefreshState();
@@ -538,6 +539,29 @@ class PerfMonitor {
     }
   }
 
+  /**
+   * A long animation frame (> 50 ms) arrived — see the observer in `start()`. Its scripts over `LOAF_MIN_SCRIPT_MS`
+   * become `loaf:<invoker type>:<function or invoker>` spans and its rendering tail becomes `loaf:style-layout-paint`,
+   * all recorded as breakdowns (self 0) at their real times. Exposed for the tests.
+   */
+  noteLongAnimationFrame(e: LoafEntry): void {
+    if (!this.running) return;
+    const end = e.startTime + e.duration;
+    for (const sc of e.scripts ?? []) {
+      if (!(sc.duration >= LOAF_MIN_SCRIPT_MS)) continue;
+      const label = loafScriptLabel(sc);
+      this.rememberSpan(label, sc.startTime, sc.startTime + sc.duration);
+      this.recordSpan(label, sc.duration, 0);
+    }
+    if (e.styleAndLayoutStart > 0 && e.styleAndLayoutStart < end) {
+      const ms = end - e.styleAndLayoutStart;
+      if (ms >= LOAF_MIN_SCRIPT_MS) {
+        this.rememberSpan('loaf:style-layout-paint', e.styleAndLayoutStart, end);
+        this.recordSpan('loaf:style-layout-paint', ms, 0);
+      }
+    }
+  }
+
   /** One capture-phase listener for every `EVENT_RING_TYPES` type: one ring write, no clock read (the
    *  event carries its own `timeStamp` on the same clock as `performance.now()`). */
   private readonly onDomEvent = (e: Event): void => { this.events.push(e.type, e.target, e.timeStamp); };
@@ -718,6 +742,17 @@ class PerfMonitor {
       });
       this.observer.observe({ entryTypes: ['longtask'] });
     } catch { this.observer = null; }
+    // LONG ANIMATION FRAMES (perf 2026-10-10): the owner's 2026-10-10 report was 94% unattributed, with 75-150 ms
+    // long tasks that no label covered. The `long-animation-frame` entry (Chromium; frames over 50 ms) says what a
+    // slow frame was made of: each script's invoker and function, plus how long style + layout + paint took. They
+    // are recorded as `loaf:*` BREAKDOWN spans (self 0, so nothing is charged twice) and remembered in the
+    // attribution ring, so a long task that overlaps one is named instead of blamed on the last pointermove.
+    try {
+      this.loafObserver = new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) this.noteLongAnimationFrame(e as unknown as LoafEntry);
+      });
+      this.loafObserver.observe({ type: 'long-animation-frame', buffered: false });
+    } catch { this.loafObserver = null; }
     document.addEventListener('visibilitychange', this.onVisibility);
     // The input-event ring (see `perfEventRing.ts`): capture phase, so the entry is written before any
     // handler runs; passive, so it can never delay scrolling. Only while the monitor runs.
@@ -733,6 +768,8 @@ class PerfMonitor {
     cancelAnimationFrame(this.raf);
     this.observer?.disconnect();
     this.observer = null;
+    this.loafObserver?.disconnect();
+    this.loafObserver = null;
     document.removeEventListener('visibilitychange', this.onVisibility);
     for (const type of EVENT_RING_TYPES) document.removeEventListener(type, this.onDomEvent, { capture: true });
   }
@@ -961,3 +998,15 @@ class PerfMonitor {
 export const perfMonitor = new PerfMonitor();
 export const perfEnabledByFlag = (): boolean => PerfMonitor.enabledByFlag();
 export type { FrameThresholds } from './refreshRate';
+
+/** The `long-animation-frame` entry fields this reads (not yet in TS's DOM lib). */
+export interface LoafScript { duration: number; startTime: number; invokerType?: string; invoker?: string; sourceFunctionName?: string }
+export interface LoafEntry { startTime: number; duration: number; styleAndLayoutStart: number; scripts?: LoafScript[] }
+/** Scripts shorter than this inside a long frame are noise, not a cause. */
+const LOAF_MIN_SCRIPT_MS = 4;
+/** `loaf:<invoker type>:<function, else invoker>`, kept short: an invoker can be a whole URL. */
+export function loafScriptLabel(sc: LoafScript): string {
+  const kind = sc.invokerType || 'script';
+  const who = (sc.sourceFunctionName || sc.invoker || '').replace(/^https?:\/\/[^ ]*\//, '').slice(0, 48) || 'anonymous';
+  return `loaf:${kind}:${who}`;
+}

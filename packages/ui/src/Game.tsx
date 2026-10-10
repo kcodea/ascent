@@ -77,6 +77,7 @@ import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { CastPreviewLayer } from './CastPreviewLayer';
 import { discoverFx, pixiFx, warmDiscoverFx } from './pixiFx';
+import { wipeFx } from './wipeFx';
 import { applyFpsCap } from './fpsCap';
 import { preloadRunArt } from './preloadPlan';
 import { audioContext, onStopAllAudio, sfx } from './sfx';
@@ -357,6 +358,14 @@ export function Game() {
   // …and build the Discover overlay's separate Pixi app on idle, so the first Discover doesn't pay a ~60-108ms
   // WebGL-context stall mid-shop (see `warmDiscoverFx`).
   useEffect(() => { warmDiscoverFx(); }, []);
+  // …and the screen-wipe's Pixi canvas the same way (perf 2026-10-10). Recruit warms it on mount, which put its
+  // WebGL context creation (~200-450 ms, `getContext`) in the FIRST SHOP of the session as an unlabelled long task.
+  // On idle at the title it is paid before any run; Recruit's own `warm()` then finds it ready (idempotent).
+  useEffect(() => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (typeof ric === 'function') ric(() => wipeFx.warm());
+    else window.setTimeout(() => wipeFx.warm(), 1500);
+  }, []);
 
   // Frame-rate cap (Settings → Performance): push the persisted choice onto the Pixi + GSAP clocks on mount
   // and whenever it changes. See fpsCap.ts for what it can and cannot cap.
@@ -473,8 +482,18 @@ export function Game() {
           landed on the shop's card fly-in (a 180–420 ms hitch, measured 2026-09-01); before the pre-warm ran
           at all, on the first minion played (0.6–0.8 s). One JSX position across both states, so the canvas
           survives the picker → board transition without a detach/re-attach (which would throw its compiled
-          programs away with the context). */}
-      {(!preRun || heroPicking) && <PixiFxLayer />}
+          programs away with the context).
+
+          NOW MOUNTED FOR THE WHOLE SESSION (gameplay perf 2026-10-10). Gating it on `!preRun || heroPicking`
+          unmounted it on every return to the title, and `pixiFx.detach()` destroyed the GL contexts with every
+          compiled program. So EACH new run rebuilt the contexts (`getContext`, ~760 ms measured across the FX
+          canvases) and relinked every shader and filter program (`getProgramParameter`, ~860 ms) as unlabelled
+          75-800 ms long tasks in its first shop, which is where the owner's 2026-10-10 report put its worst frames
+          ("Shop w1", the last input a pointermove). Built once, as the game mounts behind the boot splash, the
+          warm-up now runs before the title is even in hand, and every later run starts warm. The canvas stays
+          inert (no ticker, nothing drawn) until something fires, so this is still outside the 2026-08-30 ruling.
+          `heroPicking` is no longer read here. */}
+      <PixiFxLayer />
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
       {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one
           fixed, input-transparent layer serving the shop and the combat replay alike. */}

@@ -94,22 +94,11 @@ export class ChargeMotes {
   }
 
   private async loadShape(): Promise<void> {
-    try {
-      const img = new Image();
-      img.src = `${import.meta.env.BASE_URL}fx/turn-glyph.svg`;
-      await img.decode();
-      const w = 300, h = 118;
-      const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
-      const g = oc.getContext('2d')!; g.drawImage(img, 0, 0, w, h);
-      const data = g.getImageData(0, 0, w, h).data;
-      const pts: Array<{ nx: number; ny: number }> = [];
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3]! > 40) pts.push({ nx: x / w, ny: y / h });
-      this.shape = pts;
-      this.ready = pts.length > 0;
-    } catch {
-      this.ready = false; // SVG unavailable → engine stays inert (the CSS glyph still charges)
-    }
+    const pts = await glyphShapePoints();
+    this.shape = pts;
+    this.ready = pts.length > 0; // empty = SVG unavailable → engine stays inert (the CSS glyph still charges)
   }
+
 
   /** Reset transient state (call when a fresh charge session starts). */
   reset(): void { this.motes.length = 0; this.emitAcc = 0; this.wasComplete = false; this.flashT0 = 0; }
@@ -215,4 +204,35 @@ export class ChargeMotes {
   }
 
   get isReady(): boolean { return this.ready; }
+}
+
+/**
+ * The glyph's lit-pixel samples, decoded ONCE per session (gameplay perf 2026-10-10).
+ *
+ * Every turn's charge glyph used to redo this on mount: decode the SVG, draw it into a GPU-backed 2D canvas and
+ * `getImageData` it back. The readback forces a synchronous GPU flush (~74 ms measured in the first shop, an
+ * unlabelled long task), and it recurred every turn. Now the points are cached across mounts, and the scratch
+ * canvas is CPU-backed (`willReadFrequently`), so even the one read is a plain memory copy. The samples are
+ * identical: same image, same size, same alpha threshold.
+ */
+let glyphShape: Promise<Array<{ nx: number; ny: number }>> | null = null;
+function glyphShapePoints(): Promise<Array<{ nx: number; ny: number }>> {
+  glyphShape ??= (async () => {
+    try {
+      const img = new Image();
+      img.src = `${import.meta.env.BASE_URL}fx/turn-glyph.svg`;
+      await img.decode();
+      const w = 300, h = 118;
+      const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
+      const g = oc.getContext('2d', { willReadFrequently: true })!; g.drawImage(img, 0, 0, w, h);
+      const data = g.getImageData(0, 0, w, h).data;
+      const pts: Array<{ nx: number; ny: number }> = [];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3]! > 40) pts.push({ nx: x / w, ny: y / h });
+      return pts;
+    } catch {
+      glyphShape = null; // let a later mount retry
+      return [];
+    }
+  })();
+  return glyphShape;
 }

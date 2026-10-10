@@ -11,7 +11,7 @@ import {
   updateParticleMaterial,
   updateParticleMaterialShaping,
   setParticleTime,
-  biasTint,
+  biasTint, setParticleGreyTint,
   PARTICLE_TINT_MODES,
   type ParticleShaping,
   type ParticleStyle,
@@ -805,7 +805,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       particle.scaleY = lp.scaleY0 * s;
       // Colour-over-life: the spawn bias scaled by the bias curve, recomputed every frame (default flat 1 =
       // exactly the spawn tint — a no-op; the color buffer already re-uploads each frame, so this is free).
-      particle.tint = biasTint(lp.bias0 * sampleCurve(p.biasCurve, curveT));
+      setParticleGreyTint(particle, biasTint(lp.bias0 * sampleCurve(p.biasCurve, curveT))); // fast path, same colour (particleMaterial.ts)
 
       if (write !== i) live[write] = lp;
       children[write] = particle;

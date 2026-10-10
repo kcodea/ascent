@@ -59,6 +59,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-10',
     changes: [
       {
+        category: 'Systems',
+        text: 'Gameplay runs smoother: the first Shop of a game no longer stutters, and busy Shout turns cost less.',
+        details: [
+          'The effects layer now gets ready once, while the menu is open, instead of at the start of every game.',
+          'Starting a second game is just as smooth as the first.',
+          'Effects with a reverb sound, like the Shout icon, no longer cause a hitch each time they play.',
+          'The charging glyph at the end of a turn no longer causes a hitch when it appears.',
+          'Nothing looks or sounds different.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Demon, Dwarf and Beast balance pass, two new Tier 6 minions, slower Gift runes, and eight cards retired.',
         details: [

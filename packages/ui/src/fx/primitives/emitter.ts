@@ -11,7 +11,7 @@ import {
   updateParticleMaterial,
   updateParticleMaterialShaping,
   setParticleTime,
-  biasTint,
+  biasTint, setParticleGreyTint,
   PARTICLE_TINT_MODES,
   type ParticleShaping,
   type ParticleStyle,
@@ -542,7 +542,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       m.p.scaleY = m.scaleY0 * shrink;
       // Colour-over-life: the spawn bias scaled by the bias curve, recomputed every frame (default flat 1 =
       // exactly the spawn tint — a no-op; the color buffer already re-uploads each frame, so this is free).
-      m.p.tint = biasTint(m.bias0 * sampleCurve(p.biasCurve, curveT));
+      setParticleGreyTint(m.p, biasTint(m.bias0 * sampleCurve(p.biasCurve, curveT))); // fast path, same colour (particleMaterial.ts)
       if (write !== i) motes[write] = m;
       children[write] = m.p;
       write++;

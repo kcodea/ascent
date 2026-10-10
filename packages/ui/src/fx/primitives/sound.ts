@@ -17,8 +17,9 @@
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import type { ParamsOf, FxParamSpecs } from '../params';
 import { registerPrimitive } from '../registry';
-import { playFxSound, type FxSoundHandle } from '../../sfx';
-import { audioFilterSpecs } from '../audioFilters';
+import { onAudioContextReady, playFxSound, type FxSoundHandle } from '../../sfx';
+import { audioFilterSpecs, prewarmConvolvers, reverbSpecsOf } from '../audioFilters';
+import { listDefs } from '../fxDefs';
 import { CURVE_PRESETS } from '../curve';
 import { BUS_NAMES, type BusName } from '../../audio/config';
 
@@ -142,3 +143,7 @@ export const soundPrimitive: FxPrimitive<typeof SPECS> = {
 };
 
 registerPrimitive(soundPrimitive as FxPrimitive);
+
+// Pre-build the committed defs' reverb convolvers on idle time once audio exists (perf 2026-10-10, see
+// `prewarmConvolvers`): the Shout icon's reverb was ~6 ms of main thread on every fire until a pooled node existed.
+if (typeof window !== 'undefined') onAudioContextReady((a) => prewarmConvolvers(a, reverbSpecsOf(listDefs())));

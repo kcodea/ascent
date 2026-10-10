@@ -41,6 +41,9 @@ export interface FxFilterCtx {
   t0: number;
   /** Seconds the clip plays over — the domain the 0..1 curve maps onto. `0` disables automation (static). */
   durSec: number;
+  /** The play ENDS (a one-shot, not a loop) at `t0 + durSec`, so heavy nodes it builds (the reverb's convolver)
+   *  may be returned to a pool once its tail has died out. Absent = never pooled. */
+  oneShot?: boolean;
 }
 /** A ctx that disables automation — every param is set statically. The default for callers/tests with no
  *  timing window (a workbench-less unit test, or a fire with an unknown length). */
@@ -268,6 +271,89 @@ const DELAY: AudioFilterSpec = {
   },
 };
 
+/**
+ * POOLED CONVOLVERS (gameplay perf pass 2026-10-10). Assigning `ConvolverNode.buffer` makes the browser partition
+ * and FFT the whole impulse synchronously on the MAIN thread: ~6 ms for the default 1.8 s tail at 96 kHz, paid on
+ * every reverb'd fire. The Shout icon's sound layer is reverb'd, so every Shout (and every End of Turn Shout replay)
+ * cost a 6 ms+ frame (`fx:def:shout-icon-effect`, worst 13-16 ms in the owner's 2026-10-10 capture).
+ *
+ * A one-shot play hands its convolver back once its tail has decayed (clip length + impulse length + a pad); the
+ * next play with the same impulse reuses it, with its buffer already set. By then its internal state has rung out
+ * to silence, so a reused node sounds exactly like a fresh one. Loops and untimed plays never pool.
+ */
+const CONVOLVER_RELEASE_PAD_S = 0.5;
+const CONVOLVER_POOL_MAX = 8;
+const convolverPools = new WeakMap<BaseAudioContext, Map<string, ConvolverNode[]>>();
+const pooledConvolvers = new WeakSet<ConvolverNode>();
+function impulseKeyOf(a: BaseAudioContext, size: number, damping: number): string {
+  return `${Math.min(8, Math.max(0.1, size)).toFixed(2)}|${Math.min(1, Math.max(0, damping)).toFixed(2)}|${a.sampleRate}`;
+}
+function acquireConvolver(a: BaseAudioContext, size: number, damping: number, ctx: FxFilterCtx): ConvolverNode {
+  const key = impulseKeyOf(a, size, damping);
+  const free = ctx.oneShot ? convolverPools.get(a)?.get(key) : undefined;
+  const reused = free?.pop();
+  if (reused) { pooledConvolvers.delete(reused); return reused; }
+  const conv = a.createConvolver();
+  conv.normalize = true;
+  conv.buffer = reverbImpulse(a, size, damping);
+  (conv as ConvolverNode & { __irKey?: string }).__irKey = key;
+  return conv;
+}
+function releaseConvolver(a: BaseAudioContext, conv: ConvolverNode, feed: AudioNode): void {
+  try { feed.disconnect(conv); } catch { /* already gone */ }
+  try { conv.disconnect(); } catch { /* already gone */ }
+  if (pooledConvolvers.has(conv)) return; // idempotent
+  const key = (conv as ConvolverNode & { __irKey?: string }).__irKey;
+  if (!key) return;
+  let byKey = convolverPools.get(a);
+  if (!byKey) { byKey = new Map(); convolverPools.set(a, byKey); }
+  const list = byKey.get(key) ?? [];
+  if (list.length >= CONVOLVER_POOL_MAX) return; // let the GC have it
+  list.push(conv);
+  pooledConvolvers.add(conv);
+  byKey.set(key, list);
+}
+
+/**
+ * Pre-build `perKey` pooled convolvers for each reverb impulse the committed defs use, ONE per idle callback (each is
+ * ~6 ms of main thread), so the first reverb'd fires of a session reuse a ready node instead of building one
+ * mid-frame. Called once the AudioContext exists (`sound` primitive → `onAudioContextReady`).
+ */
+export function prewarmConvolvers(a: BaseAudioContext, specs: ReadonlyArray<{ size: number; damping: number }>, perKey = 2): void {
+  const seen = new Set<string>();
+  const jobs: Array<() => void> = [];
+  for (const sp of specs) {
+    const key = impulseKeyOf(a, sp.size, sp.damping);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    for (let i = 0; i < perKey; i++) {
+      jobs.push(() => {
+        const conv = acquireConvolver(a, sp.size, sp.damping, { t0: 0, durSec: 0 }); // always a fresh node here
+        releaseConvolver(a, conv, conv);
+      });
+    }
+  }
+  const idle = (cb: () => void): void => {
+    const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof ric === 'function') ric(cb, { timeout: 4000 }); else setTimeout(cb, 50);
+  };
+  const next = (): void => { const job = jobs.shift(); if (!job) return; try { job(); } catch { /* best-effort */ } idle(next); };
+  idle(next);
+}
+
+/** The reverb impulses (size, damping) that committed `sound` layers enable, for `prewarmConvolvers`. */
+export function reverbSpecsOf(defs: ReadonlyArray<{ layers?: ReadonlyArray<{ primitive?: string; params?: unknown }> }>): Array<{ size: number; damping: number }> {
+  const out: Array<{ size: number; damping: number }> = [];
+  for (const d of defs) {
+    for (const l of d.layers ?? []) {
+      const p = (l.params ?? {}) as P;
+      if (l.primitive !== 'sound' || !bool(p, onKey('reverb'))) continue;
+      out.push({ size: num(p, knobKey('reverb', 'size'), 1.8), damping: num(p, knobKey('reverb', 'damping'), 0.35) });
+    }
+  }
+  return out;
+}
+
 const REVERB: AudioFilterSpec = {
   id: 'reverb',
   label: 'Reverb',
@@ -282,11 +368,15 @@ const REVERB: AudioFilterSpec = {
     const output = a.createGain();
     const dry = a.createGain(); dry.gain.value = 1;
     const wet = a.createGain(); setAuto(wet.gain, num(p, knobKey('reverb', 'mix'), 0.3), p[curveKey('reverb', 'mix')], ctx);
-    const conv = a.createConvolver();
-    conv.normalize = true;
-    conv.buffer = reverbImpulse(a, num(p, knobKey('reverb', 'size'), 1.8), num(p, knobKey('reverb', 'damping'), 0.35));
+    const size = num(p, knobKey('reverb', 'size'), 1.8);
+    const conv = acquireConvolver(a, size, num(p, knobKey('reverb', 'damping'), 0.35), ctx);
     input.connect(dry); dry.connect(output);
     input.connect(conv); conv.connect(wet); wet.connect(output);
+    if (ctx.oneShot && ctx.durSec > 0) {
+      // Back to the pool once this play's tail has fully decayed: the impulse runs `size` seconds past the clip.
+      const releaseIn = Math.max(0, ctx.t0 - a.currentTime) + ctx.durSec + size + CONVOLVER_RELEASE_PAD_S;
+      setTimeout(() => releaseConvolver(a, conv, input), releaseIn * 1000);
+    }
     return { input, output };
   },
 };

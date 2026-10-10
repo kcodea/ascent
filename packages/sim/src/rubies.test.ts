@@ -60,10 +60,11 @@ describe('Ruby engine (set 2)', () => {
     expect(s.hand.some((c) => c.cardId === RUBY_ID)).toBe(false); // consumed
   });
 
-  it("Chipwick Prospector's Shout mints 2 Rubies into hand (card → getRubies factory → engine)", () => {
+  // Re-pin 2026-10-10 (Kobold balance batch): Prospector's Shout is now ONE random Ruby (any of the six types).
+  it("Prospector's Shout mints 1 random Ruby into hand (card → getRandomRubies factory → engine)", () => {
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'ch' });
-    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(2);
+    expect(s.hand.filter((c) => !!CARD_INDEX[c.cardId]?.ruby).length).toBe(1);
     expect(s.board.some((c) => c.cardId === 'k_chipwick')).toBe(true); // Chipwick itself played to board
   });
 
@@ -71,12 +72,12 @@ describe('Ruby engine (set 2)', () => {
     let s: RunState = { ...createRun(1), board: [], hand: [] };
     mintRubies(s, 1); // a Ruby already in hand at base 1/1
     s.hand.push({ uid: 'dv', cardId: 'k_deepvein', tribe: 'kobold', attack: 2, health: 3, keywords: [], golden: false });
-    s = reduce(s, { type: 'play', uid: 'dv' }); // Shout: your Rubies gain +0/+1
-    expect(s.rubyBonus).toMatchObject({ attack: 0, health: 1 });
+    s = reduce(s, { type: 'play', uid: 'dv' }); // Shout: your Rubies gain +0/+2 (re-pin 2026-10-10: was +0/+1)
+    expect(s.rubyBonus).toMatchObject({ attack: 0, health: 2 });
     const handRuby = s.hand.find((c) => c.cardId === RUBY_ID)!;
-    expect([handRuby.attack, handRuby.health]).toEqual([1, 2]); // the ALREADY-HELD Ruby grew
+    expect([handRuby.attack, handRuby.health]).toEqual([1, 3]); // the ALREADY-HELD Ruby grew
     mintRubies(s, 1);
-    expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 2)).toBe(true); // future too
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 3)).toBe(true); // future too
   });
 
   it('cardsBoughtThisTurn increments on buy (Frenzied Excavator scaler plumbing)', () => {
@@ -206,11 +207,14 @@ describe('Ruby engine (set 2)', () => {
   });
 
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
-    // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
+    // Three plain Rubies already held, then a golden Prospector mints 2 more; `play` runs checkTriples on the grown
+    // hand. (Re-pin 2026-10-10: Prospector now mints random Rubies, so the plain three are seeded up front.)
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };
+    mintRubies(s, 3);
     s = reduce(s, { type: 'play', uid: 'ch' });
-    const rubies = s.hand.filter((c) => c.cardId === RUBY_ID);
-    expect(rubies.length).toBe(4); // all four remain — none combined
+    const rubies = s.hand.filter((c) => !!CARD_INDEX[c.cardId]?.ruby);
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBeGreaterThanOrEqual(3);
+    expect(rubies.length).toBe(5); // all five remain — none combined
     expect(rubies.some((r) => r.golden)).toBe(false); // no golden Ruby formed
   });
 });

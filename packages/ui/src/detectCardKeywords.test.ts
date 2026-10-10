@@ -94,7 +94,7 @@ describe('detectCardKeywords', () => {
       expect(ids({ keywords: c.keywords, text: c.goldenText ?? '' }), id).toContain('sell');
     }
     expect(CARD_INDEX['salvatore']!.text).toBe('**Sell:** **Discover** 2 Tier 6 minions.');
-    expect(CARD_INDEX['k_beggy']!.text).toBe('**Sell:** get **2 Rubies**.');
+    expect(CARD_INDEX['k_beggy']!.text).toBe('**Sell:** Get a random **Ruby**.'); // re-pin 2026-10-10 (Kobold balance batch)
     expect(CARD_INDEX['sp3_grovereveler']!.text).toBe('**Sell:** give your minions **+1/+1**, then increase that by 1.');
     const def = KEYWORD_GLOSSARY.find((d) => d.id === 'sell')!;
     expect(def.def).toBe('Triggers when this minion is sold.');

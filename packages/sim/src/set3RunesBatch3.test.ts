@@ -141,26 +141,28 @@ describe('Rune of the Red Storm — Veinstorms also cast a Ruby on 2 friendly Ko
   it('gets a Veinstorm on pickup', () => {
     expect(count(armed('rune_red_storm'), 'veinstorm')).toBe(1);
   });
+  // RE-PIN 2026-10-10 (Kobold balance batch): Veinstorm itself now casts ONE Ruby on every friendly minion, so each
+  // count below is the Veinstorm's own Ruby per minion PLUS the rune's 2 on Kobolds.
   it('a Veinstorm cast from hand casts a Ruby on 2 random friendly Kobolds, never a non-Kobold', () => {
     let s = armed('rune_red_storm', { board: [...kobolds(3), body('n', 'sandbag')] });
     const vs = s.hand.find((c) => c.cardId === 'veinstorm')!;
     s = play(s, vs.uid);
-    expect(rubiesOnBoard(s)).toBe(2);
-    expect(rubyOn(at(s, 'n'))).toBe(0);
-    expect(s.board.filter((c) => rubyOn(c) > 0)).toHaveLength(2);
+    expect(rubiesOnBoard(s), "4 from Veinstorm's own Ruby + the rune's 2").toBe(6);
+    expect(rubyOn(at(s, 'n')), "the non-Kobold only has Veinstorm's own Ruby").toBe(1);
+    expect(s.board.filter((c) => rubyOn(c) > 1), "the rune's 2 landed on 2 different Kobolds").toHaveLength(2);
   });
   it('any caster counts: a Veinstorm cast by a card or rune (not from hand) pays once', () => {
     const s = armed('rune_red_storm', { board: kobolds(3) });
     castSpell(s, CARD_INDEX['veinstorm']!);
-    expect(rubiesOnBoard(s)).toBe(2);
+    expect(rubiesOnBoard(s), '3 + the rune 2').toBe(5);
   });
   it('with one Kobold it gets the single Ruby; with none nothing happens', () => {
     let s = armed('rune_red_storm', { board: kobolds(1) });
     castSpell(s, CARD_INDEX['veinstorm']!);
-    expect(rubiesOnBoard(s)).toBe(1);
+    expect(rubiesOnBoard(s), '1 + the rune 1').toBe(2);
     s = armed('rune_red_storm', { board: [body('n', 'sandbag')] });
     castSpell(s, CARD_INDEX['veinstorm']!);
-    expect(rubiesOnBoard(s)).toBe(0);
+    expect(rubiesOnBoard(s), "Veinstorm's own Ruby only; the rune pays nothing").toBe(1);
   });
 });
 
@@ -175,10 +177,11 @@ describe('Rune of Storming Veins — Veinstorms cast 2 additional times from han
     let s = buyRune(armed('rune_storming_veins', { board: kobolds(7) }), 'rune_red_storm');
     const vs = s.hand.find((c) => c.cardId === 'veinstorm')!;
     s = play(s, vs.uid);
-    expect(rubiesOnBoard(s)).toBe(6);
+    // Re-pin 2026-10-10: each of the 3 casts also casts Veinstorm's own Ruby on all 7 minions (21) + the rune's 6.
+    expect(rubiesOnBoard(s)).toBe(27);
     const t = buyRune(armed('rune_storming_veins', { board: kobolds(7) }), 'rune_red_storm');
     castSpell(t, CARD_INDEX['veinstorm']!);
-    expect(rubiesOnBoard(t), 'a rune / card cast is never multiplied').toBe(2);
+    expect(rubiesOnBoard(t), 'a rune / card cast is never multiplied: 7 + 2').toBe(9);
   });
   it('two copies: 5 casts from hand', () => {
     const s = buyRune(armed('rune_storming_veins'), 'rune_storming_veins');

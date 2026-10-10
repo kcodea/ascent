@@ -213,9 +213,13 @@ export function beatConservationViolations(
   // completed a triple and merged into a fresh golden uid). Its arrival was real but is not provable from the
   // outside, so only the duplicate check applies to it; a uid in the BEFORE state that is claimed as an
   // arrival is a phantom claim either way.
+  // A body RETURNED from the board to the hand keeps its uid (Second Draft's `spellReturnToHand` claims it as a
+  // `cardGranted`): it is a real hand arrival, not a phantom. Surfaced by the builder sweep on 2026-10-10 when a
+  // content change (Gemling joining the End-of-Turn cast plants) first steered it into a Second Draft play.
+  const returnedToHand = new Set(after.hand.filter((c) => before.board.some((b) => b.uid === c.uid) && !after.board.some((b) => b.uid === c.uid)).map((c) => c.uid));
   for (const [uid, { count: n }] of claims.granted) {
     if (n > 1) out.push(`cardGranted claimed ${n}× for ${name(uid)} — one arrival, ${n} previews (the Rope Wrangler class)`);
-    if (!handArrived.has(uid) && !boardArrived.has(uid) && exists(uid)) out.push(`cardGranted for ${name(uid)}, which did not arrive this action`);
+    if (!handArrived.has(uid) && !boardArrived.has(uid) && !returnedToHand.has(uid) && exists(uid)) out.push(`cardGranted for ${name(uid)}, which did not arrive this action`);
   }
   for (const [uid, { count: n }] of claims.summoned) {
     if (n > 1) out.push(`cardSummoned claimed ${n}× for ${name(uid)} — one arrival, ${n} ghosts`);

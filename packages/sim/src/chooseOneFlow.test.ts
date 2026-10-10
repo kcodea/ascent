@@ -198,7 +198,7 @@ describe('(Both) — the prompt is skipped when every branch is already on', () 
     const s0: RunState = { ...set2({ runeUnbrokenVein: true, hand: [hand('v', 'k_veinbreaker')] }) };
     const s = reduce(s0, { type: 'play', uid: 'v' });
     expect(s.chooseOne).toBeUndefined();
-    expect(s.rubyBonus, 'branch A — Rubies grew').toEqual({ attack: 1, health: 1 });
+    expect(s.rubyBonus, 'branch A — Rubies grew').toEqual({ attack: 2, health: 2 }); // re-pin 2026-10-10: Cave Cutter +1/+1 -> +2/+2
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, 'branch B — four Rubies').toBe(4);
   });
 });

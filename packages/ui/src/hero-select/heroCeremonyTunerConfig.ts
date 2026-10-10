@@ -127,7 +127,7 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   focusDelayMs: [0, 500, 10],
   focusMs: [200, 1200, 20],
   settleMs: [40, 400, 10],
-  voiceAtMs: [200, 2000, 20],
+  voiceAtMs: [200, 3500, 20],
   transformAtMs: [400, 2500, 25],
   transformMs: [200, 1500, 25],
   identityAtMs: [600, 3000, 25],

@@ -24,7 +24,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.45,
   gemapply: 0.35, clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.29, rebornshatter: 0.24, rebornsummon: 0.24,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
-  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 0.5, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
+  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 1.3, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
+  // heroSelect 0.5 -> 1.3 (owner 2026-10-09, raised in steps: 0.6, 0.9, then "from .9 to 1.3").
   // The final-countdown clock tick at 5..1 left (owner 2026-10-07); the per-tick build rides on top (sfx TURN_TICK_BUILD).
   turntick: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,

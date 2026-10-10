@@ -287,8 +287,7 @@ describe('beats: every new effect is its own source-attributed beat (Shop)', () 
     expect(vk.every((t) => t.source.uid === 'v')).toBe(true);
   });
   it("Roomworks' End of Turn replay is a beat sourced on the TARGET", () => {
-    let s = act(set2({ board: [bc('st', 'stewardofspells')], lastSpellCastId: 'growth', hand: [bc('r', 'd2_roomworks')] }), { type: 'play', uid: 'r' });
-
+    const s = act(set2({ board: [bc('st', 'stewardofspells')], lastSpellCastId: 'growth', hand: [bc('r', 'd2_roomworks')] }), { type: 'play', uid: 'r' });
     const t = beats(s, { type: 'battlecryTarget', targetUid: 'st' }).filter((b) => b.trigger === 'endOfTurn');
     expect(t.length).toBe(1);
     expect(t[0]!.source.uid).toBe('st');

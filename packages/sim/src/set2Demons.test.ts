@@ -264,13 +264,13 @@ describe('set 2 — Contract Butcher / Soul Defiler buff the shop', () => {
     s = reduce(s, { type: 'play', uid: 'b' });
     s = reduce(s, { type: 'buy', uid: 's0' });
     const bought = s.hand.find((c) => c.cardId === 'sandbag')!;
-    expect([bought.attack, bought.health]).toEqual([2, 5]); // 0/4 + 2/1 (owner balance 2026-08-18)
+    expect([bought.attack, bought.health]).toEqual([2, 6]); // 0/4 + 2/2 (owner balance 2026-10-10; was +2/+1)
     // …and a minion from a LATER shop gets it too — the permanent channel, not this roll's offers.
     s = { ...s, shop: shop('alley') };
     s = reduce(s, { type: 'buy', uid: 's0' });
     const later = s.hand.find((c) => c.cardId === 'alley')!;
     const base = CARD_INDEX['alley']!;
-    expect([later.attack, later.health]).toEqual([base.attack + 2, base.health + 1]);
+    expect([later.attack, later.health]).toEqual([base.attack + 2, base.health + 2]);
   });
 
   it('Soul Defiler casts a Staff of Guel at End of Turn, and the buff SURVIVES a refresh (it is permanent)', () => {
@@ -547,7 +547,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
   it('the Shout buffs the CURRENT shop immediately', () => {
     let s = base();
     s = reduce(s, { type: 'play', uid: 'T' });
-    expect(rightmostBuff(s)).toBe(9); // +4/+5 (owner balance 2026-08-18: was +7/+6)
+    expect(rightmostBuff(s)).toBe(16); // +8/+8 (owner balance 2026-10-10: was +4/+5)
   });
 
   it('the buff CARRIES ACROSS refreshes — no Tormentor on board required', () => {
@@ -556,19 +556,19 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     s = { ...s, board: [] }; // sell it; the SLOT remembers, not the minion (owner: "i do not need it on board")
     for (const roll of [1, 2]) {
       s = reduce(s, { type: 'roll' });
-      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(9); // +4/+5
+      expect(rightmostBuff(s), `refresh ${roll} lost the slot buff`).toBe(16); // +8/+8
     }
   });
 
-  it("STACKS to the owner's worked example shape: two normals + a gilded = +16/+20", () => {
+  it("STACKS to the owner's worked example shape: two normals + a gilded = +32/+32", () => {
     let s: RunState = { ...base(), hand: [
       minion('T1', 'dm_tormentor', 4, 4), minion('T2', 'dm_tormentor', 4, 4),
       { ...minion('T3', 'dm_tormentor', 8, 8), golden: true },
     ] };
     for (const uid of ['T1', 'T2', 'T3']) s = reduce(s, { type: 'play', uid });
-    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(36); // +16/+20: 4+4+8 atk, 5+5+10 hp
+    expect(rightmostBuff(s), 'the current shop should hold the full stack').toBe(64); // +32/+32: 8+8+16 each stat (2026-10-10)
     s = reduce(s, { type: 'roll' });
-    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(36);
+    expect(rightmostBuff(s), 'the full stack should re-land after a refresh').toBe(64);
   });
 
   it('the buff rides the offer into the minion you BUY', () => {
@@ -579,8 +579,8 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     const offer = s.shop[i]!;
     const def = CARD_INDEX[offer.cardId]!;
     const bought = offerBuyStats(s, offer);
-    expect(bought.attack - def.attack!).toBe(4);
-    expect(bought.health - def.health!).toBe(5);
+    expect(bought.attack - def.attack!).toBe(8);
+    expect(bought.health - def.health!).toBe(8);
   });
 
   it('a Hellrider copying the right-most reads the BUFFED body (buff-before-payout ordering)', () => {
@@ -601,8 +601,8 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     expect(rider.attack - 4, "Hellrider did not gain the right-most offer's Attack").toBe(copied.attack);
     expect(rider.health - 6, "Hellrider did not gain the right-most offer's Health").toBe(copied.health);
     const def = CARD_INDEX[s.shop[i]!.cardId]!;
-    expect(copied.attack - def.attack!, 'the copied body was not buffed before the payout').toBe(4);
-    expect(copied.health - def.health!, 'the copied body was not buffed before the payout').toBe(5);
+    expect(copied.attack - def.attack!, 'the copied body was not buffed before the payout').toBe(8); // Tormentor +8/+8 since 2026-10-10
+    expect(copied.health - def.health!, 'the copied body was not buffed before the payout').toBe(8);
     expect(s.shop.length, 'nothing may be eaten — Hellrider only copies now').toBe(shopUids.length);
   });
 });

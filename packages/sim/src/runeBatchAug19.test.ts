@@ -186,11 +186,13 @@ describe('rune batch 2026-08-19c — Reliquary / Blart / the five Epics', () => 
     { type: 'buyRune', index: 0 },
   );
 
-  it('Might of Aeon is an ORDINARY Shop spell — drawable, not a rune-only token', () => {
+  // RE-PINNED 2026-10-10: Might of Aeon is ARCHIVED everywhere (owner balance batch). It stays a real spell def that
+  // resolves by id, so Rune of Might keeps casting it (next test), but no set draws it any more.
+  it('Might of Aeon is archived: in no set pool, still a resolvable spell def (Rune of Might casts it by id)', () => {
     const def = CARD_INDEX['mightofaeon']!;
     expect([def.tier, def.cost, def.spell]).toEqual([3, 2, true]);
-    expect(def.token, 'must be draftable from the shop, not token-locked').toBeFalsy();
-    expect(poolFor('set1').spells.some((c) => c.id === 'mightofaeon'), 'in the drawable spell pool').toBe(true);
+    expect(def.token, 'never a token-locked card').toBeFalsy();
+    for (const set of ['set1', 'set2', 'set3'] as const) expect(poolFor(set).spells.some((c) => c.id === 'mightofaeon'), `not drawable in ${set}`).toBe(false);
   });
 
   it('Rune of Might casts Might of Aeon off a spell — once, not recursively', () => {
@@ -237,7 +239,7 @@ describe('the 2026-08-19 keyword batch', () => {
   // Ward is 'DS' and Critical Strike is 'CR'. A 'CR' pill with no `critChance` is a badge that never rolls, so
   // the two must arrive together — that pairing is the real assertion here, not the pill itself.
   const GRANTS: [string, string[]][] = [
-    ['k_kobe', ['T']], ['dm_knocked', ['T']], ['dm_chosenfiend', ['CR']], ['dm_todd', ['DS']],
+    ['k_kobe', ['T']], ['dm_knocked', ['T']], ['dm_chosenfiend', ['CR']], /* dm_todd's Ward removed by the owner 2026-10-10 */
     ['dw_mountainbond', ['DS', 'CR']], ['k_portsmith', ['DS']], ['karwind', ['DS']],
     ['d2_warflame', ['CR']], /* b2_beardsley's Ward dropped by the owner 2026-10-07 */ ['dm_maw', ['DS']],
   ];
@@ -476,7 +478,9 @@ describe('Arnold — End of Turn: cast Beefy on THIS', () => {
     const def = CARD_INDEX['dw_arnold']!;
     expect([def.tier, def.attack, def.health, def.tribe]).toEqual([6, 9, 10, 'dwarf']);
     expect(def.text).toContain('Beefy');
-    expect(poolFor('set2').all.some((c) => c.id === 'dw_arnold'), 'buyable in set 2').toBe(true);
+    // Archived everywhere 2026-10-10 (owner balance batch): no set draws it, but a held / recorded copy still resolves
+    // and still casts Beefy (the tests below).
+    expect(poolFor('set2').all.some((c) => c.id === 'dw_arnold'), 'archived: in no set').toBe(false);
   });
 
   it('it aims at ITSELF — Beefy lands on Arnold, and spills to the neighbour', () => {

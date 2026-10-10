@@ -608,6 +608,8 @@ export const EffectFactoryIdSchema = z.enum([
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   'onDamagedReflectRandomEnemies', // Yeti: the first time this takes damage each combat, deal that amount to N random enemies
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
+  'dealtDamageSummonToken',       // Impossible Todd (2026-10-10): Pummel (20) - the same meter, a summon-a-token body (an Imp), once per combat
+  'endOfTurnDemonsConsumeShop',   // Hydraskus (2026-10-10): End of Turn, EVERY friendly Demon consumes a random Shop minion, left to right
   'dealtDamageGetRandomSpell',    // Tauntbreaker (2026-10-03): Pummel (25) — the same meter, a random-Shop-Spell body, once per combat
   'dealtDamageGetRandomRuby',     // Kobe (2026-09-24): Pummel (15) — the same meter, a random-Ruby body
   'dealtDamageGrantRandomTribe',  // Maestro Lux (2026-09-24): Pummel (N) — the same meter, a random-tribe-minion body
@@ -962,8 +964,8 @@ z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('runeScales') }).strict(),
   z.object({ kind: z.literal('runeLongShift') }).strict(),
   z.object({ kind: z.literal('runeRubyDrip') }).strict(),
-  z.object({ kind: z.literal('runeHappyBirthday') }).strict(),
-  z.object({ kind: z.literal('runeMerryChristmas') }).strict(),
+  z.object({ kind: z.literal('runeHappyBirthday'), every: z.number().int().positive().optional() }).strict(), // every: 3 since 2026-10-10
+  z.object({ kind: z.literal('runeMerryChristmas'), every: z.number().int().positive().optional() }).strict(), // every: 2 since 2026-10-10
   z.object({ kind: z.literal('runeBartering') }).strict(),
   z.object({ kind: z.literal('runeTwinGilding') }).strict(),
   z.object({ kind: z.literal('runeDenMother') }).strict(),

@@ -152,7 +152,7 @@ export function probeSlice(semanticRevision?: string): SliceProbeReport {
     obs('rune_fury', 'multiplier.resolutionOnly', furyBefore3 === 0, `no early fire under the rune (fires before death 3: ${furyBefore3}) — progress is not doubled`);
   }
 
-  // ── kennel: Avenge (4) improve counter ─────────────────────────────────────────────────────────────────
+  // ── kennel: Avenge (3) improve counter (Avenge (4) until the owner balance 2026-10-10) ─────────────────────────────────────────────────────────────────
   {
     const r = fight(
       [bm('kennel', 1, 600), bm('wolvesden', 2, 1), bm('wolvesden', 2, 1), bm('b2_packstrider', 1, 1), bm('b2_packstrider', 1, 1), bm('sandbag', 0, 60)],

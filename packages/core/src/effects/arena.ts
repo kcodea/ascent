@@ -936,7 +936,8 @@ export const ARENA_EFFECTS = {
   deathrattleGrantSpell(arena: EffectArena, params: Record<string, unknown>): void {
     const id = typeof params.cardId === 'string' ? params.cardId : '';
     if (!id) return;
-    arena.grantNamedCard(id, arena.self.golden ? 2 : 1);
+    // `count` (default 1) since the owner's 2026-10-10 "Echo: Get 2 Picnics."; golden doubles it.
+    arena.grantNamedCard(id, (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
   },
 
   /** Echo: put `count` copies of a named card in hand (golden doubles). */

@@ -173,7 +173,8 @@ describe('Soul Defiler — End of Turn: cast Staff of Guel', () => {
     const s = recruit({ board: [card('sd', 'dm_curator')], shop: [{ uid: 's1', cardId: 'sandbag' } as RunState['shop'][number]] });
     applyEndOfTurn(s);
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([staff.attack, staff.health]);
-    expect(s.spellsCast, 'a real cast — spell-cast payoffs see it').toBe(1);
+    // Owner balance 2026-10-10: it casts Staff of Guel AND Picnic, so two real casts per End of Turn.
+    expect(s.spellsCast, 'real casts — spell-cast payoffs see them').toBe(2);
     applyEndOfTurn(s);
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'it stacks, no alternation, no escalation').toEqual([2 * staff.attack, 2 * staff.health]);
     const g = recruit({ board: [card('sd', 'dm_curator', { golden: true })] });
@@ -183,9 +184,13 @@ describe('Soul Defiler — End of Turn: cast Staff of Guel', () => {
 
   it('names the spell it casts and lets the Staff carry its own live value (the sanctioned named-spell exception)', () => {
     const d = CARD_INDEX['dm_curator']!;
-    expect(d.text).toBe('**End of Turn:** cast **Staff of Guel**.');
-    expect(d.goldenText).toBe('**End of Turn:** cast **Staff of Guel twice**.');
-    expect(d.effects).toEqual([{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'staffofguel' } }]);
+    // Owner balance 2026-10-10: "End of Turn: Cast Staff of Guel and Picnic."
+    expect(d.text).toBe('**End of Turn:** cast **Staff of Guel** and **Picnic**.');
+    expect(d.goldenText).toBe('**End of Turn:** cast **Staff of Guel** and **Picnic**, **twice**.');
+    expect(d.effects).toEqual([
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'staffofguel' } },
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'sp_picnic' } },
+    ]);
   });
 });
 
@@ -231,27 +236,28 @@ describe('Moira — End of Turn: trigger your Shout minions', () => {
 });
 
 // ── 6. IMPOSSIBLE TODD ──────────────────────────────────────────────────────────────────────────────────────
-describe('Impossible Todd — when a friendly Demon deals damage: +1/+2 permanently, Imps +2/+1 this game', () => {
+// RE-PINNED 2026-10-10 (owner balance batch): the self-buff and Ward are gone; the Imp grant stays (+2/+1).
+describe('Impossible Todd — when a friendly Demon deals damage: Imps +2/+1 (no self-buff since 2026-10-10)', () => {
   const fight = (golden: boolean) => simulate(
     [bm('dm_todd', 'TD', 0, 400, { golden }), bm('dm_clerk', 'AT', 5, 400)],
     [bm('dm_clerk', 'BAG', 0, 99999)],
     makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
 
-  it('each instance swells Todd +1/+2 (carried back as permaGain) and showers the Imps +2/+1 (the run channel)', () => {
+  it('each instance showers the Imps +2/+1 (the run channel) and Todd itself never grows', () => {
     const r = fight(false);
-    const td = buffsOn(r.events, 'm0');
-    expect(td.length).toBeGreaterThan(1);
-    expect(td.every((b) => b.attack === 1 && b.health === 2)).toBe(true);
-    expect(r.playerImpBuffGain).toEqual({ attack: 2 * td.length, health: 1 * td.length });
+    expect(buffsOn(r.events, 'm0').length, 'no self-buff').toBe(0);
+    const n = r.playerImpBuffGain!.attack / 2;
+    expect(n, 'several instances').toBeGreaterThan(1);
+    expect(r.playerImpBuffGain).toEqual({ attack: 2 * n, health: 1 * n });
   });
 
-  it('gilded doubles both halves (+2/+4, Imps +4/+2) and Ward stays on the card', () => {
+  it('gilded doubles the Imp grant (+4/+2) and the card has no Ward', () => {
+    const plain = fight(false).playerImpBuffGain!;
     const r = fight(true);
-    const td = buffsOn(r.events, 'm0');
-    expect(td.every((b) => b.attack === 2 && b.health === 4)).toBe(true);
-    expect(r.playerImpBuffGain).toEqual({ attack: 4 * td.length, health: 2 * td.length });
-    expect(CARD_INDEX['dm_todd']!.keywords).toContain('DS');
-    expect(CARD_INDEX['dm_todd']!.text).toBe('**Ward.** When a friendly **Demon** deals damage, gain **+1/+2** permanently and give your **Imps +2/+1** this game.');
+    expect(buffsOn(r.events, 'm0').length, 'no self-buff').toBe(0);
+    expect(r.playerImpBuffGain).toEqual({ attack: 2 * plain.attack, health: 2 * plain.health });
+    expect(CARD_INDEX['dm_todd']!.keywords).not.toContain('DS');
+    expect(CARD_INDEX['dm_todd']!.text).toBe('When a friendly **Demon** deals damage, give your **Imps +2/+1**. **Pummel (20):** Summon an **Imp**. (Once per combat.)');
   });
 });
 

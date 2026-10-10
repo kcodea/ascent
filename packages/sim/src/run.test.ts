@@ -1301,7 +1301,7 @@ describe('run loop (@game/sim)', () => {
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
     s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so nothing else mutates the run yet
     // The Tormentor deferral replayed through its recruit factory: the slot accumulator grew once.
-    expect(s.rightmostSlotBuff).toEqual({ attack: 4, health: 5 });
+    expect(s.rightmostSlotBuff).toEqual({ attack: 8, health: 8 }); // Market Tormentor +8/+8 since the owner balance 2026-10-10
     // Nimbus: exactly the carried charge, never a second one from a replay.
     expect(s.nextSpellExtraCasts).toBe(1);
     // The stale live-id entries applied NOTHING at settle.

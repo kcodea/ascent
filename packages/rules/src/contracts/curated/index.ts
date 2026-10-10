@@ -163,10 +163,11 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     // Both legs the text prints (2026-09-10: the Start of Combat leg was missing, so textParse flagged the card
     // as wrong-trigger — the contract was incomplete, not the text). The Avenge leg stays first: the slice's
     // observations are path-addressed.
-    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
+    // Owner balance 2026-10-10: Avenge (4) -> (3), and the aura is +2 Attack improving +2.
+    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 3 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
     effects: [
       { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' },
-      { kind: 'stat-buff', note: 'Start of Combat: all Beasts +1 Attack (gilded +2) THIS COMBAT, later summons included, no carry-back (scBeastAura, R-AURA-03)' },
+      { kind: 'stat-buff', note: 'Start of Combat: all Beasts +2 Attack (gilded +4) THIS COMBAT, later summons included, no carry-back (scBeastAura, R-AURA-03)' },
     ],
     persistence: ['permanent'],
     copySubject: {
@@ -250,8 +251,9 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     tribes: ['demon'],
     tags: ['trigger:shout', 'effect:shop-buff'],
     triggers: [{ event: 'onPlay', phase: 'shop', phaseBasis: 'authored' }],
-    effects: [{ kind: 'buff-shop', amount: { kind: 'const', plain: [2, 1], gilded: [4, 2] }, targets: { cardinality: 'all', scope: 'all-shop-minions' } }],
-    gildedDelta: { kind: 'multiply', factor: 2, description: 'gilded grants +4/+2 instead of +2/+1' },
+    // Owner balance 2026-10-10: +2/+1 -> +2/+2.
+    effects: [{ kind: 'buff-shop', amount: { kind: 'const', plain: [2, 2], gilded: [4, 4] }, targets: { cardinality: 'all', scope: 'all-shop-minions' } }],
+    gildedDelta: { kind: 'multiply', factor: 2, description: 'gilded grants +4/+4 instead of +2/+2' },
     persistence: ['run-wide'],
     textContract: { source: 'index' },
     notes: '"Minions in the Shop" is the ruled run-wide vocabulary (owner ruling 2026-07-25): a lasting buff on everything bought from here on, not one roll.',

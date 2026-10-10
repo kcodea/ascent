@@ -1782,12 +1782,17 @@ export interface RunState {
   runeLongShift?: boolean;
   /** Rune of Resonance (owner Ruby batch 2026-09-24): Start of Turn, get a random Ruby (one per copy held). */
   runeRubyDrip?: boolean;
-  /** RUNE OF HAPPY BIRTHDAY: a random Gift on purchase, then another every 2 turns (`giftBirthdayTick` counts
-   *  the waves between payouts). */
+  /** RUNE OF HAPPY BIRTHDAY: a random Gift on purchase, then another every `giftBirthdayEvery` turns (3 since the
+   *  owner's 2026-10-10 balance; absent = the old 2). `giftBirthdayTick` counts the waves between payouts. */
   runeHappyBirthday?: boolean;
   giftBirthdayTick?: number;
-  /** RUNE OF MERRY CHRISTMAS (epic): Discover a Gift on purchase, then again every Start of Turn. */
+  giftBirthdayEvery?: number;
+  /** RUNE OF MERRY CHRISTMAS (epic): Discover a Gift on purchase, then again every `giftChristmasEvery` turns (2 since
+   *  the owner's 2026-10-10 balance; absent = every turn, the old rhythm). `giftChristmasTick` counts the waves between
+   *  Discovers, Happy Birthday's pattern. */
   runeMerryChristmas?: boolean;
+  giftChristmasTick?: number;
+  giftChristmasEvery?: number;
   /** Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold. */
   runeBartering?: boolean;
   /** Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it. */

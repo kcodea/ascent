@@ -12,6 +12,140 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-10 owner balance batch: three minions (Hellrider, Chicken Brawl, Arnold) and five Shop spells (Rival's
+  //    Reflection, Common Ground, Might of Aeon, Ironclad Requisition, Dissipate) archived from EVERY set. Might of Aeon is
+  //    still CAST by Rune of Might by owner ruling; it resolves by id through CARD_INDEX. --
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set2/demons.ts; belongs to no set now.
+    id: 'dm_maw',
+    name: 'Hellrider',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: ['DS'],
+    // Owner rework 2026-08-14: Hellrider no longer EATS — it COPIES the right-most offer's stats and leaves it
+    // buyable (Bob Blart's old shape, now on a refresh meter). The two Demons traded jobs deliberately: the
+    // cheap one eats the row, the Tier-6 one farms it without shrinking your options.
+    // Owner balance 2026-09-23: every 4 refreshes → every 3 (same payoff).
+    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshGainRightmostShopStats', params: { every: 3, times: 1 } }],
+    text: "**Ward.** Every **3 refreshes**, gain the **right-most** Shop minion's stats.",
+    goldenText: "**Ward.** Every **3 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set2/dwarves.ts; belongs to no set now.
+    // Owner add 2026-08-04. An aggressive Echo body for the tribe's early game: it dies forward — the
+    // soldier's immediate swing is the payoff (the Whelp/`attackOnSummon` mechanism).
+    id: 'dw_chickenbrawl',
+    name: 'Chicken Brawl',
+    tribe: 'dwarf',
+    tier: 2,
+    attack: 4, // owner balance 2026-09-23: 3/1 → 4/2
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'dw_soldier', count: 1, fixed: true, goldenTokens: true } }],
+    text: '**Echo:** summon a **Charging Soldier** that attacks immediately.',
+    goldenText: '**Echo:** summon a **Golden Charging Soldier** that attacks immediately.',
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set2/dwarves.ts; belongs to no set now.
+    // Owner add 2026-08-19. A Dwarf capstone that grows ITSELF rather than the board: Beefy hits the target and
+    // both neighbours, so a centre Arnold pays three ways off one cast. Distinct from `endOfTurnCastSpellEscalating`
+    // (which climbs and picks the biggest OTHER friend) — this one is a flat once-per-turn cast, aimed at self.
+    id: 'dw_arnold',
+    name: 'Arnold',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 9,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCastSpellOnSelf', params: { spellId: 'sp_beefy' } }],
+    text: '**End of Turn:** cast **Beefy** on this.',
+    goldenText: '**End of Turn:** cast **Beefy** on this **twice**.',
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Discover a plain copy of a minion from your LAST opponent's warband.
+    id: 'rivalsreflection',
+    name: "Rival's Reflection",
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellDiscoverFromLastOpponent' }],
+    text: "**Discover** a plain copy of a minion from your **last opponent's** warband.",
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Choose two friendly minions (drag picks the first, the aim picker the second); set both to the rounded
+    // average of their combined Attack and Health. No spell-power scaling.
+    id: 'commonground',
+    name: 'Common Ground',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellAverageStats' }],
+    text: 'Choose two friendly minions. **Average** their Attack and Health between them.',
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Owner add 2026-08-19. A plain spread buff — the Ale shape (`spellBuffRandomFriendlies`) at a higher
+    // magnitude and its own tier. An ordinary Shop spell: drawn, bought and cast like any other, and ALSO what
+    // Rune of Might casts off every spell you play.
+    id: 'mightofaeon',
+    name: 'Might of Aeon',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 2, health: 3 } }],
+    text: 'Give **3 random** friendly minions **+2/+3**.',
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    id: 'ironcladreq',
+    name: 'Ironclad Requisition',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 7,
+    effects: [{ on: 'cast', do: 'spellStealShop', params: { perTribe: 'dwarf' } }],
+    text: 'Steal a random card from the Shop for each **Dwarf** you control.',
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: archived everywhere, all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // Owner add 2026-09-18. Sell a friendly minion — the FULL sale (Gold, every on-sell trigger, the sell runes) — and
+    // its current stats (buffs included) land on the RIGHT-MOST minion in the Shop. Set-agnostic: also opted into set 3
+    // by id (`SET3_SHARED_SPELL_IDS`). No minion in the Shop → the cast is refused (`spellFizzle.ts`). `singleCast`: a
+    // Yazzus second cast would find the target already sold, so it never multiplies (the Fodder Treatment ruling).
+    id: 'sp_dissipate',
+    name: 'Dissipate',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    singleCast: true,
+    cost: 4,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellSellToShopRightmost' }],
+    text: 'Sell a minion and give its stats to the right-most minion in the Shop.',
+  },
   // ── 2026-10-07 owner balance batch: thirteen Shop spells archived from EVERY set. A held copy still casts, and the
   //    banked next-combat machinery (#1969) stays for replays and remaining sources. Two are still GRANTED by live
   //    minions by owner ruling — Beefy (Arnold) and Deep Delve Writ (Dwarven Sharpshooter) — they resolve by id. ──

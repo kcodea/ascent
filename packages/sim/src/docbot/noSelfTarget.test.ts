@@ -203,6 +203,7 @@ const RECRUIT_NOT_A_CHOICE: Record<string, string> = {
   spellDevour: 'a SPELL: the devoured pair is positional (`indexOf(self)` is the spell target, not a minion source)',
   spellBuffRandomFriendlies: 'a SPELL cast by the player — no minion source to exclude',
   spellCastDemonConsumesShop: 'the random pick is which Demon EATS and which shop offer — the eater may be this body by design ("a friendly Demon consumes", itself included as a Demon)',
+  endOfTurnDemonsConsumeShop: 'the random pick is only the SHOP OFFER each Demon eats; the eaters are every friendly Demon in board order, Hydraskus included by design ("your Demons consume", owner 2026-10-10)',
   onSpellCastOnThisSpreadRandom: 'filters `c.uid !== self.uid` inline',
   onRubyPlayedSpreadRandom: 'filters `c.uid !== self.uid` inline',
   deathrattleSummonRandomHandMinion: 'the pool is the HAND, and the source is a board body',

@@ -15,11 +15,12 @@ export const RUNES: RuneDef[] = [
   {
     // GIFTS (owner design 2026-08-26). Pays out IMMEDIATELY on purchase, then every 2 turns — the same
     // "don't make them wait a turn" convention Rune of the Gilded Spark and the Long Shift both use.
+    // Owner balance 2026-10-10: every 3 turns (was 2). `every` is armed onto the run at purchase.
     id: 'rune_happy_birthday',
     name: 'Happy Birthday',
     cost: 2,
-    text: 'Get a random **Gift**. Repeat every **2 turns**.',
-    reward: { kind: 'runeHappyBirthday' },
+    text: 'Get a random **Gift**. Repeat every **3 turns**.',
+    reward: { kind: 'runeHappyBirthday', every: 3 },
   },
   {
     id: 'rune_spellslinging',
@@ -1931,13 +1932,15 @@ export const RUNES: RuneDef[] = [
  */
 export const EPIC_RUNES: RuneDef[] = [
   {
-    // The epic half of the Gift pair: a CHOICE of Gift rather than a random one, every turn.
+    // The epic half of the Gift pair: a CHOICE of Gift rather than a random one.
+    // Owner balance 2026-10-10: "Discover a Gift. Repeat every 2 turns." (was every Start of Turn). A turn counter on the
+    // run, Happy Birthday's pattern: the first Discover on purchase, then every `every` turn setups.
     id: 'rune_merry_christmas',
     name: 'Merry Christmas',
     cost: 4,
     epic: true,
-    text: 'Discover a **Gift**. Repeat every **Start of Turn**.',
-    reward: { kind: 'runeMerryChristmas' },
+    text: 'Discover a **Gift**. Repeat every **2 turns**.',
+    reward: { kind: 'runeMerryChristmas', every: 2 },
   },
   {
     id: 'rune_copies',

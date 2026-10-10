@@ -39,7 +39,7 @@ describe('the category: Set 2 membership, pinned per tier', () => {
   const SET2: Record<number, string[]> = {
     1: ['bulwark', 'crestclimb', 'lanternlight'],
     2: ['growth', 'spiritfire'],
-    3: ['mightofaeon', 'patchjob', 'shatter', 'wo_attack', 'wo_champion', 'wo_health'],
+    3: ['patchjob', 'shatter', 'wo_attack', 'wo_champion', 'wo_health'], // Might of Aeon archived everywhere 2026-10-10 (Rune of Might still casts it)
     4: ['fronttoback', 'greatpot', 'hoardflame', 'sp_blessing', 'sp_flutter'],
     5: ['sp_dragonflame'],
     6: ['sparkplug'], // Beefy archived everywhere 2026-10-07 (Arnold still casts it; it is out of the pool)

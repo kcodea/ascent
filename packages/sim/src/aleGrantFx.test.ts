@@ -23,9 +23,10 @@ describe('ale-grant FX signal', () => {
     expect(s.aleGrantSeq).toBe(0);
   });
 
-  it('Brunni (End of Turn) credits the generating unit and bumps the seq', () => {
+  // RE-PINNED 2026-10-10 (owner balance batch): the End of Turn Ale moved from Brunni to Doubletap Brewer.
+  it('Doubletap Brewer (End of Turn) credits the generating unit and bumps the seq', () => {
     let s = set2();
-    s = { ...s, board: [body('dw_brunni', 'brunni')], hand: [] };
+    s = { ...s, tier: 4, board: [body('dw_brewer', 'brunni')], hand: [] };
     const seq0 = s.aleGrantSeq;
     s = reduce(s, { type: 'faceOmen' }); // end-of-turn → grantRandomAle
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'an Ale was granted').toBe(1);
@@ -33,11 +34,12 @@ describe('ale-grant FX signal', () => {
     expect(s.aleGrantSeq).toBe(seq0 + 1);
   });
 
-  it('Doubletap Brewer (Shout) credits the played unit', () => {
+  it('Doubletap Brewer at Shop Tier 5+ credits the unit with BOTH Ales (its Shout is gone since 2026-10-10)', () => {
     let s = set2();
-    s = { ...s, board: [], hand: [body('dw_brewer', 'brewer')] };
-    s = reduce(s, { type: 'play', uid: 'brewer' });
-    expect(s.aleGranted.some((e) => e.sourceUid === 'brewer')).toBe(true);
+    s = { ...s, tier: 5, board: [body('dw_brewer', 'brewer')], hand: [] };
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length).toBe(2);
+    expect(s.aleGranted.find((e) => e.sourceUid === 'brewer')?.count).toBe(2);
     expect(s.aleGrantSeq).toBeGreaterThan(0);
   });
 

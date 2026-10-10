@@ -4,6 +4,16 @@ import type { CombatBus } from './events';
 /** The five Set 2 "Dwarven Ale" spells — what a Dwarf's "get a Dwarven Ale" draws from. Lives in core because
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
+/** How many Dwarven Ales one `grantRandomAle` fire hands over: `count`, plus `bonusCount` when the side's Shop Tier is
+ *  at least `bonusAtTier` (Doubletap Brewer, owner 2026-10-10: "Get another if you are Shop Tier 5+."), all doubled by
+ *  a gilded body. The ONE count both phases read (the shop's `state.tier`, combat's `tierFor(side)`) and the live card
+ *  text names, so the tier condition cannot drift between them. */
+export function aleGrantCount(params: Record<string, unknown> | undefined, tier: number, golden: boolean): number {
+  const n = (k: string, d: number): number => (typeof params?.[k] === 'number' ? (params[k] as number) : d);
+  const at = n('bonusAtTier', 0);
+  const extra = at > 0 && tier >= at ? n('bonusCount', 1) : 0;
+  return (n('count', 1) + extra) * (golden ? 2 : 1);
+}
 
 /** THE RUBY TYPES (owner Ruby batch 2026-09-24). "A random Ruby" draws from ALL SIX at equal odds with the seeded
  *  RNG (owner ruling: "the pool is all 6 types"), so Ruby Shipment, Kobe's Pummel and every future "random Ruby"
@@ -47,6 +57,7 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
   dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
   dealtDamageGetRandomSpell: true, // Tauntbreaker (owner 2026-10-03) — "Pummel (25): Get a random Shop Spell. (Once per combat)"
+  dealtDamageSummonToken: true, // Impossible Todd (owner 2026-10-10) - "Pummel (20): Summon an Imp. (Once per combat.)"
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
@@ -447,6 +458,8 @@ export type EffectFactoryId =
   | 'getRandomRubies' // Ruby Shipment (Ruby batch 2026-09-24) — get N RANDOM Rubies, each drawn separately from all six types
   | 'battlecryPlayRubiesRandomTribe' // Shardluck (Ruby batch 2026-09-24) — play N Rubies, each on a random friendly `tribe` minion
   | 'onSummonCardPlayRubiesSelf' // Gemheart Legionnaire (Ruby batch 2026-09-24) — when a friendly `cardId` is summoned, play N permanent Rubies on this
+  | 'dealtDamageSummonToken' // Impossible Todd (owner balance 2026-10-10): "Pummel (20): Summon an Imp. (Once per combat.)" - the shared damage meter with a summon body: each payout summons `params.count` (x2 gilded) `params.tokenId` beside the body through `ctx.summon`, capped by `params.maxPerCombat` (default 1)
+  | 'endOfTurnDemonsConsumeShop' // Hydraskus (owner add 2026-10-10): End of Turn, EVERY friendly `params.tribe` minion (left to right) consumes a random Shop minion, one End-of-Turn tick each (`eotTickCount`); gilded eaters gain double (`times`)
   | 'dealtDamageGetRandomSpell' // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell. (Once per combat)" — the shared damage meter with a random-Shop-Spell body (`grantRandomSpell`, x2 gilded), capped by `params.maxPerCombat` (default 1)
   | 'dealtDamageGetRandomRuby' // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — the shared damage meter with a random-Ruby body (`grantRandomRubies`, x2 gilded), capped by `params.maxPerCombat`
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
@@ -1511,8 +1524,8 @@ export type QuestReward =
   | { kind: 'runeLongShift' }
   // Rune of Resonance (owner Ruby batch 2026-09-24): a random Ruby now, then one every Start of Turn (per copy held).
   | { kind: 'runeRubyDrip' }
-  | { kind: 'runeHappyBirthday' } // GIFTS: a random Gift now, then another every 2 turns
-  | { kind: 'runeMerryChristmas' } // GIFTS (epic): Discover a Gift now, then every Start of Turn
+  | { kind: 'runeHappyBirthday'; every?: number } // GIFTS: a random Gift now, then another every `every` turns (3 since 2026-10-10; absent = the old 2)
+  | { kind: 'runeMerryChristmas'; every?: number } // GIFTS (epic): Discover a Gift now, then every `every` turns (2 since 2026-10-10; absent = every turn)
   // Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold.
   | { kind: 'runeBartering' }
   // Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it.

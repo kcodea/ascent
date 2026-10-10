@@ -4,7 +4,7 @@ import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedTh
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, drunkenOafText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, drunkenOafText, aleTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText } from './cardText';
@@ -235,6 +235,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             summonFlatZooText(c.id, p.golden, p.zooSummons) ?? // Beardsley under Rune of the Zoo: the NEXT summon's live grant
             summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summitTierText(c.id, p.tier7Access ?? false) ?? // Beyond the Summit: only promise Tier 7 when reachable
+            aleTierText(c.id, p.golden, p.tier) ?? // Doubletap Brewer: the Ales its End of Turn pays at this Shop Tier
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden, p.runeMammoth) ?? // Menagerie Mammoth: escalating grant (+Health with the rune)
             soldProgressText(c.id, p.soldProgress ?? 0) ?? // Runic Archivist: sales still owed

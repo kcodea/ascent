@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -4704,7 +4704,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   grantRandomAle: (ctx, self, params) => {
     const ales = runSpells(ctx.state).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
-    const count = num(params.count, 1) * gold(self);
+    // Doubletap Brewer (owner 2026-10-10): "Get another if you are Shop Tier 5+." `aleGrantCount` is the ONE count,
+    // shared with the combat body, so the tier condition cannot drift between phases.
+    const count = aleGrantCount(params, ctx.state.tier, !!self?.golden);
     conjureToHand(ctx.state, ales, count);
     // ale-bubbles FX: credit the GENERATING board unit (Brunni / Tapkeeper / Doubletap Brewer) so the UI can
     // burst from it. Only a live board minion qualifies — the Reinforcing-Ale spell also routes here but casts
@@ -4779,11 +4781,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     if (!minion || minion.uid === self.uid) return;         // its own arrival doesn't trigger it
     if (tribe && !isTribe(minion, tribe as never)) return;  // only the named tribe's plays count
+    // `health` is its own param since the owner's 2026-10-10 +6/+5 (the first split line); absent, it mirrors
+    // `attack` (the old symmetric +N/+N shape).
     const mag = num(params.attack, 3) * gold(self);
-    if (mag <= 0) return;
+    const hp = num(params.health, num(params.attack, 3)) * gold(self);
+    if (mag <= 0 && hp <= 0) return;
     let handedOut = 0;
     for (const c of ctx.state.board) {
-      if (!tribe || isTribe(c, tribe as never)) { addBuff(c, nameOf(self), mag, mag); handedOut += mag; }
+      if (!tribe || isTribe(c, tribe as never)) { addBuff(c, nameOf(self), mag, hp); handedOut += mag; }
     }
     // Rune of the Chef reads this: the COMBINED stats this instance handed out, summed across every recipient
     // (so a wide Dwarf board banks more than a narrow one). Per-INSTANCE, so two Chefs each keep their own.
@@ -6306,6 +6311,30 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pick = edible[rng.int(edible.length)]!;
     ctx.state.rngCursor = rng.state();
     consumeShopMinion(ctx.state, self, pick, num(params.times, 1) * (self.golden ? 2 : 1));
+  },
+
+  /** HYDRASKUS (owner add 2026-10-10): "End of Turn: Your Demons consume a minion in the Shop." EVERY friendly Demon
+   *  eats (owner), LEFT TO RIGHT along the board, Hydraskus included. One Demon per End-of-Turn TICK (`eotTickCount`
+   *  counts the Demons), so each bite is its own root trigger and beat; a single-shot caller (a replay with no
+   *  `tick`) runs every bite. The meal is a RANDOM edible Shop minion off the run cursor, the house default for "a
+   *  minion in the Shop" (Appetite Agent, Chipper, Baal). The Shop running dry ends the feast: a later Demon finds
+   *  nothing and eats nothing. The eater list is re-read per tick, so a body that left the board mid-feast is
+   *  skipped rather than fed. Gilded: every eater gains double (`times`, the tribe's "gain double its stats"). */
+  endOfTurnDemonsConsumeShop: (ctx, self, params, payload) => {
+    const tribe = str(params.tribe) || 'demon';
+    const times = num(params.times, 1) * gold(self);
+    forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'endOfTurnDemonsConsumeShop', params }), (tick) => {
+      const eater = ctx.state.board.filter((c) => isTribe(c, tribe as never))[tick];
+      if (!eater) return;
+      const edible = ctx.state.shop
+        .map((_, i) => i)
+        .filter((i) => { const d = CARD_INDEX[ctx.state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+      if (edible.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const pick = edible[rng.int(edible.length)]!;
+      ctx.state.rngCursor = rng.state();
+      consumeShopMinion(ctx.state, eater, pick, times);
+    });
   },
 
   /** Set 2 — Bob Blart (2026-08-14): consume the RIGHT-most Shop minion. Golden doubles the stats gained
@@ -9542,6 +9571,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
   dealtDamageGetRandomSpell: () => {}, // Tauntbreaker (2026-10-03): the same combat-read meter, a random-Shop-Spell body
+  dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same combat-read meter, a summon-an-Imp body
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same combat-read meter, a random-Ruby body
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body
@@ -11668,8 +11698,14 @@ function fireBattlecryTriggered(state: RunState, source?: BoardCard): void {
  * factories' single-shot fallback all read it, so none of them can disagree about the count. Anything not listed
  * fires once per trigger, exactly as before.
  */
-export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, effect: { do: string; params?: Record<string, unknown> }, golden?: boolean): number {
+export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'> & Partial<Pick<RunState, 'board'>>, effect: { do: string; params?: Record<string, unknown> }, golden?: boolean): number {
   switch (effect.do) {
+    // Hydraskus (owner 2026-10-10): one tick PER friendly Demon on the board, so each Demon's bite is its own root
+    // trigger and beat. At least one tick (the effect still fires and finds no eater when there is none).
+    case 'endOfTurnDemonsConsumeShop': {
+      const tribe = String(effect.params?.tribe ?? 'demon');
+      return Math.max(1, (state.board ?? []).filter((c) => isTribe(c, tribe as never)).length);
+    }
     case 'endOfTurnBuffRandomTribeRepeatPerPlayed': return 1 + spiritsPlayedThisTurn(state); // Mother Moss
     case 'endOfTurnBuffEndsTribePerCard':                                                      // Kringle
     case 'endOfTurnBuffAdjacentPerCard': return 1 + (state.playedThisTurn?.length ?? 0);       // Striker (owner 2026-09-24)
@@ -11690,7 +11726,7 @@ export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpent
  *  fires (a plain card = 1). Beat `t` runs tick `t` of every effect that still has a tick `t` to run, so a card
  *  with one repeating effect plays one beat per tick and every other card keeps its single beat. Read by the
  *  projection AND the legacy beat runner, which must agree 1:1. */
-export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, card: Pick<BoardCard, 'cardId'> & { golden?: boolean }): number {
+export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'> & Partial<Pick<RunState, 'board'>>, card: Pick<BoardCard, 'cardId'> & { golden?: boolean }): number {
   const def = CARD_INDEX[card.cardId];
   if (!def) return 1;
   let ticks = 1;

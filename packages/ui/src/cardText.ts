@@ -1,4 +1,4 @@
-import { damageMeterOf, damageMeterReading, shopSpellGrowth, type Tribe } from '@game/core';
+import { aleGrantCount, damageMeterOf, damageMeterReading, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText } from '@game/sim';
 
@@ -180,6 +180,23 @@ export function summonImproveText(cardId: string, summonBonus: number, golden: b
  * higher" and this appends the Tier-7 clause when — and only when — the run actually qualifies
  * (owner 2026-07-28: "the tooltip should say (Up to tier 7) ONLY if the criteria is met").
  */
+/**
+ * Doubletap Brewer (`grantRandomAle` with `bonusAtTier`, owner 2026-10-10): "End of Turn: Get a Dwarven Ale. Get another
+ * if you are Shop Tier 5+." Once the run's Shop Tier meets the condition, the green note says how many Ales the next End
+ * of Turn hands over RIGHT NOW (the shared `aleGrantCount`, the same count both phases pay). Below the tier the printed
+ * text is exact (one Ale, two gilded), so null.
+ */
+export function aleTierText(cardId: string, golden: boolean, tier: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'grantRandomAle' && typeof e.params?.bonusAtTier === 'number');
+  if (!def || !eff) return null;
+  const at = Number(eff.params?.bonusAtTier);
+  if (tier < at) return null;
+  const n = aleGrantCount(eff.params, tier, golden);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return `${src} {{(${n} Ales now)}}`;
+}
+
 export function summitTierText(cardId: string, tier7Access: boolean): string | null {
   if (cardId !== 'beyondsummit' || !tier7Access) return null;
   const def = CARD_INDEX[cardId];

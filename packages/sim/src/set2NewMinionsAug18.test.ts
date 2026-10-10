@@ -67,10 +67,13 @@ describe('set 2 — the Demon-damage trigger (combat)', () => {
       [bm('dm_todd', 'TD', 0, 400), bm('dm_clerk', 'AT', 5, 400)],
       [bm('dm_clerk', 'BAG', 0, 99999)],
       makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    // RE-PINNED 2026-10-10 (owner balance batch): Todd no longer grows itself, so the instance count is read off the
+    // Imp grant alone: +2/+1 per instance, several instances.
     const td = buffsFrom(r.events, 'm0');
-    expect(td.length, 'Todd self-buffs on each instance').toBeGreaterThan(1);
-    expect(td.every((b) => b.attack === 1 && b.health === 2), 'each self-buff is +1/+2').toBe(true);
-    expect(r.playerImpBuffGain, 'the Imp buff carried back at +2/+1 per instance').toEqual({ attack: 2 * td.length, health: 1 * td.length });
+    expect(td.length, 'Todd no longer self-buffs').toBe(0);
+    const gain = r.playerImpBuffGain!;
+    expect(gain.attack / 2, 'several Demon-damage instances').toBeGreaterThan(1);
+    expect(gain, 'the Imp buff carried back at +2/+1 per instance').toEqual({ attack: 2 * (gain.attack / 2), health: gain.attack / 2 });
   });
 });
 
@@ -176,25 +179,25 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([0, 0]);
     consumeShopMinion(s, s.board.find((c) => c.uid === 'jb')!, 0); // Enigma itself eats
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +2/+1 permanently').toEqual([2, 1]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'onConsume gave the Shop +4/+5 permanently (owner balance 2026-10-10)').toEqual([4, 5]);
   });
 
   it('Enigma fires on ANY friendly consume — another Demon eating, and Blart at End of Turn (owner 2026-09-10)', () => {
     // Another body eats: Enigma still pays (it was guarded to its own consume — "when THIS consumes" is Broodlord's text, not Enigma's).
     const s = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('godfodder', 'gf')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }] });
     consumeShopMinion(s, s.board.find((c) => c.uid === 'gf')!, 0);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'a different eater still pays Enigma').toEqual([2, 1]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'a different eater still pays Enigma').toEqual([4, 5]);
     // Blart's End-of-Turn bite fires it too, and the beat names Enigma as the source of the shop-wide buff.
     const t = recruit({ board: [recruitBody('dm_jumbo', 'jb'), recruitBody('dm_gourmand', 'bb')], hand: [], shop: [{ uid: 's0', cardId: 'sandbag' }, { uid: 's1', cardId: 'stray' }] });
     const { fx } = projectEndOfTurnSteps(t); // the presentation projection (a clone)
     applyEndOfTurn(t); // the real settle
-    expect([t.tavernBuyBonus.atk, t.tavernBuyBonus.hp], 'Blart ate, Enigma paid').toEqual([2, 1]);
+    expect([t.tavernBuyBonus.atk, t.tavernBuyBonus.hp], 'Blart ate, Enigma paid').toEqual([4, 5]);
     const beat = fx.map((f) => f.shopBuffAll).find((x) => !!x)!;
     expect(beat, 'the beat carries the shop-wide buff').toBeTruthy();
     expect(beat.sourceCardId, 'and names Enigma, so its shop-buff def can bind').toBe('dm_jumbo');
   });
 
-  it('Billings: every 5 Gold spent buffs exactly 2 random Dwarves +5/+5', () => {
+  it('Billings: every 5 Gold spent buffs exactly 2 random Dwarves +6/+5 (owner balance 2026-10-10)', () => {
     const s = recruit({
       board: [recruitBody('dw_billings', 'bl'), recruitBody('dw_brunni', 'd1'), recruitBody('dw_brunni', 'd2'), recruitBody('dw_brunni', 'd3')],
       hand: [], shop: [],
@@ -202,7 +205,7 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     const sum = (key: 'attack' | 'health') => s.board.reduce((n, c) => n + c[key], 0);
     const aBefore = sum('attack'), hBefore = sum('health');
     applyGoldSpent(s, 5);
-    expect(sum('attack') - aBefore, 'two recipients × +5 Attack').toBe(10);
+    expect(sum('attack') - aBefore, 'two recipients × +6 Attack').toBe(12);
     expect(sum('health') - hBefore, 'two recipients × +5 Health').toBe(10);
   });
 

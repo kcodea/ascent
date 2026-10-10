@@ -1,7 +1,7 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
-import { ALE_IDS, extraTriggerFires } from '../types';
+import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -1818,7 +1818,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // Same recipe as Rune of Last Call: only Ales actually in this run's pool (a set without them grants nothing).
     const ales = ctx.poolCards(self.side).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return;
-    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(ales).id, self.side, self.uid);
+    // Doubletap Brewer's Shop Tier condition reads THIS side's tier (`tierFor`), through the one shared count.
+    const n = aleGrantCount(params, ctx.tierFor(self.side), !!self.golden);
+    for (let i = 0; i < n; i++) ctx.grantToHand(ctx.rng.pick(ales).id, self.side, self.uid);
   },
   rubyStatGain: (ctx, self, params) => {
     // gainRubyBonus narrates ("+a/+h Ruby Power"), reads live for this fight's later Ruby plays, and carries
@@ -3022,6 +3024,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
   dealtDamageGetRandomSpell: () => {}, // Tauntbreaker (2026-10-03): the same meter, a random-Shop-Spell body — `noteDamageDealt` pays it
+  dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same meter, a summon-an-Imp body - `noteDamageDealt` pays it
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it

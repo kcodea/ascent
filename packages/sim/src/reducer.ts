@@ -4143,7 +4143,12 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon' || e.do === 'onGainAttackBuffImproving');
   let summonBonus: number | undefined;
   if (summonEffect) {
-    const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
+    // `summonBonus` counts IMPROVE STEPS, so the base is expressed in steps too: `attack / stepAttack` (Kennelmaster
+    // since the owner balance 2026-10-10 is +2 improving +2, so its base is ONE step, exactly as the old +1/+1).
+    const sp = summonEffect.params as { attack?: number; stepAttack?: number } | undefined;
+    const step = Number(sp?.stepAttack ?? 1) || 1;
+    const atk = Number(sp?.attack ?? 0);
+    const base = atk % step === 0 ? atk / step : atk; // an uneven pair keeps the old reading (no fractional steps)
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     summonBonus = base + (sbs[0] ?? 0) + (sbs[1] ?? 0);
   } else if (improveEffect) {
@@ -5740,11 +5745,19 @@ function advanceCombat(s: RunState): void {
   // GIFTS (owner design 2026-08-26). Merry Christmas offers a Gift every Start of Turn; Happy Birthday hands
   // one over every SECOND turn (its tick counts the waves between payouts). Both queue behind the start-of-turn
   // modal like the Long Shift, so a quest offer or forge still takes priority.
-  if (s.runeMerryChristmas) recordSotBeat(s, runeSource('rune_merry_christmas'), () => { procRuneId(s, 'rune_merry_christmas'); queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }); });
+  // CADENCES (owner balance 2026-10-10): Merry Christmas repeats every 2 turns and Happy Birthday every 3. Each tick
+  // counts turn setups since the last payout and pays when it reaches the rune's `every` (armed on the run at
+  // purchase). A run that bought either before the cadence keeps its old rhythm: Christmas every turn, Birthday 2.
+  if (s.runeMerryChristmas) {
+    const every = s.giftChristmasEvery ?? 1;
+    s.giftChristmasTick = (s.giftChristmasTick ?? 0) + 1;
+    if (s.giftChristmasTick >= every) { s.giftChristmasTick = 0; recordSotBeat(s, runeSource('rune_merry_christmas'), () => { procRuneId(s, 'rune_merry_christmas'); queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }); }); }
+  }
   if (s.runeHappyBirthday) {
+    const every = s.giftBirthdayEvery ?? 2;
     s.giftBirthdayTick = (s.giftBirthdayTick ?? 0) + 1;
-    // Same 2-turn cadence, one Gift per copy held (recurring family, owner 2026-08-27).
-    if (s.giftBirthdayTick >= 2) { s.giftBirthdayTick = 0; recordSotBeat(s, runeSource('rune_happy_birthday'), () => { procRuneId(s, 'rune_happy_birthday'); for (let k = 0; k < runeStacksOf(s, 'rune_happy_birthday'); k++) grantRandomGift(s); }); }
+    // One Gift per copy held (recurring family, owner 2026-08-27).
+    if (s.giftBirthdayTick >= every) { s.giftBirthdayTick = 0; recordSotBeat(s, runeSource('rune_happy_birthday'), () => { procRuneId(s, 'rune_happy_birthday'); for (let k = 0; k < runeStacksOf(s, 'rune_happy_birthday'); k++) grantRandomGift(s); }); }
   }
   // GIFT — Royal Allowance: once cast, a Gold Pouch every Start of Turn for the rest of the run.
   if (s.giftAllowance) {
@@ -7223,15 +7236,20 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeScales = true; // Rune of Scales: each spell cast gives your Dragons +1/+1
       break;
     case 'runeHappyBirthday':
-      // GIFTS (owner design 2026-08-26): a random Gift now, then another every 2 turns. The tick counts waves
-      // since the last payout, so "every 2 turns" is exact regardless of when the rune was bought.
+      // GIFTS (owner design 2026-08-26): a random Gift now, then another every `every` turns (3 since the owner's
+      // 2026-10-10 balance; 2 before). The tick counts waves since the last payout, so the cadence is exact
+      // regardless of when the rune was bought.
       s.runeHappyBirthday = true;
+      s.giftBirthdayEvery = r.every ?? 2;
       s.giftBirthdayTick = 0;
       grantRandomGift(s);
       break;
     case 'runeMerryChristmas':
-      // The epic half: a CHOICE of Gift, every Start of Turn — first one immediately, like the Long Shift.
+      // The epic half: a CHOICE of Gift, first one immediately (like the Long Shift), then every `every` turns (2 since
+      // the owner's 2026-10-10 balance; every Start of Turn before). Happy Birthday's counter pattern.
       s.runeMerryChristmas = true;
+      s.giftChristmasEvery = r.every ?? 1;
+      s.giftChristmasTick = 0;
       queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] });
       break;
     case 'runeRubyDrip':

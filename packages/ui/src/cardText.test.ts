@@ -260,8 +260,9 @@ describe('cardText helpers', () => {
   it('summonBuffText shows Kennelmaster’s live Start-of-Combat Attack aura (base + Avenge bonus)', () => {
     // Kennelmaster's aura is +(1 + summonBonus×1) ATTACK ONLY (owner rebalance 2026-08-02); the printed
     // "+1 Attack" becomes live via the effect's own base + stepAttack params.
-    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +1 Attack
-    expect(summonBuffText('kennel', 2)).toContain('{{+3 Attack}}'); // base 1 + summonBonus 2 × step 1
+    // Owner balance 2026-10-10: base +2, step +2.
+    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +2 Attack
+    expect(summonBuffText('kennel', 2)).toContain('{{+6 Attack}}'); // base 2 + summonBonus 2 × step 2
     expect(summonBuffText('sandbag', 3)).toBeNull(); // not a summon-buff / aura card
     // Trophy Stalker's growing Rally (base 5): golden doubles the live grant so the printed number matches the
     // real +10/+10 effect (owner-caught: it was under-showing +5/+5). Non-golden stays base+bonus.
@@ -273,8 +274,8 @@ describe('cardText helpers', () => {
     // Kennelmaster / Trophy Stalker dropped the "Beast Aura" noun for "all your Beasts", leaving the
     // bold "**+N Attack**" / "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps the live
     // number AND the new wording, so a future re-word that drops the token can't silently strand the value.
-    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+3 Attack}}. **Avenge (4):** Improve this.');
-    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+6 Attack}}. **Avenge (4):** Improve this (twice as much).');
+    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+6 Attack}}. **Avenge (3):** Improve this.');
+    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+12 Attack}}. **Avenge (3):** Improve this (twice as much).');
     expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all Friendly and summoned Beasts {{+10/+10}}. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
     for (const s of [summonBuffText('kennel', 2)!, summonBuffText('trophystalker', 5)!]) {
       expect(s).not.toMatch(/Beast Aura|this combat|wherever they are|everywhere/);
@@ -291,8 +292,9 @@ describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () =
     // carries the number — so the climbing helper stands down and the printed text is the whole truth.
     expect(shopBuffImproveText('dm_curator', 0)).toBeNull();
     expect(shopBuffImproveText('dm_curator', 2, false), 'no climbing magnitude on the card any more').toBeNull();
-    expect(CARD_INDEX['dm_curator']!.text).toBe('**End of Turn:** cast **Staff of Guel**.');
-    expect(CARD_INDEX['dm_curator']!.goldenText).toBe('**End of Turn:** cast **Staff of Guel twice**.');
+    // Owner balance 2026-10-10: it casts Staff of Guel AND Picnic; both spells carry their own live value.
+    expect(CARD_INDEX['dm_curator']!.text).toBe('**End of Turn:** cast **Staff of Guel** and **Picnic**.');
+    expect(CARD_INDEX['dm_curator']!.goldenText).toBe('**End of Turn:** cast **Staff of Guel** and **Picnic**, **twice**.');
   });
 
   // Kringle (ex-Closing-Time Foreman). This used to assert '{{+4 Attack}}' — written when the card really was

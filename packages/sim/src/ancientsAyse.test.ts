@@ -23,7 +23,7 @@ const DEAR = spellPool.find((c) => (c.cost ?? 0) >= 4)!.id;
 /** An Echo minion by its Deathrattle factory, an Echo minion whose factory is named otherwise (printed "Echo:"), and a
  *  friend-death WATCHER that sits on `onDeath` but prints no Echo. */
 const ECHO = Object.values(CARD_INDEX).find((c) => !!c && !c.spell && !c.token && c.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle')))!.id;
-const TEXT_ECHO = 'dw_brewer';
+const TEXT_ECHO = 'dw_brunni'; // its Echo factory is `combatGrantAle` (was Doubletap Brewer's until the owner balance 2026-10-10)
 const WATCHER = 'brood';
 const BASE_HEAD = 'Buy **3** Enchanted cards for a reward. **Clubs:** gain **3 Gold**.';
 

@@ -1639,6 +1639,9 @@ Bodies today:
   "(Max 2 per hit)" cap stays retired; the 2026-09-21 per-combat reset that briefly shipped with the keyword was
   reversed the same day.
 - **Maestro Lux** (T4 Celestial): *"Pummel (12): Get a random Celestial. (Once per combat.)"* (gilded: 2).
+- **Impossible Todd** (T6 Demon, owner 2026-10-10): *"Pummel (20): Summon an Imp. (Once per combat.)"* (gilded: 2 Imps).
+  The first Pummel that SUMMONS: the Imp lands beside Todd on the hit that crossed, through the ordinary combat summon
+  (board cap, Imp Aura, summon grants). R-PUMMEL-SUMMON-01.
 - **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold). Its
   tally carries over now too (it reset each combat from 2026-09-19 until the carry-over ruling).
 
@@ -1761,7 +1764,7 @@ normal "your Beasts" meaning, in both phases:
 
 The cards:
 
-- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +1 Attack. Avenge (4): Improve this.* The improvement is
+- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +2 Attack. Avenge (3): Improve this.* Each improvement adds +2 (gilded +4 improving +4). The improvement is
   permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
 - **Grim**: *Echo: Give all Friendly and summoned Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
 - **Armadiyo**, **Trophy Stalker**, **Rune of Beastial Swarm** (a Shop Beast death also pays it; its Avenge level

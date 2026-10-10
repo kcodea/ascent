@@ -52,7 +52,6 @@ const ROLES: Record<string, CardRole> = {
   dm_felspikes: R(2, 'Taunt + 4 damage to everything but Demons on death', { fromWave: 9 }),
   dm_grobbus: R(1, 'Avenge: a Demon to hand', { fromWave: 6 }),
   dm_shepherd: R(1, 'Imp lord', { fromWave: 9 }),
-  dm_maw: R(2, 'copies the right-most Shop minion every 4 refreshes', { fromWave: 11 }),
   dm_grevlin: R(1, 'sell-fed eater', { fromWave: 11 }),
   dm_knocked: R(1, 'early Taunt body', { filler: true }),
   dm_leech: R(1, 'early body that grows off Demon hits', { filler: true }),

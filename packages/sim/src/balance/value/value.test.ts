@@ -74,7 +74,7 @@ describe('features', () => {
     expect(chip[ids.indexOf('mech_ruby')]).toBe(1);
     expect(chip[ids.indexOf('mech_onPlay')]).toBe(1);
     expect(chip[ids.indexOf('mech_death')]).toBe(0);
-    const brunni = bucketsOfCard('dw_brunni'); // endOfTurn:grantRandomAle
+    const brunni = bucketsOfCard('dw_brewer'); // endOfTurn:grantRandomAle (Doubletap Brewer since 2026-10-10; Brunni's Ale is an Echo now)
     expect(brunni[ids.indexOf('mech_perTurn')]).toBe(1);
     expect(brunni[ids.indexOf('mech_ale')]).toBe(1);
     expect(bucketsOfCard('no-such-card').every((x) => x === 0)).toBe(true);

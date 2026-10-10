@@ -3023,6 +3023,20 @@ export function simulate(
     }
     const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * g;
     if (count <= 0) return;
+    if (eff.do === 'dealtDamageSummonToken') {
+      // Impossible Todd (owner balance 2026-10-10): "Pummel (20): Summon an Imp. (Once per combat.)" - each payout summons
+      // `count` (x2 gilded) of the named token beside the body through the ONE combat summon (`ctx.summon`: the board
+      // cap, the summon grants, the side's Imp Aura and every on-summon watcher all apply). A full board summons
+      // nothing, like any summon. Real time: the Imp lands on the hit that crossed, after the trigger flash.
+      const named = p.tokenId;
+      const token = cards[typeof named === 'string' && named ? named : 'impscrap'];
+      if (!token) return;
+      for (let k = 0; k < pays; k++) {
+        fired();
+        for (let i = 0; i < count; i++) ctx.summon(dealer.side, token, dealer.uid);
+      }
+      return;
+    }
     if (eff.do === 'dealtDamageGrantRandomTribe') {
       // Maestro Lux (owner 2026-09-24): "Pummel (12): Get a random Celestial. (Once per combat.)" — the shared
       // combat random-minion grant (`grantRandomMinion`: the run's pool, ≤ the side's shop tier, active tribes;

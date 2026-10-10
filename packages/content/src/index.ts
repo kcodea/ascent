@@ -85,7 +85,7 @@ export const BUYABLE_CARDS: CardDef[] = [...poolFor(SETS.set1.id).buyable];
 export const SPELL_CARDS: CardDef[] = [...poolFor(SETS.set1.id).spells];
 
 /** Effect ids whose params carry a token id (a summoned token that must exist in the pool). */
-const TOKEN_REF_EFFECTS = new Set(['deathrattleSummon', 'battlecrySummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff']);
+const TOKEN_REF_EFFECTS = new Set(['deathrattleSummon', 'battlecrySummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff', 'dealtDamageSummonToken' /* Impossible Todd's Pummel (2026-10-10) */]);
 /** Effect ids whose params carry a card id (a granted/transformed card that must exist in the pool), by param key.
  *  (The CardDef-level `ascendInto` transform target is checked separately — it's a field, not an effect param.) */
 const CARD_REF_EFFECTS: Record<string, string> = {

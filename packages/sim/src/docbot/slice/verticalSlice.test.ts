@@ -209,13 +209,13 @@ describe('vertical slice — triangle auto-corroboration (owner-review-pipeline.
 describe('vertical slice — sabotage (§4.5: every oracle family proves it can detect a planted defect)', () => {
   it('a doctored contract AMOUNT fails naming the contract, the field, and both values', () => {
     const doctored = structuredClone(SLICE_CONTRACT_INDEX['kennel']!) as ContentContract;
-    doctored.triggers![0]!.threshold = 3; // truth (printed + ruled): Avenge (4)
+    doctored.triggers![0]!.threshold = 4; // truth (printed + ruled): Avenge (3) since the owner balance 2026-10-10
     const mismatches = checkContract(doctored, REPORT.observations);
     expect(mismatches, 'the doctored threshold MUST be detected').toHaveLength(1);
     expect(mismatches[0]!.contractId).toBe('kennel');
     expect(mismatches[0]!.path).toBe('triggers.0.threshold');
-    expect(mismatches[0]!.expected).toBe(3); // the doctored claim
-    expect(mismatches[0]!.observed).toBe(4); // the engine's truth
+    expect(mismatches[0]!.expected).toBe(4); // the doctored claim
+    expect(mismatches[0]!.observed).toBe(3); // the engine's truth
     expect(mismatches[0]!.evidence).toContain('side-deaths');
     // The alarm is specific, not permanently red: the honest contract still passes.
     expect(checkContract(SLICE_CONTRACT_INDEX['kennel']!, REPORT.observations)).toEqual([]);

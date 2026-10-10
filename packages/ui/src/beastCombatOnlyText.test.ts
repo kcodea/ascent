@@ -16,9 +16,10 @@ const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBack
 
 describe('Kennelmaster prints its CURRENT grant (base + Avenge improvements), plain and gilded', () => {
   it.each([
-    [0, false, '**+1 Attack**'],
-    [3, false, '{{+4 Attack}}'],
-    [3, true, '{{+8 Attack}}'],
+    // Owner balance 2026-10-10: +2 Attack improving +2 (gilded doubles).
+    [0, false, '**+2 Attack**'],
+    [3, false, '{{+8 Attack}}'],
+    [3, true, '{{+16 Attack}}'],
   ])('summonBonus %i, golden %s → %s', (summonBonus, golden, want) => {
     const t = liveCardText('kennel', { ...bag, golden, summonBonus } as never);
     const shown = golden ? t.goldenText! : t.text;

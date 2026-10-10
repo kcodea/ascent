@@ -141,6 +141,6 @@ describe('projectEndOfTurnSteps per-beat FX capture', () => {
     const { fx } = projectEndOfTurnSteps(s);
     const s1 = fx.flatMap((f) => f.shopBuff ?? []).find((b) => b.uid === 's1');
     expect(s1, 'the right-most offer grew this beat').toBeDefined();
-    expect([s1!.attack, s1!.health]).toEqual([4, 5]); // Tormentor's +4/+5 Shout (owner balance 2026-08-18), re-fired by Moira
+    expect([s1!.attack, s1!.health]).toEqual([8, 8]); // Tormentor's +8/+8 Shout (owner balance 2026-10-10), re-fired by Moira
   });
 });

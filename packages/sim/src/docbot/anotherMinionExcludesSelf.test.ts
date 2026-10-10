@@ -103,6 +103,7 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   rubySelfCastPerOtherRuby: 'the scan in `playRubyOn` skips `m === target`, so a Ruby landing on Double '
     + 'Trouble itself never triggers it — and its own payout goes through `applyRubyStats` (stats only, no '
     + 'watchers), so a SECOND Trouble cannot see it either. Both halves of the owner ruling',
+  grantRandomAle: 'no body is chosen at all: Doubletap Brewer card "Get ANOTHER if you are Shop Tier 5+" means a second Ale to hand (owner 2026-10-10), so the source is never a recipient',
 
   // ── Excludes only because the CARD asks it to ──────────────────────────────────────────────────────────
   rallyGiveAttackToOthers: 'the arena pool filters `m.uid !== arena.self.uid` — "Others" is the contract',

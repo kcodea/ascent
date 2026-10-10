@@ -112,6 +112,8 @@ describe('a Dunkey summoned after 2 friendly deaths pays only after 4 MORE', () 
  * so the copy never got the baseline stamp: a Reclaimed Kennelmaster counted its OWN destruction and paid its
  * Avenge (4) at the side's 4th death. A reclaimed body is a body placed mid-combat, so it counts from its return
  * (rule R-AVWIN-01): the improve lands at the side's 5th death, the observer reads baseline 1, seen = count - 1.
+ * RE-PINNED 2026-10-10: Kennelmaster is Avenge (3) now (owner balance batch), so the counted-from-return payout is the
+ * side's 4th death (the 3rd after its return); counting its own destruction would have paid at the 3rd.
  */
 describe('a Reclaimed (Soren) Avenge minion counts deaths from its return, not its own destruction', () => {
   const fodder: BoardMinion = { cardId: 'b2_elderhorn', attack: 1, health: 1 };
@@ -143,10 +145,10 @@ describe('a Reclaimed (Soren) Avenge minion counts deaths from its return, not i
     expect(deathsAtReturn).toBe(1);
   });
 
-  it("its Avenge (4) pays at the side's 5th death (the 4th after its return), not the 4th", () => {
+  it("its Avenge (3) pays at the side's 4th death (the 3rd after its return), not the 3rd", () => {
     const { deathsAtImprove } = run();
     expect(deathsAtImprove, 'the fight must reach the payout, or the assertion is vacuous').toBeGreaterThan(0);
-    expect(deathsAtImprove).toBe(5);
+    expect(deathsAtImprove).toBe(4);
   });
 
   it('the sim reads the copy at 0 on return: baseline 1, seen = count - 1 on every later death', () => {

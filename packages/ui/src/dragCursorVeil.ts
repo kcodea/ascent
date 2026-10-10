@@ -18,6 +18,8 @@
  * `body.dragging` itself stays: its other rules (the FLIP glide transitions, the hand tuck) target a handful of
  * elements by class and cost nothing like a universal restyle.
  */
+import { stageHost } from './stage';
+
 const VEIL_CLASS = 'drag-cursor-veil';
 let veil: HTMLDivElement | null = null;
 
@@ -29,7 +31,9 @@ export function showDragCursorVeil(): void {
     veil.className = VEIL_CLASS;
     veil.setAttribute('aria-hidden', 'true');
   }
-  if (!veil.isConnected) document.body.appendChild(veil);
+  // Inside the stage like every other layer (stageTripwire.test.ts): the drag happens on the stage, and the veil
+  // covers it edge to edge.
+  if (!veil.isConnected) stageHost().appendChild(veil);
 }
 
 /** Lift the veil (idempotent). */

@@ -11,7 +11,7 @@ import { StatBadgeField, CountStepper } from './StatBadgeField';
 import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview';
 import { toStage } from './stage';
 import { HeroPicker, HeroPickerTrigger } from './SceneBuilderHeroPicker';
-import { cardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
+import { archivedCardRows, archivedRuneRows, cardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
 import './sceneBuilder.css';
 
 /**
@@ -60,6 +60,13 @@ const SET_OPTIONS = Object.values(SETS).map((s) => {
   return { id: s.id, name: s.name, enabled: s.enabled, minions: p.buyable.length, spells: p.spells.length };
 });
 
+/** The SET picker's "Archived" entry (owner ask 2026-10-10). It is NOT a set: archived content belongs to no set,
+ *  and a tribe-less archive pool would make a nonsense run. Picking it only switches the LIBRARY to the archive
+ *  (`archivedCardRows` / `archivedRuneRows`); the run keeps the real set it is already on, which the option names
+ *  ("Archived (on Set 2)"). This sentinel never leaves this file: every run-facing call reads `setId` (the run's
+ *  own SetId), never the picker's value. */
+export const SB_ARCHIVED_OPTION = '__archived__';
+
 /** Outer shell: holds the minimized state and provides `close` (the injected ✕ / DevPanelContext) so the panel's
  *  ✕ minimizes it to the dock instead of no-op-closing. The inner component (below) reads that context via
  *  `useDraggablePanel`, so the provider must sit ABOVE its hook call — hence the split. */
@@ -105,6 +112,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
   // Library tab (minions / spells / runes share the search box + list) and the per-section fold state (remembered).
   const [lib, setLib] = useState<LibTab>('minions');
+  // The "Archived" set option (owner ask 2026-10-10): a LIBRARY view, not a run set. The run stays on `setId`.
+  const [libArchived, setLibArchived] = useState(false);
   // The hover / keyboard-focus preview target — ONE floating element (`SceneBuilderPreview`), retargeted per
   // row; the rect is read once per hover, never per frame. Cleared on leave / blur.
   const [preview, setPreview] = useState<SbPreviewTarget | null>(null);
@@ -231,14 +240,23 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const pool = useMemo(() => poolFor(setId), [setId]);
 
   // The set pool (tokens excluded) plus RUBIES + GIFTS, which join the Spells tab labelled by class (cardSearch.ts).
-  const all = useMemo<CardRow[]>(() => cardRowsFor(setId), [setId]);
+  const all = useMemo<CardRow[]>(() => (libArchived ? archivedCardRows() : cardRowsFor(setId)), [libArchived, setId]);
 
   // SET SCOPING (owner ask 2026-09-16): only the runes THIS set can forge — the same `sets` rule the Runeforge
   // applies (`runeforgePool`: absent = every set) — so a Set 3-only rune never shows up in a Set 2 sandbox. The
   // tribe gate is deliberately NOT applied here: a tribe-gated rune of the set is exactly what you come here to
   // test without rolling the tribe first. `isNew` marks the Set 3-original batch (`sets: ['set3']` alone, the
   // 2026-09-16 sheet) with a NEW tag; searching "new" lists them.
-  const allRunes = useMemo<RuneRow[]>(() => runeRowsFor(setId), [setId]);
+  const allRunes = useMemo<RuneRow[]>(() => (libArchived ? archivedRuneRows() : runeRowsFor(setId)), [libArchived, setId]);
+  const setName = SETS[setId]?.name ?? setId;
+  /** The picker: "Archived" flips the library only; a real set leaves the archive view and, when it differs from
+   *  the run's set, restarts the sandbox on it (the same restart the picker always did). */
+  const pickSet = (value: string): void => {
+    clearPreview();
+    if (value === SB_ARCHIVED_OPTION) { setLibArchived(true); return; }
+    setLibArchived(false);
+    if (value !== setId) startSceneBuilder(run?.heroId ?? 'warden', value as SetId);
+  };
 
   const terms = useMemo(() => searchTerms(query), [query]);
   // EVERY match is listed (owner 2026-09-16: no row cap — it's a scrolling list, and a few hundred plain
@@ -334,14 +352,18 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             {/* SET on its own row so its name and pool size never truncate. */}
             <label className="sb-field">
               <span className="sb-mini">set</span>
-              <select className="sb-select" value={setId}
-                onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
-                aria-label="Play an unreleased set here without flipping the global switch. Real runs are unaffected">
+              <select className="sb-select" value={libArchived ? SB_ARCHIVED_OPTION : setId}
+                onChange={(e) => pickSet(e.target.value)}
+                aria-label="Play an unreleased set here without flipping the global switch. Real runs are unaffected. Archived shows archived cards and runes in the library while the run stays on its set">
                 {SET_OPTIONS.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}{s.enabled ? ' (live)' : ''} · {s.minions} minions · {s.spells} spells</option>
                 ))}
+                <option value={SB_ARCHIVED_OPTION}>Archived (on {setName}) · library only</option>
               </select>
             </label>
+            {libArchived && (
+              <div className="sb-mini sb-note sb-archived-note">library shows archived cards and runes · the run stays on {setName}</div>
+            )}
             {pool.buyable.length === 0 && (
               <div className="sb-mini sb-warn">this set has no cards yet, so the shop will be empty</div>
             )}
@@ -464,7 +486,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
           {/* LIBRARY — one search box; Minions, Spells and Runes as tabs over one tall list (owner ask
               2026-09-16). ↵ adds the active tab's top match (shop for a card, grant for a rune). Hovering or
               focusing a row floats the REAL card / rune beside it (`SceneBuilderPreview`). */}
-          <Sec id="library" title="Library" folded={folded} onFold={fold}
+          <Sec id="library" title={libArchived ? 'Library (archived)' : 'Library'} folded={folded} onFold={fold}
             right={<span className="sb-count">{activeCount}</span>}>
             {/* Three tabs as a segmented row of their own (they no longer fit the heading's right slot). */}
             <div className="sb-seg sb-seg-3" role="tablist" aria-label="Library">
@@ -506,6 +528,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
                   <span className="sb-name">{c.name}</span>
                   {c.kind && <span className={`sb-tag ${c.kind}`}>{c.kind}</span>}
+                  {c.archived && <span className="sb-tag archived">(archived)</span>}
                 </button>
               )) : runeResults.map((r) => (
                 // Granting a rune applies its reward for the run, exactly like buying it in the Runeforge.
@@ -514,6 +537,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   <span className="sb-name">{r.name}</span>
                   {r.epic && <span className="sb-tag">epic</span>}
                   {r.isNew && <span className="sb-tag new">new</span>}
+                  {r.archived && <span className="sb-tag archived">(archived)</span>}
                 </button>
               ))}
               {activeCount === 0 && <div className="sb-empty">no matches</div>}

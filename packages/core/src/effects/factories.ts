@@ -159,7 +159,7 @@ export function shopSpellGrowth(params: Record<string, unknown> | undefined, gol
  *  "plays a Ruby" in combat must come through here: a hand-rolled `ctx.buff` with Ruby-shaped stats misses
  *  the Deepdelve multiplier, the target's `onRubyPlayed` listeners, the Spellstone cast-count and the
  *  `rubyGain` ledger — which is exactly the bug the Gemstorm rune shipped with (owner report 2026-08-06). */
-export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number, permanent = false): void {
+export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number, permanent = false, extra?: { attack: number; health: number }): void {
   if (per <= 0) return;
   // RUNE OF BATTLE REFRACTION: living Prismcasters repeat Rubies played during combat, exactly as they repeat
   // hand-played Rubies in the shop (`rubyExtraCast`). Folded into `per` at this single chokepoint, so every
@@ -168,8 +168,10 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   per += ctx.battleRefractionRepsFor?.(self.side) ?? 0;
   const rb = ctx.rubyBonusFor(self.side);
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
-  const a = (1 + rb.attack) * per * mult;
-  const h = (1 + rb.health) * per * mult;
+  // `extra` folds a flat per-Ruby bonus into each Ruby (Veinstorm's spell power, owner ruling 2026-08-26), so a
+  // combat Veinstorm Ruby is worth exactly what the Shop half lands.
+  const a = (1 + rb.attack + (extra?.attack ?? 0)) * per * mult;
+  const h = (1 + rb.health + (extra?.health ?? 0)) * per * mult;
   // RUNE OF ENGRAVING GEMS: every Ruby applied in combat carries back to the run board. Forced at this single
   // chokepoint (like Battle Refraction above), so EVERY combat Ruby source becomes permanent together rather
   // than each caller having to opt in — a per-source opt-in is exactly how one would get missed.
@@ -709,7 +711,6 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   armChooseBoth: { why: "Double Dealer arms her 'first Choose One card you play' latch on her own card; Choose One cards are only played in the Shop (and Start of Turn re-arms her anyway)", line: 'arms for the next Choose One' },
   battlecryAllDemonsConsume: { why: 'Consume is a Shop action: each friendly Demon eats a created Fodder PERMANENTLY through the onConsume pipeline and the Fodder tally, which only run in the Shop', line: 'feeds your Demons when the Shop opens' },
   battlecryCollapseStarform: { why: 'the Starform is a Shop token; the collapse happens when the Shop opens', line: 'collapses the Starform when the Shop opens' },
-  battlecryCastNamedSpell: { why: "casts a named Shop spell through the Shop's full cast pipeline (Storm Chaser / Shardluck: Veinstorm gems the Shop row and banks its Rubies for every future Shop); no Shop stands mid-fight, so the whole cast lands once at settle rather than splitting one spell across two phases", line: 'casts its spell when the Shop opens' },
   battlecryConsumeShopRandom: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'eats from the Shop when it opens' },
   battlecryCreateStarformOrBuff: { why: 'the Starform is a Shop token (created in, and fed from, the Shop row)', line: 'feeds the Starform when the Shop opens' },
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
@@ -1860,6 +1861,36 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   getRubies: (ctx, self, params) => {
     ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  /**
+   * Storm Chaser / Shardluck's branch in COMBAT (a Shout re-fire): "Cast Veinstorm", SPLIT IN REAL TIME (owner
+   * ruling 2026-10-10, "Split (real time)"). Each cast is a real combat cast (`castInCombat`: counted, spell
+   * watchers, gilded = two casts). A Shop-Ruby spell (`spellBuffShopByRuby` with `minions`) lands its MINION half
+   * NOW: one Ruby on every living friendly minion, worth 1 + Ruby strength + spell power (the same fold the Shop
+   * half uses), temporary like every combat Ruby (owner ruling 2026-07-31). Its SHOP half is banked and lands once
+   * per cast at settle (`deferShopSpellHalf` → `applyShopSpellHalf`). Any other named spell takes the shared
+   * named-spell cast (`castNamedSpellInCombat`).
+   */
+  battlecryCastNamedSpell: (ctx, self, params) => {
+    const def = ctx.getCard(str(params.spellId));
+    if (!def?.spell || self.dead) return;
+    const casts = Math.max(1, num(params.count, 1));
+    const shopRuby = def.effects.some((e) => e.on === 'cast' && e.do === 'spellBuffShopByRuby');
+    if (!shopRuby) {
+      for (let i = 0; i < casts * mul(self); i++) castNamedSpellInCombat(ctx, self, def.id);
+      return;
+    }
+    const minions = def.effects.some((e) => e.on === 'cast' && e.do === 'spellBuffShopByRuby' && (e.params as { minions?: boolean } | undefined)?.minions === true);
+    for (let i = 0; i < casts; i++) {
+      castInCombat(ctx, self, () => withCastingSpell(ctx, def.id, () => {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+        if (minions) {
+          const sp = ctx.spellPowerFor(self.side);
+          for (const f of ctx.living(self.side)) playRubyOn(ctx, self, f, 1, false, { attack: sp.attack, health: sp.health });
+        }
+        ctx.deferShopSpellHalf?.(def.id, self.side);
+      }), def.id);
+    }
   },
   /** Ruby Shipment's body in combat (a combat-cast spell, a Shout replay): `count` RANDOM Rubies, each drawn
    *  separately — the random-type twin of `getRubies`, through the combat carry-back. */

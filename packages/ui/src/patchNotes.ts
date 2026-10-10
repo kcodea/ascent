@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Storm Chaser now casts Veinstorm in combat too: your minions get their Ruby right away.',
+        details: [
+          "When Storm Chaser's Shout triggers during combat, Veinstorm casts a Ruby on your minions in the fight right away.",
+          'The Shop part of that Veinstorm lands when the fight ends.',
+          'Both parts give the same Ruby, including spell power.',
+          'The First Blood quest is retired.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Demon, Dwarf and Beast balance pass, two new Tier 6 minions, slower Gift runes, and eight cards retired.',
         details: [
           'New: Drunk Daniel, a Tier 6 Dwarf 6/6. End of Turn: give your Shop spells +2/+2.',

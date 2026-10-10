@@ -15451,12 +15451,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "event": "onPlay",
         "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
-      },
-      {
-        "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
       }
     ],
     "effects": [
@@ -17217,9 +17211,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onPlay",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
@@ -22094,9 +22087,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:grant.grantKeywords"
       ]
     },
-    "setIds": [
-      "set2"
-    ],
     "tags": [
       "quest-tier:lesser",
       "quest-tribe:dragon",

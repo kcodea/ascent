@@ -3760,6 +3760,9 @@ export interface ShoutCarry {
   /** Gravetwin (R-TARGET-06): a combat re-fire copied a random friendly Echo. Keyed by the body's run card
    *  (`sourceUid`); settle sets that card's `copiedEcho` (the last copy wins, as in the Shop). */
   copiedEchoes?: { uid: string; effects: EffectDef[]; name?: string }[];
+  /** Storm Chaser (owner ruling 2026-10-10, "Split (real time)"): one entry per combat cast of a Shop-Ruby spell
+   *  (Veinstorm) whose MINION half already resolved live; settle applies the SHOP half once per entry. */
+  shopSpellHalves?: string[];
 }
 
 export interface CombatContext {
@@ -3992,6 +3995,9 @@ export interface CombatContext {
   /** "Give minions in the Shop +a/+h" (Contract Butcher / Malphas): the permanent run shop channel, applied at
    *  settle through the Shop's own `applyRunShopBuff` (tavern buy bonus + Fodder + Starform, all of it). */
   grantRunShopBuff(attack: number, health: number, side: Side, sourceUid?: string, sourceName?: string, sourceCardId?: string): void;
+  /** Storm Chaser's split (owner ruling 2026-10-10, "Split (real time)"): a Shop-Ruby spell (Veinstorm) cast in
+   *  combat resolved its minion half live; bank its SHOP half for settle (`ShoutCarry.shopSpellHalves`). */
+  deferShopSpellHalf?(spellId: string, side: Side): void;
   /** A card to hand NOW (a live `toHand` + the hand-grant reactors, exactly `grantToHand`) whose ECHO then fires
    *  out of combat on the arrived card at settle (Crypt Broker). */
   grantToHandThenEcho(cardId: string, side: Side, sourceUid?: string): void;

@@ -1060,4 +1060,25 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-10 (new cards).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-STORMCHASER-01',
+    title: 'Storm Chaser in combat splits Veinstorm in real time: minion Rubies now, the Shop half at settle',
+    statement:
+      'When Storm Chaser\x27s Shout ("Cast Veinstorm") is triggered during combat, the Veinstorm cast is SPLIT. Its minion '
+      + 'half resolves instantly, on its own beat: a Ruby on every living friendly minion in the fight, worth 1 + your '
+      + 'Ruby strength + spell power, temporary like every combat Ruby. Its Shop half (Shop minions get Ruby stats, '
+      + 'banked for future Shops) is applied once per cast when the fight settles, through the Shop\x27s own Veinstorm '
+      + 'body, folding spell power the same way, so both halves land the same printed number. Gilded casts twice. It '
+      + 'is not a Shop-only Shout (R-REALTIME-03). In the Shop (a played Storm Chaser, Shrieker\x27s End of Turn) the '
+      + 'whole Veinstorm still casts at once.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-10 (Storm Chaser in combat, follow-up to #2016)', quote: 'Split (real time)' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts FACTORIES.battlecryCastNamedSpell + playRubyOn (extra); packages/core/src/combat/simulate.ts deferShopSpellHalf; packages/sim/src/recruit.ts applyShopSpellHalf; packages/sim/src/reducer.ts settle (shopSpellHalves)' },
+    ],
+    contentIds: ['k_stormchaser', 'veinstorm'],
+    currentBehaviour: 'Conforms as of 2026-10-10: Storm Chaser was a SHOP_ONLY_SHOUTS entry (#2016) that deferred the whole cast to settle.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

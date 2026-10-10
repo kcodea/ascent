@@ -1815,8 +1815,8 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'shout').length).toBe(1); // 1 trigger — one counted shout event
-    // Flat +2/+2 (owner batch 2026-09-24: +3/+3 → +2/+2; the 20% double clause is long gone) — proves Karwind procced.
-    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2);
+    // Flat +4/+4 (owner batch 2026-09-24: +3/+3 → +2/+2; RE-PIN owner batch 2026-10-10: → +4/+4) — proves Karwind procced.
+    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4);
     expect(proc, 'Karwind never procced').toBe(true);
   });
 
@@ -1841,7 +1841,7 @@ describe('simulate (handoff A.3)', () => {
     // (Drakko is NEUTRAL and is passed over, as before). Owner balance 2026-08-18: +4/+4 → +3/+3 and the 20%
     // double-trigger clause was removed, so every grant is a flat +3/+3 and there are no crits — 8 × 2 = 16 grants.
     const dragons = 2; // Karwind + the Cleric
-    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length; // +2/+2 since 2026-09-24
+    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length; // +4/+4 since 2026-10-10 (RE-PIN, was +2/+2)
     const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
     expect(plain).toBe(8 * dragons);
     expect(crits).toBe(0);
@@ -3025,8 +3025,8 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
       combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    // Karwind answers a triggered Battlecry with a flat +2/+2 to your Dragons (owner batch 2026-09-24).
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+    // Karwind answers a triggered Battlecry with a flat +4/+4 to your Dragons (RE-PIN owner batch 2026-10-10, was +2/+2).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
   });
 
   it('set 2 — Mushy: its Echo carries back a next-turn spell-copy count', () => {

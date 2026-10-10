@@ -100,13 +100,14 @@ describe('archived: Dunkey, Moira, Moonhowl Mentor, Embercrest, and Rune of the 
 
 // ── 5/6/8/9. Dragons ──────────────────────────────────────────────────────────────────────────────────────
 describe('Dragon balance (owner 2026-09-24)', () => {
-  it('Karwind T4, +2/+2 per Shout (SHOP, through the real reducer)', () => {
+  // RE-PIN 2026-10-10 (owner balance batch): Karwind is now T5, +4/+4 (was T4, +2/+2).
+  it('Karwind T5, +4/+4 per Shout (SHOP, through the real reducer)', () => {
     const k = CARD_INDEX['karwind']!;
-    expect(k.tier).toBe(4);
+    expect(k.tier).toBe(5);
     let s = shop([bc('k', 'karwind', { attack: 2, health: 12 })], { hand: [bc('c', 'cleric')], shop: [] });
     s = reduce(s, { type: 'play', uid: 'c' });
-    // Hoard Cleric's Shout +3/+3 to Dragons, then Karwind's reaction +2/+2.
-    expect([on(s, 'k').attack, on(s, 'k').health]).toEqual([2 + 3 + 2, 12 + 3 + 2]);
+    // Hoard Cleric's Shout +3/+3 to Dragons, then Karwind's reaction +4/+4.
+    expect([on(s, 'k').attack, on(s, 'k').health]).toEqual([2 + 3 + 4, 12 + 3 + 4]);
   });
 
   it('Mushy T4, Flutterdrake T4, Earthbreaker T3', () => {
@@ -282,18 +283,20 @@ describe('Humphry: Shout: give a friendly Dragon +5/+5 (owner ruling 2026-09-24)
     expect(set2Pool.has('d2_humphry')).toBe(true);
   });
 
-  it('SHOP: the aimed Shout lands +5/+5 on the chosen Dragon (gilded +10/+10)', () => {
+  // RE-PIN 2026-10-10 (owner balance batch): "+2/+2 for every Dragon played this turn" (was a flat +5/+5). Played as
+  // the turn's first Dragon, Humphry counts itself: +2/+2 (gilded +4/+4). The count rule lives in dragonBatch1010.test.ts.
+  it('SHOP: the aimed Shout lands +2/+2 on the chosen Dragon as the first Dragon played (gilded +4/+4)', () => {
     for (const golden of [false, true]) {
       let s = shop([bc('d', 'd2_broodfire')], { hand: [bc('h', 'd2_humphry', { golden })] });
       s = reduce(reduce(s, { type: 'play', uid: 'h' }), { type: 'battlecryTarget', targetUid: 'd' });
       const g = golden ? 2 : 1;
-      expect([on(s, 'd').attack, on(s, 'd').health]).toEqual([CARD_INDEX['d2_broodfire']!.attack + 5 * g, CARD_INDEX['d2_broodfire']!.health + 5 * g]);
+      expect([on(s, 'd').attack, on(s, 'd').health]).toEqual([CARD_INDEX['d2_broodfire']!.attack + 2 * g, CARD_INDEX['d2_broodfire']!.health + 2 * g]);
     }
   });
 
   it('prints the owner text, plain and gilded', () => {
     const d = CARD_INDEX['d2_humphry']!;
-    expect(d.text).toBe('**Shout:** give a friendly **Dragon +5/+5**.');
-    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +10/+10**.');
+    expect(d.text).toBe('**Shout:** give a friendly **Dragon +2/+2** for every **Dragon** played this turn.');
+    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +4/+4** for every **Dragon** played this turn.');
   });
 });

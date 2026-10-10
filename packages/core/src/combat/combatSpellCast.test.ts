@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type CombatResult, type QuestCombatMods } from '../index';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 /**
  * THE combat spell-cast path (`castInCombat`) and Runebloom Matriarch's rework (owner 2026-08-07).
@@ -15,7 +17,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type
  */
 const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 90000 }];
 /** Fatecarver locked to branch B (option 1): every friendly attack casts a Growth. */
-const fatecarver: BoardMinion = { cardId: 'n2_fatecarver', attack: 4, health: 900, sourceUid: 'FC', chosenOption: 1 };
+const fatecarver: BoardMinion = { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'FC' };
 /** Thunderous Sovereign gains a stack per cast — its carried-back bonus IS the cast count. */
 const sovereign: BoardMinion = { cardId: 'd2_sovereign', attack: 8, health: 900, sourceUid: 'TS' };
 

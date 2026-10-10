@@ -33,9 +33,9 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(run).toBeTruthy();
   });
 
-  it('Karwind carries into set 2 and keeps its re-spec (Tier 4 since 2026-09-24; 2/8 by owner ruling 2026-09-24)', () => {
+  it('Karwind carries into set 2 and keeps its re-spec (Tier 5 since 2026-10-10; 2/8 by owner ruling 2026-09-24)', () => {
     const k = CARD_INDEX['karwind']!;
-    expect([k.tier, k.attack, k.health]).toEqual([4, 2, 8]);
+    expect([k.tier, k.attack, k.health]).toEqual([5, 2, 8]); // RE-PIN 2026-10-10: T4 → T5
   });
 });
 

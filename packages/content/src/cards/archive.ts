@@ -243,6 +243,41 @@ export const ARCHIVED_CARDS: CardDef[] = [
     text: '**Avenge (4):** summon an **Armadiyo**.',
     goldenText: '**Avenge (4):** summon a **Gilded Armadiyo**.',
   },
+  // ── 2026-10-10 owner balance batch (Dragons): Traveling Skald and Fel Conjurer archived from EVERY set. ──
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch). Moved verbatim from set2/dragons.ts; belongs to no set now. NB: the
+    // set-2 lesser quest First Blood still GRANTS it (resolved through CARD_INDEX), flagged to the owner in the PR.
+    // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
+    // was a Tier-2 Slaughter, now a Tier-4 Shout that grants a minion AND a spell).
+    // Owner balance 2026-09-23: "Stats to 1/3. When another friendly Dragon attacks, give it +3/+2." — the
+    // same on-ally-attack primitive, a smaller body and a bigger grant. Gilded doubles the grant.
+    id: 'd2_skald',
+    name: 'Traveling Skald',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 1,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 3, health: 2 } }],
+    text: 'When **another** friendly **Dragon** attacks, give it **+3/+2**.',
+    goldenText: 'When **another** friendly **Dragon** attacks, give it **+6/+4**.',
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch). Moved verbatim from set2/dragons.ts; belongs to no set now.
+    // Owner add 2026-08-19. Dual-type Dragon/Demon: a spell-power engine — every shop turn opens with a Quick
+    // Study in hand. Reuses the trigger-agnostic `battlecryGrantSpell` on the `startOfTurn` hook; golden two.
+    id: 'd2_felconjurer',
+    name: 'Fel Conjurer',
+    tribe: 'dragon',
+    tribe2: 'demon',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'quickstudy', count: 1 } }],
+    text: '**Start of Turn:** get a **Quick Study**.',
+    goldenText: '**Start of Turn:** get **2 Quick Studies**.',
+  },
   {
     // ARCHIVED 2026-09-24 (owner beast/dragon batch). Moved verbatim from set2/dragons.ts; belongs to no set now.
     // The Shout-tribe capstone on a Rally: every swing re-fires your OTHER Dragons' Shouts through the shared

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 /**
  * Rune of Shared Scripture (owner bug report 2026-10-07: "this rune is not working at all").
@@ -36,7 +38,7 @@ const ralliesBy = (events: CombatEvent[], uid: string) =>
 const board = (): BoardMinion[] => [
   { cardId: 'emissary', attack: 1, health: 300 },
   { cardId: 'badgington', attack: 1, health: 300 },
-  { cardId: 'n2_fatecarver', attack: 1, health: 300, chosenOption: 1 } as BoardMinion,
+  { cardId: 'taragosa', attack: 1, health: 300 } as BoardMinion,
 ];
 
 describe('Rune of Shared Scripture: fires on the first combat Shop-spell cast from ANY caster', () => {

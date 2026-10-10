@@ -95,3 +95,18 @@ describe('Goldilox — live text shows the gain it takes RIGHT NOW (owner 2026-0
     expect(liveCardText('dw3_goldilox', { ...base, golden: true, inHand: true }).goldenText).toContain('{{+12/+8}}');
   });
 });
+
+describe('owner Dragon batch 2026-10-10: live text', () => {
+  it('Humphry prints the lump it lands right now: a hand / Shop copy counts its own coming play, a board or combat body does not', () => {
+    const two = { ...base, playedThisTurn: ['d2_embermouth', 'd2_cinderchef'] };
+    expect(liveCardText('d2_humphry', { ...two, inHand: true }).text).toContain('{{(+6/+6)}}'); // 2 played + itself
+    expect(liveCardText('d2_humphry', two).text, 'a Shop offer also counts its own play').toContain('{{(+6/+6)}}');
+    expect(liveCardText('d2_humphry', { ...two, onBoard: true }).text).toContain('{{(+4/+4)}}');
+    expect(liveCardText('d2_humphry', { ...two, inCombat: true }).text).toContain('{{(+4/+4)}}');
+    expect(liveCardText('d2_humphry', { ...base, inHand: true, golden: true }).goldenText, 'gilded +4/+4 per Dragon').toContain('{{(+4/+4)}}');
+  });
+  it('Vaultkeeper prints the Rune of the Vaultkeeper widening as a rune note, only with the rune', () => {
+    expect(liveCardText('d2_herzog', { ...base, runeFlags: { vaultkeeper: true } }).text).toContain('Buffs all your Dragons (Rune of the Vaultkeeper).');
+    expect(liveCardText('d2_herzog', base).text).toBe(CARD_INDEX['d2_herzog']!.text);
+  });
+});

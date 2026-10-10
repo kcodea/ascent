@@ -61,10 +61,11 @@ describe('R-REALTIME-03 — every Shout id is combat-live or an explicit Shop-on
     }
   });
 
-  it('the Shop-only exceptions are the nine the ruling was reviewed against (grow this deliberately)', () => {
+  // GROWN 2026-10-10 (deliberately): Roomworks' Shout triggers an End of Turn effect, which only resolves in the Shop.
+  it('the Shop-only exceptions are the ten the ruling was reviewed against (grow this deliberately)', () => {
     expect(Object.keys(SHOP_ONLY_SHOUTS).sort()).toEqual([
       'armChooseBoth', 'battlecryAllDemonsConsume', 'battlecryCollapseStarform', 'battlecryConsumeShopRandom',
-      'battlecryCreateStarformOrBuff', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
+      'battlecryCreateStarformOrBuff', 'battlecryReplayTargetEndOfTurn', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
       'buffRightmostSlotPermanent', 'triggerAdjacentOrbits',
     ]);
   });

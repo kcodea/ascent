@@ -53,10 +53,11 @@ export const SET2_SPELLS: CardDef[] = [
     cost: 1,
     effects: [],
     chooseOne: [
-      { text: 'Your Rubies gain **+1 Attack**.', effects: [{ on: 'cast', do: 'rubyStatGain', params: { attack: 1, health: 0 } }] },
-      { text: 'Your Rubies gain **+1 Health**.', effects: [{ on: 'cast', do: 'rubyStatGain', params: { attack: 0, health: 1 } }] },
+      // Owner balance 2026-10-10: both options +1 -> +2.
+      { text: 'Your Rubies gain **+2 Attack**.', effects: [{ on: 'cast', do: 'rubyStatGain', params: { attack: 2, health: 0 } }] },
+      { text: 'Your Rubies gain **+2 Health**.', effects: [{ on: 'cast', do: 'rubyStatGain', params: { attack: 0, health: 2 } }] },
     ],
-    text: '**Choose One:** your Rubies gain **+1 Attack**, or **+1 Health**.',
+    text: '**Choose One:** your Rubies gain **+2 Attack**, or **+2 Health**.',
   },
   {
     // Give every tavern minion offer stats equal to your Rubies (base 1/1 + rubyBonus). Untargeted; the printed
@@ -70,8 +71,11 @@ export const SET2_SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 1,
-    effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
-    text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**), as **Rubies**.',
+    // Owner balance 2026-10-10: "Cast a Ruby on your minions and the shop." The Shop half is unchanged; `minions`
+    // ALSO casts that same Ruby on every friendly minion first (the `spellPlayRubiesAll` landing, inside the one
+    // factory so both halves share one value, spell power folded per the 2026-08-26 ruling).
+    effects: [{ on: 'cast', do: 'spellBuffShopByRuby', params: { minions: true } }],
+    text: 'Cast a **Ruby** (**+1/+1**) on your minions and the Shop. The Shop keeps its Rubies **permanently**.',
   },
   {
     // Ruby Transfer (owner add 2026-08-06) — consolidate a row's Rubies onto one body. `target: 'any'` so it

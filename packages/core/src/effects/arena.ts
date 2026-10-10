@@ -357,6 +357,24 @@ const others = (arena: EffectArena, pred?: (m: ArenaBody) => boolean): ArenaBody
   arena.friends().filter((m) => m.uid !== arena.self.uid && (!pred || pred(m)));
 
 /**
+ * R-VAULT-01 — VAULTKEEPER'S LOOP GUARD (owner 2026-10-10: "one pulse per gain event, with no re-entrant cascades").
+ * A Vaultkeeper's pulse is itself an Attack gain on its neighbours, so two adjacent Vaultkeepers would feed each other
+ * forever. The rule, in both phases: while ANY Vaultkeeper pulse is resolving, no Vaultkeeper reacts to a gain. Each
+ * gain made outside a pulse fires exactly one pulse per Vaultkeeper that gained. Module-scoped (both adapters import
+ * this one module), always unwound in `finally`, and synchronous, so it can never leak between actions or fights.
+ */
+let vaultPulseDepth = 0;
+/** Run one Vaultkeeper pulse under the guard. Returns false (and runs nothing) when a pulse is already resolving. */
+export function runVaultPulse(run: () => void): boolean {
+  if (vaultPulseDepth > 0) return false;
+  vaultPulseDepth += 1;
+  try { run(); } finally { vaultPulseDepth -= 1; }
+  return true;
+}
+/** True while a Vaultkeeper pulse is resolving (the shop hook skips its bookkeeping early on it). */
+export const vaultPulseActive = (): boolean => vaultPulseDepth > 0;
+
+/**
  * The shared effect bodies. Keyed by the same `do` ids as the legacy registries, so the wrappers in
  * `FACTORIES` / `RECRUIT_FACTORIES` are one-liners and the ratchet test (Step 2) can diff coverage.
  */
@@ -1177,14 +1195,34 @@ export const ARENA_EFFECTS = {
     }
   },
 
+  /** VAULTKEEPER (owner 2026-10-10): "When this gains Attack, give adjacent Dragons +3/+4." The body only — the
+   *  trigger ("THIS gained Attack") and the R-VAULT-01 guard live with each phase's dispatch. `all` (Rune of the
+   *  Vaultkeeper: "Your Vaultkeepers buff all Dragons") widens the reach to every OTHER friendly `tribe` body; never
+   *  itself either way. Golden doubles the grant. */
+  onGainAttackBuffAdjacentTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = String(params.tribe ?? '');
+    const g = arena.self.golden ? 2 : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 3) * g;
+    const h = (typeof params.health === 'number' ? params.health : 4) * g;
+    if (a <= 0 && h <= 0) return;
+    const ok = (f: ArenaBody): boolean => f.uid !== arena.self.uid && (!tribe || arena.isTribe(f, tribe));
+    const targets = params.all ? others(arena, ok) : arena.neighboursOf(arena.self).filter(ok);
+    for (const t of targets) arena.buff(t, a, h);
+  },
+
   /** Targeted stat Shout (Brood Whelp / Baby Gastrid's kin): buff the chosen friend — or, unchosen (a
    *  Myra / Dawnclaw re-fire, or combat), auto-pick the highest-Attack OTHER friend honouring `targetTribe`.
    *  NEVER itself (R-TARGET-03, owner 2026-09-18 — the old self fallback is gone: no eligible other → no grant).
    *  The chosen target rides `params.target`, merged by the shop wrapper. */
   battlecryBuffTarget(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
-    const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
-    const h = (typeof params.health === 'number' ? params.health : 0) * g;
+    // `perPlayedTribe` (Humphry, owner 2026-10-10): "+2/+2 for every Dragon played this turn" — ONE lump buff sized by
+    // the count of that tribe played this turn. The Shout fires after its own play is recorded, so Humphry's own play
+    // is in the count: the first Dragon of the turn gives +2/+2, the second +4/+4 (R-HUMPHRY-01). Combat reads the
+    // side's frozen per-tribe map.
+    const per = typeof params.perPlayedTribe === 'string' ? arena.playedThisTurn(params.perPlayedTribe) : 1;
+    const a = (typeof params.attack === 'number' ? params.attack : 0) * g * per;
+    const h = (typeof params.health === 'number' ? params.health : 0) * g * per;
     if (a <= 0 && h <= 0) return;
     let target = params.target as ArenaBody | undefined;
     if (!target) {
@@ -1659,9 +1697,13 @@ export const ARENA_EFFECTS = {
     if (n > 0) arena.grantRubies(n);
   },
 
-  /** Tunnelcharger Rikk — Rally: get `count` Rubies (× golden), minted at the run's live Ruby power. */
+  /** Tunneller Rik — Rally: get `count` Rubies (× golden), minted at the run's live Ruby power. `random`
+   *  (owner balance 2026-10-10: "Get 2 random Rubies") draws each Ruby's type from all six, through the phase's
+   *  random-Ruby mint (shop: the run cursor; combat: the Ruby carry-back). */
   rallyGetRubies(arena: EffectArena, params: Record<string, unknown>): void {
-    arena.grantRubies(num(params.count, 1) * gold(arena));
+    const n = num(params.count, 1) * gold(arena);
+    if (params.random === true) arena.grantRandomRubies(n);
+    else arena.grantRubies(n);
   },
 
   /** Evolving Abomination — Rally: double this minion's stats, `max` times per dispatch. GOLDEN raises the CAP

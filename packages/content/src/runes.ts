@@ -2868,16 +2868,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_mirrorwing'] }, { kind: 'runeSharedReflection' }] },
     sets: ['set2'],
   },
-  {
-    id: 'rune_living_growth',
-    name: 'Rune of Living Growth',
-    cost: 3, // balance 9/23 (was 5)
-    text: 'Whenever **Mushy** creates a **Growth**, improve future Growths by **+1/+1**.',
-    previewCards: ['d2_scalefeather', 'growth'],
-    epic: true,
-    reward: { kind: 'runeLivingGrowth' },
-    sets: ['set2'],
-  },
   // ── Aug-11 minion-grant runes (Epic) ──
   {
     id: 'rune_dawnclaw',
@@ -2913,11 +2903,14 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_herzog', // id kept (saved runs store ids); renamed Rune of Herzog → Rune of the Vaultkeeper 2026-08-12
-    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the Vaultkeeper feeds an adjacent Dragon
+    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the Vaultkeeper feeds your Dragons
     name: 'Rune of the Vaultkeeper',
     cost: 5,
     epic: true,
-    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** also give their stats to an adjacent **Dragon**.',
+    // Owner balance batch 2026-10-10: Vaultkeeper's effect was replaced ("When this gains Attack, give adjacent Dragons
+    // +3/+4"); owning this rune widens "adjacent Dragons" to ALL your other Dragons, in both phases (the shop reads
+    // `runeVaultkeeper`, combat its `QuestCombatMods` twin). Same reward kinds, so a saved run that owns it keeps working.
+    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** buff all **Dragons**.',
     previewCards: ['d2_herzog'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_herzog'] }, { kind: 'runeVaultkeeper' }] },
     sets: ['set2'],
@@ -4451,6 +4444,19 @@ export const ARCHIVED_RUNES: RuneDef[] = [
     previewCards: ['k_rubybroker'], // its subject is in the MINION archive — the pair retire together
     reward: { kind: 'runeBrokerage' },
     sets: ['set2'], // Rubies
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner balance batch: "it only worked with Mushy's Growth", and Mushy now gets a Dragonflame).
+    // Was an Epic rune, `sets: ['set2']`. Moved verbatim apart from `sets: []`, so a saved run or replay that holds it
+    // keeps its badge, text and reward machinery through `RUNE_INDEX` (the Growth accrual simply never ticks again).
+    id: 'rune_living_growth',
+    name: 'Rune of Living Growth',
+    cost: 3, // balance 9/23 (was 5)
+    text: 'Whenever **Mushy** creates a **Growth**, improve future Growths by **+1/+1**.',
+    previewCards: ['d2_scalefeather', 'growth'],
+    epic: true,
+    reward: { kind: 'runeLivingGrowth' },
+    sets: [],
   },
 ];
 

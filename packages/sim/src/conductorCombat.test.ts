@@ -33,8 +33,8 @@ describe('Conductor resolves its Shout in combat', () => {
       makeRng(5), CARD_INDEX,
       combatSide({ tier: 4 }), combatSide({ tier: 6 }),
     );
-    // A fresh copy's grant is the printed +2/+3, landing on both neighbours.
-    const conductorGrants = buffs(r.events).filter((b) => b.attack === 2 && b.health === 3);
+    // A fresh copy's grant is the printed +3/+3 (RE-PIN 2026-10-10, was +2/+3), landing on both neighbours.
+    const conductorGrants = buffs(r.events).filter((b) => b.attack === 3 && b.health === 3);
     expect(conductorGrants.length, 'the Shout resolved in combat and buffed adjacents').toBeGreaterThan(0);
   });
 
@@ -45,7 +45,7 @@ describe('Conductor resolves its Shout in combat', () => {
       makeRng(5), CARD_INDEX,
       combatSide({ tier: 4 }), combatSide({ tier: 6 }),
     );
-    expect(buffs(r.events).some((b) => b.attack === 5 && b.health === 6), 'accrual 3 pays +5/+6').toBe(true);
+    expect(buffs(r.events).some((b) => b.attack === 6 && b.health === 6), 'accrual 3 pays +6/+6 (RE-PIN 2026-10-10, was +5/+6)').toBe(true);
     expect((r.playerSummonBonus ?? []).find((b) => b.sourceUid === 'C')?.bonus, 'and the copy carries 4 back to the shop').toBe(4);
   });
 });
@@ -57,15 +57,15 @@ describe('Conductor resolves its Shout in combat', () => {
  */
 describe("Conductor's live text", () => {
   it('a shop offer, a board body and a combat body all read (base + accrual) × golden', () => {
-    expect(conductorText('n2_conductor', false, 3)).toContain('{{+5/+6}}');
-    expect(conductorText('n2_conductor', true, 3), 'gilded doubles the applied grant').toContain('{{+10/+12}}');
+    expect(conductorText('n2_conductor', false, 3)).toContain('{{+6/+6}}'); // RE-PIN 2026-10-10: base +3/+3
+    expect(conductorText('n2_conductor', true, 3), 'gilded doubles the applied grant').toContain('{{+12/+12}}');
   });
 
   it('at zero accrual the PRINTED text already tells the truth', () => {
     // A fresh copy — bought, summoned or Discovered straight onto the board — pays exactly the +2/+3 the card
     // prints. Nothing to override, so the helper stands down rather than re-rendering the same numbers.
     expect(conductorText('n2_conductor', false, 0)).toBeNull();
-    expect(CARD_INDEX['n2_conductor']!.text).toContain('+2/+3');
+    expect(CARD_INDEX['n2_conductor']!.text).toContain('+3/+3'); // RE-PIN 2026-10-10
   });
 
   it("a SERVED opponent's Conductor carries its own accrual into the fight, not the printed base", () => {

@@ -11,6 +11,8 @@ import {
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { noteSpellForCountRunes } from './recruit';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 const card = (uid: string, cardId: string, extra: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -40,7 +42,7 @@ const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid ==
 
 /** Combat fixtures (the castInCombat suite's): Fatecarver branch B casts a Growth on every friendly attack. */
 const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 90000 }];
-const fatecarver: BoardMinion = { cardId: 'n2_fatecarver', attack: 4, health: 900, sourceUid: 'FC', chosenOption: 1 };
+const fatecarver: BoardMinion = { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'FC' };
 const filler = (uid: string): BoardMinion => ({ cardId: 'sandbag', attack: 1, health: 900, sourceUid: uid });
 const fight = (board: BoardMinion[], mods?: Partial<QuestCombatMods>): CombatResult => simulate(
   board, wall, makeRng(3), CARD_INDEX,
@@ -176,7 +178,7 @@ describe('Hunch × GENESIS — casting 5 spells recharges Rounded Spellbook at 1
     expect(s.ancients!.genesisSpells).toBe(1);
   });
   it('combat casts count too; a recharge earned in combat prices the next Shop at 1 Gold', () => {
-    const board = [card('fc', 'n2_fatecarver', { chosenOption: 1, attack: 4, health: 900 })];
+    const board = [card('fc', 'taragosa', { attack: 4, health: 900 })];
     const run = (genesis: boolean): RunState => {
       let s = genesis ? picked('genesis', { lastSpellCastId: POUCH, board }) : picked('time', { lastSpellCastId: POUCH, board });
       s = book(s); // used on this turn: the native price next turn would be 2

@@ -68,16 +68,17 @@ export const DRAGONS: CardDef[] = [
     id: 'karwind',
     name: 'Karwind',
     tribe: 'dragon',
-    tier: 4, // owner balance 2026-08-18: T6 → T5; owner batch 2026-09-24: T5 → T4
+    tier: 5, // owner balance 2026-08-18: T6 → T5; owner batch 2026-09-24: T5 → T4; owner batch 2026-10-10: T4 → T5
     attack: 2, // owner ruling 2026-09-24: 4/12 → 2/8 (stats only)
     health: 8,
     keywords: ['DS'],
     // Owner rework 2026-08-07: the adjacency clause is GONE — a flat grant to every Dragon.
     // Owner balance 2026-08-18: +4/+4 then dialled back to +3/+3, and dropped the 20%-chance-of-double clause.
-    // Owner batch 2026-09-24: +3/+3 → +2/+2.
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
-    text: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+2/+2**.',
-    goldenText: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+2/+2** twice.',
+    // Owner batch 2026-09-24: +3/+3 → +2/+2. Owner batch 2026-10-10: +2/+2 → +4/+4. Gilded stays "twice" as TWO
+    // separate pulses (both factories loop `mul`), so each pulse is its own Attack gain and triggers Vaultkeeper.
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 4, health: 4 } }],
+    text: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+4/+4**.',
+    goldenText: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+4/+4** twice.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Shout *fire* on your board permanently enchants your IMPS +3/+3

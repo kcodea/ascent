@@ -46,6 +46,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   runescale: { kind: 'conforms', why: 'SoC buffs per Shop spell cast this turn — reads ctx.spellsThisTurnFor, threaded as combatSide.spellsThisTurn' },
 
   // ── combat-triggered Shouts whose economy body replays at SETTLE, while the turn is still open ──
+  d2_humphry: { kind: 'conforms', why: 'Humphry (owner 2026-10-10): the Shout sizes one lump buff by the Dragons played this turn. A Shop play reads playedThisTurn at play time (its own play included, R-HUMPHRY-01); a combat re-fire reads the frozen per-tribe map (combatSide.tribesPlayed via ctx.playedThisTurnFor) through the shared arena body' },
   d2_recaller: { kind: 'conforms', why: 'Shout copies the last Shop spell cast this turn (lastSpellThisTurnId, the turn-scoped field — audit 2026-07-31). A combat-triggered fire defers to settle (replayEconomyBattlecry), which runs BEFORE the rollover clears the field — the R-TURN-01 window is intact' },
   dw_dorrin: { kind: 'conforms', why: 'Baby Gastrid: Shout buffs per Gold spent this turn. A combat-triggered fire defers to settle, where the recruit factory reads the still-live goldSpentThisTurn and auto-picks an eligible Dwarf (2026-08-25 fix) — the window read is correct; the buff landing on the run board post-fight is the standing economy-defer convention' },
 

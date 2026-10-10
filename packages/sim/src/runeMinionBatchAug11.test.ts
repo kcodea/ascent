@@ -32,50 +32,9 @@ describe('Aug-11 rune + minion batch — new content ships', () => {
   });
 });
 
-describe('Vaultkeeper — retroactive per-Dragon scaling', () => {
-  const playDragon = (spellsCast: number): RunState => {
-    let s: RunState = {
-      ...createRun(1, 'warden'), phase: 'recruit', embers: 0, spellsCast,
-      board: [bc('h', 'd2_herzog', 'dragon', 7, 7)],
-      hand: [bc('d', 'whelpling', 'dragon', 1, 1)], // a vanilla Dragon token (no board-buff battlecry to muddy the read)
-    };
-    s = reduce(s, { type: 'play', uid: 'd' });
-    return s;
-  };
-  it('grants +2/+2 per Dragon at 0 Shop Spells cast (owner balance 2026-08-18)', () => {
-    const h = playDragon(0).board.find((c) => c.uid === 'h')!;
-    expect([h.attack, h.health]).toEqual([9, 9]); // 7/7 + 2/2
-  });
-  it('scales to +8/+8 at 15 Shop Spells cast (2 × (1 + floor(15/4)))', () => {
-    const h = playDragon(15).board.find((c) => c.uid === 'h')!;
-    expect([h.attack, h.health]).toEqual([15, 15]); // 7/7 + 8/8
-  });
-  it('does NOT trigger on a non-Dragon play', () => {
-    let s: RunState = {
-      ...createRun(1, 'warden'), phase: 'recruit', embers: 0, spellsCast: 0,
-      board: [bc('h', 'd2_herzog', 'dragon', 7, 7)],
-      hand: [bc('b', 'stray', 'beast', 1, 1)],
-    };
-    s = reduce(s, { type: 'play', uid: 'b' });
-    const h = s.board.find((c) => c.uid === 'h')!;
-    expect([h.attack, h.health]).toEqual([7, 7]);
-  });
-
-  it('Rune of the Vaultkeeper: a played Dragon also gives the same grant to an adjacent DRAGON (owner balance 2026-08-18: Dragons-only)', () => {
-    let s: RunState = {
-      ...createRun(1, 'warden'), phase: 'recruit', embers: 0, spellsCast: 0, runeVaultkeeper: true,
-      board: [bc('v', 'd2_herzog', 'dragon', 7, 7), bc('n', 'whelpling', 'dragon', 2, 2), bc('b', 'stray', 'beast', 2, 2)],
-      hand: [bc('d', 'whelpling', 'dragon', 1, 1)],
-    };
-    s = reduce(s, { type: 'play', uid: 'd' });
-    const v = s.board.find((c) => c.uid === 'v')!;
-    const n = s.board.find((c) => c.uid === 'n')!;
-    const b = s.board.find((c) => c.uid === 'b')!;
-    expect([v.attack, v.health], 'Vaultkeeper self-buff').toEqual([9, 9]);
-    expect([n.attack, n.health], 'the adjacent Dragon gets the same +2/+2').toEqual([4, 4]);
-    expect([b.attack, b.health], 'a non-Dragon neighbour gets nothing — Dragons only now').toEqual([2, 2]);
-  });
-});
+// RETIRED 2026-10-10: Vaultkeeper's per-Dragon-play scaling and the old "give their stats to an adjacent Dragon" rune were
+// replaced by the owner (Vaultkeeper: "When this gains Attack, give adjacent Dragons +3/+4"; the rune: "Your Vaultkeepers
+// buff all Dragons"). Both are pinned in dragonBatch1010.test.ts.
 
 describe('Kobebes — Echo plays 3 Rubies on each friendly Kobold', () => {
   it('on death, every friendly Kobold gains 3 Rubies (1/1 each → +3/+3)', () => {

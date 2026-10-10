@@ -350,6 +350,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // canyon dragon; a storm-blue lightning dragon). Chorus Drake's third and fourth skins after Quartet Chorusdrake.
   skin('skin_chorus_2', 'minion_skin', 'Canyon Drake', 'rare', 'd2_chorus', 'Canyon Drake.png'),
   skin('skin_chorus_3', 'minion_skin', 'Thunderchorus Drake', 'rare', 'd2_chorus', 'Thunderchorus Drake.png'),
+  // Owner balance batch 2026-10-10: Fatecarver's Choose One is gone, so its second-branch ALT ART ("keep as a skin") became
+  // a Fatecarver skin. The art was already in the repo (`art/minions/n2_fatecarver2.webp`, moved to `art/skins/`); the
+  // master is the alt in the Set 2 Neutral folder, NOT a Skins rarity folder, so the rarity is a builder's pick (Rare)
+  // for the owner to confirm, and the name is a placeholder for the owner to rename (the id stays).
+  skin('skin_fatecarver_1', 'minion_skin', 'Astral Fatecarver', 'rare', 'n2_fatecarver', 'FatecarverAlt.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

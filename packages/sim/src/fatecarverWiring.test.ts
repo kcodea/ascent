@@ -60,10 +60,11 @@ describe('Fatecarver fires on card-driven spell casts', () => {
     expect(r.withCarver).toBeGreaterThan(r.without);
   });
 
-  it('the ATTACK branch stays silent on spell casts', () => {
-    // If the `option` gate leaked, picking branch B would silently grant branch A as well.
+  // RE-PIN 2026-10-10 (owner balance batch): the Choose One is gone and the effect has no `option` gate, so a body from
+  // an old save that recorded the retired attack branch (`chosenOption: 1`) now fires on every spell cast too.
+  it('an old-save body that chose the retired attack branch now fires on spell casts', () => {
     const r = withAndWithout(1, [], (s) => castSpell(s, CARD_INDEX['growth']!, s.board.find((c) => c.uid === 'beast')));
-    expect(r.withCarver, 'the attack branch fired on a spell cast').toBe(r.without);
+    expect(r.withCarver, 'an old save body stayed silent').toBeGreaterThan(r.without);
   });
 
   it('fires once PER cast when a spell multi-casts', () => {

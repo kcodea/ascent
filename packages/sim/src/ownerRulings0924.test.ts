@@ -9,11 +9,12 @@ import { createRun, type RunState } from './state';
 import { reduce, runeforgePool } from './reducer';
 
 describe('Karwind: 2/8 (owner ruling 2026-09-24, stats only)', () => {
-  it('is a T4 2/8 Ward Dragon with the same +2/+2 Shout payoff and text', () => {
+  // RE-PIN 2026-10-10 (owner balance batch): Tier 5 and +4/+4; the 2/8 stats from this ruling are unchanged.
+  it('is a T5 2/8 Ward Dragon with the +4/+4 Shout payoff and text', () => {
     const k = CARD_INDEX['karwind']!;
-    expect([k.tribe, k.tier, k.attack, k.health, k.keywords]).toEqual(['dragon', 4, 2, 8, ['DS']]);
-    expect(k.effects).toEqual([{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }]);
-    expect(k.text).toBe('**Ward.** Whenever a **Shout** triggers, give your Dragons **+2/+2**.');
+    expect([k.tribe, k.tier, k.attack, k.health, k.keywords]).toEqual(['dragon', 5, 2, 8, ['DS']]);
+    expect(k.effects).toEqual([{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 4, health: 4 } }]);
+    expect(k.text).toBe('**Ward.** Whenever a **Shout** triggers, give your Dragons **+4/+4**.');
   });
 });
 

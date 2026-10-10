@@ -452,13 +452,16 @@ describe('Gemline Martyr — back to a plain End-of-Turn Veinstorm (owner rework
     expect(def.text, 'the Ruby-improvement clause must be gone').not.toContain('Rubies');
   });
 
-  it('an End of Turn actually hands over a Veinstorm', () => {
+  // Re-pin 2026-10-10 (Kobold balance batch): Gemling now CASTS Veinstorm 3 times at End of Turn instead of handing
+  // one over; the full cast is covered in koboldBalance1010.test.ts.
+  it('an End of Turn casts Veinstorm (nothing lands in hand)', () => {
     const s: RunState = {
       ...createRun(4), phase: 'recruit', hand: [],
       board: [{ uid: 'g', cardId: 'k_gemline', tribe: 'kobold', attack: 3, health: 5, keywords: [], golden: false }],
     } as RunState;
     applyEndOfTurn(s);
-    expect(s.hand.map((c) => c.cardId), 'exactly one Veinstorm').toEqual(['veinstorm']);
+    expect(s.hand.map((c) => c.cardId), 'no Veinstorm in hand').toEqual([]);
+    expect(s.veinstormRubies, 'three casts banked three Shop Rubies').toEqual({ atk: 3, hp: 3 });
   });
 });
 

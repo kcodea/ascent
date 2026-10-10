@@ -6,7 +6,7 @@ import { applyEndOfTurn } from './recruit';
 
 /**
  * Owner batch 2026-08-18 (part B) — new coverage for the three reworked cards in this PR:
- *   • Vaultkeeper (d2_herzog): per-Dragon-play self-buff = base × (1 + ⌊spells/4⌋) × golden.
+ *   • Vaultkeeper (d2_herzog): RETIRED 2026-10-10 (the effect was replaced; see dragonBatch1010.test.ts).
  *   • Beardsley  (b2_beardsley): escalating summon buff, +3/+3 improving +3/+3 every 3 Beasts.
  *   • Rope Wrangler (ropewrangler): End-of-Turn Lasso, repeated per 10 Gold spent (owner rework 2026-09-23; was
  *     +1 cast per 6 Gold, 5 max).
@@ -19,32 +19,8 @@ const card = (uid: string, cardId: string, attack?: number, health?: number, ext
   keywords: [], golden: false, ...extra,
 });
 
-describe('Vaultkeeper — gains base×(1+⌊spells/4⌋) whenever you play a Dragon', () => {
-  // On board when another Dragon is played (its own onSummon skips self). base 2, per 4 spells.
-  const playDragonInto = (vault: BoardCard, spellsCast: number): [number, number] => {
-    let s: RunState = {
-      ...createRun(1), phase: 'recruit', embers: 20, tier: 6,
-      board: [vault], hand: [card('drg', 'd2_embermouth')], spellsCast,
-    };
-    s = reduce(s, { type: 'play', uid: 'drg' });
-    const v = s.board.find((c) => c.uid === vault.uid)!;
-    return [v.attack, v.health];
-  };
-
-  it('plain Vaultkeeper gains +2/+2 with no spells cast', () => {
-    // 6/10 base → +2/+2 → 8/12.
-    expect(playDragonInto(card('v', 'd2_herzog'), 0)).toEqual([8, 12]);
-  });
-
-  it('golden Vaultkeeper gains +4/+4 with no spells cast', () => {
-    expect(playDragonInto({ ...card('v', 'd2_herzog'), golden: true }, 0)).toEqual([10, 14]);
-  });
-
-  it('at 4 spells cast this game the grant improves to +4/+4 (plain)', () => {
-    // step = ⌊4/4⌋ = 1 → grant = 2 × (1 + 1) = +4/+4 → 6/10 → 10/14.
-    expect(playDragonInto(card('v', 'd2_herzog'), 4)).toEqual([10, 14]);
-  });
-});
+// RETIRED 2026-10-10: Vaultkeeper's "gain +2/+2 whenever you play a Dragon, improving per 4 spells" was replaced by the
+// owner ("When this gains Attack, give adjacent Dragons +3/+4"); the new card is pinned in dragonBatch1010.test.ts.
 
 // RE-PINNED 2026-10-07 (owner batch): Beardsley is +1/+1 and improves +1/+1 on EVERY Beast (was +3/+3 every 3).
 describe('Beardsley — escalating summon buff (+1/+1, improves +1/+1 every Beast)', () => {

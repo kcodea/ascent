@@ -11,17 +11,17 @@ import type { GameRule } from '../schema';
 export const WORDING_PENDING: GameRule[] = [
   {
     "id": "q-word-lg-duration-01",
-    "title": "Wording: run vs game · 8 vs 14",
+    "title": "Wording: run vs game · 8 vs 12",
     "statement": "Run-long effects say \"this run\" / \"for the rest of the run\" — never \"game\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 14. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
-    "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Vaultkeeper: \"Gain +2/+2 whenever you play a Dragon. Improves +2/+2 for every 4 spells cast this game.\"",
-    "example": "Vaultkeeper would be re-worded to the \"this run\" form; mechanics untouched.",
+    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 12. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
+    "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Legion Shepherd: \"Echo: your Imps gain +5/+5 this game. Summon 2 Imps.\"",
+    "example": "Legion Shepherd would be re-worded to the \"this run\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 14)"
+        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 12)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -32,7 +32,6 @@ export const WORDING_PENDING: GameRule[] = [
       ]
     },
     "contentIds": [
-      "d2_herzog",
       "dm_shepherd",
       "gift_premium_stock",
       "impoverseer",
@@ -127,17 +126,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 143 vs 40",
+    "title": "Wording: Shout vs Battlecry · 147 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 143 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 147 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 143 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 147 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -221,17 +220,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 100 vs 2",
+    "title": "Wording: trigger vs fire/proc · 104 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 100 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 104 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 100 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 104 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",

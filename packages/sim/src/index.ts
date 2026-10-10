@@ -51,7 +51,8 @@ export * from './reportSources'; // the export fix (2026-10-03): best source per
 export * from './playerReport'; // the Balance Report's read side (2026-09-22): set/ladder filters, per-card impact, the whole-dataset export
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
-export { RECRUIT_FACTORY_IDS } from './recruit'; // Doc Bot: the recruit dispatch surface, keys only
+export { RECRUIT_FACTORY_IDS } from './recruit';
+export { battlecryTargetAllowed, hasEndOfTurnEffect } from './recruit'; // Roomworks (2026-10-10): the aimed-Shout target filter the aim UI mirrors // Doc Bot: the recruit dispatch surface, keys only
 export { INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, LOREKEEPING_STEP, applyLorekeeping, fireRunicHoard, distillationEdges, improveRubies } from './recruit'; // balance 9/23 rune reworks A: the badge reads the same constants the reducer pays
 export { recurringTickCount, RUNE_ACTION_GRANT, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityAuraFold, unityHolds, unityTypeCount, syncUnity } from './recruit'; // Rune of Action REPEAT form (owner 2026-09-25): the badge reads the commit's tick count
 export { TRIGGER_PHASES, PHASE_EXCUSED, COMBAT_CASTING_FACTORIES, TRIBE_RATCHET, PREDICATE_FILES, RAW_TRIBE_COMPARE_SOURCE, RUNE_DIFF_EXCUSED, SPELL_POWER_EXCUSED, TURN_RESET_EXCUSED, runeSwallowScan, playScan, combatScan, combatModScan, heroScan, PLAY_EXCUSED, WATCHER_EXCUSED, type PhaseExcuse } from './docbot';

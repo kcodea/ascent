@@ -29,6 +29,8 @@ import { compileMoments } from '../choreo/compile';
 import { runMomentCues } from '../choreo/score';
 import { spellCastsIn } from '../choreo/channels/castPreview';
 import { presentConsequence } from '../choreographer/consequencePresenters';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 vi.mock('./playDef', () => ({ playDef: vi.fn(() => () => {}), canPlayDefs: vi.fn(() => true) }));
 vi.mock('./combatAnchors', () => ({ anchorsForUnits: vi.fn(() => null) }));
@@ -127,7 +129,7 @@ describe.each(SPELLS)('%s plays its own effect in every phase, from every source
 
 describe('combat Growth from its dedicated casters (the arena castRepeat path)', () => {
   it.each([
-    ['Fatecarver (on any ally attack)', { cardId: 'n2_fatecarver', attack: 4, health: 900, chosenOption: 1 }],
+    ['Fatecarver (on any ally attack)', { cardId: 'taragosa', attack: 4, health: 900 }],
     ['Hoardbreaker Drake (Rally)', { cardId: 'hoardbreaker', attack: 4, health: 900 }],
   ])('%s: one growth-effect per Growth cast, through the real score', (_n, caster) => {
     vi.useFakeTimers();
@@ -140,8 +142,8 @@ describe('combat Growth from its dedicated casters (the arena castRepeat path)',
 
   it('the channel plays per cast, not once per fight (unlike the cast preview)', () => {
     const casts = spellCastsIn({ start: 0, end: 3 }, [
-      { type: 'sc', source: 'FC', text: 'Fatecarver casts Growth', spellId: 'growth' },
-      { type: 'sc', source: 'FC', text: 'Fatecarver casts Growth', spellId: 'growth' },
+      { type: 'sc', source: 'FC', text: 'Taragosa casts Growth', spellId: 'growth' },
+      { type: 'sc', source: 'FC', text: 'Taragosa casts Growth', spellId: 'growth' },
       { type: 'sc', source: 'X', text: 'narration' },
     ] as CombatEvent[]);
     expect(playCombatSpellCastFx(casts)).toBe(2);
@@ -164,10 +166,10 @@ describe('a bound spell cast by a card replaces the tendril; an unbound one keep
 
   it('COMBAT, Fatecarver: growth-effect plays per cast AND every buff it cast is claimed (no tendril)', () => {
     vi.useFakeTimers();
-    const r = simulate([{ cardId: 'n2_fatecarver', attack: 4, health: 900, chosenOption: 1 }, { cardId: 'sandbag', attack: 1, health: 900 }],
+    const r = simulate([{ cardId: 'taragosa', attack: 4, health: 900 }, { cardId: 'sandbag', attack: 1, health: 900 }],
       [{ cardId: 'sandbag', attack: 0, health: 90000 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const events = r.events as CombatEvent[];
-    const fc = r.initial.player.find((m) => m.cardId === 'n2_fatecarver')!.uid;
+    const fc = r.initial.player.find((m) => m.cardId === 'taragosa')!.uid;
     // The buff casts `fireBuffCasts` receives (both from the buff-wave cue and the attack wind-up).
     const casts = groupBuffCasts({ start: 0, end: events.length } as never, events).filter((c) => c.source === fc);
     expect(casts.length, 'Fatecarver buffed its allies').toBeGreaterThan(0);
@@ -249,7 +251,7 @@ describe('an ENEMY caster\'s board-wide cast effect plays on the enemy\'s board'
     vi.runAllTimers();
   }
   const fight = (fatecarverSide: 'player' | 'enemy') => {
-    const carver = [{ cardId: 'n2_fatecarver', attack: 4, health: 900, chosenOption: 1 }, { cardId: 'sandbag', attack: 1, health: 900 }];
+    const carver = [{ cardId: 'taragosa', attack: 4, health: 900 }, { cardId: 'sandbag', attack: 1, health: 900 }];
     const wall = [{ cardId: 'sandbag', attack: 0, health: 90000 }];
     const r = fatecarverSide === 'player'
       ? simulate(carver, wall, makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }))
@@ -257,7 +259,7 @@ describe('an ENEMY caster\'s board-wide cast effect plays on the enemy\'s board'
     const sides = new Map<string, 'player' | 'enemy'>();
     for (const u of r.initial.player) sides.set(u.uid, 'player');
     for (const u of r.initial.enemy) sides.set(u.uid, 'enemy');
-    return { events: r.events as CombatEvent[], sides, fc: [...r.initial.player, ...r.initial.enemy].find((m) => m.cardId === 'n2_fatecarver')!.uid };
+    return { events: r.events as CombatEvent[], sides, fc: [...r.initial.player, ...r.initial.enemy].find((m) => m.cardId === 'taragosa')!.uid };
   };
 
   it('the pure rule: the enemy camera is the centre moved by the row distance; the player camera is untouched', () => {

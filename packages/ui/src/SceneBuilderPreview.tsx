@@ -1,7 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
-import type { RuneDef } from '@game/core';
+import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import type { RunState, ShopCard } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { RuneCard } from './RuneCard';
@@ -12,8 +11,6 @@ import { stageHost, stageViewport } from './stage';
 export type SbPreviewTarget =
   | { kind: 'card'; id: string; anchor: DOMRect }
   | { kind: 'rune'; id: string; anchor: DOMRect };
-
-const RUNE_INDEX: Record<string, RuneDef> = Object.fromEntries([...RUNES, ...EPIC_RUNES].map((r) => [r.id, r]));
 
 /**
  * The library's hover preview — the REAL in-game card (`Card`, as the shop draws it: art, frame, tribe

@@ -92,12 +92,14 @@ export const SET2_DRAGONS: CardDef[] = [
     // Shout AND Echo, so it pays on both ends. The two halves use different factories on purpose: the Shout is
     // a recruit grant (`spellId`), the Echo a combat one (`cardId`) — the keys differ per factory and mixing
     // them up silently grants nothing (the Big Huggies bug, 2026-07-25).
+    // Owner balance batch 2026-10-10: Growth → Dragonflame (Rune of Living Growth, which only fed Mushy's Growth,
+    // is archived in the same batch).
     effects: [
-      { on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'growth', count: 1 } },
-      { on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'growth' } },
+      { on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'sp_dragonflame', count: 1 } },
+      { on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'sp_dragonflame' } },
     ],
-    text: '**Shout and Echo:** get a **Growth**.',
-    goldenText: '**Shout and Echo:** get **2 Growths**.',
+    text: '**Shout and Echo:** get a **Dragonflame**.',
+    goldenText: '**Shout and Echo:** get **2 Dragonflames**.',
   },
   {
     // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the
@@ -159,22 +161,6 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+2**.',
   },
   {
-    // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
-    // was a Tier-2 Slaughter, now a Tier-4 Shout that grants a minion AND a spell).
-    // Owner balance 2026-09-23: "Stats to 1/3. When another friendly Dragon attacks, give it +3/+2." — the
-    // same on-ally-attack primitive, a smaller body and a bigger grant. Gilded doubles the grant.
-    id: 'd2_skald',
-    name: 'Traveling Skald',
-    tribe: 'dragon',
-    tier: 2,
-    attack: 1,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 3, health: 2 } }],
-    text: 'When **another** friendly **Dragon** attacks, give it **+3/+2**.',
-    goldenText: 'When **another** friendly **Dragon** attacks, give it **+6/+4**.',
-  },
-  {
     // Recursion, on tempo: replay whatever you just cast. Reads `lastSpellCastId` (already tracked for the
     // Steward of Spells rune), so casting BEFORE playing this is the whole skill.
     id: 'd2_recaller',
@@ -223,9 +209,14 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'Your **Shouts** trigger **4** additional times.',
   },
   {
-    // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A
-    // Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime Shop-Spell count: +1/+1
-    // per Dragon at base, climbing +1 every 4 SPELLS cast this run (Shop Spells + Rubies — owner 2026-08-15). Live text folds in the current grant.
+    // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids).
+    // OWNER BALANCE BATCH 2026-10-10 REPLACED the effect entirely (was "gain +2/+2 whenever you play a Dragon,
+    // improving per 4 spells"): "When this gains Attack, give adjacent Dragons +3/+4." Cross-phase on the shared
+    // `onGainAttack` trigger: combat's `ctx.buff` emits it per positive Attack gain, and the Shop fires it from the
+    // `addBuff` chokepoint per gain INSTANCE (a gilded Karwind's two pulses are two gains). ONE pulse per gain, and
+    // no Vaultkeeper reacts to a gain made while a Vaultkeeper pulse is resolving, so two adjacent Vaultkeepers
+    // settle instead of feeding each other forever (R-VAULT-01). Rune of the Vaultkeeper widens "adjacent" to every
+    // other friendly Dragon. Golden doubles the grant.
     id: 'd2_herzog',
     name: 'Vaultkeeper',
     tribe: 'dragon',
@@ -233,9 +224,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 6,
     health: 10,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 2, per: 4 } }],
-    text: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 spells** cast this game.',
-    goldenText: 'Gain **+4/+4** whenever you play a **Dragon**. Improves **+4/+4** for every **4 spells** cast this game.',
+    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffAdjacentTribe', params: { tribe: 'dragon', attack: 3, health: 4 } }],
+    text: 'When this gains **Attack**, give adjacent **Dragons +3/+4**.',
+    goldenText: 'When this gains **Attack**, give adjacent **Dragons +6/+8**.',
   },
   {
     // Owner add 2026-08-14, respec 2026-08-17. The Dragon line's PERMANENCE card: a warded T4 whose Start of
@@ -270,9 +261,10 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
-    text: '**Shout:** give your **Dragons +2/+2**.',
-    goldenText: '**Shout:** give your **Dragons +4/+4**.',
+    // Owner balance batch 2026-10-10: +2/+2 → +3/+2.
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 2 } }],
+    text: '**Shout:** give your **Dragons +3/+2**.',
+    goldenText: '**Shout:** give your **Dragons +6/+4**.',
   },
   {
     // Tier-1 Rally tempo: grows itself every swing. Golden doubles the step.
@@ -325,9 +317,10 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onSell', do: 'battlecryGrantRandomSpell', params: { count: 1 } }],
-    text: '**Sell:** get a **random Spell**.',
-    goldenText: '**Sell:** get **2 random Spells**.',
+    // Owner balance batch 2026-10-10: a random Spell → a Dragonflame (the trigger-agnostic named-spell grant).
+    effects: [{ on: 'onSell', do: 'battlecryGrantSpell', params: { spellId: 'sp_dragonflame', count: 1 } }],
+    text: '**Sell:** get a **Dragonflame**.',
+    goldenText: '**Sell:** get **2 Dragonflames**.',
   },
   {
     // A board-wide Dragonflame engine: every Dragon's swing (its own included) casts Dragonflame. Golden casts
@@ -343,21 +336,6 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'onAttack', do: 'onTribeAttackCastNamedSpell', params: { tribe: 'dragon', spellId: 'sp_dragonflame' } }],
     text: '**Critical Strike (50%).** When a friendly **Dragon** attacks, cast **Dragonflame**.',
     goldenText: '**Critical Strike (50%).** When a friendly **Dragon** attacks, cast **Dragonflame** twice.',
-  },
-  {
-    // Owner add 2026-08-19. Dual-type Dragon/Demon: a spell-power engine — every shop turn opens with a Quick
-    // Study in hand. Reuses the trigger-agnostic `battlecryGrantSpell` on the `startOfTurn` hook; golden two.
-    id: 'd2_felconjurer',
-    name: 'Fel Conjurer',
-    tribe: 'dragon',
-    tribe2: 'demon',
-    tier: 5,
-    attack: 6,
-    health: 6,
-    keywords: [],
-    effects: [{ on: 'startOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'quickstudy', count: 1 } }],
-    text: '**Start of Turn:** get a **Quick Study**.',
-    goldenText: '**Start of Turn:** get **2 Quick Studies**.',
   },
   {
     // Seeds the Flutter combo — hand a Flutter to pump a Dragon into a Flurry threat. Golden gets two.
@@ -405,9 +383,49 @@ export const SET2_DRAGONS: CardDef[] = [
     target: 'friendly',
     targetTribe: 'dragon',
     // Owner ruling 2026-09-24: "make humphry - Shout: Give a friendly Dragon +5/+5" (was +3/+4).
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 5, health: 5 } }],
-    text: '**Shout:** give a friendly **Dragon +5/+5**.',
-    goldenText: '**Shout:** give a friendly **Dragon +10/+10**.',
+    // Owner balance batch 2026-10-10: "+2/+2 for every Dragon played this turn" — ONE lump buff (R-REPEAT-01's
+    // LUMP pattern) whose size is the count of Dragons played this turn, Humphry's own play included, so the first
+    // Dragon of the turn gives +2/+2 and the second +4/+4 (R-HUMPHRY-01). `perPlayedTribe` is the count. Live
+    // "(+X/+Y)" via cardText's perPlayedTargetText. Gilded +4/+4 per Dragon.
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 2, health: 2, perPlayedTribe: 'dragon' } }],
+    text: '**Shout:** give a friendly **Dragon +2/+2** for every **Dragon** played this turn.',
+    goldenText: '**Shout:** give a friendly **Dragon +4/+4** for every **Dragon** played this turn.',
+  },
+  // ── Owner add 2026-10-10: two Dragons APPENDED at the end of the Dragon list (owner: "append both at the END of Set 2's
+  //    Dragon pool so seeds don't shift"). They are the two halves of an End of Turn / Shout loop, so both carry a
+  //    re-entrancy guard (R-ROOMWORKS-01, see recruit.ts `SHOUT_EOT_CHAIN`). ──
+  {
+    // A TARGETED Shout (owner: "you PICK the target"): only a friendly minion with an End of Turn effect is a legal
+    // pick (`targetHasEndOfTurn`, enforced by the reducer and mirrored by the aim UI). It replays that minion's End of
+    // Turn through the shared `replayEndOfTurn` path (Chronos repeats, the End-of-Turn objective). A re-fire with no
+    // chosen target (Drakko's extra fire, a combat re-fire settled in the Shop) auto-picks the left-most legal minion.
+    // Gilded triggers it twice.
+    id: 'd2_roomworks',
+    name: 'Roomworks',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    target: 'friendly',
+    targetHasEndOfTurn: true,
+    effects: [{ on: 'onPlay', do: 'battlecryReplayTargetEndOfTurn', params: {} }],
+    text: "**Shout:** trigger a friendly minion's **End of Turn** effect.",
+    goldenText: "**Shout:** trigger a friendly minion's **End of Turn** effect twice.",
+  },
+  {
+    // End of Turn: trigger every OTHER friendly Shout minion's Shout, left to right, EXCEPT Roomworks (owner text).
+    // Moira's `endOfTurnTriggerShouts` (archived card, live factory) with the new `exclude` list. Gilded twice.
+    id: 'd2_shrieker',
+    name: 'Shrieker',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerShouts', params: { exclude: ['d2_roomworks'] } }],
+    text: "**End of Turn:** trigger your minions' **Shouts**. (Except **Roomworks**)",
+    goldenText: "**End of Turn:** trigger your minions' **Shouts** twice. (Except **Roomworks**)",
   },
 ];
 

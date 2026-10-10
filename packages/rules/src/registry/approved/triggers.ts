@@ -998,4 +998,66 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-10), new card.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-VAULT-01',
+    title: 'Vaultkeeper pulses once per Attack gain, every gain counts, and no Vaultkeeper reacts inside a pulse',
+    statement:
+      'Vaultkeeper: "When this gains Attack, give adjacent Dragons +3/+4." Every separate Attack buff on a Vaultkeeper on '
+      + 'your board is one gain and fires one pulse, in the Shop and in combat alike: a gilded Karwind\x27s "+4/+4 twice" '
+      + 'is two gains and two pulses in both phases (the Shop no longer folds an action\x27s gains into one). A pulse buffs '
+      + 'the adjacent Dragons, never the Vaultkeeper itself; with Rune of the Vaultkeeper it buffs every other friendly '
+      + 'Dragon instead. LOOP GUARD: while any Vaultkeeper pulse is resolving, no Vaultkeeper reacts to a gain, so two '
+      + 'adjacent Vaultkeepers each pay the other once per outside gain and then stop. A Vaultkeeper in hand never pulses.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Vaultkeeper rework)', quote: 'When this gains Attack, give adjacent Dragons +3/+4.' },
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Vaultkeeper notes)', quote: 'one pulse per gain event, with no re-entrant cascades' },
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Vaultkeeper notes)', quote: 'every separate Attack buff must count as gaining Attack' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts runVaultPulse + onGainAttackBuffAdjacentTribe; packages/core/src/effects/factories.ts onGainAttackBuffAdjacentTribe; packages/sim/src/recruit.ts addBuff -> vaultkeeperShopPulse' },
+    ],
+    contentIds: ['d2_herzog', 'rune_herzog', 'karwind'],
+    currentBehaviour: 'Conforms as of 2026-10-10 (new effect). The Shop\x27s older gain dispatch (the reducer\x27s per-action board diff) fires once per action; Vaultkeeper bypasses it through the addBuff chokepoint.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
+  {
+    id: 'R-HUMPHRY-01',
+    title: 'Humphry counts the Dragons played this turn, its own play included, as one lump buff',
+    statement:
+      'Humphry: "Shout: Give a Dragon +2/+2 for every Dragon played this turn." The count is the Dragons played from hand '
+      + 'this turn at the moment the Shout fires, and Humphry\x27s own play is already in it: played as the first Dragon of '
+      + 'the turn it gives +2/+2, as the second +4/+4. It is ONE buff (the lump pattern of R-REPEAT-01), gilded +4/+4 per '
+      + 'Dragon. Its text prints the live total: a copy in hand, the Shop or a Discover counts its own coming play, a board '
+      + 'or combat copy counts what was played.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Humphry)', quote: 'if it\x27s the first Dragon played this turn the buff is +2/+2, if it\x27s the second it\x27s +4/+4' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts battlecryBuffTarget (perPlayedTribe); packages/ui/src/cardText.ts perPlayedTargetText' },
+    ],
+    contentIds: ['d2_humphry'],
+    currentBehaviour: 'Conforms as of 2026-10-10.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
+  {
+    id: 'R-ROOMWORKS-01',
+    title: 'Roomworks and Shrieker cannot loop: no nested Roomworks Shout, no nested "trigger your Shouts" End of Turn',
+    statement:
+      'Roomworks: "Shout: Trigger a friendly minion\x27s End of Turn effect" (you pick; only a minion with an End of Turn '
+      + 'effect is a legal target). Shrieker: "End of Turn: Trigger your minions\x27 Shouts. (Except Roomworks)". Gilded '
+      + 'fires each twice. LOOP GUARD: no Roomworks Shout fires while a Roomworks Shout or a "trigger your Shouts" End of '
+      + 'Turn (Shrieker, Moira) is resolving, and no "trigger your Shouts" End of Turn starts while another is resolving. '
+      + 'That cuts every chain that turns one into the other, including Storm Chaser, Veinstorm, High King Mykel, '
+      + 'Roomworks, Shrieker and back. Sequential fires (a gilded second fire, two Roomworks played in a row) are untouched.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (new Set 2 Dragons)', quote: 'Add a re-entrancy guard so Roomworks/Shrieker chains can\x27t loop.' },
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Roomworks)', quote: 'you PICK the target. It\x27s a targeted Shout; only minions with an End of Turn effect are valid.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts SHOUT_EOT_CHAIN, battlecryReplayTargetEndOfTurn, endOfTurnTriggerShouts (exclude), battlecryTargetAllowed; packages/sim/src/reducer.ts battlecryTarget guard' },
+    ],
+    contentIds: ['d2_roomworks', 'd2_shrieker', 'b2_moira'],
+    currentBehaviour: 'Conforms as of 2026-10-10 (new cards).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

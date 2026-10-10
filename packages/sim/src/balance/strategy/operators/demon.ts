@@ -63,7 +63,6 @@ const ROLES: Record<string, CardRole> = {
   chronos: R(3, 'End of Turn twice — Blart eats twice', { fromWave: 9 }),
   n2_bellringer: R(1, 'a plain copy of its left neighbour every 2 turns', { fromWave: 8 }),
   b2_echohorn: R(1, 'Rally: the left-most Echo (Hank) again', { fromWave: 9 }),
-  d2_felconjurer: R(1, 'a Quick Study every turn', { fromWave: 8 }),
   d2_embermouth: R(0, 'the study: 4% survival past wave 6'),
 };
 

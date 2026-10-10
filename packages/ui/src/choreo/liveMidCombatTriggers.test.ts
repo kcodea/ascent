@@ -14,7 +14,7 @@ const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ c
  *
  * The engine half landed with the Effect Arena (PR #871): Dawnclaw's Echo re-fires the adjacent Shouts left
  * to right, Deepvein Tender's Ruby Power applies IMMEDIATELY (gainRubyBonus reads live for the rest of the
- * fight), so Frenzied Excavator's Rubies land at 1/2, not 1/1. This suite pins the PRESENTATION half: the
+ * fight), so Frenzied Excavator's Rubies land at 1/3 (1/2 before the 2026-10-10 balance batch), not 1/1. This suite pins the PRESENTATION half: the
  * choreography compiler must give each of those events its own timed beat — narrations, the Ruby wave with
  * the live magnitude — so the replay shows the cascade as it happens, never "after combat resolves".
  *
@@ -55,7 +55,8 @@ describe('mid-combat trigger beats — Dawnclaw + Deepvein Tender + Frenzied Exc
     expect(iDeep).toBeGreaterThan(deathMoment);
   });
 
-  it('the Excavator Rubies are a ruby buff-wave at the LIVE magnitude (1/2 — Deepvein already counted)', () => {
+  // Re-pin 2026-10-10 (Kobold balance batch): Ruby Mender (Deepvein) is +2 Health, so a live Ruby is 1/3.
+  it('the Excavator Rubies are a ruby buff-wave at the LIVE magnitude (1/3 — Deepvein already counted)', () => {
     const waves = moments
       .map((m, i) => ({ i, lands: rubiedLandsIn(m, r.events) }))
       .filter((x) => x.lands.length > 0);
@@ -64,7 +65,7 @@ describe('mid-combat trigger beats — Dawnclaw + Deepvein Tender + Frenzied Exc
     expect(wave.i, "the Rubies land IN the Excavator's own fire moment, mid-combat").toBe(iExc);
     for (const l of wave.lands) {
       expect(l.attack / l.count, 'a Ruby is base 1 Attack').toBe(1);
-      expect(l.health / l.count, 'a Ruby is 2 Health — the +1 Deepvein JUST granted, in real time').toBe(2);
+      expect(l.health / l.count, 'a Ruby is 3 Health — the +2 Deepvein JUST granted, in real time').toBe(3);
     }
   });
 

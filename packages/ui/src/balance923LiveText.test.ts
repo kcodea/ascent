@@ -17,8 +17,9 @@ const base: LiveTextParams = {
 
 describe('balance 9/23 live text on every surface', () => {
   it('Conductor prints (base + this copy\'s accrual) × golden, and the printed base at zero', () => {
-    expect(liveCardText('n2_conductor', { ...base, summonBonus: 2 }).text).toContain('{{+4/+5}}');
-    expect(liveCardText('n2_conductor', { ...base, summonBonus: 2, golden: true }).goldenText).toContain('{{+8/+10}}');
+    // RE-PIN 2026-10-10 (owner balance batch): base +3/+3.
+    expect(liveCardText('n2_conductor', { ...base, summonBonus: 2 }).text).toContain('{{+5/+5}}');
+    expect(liveCardText('n2_conductor', { ...base, summonBonus: 2, golden: true }).goldenText).toContain('{{+10/+10}}');
     expect(liveCardText('n2_conductor', base).text).toBe(CARD_INDEX['n2_conductor']!.text);
   });
 

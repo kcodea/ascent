@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type CombatEvent } from '../index';
 import { CARD_INDEX } from '@game/content';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 /**
  * EVERY combat accrual logs an `improve` event (owner audit 2026-08-02: "Mammoth's text does not update in
@@ -27,7 +29,7 @@ describe('combat accruals log improve events (live text ticks mid-fight)', () =>
     // Hunter (a Dragon) improves per own-Attack-gain: a branch-B Fatecarver casts Growth on every ally
     // attack, which buffs the whole side — including the Hunter — so its onGainAttack fires each swing.
     const r = simulate(
-      [{ cardId: 'hunter', attack: 3, health: 200 }, { cardId: 'n2_fatecarver', attack: 4, health: 200, chosenOption: 1 }],
+      [{ cardId: 'hunter', attack: 3, health: 200 }, { cardId: 'taragosa', attack: 4, health: 200 }],
       [{ cardId: 'sandbag', attack: 1, health: 900 }], makeRng(2), CARD_INDEX,
       combatSide({ tier: 6, tribes: ['beast', 'dragon'] }), combatSide({ tier: 1 }));
     expect(improvesFor(r.events, 'm0').length, 'Hunter accrued silently').toBeGreaterThan(0);

@@ -40,7 +40,6 @@ import { useGame } from './store';
 import { badgeValuesOf, descTextOf, mount, normWs, plainOf } from './renderedText.mount';
 import { RENDER_EXCUSED } from './renderedText.registry';
 import { computeFrame, type UnitFrame } from './useCombatReplay';
-import { herzogText } from './cardText';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -251,10 +250,8 @@ const CROSS: CrossExemplar[] = [
   { id: 'sergeant', inst: { hpGrantBonus: 3 } }, //      per-instance Deathrattle accrual
   { id: 'ritualist', inst: { eotBonus: 3 } }, //         per-instance End-of-Turn accrual
   { id: 'b2_groveweaver', inst: { summonBonus: 4 } }, // per-instance summon-buff accrual
-  { id: 'd2_herzog', run: { spellsCast: 8 } }, //        run-scoped spell umbrella
   { id: 'chefraag', run: { impBuff: { attack: 2, health: 3 } } }, // run-scoped Imp Aura
   { id: 'n2_wanderer', run: { goldSpent: 13 }, foe: false }, // run-lifetime Gold meter — NOT in the snapshot (by design)
-  { id: 'd2_herzog', run: { spellsCast: 3, rubyCasts: 5 } }, // the umbrella's Ruby half (owner report 2026-09-10: enemy Vaultkeeper read +2/+2)
   { id: 'sp3_flamereveler', run: { revelerX: 4 } }, //   run-scoped shared Reveler value (owner 2026-09-10)
   { id: 'sp3_luminary', run: { revelerX: 3 } },
   { id: 'sp3_kindled', run: { playedThisTurn: ['sp3_tidebud', 'sp3_nurturer'] } }, // Spirits played this turn
@@ -331,23 +328,9 @@ describe('rendered-text reconciliation — combat chain + cross-chain drift', ()
 
 /* ─────────────────────────── mid-combat spell casts (Vaultkeeper's live umbrella) ───────────────────────── */
 
-describe('rendered-text reconciliation — Vaultkeeper ticks with spells cast THIS combat (owner report 2026-09-18)', () => {
-  const x: CrossExemplar = { id: 'd2_herzog', run: { spellsCast: 3, rubyCasts: 1 } };
-  it("player side: the combat card prints run.spellsCast + rubyCasts + this fight's casts", () => {
-    const run = runFor(x);
-    const before = renderUnit(frameFor(x), run);
-    const after = renderUnit({ ...frameFor(x), spellsCastCombat: 2 }, run); // two spellcast beats folded by computeFrame
-    expect(before).toBe(plainOf(herzogText('d2_herzog', false, 4)!)); // 3 + 1, no casts yet
-    expect(after).toBe(plainOf(herzogText('d2_herzog', false, 6)!)); // …then +2 mid-fight: 6 → the grant steps 2 → 4
-    expect(after).not.toBe(before);
-  });
-  it("foe side: the served Vaultkeeper reads its owner's umbrella + the enemy side's casts this fight", () => {
-    const owner = runFor(x);
-    const before = renderFoeUnit(frameFor(x), owner);
-    const after = renderFoeUnit({ ...frameFor(x), spellsCastCombat: 4 }, owner);
-    expect(before).toBe(plainOf(herzogText('d2_herzog', false, 4)!));
-    expect(after).toBe(plainOf(herzogText('d2_herzog', false, 8)!));
-  });
+// RE-PIN 2026-10-10: the two Vaultkeeper text cases were retired with its spell-scaled effect (owner balance batch:
+// "When this gains Attack, give adjacent Dragons +3/+4" prints exact numbers). The frame stamp below is generic.
+describe('rendered-text reconciliation — the per-side combat spellcast count (owner report 2026-09-18)', () => {
   it("computeFrame stamps each side's own spellcast count onto its units", () => {
     const snap = (uid: string, side: 'player' | 'enemy'): MinionSnapshot => ({ uid, cardId: 'd2_herzog', name: 'Vaultkeeper', tribe: 'dragon', attack: 6, health: 10, keywords: [], side } as unknown as MinionSnapshot);
     const events = [

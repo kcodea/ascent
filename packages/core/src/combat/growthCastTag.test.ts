@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type CombatResult } from '../index';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 /**
  * EVERY combat cast carries its spell's identity (owner 2026-09-24: *"i added a growth effect for whenever
@@ -26,7 +28,7 @@ const buffsFrom = (r: CombatResult, uid: string): Extract<CombatEvent, { type: '
 
 describe('combat Growth — every cast path announces and tags the spell', () => {
   it.each([
-    ['Fatecarver (branch B, castRepeat)', { cardId: 'n2_fatecarver', attack: 4, health: 900, sourceUid: 'FC', chosenOption: 1 } as BoardMinion],
+    ['Fatecarver (branch B, castRepeat)', { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'FC' } as BoardMinion],
     ['Hoardbreaker Drake (Rally, castRepeat)', { cardId: 'hoardbreaker', attack: 4, health: 900, sourceUid: 'HB' } as BoardMinion],
     ['Taragosa (token, castRepeat)', { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'TG' } as BoardMinion],
   ])('%s: one `sc` + spellId per cast, and its buffs carry spellId', (_name, caster) => {
@@ -58,7 +60,7 @@ describe('combat Growth — every cast path announces and tags the spell', () =>
     });
 
   it('a non-cast buff keeps its exact old shape (no spellId key)', () => {
-    const r = fight([{ cardId: 'n2_fatecarver', attack: 4, health: 900, sourceUid: 'FC', chosenOption: 1 }]);
+    const r = fight([{ cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'FC' }]);
     const other = r.events.filter((e) => e.type === 'buff' && !('spellId' in e));
     // The mark is scoped: it is restored after every cast, so it can never leak onto a later, unrelated buff.
     for (const e of r.events) if (e.type === 'buff' && e.spellId !== undefined) expect(e.spellId).toBe('growth');

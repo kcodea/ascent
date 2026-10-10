@@ -4,8 +4,8 @@ import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedTh
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, drunkenOafText, aleTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
+  cryptDrakeText, drunkenOafText, aleTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText } from './cardText';
 
@@ -71,6 +71,8 @@ export interface LiveTextParams {
   /** True once the card is a real body (board or combat) rather than a shop/hand offer — Conductor reads the
    *  CURRENT snowball there, not "what playing this would make it". */
   onBoard?: boolean;
+  /** A COMBAT body (Unit.tsx). Distinguishes it from a Shop offer, which also passes no `onBoard`. */
+  inCombat?: boolean;
   /** True for a card sitting in the player's HAND (the hand row) — Goldilox prints its doubled in-hand gain. */
   inHand?: boolean;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
@@ -220,6 +222,9 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
+            // Humphry: the live lump (+X/+Y). Board AND combat bodies (combat passes no zone) count what was played;
+            // a hand / Shop / Discover copy also counts its own play.
+            perPlayedTargetText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe as Tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn, cardTribes: p.cardTribes }, tribe as Tribe) : 0), p.onBoard === true || p.inCombat === true) ??
             overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn, cardTribes: p.cardTribes }, tribe) : 0)) ?? // Bicycle Bob: the current per-Undead-played grant
             drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
             shredderText(c.id, p.golden, p.unusedEquipment) ?? // Shredder: the End-of-Turn total for the Equipment still unused
@@ -257,7 +262,6 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ??
-            herzogText(c.id, p.golden, p.spellsCast + (p.rubyCasts ?? 0)) ?? // Herzog/Vaultkeeper: scales with the SPELL umbrella (Shop Spells + Rubies)
             spellThresholdText(c.id, p.golden, p.spellProgress ?? 0) ?? // Mykel: spells remaining until it fires // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??
@@ -460,7 +464,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
-      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
+      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
     },
   );

@@ -1842,6 +1842,7 @@ export function simulate(
     baneDemonWidenFor: (side) => modsFor(side).baneDemonWiden,
     activeTribesFor: (side) => (side === 'player' ? playerState : enemyState).tribes,
     mammothHealthFor: (side) => !!modsFor(side).runeMammoth,
+    vaultkeeperAllFor: (side) => !!modsFor(side).runeVaultkeeper, // Rune of the Vaultkeeper: the pulse reaches every Dragon
   };
 
   /**

@@ -61,10 +61,14 @@ describe('R-REALTIME-03 — every Shout id is combat-live or an explicit Shop-on
     }
   });
 
-  it('the Shop-only exceptions are the nine the ruling was reviewed against (grow this deliberately)', () => {
+  // GROWN 2026-10-10 (deliberately), twice: Roomworks' Shout triggers an End of Turn effect, which only resolves in the
+  // Shop (Dragon batch); and battlecryCastNamedSpell (Kobold balance batch): Storm Chaser's "Shout: Cast Veinstorm" made it
+  // a top-level Shout (Shardluck only used it inside a Choose One branch). Veinstorm gems the Shop row, so a combat
+  // re-fire logs its line and the whole cast lands once at settle. FLAGGED for owner review in the Kobold PR.
+  it('the Shop-only exceptions are the eleven the ruling was reviewed against (grow this deliberately)', () => {
     expect(Object.keys(SHOP_ONLY_SHOUTS).sort()).toEqual([
-      'armChooseBoth', 'battlecryAllDemonsConsume', 'battlecryCollapseStarform', 'battlecryConsumeShopRandom',
-      'battlecryCreateStarformOrBuff', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
+      'armChooseBoth', 'battlecryAllDemonsConsume', 'battlecryCastNamedSpell', 'battlecryCollapseStarform', 'battlecryConsumeShopRandom',
+      'battlecryCreateStarformOrBuff', 'battlecryReplayTargetEndOfTurn', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
       'buffRightmostSlotPermanent', 'triggerAdjacentOrbits',
     ]);
   });

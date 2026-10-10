@@ -120,6 +120,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   // ── Set 3 Celestials, THE STARFORM ROSTER (2026-09-12): the token lives IN THE SHOP; no shop exists mid-fight ──
   battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Star Seed creates / feeds the Starform, a SHOP token (starform.ts). A combat re-fire logs its line live; settle feeds the token once' },
   battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the Starform eats a Shop minion. A combat re-fire logs its line live; settle applies the meal once' },
+  battlecryReplayTargetEndOfTurn: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Roomworks triggers an End of Turn effect, which only resolves in the Shop. A combat re-fire logs its line live; settle replays it once (owner 2026-10-10)' },
   battlecryCollapseStarform: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Solburn collapses the Starform, a SHOP token. A combat re-fire logs its line live; settle collapses it once' },
   collapseExtraTargets: { phase: 'combat', kind: 'no-surface', why: "Nova Herald's passive MARKER — read by `collapseExtraTargetsOf` at Collapse time, a SHOP-only moment (the Starform is a shop offer); the recruit map holds a never-dispatched stub" },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`
@@ -132,6 +133,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   battlecryTargetConsumesShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the target eats a random SHOP minion. A combat re-fire logs its line live; settle applies the meal once' },
   buffRightmostSlotPermanent: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: enchants a Shop SLOT (+ Rune of the Display Case). A combat re-fire logs its line live; settle enchants once' },
   triggerAdjacentOrbits: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Orbit is a shop mechanic (TRIGGER_PHASES.orbit = recruit). A combat re-fire logs its line live; settle wakes the Relay’s own neighbours once' },
+  battlecryCastNamedSpell: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: casts a named Shop spell (Veinstorm) through the Shop cast pipeline; its Shop half needs the Shop row. A combat re-fire logs its line live; settle casts it once (Storm Chaser, balance 2026-10-10)' },
   battlecryConsumeShopRandom: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: eats a random SHOP minion. A combat re-fire logs its line live; settle applies the meal once' },
 
   // ── onDeath (Echoes) with no recruit factory: fires when a shop-side Echo replay (Funeral on Loan,
@@ -157,7 +159,6 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   countTribeSummon: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "played" means from hand in the shop; combat summons do not feed the counter (Pack Leader text clarified to say "in the Shop").' },
   onTribeSummonedBuffTribe: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "when you play a Dwarf" is a shop event.' },
   onTribeSummonedBuffRandomOthers: { phase: 'combat', kind: 'no-surface', why: 'Hank Pepe (set 3) — the same ruling as Chef Gary Toast above: "when you play a Dwarf" is a shop event, and combat summons are not plays.' },
-  onTribePlayedBuffSelfPerSpell: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Vaultkeeper does not gain stats from combat summons.' },
 
   // ── onRubyPlayed in combat (Bloodbinder-family plays real Rubies mid-fight) ──
   rubyPlayedGold: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — no Gold from combat-played Rubies.' },

@@ -33,9 +33,9 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(run).toBeTruthy();
   });
 
-  it('Karwind carries into set 2 and keeps its re-spec (Tier 4 since 2026-09-24; 2/8 by owner ruling 2026-09-24)', () => {
+  it('Karwind carries into set 2 and keeps its re-spec (Tier 5 since 2026-10-10; 2/8 by owner ruling 2026-09-24)', () => {
     const k = CARD_INDEX['karwind']!;
-    expect([k.tier, k.attack, k.health]).toEqual([4, 2, 8]);
+    expect([k.tier, k.attack, k.health]).toEqual([5, 2, 8]); // RE-PIN 2026-10-10: T4 → T5
   });
 });
 
@@ -628,10 +628,12 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     expect(eligible.length, 'but there ARE Shout Dragons to draw').toBeGreaterThan(2);
   });
 
-  it('Storm Chaser hands you a Veinstorm', () => {
+  // Re-pin 2026-10-10 (Kobold balance batch): "Shout: Cast Veinstorm" (was: get one).
+  it('Storm Chaser casts a Veinstorm (none in hand; the Shop bank grows)', () => {
     const s: RunState = { ...createRun(3), phase: 'recruit', embers: 60, board: [], hand: [minion('sc', 'k_stormchaser', 'kobold', 2, 2)] };
     const after = reduce(s, { type: 'play', uid: 'sc' });
-    expect(after.hand.map((c) => c.cardId)).toContain('veinstorm');
+    expect(after.hand.map((c) => c.cardId)).not.toContain('veinstorm');
+    expect(after.veinstormRubies).toEqual({ atk: 1, hp: 1 });
   });
 
   it('Pouchpincher is a NEUTRAL minion now', () => {

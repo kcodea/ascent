@@ -144,7 +144,8 @@ describe('set 2 — new Dragon minions', () => {
     expect(cc.every((b) => b.attack === 1 && b.health === 1), 'each Rally grant is +1/+1').toBe(true);
   });
 
-  it('Broodfire (Shout) buffs your Dragons +2/+2 — itself included, a non-Dragon excluded', () => {
+  // RE-PIN 2026-10-10 (owner balance batch): Broodfire's Shout is +3/+2 (was +2/+2).
+  it('Broodfire (Shout) buffs your Dragons +3/+2 — itself included, a non-Dragon excluded', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
       board: [minion('d', 'd2_cinderchef', 1, 3), minion('b', 'alley', 2, 2)],
@@ -154,12 +155,12 @@ describe('set 2 — new Dragon minions', () => {
     const dragon = s.board.find((c) => c.uid === 'd')!;
     const beast = s.board.find((c) => c.uid === 'b')!;
     const brood = s.board.find((c) => c.uid === 'bf')!;
-    expect([dragon.attack, dragon.health], 'the other Dragon gains +2/+2').toEqual([3, 5]);
-    expect([brood.attack, brood.health], 'Broodfire buffs itself too').toEqual([4, 6]);
+    expect([dragon.attack, dragon.health], 'the other Dragon gains +3/+2').toEqual([4, 5]);
+    expect([brood.attack, brood.health], 'Broodfire buffs itself too').toEqual([5, 6]);
     expect([beast.attack, beast.health], 'a non-Dragon gains nothing').toEqual([2, 2]);
   });
 
-  it('River Drake: selling it puts a Spell in your hand', () => {
+  it('River Drake (Riverback): selling it puts a Spell in your hand (a Dragonflame since 2026-10-10)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 10,
       board: [minion('rd', 'd2_riverdrake', 4, 3)], hand: [],
@@ -173,12 +174,13 @@ describe('set 2 — new Dragon minions', () => {
 
   it('Embercrest (Rally) re-triggers an adjacent Dragon’s Shout in combat', () => {
     // Board: Embercrest (RL) beside Broodfire (a Dragon Shout). Broodfire's Shout does NOT fire in combat on its
-    // own (it was played back in recruit), so any +2/+2 buff event in the fight is Embercrest re-firing it.
+    // own (it was played back in recruit), so any +3/+2 buff event in the fight is Embercrest re-firing it (RE-PIN
+    // 2026-10-10: Broodfire's grant is +3/+2, was +2/+2).
     const r = simulate(
       [bm('d2_embercrest', 'EC', 8, 9999, ['RL']), bm('d2_broodfire', 'BF', 2, 9999)],
       [enemyWall],
       makeRng(6), CARD_INDEX, combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    const twoBuffs = buffEvents(r.events).filter((b) => b.attack === 2 && b.health === 2);
-    expect(twoBuffs.length, 'Embercrest’s swing re-fired Broodfire’s +2/+2 Shout').toBeGreaterThan(0);
+    const twoBuffs = buffEvents(r.events).filter((b) => b.attack === 3 && b.health === 2);
+    expect(twoBuffs.length, 'Embercrest’s swing re-fired Broodfire’s +3/+2 Shout').toBeGreaterThan(0);
   });
 });

@@ -28,7 +28,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
 import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -1396,8 +1396,8 @@ function opensBattlecryAim(s: RunState, card: BoardCard): boolean {
   // R-TARGET-03 (owner 2026-09-18, global): an aimed Shout NEVER targets its own body — a board holding ONLY this
   // minion has no legal pick, so don't prompt; the Battlecry simply doesn't fire and it plays as a plain body.
   // (Was Graverobber's `targetNotSelf` opt-in; now the rule for every aimed Shout.)
-  if (def.targetTribe) return s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!));
-  return s.board.some((c) => c.uid !== card.uid);
+  if (def.targetTribe) return s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!) && battlecryTargetAllowed(def, c));
+  return s.board.some((c) => c.uid !== card.uid && battlecryTargetAllowed(def, c)); // Roomworks: needs an End of Turn minion
 }
 
 /** Rune of Refrain's roll for a Shout minion that has just FIRED: 25% per copy held (owner 2026-08-27, unique-engine
@@ -1532,6 +1532,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   stampSableBond(s);
   stampSharedSpoils(s); // Rune of Shared Spoils rides the same stateless addBuff hook, from the same draft
   stampXeroxBond(s); // Xerox × Ancient of Bonds: the bound pair, from the same draft (validated: a gone end breaks it)
+  stampVaultkeeper(s); // Vaultkeeper: the addBuff hook's live run, from the same draft (owner 2026-10-10)
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.lastRallyFires = 0; // transient per-action SHOP-Rally-fire count (set by fireShopRally → read by the rally quest tick)
@@ -2570,6 +2571,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // path (fixed 2026-08-03); this is the Battlecry twin, and it covers all five `targetTribe` cards, not
       // just the reported one. Refused outright: the card stays where it is and nothing resolves.
       if (ptDef?.targetTribe && !isTribe(target, ptDef.targetTribe)) return state;
+      // Roomworks (owner 2026-10-10): only a minion WITH an End of Turn effect is a legal pick. Refused outright, the
+      // same as an off-tribe pick above; the aim UI mirrors it through the same predicate.
+      if (ptDef && !battlecryTargetAllowed(ptDef, target)) return state;
       // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; a
       // normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
       const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
@@ -7827,6 +7831,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     oldHuntStep: f?.oldHunt,
     runeMatriarch: s.runeMatriarch || undefined, // the combat half of Runebloom's proc doubles too
     runeMammoth: s.questFlags?.runeMammoth || undefined, // Mammoths give Health 1:1
+    runeVaultkeeper: s.runeVaultkeeper || undefined, // Vaultkeepers' gain-Attack pulse reaches every Dragon (owner 2026-10-10)
     runeWarpath: s.questFlags?.runeWarpath || undefined, // left-most's attack chains into the right-most's
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,

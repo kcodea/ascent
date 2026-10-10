@@ -579,6 +579,8 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattlePlayRubiesAdjacent', // Geode Guardian (Echo): on death, play N Rubies on each neighbour
   'deathrattlePlayRubiesTribe', // Kobebes (Echo): on death, play N Rubies on each friendly tribe minion
   'onTribePlayedBuffSelfPerSpell', // Herzog: +N/+N when you play a tribe; N scales with Shop Spells cast
+  'onGainAttackBuffAdjacentTribe', // Vaultkeeper (2026-10-10): when this gains Attack, give adjacent tribe +a/+h
+  'battlecryReplayTargetEndOfTurn', // Roomworks (2026-10-10): targeted Shout, trigger a friendly minion's End of Turn
   'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
   'avengeSummonRubyStats', // Kurse (set 3): the same Golem on Avenge (N)
@@ -694,6 +696,7 @@ export const CardDefSchema = z.object({
   targetMaxTier: z.number().int().positive().optional(),
   targetNoGolden: z.boolean().optional(),
   targetNotSelf: z.boolean().optional(),
+  targetHasEndOfTurn: z.boolean().optional(), // Roomworks: only a minion with an End of Turn effect is a legal pick
   fodderMult: z.number().int().positive().optional(),
   critChance: z.number().min(0).max(1).optional(), // Critical Strike probability per swing (Commander Impala = 0.5)
   manaPerTurn: z.number().int().positive().optional(),

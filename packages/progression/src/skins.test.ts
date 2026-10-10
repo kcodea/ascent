@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the ninety-three skins', () => {
+describe('the ninety-four skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -129,6 +129,7 @@ describe('the ninety-three skins', () => {
       ['skin_rayse_2', 'hero_skin', { type: 'hero', id: 'rayse' }, 'ancient'],
       ['skin_chorus_2', 'minion_skin', { type: 'card', id: 'd2_chorus' }, 'rare'],
       ['skin_chorus_3', 'minion_skin', { type: 'card', id: 'd2_chorus' }, 'rare'],
+      ['skin_fatecarver_1', 'minion_skin', { type: 'card', id: 'n2_fatecarver' }, 'rare'], // 2026-10-10: Fatecarver's retired alt art, kept as a skin (owner)
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });

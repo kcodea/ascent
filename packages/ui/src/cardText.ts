@@ -330,9 +330,10 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: Vaultkeeper buffs ALL your Dragons. */ vaultkeeper?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
+  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Buffs all your Dragons (Rune of the Vaultkeeper).}}';
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
   if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
   if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Rune of Living Treasure).}}';
@@ -683,26 +684,26 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
   return `After a spell is cast (shop or combat), give ${count} other friendly minions {{+${cur}/+${cur}}}. Improves by **+${per}/+${per}** per 4 spells with this on board, {{${toNext} to go}}.`;
 }
 
+// (herzogText, Vaultkeeper's spell-scaled per-Dragon grant, was removed 2026-10-10: the owner replaced the effect with
+// "When this gains Attack, give adjacent Dragons +3/+4", whose printed numbers are exact; the rune's widening is a
+// rune note, `runeModifiedNote`.)
+
 /**
- * Herzog's per-Dragon grant SCALES with the run's lifetime Shop-Spell count: +N/+N where N = base +
- * floor(spellsCast / per), read live (retroactive). Injects the current per-Dragon grant into the printed
- * "Gain +X/+X" (the FIRST +A/+H in the text — the "Improves" step is left as the base rate) and appends the
- * countdown to the next step. `{{…}}` renders green + is excluded from the golden doubling, so golden is folded
- * in here (see the note at the top of this file).
+ * HUMPHRY (owner 2026-10-10): "Shout: Give a Dragon +2/+2 for every Dragon played this turn. (+X/+Y)". Generic over a
+ * `battlecryBuffTarget` with `perPlayedTribe`: the live (+X/+Y) is the ONE lump buff the Shout lands right now. The
+ * count includes the Shout's own play (R-HUMPHRY-01), so a copy NOT yet on the board (hand, Shop, Discover) counts the
+ * Dragons played so far PLUS itself, and a board / combat body (whose Shout can only re-fire) counts what was played.
+ * Golden-aware. Null for every other card.
  */
-export function herzogText(cardId: string, golden: boolean, spellsCast: number): string | null {
-  // `spellsCast` here is the UMBRELLA (Shop Spells + Rubies) the effect actually reads — see the factory.
+export function perPlayedTargetText(cardId: string, golden: boolean, played: (tribe: string) => number, onBoard: boolean): string | null {
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'onTribePlayedBuffSelfPerSpell');
+  const eff = def?.effects.find((e) => e.do === 'battlecryBuffTarget' && typeof (e.params as { perPlayedTribe?: unknown } | undefined)?.perPlayedTribe === 'string');
   if (!def || !eff) return null;
-  const per = Math.max(1, Number((eff.params as { per?: number } | undefined)?.per ?? 4));
-  const base = Number((eff.params as { base?: number } | undefined)?.base ?? 1);
-  // Match the FACTORY exactly: grant = base × (1 + step) (not base + step) — so a base-2 Vaultkeeper improves
-  // +2/+2 per step (2 → 4 → 6), gilded 4 → 8 → 12. The old `base + step` printed a +1/+1 climb (owner report).
-  const cur = base * (1 + Math.floor(spellsCast / per)) * (golden ? 2 : 1);
-  const toNext = per - (spellsCast % per);
+  const p = eff.params as { perPlayedTribe: string; attack?: number; health?: number };
+  const n = played(p.perPlayedTribe) + (onBoard ? 0 : 1);
+  const g = golden ? 2 : 1;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} spells to next step}}`;
+  return `${src} {{(+${Number(p.attack ?? 0) * g * n}/+${Number(p.health ?? 0) * g * n})}}`;
 }
 
 /**

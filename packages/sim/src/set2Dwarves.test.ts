@@ -525,52 +525,45 @@ describe('set scoping for quests and runes (owner 2026-07-29)', () => {
   });
 });
 
-describe('Fatecarver (owner roster 2026-07-29)', () => {
-  /** Both branches are watchers, so the tests must fire the TRIGGER, not just play the card. */
-  const pick = (s: RunState, uid: string, index: number): RunState => {
-    const opened = reduce(s, { type: 'play', uid });
-    expect(opened.chooseOne?.uid ?? opened.pendingTarget?.uid, 'the Choose One never opened').toBeTruthy();
-    return reduce(opened, { type: 'chooseOne', index });
-  };
-
-  it('is a T5 set-2 card with both branches declared (un-archived 2026-08-18)', () => {
+// RE-PIN 2026-10-10 (owner balance batch): Fatecarver is T6 and only the old branch A, at +6/+6 ("When you cast a Shop
+// Spell, give a friendly minion of each type +6/+6"); the Choose One and the Growth-on-attack branch are gone.
+describe('Fatecarver (owner roster 2026-07-29; reworked 2026-10-10)', () => {
+  it('is a T6 set-2 card with no Choose One and no attack branch', () => {
     const def = CARD_INDEX['n2_fatecarver']!;
-    expect(def.chooseOne, 'Fatecarver has no Choose One').toHaveLength(2);
-    expect(def.tier, 'un-archived at T5').toBe(5);
-    expect(poolFor('set2').all.some((c) => c.id === 'n2_fatecarver'), 'back in the set pool').toBe(true);
+    expect(def.chooseOne, 'the Choose One was removed').toBeUndefined();
+    expect(def.tier).toBe(6);
+    expect(def.effects.map((e) => e.on)).toEqual(['spellCast']);
+    expect(poolFor('set2').all.some((c) => c.id === 'n2_fatecarver'), 'in the set pool').toBe(true);
   });
 
-  it('branch A buffs ONE minion of each type on a spell cast, not every minion', () => {
+  it('buffs ONE minion of each type +6/+6 on a spell cast, not every minion', () => {
     // Two Beasts + one Demon: only the FIRST Beast and the Demon should gain. Board order decides, so the
-    // player steers it by arranging the line.
+    // player steers it by arranging the line. Played straight from hand: no Choose One opens.
     let s = set2();
     const beast1 = { ...body('dw_brakka', 'b1'), cardId: 'pack', tribe: 'beast' as const };
     const beast2 = { ...body('dw_brakka', 'b2'), cardId: 'pack', tribe: 'beast' as const };
     const demon = { ...body('dw_brakka', 'd1'), cardId: 'impscrap', tribe: 'demon' as const };
     s = { ...s, board: [beast1, beast2, demon], hand: [body('n2_fatecarver', 'fc')] };
-    s = pick(s, 'fc', 0);
+    s = reduce(s, { type: 'play', uid: 'fc' });
+    expect(s.chooseOne, 'no Choose One any more').toBeUndefined();
     s = { ...s, hand: [{ uid: 'sp', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     const atk = (uid: string, st: RunState): number => st.board.find((x) => x.uid === uid)!.attack;
     const before = [atk('b1', s), atk('b2', s), atk('d1', s)];
     s = reduce(s, { type: 'play', uid: 'sp' });
     // Growth itself buffs the whole board +1/+1, so compare the DELTA above that baseline.
     const after = [atk('b1', s), atk('b2', s), atk('d1', s)];
-    expect(after[0]! - before[0]!, 'the first Beast should get Growth +1 AND Fatecarver +2').toBe(3);
+    expect(after[0]! - before[0]!, 'the first Beast should get Growth +1 AND Fatecarver +6').toBe(7);
     expect(after[1]! - before[1]!, 'the second Beast should get Growth only').toBe(1);
-    expect(after[2]! - before[2]!, 'the Demon should get Growth +1 AND Fatecarver +2').toBe(3);
+    expect(after[2]! - before[2]!, 'the Demon should get Growth +1 AND Fatecarver +6').toBe(7);
   });
 
-  it('branch B casts Growth when a friendly attacks — and NOT on an enemy swing', () => {
+  it('an old save body that chose the retired Growth branch casts nothing on a friendly attack', () => {
     const foe = (a: number, h: number): BoardMinion => ({ cardId: 'sandbag', attack: a, health: h, keywords: [] } as unknown as BoardMinion);
-    const carver = (): BoardMinion => {
-      const d = CARD_INDEX['n2_fatecarver']!;
-      return { cardId: d.id, attack: d.attack, health: d.health, keywords: [], chosenOption: 1 } as unknown as BoardMinion;
-    };
-    const r = simulate([carver(), foe(1, 40) as BoardMinion], [foe(0, 40)], makeRng(3), CARD_INDEX,
+    const d = CARD_INDEX['n2_fatecarver']!;
+    const carver = { cardId: d.id, attack: d.attack, health: d.health, keywords: [], chosenOption: 1 } as unknown as BoardMinion;
+    const r = simulate([carver, foe(1, 40) as BoardMinion], [foe(0, 40)], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6, poolIds: poolFor('set2').all.map((c) => c.id) }), combatSide({ tier: 6 }));
-    // A friendly swing should produce buff events sourced from the Carver; an enemy-only board would produce none.
-    const buffs = r.events.filter((e) => e.type === 'buff');
-    expect(buffs.length, 'no Growth was cast on a friendly attack').toBeGreaterThan(0);
+    expect(r.events.filter((e) => e.type === 'sc' && (e as { spellId?: string }).spellId === 'growth'), 'no Growth any more').toEqual([]);
   });
 });
 
@@ -631,14 +624,8 @@ describe('bug fixes 2026-07-29 (owner report)', () => {
     expect(after, 'six spells did not reach the 6-card threshold').toBeGreaterThan(before + 24);
   });
 
-  it("Fatecarver's Growth branch uses the SHARED factory, so it scales with spell power", () => {
-    // My first version was a near-copy that missed both the spell-power scaling and `ctx.castSpell`. It shares
-    // Taragosa's factory now — one definition of "cast Growth on an ally attack".
-    const def = CARD_INDEX['n2_fatecarver']!;
-    const growth = def.effects.find((e) => e.on === 'onAttack');
-    expect(growth?.do, 'Fatecarver still has its own Growth copy').toBe('onAllyAttackCastGrowth');
-    expect((growth?.params as { option?: number })?.option, 'the branch gate is missing').toBe(1);
-  });
+  // RETIRED 2026-10-10: "Fatecarver's Growth branch uses the SHARED factory" — the branch was removed (owner balance
+  // batch). The shared `onAllyAttackCastGrowth` factory is still Taragosa's, pinned by the combat Growth suites.
 });
 
 describe('Open Tab (Dwarf quest)', () => {

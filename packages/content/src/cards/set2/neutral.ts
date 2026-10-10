@@ -59,13 +59,13 @@ export const SET2_NEUTRAL: CardDef[] = [
     id: 'n2_conductor',
     name: 'Conductor',
     tribe: 'neutral',
-    tier: 4,
+    tier: 3, // owner balance batch 2026-10-10: T4 → T3
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 2, health: 3, step: 1 } }],
-    text: '**Shout:** give adjacent minions **+2/+3** and improve this.',
-    goldenText: '**Shout:** give adjacent minions **+4/+6** and improve this.',
+    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 3, health: 3, step: 1 } }], // 2026-10-10: +2/+3 → +3/+3
+    text: '**Shout:** give adjacent minions **+3/+3** and improve this.',
+    goldenText: '**Shout:** give adjacent minions **+6/+6** and improve this.',
   },
   {
     // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than
@@ -140,30 +140,23 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Rally:** give a minion of **each type** **+6/+6**.',
   },
   {
-    // Owner roster addition 2026-07-29 (un-archived + T6 → T5, owner 2026-08-18). Two branches, deliberately
-    // different SHAPES rather than two stat buffs: branch A pays off the spell/Dragon half of set 2 (per-cast,
-    // per-type spread), branch B pays off a wide aggressive board (per-attack, board-wide).
+    // Owner roster addition 2026-07-29 (un-archived + T6 → T5, owner 2026-08-18). OWNER BALANCE BATCH 2026-10-10:
+    // Tier 6, and the Choose One is GONE — it is now only the old branch A at +6/+6. The effect carries no `option`
+    // gate, so it fires for every copy, including an old save whose body recorded `chosenOption: 1` (the retired
+    // Growth branch): that body now does the new thing instead of nothing. The alt art became a Fatecarver SKIN
+    // (`skin_fatecarver_1`, progression cosmetics).
     id: 'n2_fatecarver',
     name: 'Fatecarver',
     tribe: 'neutral',
-    tier: 5, // owner balance 2026-08-18: T6 → T5
+    tier: 6, // owner balance 2026-08-18: T6 → T5; owner batch 2026-10-10: T5 → T6
     attack: 8,
     health: 9,
     keywords: [],
-    // Both branches are PERSISTENT, so they are printed effects gated on `option` rather than
-    // `chooseOne[].effects` — the latter fires once at pick time and never again (see Malphas).
     effects: [
-      { on: 'spellCast', do: 'onSpellCastBuffOnePerTribe', params: { option: 0, attack: 2, health: 2 } },
-      // `spellId` is required by the content validator — it is what makes the cast a REAL Growth cast (Guel and the
-      // spell counters see it), not just a buff wearing Growth's name.
-      { on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { option: 1, attack: 1, health: 1, spellId: 'growth' } },
+      { on: 'spellCast', do: 'onSpellCastBuffOnePerTribe', params: { attack: 6, health: 6 } },
     ],
-    chooseOne: [
-      { text: 'When you cast a **Shop spell**, give **1 minion of each type +2/+2**.', goldenText: 'When you cast a **Shop spell**, give **1 minion of each type +4/+4**.', effects: [] },
-      { text: 'When a friendly minion attacks, cast **Growth**.', goldenText: 'When a friendly minion attacks, cast **Growth twice**.', effects: [] },
-    ],
-    text: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +2/+2**, or cast **Growth** when a friendly minion attacks.',
-    goldenText: '**Choose One:** when you cast a **Shop spell**, give **1 minion of each type +4/+4**, or cast **Growth twice** when a friendly minion attacks.',
+    text: 'When you cast a **Shop Spell**, give a friendly minion of each type **+6/+6**.',
+    goldenText: 'When you cast a **Shop Spell**, give a friendly minion of each type **+12/+12**.',
   },
   // ── RUNE-ONLY (Source: Rune), owner batch 2026-08-20 ──────────────────────────────────────────────────
   // Every card in this block is `token: true` for the same reason `dw_baal` is: the roster marks them

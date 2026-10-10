@@ -143,7 +143,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // +1 Attack and this Rune's effect." does not parse (no rule for granting "this Rune's effect"), taking the live count
 // 115 → 116, but the same day's balance-batch archives had already brought it under the 119 cap. Rune of Actioned Beasts
 // and Rune of the Gator's Bite parse fully.
-const UNRESOLVED_CAP = 119;
+// 2026-10-10 merge of the four owner balance batches: 120. The Demon/Dwarf/Beast batch adds two texts the grammar has no
+// rule for yet, Doubletap Brewer's Shop Tier condition ("Get another if you are Shop Tier 5+") and Soul Defiler's two-spell cast
+// ("cast Staff of Guel and Picnic"), against the archives that brought it down; pin moved consciously, under the ceiling.
+const UNRESOLVED_CAP = 120;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

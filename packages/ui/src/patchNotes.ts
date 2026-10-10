@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-10',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Gameplay runs smoother: the Shop holds a higher frame rate while you drag, buy, sell, refresh and hover.',
+        details: [
+          'Dragging a minion across your board or from your hand no longer stutters at the start, while it moves, or when you drop it.',
+          'Cards with Flurry, Execute or Rise cost far less to draw, so a board full of them no longer slows the Shop down.',
+          'Buying, selling, refreshing and freezing take less work on every click.',
+          'The first time an effect plays in a game no longer freezes for a moment.',
+          'Nothing looks different. The game just draws the same thing for less.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-09',
     changes: [
       {

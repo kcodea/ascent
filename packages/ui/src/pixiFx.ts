@@ -27,6 +27,7 @@ import { getDef } from './fx/fxDefs';
 import type { FxInstance } from './fx/primitive';
 import { driveLayerHeads } from './fx/anchors';
 import type { FxAnchors, FxHeadSink } from './fx/anchors';
+import { detachPixiDomEvents } from './pixiNoDomEvents';
 
 /**
  * The FX def the live targeting line plays — the WHOLE authored composition (the lasso plus any custom /
@@ -585,6 +586,7 @@ class FxController {
       resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
+    detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     const c = app.canvas;
     c.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
     c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0';
@@ -621,6 +623,7 @@ class FxController {
       resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
+    detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     const c = app.canvas;
     c.className = 'pixifx-above pixi-screen'; // position/z live in styles.css beside every other layer's; pixi-screen: see stage.ts
     c.style.pointerEvents = 'none';
@@ -851,6 +854,7 @@ class FxController {
       preference: 'webgl',
       powerPreference: 'high-performance',
     });
+    detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     // The replay may have remounted before init resolved; only attach if still wanted.
     const canvas = app.canvas;
     canvas.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)

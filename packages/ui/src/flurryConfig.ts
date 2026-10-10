@@ -147,16 +147,30 @@ export function flurryWrapStyle(r: FlurryRing): CSSProperties {
     ...(dm ? { WebkitMaskImage: dm, maskImage: dm } : null),
   };
 }
-/** Per-ring spinner: diameter inset, the comet paint + band mask, blur/opacity, spin period + direction. */
+/** Per-ring spinner: diameter inset + spin period/direction ONLY. It is the composited layer that rotates (and
+ *  blends, `mix-blend-mode: screen` in styles.css); everything it LOOKS like lives on the paint child below.
+ *
+ *  WHY THE SPLIT (gameplay perf pass 2026-10-09): the comet paint, band mask, blur and opacity used to sit on this
+ *  same spinning element. A filter / mask on a COMPOSITED layer is applied by the GPU compositor on every frame,
+ *  each as its own render pass, so three Flurry cards (21 rings) cost ~45 render passes and ~0.8 s of GPU-process
+ *  time per second at 240 Hz, with the shop otherwise idle. On a plain child the same paint is rasterised ONCE into
+ *  the spinner's texture, and the compositor only rotates that texture. The picture is the same: CSS applies an
+ *  element's filter, mask and opacity in its LOCAL space before its transform, so blurring then rotating is what
+ *  the old stack already drew (and the blur and the band mask are both radially symmetric anyway). */
 export function flurryRingStyle(r: (typeof FLURRY_RINGS)[number]): CSSProperties {
   return {
     inset: `${(1 - r.d) * 50}%`,
+    '--fl-s': `${r.s}s`,
+    '--fl-dir': r.rev ? 'reverse' : 'normal',
+  } as CSSProperties;
+}
+/** The ring's static paint (comet gradient, band mask, blur, opacity): a non-composited child of the spinner. */
+export function flurryRingPaintStyle(r: (typeof FLURRY_RINGS)[number]): CSSProperties {
+  return {
     background: r.bg,
     WebkitMaskImage: r.mask,
     maskImage: r.mask,
     filter: r.blur > 0 ? `blur(${r.blur}px)` : undefined,
     opacity: Math.min(1, r.alpha * FLURRY.opacityMul),
-    '--fl-s': `${r.s}s`,
-    '--fl-dir': r.rev ? 'reverse' : 'normal',
-  } as CSSProperties;
+  };
 }

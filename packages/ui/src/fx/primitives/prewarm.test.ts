@@ -10,6 +10,9 @@ vi.mock('./ribbon', () => ({ prewarmRibbonShaders: vi.fn(), linkRibbonShaderOn: 
 vi.mock('./lightning', () => ({ prewarmLightningShaders: vi.fn(), linkLightningShaderOn: vi.fn(() => ({ id: 'lightning' })) }));
 vi.mock('./beam', () => ({ prewarmBeamShaders: vi.fn(), linkBeamShaderOn: vi.fn(() => ({ id: 'beam' })) }));
 vi.mock('./shockwave', () => ({ prewarmShockwaveShaders: vi.fn(), linkShockwaveShaderOn: vi.fn(() => ({ id: 'shockwave' })) }));
+// The defs' filter programs (perf 2026-10-09): one step per filter kind, appended AFTER the primitive links.
+const filterStep = vi.fn();
+vi.mock('../filterPrewarm', () => ({ filterPrewarmSteps: vi.fn((r: unknown) => (r ? [filterStep] : [])) }));
 vi.mock('./burst', () => ({}));
 vi.mock('./emitter', () => ({}));
 vi.mock('./smoke', () => ({}));
@@ -42,7 +45,8 @@ describe('FX pre-warm composition', () => {
     vi.mocked(ribbon.prewarmRibbonShaders).mockClear();
     const under = { id: 'under' } as unknown as import('pixi.js').Renderer;
     const steps = slotPrewarmSteps(under);
-    expect(steps.length).toBe(6);
+    expect(steps.length).toBe(7);
+    expect(steps[6], 'the filter links come last, after every primitive program').toBe(filterStep);
     steps[0]!();
     expect(shapes.prewarmShapeTextures).toHaveBeenCalledWith(under);
     expect(pool.linkParticleMaterialOn, 'the particle link is the SECOND step').not.toHaveBeenCalled();
@@ -62,7 +66,8 @@ describe('FX pre-warm composition', () => {
     vi.mocked(pool.prewarmParticleLayers).mockClear();
     const renderer = { id: 'main' } as unknown as import('pixi.js').Renderer;
     const steps = fxPrewarmSteps(renderer);
-    expect(steps.length).toBe(6);
+    expect(steps.length).toBe(7);
+    expect(steps[6], 'the filter links come last, after every primitive program').toBe(filterStep);
     expect(shapes.prewarmShapeTextures, 'building the steps must not run them').not.toHaveBeenCalled();
     steps[0]!();
     expect(shapes.prewarmShapeTextures).toHaveBeenCalledWith(renderer);

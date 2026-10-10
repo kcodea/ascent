@@ -25,6 +25,7 @@ import { activeFilterCount, FilterStack } from '../filterStack';
 import { FILTERS } from '../filterRegistry';
 import { resetShaderPools } from '../shaderPool';
 import { prewarmShapeTextures } from '../shapeTextures';
+import { filterPrewarmSteps } from '../filterPrewarm';
 import { linkRibbonShaderOn, prewarmRibbonShaders } from './ribbon';
 import { linkLightningShaderOn, prewarmLightningShaders } from './lightning';
 import { linkBeamShaderOn, prewarmBeamShaders } from './beam';
@@ -73,6 +74,7 @@ export function fxPrewarmSteps(renderer: Renderer | null): Array<() => void> {
     () => prewarmLightningShaders(renderer),
     () => prewarmBeamShaders(renderer),
     () => prewarmShockwaveShaders(renderer),
+    ...filterPrewarmSteps(renderer), // the defs' Bloom / Glow / … programs (perf 2026-10-09, `filterPrewarm.ts`)
   ];
 }
 
@@ -107,6 +109,7 @@ export function slotPrewarmSteps(renderer: Renderer | null): Array<() => void> {
     keep(linkLightningShaderOn),
     keep(linkBeamShaderOn),
     keep(linkShockwaveShaderOn),
+    ...filterPrewarmSteps(renderer), // a slot canvas is its own context: its filters link cold too
   ];
 }
 

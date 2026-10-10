@@ -692,6 +692,49 @@ Owner report: *"our social tab takes forever to load and is also laggy"*. Number
 - **Memo list rows with stable callbacks and a memoised context value.** A context provider value built inline
   re-renders every consumer through `memo`.
 
+## 3f. Gameplay pass, 2026-10-09/10: the GPU compositor, the style engine and three hidden full restyles
+
+Measured on PROD bench builds (`VITE_PERF_BENCH=1`) in headful Chrome on the 240 Hz panel, driven over CDP. The full
+numbers and the method are in `docs/devlog/2026-10-10-gameplay-perf-recruit.md`. What it taught:
+
+- **Count render passes, not just main-thread time.** An idle shop can sit at 240 fps on the main thread and still
+  have the GPU process 85% busy. The trace's `SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass` per frame and
+  `Display::DrawAndSwap` duration are the numbers: a heavy board drew **48 render passes per frame** at idle (113 with
+  every keyword on screen, which dropped the idle shop to 148 fps). Hide classes one at a time
+  (`.x { display: none !important }`) and watch the pass count to find the owner.
+- **A `filter`, `mask` or `mix-blend-mode` on a COMPOSITED, ANIMATING element runs on the GPU every frame.** The
+  compositor re-applies it as a render pass per frame for the life of the animation. Put the static paint (gradient,
+  mask, blur, opacity) on a plain, non-composited CHILD and keep only the motion on the animated element: the paint
+  is rasterised once into the layer's texture and the compositor just moves it. CSS applies an element's filter,
+  mask and opacity in its local space before its transform, so the picture is identical (Flurry rings, Execute
+  arcs/blobs/shards and Rise wisps: 2x crops match to within 15/255). A blend mode has to stay on the moving layer.
+- **Pixi's EventSystem forces a layout on every mouse move.** Every `Application` hooks a capture `pointermove` on
+  `document` that reads the canvas rect, plus a ticker that dispatches a synthetic `pointermove` while the mouse is
+  still. Our canvases are not interactive, so each one is detached right after `init` (`pixiNoDomEvents.ts`). A new
+  Pixi Application must do the same.
+- **Long `calc()` chains in plain custom properties are re-parsed per element.** `var(--ccw)` substituted the whole
+  nested text (`calc(calc(calc(calc(384px * 0.75 * 1) * .75) * .752) * .85)`) into every declaration on every
+  element, ~1,700 times per shop restyle. Registering the size chain with `@property` (a `<length-percentage>`
+  computes once where declared and inherits as `138.07px`) took a full restyle from 20.7 to 13.5 ms. Do not register
+  a variable that can hold a non-length, or that something transitions with `transition: all`.
+- **Style cost per element is the recruit ceiling.** Even after that, a full restyle is ~13 ms for ~1,100 elements,
+  and a play or sell restyles 300-400 of them (~25-30 us each). Deleting only the ~280 matched rules that use `var()`
+  takes the full restyle to ~2 ms, so the cost is `var()` substitution in the card's own rules. The structural fix
+  (card-internal geometry on container-query units instead of `var(--ccw)` maths) is a proposal, not shipped.
+- **Three hidden whole-document restyles, now gone.** (1) A universal, inherited rule on a body class
+  (`body.dragging * { cursor }`) restyles everything when the class flips: the cursor is now a veil element
+  (`dragCursorVeil.ts`). (2) GSAP `Flip.from` writes `width` / `overflow-y` onto `<body>` and removes them again on
+  every call when the body is as wide as the window (always, full screen): `withoutFlipBodyLock` (`stageFlip.ts`).
+  (3) A layout read right after toggling a body class forces that restyle inside the handler: read first, toggle
+  after.
+- **`Flip.from` takes its expensive path on a 0.03 px difference.** Any recorded-vs-current size difference sends a
+  card through `getGlobalMatrix` (temp elements + forced layouts); `snapSubpixelSizes` treats sub-half-pixel
+  differences as the same box.
+- **Filters link their programs on first use too.** `fx/filterPrewarm.ts` pre-links every filter kind the committed
+  defs switch on, alongside the primitive warm-up (a Bloom's first play was a 97-132 ms freeze).
+- **Tried and reverted:** holding the hover glow (`.cglow`) on its own layer permanently. It halved the hover
+  re-raster but added ~10 render passes per frame at idle (a filtered layer costs a pass even at opacity 0).
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
@@ -804,6 +847,14 @@ These are the rules the audits surfaced; the codebase already follows them — k
   chasing a multi-second "phase-start spike".
 - **`Math.random` is banned in `core`/`content`/`sim`** (determinism + replay). Tools (`perf.ts`) may use
   `performance.now()` for timing.
+
+- **Never put a `filter` / `mask` on an element that animates a transform or opacity, or on its composited
+  parent.** It becomes a GPU render pass every frame. Static paint goes on a non-composited child (§3f).
+- **Never toggle a universal or inherited rule on `<body>` / `:root` in a hot path** (`body.x * {…}`, a body cursor,
+  a root custom property). Each flip restyles the whole document (~13 ms). Scope the rule to the elements it
+  styles, or carry it on a dedicated element (the drag cursor veil).
+- **Detach Pixi's DOM events on every new `Application`** (`detachPixiDomEvents`), and wrap new `Flip.from` /
+  `Flip.to` calls in `withoutFlipBodyLock`.
 
 When in doubt: a property that changes the *pixels* of an element is expensive to animate; a property that
 only *moves or fades* an already-painted layer is cheap.

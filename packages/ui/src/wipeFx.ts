@@ -21,6 +21,7 @@
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { cubicBezier } from './wipeGeometry';
 import { stageHost } from './stage';
+import { detachPixiDomEvents } from './pixiNoDomEvents';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
 
@@ -60,6 +61,7 @@ class WipeFxController {
       resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
     });
+    detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     const c = app.canvas;
     c.className = 'wipefx-canvas pixi-screen';
     c.style.visibility = 'hidden';

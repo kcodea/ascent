@@ -210,7 +210,8 @@ import { DiceRoll } from './DiceRoll';
 import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
 import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
-import { fromSimpleState, getSimpleState, type StageFlipState } from './stageFlip';
+import { elementBelowVeil, hideDragCursorVeil, showDragCursorVeil } from './dragCursorVeil';
+import { fromSimpleState, getSimpleState, withoutFlipBodyLock, type StageFlipState } from './stageFlip';
 import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
@@ -3490,7 +3491,7 @@ export function Recruit() {
   }, [timeUp, inCombat]);
 
   const zoneAt = (x: number, y: number): Zone | null => {
-    const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
+    const el = elementBelowVeil(x, y)?.closest('[data-zone]'); // the drag's cursor veil is up while this runs
     return (el?.getAttribute('data-zone') as Zone) ?? null;
   };
   const hitCachedUid = (cards: { uid: string; r: DOMRect }[], x: number, y: number): string | null => {
@@ -3747,7 +3748,7 @@ export function Recruit() {
     const st = coalesceRef.current;
     if (!st || chooseOneHeld) return;   // still open — the capture is for the frame it CLOSES
     coalesceRef.current = null;
-    Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true });
+    withoutFlipBodyLock(() => Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true }));
   }, [chooseOneHeld]);
 
   const chooseOnePreview = useMemo<{ card: BoardCard; at: number } | null>(() => {
@@ -4193,7 +4194,7 @@ export function Recruit() {
         lastZone = zone;
         // Drive the closed-fist cursor strictly off the drag going active, so it can never get stranded on
         // (the bug where the grab cursor stuck after the first drag) — `endSession` always removes it.
-        if (willBeActive && !d0.active) document.body.classList.add('dragging');
+        if (willBeActive && !d0.active) { document.body.classList.add('dragging'); showDragCursorVeil(); }
         publish({ ...d0, x: e.clientX, y: e.clientY, active: willBeActive }, zone);
       }
       // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold for Divine Shield, blue for Reborn).
@@ -4235,6 +4236,7 @@ export function Recruit() {
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('contextmenu', onCtx);
       document.body.classList.remove('dragging');
+      hideDragCursorVeil();
       castAimRef.current = { casting: false, onTarget: false };
       endSessionRef.current = null;
       dragStore.endDrag();
@@ -4248,6 +4250,7 @@ export function Recruit() {
       if (!d || !moved) {
         cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');
+        hideDragCursorVeil();
         // a click, not a drag — let onClick (hero targeting) handle it
         endSession();
         return;
@@ -4294,7 +4297,16 @@ export function Recruit() {
         handFlipRef.current = m;
         handFlipSelRef.current = flipZoneSel; // remember which row to FLIP when the commit lands
       }
+      // The release box of the floating `.dragcard` (its true visual spot, lag included) for the place-slide below.
+      // READ HERE, BEFORE `body.dragging` comes off (gameplay perf 2026-10-09): that class gates a `body.dragging *`
+      // cursor rule, so removing it restyles the whole document, and a rect read after it forced that full restyle
+      // synchronously inside this handler (~31 ms on a heavy board). Nothing between here and the old read moves
+      // the drag card, so it is the same box; the restyle now lands in the next frame's own style pass.
+      const placeBox = (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel
+        ? document.querySelector<HTMLElement>('.dragcard')?.getBoundingClientRect()
+        : undefined;
       document.body.classList.remove('dragging'); // cursor reverts on release
+      hideDragCursorVeil();
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
       // first "lands", then slides in (left→right) with electricity, and only then merges.
@@ -4336,8 +4348,7 @@ export function Recruit() {
       // slide, a sell removes the card. The release box is the live `.dragcard` rect (its true visual spot,
       // lag included), captured before the session ends and unmounts it below.
       if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel) {
-        const dc = document.querySelector<HTMLElement>('.dragcard');
-        const b = dc?.getBoundingClientRect();
+        const b = placeBox;
         if (b && b.width > 0) {
           placePendingRef.current = { uid: d.uid, sel: flipZoneSel, from: { x: b.left, y: b.top, w: b.width, h: b.height } };
         }
@@ -8646,7 +8657,17 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
   // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
   const flipKey = rowsKey + '|' + shopGapIndex + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
   // Snapshot each shop card's centre + size (declared in Recruit, near the consume state that also reads it).
+  // SKIPPED WHEN THE TAVERN CANNOT HAVE MOVED (gameplay perf 2026-10-09): the flip key also carries the WARBAND's
+  // drop gap, so a board drag re-ran this sweep on every slot crossing, a `getBoundingClientRect` per shop card
+  // right after the row's own writes (a forced style + layout each time: 71 ms across three board drags in the
+  // heavy-shop capture). The tavern only re-lays out when its own composition, its own gap or the lifted-card
+  // collapse changes, so the sweep keys on exactly those; an identical sweep would only have copied `cur` to
+  // `prev` with the same rects.
+  const tavernLayoutKey = rowsKey + '|' + shopGapIndex + '|' + (collapsedLift ? '1' : '0');
+  const lastTavernSweepRef = useRef<string | null>(null);
   useLayoutEffect(() => {
+    if (dragActive && lastTavernSweepRef.current === tavernLayoutKey) return;
+    lastTavernSweepRef.current = tavernLayoutKey;
     const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
     for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
       const uid = el.dataset.uid;

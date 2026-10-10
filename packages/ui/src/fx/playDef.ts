@@ -438,7 +438,9 @@ function schedulePrewarm(
       if (!step) return;
       // A context torn down mid-queue (a fast detach) is skipped; every warm is best-effort anyway and
       // already swallows a failed link.
-      if (pixiFx.rendererFor(slot) === renderer) step();
+      // Labelled (perf 2026-10-10): each step is ONE blocking program link (30-800 ms cold), and unlabelled they
+      // showed up in the perf monitor as anonymous long tasks blamed on whatever input came last.
+      if (pixiFx.rendererFor(slot) === renderer) perfMonitor.measure(`fx:prewarm:${slot}`, step);
       window.setTimeout(next, 0);
     };
     window.setTimeout(next, 0);

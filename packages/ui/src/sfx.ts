@@ -186,11 +186,24 @@ function busInput(a: AudioContext, category: string): AudioNode {
   return b ? b.input : (master ?? masterOutput(a));
 }
 
+/** Callbacks for the moment the AudioContext first exists (perf 2026-10-10): the FX sound layer uses it to
+ *  pre-build its reverb convolvers on idle time instead of on the first reverb'd fire (`prewarmConvolvers`). */
+const audioReadyListeners: Array<(a: AudioContext) => void> = [];
+export function onAudioContextReady(cb: (a: AudioContext) => void): void {
+  if (ctx) cb(ctx);
+  else audioReadyListeners.push(cb);
+}
+
 function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     if (ctx.state === 'suspended') void ctx.resume();
+    if (isNew && audioReadyListeners.length) {
+      const created = ctx;
+      // After this call returns (the graph below is built first), never inside the caller's sound play.
+      setTimeout(() => { for (const cb of audioReadyListeners.splice(0)) { try { cb(created); } catch { /* best-effort */ } } }, 0);
+    }
     if (isNew) {
       master = ctx.createDynamicsCompressor();
       applyComp(master, cfg.master); // engage when stacked sounds sum past threshold — single clips at playback
@@ -2082,7 +2095,7 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   // The play window (one trimmed length, rate-adjusted) — the domain every over-time curve maps onto, and
   // reused by the one-shot fade-out below.
   const playDur = clipLen / src.playbackRate.value;
-  const fireCtx: FxFilterCtx = { t0, durSec: playDur };
+  const fireCtx: FxFilterCtx = { t0, durSec: playDur, oneShot: !src.loop }; // a one-shot may pool its reverb (audioFilters.ts)
   // Channel strip: source → [Filter Lab inserts] → fader (g) → [Level-curve gain] → bus. `g` (level, fades,
   // jitter) is the fader; the Filter Lab dials automate on the fireCtx window. No enabled filters → straight in.
   const chain = buildAudioFilterChain(a, opts.filterParams, fireCtx);

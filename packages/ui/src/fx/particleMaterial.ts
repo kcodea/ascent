@@ -387,6 +387,23 @@ export function setParticleTime(shader: Shader, seconds: number): void {
  * palette lookup happens once, in the shader, from the live `uPal` uniform, so every particle repaints
  * instantly on a palette/band edit instead of needing a respawn.
  */
+/**
+ * Set a particle's GREYSCALE tint per frame without Pixi's colour parser (gameplay perf 2026-10-10).
+ *
+ * `Particle.tint = n` runs `Color.shared.setValue(n).toBgrNumber()` (normalise, clamp, round-trip through floats)
+ * for every particle every frame: `_clamp` / `_normalize` / `toUint8RgbArray` / `_refreshInt` were ~60 ms of a
+ * shop End-of-Turn FX storm's profile. Every per-frame tint here is a `biasTint` grey (r = g = b), whose BGR
+ * packing is the same integer as its RGB one, so it can go straight into the particle's packed colour. Skips the
+ * write when the grey has not changed. Same pixels, same `color` value Pixi would have computed
+ * (`particleTintFastPath.test.ts` pins that against the real setter on this Pixi version).
+ */
+export function setParticleGreyTint(particle: unknown, grey: number): void {
+  const q = particle as { _tint: number; _updateColor(): void };
+  if (q._tint === grey) return;
+  q._tint = grey;
+  q._updateColor();
+}
+
 export function biasTint(bias: number): number {
   const b = bias < 0 ? 0 : bias > 1 ? 1 : bias;
   const g = Math.round(b * 255);

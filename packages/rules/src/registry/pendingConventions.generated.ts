@@ -231,7 +231,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'endOfTurn' family · 28 cards",
     "statement": "All 28 'endOfTurn' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "34 effect factories across 28 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "33 effect factories across 28 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Stonehorn Archivist · Roundabout · Combinator · Crypt Scribe · Skybound Ascendant · Soul Defiler · Bob Blart · Striker · Arnold · Brunni · … and 16 more",
     "example": "Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn. its printed numbers double when the card is gilded.",
     "contentIds": [
@@ -1133,11 +1133,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-ds",
-    "title": "Ward [DS] · 14 carriers",
+    "title": "Ward [DS] · 15 carriers",
     "statement": "Ward means: negates the first damage this minion would take, then breaks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Ward for all 14 carriers.",
-    "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Transcendant · Hellrider · Impossible Todd · Warding Drone · Mountainbond · Commander Impala · Mechanical Jouster · Portsmith · Karthus · Karwind · Perfect Core · … and 2 more",
+    "currentBehaviour": "One shared engine path implements Ward for all 15 carriers.",
+    "cardText": "Exemplar — Guardian Drake: \"(vanilla body with the keyword)\" · Carriers: Guardian Drake · Transcendant · Hellrider · Impossible Todd · Warding Drone · Mountainbond · Commander Impala · Mechanical Jouster · Kobe · Portsmith · Karthus · Karwind · … and 3 more",
     "example": "Guardian Drake carries Ward — in play, negates the first damage this minion would take, then breaks.",
     "contentIds": [
       "bronzewarden",
@@ -1148,6 +1148,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dw_mountainbond",
       "impala",
       "jouster",
+      "k_kobe",
       "k_portsmith",
       "karthus",
       "karwind",

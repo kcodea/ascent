@@ -127,20 +127,22 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     ({ ...createRun(1), phase: 'recruit', embers: 40, ...over } as RunState);
   const rubyCount = (s: RunState) => s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length;
 
-  it('Beggy: selling it mints 2 Rubies', () => {
+  it('Beggy: selling it mints a random Ruby (re-pin 2026-10-10: was 2 plain)', () => {
     let s = recruit({ board: [recruitBody('k_beggy', 'beg')], hand: [], shop: [] });
     expect(rubyCount(s)).toBe(0);
     s = reduce(s, { type: 'sell', uid: 'beg' });
-    expect(rubyCount(s), 'the on-sell payout minted 2 Rubies').toBe(2);
+    expect(rubyCount(s), 'the on-sell payout minted 1 Ruby').toBe(1);
   });
 
-  it('Gemline Martyr: END of Turn gets a Veinstorm, and no longer touches Rubies (owner rework 2026-08-19)', () => {
+  // Re-pin 2026-10-10 (Kobold balance batch): Gemling CASTS Veinstorm 3 times at End of Turn (was: gets one).
+  it('Gemling: END of Turn casts Veinstorm, and no longer touches Ruby strength', () => {
     const s = recruit({ board: [recruitBody('k_gemline', 'gm')], hand: [], shop: [] });
     const before = s.rubyBonus ?? { attack: 0, health: 0 };
     applyStartOfTurn(s);
     expect(s.hand.length, 'the Start-of-Turn shape is gone').toBe(0);
     applyEndOfTurn(s);
-    expect(s.hand.some((c) => c.cardId === 'veinstorm'), 'a Veinstorm was granted to hand').toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'veinstorm'), 'nothing lands in hand').toBe(false);
+    expect(s.veinstormRubies, 'three Veinstorm casts').toEqual({ atk: 3, hp: 3 });
     expect(s.rubyBonus ?? { attack: 0, health: 0 }, 'the Ruby-improvement half was dropped').toEqual(before);
   });
 

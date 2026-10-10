@@ -33,9 +33,10 @@ describe('Rune of Facetwright', () => {
       return reduce(opened, { type: 'chooseOne', index: 0 }); // pick the ATTACK half
     };
     // Without the rune, picking Attack gives Attack only.
-    expect(play(false).rubyBonus).toEqual({ attack: 1, health: 0 });
+    // (Re-pin 2026-10-10: Facetwright's halves are +2 each.)
+    expect(play(false).rubyBonus).toEqual({ attack: 2, health: 0 });
     // With it, the same pick also grants the Health half.
-    expect(play(true).rubyBonus, 'the rune did not fold in the other branch').toEqual({ attack: 1, health: 1 });
+    expect(play(true).rubyBonus, 'the rune did not fold in the other branch').toEqual({ attack: 2, health: 2 });
   });
 
   it('leaves other Choose One spells alone', () => {

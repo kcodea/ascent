@@ -59,6 +59,26 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-10',
     changes: [
       {
+        category: 'Balance',
+        text: 'Kobold and Ruby balance pass: bigger Ruby buffs, more random Rubies, and Veinstorm now hits your board too.',
+        details: [
+          'Veinstorm: now casts a Ruby on your minions as well as the Shop.',
+          'Facetwright: both choices are now +2 (Rubies gain +2 Attack, or +2 Health).',
+          'Storm Chaser: Shout now casts Veinstorm instead of giving you one. Gilded casts it twice.',
+          'Scrapper: Echo now gives your Rubies +1/+1 (was +1 Attack).',
+          'Ruby Mender: Shout now gives your Rubies +2 Health (was +1).',
+          'Prospector: Shout now gets a random Ruby (was 2 Rubies). Gilded gets 2.',
+          'Beggy: Sell now gets a random Ruby (was 2 Rubies). Gilded gets 2.',
+          'Cave Cutter: choose your Rubies +2/+2 (was +1/+1), or 4 random Rubies. Gilded: +4/+4 or 8.',
+          'Gemling: End of Turn now casts Veinstorm 3 times (was: get a Veinstorm). Gilded casts it 6 times.',
+          'Crownvein: Rally now gives your Rubies +2/+3 (was +1/+1). New art.',
+          'Portsmith: Avenge (3) now improves your Rubies +2/+2 and gets 2 random Kobolds (was +1/+1 and 1).',
+          'Cavern Fiend: now Consumes the highest-Health minion in the Shop (was a random one).',
+          'Tunneller Rik: Rally now gets 2 random Rubies (was 3 Rubies).',
+          'Kobe: now has Ward too.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Gameplay runs smoother: the Shop holds a higher frame rate while you drag, buy, sell, refresh and hover.',
         details: [

@@ -113,11 +113,13 @@ describe('Boulderdash — Flurry. Rally: Cast 3 permanent Rubies on this', () =>
 
 // ── 5. Livewire — Whenever you cast a Shop spell, cast a Ruby on this and 2 other random Kobolds ─────────
 describe('Livewire — Whenever you cast a Shop spell, cast a Ruby on this and 2 other random Kobolds', () => {
+  // RE-PIN 2026-10-10: the Shop spell is Golden Ale (Gain 2 Gold), not Veinstorm. Veinstorm now ALSO casts a Ruby
+  // on every friendly minion (Kobold balance batch), which would bury Livewire's own Rubies in these counts.
   const spell = (uid: string, cardId: string) => ({ uid, cardId, attack: 0, health: 0, keywords: [] as never[], golden: false }) as unknown as BoardCard;
 
   it('a Shop spell → one Ruby on Livewire and one on each of 2 random OTHER Kobolds; non-Kobolds never', () => {
     expect(CARD_INDEX['k3_runespark']!.text).toBe('Whenever you cast a **Shop spell**, cast a **Ruby** on this and 2 other random **Kobolds**.');
-    let s = run({ hand: [spell('sp', 'veinstorm')], board: [body('a', 'k3_korn'), body('b', 'k_beggy'), body('lw', 'k3_runespark'), body('c', 'k_kobe'), body('v', 'venom')] });
+    let s = run({ hand: [spell('sp', 'wo_mine')], board: [body('a', 'k3_korn'), body('b', 'k_beggy'), body('lw', 'k3_runespark'), body('c', 'k_kobe'), body('v', 'venom')] });
     s = act(s, { type: 'play', uid: 'sp' });
     expect(s.hand.some((c) => c.uid === 'sp'), 'the spell was cast').toBe(false);
     expect(rubiesOn(at(s, 'lw')), 'one on itself').toBe(1);
@@ -130,7 +132,7 @@ describe('Livewire — Whenever you cast a Shop spell, cast a Ruby on this and 2
   it('is RANDOM, not adjacent: across seeds the picks vary and the far Kobold is reachable', () => {
     const hit = new Set<string>();
     for (let seed = 1; seed <= 12; seed++) {
-      let s = run({ hand: [spell('sp', 'veinstorm')], board: [body('lw', 'k3_runespark'), body('a', 'k3_korn'), body('b', 'k_beggy'), body('c', 'k_kobe')], rngCursor: seed * 7919 });
+      let s = run({ hand: [spell('sp', 'wo_mine')], board: [body('lw', 'k3_runespark'), body('a', 'k3_korn'), body('b', 'k_beggy'), body('c', 'k_kobe')], rngCursor: seed * 7919 });
       s = act(s, { type: 'play', uid: 'sp' });
       for (const u of ['a', 'b', 'c']) if (rubiesOn(at(s, u)) > 0) hit.add(u);
     }
@@ -139,10 +141,10 @@ describe('Livewire — Whenever you cast a Shop spell, cast a Ruby on this and 2
   });
 
   it('fewer than 2 other Kobolds → each of them gets one; alone → only itself', () => {
-    let s = run({ hand: [spell('sp', 'veinstorm')], board: [body('lw', 'k3_runespark'), body('a', 'k3_korn')] });
+    let s = run({ hand: [spell('sp', 'wo_mine')], board: [body('lw', 'k3_runespark'), body('a', 'k3_korn')] });
     s = act(s, { type: 'play', uid: 'sp' });
     expect([rubiesOn(at(s, 'lw')), rubiesOn(at(s, 'a'))]).toEqual([1, 1]);
-    let t = run({ hand: [spell('sp', 'veinstorm')], board: [body('lw', 'k3_runespark')] });
+    let t = run({ hand: [spell('sp', 'wo_mine')], board: [body('lw', 'k3_runespark')] });
     t = act(t, { type: 'play', uid: 'sp' });
     expect(rubiesOn(at(t, 'lw'))).toBe(1);
   });

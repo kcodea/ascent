@@ -17,9 +17,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 3,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'getRubies', params: { count: 2 } }],
-    text: '**Shout:** Get 2 Rubies.',
-    goldenText: '**Shout:** Get 4 Rubies.',
+    // Owner balance 2026-10-10: "Shout: Get a random Ruby" (was 2 plain Rubies; the drop to one is confirmed).
+    // Gilded: 2 random Rubies, each drawn separately from all six types.
+    effects: [{ on: 'onPlay', do: 'getRandomRubies', params: { count: 1 } }],
+    text: '**Shout:** Get a random **Ruby**.',
+    goldenText: '**Shout:** Get **2** random **Rubies**.',
   },
   {
     id: 'k_deepvein',
@@ -29,9 +31,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 2, // owner balance 2026-09-23: 1/2 → 2/3
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }],
-    text: '**Shout:** Your Rubies gain **+1 Health**.',
-    goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
+    effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 2 } }], // owner balance 2026-10-10: +1 -> +2 Health
+    text: '**Shout:** Your Rubies gain **+2 Health**.',
+    goldenText: '**Shout:** Your Rubies gain **+4 Health**.',
   },
   {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
@@ -61,9 +63,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner rework 2026-08-19: back to End of Turn, and the Ruby-improvement half is dropped — it is a plain
     // spell faucet again. `battlecryGrantSpell` is trigger-agnostic, so no End-of-Turn-specific factory is
     // needed; golden hands over two.
-    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
-    text: '**End of Turn:** get a **Veinstorm**.',
-    goldenText: '**End of Turn:** get **2 Veinstorms**.',
+    // Owner balance 2026-10-10: "End of Turn: Cast Veinstorm 3 times" (was: get a Veinstorm). The shared
+    // `castSpell` factory with `times`: every cast is a full Shop-spell cast AND its own End-of-Turn tick (one
+    // beat per cast). Gilded doubles the TICKS (6 casts, 6 beats), since the owner asked for a beat per cast.
+    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'veinstorm', times: 3 } }],
+    text: '**End of Turn:** Cast **Veinstorm** 3 times.',
+    goldenText: '**End of Turn:** Cast **Veinstorm** 6 times.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -75,9 +80,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }],
-    text: '**Rally:** Get **3 Rubies**.',
-    goldenText: '**Rally:** Get **6 Rubies**.',
+    // Owner balance 2026-10-10: "Rally: Get 2 random Rubies" (was 3 plain). `random` draws each Ruby's type.
+    effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 2, random: true } }],
+    text: '**Rally:** Get **2** random **Rubies**.',
+    goldenText: '**Rally:** Get **4** random **Rubies**.',
   },
   {
     // Avenge (combat): every 3 friendly deaths, raise your Ruby strength — grows held + future Rubies (carried
@@ -92,14 +98,15 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner rework 2026-07-27 — a Choose One between the long game (every future Ruby is bigger) and the
     // burst (four Rubies right now). Both halves reuse primitives that already exist.
     effects: [],
+    // Owner balance 2026-10-10: +1/+1 -> +2/+2, and the burst is now 4 RANDOM Rubies (`getRandomRubies`).
     chooseOne: [
-      { text: 'Give your Rubies **+1/+1**.', goldenText: 'Give your Rubies **+2/+2**.',
-        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1 } }] },
-      { text: 'Get **4 Rubies**.', goldenText: 'Get **8 Rubies**.',
-        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 4 } }] },
+      { text: 'Give your Rubies **+2/+2**.', goldenText: 'Give your Rubies **+4/+4**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 2 } }] },
+      { text: 'Get **4** random **Rubies**.', goldenText: 'Get **8** random **Rubies**.',
+        effects: [{ on: 'onPlay', do: 'getRandomRubies', params: { count: 4 } }] },
     ],
-    text: '**Choose One:** give your Rubies **+1/+1**, or get **4 Rubies**.',
-    goldenText: '**Choose One:** give your Rubies **+2/+2**, or get **8 Rubies**.',
+    text: '**Choose One:** give your Rubies **+2/+2**, or get **4** random **Rubies**.',
+    goldenText: '**Choose One:** give your Rubies **+4/+4**, or get **8** random **Rubies**.',
   },
   {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
@@ -113,9 +120,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner ruling 2026-07-29 (found by `npm run text:audit`): the Ruby-play half is CUT. The card is the stat
     // gain only — the extra clause was strictly more than the roster says, so the game was ahead of the sheet
     // rather than behind it, which is the rarer and easier-to-miss direction of drift.
-    effects: [{ on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } }],
-    text: '**Rally:** give your Rubies **+1/+1**.',
-    goldenText: '**Rally:** give your Rubies **+2/+2**.',
+    effects: [{ on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 2, health: 3 } }], // owner balance 2026-10-10: +1/+1 -> +2/+3
+    text: '**Rally:** Give your Rubies **+2/+3**.',
+    goldenText: '**Rally:** Give your Rubies **+4/+6**.',
   },
   {
     // Echo (owner change 2026-07-25, was an onDamaged trigger) → raise your Ruby strength for the rest of the
@@ -127,9 +134,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 0 } }],
-    text: '**Echo:** your Rubies gain **+1 Attack**.',
-    goldenText: '**Echo:** your Rubies gain **+2 Attack**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } }], // owner balance 2026-10-10: +1 Attack -> +1/+1
+    text: '**Echo:** Your Rubies gain **+1/+1**.',
+    goldenText: '**Echo:** Your Rubies gain **+2/+2**.',
   },
   {
     // Un-archived 2026-08-19 (owner) — back in the pool at its archived spec.
@@ -188,9 +195,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3 } }],
-    text: 'When you cast **3 spells**, Consume a minion in the Shop.',
-    goldenText: 'When you cast **3 spells**, Consume **2 minions** in the Shop.',
+    // Owner balance 2026-10-10: the meal is the HIGHEST-HEALTH Shop minion (was random). `pick` names the target
+    // rule; ties go to the right-most (the shared `pickShopMinionFor`). Gilded eats twice, re-picking each time.
+    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3, pick: 'highestHealth' } }],
+    text: 'When you cast **3 spells**, Consume the highest-Health minion in the Shop.',
+    goldenText: 'When you cast **3 spells**, Consume the **2** highest-Health minions in the Shop.',
   },
   {
     // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).
@@ -251,9 +260,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 4,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
-    text: '**Shout:** get a **Veinstorm**.',
-    goldenText: '**Shout:** get **2 Veinstorms**.',
+    // Owner balance 2026-10-10: "Shout: Cast Veinstorm" (was: get one). The real Shop-spell cast pipeline
+    // (`battlecryCastNamedSpell`, Shardluck's branch); gilded casts twice.
+    effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 1 } }],
+    text: '**Shout:** Cast **Veinstorm**.',
+    goldenText: '**Shout:** Cast **Veinstorm** twice.',
   },
   {
     // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
@@ -282,11 +293,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 7,
     keywords: ['DS'],
     effects: [
-      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } },
-      { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 1 } },
+      // Owner balance 2026-10-10: +1/+1 -> +2/+2, and 2 random Kobolds (was 1).
+      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 2, health: 2 } },
+      { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 2 } },
     ],
-    text: '**Ward.** **Avenge (3):** improve your Rubies **+1/+1** and get a random **Kobold**.',
-    goldenText: '**Ward.** **Avenge (3):** improve your Rubies **+2/+2** and get **2 random Kobolds**.',
+    text: '**Ward.** **Avenge (3):** Improve your Rubies **+2/+2** and get **2 random Kobolds**.',
+    goldenText: '**Ward.** **Avenge (3):** Improve your Rubies **+4/+4** and get **4 random Kobolds**.',
   },
   {
     // Owner rework 2026-09-18: "When this takes damage" (was Start of Combat) — every landed hit plays PERMANENT
@@ -299,13 +311,13 @@ export const SET2_KOBOLDS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 6,
-    keywords: ['T'],
+    keywords: ['T', 'DS'], // owner balance 2026-10-10: + Ward
     // Owner Ruby batch 2026-09-24: keeps Taunt and 5/6; the ability is now a PUMMEL (the damage-dealt meter Han
     // Gover / Goldvein use): every 15 damage this deals gets a random Ruby (any of the six types), at most TWICE
     // per combat. Gilded: 2 random Rubies per payout, still twice. The Rubies ride the combat carry-back to hand.
     effects: [{ on: 'passive', do: 'dealtDamageGetRandomRuby', params: { every: 15, count: 1, maxPerCombat: 2 } }],
-    text: '**Taunt.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)',
-    goldenText: '**Taunt.** **Pummel (15):** Get **2** random **Rubies**. (Twice per combat)',
+    text: '**Taunt.** **Ward.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)',
+    goldenText: '**Taunt.** **Ward.** **Pummel (15):** Get **2** random **Rubies**. (Twice per combat)',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
@@ -330,9 +342,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 2, // owner balance 2026-09-23: 1/2 → 2/3
     health: 3,
     keywords: [],
-    effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 2 } }],
-    text: '**Sell:** get **2 Rubies**.',
-    goldenText: '**Sell:** get **4 Rubies**.',
+    // Owner balance 2026-10-10: "Sell: Get a random Ruby" (was 2 plain; the drop to one is confirmed).
+    effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 1, random: true } }],
+    text: '**Sell:** Get a random **Ruby**.',
+    goldenText: '**Sell:** Get **2** random **Rubies**.',
   },
   {
     // Flurry + Rally: every attack (twice, with Flurry) plays a PERMANENT Ruby on your whole board.

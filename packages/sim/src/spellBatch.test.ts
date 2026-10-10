@@ -587,17 +587,17 @@ describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
     expect(s.hand.some((c) => c.cardId === 'rubyshipment')).toBe(false); // consumed
   });
 
-  it("Facetwright: +1 Attack raises the run's Ruby bonus and grows a held Ruby", () => {
+  it("Facetwright: +2 Attack raises the run's Ruby bonus and grows a held Ruby (re-pin 2026-10-10: was +1)", () => {
     let s: RunState = { ...createRun(1), setId: 'set2', hand: [mkSpell('r', RUBY), mkSpell('sp', 'facetwright')] };
     // seed a Ruby in hand at 1/1 so we can see it grow
     const held = s.hand.find((c) => c.uid === 'r')!;
     held.cardId = RUBY; held.attack = 1; held.health = 1;
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: undefined }), { type: 'resolveShopDeath' });
     expect(s.chooseOne).toBeTruthy();
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // +1 Attack
-    expect(s.rubyBonus?.attack ?? 0).toBe(1);
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // +2 Attack
+    expect(s.rubyBonus?.attack ?? 0).toBe(2);
     const heldAfter = s.hand.find((c) => c.uid === 'r')!;
-    expect([heldAfter.attack, heldAfter.health]).toEqual([2, 1]); // held Ruby grew
+    expect([heldAfter.attack, heldAfter.health]).toEqual([3, 1]); // held Ruby grew
   });
 });
 

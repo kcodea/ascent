@@ -26,6 +26,11 @@ import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types
  *
  * COORDINATION NOTE: the rating cell is ONE element (`.lb-c-rating`, aliased `.rk-rating`) so the rank-screen
  * work can slot a medal crest into it without re-laying the row.
+ *
+ * THE MMR COLUMN (owner 2026-10-09: "add the player MMR as a column"): once the table carries medal ranks the
+ * rating cell is the crest + bar, which hides the number, so the row's MMR (`rating`, the reporting scalar
+ * `100 × division + points`) gets its OWN column between Rank and Games. A legacy table (no ranks at all) keeps
+ * its five columns: the Rating cell there already IS the MMR, so a second column would only repeat it.
  */
 export const RANKED_ROWS = 10;
 
@@ -71,6 +76,9 @@ export function Rankings() {
 
   if (!show) return null;
 
+  // Medal ranks on the table → the rating cell is the crest + bar, and the MMR number gets its own column.
+  const ranked = !!rows?.some((r) => rankOfRow(r));
+
   const back = (): void => { sfx.pulse(); close(); };
 
   return (
@@ -94,11 +102,12 @@ export function Rankings() {
         ) : rows.length === 0 ? (
           <div className="lbempty lb-state"><Icon name="crown" /><div>No ranked players yet. Finish a run to claim a slot.</div></div>
         ) : (
-          <div className="lb-panel lb-table" role="table" aria-label="Top players by rating">
+          <div className={`lb-panel lb-table${ranked ? ' lb-has-mmr' : ''}`} role="table" aria-label="Top players by rating">
             <div className="lb-trow lb-thead" role="row">
               <span className="lb-c-rank">#</span>
               <span className="lb-c-player">Player</span>
-              <span className="lb-c-rating">{rows.some((r) => rankOfRow(r)) ? 'Rank' : 'Rating'}</span>
+              <span className="lb-c-rating">{ranked ? 'Rank' : 'Rating'}</span>
+              {ranked && <span className="lb-c-mmr">MMR</span>}
               <span className="lb-c-games">Games</span>
               <span className="lb-c-act" />
             </div>
@@ -156,8 +165,11 @@ export function Rankings() {
                   <span className="lb-c-rating rk-rating">
                     {rowRank
                       ? <RankBar position={rowRank} size="row" showGate={false} />
-                      : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
+                      : ranked
+                        ? <span className="lb-unranked">Unranked</span> // the MMR column beside it carries the number
+                        : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
                   </span>
+                  {ranked && <span className="lb-c-mmr"><span className="lb-num lb-mmr">{r.rating}</span><span className="lb-unit">rating</span></span>}
                   <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
                   <span className="lb-c-act">
                     <button

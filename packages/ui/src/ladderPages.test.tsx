@@ -304,6 +304,36 @@ describe('Rankings — the medal rank rides into the Career page', () => {
   });
 });
 
+describe('Rankings — the MMR column', () => {
+  it('a table with medal ranks adds MMR between Rank and Games: the number per row, and Unranked in a rankless rank cell', async () => {
+    const rank = { seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex: 6, points: 10, demotionReady: false }, highest: { divisionIndex: 6, points: 10, demotionReady: false } };
+    fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rating: 610, rank }, PLAYERS[1]!, PLAYERS[2]!]);
+    useGame.setState({ showRankings: true });
+    ui = mount(<Rankings />);
+    await flush();
+    expect(ui.container.querySelector('.lb-table')!.classList.contains('lb-has-mmr')).toBe(true);
+    expect(text('.lb-thead > *')).toEqual(['#', 'Player', 'Rank', 'MMR', 'Games', '']);
+    expect(text('.lb-trow-btn .lb-c-mmr')).toEqual(['610rating', '763rating', '264rating']);
+    expect(text('.lb-trow-btn .lb-c-mmr .lb-mmr')).toEqual(['610', '763', '264']);
+    // The ranked row keeps its crest + bar; the rankless rows no longer repeat the number in the rank cell.
+    const cells = [...ui.container.querySelectorAll('.lb-trow-btn .lb-c-rating')];
+    expect(cells[0]!.querySelector('.rankbar')).not.toBeNull();
+    expect(cells.slice(1).map((c) => c.textContent)).toEqual(['Unranked', 'Unranked']);
+    expect(ui.container.querySelectorAll('.lb-rating')).toHaveLength(0);
+    // Every row has the same six cells as the header, so the grid tracks line up.
+    expect([...ui.container.querySelectorAll('.lb-trow')].map((r) => r.children.length)).toEqual([6, 6, 6, 6]);
+  });
+
+  it('a legacy table (no ranks at all) keeps five columns: its Rating cell already is the MMR', async () => {
+    useGame.setState({ showRankings: true });
+    ui = mount(<Rankings />);
+    await flush();
+    expect(ui.container.querySelector('.lb-table')!.classList.contains('lb-has-mmr')).toBe(false);
+    expect(ui.container.querySelectorAll('.lb-c-mmr, .lb-unranked')).toHaveLength(0);
+    expect(text('.lb-rating')).toEqual(['782', '763', '264']);
+  });
+});
+
 describe('Rankings — designed states', () => {
   it('loading, then empty', async () => {
     let resolve!: (r: PlayerRow[]) => void;

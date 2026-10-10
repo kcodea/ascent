@@ -7446,7 +7446,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-trow > * { min-width: 0; }
 .lb-thead { padding: 4px 24px 10px; border-bottom: 2px solid rgba(196, 160, 92, 0.35); border-radius: 0; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
 .lb-thead .lb-c-rank { text-align: center; }
-.lb-thead .lb-c-games { text-align: right; justify-content: flex-end; }
+.lb-thead .lb-c-games, .lb-thead .lb-c-mmr { text-align: right; justify-content: flex-end; }
 /* RANK is centred over its cell, and the cell's content (crest + label + bar, or the legacy MMR) is centred
    under it as one block (owner 2026-09-24: "better center the rank text over the rank column"). Both centre on
    the same grid track, so they line up at every width. */
@@ -7477,6 +7477,14 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* Games — the value with its small-caps caption under it, right-aligned under the GAMES header. */
 .lb-c-games { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .lb-num { font-family: var(--font-ui); font-weight: 900; font-size: 28px; line-height: 1; color: #f4eee2; font-variant-numeric: tabular-nums; }
+/* MMR — its own column once the table carries medal ranks (owner 2026-10-09; `.lb-has-mmr` on the table): the
+   rank cell is then the crest + bar, so the number sits here in the rating gold, laid out like Games (value
+   over a small-caps caption, right-aligned under its header). One more px track, so the header still computes
+   the same tracks as the rows. A row with no medal rank on such a table reads "Unranked" in its rank cell. */
+.lb-has-mmr .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 210px 110px 130px 272px; }
+.lb-c-mmr { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.lb-mmr { color: #ffd76a; }
+.lb-unranked { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
 /* The actions, right-aligned: CAREER PAGE (primary) then WATCH (secondary). */
 .lb-c-act { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 .lb-trow-btn .lb-btn { font-size: 14px; padding: 12px 20px; }
@@ -7545,6 +7553,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   .lb-team { --tile-s: 0.95; }
   /* The ranked row steps up with the panel: a 100px frame, a 72px coin, the rating at 46px (~136px rows). */
   .lb-trow { grid-template-columns: 96px minmax(0, 1fr) 240px 150px 290px; padding: 16px 28px; }
+  .lb-has-mmr .lb-trow { grid-template-columns: 96px minmax(0, 1fr) 240px 130px 150px 290px; }
   .lb-trow-btn .lb-heroframe .hero { width: 100px; height: 100px; }
   .lb-trow-btn .lb-medal { width: 72px; height: 72px; font-size: 30px; }
   .lb-trow-btn .rankcrest-row { --ring: 72px; }

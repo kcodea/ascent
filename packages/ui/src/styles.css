@@ -1,3 +1,18 @@
+/* REGISTERED SIZE VARIABLES (gameplay perf pass 2026-10-09). The card and chrome size chain (`--ch-base` -> `--ch`
+   -> `--cw` -> `--ccw`, and `--u-base` -> `--u`) used to be plain custom properties, so every reference substituted the
+   whole nested TEXT (`calc(calc(calc(calc(384px * 0.75 * 1) * .75) * .752) * .85)`) and Blink re-parsed it, per
+   element per declaration: `--ccw` alone was substituted ~1,700 times in one shop restyle, and a full-document
+   restyle cost ~20 ms. Registered as lengths, each is computed ONCE where it is declared and inherits as a plain
+   `138.07px`, so a reference costs a token. Same values (every definition is px / unitless maths, or container-query
+   units resolved against the same container), same inheritance, no transitions (nothing transitions `all`), and the
+   `var(--u, 1px)` fallback is kept as `--u`'s initial value. Measured: a full restyle 20.7 -> 13.5 ms. */
+@property --ch-base { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
+@property --ch { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
+@property --cw { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
+@property --ccw { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
+@property --u-base { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
+@property --u { syntax: '<length-percentage>'; inherits: true; initial-value: 1px; }
+
 :root {
   /* Font roles (swappable live via the dev font selector on the title). `title` = big display headings,
      `ui` = labels / buttons / stats, `body` = descriptions / prose. Default to the shipped Outfit + Nunito. */
@@ -242,8 +257,10 @@ body { background: #160f08; }
   transform: translateX(50%); }
 .heropowerbtn.opp-power:hover + .herotip.opp-power-tip, .heropowerbtn.opp-power.tt-on + .herotip.opp-power-tip { opacity: 1; transition-delay: 0.35s; }
 
-/* closed fist while a card is being dragged */
-body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing !important; }
+/* closed fist while a card is being dragged. Carried by a transparent veil laid over the page for the drag
+   (`dragCursorVeil.ts`), NOT by `body.dragging *`: toggling a universal, inherited cursor rule restyled the whole
+   document at both ends of every drag (perf 2026-10-09). The veil sits above every layer, portals included. */
+.drag-cursor-veil { position: fixed; inset: 0; z-index: 2147483000; background: transparent; cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
 .disp { font-family: var(--font-title), sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 

@@ -22,9 +22,9 @@ import { CORE_BLUR_ID } from './filterStack';
 const warmAnchors = new WeakMap<Renderer, Filter[]>();
 
 /** The filter ids at least one committed def switches on (`<id>On: true`), plus the core blur when any layer blurs. */
-export function filterIdsInUse(): string[] {
+export function filterIdsInUse(defs: ReadonlyArray<{ layers?: ReadonlyArray<{ params?: unknown }> }> = listDefs()): string[] {
   const ids = new Set<string>();
-  for (const def of listDefs()) {
+  for (const def of defs) {
     for (const layer of def.layers ?? []) {
       const p = (layer.params ?? {}) as Record<string, unknown>;
       for (const f of FILTERS) if (p[`${f.id}On`] === true) ids.add(f.id);

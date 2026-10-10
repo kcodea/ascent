@@ -210,7 +210,8 @@ import { DiceRoll } from './DiceRoll';
 import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
 import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
-import { fromSimpleState, getSimpleState, type StageFlipState } from './stageFlip';
+import { elementBelowVeil, hideDragCursorVeil, showDragCursorVeil } from './dragCursorVeil';
+import { fromSimpleState, getSimpleState, withoutFlipBodyLock, type StageFlipState } from './stageFlip';
 import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
@@ -3490,7 +3491,7 @@ export function Recruit() {
   }, [timeUp, inCombat]);
 
   const zoneAt = (x: number, y: number): Zone | null => {
-    const el = document.elementFromPoint(x, y)?.closest('[data-zone]');
+    const el = elementBelowVeil(x, y)?.closest('[data-zone]'); // the drag's cursor veil is up while this runs
     return (el?.getAttribute('data-zone') as Zone) ?? null;
   };
   const hitCachedUid = (cards: { uid: string; r: DOMRect }[], x: number, y: number): string | null => {
@@ -3747,7 +3748,7 @@ export function Recruit() {
     const st = coalesceRef.current;
     if (!st || chooseOneHeld) return;   // still open — the capture is for the frame it CLOSES
     coalesceRef.current = null;
-    Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true });
+    withoutFlipBodyLock(() => Flip.from(st, { duration: getFlipConfig().commitMs / 1000, ease: 'power2.out', absolute: true }));
   }, [chooseOneHeld]);
 
   const chooseOnePreview = useMemo<{ card: BoardCard; at: number } | null>(() => {
@@ -4193,7 +4194,7 @@ export function Recruit() {
         lastZone = zone;
         // Drive the closed-fist cursor strictly off the drag going active, so it can never get stranded on
         // (the bug where the grab cursor stuck after the first drag) — `endSession` always removes it.
-        if (willBeActive && !d0.active) document.body.classList.add('dragging');
+        if (willBeActive && !d0.active) { document.body.classList.add('dragging'); showDragCursorVeil(); }
         publish({ ...d0, x: e.clientX, y: e.clientY, active: willBeActive }, zone);
       }
       // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold for Divine Shield, blue for Reborn).
@@ -4235,6 +4236,7 @@ export function Recruit() {
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('contextmenu', onCtx);
       document.body.classList.remove('dragging');
+      hideDragCursorVeil();
       castAimRef.current = { casting: false, onTarget: false };
       endSessionRef.current = null;
       dragStore.endDrag();
@@ -4248,6 +4250,7 @@ export function Recruit() {
       if (!d || !moved) {
         cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');
+        hideDragCursorVeil();
         // a click, not a drag — let onClick (hero targeting) handle it
         endSession();
         return;
@@ -4303,6 +4306,7 @@ export function Recruit() {
         ? document.querySelector<HTMLElement>('.dragcard')?.getBoundingClientRect()
         : undefined;
       document.body.classList.remove('dragging'); // cursor reverts on release
+      hideDragCursorVeil();
 
       // Magnetic merge: a Magnetic minion dropped onto a friendly minion sharing one of its tribes
       // first "lands", then slides in (left→right) with electricity, and only then merges.

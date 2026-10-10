@@ -51,7 +51,7 @@ const SIZE_EPSILON_PX = 0.5;
  * written back as the current size and the card slides exactly as before; a real resize (the lifted drag source,
  * a hover pop) is still a resize.
  */
-function snapSubpixelSizes(state: StageFlipState, rects: (DOMRect | null)[]): void {
+export function snapSubpixelSizes(state: StageFlipState, rects: (DOMRect | null)[]): void {
   const states = state.elementStates as unknown as RecordedBox[];
   for (let i = 0; i < states.length; i++) {
     const r = rects[i];
@@ -85,6 +85,41 @@ export function rescaleSimpleState(state: StageFlipState, s: number, rects?: (DO
   }
 }
 
+/**
+ * Run a GSAP Flip call WITHOUT its body-scroll lock (gameplay perf pass 2026-10-09).
+ *
+ * `Flip.from` / `Flip.to` begin by "locking" the body whenever it is exactly as wide (or tall) as the window, which is
+ * always true in a full-screen game window: they write `width: <px>; overflow-y: hidden` onto `body.style`, and take
+ * them off again at the end. Each of those inline-style writes on `<body>` restyles AND re-lays-out the whole
+ * document. Measured on a heavy board drag: two full restyles per slot crossing (~10 ms frames for the whole drag),
+ * plus one at the drop. The lock exists so a scrollbar appearing mid-measure cannot shift anything; ASCENT's body is
+ * `overflow: hidden` (styles.css) and never scrolls, so here it guards nothing, and the width it pins is the width
+ * the body already has.
+ *
+ * GSAP keeps the lock private; its trigger is `body.clientWidth === window.outerWidth` (and the height twin). For the
+ * duration of the synchronous call those two reads are shadowed on the body ELEMENT with `NaN`, so the comparison
+ * is false and the lock never engages (it also saves the two forced-layout reads). The shadows are deleted in
+ * `finally`, restoring the real accessors. Nothing else reads them inside a Flip call.
+ */
+const LOCK_READS = ['clientWidth', 'clientHeight'] as const;
+export function withoutFlipBodyLock<T>(run: () => T): T {
+  const body = typeof document !== 'undefined' ? (document.body as unknown as Record<string, unknown> | null) : null;
+  if (!body) return run();
+  const shadowed: string[] = [];
+  for (const prop of LOCK_READS) {
+    if (Object.prototype.hasOwnProperty.call(body, prop)) continue;
+    try {
+      Object.defineProperty(body, prop, { configurable: true, get: () => Number.NaN });
+      shadowed.push(prop);
+    } catch { /* an element that refuses own properties: the lock simply runs as before */ }
+  }
+  try {
+    return run();
+  } finally {
+    for (const prop of shadowed) delete body[prop];
+  }
+}
+
 /** `Flip.from(state, { ...vars, simple: true })`, scaled-stage safe. Consumes `state` (its offsets are rescaled). */
 export function fromSimpleState(
   state: StageFlipState,
@@ -94,5 +129,5 @@ export function fromSimpleState(
   const rects = (state.elementStates as unknown as RecordedBox[]).map((es) => (es.element?.isConnected ? es.element.getBoundingClientRect() : null));
   snapSubpixelSizes(state, rects);
   rescaleSimpleState(state, stageScale(), rects);
-  return Flip.from(state, { ...vars, simple: true });
+  return withoutFlipBodyLock(() => Flip.from(state, { ...vars, simple: true }));
 }

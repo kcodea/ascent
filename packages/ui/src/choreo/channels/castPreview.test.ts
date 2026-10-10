@@ -14,6 +14,8 @@ import { CAST_PREVIEW_SOURCES } from '../../castPreviewConfig';
 import { SCORE_DEFAULTS, runMomentCues } from '../score';
 import { canPlayDefs, playDef } from '../../fx/playDef';
 import { anchorsForUnits } from '../../fx/combatAnchors';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 // The other channels' fx collaborators are mocked at their contract, as score.test.ts does — this file proves
 // the cast-preview channel's scan + dispatch, not how the fx layer renders.
@@ -128,7 +130,7 @@ describe('Fatecarver previews Growth in a real fight', () => {
   // THE GATE (owner 2026-09-24: "hide/disable the combat/minion side for now"): the cue still hands every Growth
   // cast to the feeder, the feeder shows nothing. Flipped back on, the rest of this block is the behaviour.
   it('with combat previews OFF: the cue still carries every Growth cast EVENT, but no preview shows', () => {
-    const r = simulate([bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 })],
+    const r = simulate([bm('sandbag', 'ATK', 3, 900), bm('taragosa', 'FC', 0, 900)],
       [{ cardId: 'sandbag', attack: 0, health: 90000 } as BoardMinion], makeRng(7), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     clearCastPreviews();
     const mem = new CastPreviewMemory();
@@ -147,14 +149,14 @@ describe('Fatecarver previews Growth in a real fight', () => {
   });
 
   it('many Growth casts in the fight → exactly ONE preview, from Fatecarver (m1), not the attacker (m0)', () => {
-    const { shown, seen, r } = previewsOf([bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 })]);
+    const { shown, seen, r } = previewsOf([bm('sandbag', 'ATK', 3, 900), bm('taragosa', 'FC', 0, 900)]);
     expect(r.events.filter((e) => e.type === 'attack' && e.attacker === 'm0').length, 'the ally attacked').toBeGreaterThan(1);
     expect(seen, 'every Growth cast reached the scan').toBeGreaterThan(1);
     expect(shown).toEqual([{ source: 'm1', spellId: 'growth' }]);
   });
 
   it('Warflame beside it previews Dragonflame once too — two casters, one preview each', () => {
-    const { shown } = previewsOf([bm('hoardbreaker', 'HB', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 }), bm('d2_warflame', 'WF', 0, 900)]);
+    const { shown } = previewsOf([bm('hoardbreaker', 'HB', 3, 900), bm('taragosa', 'FC', 0, 900), bm('d2_warflame', 'WF', 0, 900)]);
     const key = (c: { source: string; spellId: string }) => `${c.source}:${c.spellId}`;
     expect(shown.map(key).sort()).toEqual(['m0:growth', 'm1:growth', 'm2:sp_dragonflame'].sort());
   });

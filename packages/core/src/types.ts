@@ -946,6 +946,8 @@ export type EffectFactoryId =
   | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
   | 'deathrattlePlayRubiesTribe' // Set 2 — Kobebes (Echo): on death, play N Rubies on each friendly `tribe`
   | 'onTribePlayedBuffSelfPerSpell' // Set 2 — Herzog: +N/+N when you play a `tribe`; N = base + floor(spellsCast/per)
+  | 'onGainAttackBuffAdjacentTribe' // Set 2 — Vaultkeeper (2026-10-10): when THIS gains Attack, give adjacent `tribe` +a/+h (all of them under Rune of the Vaultkeeper); one pulse per gain, no Vaultkeeper re-enters (R-VAULT-01)
+  | 'battlecryReplayTargetEndOfTurn' // Set 2 — Roomworks (2026-10-10): targeted Shout, trigger the chosen minion's End of Turn (golden twice; R-ROOMWORKS-01 guard)
   | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
   | 'avengeSummonRubyStats' // Set 3 — Kurse: Avenge (N) — Carver's Golem (1/1 + this minion's Rubies) on the avenge window
@@ -1139,6 +1141,10 @@ export interface CardDef {
    *  `targetTribe` already implies this; use this flag for an otherwise-unrestricted pick. Absent = self is a
    *  legal target. Enforced in the reducer (`battlecryTarget`, authoritative) and mirrored by the aim UI. */
   targetNotSelf?: boolean;
+  /** Restricts a `target: 'friendly'` pick to minions that HAVE an End of Turn effect (Roomworks, owner 2026-10-10:
+   *  "only minions with an End of Turn effect are valid"). Enforced by the reducer (`battlecryTargetAllowed`) and
+   *  mirrored by the aim UI. */
+  targetHasEndOfTurn?: boolean;
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;
@@ -2260,6 +2266,9 @@ export interface QuestCombatMods {
   runeMatriarch?: boolean;
   /** Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack). */
   runeMammoth?: boolean;
+  /** Rune of the Vaultkeeper (owner 2026-10-10): a Vaultkeeper's gain-Attack pulse reaches ALL your other Dragons
+   *  rather than the adjacent ones. The combat twin of `RunState.runeVaultkeeper`. */
+  runeVaultkeeper?: boolean;
   /** Rune of the Warpath: after your LEFT-most minion attacks, your RIGHT-most attacks too. */
   runeWarpath?: boolean;
   /** Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner
@@ -3809,6 +3818,9 @@ export interface CombatContext {
   baneDemonWidenFor(side: Side): { attack: number; health: number } | undefined;
   /** Rune of the Mammoth for this side — the Mammoth grant gives Health 1:1 with its Attack. */
   mammothHealthFor(side: Side): boolean;
+  /** Rune of the Vaultkeeper for this side — a Vaultkeeper's pulse reaches every other Dragon. Optional so a test
+   *  context without it reads "adjacent". */
+  vaultkeeperAllFor?(side: Side): boolean;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
   /** Set 3 Spirits — Spirits played this turn, per side (Kindled Sprite). An enemy side carries 0 unless its state says otherwise. */

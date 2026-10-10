@@ -71,7 +71,7 @@ describe('lobby rail guides', () => {
     expect(names('set2-beast-oona', 'enablers')).toEqual(['Armadiyo', 'Bullseye', 'Beardsley']);
     expect(title('set2-dragon-breath')).toBe('Dragonflame');
     expect(names('set2-dragon-breath', 'core')).toEqual(['Captain Flamus', 'Transcendant']);
-    expect(names('set2-dragon-breath', 'enablers')).toEqual(['Fel Conjurer', 'Flamebeat Drake', 'Chorus Drake']);
+    expect(names('set2-dragon-breath', 'enablers')).toEqual(['Flamebeat Drake', 'Chorus Drake']); // RE-PIN 2026-10-10: Fel Conjurer archived
     expect(title('set2-dragon-shout')).toBe('Shout Dragons');
     expect(names('set2-dragon-shout', 'core')).toEqual(['Karwind', 'Drakko', 'Voicekeeper']);
     expect(names('set2-dragon-shout', 'enablers')).toEqual(['Karwind', 'Roarcollector']);

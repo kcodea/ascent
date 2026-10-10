@@ -159,7 +159,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         tier7Access: foe ? false : hasTier7Access(run),
         zooSummons: foe ? undefined : zooSummons, // Beardsley + Rune of the Zoo: the next summon's live grant
 
-        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
+        runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
         revelerX: foe ? enemyScalers?.revelerX : run.revelerX, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
@@ -169,6 +169,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Granted Rise leads the text while the body still HAS it (owner 2026-09-26): spent on Rising, back on a
         // regain. `u.keywords` is already in the memo comparator, so no extra re-render trigger is needed.
         keywords: u.keywords,
+        inCombat: true, // Humphry's live (+X/+Y): a combat body counts what was played, never its own play again
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

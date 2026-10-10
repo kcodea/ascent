@@ -29,7 +29,7 @@ describe('the six defs ship as specced', () => {
       rune_unbroken_vein: [5, false],
       rune_shared_reflection: [3, true], // Shared Reflection 5 → 3 (balance 9/23)
       // rune_moonhowl archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — no longer in the active pool.
-      rune_living_growth: [3, true], // Living Growth 5 → 3 (balance 9/23)
+      // rune_living_growth archived 2026-10-10 (ARCHIVED_RUNES, owner balance batch: it only worked with Mushy's Growth).
       // rune_battle_refraction + rune_flooded_vault archived 2026-08-18 (ARCHIVED_RUNES) — no longer in the active pool.
     };
     for (const [id, [cost, epic]] of Object.entries(spec)) {
@@ -115,20 +115,20 @@ describe('Rune of Battle Refraction', () => {
 });
 
 describe('Rune of Living Growth', () => {
-  it('each Growth Mushy creates improves the spell, and the cast pays the accrual', () => {
-    // Mushy's Shout grants a Growth and ticks the improver; casting Growth then grants base+bonus.
+  // RE-PIN 2026-10-10 (owner balance batch): the rune is ARCHIVED and Mushy now gets a Dragonflame, so nothing ticks the
+  // improver any more. A save that already holds the rune keeps it, inert; an accrual it already banked still pays.
+  it('archived: Mushy now gets a Dragonflame, which never ticks the improver; a banked accrual still pays', () => {
     let s = withRune('rune_living_growth', {
-      board: [bm('t', 'stray', 1, 1)], hand: [bm('m', 'd2_scalefeather', 2, 3)],
+      board: [bm('t', 'stray', 1, 1)], hand: [bm('m', 'd2_scalefeather', 2, 3), bm('g', 'growth', 0, 0)], growthBonus: 1,
     });
-    s = reduce(s, { type: 'play', uid: 'm' }) as RunState; // Shout: get a Growth (+1 tick)
-    expect(s.growthBonus, 'the Shout grant should tick the improver').toBe(1);
-    const granted = s.hand.find((c) => c.cardId === 'growth');
-    expect(granted, 'no Growth was granted').toBeDefined();
+    s = reduce(s, { type: 'play', uid: 'm' }) as RunState; // Shout: get a Dragonflame (no tick)
+    expect(s.growthBonus, 'a Dragonflame never ticks the improver').toBe(1);
+    expect(s.hand.some((c) => c.cardId === 'sp_dragonflame'), 'Mushy hands over a Dragonflame').toBe(true);
     const before = s.board.find((c) => c.uid === 't')!;
     const [a0, h0] = [before.attack, before.health];
-    s = reduce(s, { type: 'play', uid: granted!.uid }) as RunState;
+    s = reduce(s, { type: 'play', uid: 'g' }) as RunState;
     const after = s.board.find((c) => c.uid === 't')!;
-    // Base +1/+1 plus the accrued +1/+1 = +2/+2 on every friendly minion.
+    // Base +1/+1 plus the banked +1/+1 = +2/+2 on every friendly minion.
     expect([after.attack - a0, after.health - h0]).toEqual([2, 2]);
   });
 

@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -648,6 +648,54 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
   const e = card.buffs.find((b) => b.source === source);
   if (e) { e.attack += attack; e.health += health; e.count += count; }
   else card.buffs.push({ source, attack, health, count });
+  // VAULTKEEPER (owner 2026-10-10): EVERY separate Attack gain is a gain — this buff is one instance, so it fires here,
+  // at the one chokepoint every Shop stat gain crosses, rather than once per action off the reducer's board diff.
+  if (attack > 0) vaultkeeperShopPulse(card);
+}
+
+/**
+ * VAULTKEEPER — the stateless `addBuff` hook's state, stamped exactly like `XEROX` (reducer entry + the End-of-Turn
+ * projection, which puts the live one back when done). The run is held whole, so the board is read LIVE at the gain.
+ */
+let VAULT: RunState | null = null;
+export function stampVaultkeeper(state: RunState): RunState | null {
+  const prev = VAULT;
+  VAULT = state;
+  return prev;
+}
+export function restoreVaultkeeper(prev: RunState | null): void {
+  VAULT = prev;
+}
+
+/**
+ * VAULTKEEPER, SHOP HALF (owner 2026-10-10: "When this gains Attack, give adjacent Dragons +3/+4"). Called from `addBuff`
+ * for each positive Attack gain on a body, so a gilded Karwind's two pulses are two gains here exactly as they are two
+ * `onGainAttack` emits in combat. A Vaultkeeper in hand never pulses (it has no neighbours). One pulse per gain, under
+ * R-VAULT-01's `runVaultPulse`: a gain made INSIDE a pulse (the neighbour Vaultkeeper's +3) never pulses again, so two
+ * adjacent Vaultkeepers settle. Each pulse is its own source-attributed beat (`factory:…:onGainAttack`). The reducer's
+ * per-action diff does not re-dispatch it (`PER_GAIN_INSTANCE` in `fireOnGainAttack`).
+ */
+function vaultkeeperShopPulse(card: BoardCard): void {
+  const state = VAULT;
+  if (!state || vaultPulseActive() || !state.board.includes(card)) return;
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return;
+  for (const effect of def.effects) {
+    if (effect.on !== 'onGainAttack' || effect.do !== 'onGainAttackBuffAdjacentTribe') continue;
+    withRecruitTrigger(
+      makeContext(state),
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: def.name },
+        trigger: 'onGainAttack',
+        ...beatIdentity(`factory:${effect.do}:onGainAttack`),
+      },
+      () => captureBuffFx(state, card, 'minion', () => {
+        RECRUIT_FACTORIES.onGainAttackBuffAdjacentTribe?.(makeContext(state), card, effect.params ?? {}, { minion: card });
+      }),
+      { discardIfEmpty: true },
+    );
+  }
 }
 
 /** Buff a TAVERN OFFER (Apples / Fortify / Fried Circuits / next-shop) — bumps its `atk`/`hp` AND records the
@@ -5746,6 +5794,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** VAULTKEEPER (shop half, owner 2026-10-10) — the pulse body under R-VAULT-01's guard; Rune of the Vaultkeeper widens it
+   *  to every other Dragon. Dispatched PER GAIN from `addBuff` (`vaultkeeperShopPulse`), never by `fireOnGainAttack`'s
+   *  per-action diff (`PER_GAIN_INSTANCE`), so a gain is never paid twice. */
+  onGainAttackBuffAdjacentTribe: (ctx, self, params) => {
+    runVaultPulse(() => ARENA_EFFECTS.onGainAttackBuffAdjacentTribe(shopArena(ctx.state, self), { ...params, all: !!ctx.state.runeVaultkeeper }));
+  },
+
   /** Hunter (recruit half) — when this gains Attack in the shop (e.g. a Fortify), give every friendly minion
    *  +Health. Health-only, so it can never re-trigger onGainAttack (no loop). Golden doubles. Dispatched by
    *  `fireOnGainAttack` when a recruit buff raises Hunter's Attack. */
@@ -7590,17 +7645,81 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  and a Shout minion summoned by another Shout is not "your Shout minion" at the moment Moira looked — the
    *  card must not chain into bodies that arrived during its own resolution. Moira herself has no Shout; she
    *  is skipped by uid so a future Shout on this card could never re-enter its own End of Turn. */
-  endOfTurnTriggerShouts: (ctx, self) => {
+  //
+  // SHRIEKER (owner 2026-10-10: "End of Turn: Trigger your minions' Shouts. (Except Roomworks)") rides this same body
+  // with `exclude`: card ids skipped by the roster. Each re-fired Shout is ITS OWN beat sourced on the shouting minion
+  // (`factory:<its Shout>:onPlay`, discarded when it changed nothing). R-ROOMWORKS-01: while one of these End of Turns
+  // is resolving, no other one starts and no Roomworks Shout fires (see `SHOUT_EOT_CHAIN`).
+  endOfTurnTriggerShouts: (ctx, self, params) => {
+    if (SHOUT_EOT_CHAIN.eotShouts > 0) return; // R-ROOMWORKS-01: never nested inside another Shrieker / Moira
+    const exclude = Array.isArray(params.exclude) ? (params.exclude as unknown[]).filter((x): x is string => typeof x === 'string') : [];
     const shouters = ctx.state.board.filter((c) => {
-      if (c.uid === self.uid) return false;
+      if (c.uid === self.uid || exclude.includes(c.cardId)) return false;
       const def = CARD_INDEX[c.cardId];
       return !!def && hasBattlecry(def);
     });
-    for (let n = 0; n < gold(self); n++) {
-      for (const c of shouters) {
-        if (!ctx.state.board.some((b) => b.uid === c.uid)) continue; // consumed / sold mid-sequence
-        replayBattlecry(ctx.state, c);
+    SHOUT_EOT_CHAIN.eotShouts += 1;
+    try {
+      for (let n = 0; n < gold(self); n++) {
+        for (const c of shouters) {
+          if (!ctx.state.board.some((b) => b.uid === c.uid)) continue; // consumed / sold mid-sequence
+          const shout = CARD_INDEX[c.cardId]?.effects.find((e) => e.on === 'onPlay');
+          withRecruitTrigger(
+            ctx,
+            {
+              phase: 'endOfTurn',
+              source: { kind: 'minion', id: c.cardId, uid: c.uid, side: 'player', label: CARD_INDEX[c.cardId]?.name },
+              trigger: 'onPlay',
+              ...beatIdentity(`factory:${shout?.do ?? 'endOfTurnTriggerShouts'}:onPlay`),
+            },
+            () => { replayBattlecry(ctx.state, c); },
+            { discardIfEmpty: true },
+          );
+        }
       }
+    } finally {
+      SHOUT_EOT_CHAIN.eotShouts -= 1;
+    }
+  },
+
+  /**
+   * ROOMWORKS (owner 2026-10-10): "Shout: Trigger a friendly minion's End of Turn effect." A TARGETED Shout ("you PICK
+   * the target"): `payload.target` is the chosen body, and only a friendly OTHER minion with an End of Turn effect is
+   * legal (`battlecryTargetAllowed`, which the reducer enforces). A re-fire with no target (Drakko's extra fire, a
+   * combat re-fire settled in the Shop) auto-picks the LEFT-most legal minion, deterministic. Fires through the shared
+   * `replayEndOfTurn` (Chronos repeats + the End-of-Turn objective count, exactly like Dusk's power), as its own beat
+   * sourced on the target. Gilded triggers it twice.
+   *
+   * R-ROOMWORKS-01: no Roomworks Shout fires while another Roomworks Shout or a Shrieker End of Turn is resolving. That
+   * cuts every Roomworks / Shrieker loop, including the wide one the audit found (Storm Chaser, Veinstorm, High King
+   * Mykel, Roomworks, Shrieker, Storm Chaser again, ...).
+   */
+  battlecryReplayTargetEndOfTurn: (ctx, self, _params, payload) => {
+    if (SHOUT_EOT_CHAIN.shoutEot > 0 || SHOUT_EOT_CHAIN.eotShouts > 0) return;
+    const def = CARD_INDEX[self.cardId];
+    const legal = (c: BoardCard): boolean => c.uid !== self.uid && (!def || battlecryTargetAllowed(def, c));
+    const chosen = payload.target && ctx.state.board.includes(payload.target) && legal(payload.target) ? payload.target : undefined;
+    const target = chosen ?? ctx.state.board.find(legal);
+    if (!target) return;
+    const eot = CARD_INDEX[target.cardId]?.effects.find((e) => e.on === 'endOfTurn');
+    SHOUT_EOT_CHAIN.shoutEot += 1;
+    try {
+      for (let n = 0; n < gold(self); n++) {
+        if (!ctx.state.board.includes(target)) break; // consumed / sold by its own End of Turn
+        withRecruitTrigger(
+          ctx,
+          {
+            phase: 'recruit',
+            source: { kind: 'minion', id: target.cardId, uid: target.uid, side: 'player', label: CARD_INDEX[target.cardId]?.name },
+            trigger: 'endOfTurn',
+            ...beatIdentity(`factory:${eot?.do ?? 'battlecryReplayTargetEndOfTurn'}:endOfTurn`),
+          },
+          () => { captureBuffFx(ctx.state, target, 'minion', () => { replayEndOfTurn(ctx.state, target); }); },
+          { discardIfEmpty: true },
+        );
+      }
+    } finally {
+      SHOUT_EOT_CHAIN.shoutEot -= 1;
     }
   },
 
@@ -11616,6 +11735,9 @@ function eotRepeatTick(state: RunState, self: BoardCard, targets: readonly Board
  * payload and assume the gainer is `self`; broadcasting to them would misfire.
  */
 const GAIN_ATTACK_WATCHERS: ReadonlySet<string> = new Set(['onTribeGainAttackBuffSelf']);
+/** `onGainAttack` reactors dispatched PER GAIN INSTANCE from `addBuff` (Vaultkeeper, owner 2026-10-10: "every separate
+ *  Attack buff must count"). The per-action diff below skips them, or one gain would pay twice. */
+const PER_GAIN_INSTANCE: ReadonlySet<string> = new Set(['onGainAttackBuffAdjacentTribe']);
 
 export function fireOnGainAttack(state: RunState, card: BoardCard, gained = 0): void {
   // RUNE OF THE ANVIL (Set 3 design pass): a board Dwarf that gained `gained` Attack also gains that much Health (per
@@ -11628,14 +11750,14 @@ export function fireOnGainAttack(state: RunState, card: BoardCard, gained = 0): 
   // Fast path: the reducer calls this for EVERY board minion whose Attack rose, so bail before the
   // (relatively costly) makeContext unless this card actually has a dispatchable onGainAttack reactor — or
   // another board body is watching for exactly this.
-  const ownReacts = !!def && def.effects.some((e) => e.on === 'onGainAttack' && RECRUIT_FACTORIES[e.do]);
+  const ownReacts = !!def && def.effects.some((e) => e.on === 'onGainAttack' && RECRUIT_FACTORIES[e.do] && !PER_GAIN_INSTANCE.has(e.do));
   const watchers = state.board.filter((c) => c.uid !== card.uid
     && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onGainAttack' && GAIN_ATTACK_WATCHERS.has(e.do)));
   if (!ownReacts && watchers.length === 0) return;
   const ctx = makeContext(state);
   if (def && ownReacts) {
     for (const effect of def.effects) {
-      if (effect.on !== 'onGainAttack') continue;
+      if (effect.on !== 'onGainAttack' || PER_GAIN_INSTANCE.has(effect.do)) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
       if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
     }
@@ -11856,6 +11978,31 @@ export function replayEconomyBattlecry(state: RunState, cardId: string, golden: 
     const fn = RECRUIT_FACTORIES[effect.do];
     if (fn) fn(ctx, self, effect.params ?? {}, { minion: self });
   }
+}
+
+/**
+ * R-ROOMWORKS-01: THE SHOUT / END-OF-TURN LOOP GUARD (owner 2026-10-10: Roomworks + Shrieker). Roomworks' Shout
+ * triggers an End of Turn; Shrieker's End of Turn triggers Shouts. Together, or through any third card that turns one
+ * into the other (High King Mykel turns spells into Shouts; a Shout can cast spells), they can loop forever. The rule:
+ *   - no Roomworks Shout fires while a Roomworks Shout OR a "trigger your Shouts" End of Turn is resolving, and
+ *   - no "trigger your Shouts" End of Turn starts while another one is resolving.
+ * Sequential fires (a gilded copy's second fire, two Roomworks played one after the other) are untouched: the counters
+ * only see NESTING. Keyed by factory, never by card id. Module-scoped, synchronous, always unwound in `finally`.
+ */
+const SHOUT_EOT_CHAIN = { shoutEot: 0, eotShouts: 0 };
+
+/** Does this body have an End of Turn effect (Roomworks' legal targets)? Printed effects, read off the card index. */
+export function hasEndOfTurnEffect(card: Pick<BoardCard, 'cardId'>): boolean {
+  return !!CARD_INDEX[card.cardId]?.effects.some((e) => e.on === 'endOfTurn');
+}
+
+/**
+ * The aimed-Shout target filters BEYOND tribe and self (the reducer, `opensBattlecryAim`, the factory's auto-pick and
+ * the aim UI all ask this): `targetHasEndOfTurn` (Roomworks) needs an End of Turn effect on the target.
+ */
+export function battlecryTargetAllowed(def: Pick<CardDef, 'targetHasEndOfTurn'>, target: Pick<BoardCard, 'cardId'>): boolean {
+  if (def.targetHasEndOfTurn && !hasEndOfTurnEffect(target)) return false;
+  return true;
 }
 
 /**
@@ -14647,7 +14794,8 @@ function projectEndOfTurnStepsInner(state: RunState): {
   stampImproveReps(clone); // Rune of Mastery: the projection's Sergeant improves match the real commit
   // Xerox × Bonds: mirror against the CLONE for the projection (never the live run), then put the live stamp back.
   const xeroxPrev = stampXeroxBond(clone);
-  try { return projectEndOfTurnStepsBody(clone); } finally { restoreXeroxBond(xeroxPrev); }
+  const vaultPrev = stampVaultkeeper(clone); // Vaultkeeper's addBuff hook reads the projection's clone, then the live run again
+  try { return projectEndOfTurnStepsBody(clone); } finally { restoreXeroxBond(xeroxPrev); restoreVaultkeeper(vaultPrev); }
 }
 function projectEndOfTurnStepsBody(clone: RunState): {
   steps: Array<Record<string, { attack: number; health: number }>>;

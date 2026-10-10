@@ -280,9 +280,9 @@ export const NEUTRAL: CardDef[] = [
     id: 'stewardofspells',
     name: 'Steward of Spells',
     tribe: 'neutral',
-    tier: 5,
-    attack: 5,
-    health: 7,
+    tier: 4, // owner balance batch 2026-10-10: T5 5/7 → T4 4/6 (text unchanged)
+    attack: 4,
+    health: 6,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'spellCopyRecent' }],
     // Live text (owner 2026-10-09): the UI appends " (X)", X = the spell it would copy right now

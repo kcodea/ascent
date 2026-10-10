@@ -45,16 +45,17 @@ describe('Conductor — Shout: give adjacent minions +2/+3 and improve this (per
     });
     s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 });
     const alley = CARD_INDEX['alley']!;
-    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[alley.attack + 2, alley.health + 3], [2, 4], [alley.attack + 2, alley.health + 3]]);
+    // RE-PIN 2026-10-10 (owner balance batch): Conductor's grant is now +3/+3 (was +2/+3); the per-copy step is unchanged.
+    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[alley.attack + 3, alley.health + 3], [2, 4], [alley.attack + 3, alley.health + 3]]);
     expect(s.board[1]!.summonBonus, 'the copy improved itself after granting').toBe(1);
     expect(s.conductorBuff ?? 0, 'the retired run-wide snowball is never written').toBe(0);
     // A RE-FIRE of the same copy (Moira / Ryme / Dawnclaw path) pays the improved +3/+4 and improves again.
     replayBattlecry(s, s.board[1]!);
-    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[alley.attack + 5, alley.health + 7], [2, 4], [alley.attack + 5, alley.health + 7]]);
+    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[alley.attack + 7, alley.health + 7], [2, 4], [alley.attack + 7, alley.health + 7]]);
     expect(s.board[1]!.summonBonus).toBe(2);
     // A SECOND copy is its own card: it grants the printed +2/+3 to its one neighbour, untouched by the first.
     s = reduce(s, { type: 'play', uid: 'c2', toIndex: 0 });
-    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([alley.attack + 5 + 2, alley.health + 7 + 3]);
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([alley.attack + 7 + 3, alley.health + 7 + 3]);
     expect(s.board[0]!.summonBonus).toBe(1);
     expect(s.board[2]!.summonBonus, 'the first copy keeps its own accrual').toBe(2);
   });
@@ -63,10 +64,10 @@ describe('Conductor — Shout: give adjacent minions +2/+3 and improve this (per
     let s = recruit({ board: [card('a', 'alley')], hand: [card('g', 'n2_conductor', { golden: true, attack: 4, health: 8 })] });
     s = reduce(s, { type: 'play', uid: 'g', toIndex: 1 });
     const alley = CARD_INDEX['alley']!;
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([alley.attack + 4, alley.health + 6]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([alley.attack + 6, alley.health + 6]); // RE-PIN 2026-10-10: gilded +6/+6
     expect(s.board[1]!.summonBonus, 'the accrual steps by 1, gilded or not').toBe(1);
     replayBattlecry(s, s.board[1]!);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([alley.attack + 4 + 6, alley.health + 6 + 8]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([alley.attack + 6 + 8, alley.health + 6 + 8]); // RE-PIN: (3 + 1) × 2
   });
 
   it('a COMBAT re-fire (Parting Cry) pays the copy\'s accrued grant and improves it — the same arena body', () => {
@@ -75,8 +76,8 @@ describe('Conductor — Shout: give adjacent minions +2/+3 and improve this (per
       [bm('sandbag', 'B', 6, 30)],
       makeRng(5), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 6 }),
     );
-    expect(buffsOn(r.events, 'm0').some((b) => b.attack === 4 && b.health === 5), 'accrual 2 → +4/+5 on the left neighbour').toBe(true);
-    expect(buffsOn(r.events, 'm2').some((b) => b.attack === 4 && b.health === 5), '…and on the right').toBe(true);
+    expect(buffsOn(r.events, 'm0').some((b) => b.attack === 5 && b.health === 5), 'accrual 2 → +5/+5 on the left neighbour (RE-PIN 2026-10-10, was +4/+5)').toBe(true);
+    expect(buffsOn(r.events, 'm2').some((b) => b.attack === 5 && b.health === 5), '…and on the right').toBe(true);
     expect(r.events.some((e) => e.type === 'improve' && (e as { target: string }).target === 'm1'), 'the copy improved mid-fight').toBe(true);
   });
 
@@ -95,9 +96,10 @@ describe('Conductor — Shout: give adjacent minions +2/+3 and improve this (per
 
   it('live text prints (base + accrual) × golden on every surface; the printed base stands at zero', () => {
     expect(conductorText('n2_conductor', false, 0)).toBeNull();
-    expect(conductorText('n2_conductor', false, 2)).toContain('{{+4/+5}}');
-    expect(conductorText('n2_conductor', true, 2)).toContain('{{+8/+10}}');
-    expect(CARD_INDEX['n2_conductor']!.text).toBe('**Shout:** give adjacent minions **+2/+3** and improve this.');
+    // RE-PIN 2026-10-10 (owner balance batch): base +3/+3.
+    expect(conductorText('n2_conductor', false, 2)).toContain('{{+5/+5}}');
+    expect(conductorText('n2_conductor', true, 2)).toContain('{{+10/+10}}');
+    expect(CARD_INDEX['n2_conductor']!.text).toBe('**Shout:** give adjacent minions **+3/+3** and improve this.');
   });
 });
 

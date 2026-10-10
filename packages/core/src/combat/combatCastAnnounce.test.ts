@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '../index';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 /**
  * EVERY COMBAT CAST ANNOUNCES ITSELF, FROM ITS CASTER (owner report 2026-09-23, the cast preview):
@@ -36,7 +38,7 @@ const castsBy = (events: CombatEvent[], source: string, spellId: string) =>
 
 describe('combat casters announce the spell they cast, from the caster', () => {
   const rows: [name: string, board: BoardMinion[], casterSource: string, spellId: string][] = [
-    ['Fatecarver (branch B) — Growth on a friendly attack', [bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 })], 'FC', 'growth'],
+    ['Fatecarver (branch B) — Growth on a friendly attack', [bm('sandbag', 'ATK', 3, 900), bm('taragosa', 'FC', 0, 900)], 'FC', 'growth'],
     ['Taragosa — Growth when a minion attacks', [bm('sandbag', 'ATK', 3, 900), bm('taragosa', 'TG', 0, 900)], 'TG', 'growth'],
     ['Hoardbreaker Drake — Rally: Growth', [bm('hoardbreaker', 'HB', 3, 900)], 'HB', 'growth'],
     ['Watcher — Rally: Lantern of Souls', [bm('watcher', 'WA', 3, 900)], 'WA', 'lanternofsouls'],
@@ -58,7 +60,7 @@ describe('combat casters announce the spell they cast, from the caster', () => {
 
   it('Fatecarver announces ONE Growth per friendly attack (golden: two)', () => {
     for (const golden of [false, true]) {
-      const board = [bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1, golden })];
+      const board = [bm('sandbag', 'ATK', 3, 900), bm('taragosa', 'FC', 0, 900, { golden })];
       const r = simulate(board, wall, makeRng(7), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
       const attacks = r.events.filter((e) => e.type === 'attack' && (e.attacker === 'm0' || e.attacker === 'm1')).length; // Growth arms Fatecarver too
       const casts = castsBy(r.events, 'm1', 'growth').length;

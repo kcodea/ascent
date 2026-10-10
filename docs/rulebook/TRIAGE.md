@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (104) — NOT owner questions
+## Doc Bot verification backlog (105) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -55,6 +55,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeFoodChain (Rune of the Food Chain: "The first minion you summon in combat gains the stats of your left-most Demon.") — Rune of the Food Chain: the first minion summoned each combat gains your left-most Demon's stats.
 - combat mod runeMatriarch — Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her per-spell proc doubles exactly like the shop half (owner audit 2026-08-02).
 - combat mod runeMammoth — Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack).
+- combat mod runeVaultkeeper (Rune of the Vaultkeeper: "Get a Vaultkeeper. Your Vaultkeepers buff all Dragons.") — Rune of the Vaultkeeper (owner 2026-10-10): a Vaultkeeper's gain-Attack pulse reaches ALL your other Dragons rather than the adjacent ones. The combat twin of `RunState.runeVaultkeeper`.
 - combat mod baneDemonWiden — Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner ruling — the widen fires on combat-triggered Battlecries too.
 - combat mod runeOverflow (Rune of the Crowded Crypt: "Overflow: give your minions +1/+1 permanently. Triggers twice in the Shop.") — Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit.
 - combat mod runeFinalGate (Rune of the Final Gate: "The first time each combat your board becomes empty, summon three random Undead that died this combat.") — Rune of the Final Gate: the first time each combat this side's board becomes EMPTY, summon three random Undead (printed bodies) that died this combat. Once per fight.

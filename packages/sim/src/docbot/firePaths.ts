@@ -218,7 +218,6 @@ export function auditFireSites(): FireSiteAudit {
 export const FIRE_UNOBSERVED: Readonly<Record<string, string>> = {
   onAttackStripKeywords: 'Tauntbreaker strips keywords from the body it HITS; the staged dummy carries none',
   onFriendlyAttackBuffTribe: 'Raptor reacts to a friendly BEAST attacking; the reference rallier is a Dragon and the Beast filler never swings',
-  onAllyAttackCastGrowth: 'Fatecarver casts Growth when an ally attacks; Growth is not combat-castable under the staged side, so the cast fizzles (the Beefy class — see COMBAT_CASTING_FACTORIES)',
   rallySummonRandomTribeFromHand: 'Seedling summons from HAND; combat sides carry no hand',
   rallyGiveTribeAttackOfHighestAttackHand: 'Flamebanner reads the highest-Attack card in HAND; combat sides carry no hand',
   rallyGainAttackPerSpiritsPlayed: 'Kindled scales with spiritsPlayed, which the staged side leaves at 0',

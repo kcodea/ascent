@@ -11,6 +11,8 @@ import { HUNCH_BONDS_COMBAT_LABEL, type BuffFxEvent } from '@game/sim';
 import { castFxReplacesTendril, heroPowerBuffLabelFor, labelBuffFxFor } from './choreo/bindings';
 import { coalesceBuffFxByTarget } from './buffFxConfig';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 describe('Hunch × Bonds: tendrils from the hero-power button', () => {
   it('the combat label maps to Hunch, with no authored def replacing the generic ribbon', () => {
@@ -29,7 +31,7 @@ describe('Hunch × Bonds: tendrils from the hero-power button', () => {
   });
 
   it('COMBAT: every Bonds buff under a Growth cast carries no spellId, so it keeps its tendril', () => {
-    const fatecarver: BoardMinion = { cardId: 'n2_fatecarver', attack: 4, health: 900, sourceUid: 'FC', chosenOption: 1 };
+    const fatecarver: BoardMinion = { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'FC' };
     const filler = (uid: string): BoardMinion => ({ cardId: 'sandbag', attack: 1, health: 900, sourceUid: uid });
     const mods = { ancientSpellEdges: { attack: 2, health: 3, label: HUNCH_BONDS_COMBAT_LABEL } } as Partial<QuestCombatMods>;
     const r = simulate([filler('L'), fatecarver, filler('R')], [{ cardId: 'sandbag', attack: 0, health: 90000 }], makeRng(3), CARD_INDEX,

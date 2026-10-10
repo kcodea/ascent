@@ -43,6 +43,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryBuffSpellPower:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:battlecryBuffSpellPower:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryBuffTarget:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryReplayTargetEndOfTurn:onPlay': { policy: 'ownBeat', family: 'shout' }, // Roomworks (2026-10-10)
+  'factory:battlecryGrantSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // Riverback (2026-10-10): Sell, get a Dragonflame
   'factory:battlecryBuffTargetPerGoldSpent:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryBuffTribe:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryBuffTribeOthersAttack:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -84,7 +86,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantKeyword:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantRandomSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
-  'factory:battlecryGrantRandomSpell:onSell': { policy: 'ownBeat', family: 'economy' }, // River Drake: sell → a random Spell
+  // factory:battlecryGrantRandomSpell:onSell — its one user (Riverback) now gets a Dragonflame (2026-10-10); entry removed so the registry carries no ghost.
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy
   'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
@@ -298,7 +300,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyGrantKeywordRandomTribe:onAttack': { policy: 'ownBeat', family: 'rally' }, // Raven (2026-09-24)
   'factory:avengeGrantKeywordRandomTribe:avenge': { policy: 'ownBeat', family: 'avenge' }, // Tort (2026-09-24)
   // factory:onSummonBuffTribeAll:onSummon — its one user (Flo Rida) moved to onSummonTribeBuffFlat 2026-10-07; entry removed (no ghost).
-  'factory:onTribePlayedBuffSelfPerSpell:onSummon': { policy: 'foldedCue', family: 'summonReact' },
+  // factory:onTribePlayedBuffSelfPerSpell:onSummon — its one user (Vaultkeeper) was reworked 2026-10-10; entry removed so the registry carries no ghost.
+  // Vaultkeeper (owner 2026-10-10): its own beat per pulse (a gain can come from anywhere; the pulse must read as Vaultkeeper's).
+  'factory:onGainAttackBuffAdjacentTribe:onGainAttack': { policy: 'ownBeat', family: 'react' },
   'factory:onTribePlayedConsumeShop:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffRandomOthers:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Hank Pepe (set 3)
@@ -725,7 +729,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_liquidation:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_living_echoes:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_living_geode:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_living_growth:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // rune_living_growth archived 2026-10-10 (ARCHIVED_RUNES, owner balance batch) — entry removed so the registry carries no ghost.
   'rune:rune_living_treasure:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_long_shift:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_happy_birthday:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

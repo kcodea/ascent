@@ -53,5 +53,14 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // Goldilox (2026-09-24): the only live value is WHERE the card sits — in the HAND it prints the doubled gain
   // (`inHand`, the hand row). A board body (this harness mounts board/combat Units) prints the exact printed text
   // at every value, so no bag can move it; the hand half is pinned in instView.test.ts and docbotLiveText.test.ts.
+  // Brood Whelp + Twilight Emissary (2026-10-10): flat targeted grants on `battlecryBuffTarget`. They became subjects
+  // when Humphry's `perPlayedTribe` count joined that factory; `perPlayedTargetText` keys on that param, which only
+  // Humphry carries, so their printed numbers are exact under every bag.
+  // Vaultkeeper (2026-10-10): "When this gains Attack, give adjacent Dragons +3/+4" prints exact numbers at every value.
+  // Its only live text is Rune of the Vaultkeeper's note (`runeModifiedNote`, a run rune flag the generic bags never set),
+  // pinned in instView.test.ts.
+  d2_herzog: { kind: 'accurate-at-any-value', why: 'printed +3/+4 is exact; the only live text is the Rune of the Vaultkeeper note (a rune flag), pinned in instView.test.ts' },
+  d2_broodwhelp: { kind: 'accurate-at-any-value', why: 'flat battlecryBuffTarget grant; perPlayedTargetText fires only for a perPlayedTribe card (Humphry)' },
+  emissary: { kind: 'accurate-at-any-value', why: 'flat battlecryBuffTarget grant; perPlayedTargetText fires only for a perPlayedTribe card (Humphry)' },
   dw3_goldilox: { kind: 'accurate-at-any-value', why: 'board/combat text is exact at any value; the hand-only doubled gain (inHand) is pinned in instView.test.ts' },
 };

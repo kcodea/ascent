@@ -83,7 +83,7 @@ export const GUIDES: readonly Guide[] = [
     // The owner's text, verbatim (2026-10-09).
     body: 'Dragonflame comp uses in-combat Dragonflame casts that scale with spell power to buff your Dragons over and over. Transcendant allows these buffs to carry through combat. Spell power buffs are very important if you want to win with this comp, and a gilded Transcendant further multiplies its stat gain potential.',
     core: ['d2_warflame', 'd2_transcendence'],
-    enablers: ['d2_felconjurer', 'd2_flamebeat', 'd2_chorus'],
+    enablers: ['d2_flamebeat', 'd2_chorus'], // Fel Conjurer archived 2026-10-10 (owner balance batch)
     mentions: ['sp_dragonflame'],
   },
   {

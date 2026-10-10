@@ -103,14 +103,16 @@ describe('every Drakko of the run is a Dragon and a Spirit', () => {
 });
 
 describe('Dragon and Spirit synergies', () => {
-  it('shop: playing a Drakko grows a Dragon watcher (Vaultkeeper) and a Spirit hand-watcher, and the tallies count it', () => {
-    let s = withRune({ board: [card('vk', 'd2_herzog')] });
+  // RE-PIN 2026-10-10: the Dragon watcher is Spirit Worgen ("whenever you play a Beast or Dragon"); Vaultkeeper no longer
+  // watches Dragon plays (owner balance batch).
+  it('shop: playing a Drakko grows a Dragon watcher (Spirit Worgen) and a Spirit hand-watcher, and the tallies count it', () => {
+    let s = withRune({ board: [card('vk', 'spiritworgen')] });
     s = { ...s, hand: [...s.hand, card('sl', 'sp3_slumbering')] };
     const dk = s.hand.find((c) => c.cardId === D)!;
     const vk0 = s.board[0]!.attack, sl0 = s.hand.find((c) => c.uid === 'sl')!.attack;
     s = reduce(s, { type: 'play', uid: dk.uid });
     expect(s.board.some((c) => c.uid === dk.uid), 'the Drakko was played').toBe(true);
-    expect(s.board.find((c) => c.uid === 'vk')!.attack, 'Vaultkeeper: "whenever you play a Dragon"').toBeGreaterThan(vk0);
+    expect(s.board.find((c) => c.uid === 'vk')!.attack, 'Spirit Worgen: "whenever you play a Beast or Dragon"').toBeGreaterThan(vk0);
     expect(s.hand.find((c) => c.uid === 'sl')!.attack, 'Slumbering: "whenever you play a Spirit"').toBe(sl0 + 4);
     expect(playedThisTurnFor(s, 'dragon')).toBe(1);
     expect(playedThisTurnFor(s, 'spirit'), 'the Spirits-played tally counts it').toBe(1);

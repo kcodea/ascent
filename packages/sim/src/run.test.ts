@@ -587,15 +587,16 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 });
     expect(s.conductorBuff ?? 0, 'the 2026-08-21 run-wide snowball is dormant').toBe(0);
     expect(s.board[1]!.summonBonus, 'the copy\'s own accrual').toBe(1);
-    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[3, 4], [2, 4], [3, 4]]);
+    // RE-PIN 2026-10-10 (owner balance batch): the grant is +3/+3 (was +2/+3).
+    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[4, 4], [2, 4], [4, 4]]);
     // The second Conductor, played on the LEFT edge: one neighbour only, and a FRESH copy grants the printed +2/+3.
     s = reduce(s, { type: 'play', uid: 'c2', toIndex: 0 });
-    expect(s.board[1]!.attack).toBe(3 + 2);
+    expect(s.board[1]!.attack).toBe(4 + 3);
     expect(s.board[1]!.health).toBe(4 + 3);
     expect(s.board[2]!.attack).toBe(2); // the middle Conductor is NOT adjacent to the edge play
     // A GILDED Conductor doubles the applied grant: +4/+6 to its neighbour.
     s = reduce(s, { type: 'play', uid: 'c3', toIndex: 4 });
-    expect(s.board[3]!.attack).toBe(3 + 4); // the right Pennycat (already +2/+3 from play one)
+    expect(s.board[3]!.attack).toBe(4 + 6); // the right Pennycat (already +3/+3 from play one); gilded +6/+6
     expect(s.board[3]!.health).toBe(4 + 6);
   });
 
@@ -1371,8 +1372,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // 2/12 + 3/3 (Cleric) + 2/2 (Karwind flat proc, owner batch 2026-09-24: +3/+3 → +2/+2) = 7/17
-    expect([k.attack, k.health], 'Karwind flat +2/+2 proc').toEqual([7, 17]);
+    // 2/12 + 3/3 (Cleric) + 4/4 (Karwind flat proc; RE-PIN owner batch 2026-10-10: +2/+2 → +4/+4) = 9/19
+    expect([k.attack, k.health], 'Karwind flat +4/+4 proc').toEqual([9, 19]);
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -1391,7 +1392,7 @@ describe('run loop (@game/sim)', () => {
     // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +3/+3.
     // What this test PINS is the proc COUNT (two fires, not one), so assert the gain is 2 procs' worth.
     const gain = k.attack - 2 - 6; // strip the base and the Cleric's own +6
-    expect(gain, 'two Karwind procs at flat +2 each').toBe(4);
+    expect(gain, 'two Karwind procs at flat +4 each (RE-PIN 2026-10-10)').toBe(8);
     expect(k.health - 12 - 6).toBe(gain); // symmetric grant
   });
 

@@ -60,6 +60,25 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Dragon balance pass: Vaultkeeper reworked, two new Dragons, and changes to Mushy, Karwind, Humphry, Fatecarver and more.',
+        details: [
+          "New: Roomworks (Tier 3, 4/3 Dragon). Shout: trigger a friendly minion's End of Turn effect. You pick which one.",
+          "New: Shrieker (Tier 5, 5/4 Dragon). End of Turn: trigger your minions' Shouts, except Roomworks.",
+          'Vaultkeeper reworked: when it gains Attack, it gives adjacent Dragons +3/+4. Every separate Attack buff counts.',
+          'Rune of the Vaultkeeper: your Vaultkeepers now buff all your Dragons.',
+          'Mushy: Shout and Echo now get a Dragonflame instead of a Growth.',
+          'Karwind: now Tier 5 and gives your Dragons +4/+4. Gilded gives +4/+4 twice.',
+          'Humphry: Shout gives a Dragon +2/+2 for every Dragon played this turn, counting Humphry. Its text shows the current total.',
+          'Broodfire: Shout now gives your Dragons +3/+2.',
+          'Riverback: Sell now gets you a Dragonflame.',
+          'Fatecarver: now Tier 6. When you cast a Shop Spell, give a friendly minion of each type +6/+6. No more Choose One. Its alternate art is now a skin.',
+          'Steward of Spells: now Tier 4 with 4/6 stats.',
+          'Conductor: now Tier 3 and gives adjacent minions +3/+3.',
+          'Removed: Traveling Skald, Fel Conjurer and the Rune of Living Growth.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Kobold and Ruby balance pass: bigger Ruby buffs, more random Rubies, and Veinstorm now hits your board too.',
         details: [
           'Veinstorm: now casts a Ruby on your minions as well as the Shop.',

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '../index';
 import { CARD_INDEX } from '@game/content';
+// RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
+// fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
 /**
  * MID-COMBAT SPELL CASTS FEED THE SPELL-CAST WATCHERS (owner audit 2026-08-02, from the Fatecarver board).
@@ -16,7 +18,7 @@ const buffsFrom = (events: readonly CombatEvent[], sourceUid: string) =>
   events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === sourceUid);
 
 // Fatecarver locked to branch B (option 1): every friendly attack casts a Growth.
-const fatecarver: BoardMinion = { cardId: 'n2_fatecarver', attack: 4, health: 60, sourceUid: 'FC', chosenOption: 1 };
+const fatecarver: BoardMinion = { cardId: 'taragosa', attack: 4, health: 60, sourceUid: 'FC' };
 
 describe('Fatecarver’s mid-combat Growth is a real cast for every watcher', () => {
   it('Runekeg procs on each cast — the per-cast watcher shape Runebloom used to carry', () => {
@@ -44,16 +46,16 @@ describe('Fatecarver’s mid-combat Growth is a real cast for every watcher', ()
     expect(carried!.bonus).toBeGreaterThan(0);
   });
 
-  it("Fatecarver branch A procs off ANOTHER caster's mid-combat spell", () => {
-    // A second Fatecarver on branch A (option 0) watches the branch-B one's Growth casts: each cast buffs one
-    // living minion of each type, deterministically in board order.
+  it("Fatecarver procs off ANOTHER caster's mid-combat spell", () => {
+    // Fatecarver (owner 2026-10-10: the old branch A is now the whole card, +6/+6) watches the Growth caster's casts:
+    // each cast buffs one living minion of each type, deterministically in board order. RE-PIN: was +2/+2 (branch A).
     const r = simulate(
-      [fatecarver, { cardId: 'n2_fatecarver', attack: 4, health: 60, sourceUid: 'FA', chosenOption: 0 },
+      [fatecarver, { cardId: 'n2_fatecarver', attack: 4, health: 60, sourceUid: 'FA' },
        { cardId: 'pack', attack: 2, health: 40, sourceUid: 'P' }],
       wall, makeRng(3), CARD_INDEX,
       combatSide({ tier: 6, tribes: ['beast', 'dragon'] }), combatSide({ tier: 1 }));
     const procs = buffsFrom(r.events, 'm1'); // the branch-A watcher sits in board slot 1
     expect(procs.length, 'branch A never saw the cast').toBeGreaterThan(0);
-    expect(procs.every((b) => b.attack === 2 && b.health === 2)).toBe(true);
+    expect(procs.every((b) => b.attack === 6 && b.health === 6)).toBe(true);
   });
 });

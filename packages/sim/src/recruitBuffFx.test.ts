@@ -100,7 +100,7 @@ describe('recruitBuffFx capture (source → target)', () => {
     expect(drFx.length).toBe(1);              // one coalesced reaction event, no duplicate
     expect(drFx[0]!.sourceUid).toBe('kw');    // Karwind, not the played Pennycat
     expect(drFx[0]!.sourceCardId).toBe('karwind');
-    expect(drFx[0]!.attack, 'the flat +2/+2 grant (owner batch 2026-09-24)').toBe(2);
+    expect(drFx[0]!.attack, 'the flat +4/+4 grant (RE-PIN owner batch 2026-10-10, was +2/+2)').toBe(4);
     expect(drFx[0]!.health).toBe(drFx[0]!.attack);
     expect(farFx.length, 'distance no longer changes anything').toBe(1);
     expect(farFx[0]!.attack, 'not adjacent → the SAME grant now').toBe(drFx[0]!.attack);

@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -715,6 +715,7 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
   battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
   buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Rune of the Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
+  battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking the left-most minion with an End of Turn effect', line: 'triggers an End of Turn when the Shop opens' },
   triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
 };
 
@@ -1257,6 +1258,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     } finally {
       gainWatchDepth -= 1;
     }
+  },
+
+  /** VAULTKEEPER (combat half, owner 2026-10-10) — when THIS gains Attack (`ctx.buff` emits `onGainAttack` per positive
+   *  Attack gain, so a gilded Karwind's two pulses are two gains), give adjacent Dragons +3/+4 (every other Dragon under
+   *  Rune of the Vaultkeeper). One pulse per gain; R-VAULT-01's `runVaultPulse` keeps any Vaultkeeper from reacting to
+   *  a gain made inside a pulse, so two adjacent Vaultkeepers settle. */
+  onGainAttackBuffAdjacentTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only when THIS gains Attack
+    const all = !!ctx.vaultkeeperAllFor?.(self.side);
+    runVaultPulse(() => ARENA_EFFECTS.onGainAttackBuffAdjacentTribe(combatArena(ctx, self), { ...params, all }));
   },
 
   /** Hoardbreaker Drake — Slaughter (on kill): "cast" a board-wide stat spell (Growth) — buff all living

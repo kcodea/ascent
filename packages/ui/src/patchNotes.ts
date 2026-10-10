@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-10',
     changes: [
       {
+        category: 'Systems',
+        text: 'Fixed a bug where the targeting line and every other effect could stop showing for the rest of a game.',
+        details: [
+          'Closing the hero select, a crate or a hero attack preview could break the effects layer. The targeting line went first, and nothing came back until a reload.',
+          'The effects layer now recovers by itself if anything goes wrong.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Demon, Dwarf and Beast balance pass, two new Tier 6 minions, slower Gift runes, and eight cards retired.',
         details: [

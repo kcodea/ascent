@@ -4971,4 +4971,38 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-09',
     },
   },
+  // ── The FX layer can never die for the session (owner 2026-10-10) ──────────────────────────────────────────────
+  {
+    id: 'R-PRESENT-32',
+    title: 'One failure never stops the Pixi FX: no app releases Pixi\'s shared pools, and a throw is caught, counted and healed',
+    statement:
+      'Every Pixi Application is torn down through `destroyPixiApp`, which never passes `releaseGlobalResources` '
+      + '(and nothing calls `destroy(true)`): Pixi\'s global pools (TexturePool, BigPool, the batch pool) are shared by '
+      + 'every live renderer, so closing the hero ceremony, a crate, the hero-attack preview or the board overlay never '
+      + 'frees objects another canvas is still drawing with. No exception may reach a Pixi Ticker: the board overlay\'s '
+      + 'sim, its aim line, its aim tail and every canvas\'s render are each guarded. A throwing aim def drops only that '
+      + 'aim, and the next aim gesture respawns it. A ticker found started with no frame requested is restarted on the '
+      + 'next wake. A main renderer that keeps failing rebuilds the overlay on the same parent. Every caught fault logs '
+      + '[pixi fault] and moves the fx:faults perf counter; a real WebGL context loss moves fx:ctx lost.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report relayed by the coordinator, 2026-10-10 (Pixi FX stop rendering)',
+        quote: 'sometimes i have an issue with like... my hero power or spell targeting animation completely not loading, and neither will other pixi effects. can you figure out why',
+      },
+      { kind: 'fix-pr', ref: 'PR fix/pixi-fx-stops-rendering (2026-10-10)' },
+      { kind: 'code', ref: 'packages/ui/src/pixiAppSafety.ts destroyPixiApp / guardAppRender / reviveTicker / watchContextLoss; packages/ui/src/pixiFx.ts renderOver / scheduleRebuild / dropAimAfterFault / update; packages/ui/src/hero-select/HeroCeremonyPixi.ts; packages/ui/src/progression/crateFx/crateFxPixi.ts; packages/ui/src/heroBlast/HeroAttackPreview.tsx; packages/ui/src/wipeFx.ts' },
+    ],
+    example: 'Reproduced live 2026-10-10: attach the board overlay and aim a spell (fine), then init and destroy any other Application with releaseGlobalResources: true. The next aim threw TypeError: Cannot read properties of null (reading \'2\') in FilterSystem._applyFiltersToTexture, and the board ticker froze (started, no frame requested) for the rest of the session. The same cycle with no global release ran 5/5 clean.',
+    currentBehaviour:
+      'Conforms from 2026-10-10. Before the fix the hero ceremony, crate FX and pixiFx.detach destroyed their apps with '
+      + 'releaseGlobalResources: true, and HeroAttackPreview used destroy(true), which does the same. Pixi\'s Ticker._tick '
+      + 'does not catch a listener throw: it stops requesting frames but leaves started true, so pixiFx.wake() (a plain '
+      + 'ticker.start()) could never bring it back. Every Pixi effect on the board was dead until a reload. WebGL context '
+      + 'loss was ruled out as the cause: a forced loss and restore on the overlay kept rendering, Pixi restores the '
+      + 'context itself, and destroyed apps lose their context, so the live count stays bounded.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiAppSafety.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

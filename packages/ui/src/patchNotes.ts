@@ -71,7 +71,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Impossible Todd: Imps +2/+1 when a friendly Demon deals damage, and Pummel (20): summon an Imp, once per combat. It no longer grows itself or has Ward.',
           'Market Tormentor now gives +8/+8. Enigma now gives +4/+5. Contract Butcher now gives +2/+2. Right Hand Hank now gives +4/+3.',
           'Grobbus: Avenge (3) now gets 2 random Demons.',
-          'Big Huggies: Echo: get 2 Picnics. It no longer has Taunt.',
+          'Big Huggies: Taunt. Echo: get 2 Picnics.',
           'Soul Defiler: End of Turn: cast Staff of Guel and Picnic.',
           'Dawnclaw: its Echo triggers both adjacent Shouts again.',
           'Kennelmaster: Start of Combat gives your Beasts +2 Attack, and Avenge (3) improves it by +2.',

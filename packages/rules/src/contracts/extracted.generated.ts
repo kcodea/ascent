@@ -7653,6 +7653,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tribes": [
       "demon"
     ],
+    "keywords": [
+      "T"
+    ],
     "tags": [
       "tier:4"
     ],

@@ -136,15 +136,15 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 2,
-    keywords: [], // owner balance 2026-10-10: Taunt dropped (the owner's text has none, the Beardsley precedent)
+    keywords: ['T'], // keeps Taunt (owner ruling on PR #2018, 2026-10-10)
     // `cardId`, NOT `spellId` — the factory reads `params.cardId`, so the wrong key granted the EMPTY string and
     // the hand-grant preview then crashed on `CARD_INDEX['']` (owner report 2026-07-25). `count` is likewise not
     // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
     // Owner balance 2026-10-10: "Echo: Get 2 Picnics." (was a Staff of Guel). `count` is read by the shared body
     // and doubled by a gilded copy: 2, gilded 4.
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'sp_picnic', count: 2 } }],
-    text: '**Echo:** get **2 Picnics**.',
-    goldenText: '**Echo:** get **4 Picnics**.',
+    text: '**Taunt.** **Echo:** get **2 Picnics**.',
+    goldenText: '**Taunt.** **Echo:** get **4 Picnics**.',
   },
   {
     // Owner rework 2026-08-18: a straight run-wide Imp lord — its Echo buffs every Imp this game and leaves a

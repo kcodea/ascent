@@ -19,7 +19,7 @@ Parallel sessions own the Kobold/Ruby half and the Dragon/neutral half; this PR 
   `ctx.summon`. R-PUMMEL-SUMMON-01; R-DEALT-01 notes Todd no longer self-buffs.
 - **Market Tormentor** +8/+8, **Enigma** +4/+5, **Contract Butcher** +2/+2, **Right Hand Hank** +4/+3, **Grobbus**
   Avenge (3) gets 2 Demons (gilded 4).
-- **Big Huggies**: "Echo: Get 2 Picnics." (gilded 4). `deathrattleGrantSpell` now reads `count`. Taunt dropped.
+- **Big Huggies**: "Echo: Get 2 Picnics." (gilded 4). `deathrattleGrantSpell` now reads `count`. Keeps Taunt (owner ruling on PR #2018).
 - **Soul Defiler**: "End of Turn: Cast Staff of Guel and Picnic." Two `castSpell` effects (each its own root
   trigger and beat); gilded casts both twice.
 - **Dawnclaw**: `one: true` removed, so both neighbours' Shouts fire; gilded twice (the shared Ryme shape).

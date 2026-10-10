@@ -202,8 +202,10 @@ describe('Demon numbers', () => {
     expect(CARD_INDEX['dm_grobbus']!.effects[0]!.params).toMatchObject({ grant: 2 });
   });
 
-  it('Big Huggies Echo: 2 Picnics (4 gilded), and no Taunt', () => {
-    expect(CARD_INDEX['dm_velvet']!.keywords).toEqual([]);
+  it('Big Huggies: Taunt (owner ruling) and Echo: 2 Picnics (4 gilded)', () => {
+    expect(CARD_INDEX['dm_velvet']!.keywords).toEqual(['T']);
+    expect(CARD_INDEX['dm_velvet']!.text).toBe('**Taunt.** **Echo:** get **2 Picnics**.');
+    expect(CARD_INDEX['dm_velvet']!.goldenText).toBe('**Taunt.** **Echo:** get **4 Picnics**.');
     const grant = (golden: boolean): number => {
       const s = recruit({ hand: [], board: [body('dm_velvet', 'v', { golden })] });
       fireRecruitDeathrattlesForTest(s, s.board[0]!);

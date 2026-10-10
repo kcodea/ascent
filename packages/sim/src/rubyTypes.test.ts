@@ -245,10 +245,10 @@ describe('Kobe — Pummel (15): Get a random Ruby. (Twice per combat)', () => {
     simulate([{ cardId: 'k_kobe', attack: 15, health: 200, sourceUid: 'K', keywords: ['T'], ...kobe } as BoardMinion],
       [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(5), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
 
-  it('keeps Taunt and 5/6; the text is the owner\'s', () => {
+  it('keeps Taunt and 5/6, gains Ward (balance 2026-10-10); the text is the owner\'s', () => {
     const d = CARD_INDEX['k_kobe']!;
-    expect([d.attack, d.health, d.keywords]).toEqual([5, 6, ['T']]);
-    expect(d.text).toBe('**Taunt.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)');
+    expect([d.attack, d.health, d.keywords]).toEqual([5, 6, ['T', 'DS']]);
+    expect(d.text).toBe('**Taunt.** **Ward.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)');
   });
 
   it('every 15 damage dealt gets a random Ruby — at most TWICE per combat', () => {
@@ -494,8 +494,9 @@ describe('Gem Sage — When you get a Ruby, also get a random Ruby', () => {
   it('a Ruby won in combat counts too — it arrives through the same mint at settle', () => {
     const r = simulate([{ cardId: 'k_tunnelcharger', attack: 3, health: 300, sourceUid: 'T', keywords: ['RL'] } as BoardMinion],
       [{ cardId: 'sandbag', attack: 0, health: 3 }], makeRng(2), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    const won = r.playerRubyGrants ?? 0;
-    expect(won, "one Rally: Rikk's 3 Rubies").toBe(3);
+    // Re-pin 2026-10-10: Rik's Rally is now 2 RANDOM Rubies, carried back by type (`playerRubyGrantIds`).
+    const won = (r.playerRubyGrants ?? 0) + (r.playerRubyGrantIds?.length ?? 0);
+    expect(won, "one Rally: Rik's 2 random Rubies").toBe(2);
     const s = act(run({ phase: 'combat', lastCombat: r, board: [body('gs', 'k_gemsage'), body('T', 'k_tunnelcharger')] } as Partial<RunState>), { type: 'resolveCombat' });
     expect(rubiesInHand(s).length, 'each won Ruby pays one more').toBe(won * 2);
   });

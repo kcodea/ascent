@@ -4192,8 +4192,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random
    *  non-spell Shop minion (× golden) — remove it and gain its (buffed) stats, Demon-style. */
-  rubyCastConsumeShop: (ctx, self) => {
+  rubyCastConsumeShop: (ctx, self, params) => {
     const state = ctx.state;
+    // `pick: 'highestHealth'` (Cavern Fiend, owner balance 2026-10-10): eat the highest-Health Shop minion (its
+    // current buy Health; ties go right-most), re-picked per meal, through the shared `pickShopMinionFor`. No
+    // RNG is drawn on this branch, so the run cursor is untouched.
+    if (str(params.pick) === 'highestHealth') {
+      for (let n = 0; n < gold(self); n++) {
+        const idx = pickShopMinionFor(state, 'highestHealth');
+        if (idx < 0) break;
+        consumeShopMinion(state, self, idx);
+      }
+      return;
+    }
     const rng = makeRng(state.rngCursor);
     for (let n = 0; n < gold(self); n++) {
       // Eligibility must MATCH the primitive's own (minion, not spell, not Ruby) or we'd pick an index it
@@ -5986,6 +5997,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Beggy (Sell): mint `count` Rubies to hand when this is sold (golden doubles). Fired by the sell
    *  case via `fireOnSell`. `mintRubies` bakes the run's live Ruby strength in, like every other Ruby gain. */
   onSellGetRubies: (ctx, self, params) => {
+    // `random` (Beggy, owner balance 2026-10-10): each Ruby is a random type, the `getRandomRubies` mint.
+    if (params.random === true) { mintRandomRubies(ctx.state, num(params.count, 1) * gold(self)); return; }
     mintRubies(ctx.state, num(params.count, 2) * gold(self));
   },
 
@@ -8502,12 +8515,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * "Ruby stats, no watcher notify" precedent. The Ruby-LANDED cue does play, derived from the per-offer
    * Ruby-count delta — correctly: real Rubies are arriving, and that is what makes the spell legible.
    */
-  spellBuffShopByRuby: (ctx) => {
+  spellBuffShopByRuby: (ctx, _self, params) => {
     const rb = rubyStatBonus(ctx.state); // Spellstone folds spell power into every Ruby, this one included
     // OWNER RULING 2026-08-26 (triage board, q-spellpower-spellBuffShopByRuby REJECTED as flat): Veinstorm's
     // Rubies fold the run's spell power like every other stat-granting Shop spell.
     const a = 1 + rb.attack + spellAttackBonus(ctx.state);
     const h = 1 + rb.health + spellHealthBonus(ctx.state);
+    // `minions: true` (owner balance 2026-10-10, "Cast a Ruby on your minions and the shop"): FIRST cast that same
+    // Ruby on every friendly minion, a real Ruby landing (`addBuff('Ruby')` + each target's on-Ruby watchers, the
+    // `spellPlayRubiesAll` shape) at the SAME value the Shop half lands, so the one printed number is true for both.
+    if (params.minions === true) {
+      for (const target of [...ctx.state.board]) {
+        addBuff(target, 'Ruby', a, h);
+        fireOnRubyPlayed(ctx.state, target, a, h);
+      }
+    }
     const stamped: string[] = [];
     for (const offer of ctx.state.shop) if (stampVeinstormRubies(offer, a, h)) stamped.push(offer.uid);
     // Record which offers the CAST gemmed, so the shop-gem span plays for Veinstorm alone (a lone Ruby on an
@@ -9290,6 +9312,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   castSpell: (ctx, self, params, payload) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
+    // `times` (Gemling, owner balance 2026-10-10: "Cast Veinstorm 3 times", gilded 6): EVERY cast is its own
+    // End-of-Turn tick, so each one plays its own beat. Gilding doubles the TICKS here (not the casts per tick),
+    // because the owner asked for one beat per cast. `eotTickCount` is the shared count.
+    if (num(params.times, 0) > 0) {
+      forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }, self?.golden),
+        () => castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined));
+      return;
+    }
     const castOnce = (): void => {
       for (let i = 0; i < gold(self); i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
     };
@@ -11638,7 +11668,7 @@ function fireBattlecryTriggered(state: RunState, source?: BoardCard): void {
  * factories' single-shot fallback all read it, so none of them can disagree about the count. Anything not listed
  * fires once per trigger, exactly as before.
  */
-export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, effect: { do: string; params?: Record<string, unknown> }): number {
+export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, effect: { do: string; params?: Record<string, unknown> }, golden?: boolean): number {
   switch (effect.do) {
     case 'endOfTurnBuffRandomTribeRepeatPerPlayed': return 1 + spiritsPlayedThisTurn(state); // Mother Moss
     case 'endOfTurnBuffEndsTribePerCard':                                                      // Kringle
@@ -11646,6 +11676,9 @@ export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpent
     case 'castSpell': {
       // Rope Wrangler (owner 2026-09-23): "cast Lasso. Repeat for every 10 Gold spent this turn" — the base
       // cast plus one tick per `perGold`. A castSpell without `perGold` (Soul Defiler's Staff of Guel) is one tick.
+      // Gemling (owner balance 2026-10-10): `times` casts, ONE TICK EACH, and a gilded caster doubles the ticks.
+      const times = Number(effect.params?.times ?? 0);
+      if (times > 0) return times * (golden ? 2 : 1);
       const perGold = Number(effect.params?.perGold ?? 0);
       return perGold > 0 ? 1 + Math.floor(Math.max(0, state.goldSpentThisTurn ?? 0) / perGold) : 1;
     }
@@ -11657,11 +11690,11 @@ export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpent
  *  fires (a plain card = 1). Beat `t` runs tick `t` of every effect that still has a tick `t` to run, so a card
  *  with one repeating effect plays one beat per tick and every other card keeps its single beat. Read by the
  *  projection AND the legacy beat runner, which must agree 1:1. */
-export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, card: Pick<BoardCard, 'cardId'>): number {
+export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, card: Pick<BoardCard, 'cardId'> & { golden?: boolean }): number {
   const def = CARD_INDEX[card.cardId];
   if (!def) return 1;
   let ticks = 1;
-  for (const e of def.effects) if (e.on === 'endOfTurn') ticks = Math.max(ticks, eotTickCount(state, e));
+  for (const e of def.effects) if (e.on === 'endOfTurn') ticks = Math.max(ticks, eotTickCount(state, e, card.golden));
   return ticks;
 }
 
@@ -13846,7 +13879,7 @@ function applyEndOfTurnBody(state: RunState): void {
       // count FIRES of this source+trigger this End of Turn (Chronos repeats × ticks), so Beat Lab's ×k/N reads
       // honestly; `proc` stays the Chronos repeat the per-proc random rolls (Combinator) key on. A plain effect
       // has one tick and emits exactly what it did before.
-      const ticks = eotTickCount(state, effect);
+      const ticks = eotTickCount(state, effect, card.golden);
       for (let r = 0; r < repeats; r++) {
         for (let t = 0; t < ticks; t++) {
           withRecruitTrigger(
@@ -14894,7 +14927,7 @@ function projectEndOfTurnStepsBody(clone: RunState): {
           for (const effect of def.effects) {
             if (effect.on !== 'endOfTurn') continue;
             if (!alignAllows(effect, projAlign)) continue;
-            if (t >= eotTickCount(clone, effect)) continue; // this effect already ran its only tick in beat 0
+            if (t >= eotTickCount(clone, effect, card.golden)) continue; // this effect already ran its only tick in beat 0
             const fn = RECRUIT_FACTORIES[effect.do];
             if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, tick: t });
           }

@@ -88,7 +88,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantRandomSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   // factory:battlecryGrantRandomSpell:onSell — its one user (Riverback) now gets a Dragonflame (2026-10-10); entry removed so the registry carries no ghost.
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
-  'factory:battlecryGrantSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Gemline Martyr -> Veinstorm
   'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy
   'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -212,11 +211,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch
   'factory:getEchoAndTrigger:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:getRandomRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:getRandomRubies:onPlay': { policy: 'ownBeat', family: 'shout' }, // Prospector + Cave Cutter's branch (balance 2026-10-10)
   'factory:onGetRubyRandomRuby:onGetRuby': { policy: 'foldedCue', family: 'economyReact' }, // Gem Sage (2026-09-24)
   'factory:getRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' },    // Dealski (2026-09-24): Ruby Roach's trigger, a plain mint   // Ruby Shipment (2026-09-24): the same mint, random types
   'factory:battlecryPlayRubiesRandomTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shardluck (2026-09-24)
   'factory:onSummonCardPlayRubiesSelf:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Gemheart Legionnaire (2026-09-24)
-  'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)
   'factory:goldSpentBuffRightmostSlot:goldSpent': { policy: 'foldedCue', family: 'economyReact' },

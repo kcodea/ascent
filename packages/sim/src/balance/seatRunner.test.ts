@@ -31,13 +31,14 @@ function place(run: RunState, cardId: string, stats?: { attack: number; health: 
 const PASS: SeatPilot = { id: 'pass', decide: () => null };
 
 function fixture(): { a: RunState; b: RunState } {
-  // A: Right Hand Hank (Echo: +3/+2 to the right-most Shop minion, PERMANENT) + Gemline (End of Turn: get a
-  // Veinstorm spell) — one carry-back that lands at settle and one generated card that must survive into the
-  // next shop. B: two fat vanilla Spellswords, so A loses and Hank dies.
+  // A: Right Hand Hank (Echo: +3/+2 to the right-most Shop minion, PERMANENT) + Wardstone Jeweler (End of Turn:
+  // get a Warding Ruby) — one carry-back that lands at settle and one generated card that must survive into the
+  // next shop. (Re-pin 2026-10-10: Gemling now CASTS Veinstorm at End of Turn instead of handing one over, so
+  // the generated-card half moved to the archived Jeweler, which still resolves by id.) B: two fat vanilla Spellswords, so A loses and Hank dies.
   const a = createRun(11, 'warden', 'lobby', undefined, SET);
   const b = createRun(12, 'warden', 'lobby', undefined, SET);
   place(a, 'dm_hank');
-  place(a, 'k_gemline');
+  place(a, 'k_wardstone');
   place(b, 'n2_spellsword', { attack: 12, health: 12 });
   place(b, 'n2_spellsword', { attack: 12, health: 12 });
   return { a, b };
@@ -50,8 +51,8 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     const tb = playRecruitTurn(b, PASS, ctx('s1', 1), NOOP_RECORDER, opts);
     expect(ta.failure).toBeUndefined();
     expect(tb.failure).toBeUndefined();
-    // End of Turn fired exactly once on the way out: ONE Veinstorm from Gemline.
-    expect(ta.run.hand.filter((c) => c.cardId === 'veinstorm')).toHaveLength(1);
+    // End of Turn fired exactly once on the way out: ONE Warding Ruby from the Jeweler.
+    expect(ta.run.hand.filter((c) => c.cardId === 'warding-ruby')).toHaveLength(1);
     expect(ta.run.phase).toBe('combat');
     expect(ta.run.pendingCombatSide).toBeDefined();
     expect(ta.run.lastCombat).toBeUndefined(); // nothing resolved yet — the fight belongs to the lobby
@@ -88,8 +89,8 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     // permanent right-most-slot buff is banked on the run …
     expect(f.aAfter.deathrattlesTriggered).toBe(1);
     expect(f.aAfter.rightmostSlotBuff).toEqual({ attack: 3, health: 2 });
-    // … and the Veinstorm Gemline generated at End of Turn is still in hand — exactly one, not re-generated.
-    expect(f.aAfter.hand.filter((c) => c.cardId === 'veinstorm')).toHaveLength(1);
+    // … and the Warding Ruby the Jeweler generated at End of Turn is still in hand — exactly one, not re-generated.
+    expect(f.aAfter.hand.filter((c) => c.cardId === 'warding-ruby')).toHaveLength(1);
     // The fight is spent: nothing is pending, so a second settlement is impossible.
     expect(() => prepareAndFight(f.aAfter, f.bAfter, 7, { round: 2 })).toThrow(/no deferred fight pending/);
 
@@ -98,10 +99,11 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     const tb2 = playRecruitTurn(f.bAfter, GREEDY_PILOT, ctx('s1', 2), NOOP_RECORDER, opts);
     expect(ta2.failure).toBeUndefined();
     expect(tb2.failure).toBeUndefined();
-    // Greedy cast the held Veinstorm during the shop (the spell tally moved), and Gemline's second End of Turn
-    // made exactly one more — the generated card was real, spendable, and regenerated once.
-    expect(ta2.run.spellsCast).toBe((f.aAfter.spellsCast ?? 0) + 1);
-    expect(ta2.run.hand.filter((c) => c.cardId === 'veinstorm')).toHaveLength(1);
+    // Greedy cast the held Warding Ruby during the shop, and the Jeweler's second End of Turn made exactly one
+    // more — the generated card was real, spendable, and regenerated once.
+    const heldUid = f.aAfter.hand.find((c) => c.cardId === 'warding-ruby')!.uid;
+    expect(ta2.run.hand.some((c) => c.uid === heldUid), 'the held Ruby was spent').toBe(false);
+    expect(ta2.run.hand.filter((c) => c.cardId === 'warding-ruby')).toHaveLength(1);
     const f2 = prepareAndFight(ta2.run, tb2.run, 7, { round: 2 });
     expect(f2.aAfter.wave).toBe(3);
     expect(f2.aAfter.history).toHaveLength(2);

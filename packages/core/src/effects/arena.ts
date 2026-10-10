@@ -1696,9 +1696,13 @@ export const ARENA_EFFECTS = {
     if (n > 0) arena.grantRubies(n);
   },
 
-  /** Tunnelcharger Rikk — Rally: get `count` Rubies (× golden), minted at the run's live Ruby power. */
+  /** Tunneller Rik — Rally: get `count` Rubies (× golden), minted at the run's live Ruby power. `random`
+   *  (owner balance 2026-10-10: "Get 2 random Rubies") draws each Ruby's type from all six, through the phase's
+   *  random-Ruby mint (shop: the run cursor; combat: the Ruby carry-back). */
   rallyGetRubies(arena: EffectArena, params: Record<string, unknown>): void {
-    arena.grantRubies(num(params.count, 1) * gold(arena));
+    const n = num(params.count, 1) * gold(arena);
+    if (params.random === true) arena.grantRandomRubies(n);
+    else arena.grantRubies(n);
   },
 
   /** Evolving Abomination — Rally: double this minion's stats, `max` times per dispatch. GOLDEN raises the CAP

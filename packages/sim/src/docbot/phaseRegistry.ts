@@ -133,6 +133,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   battlecryTargetConsumesShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the target eats a random SHOP minion. A combat re-fire logs its line live; settle applies the meal once' },
   buffRightmostSlotPermanent: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: enchants a Shop SLOT (+ Rune of the Display Case). A combat re-fire logs its line live; settle enchants once' },
   triggerAdjacentOrbits: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Orbit is a shop mechanic (TRIGGER_PHASES.orbit = recruit). A combat re-fire logs its line live; settle wakes the Relay’s own neighbours once' },
+  battlecryCastNamedSpell: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: casts a named Shop spell (Veinstorm) through the Shop cast pipeline; its Shop half needs the Shop row. A combat re-fire logs its line live; settle casts it once (Storm Chaser, balance 2026-10-10)' },
   battlecryConsumeShopRandom: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: eats a random SHOP minion. A combat re-fire logs its line live; settle applies the meal once' },
 
   // ── onDeath (Echoes) with no recruit factory: fires when a shop-side Echo replay (Funeral on Loan,

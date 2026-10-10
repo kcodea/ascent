@@ -203,3 +203,8 @@
 .sbhp-anc.partial { color: var(--ui-hl); border-color: var(--ui-hl); font-size: 10px; }
 .sbhp-empty { padding: 18px; text-align: center; color: var(--ui-muted); font-size: 13px; }
 .sbhp-readout { min-height: 16px; font-size: 12px; font-weight: 600; color: var(--ui-muted); border-top: 1px solid var(--ui-divider); padding-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The "Archived" set option (owner ask 2026-10-10): archived rows wear a muted grey tag; the note under the picker
+   names the real set the run stays on. */
+.scenebuilder .sb-tag.archived { color: var(--ui-muted); }
+.scenebuilder .sb-archived-note { color: var(--ui-title); }

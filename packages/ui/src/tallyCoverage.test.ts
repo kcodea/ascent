@@ -34,7 +34,6 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
  */
 const NOT_A_METER: Record<string, string> = {
   rune_rubywire: 'the 2 is how many Kobolds each Shop spell gives a Ruby to; it pays on EVERY cast, nothing to count toward',
-  rune_happy_birthday: 'a fixed turn CADENCE (every 2 turns), not a meter the player fills — nothing to count toward',
   rune_motherlode: 'the 2 is how many minions a Ruby copies onto, not a count-up',
   rune_finality: 'the 3 is how many Imps arrive; the trigger is "your last minion dies"',
   rune_ashen_payroll: 'combat-local — the Imps-summoned count ticks during the replay, not across turns',
@@ -87,6 +86,9 @@ const armedRun = (): RunState => ({
   spellDripTick: 3,
   runeSummitTick: 1,
   runeDeep: 7, runeDeepEvery: 2, runeDeepTick: 1, // Rune of the Deep (2026-10-07): every 2 turns, one setup in
+  // The Gift cadences (owner balance 2026-10-10): both now print a live turn countdown.
+  runeHappyBirthday: true, giftBirthdayEvery: 3, giftBirthdayTick: 1,
+  runeMerryChristmas: true, giftChristmasEvery: 2, giftChristmasTick: 1,
   runeCollector: true,
   collectorBoughtThisTurn: [],
   runeSellRubies: 2, // Rune of Investment (balance 9/23): sells toward the 4th

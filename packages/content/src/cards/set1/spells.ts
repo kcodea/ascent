@@ -1024,36 +1024,6 @@ export const SPELLS: CardDef[] = [
     text: '**Discover** an **Echo** minion. If you play it **this turn**, destroy it and **trigger its effect**. Next turn it is yours to keep.',
   },
   {
-    // Discover a plain copy of a minion from your LAST opponent's warband.
-    id: 'rivalsreflection',
-    name: "Rival's Reflection",
-    tribe: 'neutral',
-    tier: 5,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 1,
-    effects: [{ on: 'cast', do: 'spellDiscoverFromLastOpponent' }],
-    text: "**Discover** a plain copy of a minion from your **last opponent's** warband.",
-  },
-  {
-    // Choose two friendly minions (drag picks the first, the aim picker the second); set both to the rounded
-    // average of their combined Attack and Health. No spell-power scaling.
-    id: 'commonground',
-    name: 'Common Ground',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellAverageStats' }],
-    text: 'Choose two friendly minions. **Average** their Attack and Health between them.',
-  },
-  {
     // Owner batch 2026-07-31 — set-agnostic (carries into Set 2 like the rest of this file's toolkit).
     id: 'decoysigil',
     name: 'Decoy Sigil',
@@ -1094,22 +1064,6 @@ export const SPELLS: CardDef[] = [
     cost: 3,
     effects: [{ on: 'cast', do: 'spellTauntNextSummons', params: { count: 2 } }],
     text: 'The first **2 minions** you summon in combat gain **Taunt**.',
-  },
-  {
-    // Owner add 2026-08-19. A plain spread buff — the Ale shape (`spellBuffRandomFriendlies`) at a higher
-    // magnitude and its own tier. An ordinary Shop spell: drawn, bought and cast like any other, and ALSO what
-    // Rune of Might casts off every spell you play.
-    id: 'mightofaeon',
-    name: 'Might of Aeon',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 2, health: 3 } }],
-    text: 'Give **3 random** friendly minions **+2/+3**.',
   },
   {
     // Distinct from the RUNE of Quick Study (which recurs a Gold Font + spells) — this is the spell-power spell.

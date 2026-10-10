@@ -190,12 +190,12 @@ describe('R-REALTIME-03 end to end — live in the fight, applied ONCE at settle
     expect(settled.hand.filter((c) => c.cardId === 'tower_shield').length).toBe(2);
   });
 
-  it('Contract Butcher: "+2/+1 Shop" on the beat; the permanent shop buff is applied exactly once', () => {
+  it('Contract Butcher: "+2/+2 Shop" on the beat; the permanent shop buff is applied exactly once', () => {
     const s = withTime({ board: [card('b', 'dm_butcher')] });
     const before = { ...s.tavernBuyBonus };
     const { fought, settled } = fightAndSettle(s);
-    expect(beforeFirstAttack(fought).some((e) => e.type === 'sc' && (e as { text: string }).text === '+2/+1 Shop')).toBe(true);
-    expect([settled.tavernBuyBonus.atk - before.atk, settled.tavernBuyBonus.hp - before.hp]).toEqual([2, 1]);
+    expect(beforeFirstAttack(fought).some((e) => e.type === 'sc' && (e as { text: string }).text === '+2/+2 Shop')).toBe(true); // +2/+2 since 2026-10-10
+    expect([settled.tavernBuyBonus.atk - before.atk, settled.tavernBuyBonus.hp - before.hp]).toEqual([2, 2]);
   });
 
   it('Squirl Scout: the run-wide snowball grows live, buffs this fight, and carries back ONE step', () => {

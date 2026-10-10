@@ -8,8 +8,8 @@ import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
 import { TIER7 } from './cards/set1/tier7';
 import { SET2_KOBOLDS } from './cards/set2/kobolds';
-import { SET2_DWARVES, SET2_DWARF_TOKENS, SET2_DWARF_RUNE_MINIONS } from './cards/set2/dwarves';
-import { SET2_DEMONS } from './cards/set2/demons';
+import { SET2_DWARVES, SET2_DWARF_TOKENS, SET2_DWARF_RUNE_MINIONS, SET2_DWARVES_LATE } from './cards/set2/dwarves';
+import { SET2_DEMONS, SET2_DEMONS_LATE } from './cards/set2/demons';
 import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS, SET2_DRAGON_RUNE_MINIONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
@@ -35,13 +35,13 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   'manafont', 'growth', /* hourglassreserve — archived everywhere 2026-10-07 (owner balance batch) */ 'refreshtexts', 'tribeschoice',
   /* commonground — removed from set 3 by the owner 2026-09-14 */ 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'turnabout',
   'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy',
-  'devour', 'chronostaff', 'corpseboard', 'resonance', 'rivalsreflection', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
+  'devour', 'chronostaff', 'corpseboard', 'resonance', /* rivalsreflection: archived everywhere 2026-10-10 (owner balance batch) */ 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
   'displacement', 'aresmar', 'perfectvision', 'sparkplug',
   'sp_gamble', // owner add 2026-09-17: the die-roll tier pull joins set 3 (rolls the real die, like the Gambler)
   // …the tribe spells (set 2's Ruby toolkit, set 1's Undead pair, the Dwarves' On the House):
   'rubyshipment', 'facetwright', 'veinstorm', 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
   // Appended AFTER the tribe spells so no existing position moves (owner add 2026-09-18):
-  'sp_dissipate', // owner add 2026-09-18: sell a minion, its stats go to the right-most Shop minion (set 2's own spell, shared here)
+  /* sp_dissipate: archived everywhere 2026-10-10 (owner balance batch); it was the owner add of 2026-09-18 */
   'sp_picnic', // owner add 2026-09-23: right-most Shop minion +8/+8 permanently (set 2's own spell, shared here)
 ];
 const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
@@ -104,6 +104,10 @@ const SET1_TIER7_IN_SET2: readonly CardDef[] = TIER7.filter((c) => ['uron', 'sal
  *  position (seeded picks) stays put. */
 const SET3_KOBOLDS_IN_SET2: readonly CardDef[] = SET3_CARDS.filter((c) => c.id === 'k3_jeweler');
 const SET1_DEMONS_LATE_IN_SET2: readonly CardDef[] = DEMONS.filter((c) => c.id === 'brood');
+/** Owner balance batch 2026-10-10: Striker (a set-3 Dwarf) joins set 2 as a SHARED definition (it stays in set 3), and
+ *  set 2 gains two new Tier 6 minions, Drunk Daniel (Dwarf) and Hydraskus (Demon). All three are APPENDED after the
+ *  2026-10-07 adds, at the very end of set 2's `own`, so no existing set-2 pool position moves. */
+const SET3_DWARVES_IN_SET2: readonly CardDef[] = SET3_DWARVES.filter((c) => c.id === 'dw3_striker');
 /** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
 const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
 
@@ -150,7 +154,8 @@ const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
  *
  * The set-2 Dwarves NOT on the roster (Orin, Warhorn Captain, Wardkeeper, Auric Runemaster, Anvilshade Smith,
  * Chef Gary Toast, Bucky, Baal, Brill, Exgalloper, Chicken Brawl, High King Mykel, Sharpshooter, Arnold,
- * Kegheart) stay set-2-only by owner confirmation — leaving a set is not archiving.
+ * Kegheart) stay set-2-only by owner confirmation — leaving a set is not archiving. (Chicken Brawl and Arnold were
+ * archived everywhere on 2026-10-10.)
  */
 const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
   [
@@ -318,7 +323,7 @@ export const SETS: Record<SetId, SetDef> = {
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) are APPENDED so no existing set-2 position moves.
+    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2, ...SET3_DWARVES_IN_SET2, ...SET2_DWARVES_LATE, ...SET2_DEMONS_LATE], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) and the 2026-10-10 adds (Striker, Drunk Daniel, Hydraskus) are APPENDED so no existing set-2 position moves.
   },
   set3: {
     id: 'set3',

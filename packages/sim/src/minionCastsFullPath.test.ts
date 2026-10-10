@@ -54,23 +54,24 @@ describe('Rope Wrangler + Rune of Lassoing (the pinned known gap, flipped)', () 
  * Each caster, beside a "when you cast a spell" RUNE (Rune of Kindling: the ends of the board +4/+6 per cast) and
  * CARD (Runescale Drake: `spellProgress` ticks once per cast). Before the fix neither heard an End-of-Turn cast.
  */
+// `n` = the casts one End of Turn makes: Soul Defiler casts Staff of Guel AND Picnic since the owner balance 2026-10-10.
 describe.each([
-  ['Soul Defiler (Staff of Guel)', 'dm_curator'],
-  ['Arnold (Beefy on itself)', 'dw_arnold'],
-  ['the escalating caster (Growth)', ESCALATOR.id],
-])('%s at End of Turn is a full cast', (_name, casterId) => {
-  it('pays a spell-cast rune and a spell-cast card exactly once, and counts once', () => {
+  ['Soul Defiler (Staff of Guel + Picnic)', 'dm_curator', 2],
+  ['Arnold (Beefy on itself)', 'dw_arnold', 1],
+  ['the escalating caster (Growth)', ESCALATOR.id, 1],
+])('%s at End of Turn is a full cast', (_name, casterId, n) => {
+  it('pays a spell-cast rune and a spell-cast card exactly once per cast, and counts once per cast', () => {
     const s = run({
       runeKindling: true, ownedRunes: ['rune_kindling'],
       board: [body('c', casterId), body('r', 'runescale'), body('x', 'stray', { attack: 2, health: 2 })],
     } as Partial<RunState>);
     const before = { cast: s.spellsCast, turn: s.spellsThisTurn };
     applyEndOfTurn(s);
-    expect(s.spellsCast - before.cast, 'spellsCast +1').toBe(1);
-    expect(s.spellsThisTurn - before.turn, 'spellsThisTurn +1').toBe(1);
-    expect(at(s, 'r').spellProgress ?? 0, 'Runescale heard the cast once').toBe(1);
-    expect(buffFrom(at(s, 'c'), 'Rune of Kindling'), 'the left-most end').toMatchObject({ attack: 4, health: 6 });
-    expect(buffFrom(at(s, 'x'), 'Rune of Kindling'), 'the right-most end').toMatchObject({ attack: 4, health: 6 });
+    expect(s.spellsCast - before.cast, 'spellsCast +n').toBe(n);
+    expect(s.spellsThisTurn - before.turn, 'spellsThisTurn +n').toBe(n);
+    expect(at(s, 'r').spellProgress ?? 0, 'Runescale heard each cast once').toBe(n);
+    expect(buffFrom(at(s, 'c'), 'Rune of Kindling'), 'the left-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
+    expect(buffFrom(at(s, 'x'), 'Rune of Kindling'), 'the right-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
     expect(s.lastSpellCastId, 'the copy memory saw it too').toBeDefined();
   });
 });

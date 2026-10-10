@@ -56,7 +56,6 @@ const ROLES: Record<string, CardRole> = {
   dw_ironlung: R(1, 'Warhorn Captain: +3 Attack to the other Dwarves once', { filler: true }),
   dw_pimm: R(1, 'Paymaster Pimm: 1 Gold next turn', { filler: true }),
   dw_orin: R(1, 'Oathshield Orin: a Warded 2/2', { filler: true }),
-  dw_chickenbrawl: R(1, 'Chicken Brawl: a charging soldier', { filler: true }),
   dw_sharpshooter: R(1, 'a Deep Delve Writ (steal a Dwarf from the Shop)'),
   dw_runemaster: R(2, 'Gild a minion', { fromWave: 12 }),
   // Neutral engines the recorded Dwarf boards carried.

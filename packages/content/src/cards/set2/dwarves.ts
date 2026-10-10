@@ -49,9 +49,11 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: ['T'],
-    effects: [{ on: 'endOfTurn', do: 'grantRandomAle', params: { count: 1 } }],
-    text: '**Taunt.** **End of Turn:** get a **Dwarven Ale**.',
-    goldenText: '**End of Turn:** get **2 Dwarven Ales**.',
+    // Owner balance 2026-10-10: the End of Turn Ale became an ECHO Ale (`combatGrantAle`, the Echo body Doubletap
+    // Brewer used); Taunt stays (owner ruling). The gilded text now keeps Taunt too (it had dropped it).
+    effects: [{ on: 'onDeath', do: 'combatGrantAle', params: { guard: 'self', count: 1 } }],
+    text: '**Taunt.** **Echo:** get a **Dwarven Ale**.',
+    goldenText: '**Taunt.** **Echo:** get **2 Dwarven Ales**.',
   },
   {
     // Reuses the Set 1 spell-power channel, so a Dwarf and a Dragon raising your Shop spells are the same
@@ -126,20 +128,19 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**End of Turn:** give your **left and right-most Dwarves +2/+4**. Repeat for every card you played this turn.',
   },
   {
-    // Both halves: the Shout pours in the shop, the Echo pours from combat via `ctx.grantToHand`.
+    // Owner balance 2026-10-10 (T5 4/3 -> T4 4/2): the Shout and Echo are gone; it is an End of Turn Ale with a
+    // SHOP TIER condition. `bonusAtTier` / `bonusCount` on the shared `grantRandomAle`: at Shop Tier 5+ the grant is
+    // `count + bonusCount` (both doubled gilded: 2, and 4 at Tier 5+). The owner chose this wording.
     id: 'dw_brewer',
     name: 'Doubletap Brewer',
     tribe: 'dwarf',
-    tier: 5,
+    tier: 4,
     attack: 4,
-    health: 3,
+    health: 2,
     keywords: [],
-    effects: [
-      { on: 'onPlay', do: 'grantRandomAle', params: { count: 1 } },
-      { on: 'onDeath', do: 'combatGrantAle', params: { guard: 'self', count: 1 } },
-    ],
-    text: '**Shout:** get a **Dwarven Ale**. **Echo:** get a **Dwarven Ale**.',
-    goldenText: '**Shout:** get **2 Dwarven Ales**. **Echo:** get **2 Dwarven Ales**.',
+    effects: [{ on: 'endOfTurn', do: 'grantRandomAle', params: { count: 1, bonusAtTier: 5, bonusCount: 1 } }],
+    text: '**End of Turn:** get a **Dwarven Ale**. Get another if you are **Shop Tier 5+**.',
+    goldenText: '**End of Turn:** get **2 Dwarven Ales**. Get **2** more if you are **Shop Tier 5+**.',
   },
   {
     id: 'dw_tapkeeper',
@@ -237,7 +238,8 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Dwarven Ales** you cast from hand trigger **three times**.',
   },
   {
-    // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8); 2026-10-07: +5/+5 (golden +10/+10).
+    // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8); 2026-10-07: +5/+5 (golden +10/+10);
+    // 2026-10-10: +6/+5 (golden +12/+10), the first split line, so the factory reads a separate `health` param.
     id: 'dw_chef',
     name: 'Chef Gary Toast',
     tribe: 'dwarf',
@@ -245,9 +247,9 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 6,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 5 } }],
-    text: 'Whenever you play a **Dwarf**, give your **Dwarves +5/+5**.',
-    goldenText: 'Whenever you play a **Dwarf**, give your **Dwarves +10/+10**.',
+    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffTribe', params: { tribe: 'dwarf', attack: 6, health: 5 } }],
+    text: 'Whenever you play a **Dwarf**, give your **Dwarves +6/+5**.',
+    goldenText: 'Whenever you play a **Dwarf**, give your **Dwarves +12/+10**.',
   },
   {
     // The Ale payoff banked a turn late (owner 2026-08-07): Start of Combat reads the Ales you cast LAST
@@ -294,9 +296,10 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 5, tribe: 'dwarf', count: 2, attack: 5, health: 5 } }],
-    text: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +5/+5**.',
-    goldenText: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +10/+10**.',
+    // Owner balance 2026-10-10: +5/+5 -> +6/+5 (gilded +12/+10).
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 5, tribe: 'dwarf', count: 2, attack: 6, health: 5 } }],
+    text: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +6/+5**.',
+    goldenText: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +12/+10**.',
   },
   {
     // Set 2 — Gangplank (owner add 2026-08-18): every card added to your hand (an Ale, a conjured spell, a
@@ -315,7 +318,7 @@ export const SET2_DWARVES: CardDef[] = [
   },
 ];
 
-/** The Charging Soldier — the token BOTH Anvilshade Smith and Chicken Brawl summon. */
+/** The Charging Soldier, the token Anvilshade Smith summons (and Chicken Brawl did, until it was archived 2026-10-10). */
 export const SET2_DWARF_TOKENS: CardDef[] = [
   {
     id: 'dw_soldier',
@@ -396,20 +399,6 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     text: '**Rebirth.**',
   },
   {
-    // Owner add 2026-08-04. An aggressive Echo body for the tribe's early game: it dies forward — the
-    // soldier's immediate swing is the payoff (the Whelp/`attackOnSummon` mechanism).
-    id: 'dw_chickenbrawl',
-    name: 'Chicken Brawl',
-    tribe: 'dwarf',
-    tier: 2,
-    attack: 4, // owner balance 2026-09-23: 3/1 → 4/2
-    health: 2,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'dw_soldier', count: 1, fixed: true, goldenTokens: true } }],
-    text: '**Echo:** summon a **Charging Soldier** that attacks immediately.',
-    goldenText: '**Echo:** summon a **Golden Charging Soldier** that attacks immediately.',
-  },
-  {
     // Dwarf/Dragon — the bridge between the Ale tribe and the spell tribe. Its meter is per-instance and carries
     // round to round, like every other "every N spells" card.
     id: 'dw_brisbane',
@@ -438,21 +427,6 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'deepdelvewrit', count: 1 } }],
     text: '**Shout:** get a **Deep Delve Writ**.',
     goldenText: '**Shout:** get **2 Deep Delve Writs**.',
-  },
-  {
-    // Owner add 2026-08-19. A Dwarf capstone that grows ITSELF rather than the board: Beefy hits the target and
-    // both neighbours, so a centre Arnold pays three ways off one cast. Distinct from `endOfTurnCastSpellEscalating`
-    // (which climbs and picks the biggest OTHER friend) — this one is a flat once-per-turn cast, aimed at self.
-    id: 'dw_arnold',
-    name: 'Arnold',
-    tribe: 'dwarf',
-    tier: 6,
-    attack: 9,
-    health: 10,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnCastSpellOnSelf', params: { spellId: 'sp_beefy' } }],
-    text: '**End of Turn:** cast **Beefy** on this.',
-    goldenText: '**End of Turn:** cast **Beefy** on this **twice**.',
   },
   {
     // KEGHEART DWARF (rune-only, owner batch 2026-08-20) - the Ale build's payoff body. It watches the shared
@@ -486,5 +460,27 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 1, health: 1 } }],
     text: 'When you cast a Shop spell, this gains **+1/+1**.',
     goldenText: 'When you cast a Shop spell, this gains **+2/+2**.',
+  },
+];
+
+/**
+ * Set 2 Dwarves added AFTER the set went live, kept in their own list so the set manifest can APPEND them at the very
+ * end of set 2's `own` (declaration order drives seeded pool picks, so no existing position moves).
+ */
+export const SET2_DWARVES_LATE: CardDef[] = [
+  {
+    // DRUNK DANIEL (owner add 2026-10-10). "End of Turn: Give your Shop Spells +2/+2." The run-wide spell-power channel
+    // (`battlecryGrantSpellPowerRun`, Wardkeeper's Shout body) fired at End of Turn instead; it is trigger-agnostic, so the
+    // same body serves a combat replay. Gilded +4/+4.
+    id: 'dw_drunkdaniel',
+    name: 'Drunk Daniel',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpellPowerRun', params: { attack: 2, health: 2 } }],
+    text: '**End of Turn:** give your **Shop spells +2/+2**.',
+    goldenText: '**End of Turn:** give your **Shop spells +4/+4**.',
   },
 ];

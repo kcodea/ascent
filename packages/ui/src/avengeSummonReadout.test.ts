@@ -65,9 +65,11 @@ describe('bug 8e0b4757: the captured fight — Dunkey summoned by Bullseye after
   });
 
   it('a start-of-fight Avenge body (Kennelmaster) still counts the whole fight', () => {
+    // Kennelmaster is Avenge (3) since the owner balance 2026-10-10 (the capsule's log is unchanged): its third
+    // friendly death reads 3/3, the beat it pays.
     const nextDeath = events.findIndex((e, i) => i > summonAt && e.type === 'death' && e.side === 'player');
     const frame = computeFrame(cap.initial, events, nextDeath + 1, nextDeath, names);
-    expect(readout(frame, 'm4')).toBe('3/4');
+    expect(readout(frame, 'm4')).toBe('3/3');
   });
 });
 
@@ -99,9 +101,11 @@ describe('a summoned Avenge minion counts from its own arrival (hand-built log)'
   });
 
   it('does not disturb a start-of-fight Avenge body, which counts every friendly death', () => {
-    expect(readout(at(2), 'p1')).toBe('2/4');
-    expect(readout(at(4), 'p1')).toBe('4/4');
-    expect(readout(at(6), 'p1')).toBe('2/4'); // 6 deaths: the counter wrapped after its payout at 4
+    // Kennelmaster is Avenge (3) since the owner balance 2026-10-10.
+    expect(readout(at(2), 'p1')).toBe('2/3');
+    expect(readout(at(3), 'p1')).toBe('3/3');
+    expect(readout(at(4), 'p1')).toBe('1/3'); // 4 deaths: the counter wrapped after its payout at 3
+    expect(readout(at(6), 'p1')).toBe('3/3'); // its second payout, at 6
   });
 });
 
@@ -111,7 +115,9 @@ describe('a summoned Avenge minion counts from its own arrival (hand-built log)'
  * the sim guard in packages/core/src/combat/avengeSummonBaseline.test.ts, folded through the arena's frame: the
  * copy reads 0/4 on return, ticks once per later friendly death, and prints 4/4 on the very beat its Avenge pays.
  */
-describe('a Reclaimed (Soren) Avenge minion reads 0/4 on its return and pays on the beat it prints 4/4', () => {
+// RE-PINNED 2026-10-10: the subject is Kennelmaster, Avenge (3) since the owner balance batch (was (4)), so the window
+// is 0/3 → 3/3.
+describe('a Reclaimed (Soren) Avenge minion reads 0/3 on its return and pays on the beat it prints 3/3', () => {
   const fodder: BoardMinion = { cardId: 'b2_elderhorn', attack: 1, health: 1 };
   const player: BoardMinion[] = [{ cardId: 'kennel', attack: 1, health: 20, resummon: true }, fodder, fodder, fodder, fodder, fodder];
   const enemy: BoardMinion[] = [{ cardId: 'b2_elderhorn', attack: 1, health: 400 }];
@@ -131,19 +137,18 @@ describe('a Reclaimed (Soren) Avenge minion reads 0/4 on its return and pays on 
     expect(improveAt).toBeGreaterThan(returnAt);
   });
 
-  it('reads 0/4 on the beat it returns', () => {
-    expect(readout(at(returnAt), copy)).toBe('0/4');
+  it('reads 0/3 on the beat it returns', () => {
+    expect(readout(at(returnAt), copy)).toBe('0/3');
   });
 
-  it('ticks once per friendly death after its return: 1/4, 2/4, 3/4', () => {
-    expect(readout(at(deathsAfter[0]!), copy)).toBe('1/4');
-    expect(readout(at(deathsAfter[1]!), copy)).toBe('2/4');
-    expect(readout(at(deathsAfter[2]!), copy)).toBe('3/4');
+  it('ticks once per friendly death after its return: 1/3, 2/3', () => {
+    expect(readout(at(deathsAfter[0]!), copy)).toBe('1/3');
+    expect(readout(at(deathsAfter[1]!), copy)).toBe('2/3');
   });
 
-  it('prints 4/4 on the beat its Avenge fires (the readout and the sim agree on the window)', () => {
-    expect(deathsAfter[3]).toBeLessThan(improveAt);
-    expect(readout(at(deathsAfter[3]!), copy)).toBe('4/4');
-    expect(readout(at(improveAt), copy)).toBe('4/4');
+  it('prints 3/3 on the beat its Avenge fires (the readout and the sim agree on the window)', () => {
+    expect(deathsAfter[2]).toBeLessThan(improveAt);
+    expect(readout(at(deathsAfter[2]!), copy)).toBe('3/3');
+    expect(readout(at(improveAt), copy)).toBe('3/3');
   });
 });

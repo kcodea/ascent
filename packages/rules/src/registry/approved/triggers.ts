@@ -410,14 +410,15 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'carries back to the run card like an Engraved gain) and the printed Imp grant into the run-wide Imp aura '
       + '("this game": every Imp you own now or later). Gilding doubles both grants per instance, never the count. '
       + 'The printed numbers are per instance; the aura\'s running total is a run-scoped tally shown in the Buffs '
-      + 'drawer, not on the card.',
+      + 'drawer, not on the card. Since the owner balance of 2026-10-10 Impossible Todd prints only the Imp grant (+2/+1, '
+      + 'no self-gain; R-PUMMEL-SUMMON-01); the self-gain half is Leech\'s and Axeman\'s.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Balance batch 9/23 (owner sheet, 2026-09-23) — Impossible Todd', quote: 'Impossible Todd: "When a friendly Demon deals damage, gain +1/+2 permanently and give your Imps +2/+1 this game."' },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts onFriendlyDemonDamageBuffSelf (permaGain carry-back + grantImpBuff); packages/content/src/cards/set2/demons.ts dm_todd' },
     ],
-    contentIds: ['dm_todd'],
+    contentIds: ['dm_todd', 'dm_leech', 'dm_chosenfiend'],
     currentBehaviour:
       'Conforms as of 2026-09-23 at the new numbers (+1/+2 self, +2/+1 Imps per instance; was +4/+4 and +2/+2 '
       + 'since the 2026-08-18 add). The mechanic is unchanged by the rework: the friendlyDemonDealtDamage trigger, '
@@ -974,5 +975,27 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'the glyph paused off a private copy of the gate that missed several holds, the motes never paused, and each pause '
       + 'restarted the current second of the clock.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/chargeGlyphHold.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  {
+    id: 'R-CONSUME-ALL-01',
+    title: 'Hydraskus: EVERY friendly Demon consumes a Shop minion at End of Turn, left to right, one beat per bite',
+    statement:
+      'Hydraskus reads "End of Turn: Your Demons consume a minion in the Shop." Every friendly Demon on the board eats '
+      + 'one Shop minion (owner), Hydraskus included, in board order LEFT TO RIGHT. Each meal is a random edible Shop '
+      + 'minion (the house default for "a minion in the Shop"; spells and Rubies are never eaten). Each bite is its own '
+      + 'End-of-Turn tick (`eotTickCount` counts the Demons), so its own root trigger and its own beat (R-REPEAT-01). '
+      + 'When the Shop runs out of minions the feast ends and later Demons eat nothing. Gilded: every eater gains '
+      + 'DOUBLE the meal\'s stats (the tribe\'s "and gain double its stats" rider). Every consume fires the usual consume '
+      + 'payoffs (Enigma, Open Market, Bottomless Banquet) once per bite.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Hydraskus, new Set 2 Tier 6 Demon)', quote: 'EVERY friendly Demon eats one Shop minion.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts endOfTurnDemonsConsumeShop + eotTickCount; packages/content/src/cards/set2/demons.ts dm_hydraskus' },
+    ],
+    contentIds: ['dm_hydraskus'],
+    cardText: '**End of Turn:** your **Demons** consume a minion in the Shop.',
+    currentBehaviour: 'Conforms (2026-10-10), new card.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
 ];

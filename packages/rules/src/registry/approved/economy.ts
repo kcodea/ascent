@@ -192,4 +192,25 @@ export const ECONOMY_RULES: GameRule[] = [
       + 'consequence, so the slot only turned blue after the commit with nothing played.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eotAmplificationBeat.test.ts'], lastVerifiedAt: '2026-10-03' },
   },
+  {
+    id: 'R-ALE-TIER-01',
+    title: 'Doubletap Brewer: an End of Turn Ale, and another at Shop Tier 5 or higher, one count in both phases',
+    statement:
+      'Doubletap Brewer reads "End of Turn: Get a Dwarven Ale. Get another if you are Shop Tier 5+." The condition is '
+      + 'the side\'s CURRENT Shop Tier when the effect fires: below Tier 5 it hands over one random Dwarven Ale, at Tier 5 '
+      + 'or higher two. Gilded doubles the whole grant (2, or 4 at Tier 5+). The count is ONE shared function '
+      + '(`aleGrantCount`: `count`, plus `bonusCount` at or above `bonusAtTier`) read by the shop (`state.tier`), by '
+      + 'combat (`tierFor(side)`) and by the live card text, which adds a green "(N Ales now)" once the tier is met. A '
+      + 'set without the Ales grants nothing, as before.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Doubletap Brewer; the owner chose the wording)', quote: 'End of Turn: Get a Dwarven Ale. Get another if you are Shop Tier 5+.' },
+      { kind: 'code', ref: 'packages/core/src/types.ts aleGrantCount; packages/sim/src/recruit.ts grantRandomAle; packages/core/src/effects/factories.ts grantRandomAle; packages/ui/src/cardText.ts aleTierText; packages/content/src/cards/set2/dwarves.ts dw_brewer' },
+    ],
+    contentIds: ['dw_brewer'],
+    cardText: '**End of Turn:** get a **Dwarven Ale**. Get another if you are **Shop Tier 5+**.',
+    currentBehaviour: 'Conforms (2026-10-10). Was a T5 4/3 with "Shout: get a Dwarven Ale. Echo: get a Dwarven Ale."',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

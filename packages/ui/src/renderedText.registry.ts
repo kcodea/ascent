@@ -49,6 +49,7 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // Pummel badge gate was derived from core's registry (R-PUMMEL-BADGE-01, 2026-10-03); same reading as its peers.
   k_kobe: { kind: 'accurate-at-any-value', why: 'Kobe (Pummel (15)): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   tauntbreaker: { kind: 'accurate-at-any-value', why: 'Tauntbreaker (Pummel (25), 2026-10-03): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  dm_todd: { kind: 'accurate-at-any-value', why: 'Impossible Todd (Pummel (20), owner balance 2026-10-10): the Imp grant is a fixed +2/+1 per instance and the threshold never scales; the damage meter is the damageDealt step counter (stepProgress)' },
   ce3_starcharter: { kind: 'accurate-at-any-value', why: 'Maestro Lux (Pummel (12), 2026-09-24): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   // Goldilox (2026-09-24): the only live value is WHERE the card sits — in the HAND it prints the doubled gain
   // (`inHand`, the hand row). A board body (this harness mounts board/combat Units) prints the exact printed text

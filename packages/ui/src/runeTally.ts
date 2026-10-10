@@ -124,6 +124,16 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_deep' && run.runeDeep && (run.runeDeepEvery ?? 1) > 1) {
     return `${Math.min(run.runeDeepTick ?? 0, run.runeDeepEvery!)}/${run.runeDeepEvery} turns`;
   }
+  // The Gift cadences (owner balance 2026-10-10): Happy Birthday every 3 turns, Merry Christmas every 2. Turn setups
+  // since the last payout, of the cadence, the Deep's shape. A Christmas bought before its cadence pays every turn and
+  // shows no countdown; a Birthday bought before keeps its old 2.
+  if (runeId === 'rune_happy_birthday' && run.runeHappyBirthday) {
+    const every = run.giftBirthdayEvery ?? 2;
+    return `${Math.min(run.giftBirthdayTick ?? 0, every)}/${every} turns`;
+  }
+  if (runeId === 'rune_merry_christmas' && run.runeMerryChristmas && (run.giftChristmasEvery ?? 1) > 1) {
+    return `${Math.min(run.giftChristmasTick ?? 0, run.giftChristmasEvery!)}/${run.giftChristmasEvery} turns`;
+  }
   // ── Set 3 batch 2, tranche B (2026-09-16) ──
   // Rune of Resonant Arms: Equipment TRIGGERS banked toward the next +8/+5 (a run-wide meter).
   if (runeId === 'rune_resonant_arms' && run.runeResonantArms) {

@@ -35,17 +35,21 @@ describe('Impossible Todd — the Imp grant reaches every Imp, in real time', ()
     [bm('dm_clerk', 'BAG', 0, 99999)],
     makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
 
-  it('a living Imp gains +2/+1 at the very trigger (the event right after Todd swells), before its own swing', () => {
+  // RE-PINNED 2026-10-10 (owner balance batch): Todd no longer swells itself, so a trigger is counted off the run-wide
+  // carry-back (+2/+1 per trigger) instead of off Todd's own buff events.
+  it('a living Imp gains +2/+1 at the very trigger, before its own swing', () => {
     const r = fight(false);
-    const toddBuffs = buffsOn(r.events, 'm0');
+    expect(buffsOn(r.events, 'm0').length, 'Todd never swells itself (owner balance 2026-10-10)').toBe(0);
+    const triggers = r.playerImpBuffGain!.attack / 2;
+    expect(triggers).toBeGreaterThan(0);
     const impBuffs = buffsOn(r.events, 'm2');
-    expect(impBuffs.length, 'one Imp buff per Todd trigger').toBe(toddBuffs.length);
+    expect(impBuffs.length, 'one Imp buff per Todd trigger').toBe(triggers);
     expect(impBuffs.every((b) => b.attack === 2 && b.health === 1 && b.source === 'm0')).toBe(true);
     // The Imp's own first swing lands AFTER the Clerk's hit triggered Todd: 1 base + 2 = 3 damage, not 1.
     const firstImpHit = r.events.find((e) => e.type === 'dmg' && (e as { source?: string }).source === 'm2') as { amount: number };
     expect(firstImpHit.amount).toBe(3);
     // The run-wide half is unchanged: every trigger still feeds the carry-back.
-    expect(r.playerImpBuffGain).toEqual({ attack: 2 * toddBuffs.length, health: toddBuffs.length });
+    expect(r.playerImpBuffGain).toEqual({ attack: 2 * triggers, health: triggers });
   });
 
   it('gilded doubles the living Imp grant (+4/+2)', () => {
@@ -65,7 +69,10 @@ describe('Impossible Todd — the Imp grant reaches every Imp, in real time', ()
     const summonIdx = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
     expect(summonIdx).toBeGreaterThan(-1);
     const imp = (r.events[summonIdx] as unknown as { minion: { uid: string; attack: number; health: number } }).minion;
-    const grantsBefore = r.events.slice(0, summonIdx).filter((e) => e.type === 'buff' && (e as unknown as Buff).target === 'm1').length;
+    // A trigger is a landed hit by a friendly Demon (Knocked m0, Todd m1); Todd no longer swells itself (2026-10-10), so
+    // the triggers are counted off those hits.
+    const grantsBefore = r.events.slice(0, summonIdx).filter((e) => e.type === 'dmg'
+      && ['m0', 'm1'].includes((e as { source?: string }).source ?? '') && ((e as { amount?: number }).amount ?? 0) > 0).length;
     expect(grantsBefore, 'Todd triggered before the Imp arrived').toBeGreaterThan(0);
     // 1/1 base + the seeded 4/2 + every +2/+1 granted so far — no more, no less.
     expect([imp.attack, imp.health]).toEqual([1 + 4 + 2 * grantsBefore, 1 + 2 + grantsBefore]);

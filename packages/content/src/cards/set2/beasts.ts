@@ -150,6 +150,7 @@ export const SET2_BEASTS: CardDef[] = [
   {
     // Reuses Ryme's adjacent-Battlecry re-fire (`deathrattleReplayAdjacentBattlecry`): on death in combat, both
     // neighbours' Shouts fire again (golden fires each twice) — exactly the shared primitive.
+    // Owner balance 2026-10-10: back to BOTH neighbours (the `one: true` single seeded pick is gone); gilded = twice.
     id: 'b2_dawnclaw',
     name: 'Dawnclaw',
     tribe: 'beast',
@@ -159,9 +160,9 @@ export const SET2_BEASTS: CardDef[] = [
     // Taunt (owner 2026-07-25): it has to be attacked INTO for its Echo to pay, so guarding the line is what
     // makes the card do its own job.
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } }],
-    text: "**Taunt. Echo:** trigger an adjacent minion's **Shout**.",
-    goldenText: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts**.",
+    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }],
+    text: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts**.",
+    goldenText: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts** **twice**.",
   },
   {
     // A go-wide Rally payoff: the more Beasts you field, the harder it hits. Buffs ITSELF (not the board) so

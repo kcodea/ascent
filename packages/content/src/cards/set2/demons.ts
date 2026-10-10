@@ -17,10 +17,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 3,
     keywords: [],
-    // Owner balance 2026-08-18: +1/+1 → +2/+1.
-    effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 2, health: 1 } }],
-    text: '**Shout:** give minions in the Shop **+2/+1**.',
-    goldenText: '**Shout:** give minions in the Shop **+4/+2**.',
+    // Owner balance 2026-08-18: +1/+1 → +2/+1. Owner balance 2026-10-10: +2/+1 -> +2/+2 (gilded +4/+4).
+    effects: [{ on: 'onPlay', do: 'buffShopPermanent', params: { attack: 2, health: 2 } }],
+    text: '**Shout:** give minions in the Shop **+2/+2**.',
+    goldenText: '**Shout:** give minions in the Shop **+4/+4**.',
   },
   {
     // The eater is the TARGET, not this card — so it can feed whichever Demon you want to grow.
@@ -70,11 +70,12 @@ export const SET2_DEMONS: CardDef[] = [
     // Tormentor to stay on board — the slot remembers, not the minion. The first shape (per-refresh watcher)
     // died with the body; the second (one-shot Shout) buffed exactly one offer ever. Both were wrong.
     // Owner balance 2026-08-12: +4/+2 → +7/+7 (gild +14/+14). Owner balance 2026-08-14: +7/+7 → +7/+6.
-    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 4, health: 5 } }],
+    // Owner balance 2026-10-10: +4/+5 -> +8/+8 (gilded +16/+16).
+    effects: [{ on: 'onPlay', do: 'buffRightmostSlotPermanent', params: { attack: 8, health: 8 } }],
     // Owner retext 2026-08-12: the simpler "minion + permanently" phrasing (matches Right Hand Hank). The
     // MECHANIC is unchanged — it's still the slot accumulator that re-lands on every refresh and stacks.
-    text: '**Shout:** give the **right-most Shop minion +4/+5** permanently.',
-    goldenText: '**Shout:** give the **right-most Shop minion +8/+10** permanently.',
+    text: '**Shout:** give the **right-most Shop minion +8/+8** permanently.',
+    goldenText: '**Shout:** give the **right-most Shop minion +16/+16** permanently.',
   },
   {
     // Owner rework 2026-09-23: "End of Turn: Cast Staff of Guel." — the shared "minion casts a named spell"
@@ -89,9 +90,15 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'staffofguel' } }],
-    text: '**End of Turn:** cast **Staff of Guel**.',
-    goldenText: '**End of Turn:** cast **Staff of Guel twice**.',
+    // Owner balance 2026-10-10: "End of Turn: Cast Staff of Guel and Picnic." Two `castSpell` effects on the same
+    // primitive, in the printed order (Staff first, then Picnic), each its own End-of-Turn root trigger and beat.
+    // Gilded casts BOTH twice (the factory's `gold(self)` loop).
+    effects: [
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'staffofguel' } },
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'sp_picnic' } },
+    ],
+    text: '**End of Turn:** cast **Staff of Guel** and **Picnic**.',
+    goldenText: '**End of Turn:** cast **Staff of Guel** and **Picnic**, **twice**.',
   },
   {
     // A Demon eats every time you play a Demon — the tribe's engine card.
@@ -129,13 +136,15 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 4,
     attack: 5,
     health: 2,
-    keywords: ['T'],
+    keywords: [], // owner balance 2026-10-10: Taunt dropped (the owner's text has none, the Beardsley precedent)
     // `cardId`, NOT `spellId` — the factory reads `params.cardId`, so the wrong key granted the EMPTY string and
     // the hand-grant preview then crashed on `CARD_INDEX['']` (owner report 2026-07-25). `count` is likewise not
     // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'staffofguel' } }],
-    text: '**Taunt.** **Echo:** get a **Staff of Guel**.',
-    goldenText: '**Taunt.** **Echo:** get **2 Staves of Guel**.',
+    // Owner balance 2026-10-10: "Echo: Get 2 Picnics." (was a Staff of Guel). `count` is read by the shared body
+    // and doubled by a gilded copy: 2, gilded 4.
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'sp_picnic', count: 2 } }],
+    text: '**Echo:** get **2 Picnics**.',
+    goldenText: '**Echo:** get **4 Picnics**.',
   },
   {
     // Owner rework 2026-08-18: a straight run-wide Imp lord — its Echo buffs every Imp this game and leaves a
@@ -153,22 +162,6 @@ export const SET2_DEMONS: CardDef[] = [
     ],
     text: '**Echo:** your Imps gain **+5/+5** this game. Summon **2 Imps**.',
     goldenText: '**Echo:** your Imps gain **+10/+10** this game. Summon **4 Imps**.',
-  },
-  {
-    id: 'dm_maw',
-    name: 'Hellrider',
-    tribe: 'demon',
-    tier: 6,
-    attack: 6,
-    health: 6,
-    keywords: ['DS'],
-    // Owner rework 2026-08-14: Hellrider no longer EATS — it COPIES the right-most offer's stats and leaves it
-    // buyable (Bob Blart's old shape, now on a refresh meter). The two Demons traded jobs deliberately: the
-    // cheap one eats the row, the Tier-6 one farms it without shrinking your options.
-    // Owner balance 2026-09-23: every 4 refreshes → every 3 (same payoff).
-    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshGainRightmostShopStats', params: { every: 3, times: 1 } }],
-    text: "**Ward.** Every **3 refreshes**, gain the **right-most** Shop minion's stats.",
-    goldenText: "**Ward.** Every **3 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
   },
   {
     // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
@@ -200,9 +193,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4, // owner balance 2026-09-23: 3/1 → 4/1
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 3, health: 2 } }],
-    text: '**Echo:** give the **right-most Shop minion +3/+2** permanently.',
-    goldenText: '**Echo:** give the **right-most Shop minion +6/+4** permanently.',
+    // Owner balance 2026-10-10: +3/+2 -> +4/+3 (gilded +8/+6).
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 4, health: 3 } }],
+    text: '**Echo:** give the **right-most Shop minion +4/+3** permanently.',
+    goldenText: '**Echo:** give the **right-most Shop minion +8/+6** permanently.',
   },
   {
     // Owner add 2026-08-14. The tribe's Avenge body-refiller: a fat T4 stat-line that turns friendly deaths into
@@ -216,9 +210,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 3, // owner balance 2026-09-23: 3/6 → 3/7
     health: 7,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 1 } }],
-    text: '**Avenge (3):** get a random **Demon**.',
-    goldenText: '**Avenge (3):** get **2 random Demons**.',
+    // Owner balance 2026-10-10: 1 -> 2 Demons per proc (gilded 4).
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 2 } }],
+    text: '**Avenge (3):** get **2 random Demons**.',
+    goldenText: '**Avenge (3):** get **4 random Demons**.',
   },
   {
     // Set 2 — Impossible Todd (owner add 2026-08-18): the demon-damage capstone. Every time a friendly Demon
@@ -231,10 +226,16 @@ export const SET2_DEMONS: CardDef[] = [
     tier: 6,
     attack: 7,
     health: 8,
-    keywords: ['DS'],
-    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 1, health: 2, impAttack: 2, impHealth: 1 } }],
-    text: '**Ward.** When a friendly **Demon** deals damage, gain **+1/+2** permanently and give your **Imps +2/+1** this game.',
-    goldenText: '**Ward.** When a friendly **Demon** deals damage, gain **+2/+4** permanently and give your **Imps +4/+2** this game.',
+    // Owner balance 2026-10-10: the self-buff is gone and so is WARD (owner ruling); the Imp aura stays +2/+1, and a
+    // PUMMEL (20) joins: every 20 damage THIS body has dealt (the shared lifetime meter, `noteDamageDealt`) summons an
+    // Imp beside it, once per combat. Gilded: Imps +4/+2 and 2 Imps per payout.
+    keywords: [],
+    effects: [
+      { on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { impAttack: 2, impHealth: 1 } },
+      { on: 'passive', do: 'dealtDamageSummonToken', params: { every: 20, tokenId: 'impscrap', count: 1 } },
+    ],
+    text: 'When a friendly **Demon** deals damage, give your **Imps +2/+1**. **Pummel (20):** Summon an **Imp**. (Once per combat.)',
+    goldenText: 'When a friendly **Demon** deals damage, give your **Imps +4/+2**. **Pummel (20):** Summon **2 Imps**. (Once per combat.)',
   },
   {
     // Set 2 — Knocked (owner add 2026-08-18): a cheap Echo Imp-maker. Golden summons 2.
@@ -273,9 +274,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 4,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 2, health: 1 } }],
-    text: 'When you **consume** a minion, give minions in the **Shop +2/+1** permanently.',
-    goldenText: 'When you **consume** a minion, give minions in the **Shop +4/+2** permanently.',
+    // Owner balance 2026-10-10: +2/+1 -> +4/+5 (gilded +8/+10).
+    effects: [{ on: 'onConsume', do: 'onConsumeBuffShop', params: { attack: 4, health: 5 } }],
+    text: 'When you **consume** a minion, give minions in the **Shop +4/+5** permanently.',
+    goldenText: 'When you **consume** a minion, give minions in the **Shop +8/+10** permanently.',
   },
   {
     // Set 2 — Leech (owner add 2026-08-18): a cheap demon-damage body that just grows Attack off your Demons'
@@ -361,5 +363,29 @@ export const SET2_DEMONS: CardDef[] = [
     effects: [{ on: 'minionSold', do: 'minionSoldDemonGainStats', params: { tribe: 'demon' } }],
     text: 'When you sell a **Demon**, this gains its stats.',
     goldenText: 'When you sell a **Demon**, this gains **double** its stats.',
+  },
+];
+
+/**
+ * Set 2 Demons added AFTER the set went live, kept in their own list so the set manifest can APPEND them at the very
+ * end of set 2's `own` (declaration order drives seeded pool picks, so no existing position moves).
+ */
+export const SET2_DEMONS_LATE: CardDef[] = [
+  {
+    // HYDRASKUS (owner add 2026-10-10). "End of Turn: Your Demons consume a minion in the Shop." OWNER: EVERY friendly
+    // Demon eats one Shop minion. Order: left to right along the board (Hydraskus included, it is a Demon). The meal is a
+    // RANDOM edible Shop minion, the house default for "a minion in the Shop" (Appetite Agent, Chipper, Baal). Each
+    // Demon's bite is its own End-of-Turn tick, so its own root trigger and beat (`eotTickCount`). The Shop running dry
+    // ends the feast: later Demons eat nothing. Gilded: "and gain double its stats" (`times: 2`, the tribe's rider).
+    id: 'dm_hydraskus',
+    name: 'Hydraskus',
+    tribe: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnDemonsConsumeShop', params: { tribe: 'demon', times: 1 } }],
+    text: '**End of Turn:** your **Demons** consume a minion in the Shop.',
+    goldenText: '**End of Turn:** your **Demons** consume a minion in the Shop and gain **double** its stats.',
   },
 ];

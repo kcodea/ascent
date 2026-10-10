@@ -22,7 +22,9 @@ const body = (uid: string, cardId: string, attack: number, health: number, over:
 const inHand = (uid = 'dis'): BoardCard => body(uid, 'sp_dissipate', 0, 1);
 
 describe('Dissipate', () => {
-  it('is a T5, 4-Gold aimed spell that exists in set 2 and set 3', () => {
+  // RE-PINNED 2026-10-10: Dissipate is ARCHIVED everywhere (owner balance batch). The def still resolves by id, so a
+  // held copy or a replay keeps working (the behaviour tests below), but no set draws it.
+  it('is a T5, 4-Gold aimed spell, archived out of set 2 and set 3', () => {
     const def = CARD_INDEX['sp_dissipate']!;
     expect(def.spell).toBe(true);
     expect(def.tier).toBe(5);
@@ -30,8 +32,8 @@ describe('Dissipate', () => {
     expect(def.target).toBe('friendly');
     expect(def.singleCast).toBe(true);
     expect(def.text).toBe('Sell a minion and give its stats to the right-most minion in the Shop.');
-    expect(SETS.set2.own.some((c) => c.id === 'sp_dissipate')).toBe(true);
-    expect(SETS.set3.own.some((c) => c.id === 'sp_dissipate')).toBe(true);
+    expect(SETS.set2.own.some((c) => c.id === 'sp_dissipate')).toBe(false);
+    expect(SETS.set3.own.some((c) => c.id === 'sp_dissipate')).toBe(false);
   });
 
   it('sells the target (+Gold) and gives its CURRENT stats to the right-most MINION offer, skipping a spell offer', () => {

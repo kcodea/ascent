@@ -4,9 +4,10 @@ import { createRun, reduce, type BoardCard, type RunState } from '@game/sim';
 import { aleBubbleSources } from './aleBubbleSources';
 
 /**
- * R-ALEFX-01 — Brunni's End-of-Turn Ale bubbles play ONCE. The End-of-Turn beat (`cardGranted` in Recruit.tsx)
- * owns that burst; the reactive `aleGrantSeq` watcher must not replay it when the `faceOmen` commit stamps
- * `aleGranted` with the warband still on screen. Shop-action ales (Doubletap Brewer's Shout) still burst.
+ * R-ALEFX-01 — an End-of-Turn Ale's bubbles play ONCE (Doubletap Brewer since the owner balance 2026-10-10; it was
+ * Brunni's). The End-of-Turn beat (`cardGranted` in Recruit.tsx) owns that burst; the reactive `aleGrantSeq` watcher
+ * must not replay it when the `faceOmen` commit stamps `aleGranted` with the warband still on screen. Shop-action
+ * ales (Tapkeeper's Gold meter; it was Doubletap Brewer's Shout until 2026-10-10) still burst.
  */
 
 const set2 = (): RunState => ({ ...createRun(1, 'drakko'), setId: 'set2' } as RunState);
@@ -16,9 +17,9 @@ const body = (cardId: string, uid: string): BoardCard => {
 };
 
 describe('aleBubbleSources (R-ALEFX-01)', () => {
-  it('the End-of-Turn commit stamps Brunni but the watcher fires nothing (the beat already did)', () => {
+  it('the End-of-Turn commit stamps Doubletap Brewer but the watcher fires nothing (the beat already did)', () => {
     let s = set2();
-    s = { ...s, phase: 'recruit', board: [body('dw_brunni', 'brunni')], hand: [] };
+    s = { ...s, phase: 'recruit', board: [body('dw_brewer', 'brunni')], hand: [] };
     const seq0 = s.aleGrantSeq;
     s = reduce(s, { type: 'faceOmen' });
     expect(s.aleGrantSeq, 'the commit still bumps the seq').toBe(seq0 + 1);
@@ -26,10 +27,10 @@ describe('aleBubbleSources (R-ALEFX-01)', () => {
     expect(aleBubbleSources(s)).toEqual([]);
   });
 
-  it('a shop-action ale (Doubletap Brewer Shout) still bursts from its unit, once', () => {
+  it('a shop-action ale (Tapkeeper, 10 Gold spent) still bursts from its unit, once', () => {
     let s = set2();
-    s = { ...s, phase: 'recruit', board: [], hand: [body('dw_brewer', 'brewer')] };
-    s = reduce(s, { type: 'play', uid: 'brewer' });
+    s = { ...s, phase: 'recruit', embers: 30, freeRolls: 0, board: [body('dw_tapkeeper', 'brewer')], hand: [] };
+    for (let i = 0; i < 10 && s.aleGranted.length === 0; i++) s = reduce(s, { type: 'roll' });
     expect(s.phase).toBe('recruit');
     expect(aleBubbleSources(s)).toEqual(['brewer']);
   });

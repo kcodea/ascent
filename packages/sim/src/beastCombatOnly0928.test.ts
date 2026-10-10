@@ -44,8 +44,9 @@ const settleOnto = (board: BoardCard[], r: CombatResult, over: Partial<RunState>
 // ── the new texts ────────────────────────────────────────────────────────────────────────────────────────
 describe('R-AURA-03 texts: "Give all Friendly and summoned Beasts +X/+Y" replaces the Beast Aura', () => {
   const TEXT: Record<string, [string, string | undefined]> = {
-    kennel: ['**Start of Combat:** Give all Friendly and summoned Beasts **+1 Attack**. **Avenge (4):** Improve this.',
-      '**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).'],
+    // Owner balance 2026-10-10: +2 Attack, Avenge (3) (was +1, Avenge (4)).
+    kennel: ['**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (3):** Improve this.',
+      '**Start of Combat:** Give all Friendly and summoned Beasts **+4 Attack**. **Avenge (3):** Improve this (twice as much).'],
     grim: ['**Echo:** Give all Friendly and summoned Beasts **+8/+8**.', '**Echo:** Give all Friendly and summoned Beasts **+16/+16**.'],
     b2_armadiyo: ['**Taunt. Echo:** Give all Friendly and summoned Beasts **+2/+4**.', '**Taunt. Echo:** Give all Friendly and summoned Beasts **+4/+8**.'],
     trophystalker: ['**Rally:** Give all Friendly and summoned Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],
@@ -167,27 +168,27 @@ describe('Grim in the SHOP: every warband Beast gains it permanently (owner: "an
 });
 
 // ── Kennelmaster ─────────────────────────────────────────────────────────────────────────────────────────
-describe('Kennelmaster: Start of Combat all your Beasts +N Attack; Avenge (4) improves N permanently', () => {
+describe('Kennelmaster: Start of Combat all your Beasts +N Attack; Avenge (3) improves N permanently (+2 per step, owner 2026-10-10)', () => {
   it('buffs the living Beasts at Start of Combat and a Beast summoned later that fight', () => {
     const r = sim([bm('kennel', 'K', 0, 900), bm('pack', 'P', 1, 1), bm('sandbag', 'N', 0, 900)], [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
     const k = uidAt(r, 0);
-    expect(buffs(r).some((b) => b.target === uidAt(r, 1) && b.source === k && b.attack === 1 && b.health === 0)).toBe(true);
+    expect(buffs(r).some((b) => b.target === uidAt(r, 1) && b.source === k && b.attack === 2 && b.health === 0)).toBe(true);
     expect(buffs(r).some((b) => b.target === uidAt(r, 2) && b.source === k), 'non-Beast untouched').toBe(false);
     const pup = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'pup');
     expect(pup).toBeDefined();
     const pupUid = pup!.type === 'summon' ? pup!.minion.uid : '';
-    expect(buffs(r).some((b) => b.target === pupUid && b.attack === 1)).toBe(true);
+    expect(buffs(r).some((b) => b.target === pupUid && b.attack === 2)).toBe(true);
   });
 
   it('the grant uses the CURRENT improved value (summonBonus) and golden doubles it', () => {
     const r = sim([bm('kennel', 'K', 0, 900, { summonBonus: 3 }), bm('alley', 'A', 1, 900)], wall);
-    expect(buffs(r).some((b) => b.target === uidAt(r, 1) && b.attack === 4)).toBe(true); // 1 + 3
+    expect(buffs(r).some((b) => b.target === uidAt(r, 1) && b.attack === 8)).toBe(true); // 2 + 3 x 2
     const g = sim([bm('kennel', 'K', 0, 900, { summonBonus: 3, golden: true }), bm('alley', 'A', 1, 900)], wall);
-    expect(buffs(g).some((b) => b.target === uidAt(g, 1) && b.attack === 8)).toBe(true); // (1 + 3) x 2
+    expect(buffs(g).some((b) => b.target === uidAt(g, 1) && b.attack === 16)).toBe(true); // (2 + 3 x 2) x 2
   });
 
-  it('Avenge (4) improves it PERMANENTLY per instance (summonBonus carries back); the stats do not', () => {
-    // Four friendly non-Beast deaths → one Avenge (4) fire → summonBonus +1, carried back to the run card.
+  it('Avenge (3) improves it PERMANENTLY per instance (summonBonus carries back); the stats do not', () => {
+    // Four friendly non-Beast deaths → one Avenge (3) fire (at the 3rd) → summonBonus +1, carried back to the run card.
     const fodder = (i: number) => bm('sandbag', `F${i}`, 0, 1);
     const r = sim([bm('kennel', 'K', 0, 900), fodder(1), fodder(2), fodder(3), fodder(4)], [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
     const sb = (r.playerSummonBonus ?? []).find((x) => x.sourceUid === 'K');
@@ -201,7 +202,7 @@ describe('Kennelmaster: Start of Combat all your Beasts +N Attack; Avenge (4) im
   it('an End-of-Turn replay (Rune of Combat Prowess) is a permanent Shop buff on the warband Beasts', () => {
     const s = shopRun([bc('k', 'kennel'), bc('a', 'alley'), bc('n', 'sandbag')], { runeCombatProwess: true } as Partial<RunState>);
     applyEndOfTurn(s);
-    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(CARD_INDEX['alley']!.attack + 1);
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(CARD_INDEX['alley']!.attack + 2);
     expect(s.board.find((c) => c.uid === 'n')!.attack, 'non-Beast untouched').toBe(CARD_INDEX['sandbag']!.attack);
   });
 });

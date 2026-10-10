@@ -337,7 +337,7 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
       // One +1/+0 buff per Beast per Start-of-Combat pass — count the grants landing on the Crypt Wolf.
       return r.events.filter((e) => e.type === 'buff'
         && (e as { target?: string }).target === r.initial.player[1]!.uid
-        && (e as { attack?: number }).attack === 1 && (e as { health?: number }).health === 0).length;
+        && (e as { attack?: number }).attack === 2 && (e as { health?: number }).health === 0).length; // +2 since 2026-10-10
     };
     const plain = scBuffs(false);
     expect(plain, 'control: the Start-of-Combat aura grants once per Beast').toBe(1);

@@ -59,6 +59,27 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-10',
     changes: [
       {
+        category: 'Balance',
+        text: 'Demon, Dwarf and Beast balance pass, two new Tier 6 minions, slower Gift runes, and eight cards retired.',
+        details: [
+          'New: Drunk Daniel, a Tier 6 Dwarf 6/6. End of Turn: give your Shop spells +2/+2.',
+          'New: Hydraskus, a Tier 6 Demon 6/8. End of Turn: each of your Demons consumes a minion in the Shop.',
+          'Striker now also appears in Set 2.',
+          'Doubletap Brewer: now Tier 4, 4/2. End of Turn: get a Dwarven Ale, and another at Shop Tier 5 or higher.',
+          'Brunni: Taunt. Echo: get a Dwarven Ale.',
+          'Chef Gary Toast now gives +6/+5. Billings now gives +6/+5.',
+          'Impossible Todd: Imps +2/+1 when a friendly Demon deals damage, and Pummel (20): summon an Imp, once per combat. It no longer grows itself or has Ward.',
+          'Market Tormentor now gives +8/+8. Enigma now gives +4/+5. Contract Butcher now gives +2/+2. Right Hand Hank now gives +4/+3.',
+          'Grobbus: Avenge (3) now gets 2 random Demons.',
+          'Big Huggies: Echo: get 2 Picnics. It no longer has Taunt.',
+          'Soul Defiler: End of Turn: cast Staff of Guel and Picnic.',
+          'Dawnclaw: its Echo triggers both adjacent Shouts again.',
+          'Kennelmaster: Start of Combat gives your Beasts +2 Attack, and Avenge (3) improves it by +2.',
+          'Happy Birthday now repeats every 3 turns. Merry Christmas now repeats every 2 turns. Both show a turn countdown.',
+          "Retired: Hellrider, Arnold, Chicken Brawl, Common Ground, Might of Aeon, Dissipate, Rival's Reflection and Ironclad Requisition. Rune of Might still casts Might of Aeon.",
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Gameplay runs smoother: the Shop holds a higher frame rate while you drag, buy, sell, refresh and hover.',
         details: [

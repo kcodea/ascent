@@ -34,7 +34,8 @@ describe('the roster', () => {
     for (const id of ids) expect(pool.buyable.some((c) => c.id === id), id).toBe(true);
     expect(SETS.set3.tribes).toContain('dwarf');
     // …and none of them leaked into set 2 — new set-3 cards live in set-3 files only.
-    for (const id of ids) expect(poolFor('set2').all.some((c) => c.id === id), id + ' leaked into set 2').toBe(false);
+    // Striker is the exception: the owner added it to set 2 as a SHARED card on 2026-10-10 (it stays in set 3).
+    for (const id of ids) expect(poolFor('set2').all.some((c) => c.id === id), id + ' leaked into set 2').toBe(id === 'dw3_striker');
   });
 
   it('the Keg and the Thymepiece resolve as Equipment, named by their sources', () => {

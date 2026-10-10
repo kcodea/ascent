@@ -63,8 +63,8 @@ describe('Echoes triggered in the SHOP', () => {
     return s;
   };
 
-  it('Brewer grants an Ale', () => {
-    const s = borrowedEcho('dw_brewer');
+  it('Brunni grants an Ale (the Echo Ale moved from Doubletap Brewer to Brunni, owner balance 2026-10-10)', () => {
+    const s = borrowedEcho('dw_brunni');
     expect(s.hand.length, 'the Echo granted nothing').toBeGreaterThan(0);
   });
 

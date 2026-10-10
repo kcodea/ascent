@@ -349,4 +349,25 @@ export const KEYWORDS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-03',
     },
   },
+  {
+    id: 'R-PUMMEL-SUMMON-01',
+    title: 'Pummel can summon: Impossible Todd\'s Pummel (20) summons an Imp beside it, once per combat',
+    statement:
+      'A Pummel (X) payout can SUMMON a token. Impossible Todd: "Pummel (20): Summon an Imp. (Once per combat.)" Every '
+      + 'Pummel rule holds (R-PUMMEL-01): the tally is the body\'s own LIFETIME damage dealt, a payout per multiple of 20 '
+      + 'crossed, at most one per combat, crossings past the cap are spent. Each payout plays the Pummel trigger flash and '
+      + 'then summons `count` (2 gilded) Imps beside the body through the one combat summon, in real time on the hit '
+      + 'that crossed, so the board cap, the summon grants and the side\'s Imp Aura apply as for any summon; a full board '
+      + 'summons nothing. Todd no longer grows itself and no longer has Ward (owner ruling).',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Impossible Todd; remove the self-buff and remove Ward)', quote: 'When a friendly Demon deals damage, give your Imps +2/+1. Pummel (20): Summon an Imp. (Once per combat.)' },
+      { kind: 'code', ref: 'packages/core/src/types.ts DAMAGE_METER_MARKERS dealtDamageSummonToken; packages/core/src/combat/simulate.ts noteDamageDealt (the summon branch, ctx.summon); packages/content/src/cards/set2/demons.ts dm_todd' },
+    ],
+    contentIds: ['dm_todd', 'impscrap'],
+    cardText: 'When a friendly **Demon** deals damage, give your **Imps +2/+1**. **Pummel (20):** Summon an **Imp**. (Once per combat.)',
+    currentBehaviour: 'Conforms (2026-10-10). Before it Todd gained +1/+2 permanently per instance and had Ward, with no Pummel.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

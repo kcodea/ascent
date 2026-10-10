@@ -90,6 +90,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy
   'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
+  'factory:battlecryGrantSpellPowerRun:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Drunk Daniel (2026-10-10)
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryScoutSpread:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryConductorAdjacent:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -195,6 +196,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnCopyNeighbour:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnFeastConsume:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:consumeShopRightmost:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Bob Blart (2026-08-14)
+  'factory:endOfTurnDemonsConsumeShop:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Hydraskus (2026-10-10): one beat per Demon's bite (one End-of-Turn tick each)
   'factory:endOfTurnGetRandomSpells:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnGetRubies:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnGrantRandomTierCard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
@@ -226,7 +228,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:grantRandomAle:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:grantRandomAle:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:grantRandomAle:goldSpent': { policy: 'ownBeat', family: 'economy' },
-  'factory:grantRandomAle:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:impInheritOnDeath:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:impInheritOnSummon:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:minionSoldGrantSpell:minionSold': { policy: 'ownBeat', family: 'economy' },
@@ -1165,6 +1166,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:dealtDamageAleMeter:passive': { policy: 'foldedCue', family: 'react' },                // Han Gover (Pummel (40)) — the meter reads at the damage site; the fire flashes on the hit, the Ale flies on its own `toHand` beat
   'factory:dealtDamageGrantRandomTribe:passive': { policy: 'foldedCue', family: 'react' },        // Maestro Lux (Pummel (12), 2026-09-24) — the same meter; the fire flashes on the hit, the Celestial flies on its own `toHand` beat
   'factory:dealtDamageGetRandomSpell:passive': { policy: 'foldedCue', family: 'react' },           // Tauntbreaker (Pummel (25), 2026-10-03) — the same meter; the fire flashes on the hit, each spell flies on its own `toHand` beat
+  'factory:dealtDamageSummonToken:passive': { policy: 'foldedCue', family: 'react' },              // Impossible Todd (Pummel (20), 2026-10-10) - the same meter; the fire flashes on the hit, the Imp lands on its own `summon` beat
   'factory:dealtDamageGetRandomRuby:passive': { policy: 'foldedCue', family: 'react' },            // Kobe (Pummel (15), 2026-09-24) — the same meter; the fire flashes on the hit, each Ruby flies on its own `toHand` beat
   'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (Pummel (6), 2026-09-19) — the same meter; the fire flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy

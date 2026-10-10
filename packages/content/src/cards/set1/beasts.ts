@@ -45,16 +45,17 @@ export const BEASTS: CardDef[] = [
     effects: [
       // Owner rebalance 2026-08-02: back to base +1 Attack improving +1 per Avenge (golden doubles both,
       // reading +2 improving +2 — the 07-25 "+2 improving +2" plain values were too much).
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } }, // owner 2026-08-12: Avenge 3 → 4
+      // Owner balance 2026-10-10: +2 Attack improving +2 per Avenge, Avenge (4) -> (3). Gilded doubles both (+4, +4).
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 2, health: 0, stepAttack: 2, stepHealth: 0 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } }, // owner 2026-08-12: Avenge 3 → 4; 2026-10-10: back to 3
     ],
     // Start of Combat: give all Friendly and summoned Beasts +N Attack (owner rulings 2026-09-28, R-AURA-03 — no run-wide Beast Aura):
     // in combat the living Beasts now + any Beast summoned later that fight, nothing carried back (Engrave
     // excepted); an End-of-Turn replay (Combat Prowess) buffs the warband Beasts permanently, like any Shop buff. N = 1 + its Avenge-grown summonBonus, which IS permanent per instance
     // (the established "Improve this" convention: it rides summonBonus and carries across combats). Attack only:
     // `stepHealth: 0`. The live value surfaces via cardText's summonBuffText helper on every surface.
-    text: '**Start of Combat:** Give all Friendly and summoned Beasts **+1 Attack**. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this (twice as much).',
+    text: '**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (3):** Improve this.',
+    goldenText: '**Start of Combat:** Give all Friendly and summoned Beasts **+4 Attack**. **Avenge (3):** Improve this (twice as much).',
   },
   {
     id: 'gnash',

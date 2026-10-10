@@ -80,18 +80,20 @@ describe('Ales', () => {
     }
   });
 
-  it('Brunni pours one at End of Turn', () => {
+  // RE-PINNED 2026-10-10 (owner balance batch): the End of Turn Ale moved from Brunni to Doubletap Brewer, and the
+  // Brewer's Shout is gone.
+  it('Doubletap Brewer pours one at End of Turn (below Shop Tier 5)', () => {
     let s = set2();
-    s = { ...s, board: [body('dw_brunni')], hand: [] };
+    s = { ...s, tier: 4, board: [body('dw_brewer')], hand: [] };
     s = reduce(s, { type: 'faceOmen' });
     expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'no Ale was granted').toBe(1);
   });
 
-  it('Doubletap Brewer pours one on its Shout', () => {
+  it('Doubletap Brewer no longer pours on its Shout', () => {
     let s = set2();
     s = { ...s, board: [], hand: [body('dw_brewer', 'b')] };
     s = play(s, 'b');
-    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length).toBe(1);
+    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length).toBe(0);
   });
 
   it('Tapkeeper pours one per 10 Gold spent, and banks the remainder', () => {
@@ -222,8 +224,8 @@ describe('tranche B — combat-trigger Dwarves', () => {
       .map((e) => (e as unknown as { minion?: { cardId?: string; attack: number; health: number } }).minion)
       .filter((m): m is { cardId?: string; attack: number; health: number } => m?.cardId === cardId);
 
-  it('Doubletap Brewer’s Echo pours when it dies', () => {
-    expect(ales(fight([mine('dw_brewer')], [foe(20, 20)])).length).toBeGreaterThan(0);
+  it('Brunni’s Echo pours when it dies (the Echo Ale moved from Doubletap Brewer, 2026-10-10)', () => {
+    expect(ales(fight([mine('dw_brunni')], [foe(20, 20)])).length).toBeGreaterThan(0);
   });
 
   it('Blade Thrower pours on its Rally swing', () => {
@@ -287,7 +289,7 @@ describe('tranche C — the five that needed machinery', () => {
     s = { ...s, board: [body('dw_chef', 'chef'), mate], hand: [body('dw_brakka', 'newcomer')] };
     const before = s.board.find((x) => x.uid === 'mate')!.attack;
     s = play(s, 'newcomer');
-    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 5); // +5/+5 since the owner balance 2026-10-07
+    expect(s.board.find((x) => x.uid === 'mate')!.attack, 'playing a Dwarf did not buff the others').toBe(before + 6); // +6/+5 since the owner balance 2026-10-10
   });
 
   it('…buffs the whole tribe including itself, with no count limit', () => {
@@ -298,7 +300,8 @@ describe('tranche C — the five that needed machinery', () => {
     s = play(s, 'n');
     for (const uid of ['chef', 'a', 'b', 'c']) {
       const c = s.board.find((x) => x.uid === uid)!;
-      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 5); // +5/+5 since 2026-10-07
+      expect(c.attack, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.attack + 6); // +6/+5 since 2026-10-10
+      expect(c.health, `${uid} was not buffed`).toBe(CARD_INDEX[c.cardId]!.health + 5);
     }
   });
 
@@ -359,13 +362,14 @@ describe('tranche C — the five that needed machinery', () => {
   });
 
   it('High King Mykel triggers an adjacent Shout every 8 spells, carrying the meter across turns', () => {
-    // Neighbour is Doubletap Brewer, whose Shout grants an Ale — an observable payload.
+    // Neighbour is Paymaster Pimm, whose Shout banks Gold for next turn — an observable payload. (It was Doubletap
+    // Brewer until the owner balance 2026-10-10 took the Brewer's Shout away.)
     let s = set2();
-    s = { ...s, board: [body('dw_brewer', 'left'), body('dw_brisbane', 'b')], hand: [] };
+    s = { ...s, board: [body('dw_pimm', 'left'), body('dw_brisbane', 'b')], hand: [], bonusEmbersNextTurn: 0 };
     for (let i = 0; i < 7; i++) noteSpellCast(s, CARD_INDEX['wo_mine']!);
-    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'fired before 8 spells').toBe(0);
+    expect(s.bonusEmbersNextTurn ?? 0, 'fired before 8 spells').toBe(0);
     noteSpellCast(s, CARD_INDEX['wo_mine']!);
-    expect(s.hand.filter((c) => ALE_IDS.includes(c.cardId)).length, 'the adjacent Shout never fired').toBeGreaterThan(0);
+    expect(s.bonusEmbersNextTurn ?? 0, 'the adjacent Shout never fired').toBeGreaterThan(0);
   });
 
   it('the whole Dwarf roster is in set 2', () => {
@@ -380,9 +384,11 @@ describe('tranche C — the five that needed machinery', () => {
     // 28 → 29 on 2026-08-19: dw_arnold (T6, End of Turn casts Beefy on itself).
     // 29 → 30 on 2026-08-20: dw_kegheart joined the FORGE-ONLY rune minions (token: true, like Baal / Bucky).
     // 30 → 31 on 2026-10-07: dw_bigbrainbilly (Big Brain Billy, T2, owner add) joined the buyable roster.
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(31);
+    // 31 → 30 on 2026-10-10: Arnold + Chicken Brawl archived, Drunk Daniel (dw_drunkdaniel, T6) added (owner balance batch).
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(30);
     expect(poolFor('set2').buyable.some((c) => c.id === 'dw_kegheart'), 'rune-only: in the set, never drawable').toBe(false);
-    expect(dwarfIds).toContain('dw_chickenbrawl');
+    expect(dwarfIds).not.toContain('dw_chickenbrawl'); // archived 2026-10-10
+    expect(dwarfIds).toContain('dw_drunkdaniel');
     expect(dwarfIds).toContain('dw_soldier');
     expect(dwarfIds).toContain('dw_baal');
     expect(dwarfIds).toContain('dw_bucky');

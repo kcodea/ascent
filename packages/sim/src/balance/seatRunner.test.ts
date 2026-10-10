@@ -87,7 +87,7 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     // What the fight EARNED is in the next recruit phase: Hank's Echo fired (the run-wide tally) and its
     // permanent right-most-slot buff is banked on the run …
     expect(f.aAfter.deathrattlesTriggered).toBe(1);
-    expect(f.aAfter.rightmostSlotBuff).toEqual({ attack: 3, health: 2 });
+    expect(f.aAfter.rightmostSlotBuff).toEqual({ attack: 4, health: 3 }); // Right Hand Hank +4/+3 since the owner balance 2026-10-10
     // … and the Veinstorm Gemline generated at End of Turn is still in hand — exactly one, not re-generated.
     expect(f.aAfter.hand.filter((c) => c.cardId === 'veinstorm')).toHaveLength(1);
     // The fight is spent: nothing is pending, so a second settlement is impossible.
@@ -170,7 +170,7 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     expect(m.playerSurvivorCardIds).toEqual(['n2_spellsword', 'n2_spellsword']);
     expect(m.initial.player.map((x) => x.cardId)).toEqual(f.result.initial.enemy.map((x) => x.cardId));
     // A's carry-backs (Hank's Echo) belong to A: none may leak across the table.
-    expect(f.result.playerRightmostSlotBuff).toEqual({ attack: 3, health: 2 });
+    expect(f.result.playerRightmostSlotBuff).toEqual({ attack: 4, health: 3 }); // Right Hand Hank +4/+3 since the owner balance 2026-10-10
     expect(m.playerRightmostSlotBuff).toBeUndefined();
     expect(m.enemyCarry).toBeUndefined(); // consumed, not re-mirrored
     // THE CONTRACT: every `player*` field on the mirrored view is exactly what `enemyCarry` says — no more, no less.
@@ -247,7 +247,7 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
       expect(f.aAfter.wave).toBe(2);
       expect(f.bAfter.wave).toBe(2);
       expect(f.bAfter.pendingCombatKeywords ?? []).toEqual([]);
-      expect(f.aAfter.rightmostSlotBuff).toEqual({ attack: 3, health: 2 });
+      expect(f.aAfter.rightmostSlotBuff).toEqual({ attack: 4, health: 3 }); // Right Hand Hank +4/+3 since the owner balance 2026-10-10
     }
   });
 });

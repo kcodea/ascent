@@ -18,6 +18,7 @@ import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { guidesFor, type GuidesMode } from './guides/guides';
+import { useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
@@ -101,7 +102,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const setId = useGame((st) => st.run.setId);
   const runTribes = useGame((st) => st.run.tribes);
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
-  const guides = useMemo(() => guidesFor(setId, runTribes), [setId, runTribes]);
+  // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
+  // subscription: a refresh that lands while the player is reading must not move a card under them.
+  const [guideList, setGuideList] = useState(() => useGuides.getState().list);
+  const guides = useMemo(() => guidesFor(setId, runTribes, guideList), [setId, runTribes, guideList]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
   const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
   // The swap animation, set only by a toggle (never on mount): the rail widens into the FULL Guides view and narrows
@@ -110,6 +114,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useEffect(() => { if (railViewMemo.run !== runKey) { setView('opponents'); setSwap(null); } }, [runKey]);
   useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
   const showGuides = guidesOn && view === 'guides';
+  useEffect(() => { if (showGuides) setGuideList(useGuides.getState().list); }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);
     setPinned(null);

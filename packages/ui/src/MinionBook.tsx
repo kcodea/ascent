@@ -12,6 +12,7 @@ import { RuneCard } from './RuneCard';
 import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker';
 import { CompendiumGuides } from './guides/CompendiumGuides';
 import { guidesFor } from './guides/guides';
+import { loadGuides, useGuides } from './guides/guidesStore';
 import { artFor, heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
@@ -431,16 +432,20 @@ export function MinionBook() {
     return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => setOk(r) && match(r) && tribeOk(r));
   }, [searchQ, runeTribes, setId]);
 
+  // The Compendium SUBSCRIBES to the guides store (unlike the rail's snapshot), and refreshes it when the tab opens.
+  const guideList = useGuides((s) => s.list);
+  useEffect(() => { if (guidesOn) void loadGuides(); }, [guidesOn]);
+
   // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
   // view"): the SAME data the lobby rail reads (`guidesFor`), for the SHOWN set (it follows the set picker) and its
   // tribes (the run's, while browsing the run). Narrowed by the tribe pills (a tribe-less guide is Neutral) and the
   // search box (title, tagline, write-up).
   const guidesToShow = useMemo(() => {
     const m = makeSearchMatcher(searchQ);
-    return guidesFor(setId, tribes)
+    return guidesFor(setId, tribes, guideList)
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
       .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
-  }, [setId, tribes, guideTribes, searchQ]);
+  }, [setId, tribes, guideTribes, searchQ, guideList]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.

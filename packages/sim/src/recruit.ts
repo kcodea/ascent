@@ -5382,12 +5382,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const i = board.findIndex((c) => c.uid === self.uid);
     if (i < 0) return;
     const reps = gold(self) ; // golden triggers each neighbour twice
+    // Left neighbour first, then right; a gilded fire's two triggers of one neighbour stay together (L, L, R, R),
+    // the combat factory's order. Each fire is its OWN beat with a tendril (R-SHRIEKER-BEATS-01, owner 2026-10-10).
+    const fires: BoardCard[] = [];
     for (const nb of [board[i - 1], board[i + 1]]) {
       if (!nb) continue;
       const def = CARD_INDEX[nb.cardId];
       if (!def || !hasBattlecry(def)) continue;
-      for (let r = 0; r < reps; r++) replayBattlecry(ctx.state, nb);
+      for (let r = 0; r < reps; r++) fires.push(nb);
     }
+    replayShoutsAsChain(ctx, self, 'factory:deathrattleReplayAdjacentBattlecry:onDeath', 'onDeath', fires);
   },
 
   /** Set 2 — Faultline Scrapper / Alchemist Brisbane (Echo, RECRUIT half): raise the run's Ruby strength.
@@ -7789,7 +7793,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         : neighbours.length > 1
           ? [neighbours[makeRng(mixSeed(ctx.state.seed, ctx.state.wave, me.spellProgress ?? 0)).int(neighbours.length)]!]
           : neighbours.slice(0, 1);
-      for (const c of chosen) replayBattlecry(ctx.state, c);
+      // Each triggered Shout is its OWN beat, left to right, with Mykel's tendril (R-SHRIEKER-BEATS-01).
+      replayShoutsAsChain(ctx, self, 'factory:spellCastTriggerAdjacentShouts:spellCast', 'spellCast', chosen);
     }
   },
 
@@ -12061,6 +12066,49 @@ export function replayEconomyBattlecry(state: RunState, cardId: string, golden: 
 }
 
 /**
+ * R-SHRIEKER-BEATS-01 (owner 2026-10-10: "dawnclaw and mykel should also do one at a time"): re-fire `fires` (in the
+ * order given, repeats included) through `replayBattlecry`, presenting the re-triggering minion as ONE parent beat
+ * (`policyKey`, whose registry entry carries `children: 'sequential'`) and every fire as its own nested beat sourced
+ * on the Shout's owner. The compiler then plays them one at a time with a tendril from `self` to each owner.
+ *
+ * PRESENTATION ONLY: the fires run exactly as a bare `for (c of fires) replayBattlecry(state, c)` would (with no
+ * collector `withRecruitTrigger` is a plain call). Both scopes `discardIfEmpty`, so a fire that changed nothing
+ * plays no beat. When the caller already opened this same trigger for this same minion, no second parent opens.
+ */
+function replayShoutsAsChain(ctx: RecruitContext, self: BoardCard, policyKey: string, trigger: string, fires: BoardCard[]): void {
+  if (fires.length === 0) return;
+  const phase: PresentationPhase = endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit';
+  const fireAll = (): void => {
+    for (const c of fires) {
+      const shout = CARD_INDEX[c.cardId]?.effects.find((e) => e.on === 'onPlay');
+      const fxStart = ctx.state.recruitBuffFx.length;
+      withRecruitTrigger(
+        ctx,
+        {
+          phase,
+          source: { kind: 'minion', id: c.cardId, uid: c.uid, side: 'player', label: CARD_INDEX[c.cardId]?.name },
+          trigger: 'onPlay',
+          ...beatIdentity(`factory:${shout?.do ?? 'battlecry'}:onPlay`),
+        },
+        () => { replayBattlecry(ctx.state, c); },
+        { discardIfEmpty: true },
+      );
+      // The Shop's twin of the beat (mid-turn actions do not play the batch): the link + this fire's buff records.
+      (ctx.state.shoutLinkFx ??= []).push({ fromUid: self.uid, fromCardId: self.cardId, toUid: c.uid, fxStart, fxEnd: ctx.state.recruitBuffFx.length });
+      ctx.state.shoutLinkFxSeq = (ctx.state.shoutLinkFxSeq ?? 0) + 1;
+    }
+  };
+  const open = recruitTriggerSpecs[recruitTriggerSpecs.length - 1];
+  if (open && open.policyKey === policyKey && open.source.uid === self.uid) { fireAll(); return; }
+  withRecruitTrigger(
+    ctx,
+    { phase, source: { kind: 'minion', id: self.cardId, uid: self.uid, side: 'player', label: CARD_INDEX[self.cardId]?.name }, trigger, ...beatIdentity(policyKey) },
+    fireAll,
+    { discardIfEmpty: true },
+  );
+}
+
+/**
  * R-ROOMWORKS-01: THE SHOUT / END-OF-TURN LOOP GUARD (owner 2026-10-10: Roomworks + Shrieker). Roomworks' Shout
  * triggers an End of Turn; Shrieker's End of Turn triggers Shouts. Together, or through any third card that turns one
  * into the other (High King Mykel turns spells into Shouts; a Shout can cast spells), they can loop forever. The rule:
@@ -15307,6 +15355,9 @@ function snapshotStats(state: RunState): StatSnap {
  * (the diff never mutates; the NOOP collector still gets a bare `run()`).
  */
 const recruitTriggerFrames: Array<{ flush: () => void; rebase: () => void }> = [];
+/** The spec of every open `withRecruitTrigger` scope, innermost last (read by `replayShoutsAsChain`, which must not
+ *  open a second identical parent inside the caller's own). Pushed and popped with the collector scope. */
+const recruitTriggerSpecs: Array<{ policyKey?: string; source: TriggerSourceRef }> = [];
 
 /** The Shop resources an End-of-Turn trigger can move, as the HUD shows them (R-EOT-ECON-01). */
 interface EconSnapshot { upgrade: number; freeRolls: number; nextTurnGold: number; maxGold: number }
@@ -15527,12 +15578,14 @@ function withRecruitTrigger(
     rebase: (): void => { emitSince = snapshot(); },
   };
   recruitTriggerFrames.push(frame);
+  recruitTriggerSpecs.push(spec);
   const handle = collector.beginTrigger({ ...spec });
   try {
     run();
     emitSince();
   } finally {
     recruitTriggerFrames.pop();
+    recruitTriggerSpecs.pop();
     collector.endTrigger(handle);
     if (opts?.discardIfEmpty) collector.discardIfEmpty(handle);
     // What the child changed is the child's; the parent continues from the state the child left behind.

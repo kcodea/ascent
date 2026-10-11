@@ -388,8 +388,10 @@ export const SET2_DRAGONS: CardDef[] = [
     // Dragon of the turn gives +2/+2 and the second +4/+4 (R-HUMPHRY-01). `perPlayedTribe` is the count. Live
     // "(+X/+Y)" via cardText's perPlayedTargetText. Gilded +4/+4 per Dragon.
     effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 2, health: 2, perPlayedTribe: 'dragon' } }],
-    text: '**Shout:** give a friendly **Dragon +2/+2** for every **Dragon** played this turn.',
-    goldenText: '**Shout:** give a friendly **Dragon +4/+4** for every **Dragon** played this turn.',
+    // Owner fix 2026-10-10: "humphry should buff +2/+2 baseline, not 0/0 baseline" — the +2/+2 is a baseline, and each
+    // OTHER Dragon played this turn adds +2/+2 (R-HUMPHRY-01). Text names both halves so it says what the card does.
+    text: '**Shout:** give a friendly **Dragon +2/+2**, plus **+2/+2** for every other **Dragon** played this turn.',
+    goldenText: '**Shout:** give a friendly **Dragon +4/+4**, plus **+4/+4** for every other **Dragon** played this turn.',
   },
   // ── Owner add 2026-10-10: two Dragons APPENDED at the end of the Dragon list (owner: "append both at the END of Set 2's
   //    Dragon pool so seeds don't shift"). They are the two halves of an End of Turn / Shout loop, so both carry a

@@ -296,7 +296,8 @@ describe('Humphry: Shout: give a friendly Dragon +5/+5 (owner ruling 2026-09-24)
 
   it('prints the owner text, plain and gilded', () => {
     const d = CARD_INDEX['d2_humphry']!;
-    expect(d.text).toBe('**Shout:** give a friendly **Dragon +2/+2** for every **Dragon** played this turn.');
-    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +4/+4** for every **Dragon** played this turn.');
+    // RE-PIN 2026-10-10 (owner fix, "+2/+2 baseline, not 0/0 baseline"): the text names the baseline and the per-other step.
+    expect(d.text).toBe('**Shout:** give a friendly **Dragon +2/+2**, plus **+2/+2** for every other **Dragon** played this turn.');
+    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +4/+4**, plus **+4/+4** for every other **Dragon** played this turn.');
   });
 });

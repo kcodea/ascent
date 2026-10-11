@@ -82,7 +82,7 @@ describe('the audit sweep, kept as a regression guard', () => {
     'hand', 'playedThisTurn', 'spellsThisTurn', 'spellsCast', 'rngCursor', 'uidSeq',
     'lastSpellThisTurnId', 'firstSpellThisTurnId', 'lastSpellCastId', 'cardsPlayedTotal', 'cardsPlayedThisTurn',
     'recruitBuffFx', 'auraFx', 'auraFxSeq', 'weldFxBaseSeq', 'weldFxSeq', 'buffFx', 'buffFxSeq',
-    'lastShoutFires', 'lastEchoFires', 'lastEotFires', 'questTendrilFx', 'fodderEaten', 'shopEaten',
+    'lastShoutFires', 'lastEchoFires', 'lastEotFires', 'questTendrilFx', 'shoutLinkFx', 'shoutLinkFxSeq', 'fodderEaten', 'shopEaten',
     'spellCastFx', 'spellCastFxSeq',
   ]);
   // `hand` is only PARTLY noise: the cast card leaving is expected, but cards ARRIVING is the whole effect of

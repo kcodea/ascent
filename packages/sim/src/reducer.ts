@@ -1537,6 +1537,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
   s.lastRallyFires = 0; // transient per-action SHOP-Rally-fire count (set by fireShopRally → read by the rally quest tick)
   s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
+  s.shoutLinkFx = []; // transient per-action Shout chain links (Dawnclaw / Mykel, R-SHRIEKER-BEATS-01)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
   // The consume swirl is a PER-ACTION payload too. It used to be cleared only by the handful of call sites that
   // assigned it wholesale, while every other consumer APPENDED — so Set 2's shop-eating Demons grew the list

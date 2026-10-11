@@ -744,13 +744,14 @@ describe('the second batch (owner 2026-09-24)', () => {
     for (const d of [BEAST, DWARF, MECH, SPELL, DUAL]) expect(d).toBeDefined();
   });
 
-  it('the clip fixes: TopTwo has ONE variant (TopTwo2 removed), ThreeWinStreak has two, GameWon one', () => {
-    expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1']);
-    expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2']);
-    expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won']);
-    expect(ANNOUNCER_LINES.knockout).toHaveLength(4);
-    expect(ANNOUNCER_LINES.pair).toHaveLength(2);
-    expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(2);
+  it('the clip fixes, then variety wave 1 (owner 2026-10-11): the original takes keep their slots and new ones append', () => {
+    // 2026-09-24: the old TopTwo2 (a wrong take) was removed. 2026-10-11: `top-two-2` is a NEW line, not that clip.
+    expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1', 'top-two-2', 'top-two-3']);
+    expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2', 'three-win-streak-3', 'three-win-streak-4']);
+    expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won', 'game-won-2', 'game-won-3', 'game-won-4']);
+    expect(ANNOUNCER_LINES.knockout).toHaveLength(6);
+    expect(ANNOUNCER_LINES.pair).toHaveLength(4);
+    expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(4);
     // The table stays append-only: the rare-line rolls still hash an event's index in it.
     expect(Object.keys(ANNOUNCER_LINES).indexOf('gameLoss')).toBe(18);
   });
@@ -1174,8 +1175,8 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
       const saved = announcedFor(JSON.parse(JSON.stringify(announced)) as AnnouncedSlice, SEED);
       expect(saved.heard?.backToShop).toEqual(['back-to-shop-1', 'back-to-shop-2']);
     });
-    it('EXHAUSTION: an event whose every take is heard goes silent (here a Pair with both takes heard)', async () => {
-      announced = withAnnounced(withAnnounced(emptyAnnounced(SEED), 'triple', 1, 'triple-1'), 'triple', 2, 'triple-2');
+    it('EXHAUSTION: an event whose every take is heard goes silent (here a Triple with every take heard)', async () => {
+      announced = ANNOUNCER_LINES.triple.reduce((a, take, i) => withAnnounced(a, 'triple', i + 1, take), emptyAnnounced(SEED));
       expect(announcerExhausted(announced, 'triple')).toBe(true);
       expect(announcerExhausted(announced, 'tierSix')).toBe(false);
       announced = { ...announced, fired: {} }; // even with the repeat count reset, nothing is left to say
@@ -1208,7 +1209,9 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     it('a random buy line may REPEAT a take once its bag is empty (the reshuffle)', async () => {
       for (const e of RANDOM_BUY_EVENTS) setAnnouncerTunerValue(`${e}Chance`, e === 'randomSpellBuy' ? 100 : 0);
       setAnnouncerTunerValue('randomCardBuyChance', 0);
-      announced = withAnnounced(withAnnounced(emptyAnnounced(SEED), 'randomSpellBuy', 1, 'random-spell-buy-1'), 'randomSpellBuy', 3, 'random-spell-buy-2');
+      // Every take heard (the bag is empty), but only two of the game's three random buy lines spoken so far.
+      announced = ANNOUNCER_LINES.randomSpellBuy.reduce((a, take) => withAnnounced(a, 'randomSpellBuy', 1, take), emptyAnnounced(SEED));
+      announced = { ...announced, fired: { ...announced.fired, randomSpellBuy: [1, 3] } };
       expect(announcerExhausted(announced, 'randomSpellBuy')).toBe(false); // reusable
       const r = openShop({ spell: { uid: 'sp', cardId: SPELL.id }, cardsBoughtThisTurn: 0 });
       buy(r, 'sp');
@@ -1533,9 +1536,9 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
   const table = (resolves: number[]) => resolves.map((resolve, i) => ({ id: `s${i}`, alive: true, resolve }));
   const plain = (tribes: Tribe[]): string[] => tribes.map((t) => plainMinion(t)?.id).filter((id): id is string => !!id);
 
-  it('every batch event has one take (on disk: the suite-wide file check), a priority and a tuner row', () => {
+  it('every batch event has a take (on disk: the suite-wide file check), a priority and a tuner row', () => {
     for (const e of CATALOG_BATCH_1_EVENTS) {
-      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_LINES[e].length).toBeGreaterThan(0); // variety waves add takes (2026-10-11)
       expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
       expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
       expect(ANNOUNCER_CHANCE[e as (typeof ANNOUNCER_TUNER_EVENTS)[number]]).toBe(1);
@@ -1759,9 +1762,9 @@ describe('the moment catalog\'s second batch (owner 2026-09-25): in-fight lines 
     return r;
   }
 
-  it('every batch-2 event has one take, a priority and a tuner row', () => {
+  it('every batch-2 event has a take, a priority and a tuner row', () => {
     for (const e of CATALOG_BATCH_2_EVENTS) {
-      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_LINES[e].length).toBeGreaterThan(0); // variety waves add takes (2026-10-11)
       expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(0);
       expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
     }
@@ -1873,9 +1876,9 @@ describe('the moment catalog\'s third batch (owner 2026-09-25, group C): new tal
     throw new Error('no seed');
   };
 
-  it('every batch event has one take, a priority, a tuner row and the catalog\'s chance; the table stays append-only', () => {
+  it('every batch event has a take, a priority, a tuner row and the catalog\'s chance; the table stays append-only', () => {
     for (const e of CATALOG_BATCH_3_EVENTS) {
-      expect(ANNOUNCER_LINES[e]).toHaveLength(1);
+      expect(ANNOUNCER_LINES[e].length).toBeGreaterThan(0); // variety waves add takes (2026-10-11)
       expect(ANNOUNCER_PRIORITY[e]).toBeGreaterThan(5);
       expect(ANNOUNCER_TUNER_EVENTS).toContain(e);
     }

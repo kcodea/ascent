@@ -699,6 +699,341 @@
       "id": "xerox",
       "voice": "hero-xerox",
       "text": "Print, print, print."
+    },
+    {
+      "id": "back-to-shop-4",
+      "voice": "announcer",
+      "text": "The Shop is open. Spend wisely."
+    },
+    {
+      "id": "back-to-shop-5",
+      "voice": "announcer",
+      "text": "Regroup and rebuild."
+    },
+    {
+      "id": "back-to-shop-6",
+      "voice": "announcer",
+      "text": "Fresh stock on the shelves."
+    },
+    {
+      "id": "discover-open-2",
+      "voice": "announcer",
+      "text": "Take your pick."
+    },
+    {
+      "id": "discover-open-3",
+      "voice": "announcer",
+      "text": "What will it be?"
+    },
+    {
+      "id": "discover-open-4",
+      "voice": "announcer",
+      "text": "Decisions decisions."
+    },
+    {
+      "id": "entering-combat-after-loss-2",
+      "voice": "announcer",
+      "text": "Let's get back up and turn it around!"
+    },
+    {
+      "id": "entering-combat-after-loss-3",
+      "voice": "announcer",
+      "text": "Time to stop the bleeding. Let's lock in."
+    },
+    {
+      "id": "epic-runeforge-3",
+      "voice": "announcer",
+      "text": "These are some powerful options!"
+    },
+    {
+      "id": "epic-runeforge-4",
+      "voice": "announcer",
+      "text": "I love this part."
+    },
+    {
+      "id": "equipment-3",
+      "voice": "announcer",
+      "text": "New gear! I can't wait for you to try it on."
+    },
+    {
+      "id": "equipment-4",
+      "voice": "announcer",
+      "text": "Armed and ready."
+    },
+    {
+      "id": "first-blood-2",
+      "voice": "announcer",
+      "text": "Ha! Take that!"
+    },
+    {
+      "id": "first-blood-3",
+      "voice": "announcer",
+      "text": "And stay down!"
+    },
+    {
+      "id": "first-out-2",
+      "voice": "announcer",
+      "text": "Down goes the first opponent! They've been knocked out! Hope its not us next."
+    },
+    {
+      "id": "first-out-3",
+      "voice": "announcer",
+      "text": "The first opponent has been knocked out! Glad it wasn't us!"
+    },
+    {
+      "id": "full-board-2",
+      "voice": "announcer",
+      "text": "We've got quite the army!"
+    },
+    {
+      "id": "full-board-3",
+      "voice": "announcer",
+      "text": "A full board! What stays, what goes? Boy, I really hate this part!"
+    },
+    {
+      "id": "game-loss-4",
+      "voice": "announcer",
+      "text": "The battle has been lost, but the war isn't over!"
+    },
+    {
+      "id": "game-loss-5",
+      "voice": "announcer",
+      "text": "You fell. Get back up and try again!"
+    },
+    {
+      "id": "game-won-2",
+      "voice": "announcer",
+      "text": "Victory! How thrilling!"
+    },
+    {
+      "id": "game-won-3",
+      "voice": "announcer",
+      "text": "First place! You are brilliant!"
+    },
+    {
+      "id": "game-won-4",
+      "voice": "announcer",
+      "text": "There's no one better. Well done."
+    },
+    {
+      "id": "knockout-5",
+      "voice": "announcer",
+      "text": "Wow, another enemy down. These guys aren't messing around!"
+    },
+    {
+      "id": "knockout-6",
+      "voice": "announcer",
+      "text": "And another champion falls! I'm feeling good about our odds!"
+    },
+    {
+      "id": "losing-streak-2",
+      "voice": "announcer",
+      "text": "Is it time to adjust? Decisions, decisions."
+    },
+    {
+      "id": "losing-streak-3",
+      "voice": "announcer",
+      "text": "Hah, merely a flesh wound."
+    },
+    {
+      "id": "pair-3",
+      "voice": "announcer",
+      "text": "Two of a kind!"
+    },
+    {
+      "id": "pair-4",
+      "voice": "announcer",
+      "text": "Am I seeing double?"
+    },
+    {
+      "id": "quest-complete-2",
+      "voice": "announcer",
+      "text": "Quest done! Claim your reward"
+    },
+    {
+      "id": "quest-complete-3",
+      "voice": "announcer",
+      "text": "The quest is finished. Well done."
+    },
+    {
+      "id": "quest-offered-2",
+      "voice": "announcer",
+      "text": "I wonder where they'll send us?"
+    },
+    {
+      "id": "quest-offered-3",
+      "voice": "announcer",
+      "text": "I've always been up for a challenge!"
+    },
+    {
+      "id": "random-beast-buy-2",
+      "voice": "announcer",
+      "text": "Careful! They bite."
+    },
+    {
+      "id": "random-beast-buy-3",
+      "voice": "announcer",
+      "text": "Nasty little bugger."
+    },
+    {
+      "id": "random-beast-buy-4",
+      "voice": "announcer",
+      "text": "Another joins the pack"
+    },
+    {
+      "id": "random-dwarf-buy-2",
+      "voice": "announcer",
+      "text": "I think there's a beard hair in my drink"
+    },
+    {
+      "id": "random-dwarf-buy-3",
+      "voice": "announcer",
+      "text": "Ah, a dwarf. Solid company!"
+    },
+    {
+      "id": "random-dwarf-buy-4",
+      "voice": "announcer",
+      "text": "A Dwarf! Make us rich!"
+    },
+    {
+      "id": "random-spell-buy-3",
+      "voice": "announcer",
+      "text": "I can feel the power in this one."
+    },
+    {
+      "id": "random-spell-buy-4",
+      "voice": "announcer",
+      "text": "Handle that one with care."
+    },
+    {
+      "id": "rune-pick-2",
+      "voice": "announcer",
+      "text": "Great choice! Now, let's get them!"
+    },
+    {
+      "id": "rune-pick-3",
+      "voice": "announcer",
+      "text": "I see where you are going with this!"
+    },
+    {
+      "id": "runeforge-3",
+      "voice": "announcer",
+      "text": "How exciting! Time to pick your rune."
+    },
+    {
+      "id": "runeforge-4",
+      "voice": "announcer",
+      "text": "Runes are ready. Choose well."
+    },
+    {
+      "id": "second-place-2",
+      "voice": "announcer",
+      "text": "So close, great game champ!"
+    },
+    {
+      "id": "second-place-3",
+      "voice": "announcer",
+      "text": "Gah! Almost had it. Next time."
+    },
+    {
+      "id": "start-combat-under-10hp-2",
+      "voice": "announcer",
+      "text": "We fight better when backed into a corner"
+    },
+    {
+      "id": "start-combat-under-10hp-3",
+      "voice": "announcer",
+      "text": "C'mon, c'mon, c'mon! We need this win!"
+    },
+    {
+      "id": "survive-under-10hp-2",
+      "voice": "announcer",
+      "text": "We've done it! Lived to fight again!"
+    },
+    {
+      "id": "survive-under-10hp-3",
+      "voice": "announcer",
+      "text": "We can do this all day! Bring it on!"
+    },
+    {
+      "id": "three-win-streak-3",
+      "voice": "announcer",
+      "text": "We're on fire! Well, not literally...but we're doing great!"
+    },
+    {
+      "id": "three-win-streak-4",
+      "voice": "announcer",
+      "text": "I may call you butter, because you are on a roll!"
+    },
+    {
+      "id": "tier-six-3",
+      "voice": "announcer",
+      "text": "We've maxed out the shop. What now, champion?"
+    },
+    {
+      "id": "tier-six-4",
+      "voice": "announcer",
+      "text": "Oooh I can't wait to see what we've unlocked!"
+    },
+    {
+      "id": "tier-up-3",
+      "voice": "announcer",
+      "text": "What will we find? I'm giddy thinking about it!"
+    },
+    {
+      "id": "tier-up-4",
+      "voice": "announcer",
+      "text": "Moving up!"
+    },
+    {
+      "id": "tier-up-5",
+      "voice": "announcer",
+      "text": "I wonder what else is in stock?"
+    },
+    {
+      "id": "time-up-2",
+      "voice": "announcer",
+      "text": "Gah!! Out of time!"
+    },
+    {
+      "id": "time-up-3",
+      "voice": "announcer",
+      "text": "Oh c'mon! Just give us 5 more seconds! We'll pay you!"
+    },
+    {
+      "id": "top-four-3",
+      "voice": "announcer",
+      "text": "Only four left. Let's bring it home, champion!"
+    },
+    {
+      "id": "top-four-4",
+      "voice": "announcer",
+      "text": "Final four! Only the best remain."
+    },
+    {
+      "id": "top-two-2",
+      "voice": "announcer",
+      "text": "We won't go down without a fight!"
+    },
+    {
+      "id": "top-two-3",
+      "voice": "announcer",
+      "text": "Lock in, this is it! Let's bring home the gold!"
+    },
+    {
+      "id": "triple-3",
+      "voice": "announcer",
+      "text": "A triple! Oooh, open that reward, what did we get!?"
+    },
+    {
+      "id": "triple-4",
+      "voice": "announcer",
+      "text": "Oooh, how shiny!"
+    },
+    {
+      "id": "triple-5",
+      "voice": "announcer",
+      "text": "A triple! A triple! A triple!!!!"
     }
   ],
   "sfx": [

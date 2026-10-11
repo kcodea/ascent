@@ -289,6 +289,12 @@ const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }
   return <LazyCell eager={eager}>{() => <Card card={view} forceFull suppressPop plated refCards={refs} />}</LazyCell>;
 });
 
+/** Whether the Compendium's SET PICKER is shown: dev builds only (owner ask 2026-10-11). Read at render time, not
+ *  module load, so a test can flip it with `vi.stubEnv('DEV', false)`; in a prod bundle Vite folds it to `false`. */
+function compendiumSetPickerEnabled(): boolean {
+  return import.meta.env.DEV;
+}
+
 /**
  * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
@@ -306,7 +312,11 @@ export function MinionBook() {
   // `createRun` asks, which is why `activeSet()` is read here), mid-run the run's own PINNED set (normally the
   // same set; it only differs after a set flip, and then the book must still describe the game being played).
   // The picker is VIEW-ONLY: it swaps which pool the book reads and nothing else. The book remounts on every
-  // open, so it resets to the default each time.
+  // open, so it resets to the default each time (no set choice is ever persisted).
+  // DEV-ONLY (owner ask 2026-10-11: "the compendium only shows the active set. the set selector should be a dev-only
+  // tool"): in a player build (`build:web`, the exe, itch) the picker is not rendered and `setId` never leaves the
+  // default, so the book is pinned to the active set like every other dev tool behind `import.meta.env.DEV`.
+  const showSetPicker = compendiumSetPickerEnabled();
   const liveSetId = activeSet().id;
   const runSetId: SetId = run.setId ?? 'set1';
   const [setId, setSetId] = useState<SetId>(() => (showTitle ? liveSetId : runSetId));
@@ -840,15 +850,17 @@ export function MinionBook() {
               </>
             )}
           </div>
-          {/* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER, always last. */}
-          <div className="book-tiers-end">
+          {/* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER (dev only), always
+              last. Not rendered at all when it would be empty, so a player build's tribe pills centre in the space
+              right of Gilded instead of leaving a gap where the picker was. */}
+          {(kw || showSetPicker) && <div className="book-tiers-end">
             {kw && (
               <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">
                 {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
               </button>
             )}
-            <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />
-          </div>
+            {showSetPicker && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
+          </div>}
         </div>
 
         <div className="book-main">

@@ -8,7 +8,7 @@ describe('Collection rail hides Boards and Music while they are switched off', (
     expect(cats).not.toContain('board');
     expect(cats).not.toContain('music');
   });
-  it('keeps the live categories and the other coming-soon ones', () => {
+  it('keeps the live categories (announcers went live 2026-10-11)', () => {
     const cats = collectionCategories();
     for (const live of ['title', 'hero_skin', 'minion_skin', 'hero_attack'] as const) expect(cats).toContain(live);
     expect(cats).toContain('announcer');

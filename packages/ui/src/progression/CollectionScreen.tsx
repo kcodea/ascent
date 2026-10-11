@@ -24,6 +24,8 @@ import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
 import { CrateSignInGate } from './CrateSignInGate';
 import { TitleBadge } from '../titles/TitleBadge';
+import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
+import { announcerPackOf } from './announcerPack';
 import './collection.css';
 
 /**
@@ -187,17 +189,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
     const attack = item.category === 'hero_attack';
     const frame = item.category === 'portrait_frame';
+    const voice = item.category === 'announcer';
     // Taking a skin (or a frame) off shows the DEFAULT art at once and keeps this item selected (it would otherwise
     // jump to the next worn item); wearing one shows the skin again. A failed call puts the preview back.
     if (skin || frame) { setPicked(item.id); setDefaultShown(on ? null : item.id); }
-    const ok = attack || frame
-      ? await equipCosmetic(item.category as 'hero_attack' | 'portrait_frame', '', on ? item.id : null)
+    const ok = attack || frame || voice
+      ? await equipCosmetic(item.category as 'hero_attack' | 'portrait_frame' | 'announcer', '', on ? item.id : null)
       : skin && item.target
       ? await equipCosmetic(item.category as 'hero_skin' | 'minion_skin', item.target.id, on ? item.id : null)
       : await equipTitle(on ? item.id : null);
     setBusy(false);
     if (!ok && (skin || frame)) setDefaultShown(on ? item.id : null);
-    if (!ok) setError(attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
+    if (!ok) setError(voice ? 'Could not change your announcer. Try again.' : attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
   /** EVERY player-facing crate open comes through here (the bay's Open / Open all, the New rewards pop-up). A guest
@@ -436,9 +439,12 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   const skin = item.category === 'hero_skin' || item.category === 'minion_skin';
   const attack = item.category === 'hero_attack';
   const frame = item.category === 'portrait_frame';
+  const voice = item.category === 'announcer';
+  // An announcer's sample stops when you look at another item or leave the screen.
+  useEffect(() => (voice ? stopAnnouncerPreview : undefined), [voice, item.id]);
   return (
     <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin || frame ? ' skin' : ''}`} aria-label="Details">
-      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : voice ? 'Announcer' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
       {frame && <FramePreview item={item} owned={owned} showDefault={!!showDefault} />}
       {/* A hero attack plays in place (the Blast tuner's own runner, in a sandbox box): owned or not, so you can
           see what a crate might give. Keyed by item so switching items starts a fresh stage. */}
@@ -474,6 +480,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {attack && <div className="colls-fact"><span>For</span><b>Your hero, seen by the players you hit</b></div>}
         {frame && <div className="colls-fact"><span>For</span><b>Your hero portrait, seen by the players you meet</b></div>}
         {frame && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Default frame</b></div>}
+        {voice && <div className="colls-fact"><span>For</span><b>The voice calling your games. Only you hear it</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
@@ -484,13 +491,21 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
           <div className="colls-preview-title">{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate" /> : item.name}</div>
         </div>
       )}
+      {/* An announcer plays a sample line in place (owned or not, so you can hear what a crate might give). Each
+          press plays the next sample; it goes through the Announcer volume and mute in Settings. */}
+      {voice && (
+        <div className="colls-preview" aria-label="Preview">
+          <div className="colls-preview-lbl">Preview</div>
+          <button type="button" className="colls-quiet pressable quiet colls-voice-play" onClick={() => { previewAnnouncerPack(announcerPackOf(item)); }} aria-label={`Hear a line from ${item.name}`}>Hear a line</button>
+        </div>
+      )}
       <div className="colls-detail-actions">
         {!owned ? (
           <div className="colls-hint">{missingHint(item)}</div>
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>
-            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : frame ? 'Use the default portrait frame' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : 'Take off'}</button>
+            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : frame ? 'Use the default portrait frame' : voice ? 'Use the default announcer' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : voice ? 'Use default announcer' : 'Take off'}</button>
           </>
         ) : (
           <button type="button" className="cv2-btn pressable colls-equip" disabled={busy} onClick={onEquip} aria-label={`Equip ${item.name}`}>{busy ? 'Equipping' : 'Equip'}</button>

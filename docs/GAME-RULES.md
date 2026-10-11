@@ -312,15 +312,22 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   it, so a game saved under the Bronze rules resumes under the new fuse. Source: `packages/ui/src/goldClock.ts`
   (`goldClockOf`) and `packages/ui/src/turnClock.ts` (`standardTurnSeconds`, the one schedule the plain clock and the
   fuse share).
-- **Leaving a rated game early costs nothing** (owner 2026-10-02, verbatim: *"oh i didnt know there was an
-  abandon penalty in. can we remove that for now?"*; R-RANK-05, switched off). Giving up an unfinished rated game
-  (**Clear** on the title, starting any new game over it, or a cloud copy of another run adopted over it) simply
-  drops it: no rank request, no Rating change, no Career row, no XP, and the title tips name no placement. An
-  abandon request still waiting in the local rank queue is dropped, never sent. **Save & Quit** + Continue is
-  unchanged: the game settles once, at its real end. The superseded penalty (2026-09-29: an abandon settled as a
-  finish in the lowest place still open, 8th with nobody out) is kept in code behind `ABANDON_PENALTY_ENABLED`
-  (`packages/ui/src/rank/ratedRun.ts`) so it can be turned back on. The server has no abandon path of its own: it
-  settles whatever placement a client sends, so builds from before the switch keep charging abandons until replaced.
+- **Play asks first, and from "Yes" on you owe a result** (owner 2026-10-11, R-RANK-06). Pressing the Play card
+  opens a confirmation: *"This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you
+  like to proceed?"* with **Yes, let's go.** and **No, go back.** No returns to the mode picker. Yes commits a ranked
+  entry and opens hero select. Going back to the menu from that hero select (the Back button or Settings, each a
+  second press that names the cost) settles the entry as an **8th place** with its normal award, as if the game had
+  been played and lost first. Closing the game on hero select is neither a penalty nor a reroll: the next launch
+  reopens hero select on the **same heroes**. Backing out costs nothing when the game could not have been rated
+  (offline, so the lobby would be all-generated). Source: `packages/ui/src/rank/rankedEntry.ts`.
+- **Leaving a rated game early costs Rating** (owner 2026-09-29, R-RANK-05; off from 2026-10-02 to 2026-10-11, on
+  again with the confirmation above). Giving up an unfinished rated game (**Clear** on the title, starting any new
+  game over it, or a cloud copy of another run adopted over it) settles it as a finish in the **lowest place still
+  open**: 8th with nobody out, 7th with one seat out, with that place's normal award. Only the Rating moves: no
+  Career row, no XP. The title tips name the placement before you commit. **Save & Quit** + Continue is not an
+  abandon: the game settles once, at its real end. The switch is `ABANDON_PENALTY_ENABLED`
+  (`packages/ui/src/rank/ratedRun.ts`). The settlement is made by the client from the local save, so the server has
+  no abandon path of its own.
 - **What Continue resumes** (owner 2026-09-30, R-PERSIST-01). A game is saved only once a hero is picked and it has
   started; backing out of the title, the Practice setup screen or the hero picker saves nothing. Only a lobby game
   (Play, Sandbox Mode Practice, the tutorial; never a God Mode game) is ever saved or resumed. A saved run in the retired 17-round course format is
@@ -472,6 +479,11 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The crate is the owner's treasure chest in
   two layers (body + lid): the lid rattles, light leaks from the seam and the keyhole, the lid blasts off at the burst
   and the open body stays on the pedestal while the reward rises above it (oracle R-PROG-COLLECTION-03).
+- **Announcers (2026-10-11, R-PROG-ANNOUNCER-01).** An announcer is an account-wide cosmetic from crates. There are
+  three, all Legendary: **Lemon**, **Underdweller** and **Little Inu**. Wearing one swaps the VOICE that calls your games and nothing else: the same moments speak, as
+  often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
+  never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
+  voice, owned or not.
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped

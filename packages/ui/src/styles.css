@@ -8477,6 +8477,25 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   padding: 8px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; border-radius: 10px;
 }
 .tutprompt-skip:hover { color: #e6ecf6; text-decoration: underline; }
+/* THE RANKED CONFIRMATION (Title `rankedConfirm`, owner 2026-10-11) — the tutorial nudge's card with the two
+   answers as equal-height buttons side by side: Yes in the orange primary, No as a plain outlined button. No
+   per-element `cursor`: the global button rule paints the game cursor. */
+.rankedconfirm { max-width: 640px; gap: 20px; }
+.rankedconfirm-text { font-size: 23px; line-height: 1.45; color: #f6efe2; }
+.rankedconfirm-save { font-size: 16px; line-height: 1.45; color: #f0c98a; margin: 0; }
+.rankedconfirm-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; justify-content: center; margin-top: 8px; }
+.rankedconfirm-actions .endplay { margin-top: 0; white-space: nowrap; font-size: 20px; letter-spacing: 0.06em; padding: 16px 30px; }
+.rankedconfirm-no {
+  position: relative; --pr-edge: 5px; --pr-edge-c: rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase;
+  white-space: nowrap; color: #f6efe2; background: rgba(255, 255, 255, 0.06);
+  border: 3px solid rgba(255, 255, 255, 0.28); border-radius: 18px; padding: 16px 30px;
+}
+.rankedconfirm-no:hover { border-color: rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.1); }
+/* THE RANKED HERO SELECT's Back (HeroSelect.tsx): one press arms it and the label names the cost; a second
+   press abandons. Armed = the danger red, a static change (no looping paint animation). */
+.hsback.armed { border-color: #ff8a7a; color: #ffd9d2; background: rgba(140, 28, 20, 0.72); }
+.hsback.armed:hover { border-color: #ffb3a8; color: #fff; }
 @media (prefers-reduced-motion: reduce) { .mcswirl { animation: none; } }
 
 /* ---- REFRESH CRYSTAL (RefreshButton.tsx) — the blue crystal pinned TOP-CENTRE of the board, replacing the

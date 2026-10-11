@@ -60,6 +60,20 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Hero select: the Select Your Hero prompt is larger and sits a little higher above the heroes.' },
       { category: 'Systems', text: 'Practice hero list: heroes now fade out softly at the top and bottom edges as you scroll.' },
+      {
+        category: 'Balance',
+        text: 'Ranked: Play now asks before it starts a ranked lobby, and abandoning a ranked match costs MMR again.',
+        details: [
+          'Pressing Play shows a confirmation with two answers: Yes, let\'s go. and No, go back.',
+          'After you say yes, going back to the menu from hero select counts as an 8th place finish.',
+          'Giving up a ranked game in progress (clearing your save, or starting a new game over it) counts as the lowest place still open: 8th with nobody out, 7th with one player out.',
+          'Leaving that way always takes a second press that names the cost first.',
+          'Save & Quit is still free: Continue picks the game up where you left it.',
+          'Closing the game on hero select costs nothing. The next time you open it, hero select comes back with the same heroes.',
+        ],
+      },
+      { category: 'Systems', text: 'Two more announcers join the crate rewards, both Legendary: Underdweller and Little Inu.' },
+      { category: 'Systems', text: 'Announcers are now a Collection reward. The first new voice, Lemon, is a Legendary find from crates: equip it and it calls your games in place of the default announcer. You can hear a sample of any voice on the Announcers tab before you own it.' },
       { category: 'Systems', text: 'The announcer has 67 new lines. The moments you hear most games (back to the Shop, triples, knockouts, tier ups, wins and losses) no longer sound the same every time.' },
       { category: 'Systems', text: 'The Compendium now shows the current set.' },
       {

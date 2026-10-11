@@ -144,3 +144,10 @@ heroes sound alike (2026-10-09). `vo:approve` does NOT normalize them and `sfx:n
 approving a hero line, run `normalizeFile(file, HERO_SELECT_LUFS)` from `sfx-normalize.run.ts` on it (once — running
 it twice compresses twice).
 
+## Announcer voices (packs)
+
+The announcer is a cosmetic slot (2026-10-11, R-PROG-ANNOUNCER-01). The default voice's clips are the flat files in
+`apps/web/public/announcer/`; each unlockable voice is a PACK, a folder `apps/web/public/announcer/<pack>/` holding one
+clip per default clip under the same file name (the first is `lemon/`). `announcer.test.ts` fails if a pack misses a
+clip or has an extra one, so a new announcer line must be recorded for every pack in the same PR. Level pack clips to
+−20 LUFS like the default ones. Full recipe (a new voice, a new line): `docs/devlog/2026-10-11-announcer-lemon.md`.

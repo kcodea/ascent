@@ -103,7 +103,8 @@ import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
-import { rankedAbandonOf, rankedRunIdForFinish } from './rank/ratedRun';
+import { ABANDON_PENALTY_ENABLED, rankedAbandonOf, rankedRunIdForFinish } from './rank/ratedRun';
+import { RANKED_ENTRY_PLACEMENT, clearRankedEntry, loadRankedEntry, saveRankedEntry, type RankedEntry } from './rank/rankedEntry';
 import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
 import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId, withEquippedTitle } from '@game/progression';
 import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, mirrorFor, probeProgression, useProgression } from './progression/progressionStore';
@@ -665,7 +666,14 @@ interface GameStore {
   pendingGauntletStage?: number;
   /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
   startPractice: () => void;
+  /** Title → Play, AFTER the ranked confirmation: commits a ranked entry (or resumes the live one, same heroes)
+   *  and opens its hero picker. */
   startLobby: () => void;
+  /** THE RANKED ENTRY (R-RANK-06, rank/rankedEntry.ts): the commitment made at the Play confirmation, live until
+   *  a hero pick consumes it or `abandonRankedEntry` settles it. Null when no ranked hero select is owed. */
+  rankedEntry: RankedEntry | null;
+  /** Back from the ranked hero select: the entry settles as an 8th (R-RANK-06) and the title opens. */
+  abandonRankedEntry: () => void;
   /** Title → Gauntlet stage `stage`: open an ALL-hero picker for it. A no-op unless the stage is playable here
    *  (`isStagePlayable` — a draft only in a DEV build). */
   startGauntlet: (stage: number) => void;
@@ -1154,6 +1162,15 @@ const autosave = createDeferredWriter<Parameters<typeof writeSave>>((args) => {
 }, AUTOSAVE_IDLE_TIMEOUT_MS);
 const BOOT_SAVE = loadSave();
 if (BOOT_SAVE) activePlay.restore(BOOT_SAVE.activeMs);
+// THE RANKED ENTRY (owner 2026-10-11, R-RANK-06; rank/rankedEntry.ts): a session that closed on the ranked hero
+// select left its commitment behind, and this launch reopens hero select on the SAME heroes. Dropped at no cost
+// when this build can no longer offer them for that seed, or when the save already carries its run id (the hero
+// was picked; only the cleanup write was lost).
+const BOOT_ENTRY = loadRankedEntry((e) => {
+  if (BOOT_SAVE?.run.runId === e.runId) return false;
+  const offerable = new Set(playableHeroes(tribesForSeed(e.seed)).map((h) => h.id));
+  return e.heroChoices.every((id) => offerable.has(id));
+});
 
 // ── REPLAY V2 (state replay, Phase A — docs/replay-v2-handoff.md §5) ──────────────────────────────────────
 // The frame clock: `tMs` is cumulative ms from run start, accumulated as clamped deltas between committed
@@ -2147,7 +2164,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => {
-    // QUITTING COSTS RATING (R-RANK-05): discarding an unfinished RATED save would settle it at the lowest open place (switched OFF 2026-10-02: ABANDON_PENALTY_ENABLED, rank/ratedRun.ts).
+    // QUITTING COSTS RATING (R-RANK-05): discarding an unfinished RATED save settles it at the lowest open place.
     settleAbandonedRun(get().savedRun);
     void cloudSave.endRun(); // …and the cloud copy with it (R-PERSIST-CLOUD-03); reads the lease before clearSave
     clearSave();
@@ -2200,8 +2217,11 @@ export const useGame = create<GameStore>((rawSet, get) => {
   combatCompletedQuests: [],
   sellTick: 0,
   inspect: null,
-  // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
-  heroChoices: null,
+  // Boot into the title screen (the front door); the hero picker opens once a mode is chosen. The one exception
+  // is a ranked entry left open by the last session (R-RANK-06): its hero picker comes straight back.
+  heroChoices: BOOT_ENTRY?.heroChoices ?? null,
+  pendingSeed: BOOT_ENTRY?.seed,
+  rankedEntry: BOOT_ENTRY,
   lastHeroOffer: [],
   runeLockInCue: null,
   runeArrival: null,
@@ -2210,7 +2230,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // badge sees one continuous arrival rather than two.
     ? { runeArrival: { ...a, seq: a.phase === 'pending' ? (st.runeArrival?.seq ?? 0) + 1 : (st.runeArrival?.seq ?? 1) } }
     : { runeArrival: null })),
-  showTitle: true,
+  showTitle: !BOOT_ENTRY,
   showLeaderboard: false,
   pendingMode: 'lobby',
   // Default to the compact, art-forward card (full rules text on hover). Flip in the Esc menu.
@@ -2484,7 +2504,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // GOD MODE (owner 2026-10-08): a God Mode practice run. Nothing about it persists, so it never takes the save slot.
     const godPick = pre.pendingMode === 'practice' && pre.practiceDraft.godMode === true;
     // QUITTING COSTS RATING (R-RANK-05): the new run REPLACES the one saved save slot, so an unfinished
-    // RATED save it overwrites is abandoned (a no-op while ABANDON_PENALTY_ENABLED is off, owner 2026-10-02). Outside the updater (a queue write).
+    // RATED save it overwrites is abandoned. Outside the updater (a queue write).
     // A God Mode run replaces nothing (it is never saved), so the player's real save is left alone.
     if (!godPick) settleAbandonedRun(get().savedRun);
     set((s) => {
@@ -2513,7 +2533,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const run = god ? makeGodModeRun(built) : built;
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
-      if (mode === 'lobby' && !stage) run.runId = mintRunId(); // a Gauntlet stage is never rated
+      // THE RANKED ENTRY (R-RANK-06): the id was already minted at the Play confirmation, so the game that follows
+      // carries it; an abandon and a finish can then never both settle for one entry.
+      const entry = s.rankedEntry && s.rankedEntry.seed === seed ? s.rankedEntry : null;
+      if (mode === 'lobby' && !stage) run.runId = entry?.runId ?? mintRunId(); // a Gauntlet stage is never rated
       // RANK AT START (R-TELEMETRY-RANK-01): pin the medal + rank this rated game starts in, once; telemetry reads it.
       pinMedalAtStart(run, s.profile);
       // POOL TELEMETRY (fix 2026-09-28): note where the live pool came from when this table was seated.
@@ -2527,8 +2550,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save (a no-op for a God Mode run: `sandbox`)
       // GOD MODE: Continue keeps offering the player's real saved run, never the God Mode game.
-      return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
+      return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET, ...(run.runId ? { rankedEntry: null } : {}) };
     });
+    // A rated game now holds the entry's id (and is the save), so the entry record is spent. Outside the updater (storage).
+    if (get().rankedEntry === null) clearRankedEntry();
   },
   newRun: (seed, heroId) => {
     dropBoardFx();
@@ -2577,7 +2602,27 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
   // the same constraint as Ascent's; Practice's all-heroes list is a sandbox affordance and reads as one.
-  startLobby: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'lobby', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
+  // THE RANKED ENTRY (owner 2026-10-11, R-RANK-06): reached only through the Play card's confirmation. It commits
+  // the entry (ranked id + seed + hero offer, persisted) and opens its picker. An entry still live (a session
+  // closed on hero select, or the opponent wait cancelled) is RESUMED, never re-rolled: same id, same heroes.
+  startLobby: () => {
+    let entry = get().rankedEntry;
+    if (!entry) {
+      const seed = randomSeed();
+      entry = { runId: mintRunId(), seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), at: new Date().toISOString() };
+      saveRankedEntry(entry);
+    }
+    set({ showTitle: false, pendingMode: 'lobby', pendingSeed: entry.seed, heroChoices: entry.heroChoices, rankedEntry: entry, avatarPickerOpen: false });
+  },
+  abandonRankedEntry: () => {
+    const entry = get().rankedEntry;
+    if (entry) {
+      clearRankedEntry();
+      set({ rankedEntry: null });
+      settleAbandonedEntry(entry);
+    }
+    get().openTitle();
+  },
   // GAUNTLET: any hero (spec §1), so the picker gets Practice's full-roster list, not the 3-hero roll.
   startGauntlet: (stage) => {
     if (!isStagePlayable(stage, import.meta.env.DEV)) return;
@@ -3020,10 +3065,9 @@ function beginRankSubmission(runId: string, placement: number, seed: number, sea
  * never come through here, so a resumed game settles normally at its real end. Nothing else is uploaded (no
  * career row, no fight ledger, no XP): only the Rating moves.
  *
- * SWITCHED OFF 2026-10-02 (owner: "oh i didnt know there was an abandon penalty in. can we remove that for now?"):
- * while `ABANDON_PENALTY_ENABLED` (rank/ratedRun.ts) is false, `rankedAbandonOf` answers null, so every door
- * above simply drops the run: nothing is queued and the Rating does not move. The callers stay wired so the
- * penalty comes back by flipping that one constant.
+ * Off from 2026-10-02 to 2026-10-11 behind `ABANDON_PENALTY_ENABLED` (rank/ratedRun.ts); back on with the Play
+ * card's confirmation (R-RANK-06), which is the warning that was missing. While that constant is false,
+ * `rankedAbandonOf` answers null and every door above simply drops the run.
  */
 function settleAbandonedRun(abandoned: RunState | null | undefined): void {
   const quit = rankedAbandonOf(abandoned);
@@ -3037,6 +3081,21 @@ function settleAbandonedRun(abandoned: RunState | null | undefined): void {
     if (import.meta.env.DEV) console.warn('[abandon] the seat keys could not be assembled', e);
   }
   if (enqueuePendingRank(rankRequestFor(quit.runId, quit.placement, abandoned.seed, seatKeys, 'abandon'))) void flushPendingRanks(applyRankOutcome);
+}
+
+/**
+ * THE RANKED ENTRY ABANDONED (owner 2026-10-11, R-RANK-06): "even at the hero select screen, if they go back, they
+ * should place as if they came in eighth place and lose the associated mmr". No run exists yet, so the entry's own
+ * id settles as an 8th through the same durable queue + `submit-rating` path as `settleAbandonedRun` (no seat keys:
+ * no table was seated, and an 8th earns no strength bonus). Only the Rating moves.
+ *
+ * OFFLINE = UNRATED still holds: with the opponent pool unreachable the game could only have been an all-generated,
+ * unrated lobby, so backing out of it costs nothing either.
+ */
+function settleAbandonedEntry(entry: RankedEntry): void {
+  if (!ABANDON_PENALTY_ENABLED) return;
+  if (opponentPoolLoader()?.state().status === 'failed') return;
+  if (enqueuePendingRank(rankRequestFor(entry.runId, RANKED_ENTRY_PLACEMENT, entry.seed, [], 'abandon'))) void flushPendingRanks(applyRankOutcome);
 }
 
 /**

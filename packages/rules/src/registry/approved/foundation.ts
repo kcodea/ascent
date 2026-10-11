@@ -5056,7 +5056,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'device that has not yet been told what the account has seen shows NO badge at all: an empty list means "not '
       + 'asked yet", never "nothing seen". NEW clears on view: opening a tab shows its badges for that visit and they are '
       + 'gone once you leave the tab or the Collection; selecting an item clears its badge at once. A tab you have not '
-      + 'opened keeps its count, so the count still leads you to it. The item you are wearing never wears NEW. Looking '
+      + 'opened keeps its count, so the count still leads you to it. While anything is NEW the Collection offers "Mark '
+      + 'all as seen": one press clears every badge on every tab at once (and on every device), and the button leaves '
+      + 'with the last badge. The item you are wearing never wears NEW. Looking '
       + 'at an item you do not own never spends its badge. Everything owned when the account-level list was introduced '
       + 'counted as seen. On a server from before that change the list is the device\x27s own, with a one-time baseline '
       + 'of what is owned. A player can only ever mark their own items seen. This holds for every category, present and '
@@ -5079,14 +5081,20 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Claude Code session, 2026-10-11 (follow-up, after the device-only fix was opened)',
         quote: 'i want to save the "seen" on the account level, though',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (follow-up, same PR)',
+        quote: 'we should also create a button that "Marks all as seen". when a player clicks that, all "new" pills go away.',
+      },
       { kind: 'fix-pr', ref: 'PR #2030 fix/collection-new-baseline (2026-10-11)' },
-      { kind: 'code', ref: 'supabase/migrations/2026-10-11-cosmetics-seen.sql (player_cosmetics.seen_at, the baseline, mark_cosmetics_seen); packages/ui/src/progression/progressionRemote.ts (fetchSeenCosmeticIds, markCosmeticsSeenRemote); packages/ui/src/progression/progressionStore.ts (refreshSeenList on the probe, markCosmeticsSeen, `seenKnown`); packages/ui/src/progression/collectionSeen.ts (the device copy, hasSeenBaseline, the pre-migration ensureSeenBaseline); packages/ui/src/progression/CollectionScreen.tsx (`seenFor` snapshot, `seenReady`, the clear-on-view effect, `fresh`)' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-11-cosmetics-seen.sql (player_cosmetics.seen_at, the baseline, mark_cosmetics_seen); packages/ui/src/progression/progressionRemote.ts (fetchSeenCosmeticIds, markCosmeticsSeenRemote); packages/ui/src/progression/progressionStore.ts (refreshSeenList on the probe, markCosmeticsSeen, `seenKnown`); packages/ui/src/progression/collectionSeen.ts (the device copy, hasSeenBaseline, the pre-migration ensureSeenBaseline); packages/ui/src/progression/CollectionScreen.tsx (`seenFor` snapshot, `seenReady`, the clear-on-view effect, `fresh`, `markAllSeen`)' },
     ],
     currentBehaviour:
-      'The client conforms from 2026-10-11. The account-level list needs supabase/migrations/2026-10-11-cosmetics-seen.sql '
-      + 'run on the live project (an owner step): until it is, the server answers "undefined column", and the client keeps '
-      + 'the list per device with the one-time baseline (PARTIAL in that window: an item earned on one device shows NEW '
-      + 'once on each other device). Before 2026-10-11 the list was device-only, started empty in every browser storage '
+      'Conforms from 2026-10-11. The owner ran supabase/migrations/2026-10-11-cosmetics-seen.sql on the live project '
+      + 'that day (checked from outside: the column answers, no owned item was left unseen, the function refuses a '
+      + 'signed-out caller). Against a database from before that file the server answers "undefined column" and the '
+      + 'client keeps the list per device with the one-time baseline (PARTIAL there: an item earned on one device shows '
+      + 'NEW once on each other device). Before 2026-10-11 the list was device-only, started empty in every browser storage '
       + '(each dev port, the desktop app and the web build keep their own) and only a click on one tile added that one '
       + 'item, so every owned item wore NEW on each new address, the equipped one included.',
     enforcement: {

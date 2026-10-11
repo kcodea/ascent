@@ -43,6 +43,7 @@ import './collection.css';
  *               rarity-coloured frame; Fortnite's players asked for rarity colour back). Equipped wears a
  *               full-tile gold ring and a ribbon, not a corner tick (Fortnite). NEW until selected, or until you
  *               leave the tab; never on the equipped item; saved on the account (owner 2026-10-11). See `seenFor`.
+ *               While anything is NEW the header carries "Mark all as seen", which clears every badge on every tab.
  *   DETAIL      the selected item large on a nameplate (Valorant's big preview), with a preview of it under your
  *               name, how it is found, and Equip / Take off.
  *   CRATE BAY   sealed crates always in view, whatever tab is open: the crate, the count, Open and Open all, and
@@ -220,6 +221,15 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   /** NEW: owned, not seen yet (on this device or, per the account, on any other), and not the item you are wearing. */
   const fresh = (c: CosmeticDef): boolean => seenReady && isNew(c.id, owned, seen) && !known?.has(c.id) && !isEquipped(c, me);
   const newIn = (c: CosmeticCategory): number => albumOf(c, undefined, owned).filter(fresh).length;
+  const anyNew = everything.some(fresh);
+  /** MARK ALL AS SEEN (owner 2026-10-11: "when a player clicks that, all 'new' pills go away"): everything you own,
+   *  on every tab, at once. Unlike the view effect it also updates the snapshot, so the badges leave now. */
+  const markAllSeen = (): void => {
+    sfx.pulse();
+    const ids = everything.filter((c) => owned.has(c.id)).map((c) => c.id);
+    markCosmeticsSeen(userId, ids);
+    setSeenFor((prev) => ({ ...prev, ids: new Set([...prev.ids, ...ids]) }));
+  };
 
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
@@ -233,6 +243,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           </div>
         </div>
         <div className="colls-meters">
+          {anyNew && <button type="button" className="colls-quiet colls-markall pressable quiet" onClick={markAllSeen}>Mark all as seen</button>}
           <div className="colls-meter" role="group" aria-label={`${total.owned} of ${total.total} collected`}>
             <div className="colls-meter-num"><b>{total.owned}</b> / {total.total}</div>
             <div className="colls-meter-lbl">Collected</div>

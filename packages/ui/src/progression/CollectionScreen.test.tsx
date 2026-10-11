@@ -367,6 +367,33 @@ describe('the Collection screen: NEW', () => {
     expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
   });
 
+  // Owner 2026-10-11: "we should also create a button that 'Marks all as seen'. when a player clicks that, all
+  // 'new' pills go away."
+  it('MARK ALL AS SEEN: one press clears every badge on every tab, and the button leaves with them', () => {
+    open({ titles: ['alpha_tester', 'title_star_chaser'], cosmetics: ['alpha_tester', 'title_star_chaser', 'skin_albus_1'] }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(tab('Heroes').querySelector('.colls-tab-new')?.textContent).toBe('1');
+    act(() => button('Mark all as seen')!.click());
+    expect($$('.colls-tile.fresh')).toHaveLength(0); // the open tab: gone now, not on the next visit
+    expect($$('.colls-tab-new')).toHaveLength(0); // and every other tab's count
+    expect(button('Mark all as seen')).toBeUndefined();
+    expect(seenList().sort()).toEqual(['alpha_tester', 'skin_albus_1', 'title_star_chaser']);
+    act(() => tab('Heroes').click());
+    expect($$('.colls-tile.fresh')).toHaveLength(0);
+    ui!.unmount();
+    ui = mount(<CollectionPage reducedMotion />); // and it stays that way
+    expect($$('.colls-tab-new')).toHaveLength(0);
+    expect(button('Mark all as seen')).toBeUndefined();
+    clean();
+  });
+
+  it('MARK ALL AS SEEN is only offered while something is NEW, and returns with the next find', () => {
+    open(); // everything owned has been seen
+    expect(button('Mark all as seen')).toBeUndefined();
+    act(() => { useProgression.setState({ mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser', 'title_ironbeard'], revision: 20 }) } }); });
+    expect(button('Mark all as seen')).toBeDefined();
+  });
+
   it('peeking at a missing item does not spend its NEW: it still shows the day a crate gives it', () => {
     open({}, { seen: ['alpha_tester', 'title_star_chaser'] });
     act(() => tile('Ironbeard').click());
@@ -415,6 +442,18 @@ describe('the Collection screen: NEW', () => {
       expect(markCosmeticsSeenRemote.mock.calls).toEqual([[['skin_albus_1']]]);
       act(() => $$('.colls-tile.fresh')[0]!.click());
       expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1); // the view already sent it
+    });
+
+    it('MARK ALL AS SEEN writes every unseen item to the account in one call, other tabs included', async () => {
+      localStorage.setItem('ascent.collection.baseline.u-1', '1');
+      await accountSays(['alpha_tester']);
+      useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'skin_albus_1', 'skin_blackbelt_1'] }) } });
+      ui = mount(<CollectionPage reducedMotion />);
+      expect(markCosmeticsSeenRemote).not.toHaveBeenCalled(); // Titles holds nothing new; the skins are on other tabs
+      act(() => button('Mark all as seen')!.click());
+      expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1);
+      expect([...markCosmeticsSeenRemote.mock.calls[0]![0]].sort()).toEqual(['skin_albus_1', 'skin_blackbelt_1']);
+      expect($$('.colls-tab-new')).toHaveLength(0);
     });
 
     it('a write that did not get through is sent again the next time you look', async () => {

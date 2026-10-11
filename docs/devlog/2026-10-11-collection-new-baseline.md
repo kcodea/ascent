@@ -33,6 +33,11 @@ collection, and clearing it cost one click per item. Nothing treated "equipped" 
 - `CollectionScreen.tsx`: clear on view (the open tab is marked seen while you look; the page draws from a snapshot,
   so the badges stay for the visit), a pick clears at once, the equipped item never wears NEW, and no badge at all
   until the device knows what the account has seen.
+- **Mark all as seen** (owner: "we should also create a button that 'Marks all as seen'. when a player clicks that,
+  all 'new' pills go away"): a quiet button in the header beside the meters, only while something is NEW. It marks
+  everything owned on every tab (one write to the account) and, unlike the view effect, updates the snapshot too, so
+  the badges leave at once. Placement was my call (the filter row is full and the tab row is a fixed grid); move it
+  if it reads wrong.
 
 ## Three traps worth remembering
 
@@ -46,12 +51,12 @@ collection, and clearing it cost one click per item. Nothing treated "equipped" 
    the ids a write confirmed are kept in a NON-reactive set, so a badge you are looking at does not vanish because
    its write landed.
 
-## Owner step
+## The migration is live
 
-Run `supabase/migrations/2026-10-11-cosmetics-seen.sql` in the Supabase SQL Editor (once; it is safe to re-run).
-Order does not matter: before it runs, the client gets "undefined column" and keeps the list per device with a
-one-time baseline of what is owned, which already stops the report. After it runs, the list follows the account.
-Nothing to deploy (no Edge Function).
+The owner ran `supabase/migrations/2026-10-11-cosmetics-seen.sql` on 2026-10-11, before this merged. Checked from
+outside with the public key: the column answers, zero owned items were left unseen (the baseline took), and the
+function refuses a signed-out caller. Order never mattered: against a database from before the file the client gets
+"undefined column" and keeps the list per device with a one-time baseline. Nothing to deploy (no Edge Function).
 
 Oracle: `R-PROG-COLLECTION-05`. Tests: `CollectionScreen.test.tsx` ("the Collection screen: NEW"),
 `cosmeticsSeenRemote.test.ts`, `progressionStore.test.ts`, and the SQL executed in

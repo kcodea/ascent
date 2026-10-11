@@ -5130,4 +5130,45 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-11',
     },
   },
+  {
+    id: 'R-PROG-ANNOUNCER-01',
+    title: 'Announcers are a crate cosmetic in the account-wide announcer slot: an equipped voice plays the same takes from its own folder, only its wearer hears it, and a missing clip falls back to the default voice',
+    statement:
+      'The announcer category ("Announcers", target global, enabled) holds announcer voices; the first is Lemon '
+      + '(announcer_lemon, Legendary, from crates at the fixed rarity odds, equal chance within the rarity). An announcer '
+      + 'is ACCOUNT-WIDE: equip_cosmetic(user, \x27announcer\x27, \x27\x27, id) wears an owned, live one (one cosmetic_loadouts '
+      + 'row, target \x27\x27); null takes it off, and NOTHING equipped is the default announcer (there is no default item). '
+      + 'An announcer names a PACK (assets.pack): a folder apps/web/public/announcer/<pack>/ holding one clip per default '
+      + 'clip under the SAME file name. Wearing one changes only WHERE a clip is fetched from: which moments speak, how '
+      + 'often, the random take, the no-repeat bag (keyed by take name) and every timing rule are identical to the default '
+      + 'voice. If the pack lacks a clip, or it fails to load, the default voice\x27s clip plays, so a moment is never silent '
+      + 'because of the voice worn. Only the wearer hears it: it is read from the live loadout when a line speaks (so an '
+      + 'equip applies to the next line) and is never written to a run snapshot, a replay or an opponent\x27s view. The '
+      + 'Collection lists the voices on the Announcers tab (last on the rail) and plays a sample line of any of them, owned '
+      + 'or not, through the Announcer volume and mute.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'i want to create a new announcer voice - the current one is the default. this will be offered as a reward in collections' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'it will be a Legendary reward players can unlock through opening chests' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'call the announcer: Lemon' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (announcer(), announcer_lemon, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, announcerOf); supabase/migrations/2026-10-11-announcer-slot.sql (equip_cosmetic); packages/ui/src/announcer.ts (announcerClipUrl, playClip, setAnnouncerPackProvider, previewAnnouncerPack); packages/ui/src/progression/announcerPack.ts; packages/ui/src/progression/CollectionScreen.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms in the client from 2026-10-11. PARTIAL on the live server until the owner runs '
+      + 'supabase/migrations/2026-10-11-announcer-slot.sql and deploys progression-inventory: before that the database '
+      + 'still has the announcer category switched off and equip_cosmetic refuses the announcer slot, so Lemon shows in '
+      + 'the Collection (and can be previewed) but cannot drop or be equipped. Before 2026-10-11 the category was switched '
+      + 'off and the tab read "Soon".',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/announcer.test.ts',
+        'packages/ui/src/progression/CollectionScreen.test.tsx',
+        'packages/progression/src/cosmetics.test.ts',
+        'packages/progression/src/sqlParity.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-11',
+    },
+  },
 ];

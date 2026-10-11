@@ -81,7 +81,8 @@ import { wipeFx } from './wipeFx';
 import { applyFpsCap } from './fpsCap';
 import { preloadRunArt } from './preloadPlan';
 import { audioContext, onStopAllAudio, sfx } from './sfx';
-import { cancelAnnouncer, setAnnouncerAudioContextProvider, syncAnnouncer } from './announcer';
+import { cancelAnnouncer, setAnnouncerAudioContextProvider, setAnnouncerPackProvider, syncAnnouncer } from './announcer';
+import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
@@ -195,6 +196,8 @@ export function Game() {
     // THE ANNOUNCER (owner ask 2026-09-23): same shape as the music (store-driven, React-free, its own gain on
     // the SFX context); a Skip's `stopAllAudio` cancels its queue + the playing line through the hook.
     setAnnouncerAudioContextProvider(audioContext);
+    // The voice calling the game is the announcer cosmetic the player wears (2026-10-11); none = the default.
+    setAnnouncerPackProvider(equippedAnnouncerPack);
     syncAnnouncer(useGame.getState(), null);
     const unsubAnnouncer = useGame.subscribe((st, prevSt) => syncAnnouncer(st, prevSt));
     const offStopHook = onStopAllAudio(() => cancelAnnouncer('skip'));

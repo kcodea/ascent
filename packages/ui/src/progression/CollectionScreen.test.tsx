@@ -133,7 +133,7 @@ describe('the Collection screen: the album', () => {
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
     // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
     // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; the Epics Card Shark and Storm Call (2026-09-29), 83; skins batch 3 (2026-09-29, +4 minion skins and a Frantic Frank hero skin) +5; skins batch 4 (2026-09-30, +16 minion and +16 hero skins) +32; skins batch 5 (2026-09-30, +11 minion skins and Influencer Indy) +12; skins batch 6 (2026-10-01, +9 minion skins) +9; skins + frames batch 3 (2026-10-01, +3 hero skins and +10 portrait frames) +13; frames batch 4 (2026-10-01, +5 portrait frames) +5; frames batch 5 (2026-10-02, Simple Ring and Void) +2; frames batch 6 (2026-10-02, Cherry Blossom) +1; Rayse's hero title (2026-10-02, un-archived) +1; the six Ancient frames (2026-10-02) +6; skins batch 8 + frames batch 7 (2026-10-03, +11 hero skins and +7 portrait frames) +18; frames batch 8 (2026-10-06, Cosmic Glass) +1; skins batch 9 (2026-10-07, Canyon Drake and Thunderchorus Drake) +2; frames batch 9 (2026-10-07, Blossom, Neonpunk, Solar Flare, Color Doodle, Neon Ring) +5
-    expect(text('.colls-meter-num')).toBe('2 / 226');
+    expect(text('.colls-meter-num')).toBe('2 / 227'); // 2026-10-11: the first announcer (Lemon) made the total 227
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/52');
     clean();
   });
@@ -179,7 +179,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(warded.className).toMatch(/\bworn\b/);
     expect(tileNames()).toHaveLength(52); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('2 / 226'); // Alpha Tester + Warded (the master stands for both tiers)
+    expect(text('.colls-meter-num')).toBe('2 / 227'); // Alpha Tester + Warded (the master stands for both tiers)
     // the detail panel's nameplate and the preview under your name are the plate too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
@@ -189,22 +189,42 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
 });
 
 describe('the Collection screen: categories', () => {
-  it('the switched-off categories are locked tabs that open a coming-soon view; the crate bay stays in view', () => {
+  it('Announcers is a live tab (owner 2026-10-11): its first voice, Lemon, is a Legendary you can hear before you own it', () => {
     open();
-    // Heroes and Minions went live with the skins (2026-09-28); Announcers is still switched off.
+    // Heroes and Minions went live with the skins (2026-09-28); Announcers with its first voice (2026-10-11).
     expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
-    expect(tab('Announcers').className).toMatch(/\blocked\b/);
-    expect(tab('Announcers').textContent).toContain('Soon');
+    expect(tab('Announcers').className).not.toMatch(/\blocked\b/);
+    expect(tab('Announcers').textContent).not.toContain('Soon');
     act(() => tab('Announcers').click());
     expect(tab('Announcers').getAttribute('aria-selected')).toBe('true');
-    expect($$('.colls-tile')).toHaveLength(0);
-    expect(text('.colls-soon-title')).toBe('Announcers');
-    expect(text('.colls-soon-sub')).toBe('New voices to call your games. Coming soon.');
-    expect($$('.colls-ghost')).toHaveLength(8);
+    expect(text('.colls-tab.on .colls-tab-count')).toBe('0/1');
+    expect($$('.colls-tile')).toHaveLength(1);
+    expect($$('.colls-ghost')).toHaveLength(0);
+    expect($('.colls-tile')!.getAttribute('aria-label')).toBe('Lemon, Legendary, not owned');
+    expect(text('.colls-kicker')).toBe('Announcer');
+    expect(text('.colls-facts')).toContain('Only you hear it');
+    expect(button('Hear a line')?.getAttribute('aria-label')).toBe('Hear a line from Lemon'); // not owned, still previewable
+    expect($('.colls-equip')).toBeNull();
     expect($('.colls-bay')).not.toBeNull();
     expect(button('Open')).toBeTruthy();
     act(() => tab('Titles').click());
     expect(tileNames()).toHaveLength(52);
+    clean();
+  });
+  it('an OWNED announcer can be equipped', () => {
+    open({ cosmetics: ['title_alpha_tester', 'announcer_lemon'] });
+    act(() => tab('Announcers').click());
+    expect(text('.colls-tab.on .colls-tab-count')).toBe('1/1');
+    expect($('.colls-tile')!.getAttribute('aria-label')).toContain('Lemon, Legendary');
+    expect($('.colls-equip')?.getAttribute('aria-label')).toBe('Equip Lemon');
+    clean();
+  });
+  it('a WORN announcer shows as equipped and offers the default voice back', () => {
+    open({ cosmetics: ['title_alpha_tester', 'announcer_lemon'], loadout: { announcer: 'announcer_lemon' } });
+    act(() => tab('Announcers').click());
+    expect($('.colls-tile')!.className.split(' ')).toContain('worn');
+    expect(button('Use default announcer')?.getAttribute('aria-label')).toBe('Use the default announcer');
+    expect($('.colls-equip')).toBeNull();
     clean();
   });
 });

@@ -402,6 +402,17 @@
       "id": "weA4Q36twV5kwSaTEL0Q",
       "model": "eleven_multilingual_v2",
       "dest": "packages/ui/src/audio/heroes"
+    },
+    "announcer-lemon": {
+      "id": "1u907ByRAGtDfaOw8FWF",
+      "model": "eleven_multilingual_v2",
+      "dest": "apps/web/public/announcer/lemon",
+      "settings": {
+        "speed": 0.89,
+        "stability": 0.81,
+        "similarity_boost": 0.75,
+        "style": 0.45
+      }
     }
   },
   "lines": [

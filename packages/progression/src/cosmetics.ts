@@ -71,7 +71,7 @@ export interface CosmeticCategoryDef {
 }
 
 export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticCategoryDef>> = Object.freeze({
-  announcer:   { id: 'announcer',   label: 'Announcers',        weight: 10, enabled: false, target: 'global' },
+  announcer:   { id: 'announcer',   label: 'Announcers',        weight: 10, enabled: true,  target: 'global' },
   hero_skin:   { id: 'hero_skin',   label: 'Heroes',            weight: 20, enabled: true,  target: 'hero' },
   minion_skin: { id: 'minion_skin', label: 'Minions',           weight: 35, enabled: true,  target: 'card' },
   title:       { id: 'title',       label: 'Titles',            weight: 10, enabled: true,  target: 'global' },
@@ -151,6 +151,16 @@ const heroAttack = (id: string, name: string, rarity: CosmeticRarity, style: str
  */
 const portraitFrame = (id: string, name: string, rarity: CosmeticRarity, master: string): CosmeticDef =>
   ({ id, category: 'portrait_frame', name, rarity, acquisition: { type: 'crate' }, assets: { art: id, master }, active: true });
+
+/**
+ * AN ANNOUNCER (owner 2026-10-11: "i want to create a new announcer voice - the current one is the default. this will
+ * be offered as a reward in collections"). One account-wide item (target `global`) that swaps the voice calling YOUR
+ * games; only you hear it, so it never rides a run snapshot. `assets.pack` is the folder its clips live in
+ * (`apps/web/public/announcer/<pack>/<line>.mp3`): one file per default line, same file names. No item equipped = the
+ * default announcer.
+ */
+const announcer = (id: string, name: string, rarity: CosmeticRarity, pack: string): CosmeticDef =>
+  ({ id, category: 'announcer', name, rarity, acquisition: { type: 'crate' }, assets: { pack }, active: true });
 
 /**
  * HERO TITLES (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is
@@ -545,6 +555,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   portraitFrame('frame_time', 'Time', 'ancient', 'Ancient/Time.png'),
   portraitFrame('frame_war', 'War', 'ancient', 'Ancient/War.png'),
   portraitFrame('frame_reflective', 'Reflective', 'ancient', 'Ancient/Reflective.png'),
+  // ANNOUNCERS (owner 2026-10-11: "call the announcer: Lemon"; "it will be a Legendary reward players can unlock
+  // through opening chests").
+  announcer('announcer_lemon', 'Lemon', 'legendary', 'lemon'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);
@@ -799,12 +812,12 @@ export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): Cosm
 
 export type SkinSlot = 'hero_skin' | 'minion_skin';
 export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
-/** Every slot `equip_cosmetic` accepts: the two per-target skin slots and the account-wide hero attack and portrait
- *  frame (target ''). */
-export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame';
-export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame'];
+/** Every slot `equip_cosmetic` accepts: the two per-target skin slots and the account-wide hero attack, portrait
+ *  frame and announcer (target ''). */
+export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame' | 'announcer';
+export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame', 'announcer'];
 /** The account-wide slots: one row each, target ''. */
-export const GLOBAL_EQUIP_SLOTS: readonly EquipSlot[] = ['hero_attack', 'portrait_frame'];
+export const GLOBAL_EQUIP_SLOTS: readonly EquipSlot[] = ['hero_attack', 'portrait_frame', 'announcer'];
 
 /**
  * Who wears what, keyed by the TARGET (handoff §6.7 `cosmetic_loadouts` / §13 `RunCosmeticSnapshot`). The same
@@ -823,6 +836,9 @@ export interface RunCosmeticSnapshot {
   /** The equipped PORTRAIT FRAME (account-wide, owner 2026-10-01: "we want this to replace the default portrait png
    *  when a skin is applied"). Absent = the default ring. */
   portraitFrame?: string;
+  /** The equipped ANNOUNCER (account-wide, owner 2026-10-11). LIVE LOADOUT ONLY: only the wearer hears it, so
+   *  `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent = the default announcer. */
+  announcer?: string;
 }
 
 /** Hard caps on what a snapshot may carry, so a hostile or corrupt payload stays tiny. */
@@ -871,6 +887,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
   const minion: Record<string, string> = {};
   let attack: string | undefined;
   let frame: string | undefined;
+  let voice: string | undefined;
   if (Array.isArray(rows)) {
     for (const r of rows) {
       if (!r || typeof r !== 'object') continue;
@@ -881,6 +898,8 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
       if (slot === 'hero_attack') { if (target === '' || target === undefined) attack = id; continue; }
       // So is the portrait frame (2026-10-01).
       if (slot === 'portrait_frame') { if (target === '' || target === undefined) frame = id; continue; }
+      // And the announcer (2026-10-11).
+      if (slot === 'announcer') { if (target === '' || target === undefined) voice = id; continue; }
       if (typeof target !== 'string' || !ID_RE.test(target)) continue;
       if (slot === 'hero_skin') hero[target] = id;
       else if (slot === 'minion_skin') minion[target] = id;
@@ -891,6 +910,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}),
     ...(frame ? { portraitFrame: frame } : {}),
+    ...(voice ? { announcer: voice } : {}),
   };
 }
 
@@ -939,6 +959,15 @@ export function titleOf(snapshot: RunCosmeticSnapshot | null | undefined): Cosme
 export function portraitFrameOf(snapshot: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
   const c = cosmeticOf(snapshot?.portraitFrame);
   return c && c.category === 'portrait_frame' && isCosmeticLive(c.id) ? c : null;
+}
+
+/**
+ * The ANNOUNCER this loadout speaks with, or null for the default voice. Null whenever the id is unknown, retired (item
+ * or category, TS or server) or not an announcer, so a stale or forged id always falls back to the default announcer.
+ */
+export function announcerOf(loadout: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
+  const c = cosmeticOf(loadout?.announcer);
+  return c && c.category === 'announcer' && isCosmeticLive(c.id) ? c : null;
 }
 
 /** A loadout with the profile's equipped title folded in (the loadout rows never carry it; the profile does). */

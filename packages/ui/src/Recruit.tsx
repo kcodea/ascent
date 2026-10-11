@@ -6270,19 +6270,23 @@ export function Recruit() {
     if (inCombat || dragStore.get().drag?.active || glidedByFlip) return;
     const prev = handLeftsRef.current;
     const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
-    const moved: HTMLElement[] = [];
+    // READ every position first, THEN write (perf 2026-10-11). Interleaving the two forced a fresh style + layout
+    // for each card (the previous card's seed had dirtied the tree): ~16 forced restyles inside one play.
+    const moved: Array<[HTMLElement, number]> = [];
     for (const el of els) {
       const old = prev.get(el.dataset.uid ?? '');
       if (old === undefined) continue;                 // just arrived — not ours to move
       const d = old - el.offsetLeft;
       if (Math.abs(d) < 0.5) continue;                 // didn't move
-      el.style.setProperty('transition', 'none');      // seed instantly, or the seed itself animates
-      el.style.setProperty('--hand-glide', `${d}px`);
-      moved.push(el);
+      moved.push([el, d]);
     }
     if (moved.length === 0) return;
+    for (const [el, d] of moved) {
+      el.style.setProperty('transition', 'none');      // seed instantly, or the seed itself animates
+      el.style.setProperty('--hand-glide', `${d}px`);
+    }
     void document.body.offsetWidth;                    // commit the seed before releasing it
-    for (const el of moved) {
+    for (const [el] of moved) {
       el.style.removeProperty('transition');           // hand the motion back to the CSS transition
       el.style.setProperty('--hand-glide', '0px');
     }
@@ -7854,7 +7858,7 @@ export function Recruit() {
                 <div
                   key={`float-${f.id}`}
                   className={`floatanchor${sym ? ' symanchor' : ''}`}
-                  style={{ left: toStage(f.x), top: toStage(f.y), width: toStage(f.w), height: toStage(f.h) } as CSSProperties}
+                  style={{ ...f.sv, left: toStage(f.x), top: toStage(f.y), width: toStage(f.w), height: toStage(f.h) } as CSSProperties}
                   aria-hidden="true"
                 >
                   <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>
@@ -7867,7 +7871,7 @@ export function Recruit() {
             {/* Killing-blow numbers for units that died this beat — never inside the unit (which collapses +
                 is removed), so the number reads + lingers at the spot the minion fell. */}
             {replay.deathFloats.map((f) => (
-              <div key={`death-${f.id}`} className="deathfloat" style={{ left: toStage(f.x), top: toStage(f.y) } as CSSProperties} aria-hidden="true">
+              <div key={`death-${f.id}`} className="deathfloat" style={{ ...f.sv, left: toStage(f.x), top: toStage(f.y) } as CSSProperties} aria-hidden="true">
                 <span className={`float ${f.kind}`}>
                   {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
                   {f.text}

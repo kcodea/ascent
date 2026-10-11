@@ -165,10 +165,45 @@ const DEATH_FLOAT_DUR_MS = 900;
  *  (at 1.6×: cleanup 937ms vs a 1400ms animation still at opacity 1). It popped out instead of fading. */
 let speed = 1;
 
-/** Set the live combat speed and re-push the vars. Call whenever `combatSpeed` changes. */
+/** Set the BASE combat speed and re-push the vars on :root. Call whenever the `combatSpeed` setting changes, and
+ *  when a fight starts or ends. NOT per frame: see `setLiveCombatSpeed`. */
 export function applyFloatSpeed(combatSpeed: number): void {
   speed = combatSpeed > 0 ? combatSpeed : 1;
+  live = speed;
   applyFloatConfig();
+}
+
+/* ── The LIVE speed (perf 2026-10-11) ──────────────────────────────────────────────────────────────────────
+   The auto-ramp eases the speed every frame for up to ~20 s of a long fight. It used to write `--combat-speed`
+   and every float var onto <html> each frame, and any write to a root custom property restyles the WHOLE
+   document (~1,000 elements, ~19 ms a frame: a long fight sat at 30-40 fps). The ramp now only records the live
+   speed here, and the few things that animate at that speed stamp it on THEMSELVES when they start: each float
+   anchor and death float (useCombatReplay spawns), a `.unit` entering a death / rebirth animation (Unit.tsx) and
+   the Rebirth DOM nodes (fx/rebirthPillar.ts). :root keeps the base values. A ramp-off fight stamps exactly the
+   root values, so nothing changes there; a ramped one starts each animation at the same speed it did before. */
+let live = 1;
+
+/** Record the live (auto-ramped) combat speed. Touches no DOM, so it is safe to call every frame. */
+export function setLiveCombatSpeed(combatSpeed: number): void {
+  live = combatSpeed > 0 ? combatSpeed : 1;
+}
+
+/** The live combat speed (the ramp's value while it runs, else the base). */
+export function liveCombatSpeed(): number {
+  return live;
+}
+
+/** The speed-scaled custom properties for an element that STARTS an animation now, at speed `spd` (default: the
+ *  live speed): the same values `applyFloatConfig` would have pushed to :root at that speed. */
+export function speedVars(spd: number = live): Record<string, string> {
+  const s = spd > 0 ? spd : 1;
+  const { floatDur, deathFloatDur } = floatDurations(s);
+  return {
+    '--combat-speed': String(s),
+    '--float-dur': `${floatDur}ms`,
+    '--death-float-dur': `${deathFloatDur}ms`,
+    '--dmg-pop-dur': `${Math.round(cfg.popMs / s)}ms`,
+  };
 }
 
 /** The speed-scaled CSS animation lengths (ms). Pure, so the "fade finishes before the cleanup timer removes
@@ -181,9 +216,20 @@ export function floatDurations(combatSpeed: number): { floatDur: number; deathFl
 /** Push the config into the CSS custom properties on :root that `.float` + the `floatup` keyframe read.
  *  Values map 1:1 to the CSS fallbacks, so applying the defaults at 1× is a no-op visually. Durations are
  *  divided by the live combat speed so the fade always completes before the cleanup timer removes the node. */
+/** Only touch :root when a value actually changed: re-setting an unchanged custom property still invalidates the
+ *  root, i.e. the whole document (perf 2026-10-11). */
+const rootWritten = new Map<string, string>();
+const rootStyle = {
+  setProperty(name: string, value: string): void {
+    if (rootWritten.get(name) === value && document.documentElement.style.getPropertyValue(name) === value) return;
+    rootWritten.set(name, value);
+    document.documentElement.style.setProperty(name, value);
+  },
+};
+
 export function applyFloatConfig(): void {
   if (typeof document === 'undefined') return;
-  const s = document.documentElement.style;
+  const s = rootStyle;
   s.setProperty('--float-size', `${cfg.size}px`);
   s.setProperty('--float-dmg-size', `${cfg.dmgSize}px`);
   const { floatDur, deathFloatDur } = floatDurations(speed);

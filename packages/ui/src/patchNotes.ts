@@ -69,6 +69,11 @@ export const PATCH_NOTES: PatchNote[] = [
           'The item you have equipped never shows New.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Celestial and Spirit cards now have their own frames, Taunt shields and card plates, like every other tribe.',
+      },
+      { category: 'Balance', text: 'Rad Rachel has new art.' },
       { category: 'Systems', text: 'Hero Select voices are louder again.' },
       {
         category: 'Systems',
@@ -78,6 +83,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'Gasket: each pass of its Rally lands, then those buffs play, then the next pass or its attack. A Gilded Gasket shows pass, buffs, pass, buffs, attack.',
           'Fel Spikes works the same way: each volley lands, then its buffs play.',
           'The same buffs in the Shop now show a tendril from each source, Ruinous Lord included.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Long fights stay smooth. The combat speed-up no longer slows the screen down.',
+        details: [
+          'While a long fight sped up, the game redrew the whole screen every frame. A big fight could drop to about 35 frames a second. It now holds full speed.',
+          'Playing a card from your hand does less work behind the scenes, so that frame finishes sooner.',
         ],
       },
       {

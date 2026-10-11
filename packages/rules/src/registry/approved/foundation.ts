@@ -5046,6 +5046,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/shriekerChainBeats.test.ts', 'packages/ui/src/choreographer/shoutChainDawnclawMykel.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
   {
+    id: 'R-PRESENT-33',
+    title: 'In-game art ships at 512 px, never at master size',
+    statement:
+      'Every in-repo art file is at most 512 px on its long side (hero portrait frames 768 px; the title-screen mode '
+      + 'banners in art/modes are exempt). Card art is shown at about 150 to 300 CSS px, so a full-size 1254 px master '
+      + 'costs six times the pixels to decode and upload to the GPU on every roll, play and hover that shows it, with '
+      + 'nothing gained on screen. New art goes through `art:wire` or `optimize-art`, which resize it; hand-copied '
+      + 'art must be resized the same way.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner decision relayed by the coordinator, 2026-10-11 (card-size art proposal)', quote: "just fix the 24 and then let's wrap up" },
+      { kind: 'fix-pr', ref: 'PR fix/oversized-art-512 (2026-10-11)' },
+      { kind: 'code', ref: 'scripts/optimize-art.mjs MAX / MAX_BY_DIR; packages/tools/src/wire-art.ts ART_PX' },
+    ],
+    contentIds: ['d2_warflame', 'dm_todd', 'k_portsmith', 'b2_spots', 'n2_standardbearer'],
+    currentBehaviour:
+      'Conforms from 2026-10-11. Before it, 24 minions and the Aster portrait, hand-copied in on 2026-08-19 (PRs #1090, '
+      + '#1093, #1097), shipped at 1254 px; they were re-encoded with the optimize-art settings (512 px, WebP q85).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/artMaxSize.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
+  {
     id: 'R-PROG-COLLECTION-05',
     title: 'NEW in the Collection marks what you have not looked at yet, and that is saved on the account, not on the device',
     statement:

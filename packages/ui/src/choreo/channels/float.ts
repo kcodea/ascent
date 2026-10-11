@@ -39,6 +39,9 @@ export interface Float {
    *  target (a real "card attacks card"); a spell/AoE `dmg`, a self-hit or a sourceless hit leaves it
    *  undefined and the burst stays gold. */
   atkTier?: number;
+  /** The speed-scaled animation vars at spawn (`speedVars`, floatConfig.ts), stamped on the anchor so the ramp
+   *  never has to write :root. Set by useCombatReplay when it adds the float; absent = inherit :root's. */
+  sv?: Record<string, string>;
 }
 
 /** Keyword-proc floats (shield/reborn/rally) that bloom big in the card centre, staggered after the damage
@@ -58,6 +61,8 @@ export interface DeathFloat {
   kind: string;
   /** The killing attacker's attack-milestone tier (1..6), for the melee-hit burst recolour — see `Float.atkTier`. */
   atkTier?: number;
+  /** See `Float.sv`. */
+  sv?: Record<string, string>;
 }
 
 /** Player-facing labels for granted keywords (the renamed terms — Reborn → Rise, etc.). Shared with

@@ -388,4 +388,39 @@ export const SET2_DEMONS_LATE: CardDef[] = [
     text: '**End of Turn:** your **Demons** consume a minion in the Shop.',
     goldenText: '**End of Turn:** your **Demons** consume a minion in the Shop and gain **double** its stats.',
   },
+  {
+    // GASKET (owner add 2026-10-10). "Rally: Deal 2 damage to all minions except friendly Demons." BOTH sides: every
+    // enemy minion (enemy Demons included) and your non-Demons; your Demons are spared, Gasket too (it is one). The
+    // same spray as Fel Spikes' Echo (`sprayDamageExceptFriendlyTribe`): a pass hits everything at once, deaths resolve
+    // after the spray, and every landed hit counts as a Demon dealing damage (Pummel, Leech, Axeman, Impossible Todd).
+    // Gilded: "deals 2 damage twice", two separate passes, each its own tick (the repeat rule). A forced Rally in the
+    // Shop hits YOUR non-Demons only (no enemy there: Fel Spikes' shop ruling).
+    id: 'dm_gasket',
+    name: 'Gasket',
+    tribe: 'demon',
+    tier: 4,
+    attack: 7,
+    health: 3,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyDamageAllExceptTribe', params: { amount: 2, exceptTribe: 'demon' } }],
+    text: '**Rally:** deal **2 damage** to all minions except friendly **Demons**.',
+    goldenText: '**Rally:** deal **2 damage** to all minions except friendly **Demons**, **twice**.',
+  },
+  {
+    // RAD RACHEL (owner add 2026-10-10). "When a Demon deals damage, give your minions +2/+1." Impossible Todd's
+    // trigger (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon, Rachel's own included), paying EVERY
+    // living friendly minion, Rachel too. PERMANENCE (owner ruling 2026-10-11, R-BUFF-PHASE-01): combat-only when it
+    // triggers in combat (an Engraved body carries it back), permanent when it triggers in the Shop (a Shop-fired
+    // Gasket Rally / Fel Spikes Echo). Gilded: +4/+2. Fixed numbers, so the printed text is always current.
+    id: 'dm_radrachel',
+    name: 'Rad Rachel',
+    tribe: 'demon',
+    tier: 6,
+    attack: 8,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffTribe', params: { attack: 2, health: 1 } }],
+    text: 'When a **Demon** deals damage, give your minions **+2/+1**.',
+    goldenText: 'When a **Demon** deals damage, give your minions **+4/+2**.',
+  },
 ];

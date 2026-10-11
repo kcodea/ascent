@@ -63,7 +63,9 @@ describe('2026-10-10 set membership: Striker, Drunk Daniel and Hydraskus appende
   it('Striker joins set 2 and stays in set 3; the three adds sit at the very END of set 2\'s own list', () => {
     expect(SETS.set3.own.some((c) => c.id === 'dw3_striker')).toBe(true);
     const own = SETS.set2.own.map((c) => c.id);
-    expect(own.slice(-3)).toEqual(['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']);
+    // Later adds (Gasket, 2026-10-10) append AFTER these three, so pin their run, not the tail.
+    const at = own.indexOf('dw3_striker');
+    expect(own.slice(at, at + 3)).toEqual(['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']);
     const buyable = poolFor('set2').buyable.map((c) => c.id);
     for (const id of ['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']) expect(buyable, id).toContain(id);
   });

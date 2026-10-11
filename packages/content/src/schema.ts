@@ -238,6 +238,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onTribeAttackBuffAttacker',
   'rallyGrantKeywordRandomTribe', 'avengeGrantKeywordRandomTribe', 'onTribeAttackBuffAttackerAndSelf', 'onSummonBuffTribeAll', // owner beast/dragon batch 2026-09-24
   'onFriendlyDemonDamageBuffSelf',
+  'onFriendlyDemonDamageBuffTribe',
   'scPlayRubiesSelfAndAdjacentTribe',
   'onDamagedPlayRubiesSelfAndAdjacentTribe', // Kobe (2026-09-18)
   'rallyPlayRubiesSelf',
@@ -249,6 +250,7 @@ export const EffectFactoryIdSchema = z.enum([
   'minionSoldConsumeRightmost',
   'onConsumeBuffShop',
   'deathrattleDamageAllExceptTribe',
+  'rallyDamageAllExceptTribe',
   'deathrattleGrantWardRandom',
   'onConsumeSelfGrantSpell',
   'spellPlayRubiesAll',

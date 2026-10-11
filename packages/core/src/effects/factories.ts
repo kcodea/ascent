@@ -1076,6 +1076,47 @@ let scavversChainDepth = 0;
  * board, and any effect without a combat factory here is simply inert during
  * `simulate()` (see `registerEffects`).
  */
+/**
+ * THE "deal N to all minions except friendly <tribe>" SPRAY — one body, two triggers: Fel Spikes' Echo
+ * (`deathrattleDamageAllExceptTribe`) and Gasket's Rally (`rallyDamageAllExceptTribe`).
+ *
+ * Deals `amount` to EVERY minion on BOTH sides EXCEPT `self`'s friendly minions of `exceptTribe`. The exclusion is
+ * FRIENDLY-only — an ENEMY Demon is still hit.
+ *
+ * `passes` sprays fire as SEPARATE triggers (owner 2026-08-18: "deal 4 twice", not "deal 8 once"), so each pass
+ * shows independently and procs the demon-damage reactors on its own.
+ *
+ * CAPTURE the victims from what's on the board when this fire starts — INCLUDING bodies a prior fire already dropped
+ * to <=0 (their deaths are deferred by a surrounding echo scope, so `onBoard` still lists them), so the FINAL resolve
+ * sees the whole set. A body only takes damage from a volley while it is STILL above 0: once a volley drops it to <=0
+ * it stops getting hit (no overkill number, no further spike, no extra reactor proc — owner ruling 2026-08-22: "stop
+ * getting hit the instant its hp hits 0"), yet it STAYS on the board via the deferred death so it dies ONCE after the
+ * spray and a body that summons tokens on death (Void Panther → two Void Cubs) creates them AFTER all the damage,
+ * where no volley can catch them.
+ */
+function sprayDamageExceptFriendlyTribe(ctx: CombatContext, self: Minion, amount: number, exc: string, passes: number): void {
+  if (amount <= 0) return;
+  const victims: Minion[] = [];
+  for (const sideKey of ['player', 'enemy'] as Side[]) {
+    for (const m of ctx.onBoard(sideKey)) {
+      if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe))) continue;
+      victims.push(m);
+    }
+  }
+  if (victims.length === 0) return;
+  for (let pass = 0; pass < passes; pass++) {
+    const last = pass === passes - 1;
+    // Each pass is one presentation WAVE (a volley moment). `self` as the source: both users are Demons, so every
+    // landed hit registers as a friendly Demon dealing damage, procing the reactors — per volley.
+    ctx.wave(() => {
+      for (const m of victims) if (!m.dead && m.health > 0) ctx.damageDeferred(m, amount, self); // only ABOVE 0
+      // Resolve every death now, on the FINAL volley — after all the damage — so the tokens/consequences land
+      // once, after the spray, not between passes. (The cubs are summoned here; there is no wave after them.)
+      if (last) for (const m of victims) ctx.resolveEchoDeath(m, self);
+    });
+  }
+}
+
 export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /**
    * ── "WHEN A CARD IS ADDED TO YOUR HAND", IN COMBAT (owner report 2026-08-29) ───────────────────────────
@@ -4397,6 +4438,32 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — "When a Demon deals damage, give your <tribe> minions +a/+h" (Rad Rachel 2026-10-10: every friendly
+   *  minion; Ruinous Lord: your Demons, `tribe: 'demon'`). The SAME trigger as Impossible Todd
+   *  (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon, attack, retaliation or incidental, its own hits
+   *  included; a Ward-absorbed 0-damage hit never fires). Pays every LIVING friendly minion (of `tribe` when given;
+   *  omitted = all of them, the source included). Gilded doubles via `mul`.
+   *
+   *  PERMANENCE (owner ruling 2026-10-11, R-BUFF-PHASE-01): "it is combat only if triggered in combat, if a minion
+   *  is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be
+   *  permanent." This combat half is a plain `ctx.buff`: no permaGain, so it ends with the fight except on an
+   *  Engraved body (the standing carry-back). The Shop half (recruit.ts) is a permanent `addBuff`.
+   *
+   *  One trigger = one run of `buff` events, which the replay collapses into one buff-wave moment (inside a Gasket /
+   *  Fel Spikes wave it rides that pass's wave moment), and the tendril channel groups per (source, target), so many
+   *  procs in one beat draw one tendril per minion, never one per proc. */
+  onFriendlyDemonDamageBuffTribe: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (!a && !h) return;
+    const tribe = str(params.tribe);
+    const arena = combatArena(ctx, self);
+    for (const m of ctx.living(self.side)) if (!tribe || arena.isTribe(m, tribe)) ctx.buff(m, a, h, self.uid);
+  },
+
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent
    *  same-`tribe` neighbour. Threads `permanent: true` through `playRubyOn`, so the gain carries back to the
    *  run board (see `applyRubyStats`); golden doubles `count`. */
@@ -4442,36 +4509,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  like an Echo multiplier (Sylus) firing the Deathrattle again. */
   deathrattleDamageAllExceptTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const amount = num(params.amount, 1);
-    if (amount <= 0) return;
-    const exc = str(params.exceptTribe);
-    const passes = mul(self); // gilded → 2 sprays; each Echo re-trigger (Sylus / Echohorn) calls this again
-    // CAPTURE the victims for THIS fire from what's still on the board — INCLUDING bodies a prior fire already
-    // dropped to ≤0 (their deaths are deferred by the surrounding echo scope, so `onBoard` still lists them), so
-    // the FINAL resolve sees the whole set. But a body only takes damage from a volley while it is STILL above 0:
-    // once a volley drops it to ≤0 it stops getting hit (no overkill number, no further spike, no extra reactor
-    // proc — owner ruling 2026-08-22: "stop getting hit the instant its hp hits 0"), yet it STAYS on the board
-    // via the deferred death so it dies ONCE after the spray and a body that summons tokens on death (Void
-    // Panther → two Void Cubs) creates them AFTER all the damage, where no volley can catch them.
-    const victims: Minion[] = [];
-    for (const sideKey of ['player', 'enemy'] as Side[]) {
-      for (const m of ctx.onBoard(sideKey)) {
-        if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe))) continue;
-        victims.push(m);
-      }
-    }
-    if (victims.length === 0) return;
-    for (let pass = 0; pass < passes; pass++) {
-      const last = pass === passes - 1;
-      // Each pass is one presentation WAVE (a volley moment). `self` as the source: Fel Spikes is a Demon, so
-      // every landed hit registers as a friendly Demon dealing damage, procing the reactors — per volley.
-      ctx.wave(() => {
-        for (const m of victims) if (!m.dead && m.health > 0) ctx.damageDeferred(m, amount, self); // only ABOVE 0
-        // Resolve every death now, on the FINAL volley — after all the damage — so the tokens/consequences land
-        // once, after the spray, not between passes. (The cubs are summoned here; there is no wave after them.)
-        if (last) for (const m of victims) ctx.resolveEchoDeath(m, self);
-      });
-    }
+    sprayDamageExceptFriendlyTribe(ctx, self, num(params.amount, 1), str(params.exceptTribe), mul(self));
+  },
+
+  /** Set 2 — Gasket (Rally, owner add 2026-10-10): each time THIS minion attacks, deal `amount` to EVERY minion on
+   *  BOTH sides EXCEPT friendly minions of `exceptTribe` (Demons). Gasket is a Demon, so it spares itself.
+   *
+   *  The SAME spray Fel Spikes' Echo fires (`sprayDamageExceptFriendlyTribe`), so every rule it carries holds here
+   *  too: each pass is its own presentation wave (Gilded "deals 2 damage twice" = two passes, each its own tick, per
+   *  the repeat rule), a pass hits every victim at once, a body at 0 stops taking hits, and the deaths resolve once
+   *  after the final pass. Gasket is the damage source, so every landed hit counts toward its Pummel and fires the
+   *  "when a friendly Demon deals damage" reactors (Leech, Axeman, Impossible Todd), per hit. A Ward absorbs the first
+   *  pass and pops. Fires on a forced Rally too (R-RALLY-FORCED-01): the dispatcher hands `{ minion: self }`. */
+  rallyDamageAllExceptTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack (or forced Rally) only
+    sprayDamageExceptFriendlyTribe(ctx, self, num(params.amount, 2), str(params.exceptTribe), mul(self));
   },
 
   /** Raven (owner batch 2026-09-24) — Rally: give a random other friendly `tribe` minion `keyword` (Execute).

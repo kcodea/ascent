@@ -263,6 +263,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onOtherDemonConsumeEcho:onConsume': { policy: 'foldedCue', family: 'react' },
   // ── Set 2 batch B (2026-08-18): new primitives ──
   'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Axeman
+  'factory:onFriendlyDemonDamageBuffTribe:friendlyDemonDealtDamage': { policy: 'ownBeat', family: 'react' }, // Rad Rachel / Ruinous Lord (2026-10-10): one buff-wave beat per trigger
   // Kobe (owner rework 2026-09-18): "when this takes damage" — the Rubies land through the standard Ruby-landed
   // cue inside the hit that caused them, the Target Dummy / Faultline Scrapper shape (a damage reaction, not a beat).
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
@@ -273,6 +274,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:minionSoldConsumeRightmost:minionSold': { policy: 'ownBeat', family: 'economy' }, // Grevlin & Co.
   'factory:onConsumeBuffShop:onConsume': { policy: 'foldedCue', family: 'react' }, // Enigma
   'factory:deathrattleDamageAllExceptTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Fel Spikes
+  'factory:rallyDamageAllExceptTribe:onAttack': { policy: 'ownBeat', family: 'rally' }, // Gasket (2026-10-10)
   'factory:avengeRubyStatGain:avenge': { policy: 'ownBeat', family: 'avenge' }, // Gem Portsmith (first live user)
   'factory:onRallyBuffOnePerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },

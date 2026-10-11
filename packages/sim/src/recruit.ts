@@ -6040,20 +6040,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  in the shop, same ruling as Blaster) EXCEPT your minions of `exceptTribe`. Bodies taken to 0 die here too,
    *  their own Echoes firing — mirroring the shop `damageAll`. */
   deathrattleDamageAllExceptTribe: (ctx, self, params) => {
-    const amount = num(params.amount, 1) * gold(self);
-    if (amount <= 0) return;
-    const exc = str(params.exceptTribe);
-    for (const c of [...ctx.state.board]) {
-      if (exc && isTribe(c, exc as never)) continue;
-      c.health -= amount;
-    }
-    const dead = ctx.state.board.filter((c) => c.health <= 0);
-    for (const d of dead) {
-      const idx = ctx.state.board.indexOf(d);
-      if (idx >= 0) ctx.state.board.splice(idx, 1);
-      fireOnFriendDeath(ctx.state, d); // owner ruling 2026-08-26: shop deaths notify on-death watchers
-    }
-    for (const d of dead) fireRecruitDeathrattles(makeContext(ctx.state), d);
+    shopSprayExceptTribe(ctx.state, num(params.amount, 1) * gold(self), str(params.exceptTribe), self);
+  },
+  /** Set 2 — Gasket (Rally), SHOP half: a forced Rally in the Shop (Rune of Lasting Cadence, R-RALLY-FORCED-01).
+   *  The Shop has no enemy, so "all minions except friendly Demons" is YOUR non-Demons — Fel Spikes' shop ruling
+   *  (and Blaster's, owner 2026-08-04), the same spray body. Gilded's two passes of 2 land as 4: there is no
+   *  enemy volley to pace and the deaths resolve once after the spray either way. */
+  rallyDamageAllExceptTribe: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    shopSprayExceptTribe(ctx.state, num(params.amount, 2), str(params.exceptTribe), self, gold(self));
+  },
+  /** Rad Rachel / Ruinous Lord, SHOP half: a friendly Demon dealt damage in the Shop (`fireShopDemonDealtDamage`).
+   *  PERMANENT, per the owner's phase ruling (2026-10-11, R-BUFF-PHASE-01): "if the effect is triggered in recruit
+   *  phase, it would be permanent." Every board minion (of `tribe` when given), this one included. Gilded doubles. */
+  onFriendlyDemonDamageBuffTribe: (ctx, self, params) => {
+    if (!ctx.state.board.includes(self)) return;
+    const a = num(params.attack, 0) * gold(self);
+    const h = num(params.health, 0) * gold(self);
+    if (!a && !h) return;
+    const tribe = str(params.tribe);
+    for (const c of ctx.state.board) if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), a, h);
   },
   // ARENA-BORN (Echo family): Nanon, Legion Shepherd's class.
   deathrattleSummonOverflowBuff: (ctx, self, params) => {
@@ -13448,6 +13454,49 @@ export function shopRallyExtras(state: RunState, card: BoardCard): number {
  * Callers own the beats. `applyEndOfTurn` fires one `fireShopRally` PER BEAT so each rally is allotted its
  * own animation window; this whole-board helper exists for a caller that wants the batch (and for tests).
  */
+/** The Shop half of "deal N to all minions except friendly <tribe>" (Fel Spikes' Echo, Gasket's Rally): the Shop has
+ *  no enemy, so YOUR board takes it except your `exc` minions. `passes` sprays (Gasket's Gilded "twice"); a body at 0
+ *  stops taking hits, and bodies taken to 0 die once after the spray, their own Echoes firing — mirroring the shop
+ *  `damageAll`. A Demon `source` dealing a landed hit is a friendly Demon dealing damage IN THE SHOP, so each hit fires
+ *  the Shop's Demon-damage watchers (`fireShopDemonDealtDamage`), the combat rule (one proc per landed hit). */
+function shopSprayExceptTribe(state: RunState, amount: number, exc: string, source?: BoardCard, passes = 1): void {
+  if (amount <= 0) return;
+  const victims = state.board.filter((c) => !(exc && isTribe(c, exc as never)));
+  const demonSource = !!source && isTribe(source, 'demon');
+  for (let p = 0; p < passes; p++) {
+    for (const c of victims) {
+      if (c.health <= 0 || !state.board.includes(c)) continue;
+      c.health -= amount;
+      if (demonSource) fireShopDemonDealtDamage(state, source!);
+    }
+  }
+  const dead = state.board.filter((c) => c.health <= 0);
+  for (const d of dead) {
+    const idx = state.board.indexOf(d);
+    if (idx >= 0) state.board.splice(idx, 1);
+    fireOnFriendDeath(state, d); // owner ruling 2026-08-26: shop deaths notify on-death watchers
+  }
+  for (const d of dead) fireRecruitDeathrattles(makeContext(state), d);
+}
+
+/**
+ * A friendly DEMON dealt damage in the SHOP (a Shop-fired Gasket Rally or Fel Spikes Echo): the recruit twin of
+ * combat's `friendlyDemonDealtDamage` emit, fired once per landed hit. Every board body's `friendlyDemonDealtDamage`
+ * effect that HAS a Shop body runs (today: `onFriendlyDemonDamageBuffTribe`, Rad Rachel / Ruinous Lord, permanent
+ * per R-BUFF-PHASE-01). The self-buff reactors (Leech / Axeman / Impossible Todd) have no Shop body yet, so they stay
+ * combat-only here. A board SNAPSHOT, so a watcher that dies mid-spray still answers the hits it saw.
+ */
+export function fireShopDemonDealtDamage(state: RunState, source: BoardCard): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'friendlyDemonDealtDamage') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: source }));
+    }
+  }
+}
+
 export function fireRallies(state: RunState): void {
   const ralliers = ralliersOf(state);
   for (const card of ralliers) {

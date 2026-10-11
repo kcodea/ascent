@@ -564,6 +564,7 @@ export type EffectFactoryId =
   | 'onTribeAttackBuffAttackerAndSelf' // Beev: when a friendly Beast attacks, buff it and this
   | 'onSummonBuffTribeAll' // Flo Rida: when you summon a Beast, buff your Beasts
   | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
+  | 'onFriendlyDemonDamageBuffTribe' // Set 2 — Rad Rachel / Ruinous Lord: when a friendly Demon deals damage, give your living (`tribe`) minions +a/+h (combat-only in combat, permanent in the Shop)
   | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — (Kobe's pre-2026-09-18 Start of Combat form): play N permanent Rubies on self + adjacent same-tribe
   | 'onDamagedPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (owner rework 2026-09-18): when THIS takes damage, play N permanent Rubies on self + adjacent same-tribe
   | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
@@ -575,6 +576,7 @@ export type EffectFactoryId =
   | 'minionSoldConsumeRightmost' // Set 2 — Grevlin & Co. (minionSold): every N sells, a Demon consumes the right-most Shop minion
   | 'onConsumeBuffShop' // Set 2 — Enigma (onConsume): when this consumes a minion, buff Shop minions permanently
   | 'deathrattleDamageAllExceptTribe' // Set 2 — Fel Spikes (Echo): deal N to all minions except FRIENDLY <tribe>
+  | 'rallyDamageAllExceptTribe' // Set 2 — Gasket (Rally): deal N to all minions except FRIENDLY <tribe> (Fel Spikes' spray)
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'
   | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion

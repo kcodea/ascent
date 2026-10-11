@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-11',
     changes: [
       {
+        category: 'Systems',
+        text: 'When a Demon deals damage, Rad Rachel, Ruinous Lord and Impossible Todd now show their buffs right away, with a tendril to each minion they buff.',
+        details: [
+          'Rad Rachel sends a Demon tendril to each minion she buffs. Ruinous Lord sends one to each Demon it buffs.',
+          'Gasket: each pass of its Rally lands, then those buffs play, then the next pass or its attack. A Gilded Gasket shows pass, buffs, pass, buffs, attack.',
+          'Fel Spikes works the same way: each volley lands, then its buffs play.',
+          'The same buffs in the Shop now show a tendril from each source, Ruinous Lord included.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Spell batch: cheaper spells, bigger buffs, a new Perfect Vision and a new Strange Revision. Two spells removed.',
         details: [

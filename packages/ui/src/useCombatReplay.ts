@@ -29,6 +29,7 @@ import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { wavesAheadOf } from './choreo/channels/windupWaves';
+import { HIT_REACTION_LEAD_MS, HIT_REACTION_READ_MS, hitReactionStart } from './choreo/hitReactions';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -1056,6 +1057,17 @@ const parkedContactRef: { current: (() => void) | null } = { current: null };
  *  than any strike drive (130–190 ms) plus its rebound, so a real contact always wins. */
 const PARKED_RESUME_FALLBACK_MS = 900;
 
+/** Does wave `wave` (its contiguous slice, found from `from`) split off a hit-reaction beat? The same predicate the
+ *  compiler uses (`hitReactionStart`), so the volley schedule and the moment list agree. */
+function waveHasHitReaction(events: CombatEvent[], wave: number, from: number): boolean {
+  let a = -1;
+  for (let j = Math.max(0, from); j < events.length; j++) if (events[j]?.wave === wave) { a = j; break; }
+  if (a < 0) return false;
+  let b = a;
+  while (b < events.length && events[b]!.wave === wave) b++;
+  return hitReactionStart(events, a, b) > a;
+}
+
 /** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
  *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
 function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
@@ -1083,6 +1095,9 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
     if (e?.type === 'death' && e.target === src) return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
     if (e?.type === 'rally' && e.target === src) return ECHO_RALLY_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
   }
+  // After the previous volley's REACTION beat (R-DEMON-DMG-BEATS-01): hold until its tendrils have read; the spike
+  // schedule (`scheduleEchoVolleys`) was pushed back by the same amount, so this volley still lands on its spike.
+  if (shown.hitReaction) return HIT_REACTION_READ_MS;
   // A SUBSEQUENT volley of the same spray (the sprayer died in an EARLIER beat): its spike connects one
   // pass-gap after the previous one, so hold that long — the number climbs by this volley's amount as it lands.
   return ECHO_PASS_GAP_MS;
@@ -1121,7 +1136,14 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
   if (!canPlayDefs()) return;
   const s = speed > 0 ? speed : 1;
   const impactMs = projectileImpactMs(defId);
+  // A volley whose hits fired an `ownBeat` reaction (R-DEMON-DMG-BEATS-01: Rad Rachel / Ruinous Lord / Todd) is
+  // followed by that reaction's own beat, so the NEXT volley's damage beat comes `LEAD + READ` after it instead of
+  // one pass gap (see `echoDeliveryLead`). Each later spike is pushed back by that difference so it still connects
+  // on its own damage beat.
+  let reactedBefore = 0;
   echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
+    const reactionShift = reactedBefore * (HIT_REACTION_LEAD_MS + HIT_REACTION_READ_MS - ECHO_PASS_GAP_MS);
+    if (waveHasHitReaction(events, wv.wave, startIdx)) reactedBefore++;
     // Did THIS wave deal any actual damage (a number fires)? Gates the land cue — a fully ward-absorbed volley
     // (only `shield` pops, no number) stays silent (see `echoWaveDamagedCount`).
     const dealtDamage = echoWaveDamagedCount(events, dyingUid, wv.wave, startIdx, endIdx) > 0;
@@ -1133,7 +1155,7 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
         if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
       });
     };
-    const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS) / s;
+    const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS + reactionShift) / s;
     if (delay <= 0) fire();
     else register(window.setTimeout(fire, delay));
     // Land cue: ONE play per volley, timed to when its spikes CONNECT (launch + beam travel), only if the volley

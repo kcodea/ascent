@@ -263,8 +263,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onOrbitBuffShopRightmost:orbitFired': { policy: 'foldedCue', family: 'orbitReact' },
   'factory:onOtherDemonConsumeEcho:onConsume': { policy: 'foldedCue', family: 'react' },
   // ── Set 2 batch B (2026-08-18): new primitives ──
-  'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Axeman
-  'factory:onFriendlyDemonDamageBuffTribe:friendlyDemonDealtDamage': { policy: 'ownBeat', family: 'react' }, // Ruinous Lord (2026-10-10): one buff-wave beat per trigger, every Demon's +1/+1 inside it
+  // "A Demon dealt damage -> buff" reactions (R-DEMON-DMG-BEATS-01, owner 2026-10-11: "when a minion is buffed from dmg
+  // dealt by demons, it should have its beat happen in real time"). `ownBeat` is load-bearing in combat: a wave pass
+  // (Gasket's Rally, Fel Spikes) whose hits fired one of these splits its reactions into their OWN beat right after
+  // that pass lands and before anything after it (`choreo/hitReactions.ts`). Impossible Todd / Leech / Axeman were
+  // `foldedCue` until 2026-10-11; Todd's Imp buff is the same family as Rachel's, so all three now take the beat.
+  'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'ownBeat', family: 'react', reason: 'a reaction to a landed Demon hit: its own beat right after the hit (R-DEMON-DMG-BEATS-01)' }, // Impossible Todd / Leech / Axeman
+  'factory:onFriendlyDemonDamageBuffTribe:friendlyDemonDealtDamage': { policy: 'ownBeat', family: 'react' }, // Ruinous Lord / Rad Rachel: one tendril beat per hit (per Gasket pass), from the source to each minion it buffs
   // Kobe (owner rework 2026-09-18): "when this takes damage" — the Rubies land through the standard Ruby-landed
   // cue inside the hit that caused them, the Target Dummy / Faultline Scrapper shape (a damage reaction, not a beat).
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash

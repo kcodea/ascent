@@ -150,4 +150,27 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-11.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/gasketBeats.test.ts', 'packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-10-11' },
   },
+  {
+    id: 'R-DEMON-DMG-BEATS-01',
+    title: 'A buff a Demon\x27s landed hit causes plays at that hit, with a tendril from its source, before anything after it',
+    statement:
+      'When a friendly Demon\x27s landed hit fires a reaction that buffs (Rad Rachel, Ruinous Lord, Impossible Todd, Leech, '
+      + 'Axeman), that reaction presents in real time, at the hit: a tendril of the source\x27s tribe flies from the source to '
+      + 'each minion it buffs (one per buffed minion per source per hit, merged when one hit or one pass fires it many '
+      + 'times), and the number lands with it. For a wave pass (Gasket\x27s Rally, a Fel Spikes volley) the pass lands, '
+      + 'then its reactions play as their own beat, then the next pass or the parked swing\x27s strike: Gilded Gasket is '
+      + 'pass, reactions, pass, reactions, strike. A melee hit\x27s reactions play right after the clash, before the next '
+      + 'attack. The Shop presents the same reactions as their own nested beats under the hit, one tendril per (pass, '
+      + 'source, minion). Presentation only: the engine already resolves each buff at its hit, and nothing about the '
+      + 'outcome changes.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-11 (Rad Rachel tendrils, real-time Demon-damage buffs)', quote: 'with gasket, when gasket winds up and ralliy procs, damaging the units it does, rad rachel\x27s tendrils should go out THEN, before the gasket\x27s attack goes off' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/hitReactions.ts hitReactionStart; packages/ui/src/choreo/compile.ts + combatBeats.ts buildBeats (the wave split); packages/ui/src/choreo/clock.ts holdMs (lead + read); packages/ui/src/useCombatReplay.ts echoDeliveryLead/scheduleEchoVolleys; packages/core/src/presentation/policies.ts (ownBeat on the friendlyDemonDealtDamage reactions); packages/sim/src/recruit.ts fireShopDemonDealtDamage' },
+    ],
+    contentIds: ['dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_gasket', 'dm_felspikes'],
+    currentBehaviour: 'Conforms as of 2026-10-11. Before, a pass folded its reactions into the hit: no tendril, and the numbers appeared when the stat hold timed out.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/demonDamageBeats.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
 ];

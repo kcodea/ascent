@@ -1,4 +1,5 @@
 import type { CombatEvent } from '@game/core';
+import { hitReactionStart } from './choreo/hitReactions';
 
 /**
  * Group the combat event log into **beats** for the replay clock. A beat is one "moment" shown for a fixed
@@ -111,6 +112,14 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
       // whole pass reads as ONE simultaneous moment, and the next pass (a new id) becomes its own moment with a
       // pause before it. This runs BEFORE the type rules so a wave is never split by an interleaved reactor buff.
       while (i < events.length && events[i]!.wave === w) i++;
+      // …except its trailing `ownBeat` hit reactions, which are their own beat after the pass (R-DEMON-DMG-BEATS-01).
+      // Mirrors the wave branch of `compileMoments`.
+      const split = hitReactionStart(events, start, i);
+      if (split > start) {
+        beats.push({ start, end: split, primary: events[start]! });
+        beats.push({ start: split, end: i, primary: events[split]! });
+        continue;
+      }
     } else if (RESULT_TYPES.has(t)) {
       while (i < events.length && events[i]!.wave === undefined && RESULT_TYPES.has(events[i]!.type)
         && !(i > start && opensSwing[i])) i++; // group the impact

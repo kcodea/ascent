@@ -245,8 +245,18 @@
    foot; the name used to run under it). The lift is on EVERY skin tile, not only the equipped one, so the names
    in a row stay on one line. `paint-order` puts the stroke BEHIND the fill, so the 2px stroke shows 1px outside
    the glyph and never thins the letters. An unowned name is blurred, so it takes neither. All static. A
-   portrait frame's tile (`.ring`) is laid out around its ring and is left alone. */
-.colls-tile.skin:not(.ring) { padding-bottom: 32px; }
+   portrait frame's tile (`.ring`) is laid out around its ring and is left alone.
+
+   THE BAND (owner, same day: "a dark square that stretches across from one edge ... to the other ... opacity
+   only 15% or so ... edges faded out"): `.colls-tile-text` wraps the three lines. Everywhere else it is
+   `display: contents`, so no other tile's layout changes. On a skin tile it is the band: it bleeds through the
+   tile's 14px side padding to reach both edges, is 15% dark, and its top and bottom 14px fade to nothing. Its
+   own 14px bottom padding plus the tile's 18px keeps the name 32px off the foot, clear of the ribbon. */
+.colls-tile-text { display: contents; }
+.colls-tile.skin:not(.ring) { padding-bottom: 18px; }
+.colls-tile.skin:not(.ring) .colls-tile-text { position: relative; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin: 0 -14px; padding: 14px;
+  background: linear-gradient(180deg, rgba(4, 8, 18, 0) 0, rgba(4, 8, 18, 0.15) 14px, rgba(4, 8, 18, 0.15) calc(100% - 14px), rgba(4, 8, 18, 0) 100%); }
 .colls-tile.skin:not(.ring) .colls-tile-for, .colls-tile.skin:not(.ring) .colls-tile-rar, .colls-tile.skin.owned:not(.ring) .colls-tile-name {
   -webkit-text-stroke: 2px #000; paint-order: stroke fill;
   text-shadow: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); }

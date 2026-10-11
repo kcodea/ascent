@@ -36,10 +36,13 @@ const CATALOG_INDEX = new Map(COSMETICS.map((c, i) => [c.id, i]));
  *  from collections for now"). A hidden category still appears the moment the server switches it on. */
 export const HIDDEN_WHEN_OFF: ReadonlySet<CosmeticCategory> = new Set<CosmeticCategory>(['board', 'music']);
 
+const RAIL_LAST: ReadonlySet<CosmeticCategory> = new Set<CosmeticCategory>(['announcer']);
 /** The categories in rail order: the live ones first, then the ones switched off (a function: the server's switch
  *  can change which are live while the game runs). */
 export const collectionCategories = (): CosmeticCategory[] => [
-  ...COSMETIC_CATEGORIES.filter((c) => isCategoryLive(c)),
+  ...COSMETIC_CATEGORIES.filter((c) => isCategoryLive(c) && !RAIL_LAST.has(c)),
+  // Announcers keep the last seat on the rail, where the tab sat while it was "Soon" (it went live 2026-10-11).
+  ...COSMETIC_CATEGORIES.filter((c) => isCategoryLive(c) && RAIL_LAST.has(c)),
   ...COSMETIC_CATEGORIES.filter((c) => !isCategoryLive(c) && !HIDDEN_WHEN_OFF.has(c)),
 ];
 /** The rail order at load (the bundled flags only). Prefer `collectionCategories()`. */
@@ -73,12 +76,13 @@ export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS, ow
 export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | null | undefined): readonly string[] => p?.cosmetics ?? p?.titles ?? [];
 
 /** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
- *  account-wide hero attack / portrait frame slot. */
+ *  account-wide hero attack / portrait frame / announcer slot. */
 export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
   if (!p) return false;
   if (item.category === 'title') return p.equippedTitleId === item.id;
   if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;
   if (item.category === 'portrait_frame') return p.loadout?.portraitFrame === item.id;
+  if (item.category === 'announcer') return p.loadout?.announcer === item.id;
   const target = item.target?.id;
   if (!target) return false;
   if (item.category === 'hero_skin') return p.loadout?.heroSkinByHeroId?.[target] === item.id;

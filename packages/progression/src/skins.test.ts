@@ -254,7 +254,7 @@ describe('the recorded snapshot', () => {
     expect(loadoutFromRows([
       { slot: 'hero_skin', targetId: 'albus', cosmeticId: 'skin_albus_1' },
       { slot: 'minion_skin', target_id: 'blackbelt', cosmetic_id: 'skin_blackbelt_2' },
-      { slot: 'announcer', targetId: '', cosmeticId: 'x' }, null, 'junk',
+      { slot: 'board', targetId: '', cosmeticId: 'x' }, null, 'junk', // a slot this client does not know is dropped
     ])).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' } });
     expect(loadoutFromRows(undefined)).toEqual({});
   });

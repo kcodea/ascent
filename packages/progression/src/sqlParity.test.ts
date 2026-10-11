@@ -42,16 +42,18 @@ const heroTitles = readFileSync(join(root, 'supabase/migrations/2026-09-29-hero-
 const gauntlet = readFileSync(join(root, 'supabase/migrations/2026-09-29-gauntlet-progress.sql'), 'utf8');
 // The portrait frames file (2026-10-01): the newest equip_cosmetic (the account-wide portrait_frame slot).
 const frames = readFileSync(join(root, 'supabase/migrations/2026-10-01-portrait-frames.sql'), 'utf8');
+// The announcer slot file (2026-10-11): the newest equip_cosmetic (the account-wide announcer slot).
+const announcerSlot = readFileSync(join(root, 'supabase/migrations/2026-10-11-announcer-slot.sql'), 'utf8');
 // The Ancient rarity file (2026-10-02): the newest progression_crate_pick + open_crate (five rarities, roll version 4).
 const ancient = readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8');
 // The placement XP file (2026-10-03, owner "+50% bonuses"): the newest settle_progression (Top 4 60, 1st 90).
 const placementXp = readFileSync(join(root, 'supabase/migrations/2026-10-03-placement-xp.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -188,7 +190,7 @@ describe('the migration shape', () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 
-  it('equip_cosmetic accepts exactly the TS equip slots, and the global slots (hero attack, portrait frame) only with the global target', () => {
+  it('equip_cosmetic accepts exactly the TS equip slots, and the global slots (hero attack, portrait frame, announcer) only with the global target', () => {
     const body = fnBody('equip_cosmetic');
     const slots = /p_slot not in \(([^)]*)\)/.exec(body)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'));
     expect(slots).toEqual([...EQUIP_SLOTS]);

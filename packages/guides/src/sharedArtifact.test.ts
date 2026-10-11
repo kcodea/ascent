@@ -34,10 +34,15 @@ describe('generated Deno copies of the guide rules', () => {
     expect(entry).not.toContain('@game/');
   });
 
-  it('REVIEW FOCUS 5: the entry refuses an oversized body before parsing it', () => {
+  it('the entry refuses an oversized body before parsing it, using the tested byte gate', () => {
     const entry = readFileSync(join(root, 'supabase/functions/guide-write/index.ts'), 'utf8');
-    expect(entry).toContain('GUIDE_LIMITS.bodyBytes');
+    expect(entry).toContain('guideBodyTooLarge(raw)');
+    expect(entry).not.toContain('raw.length');
+    expect(entry.toLowerCase()).toContain("headers.get('content-length')");
     expect(entry.indexOf('payload_too_large')).toBeGreaterThan(-1);
     expect(entry.indexOf('payload_too_large')).toBeLessThan(entry.indexOf('JSON.parse'));
+    const refusal = entry.indexOf("json(403, { error: 'sign_in_required' })");
+    expect(refusal).toBeGreaterThan(-1);
+    expect(refusal).toBeLessThan(entry.indexOf('req.text()'));
   });
 });

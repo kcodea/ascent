@@ -33,6 +33,11 @@ export const GUIDE_ERROR_STATUS: Readonly<Record<string, number>> = Object.freez
 
 type Log = (msg: string, detail?: unknown) => void;
 
+/** True when a request body is over the ceiling, measured in UTF-8 BYTES (not UTF-16 units: a body of 3-byte characters is three times its `length`). */
+export function guideBodyTooLarge(raw: string): boolean {
+  return new TextEncoder().encode(raw).length > GUIDE_LIMITS.bodyBytes;
+}
+
 /** Run one SQL function; a known refusal becomes its status, anything else a 500 the client may retry. */
 async function call(rpc: RpcCall, fn: string, args: Record<string, unknown>, log: Log): Promise<{ ok: true; data: unknown } | { ok: false; res: HandlerResponse }> {
   let res: Awaited<ReturnType<RpcCall>>;
@@ -60,8 +65,16 @@ export async function handleGuideWrite(userId: string | null, anonymous: boolean
   if (!userId) return { status: 401, body: { error: 'unauthenticated' } };
   if (anonymous) return { status: 403, body: { error: 'sign_in_required' } };
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { status: 400, body: { error: 'bad_body' } };
-  const o = body as Record<string, unknown>;
+  try {
+    return await dispatch(userId, body as Record<string, unknown>, rpc, log);
+  } catch (e) {
+    log('guide-write threw', e);
+    return { status: 500, body: { error: 'guide_failed' } };
+  }
+}
 
+/** The ops, for a caller already known to be a signed-in account and a body already known to be an object. */
+async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall, log: Log): Promise<HandlerResponse> {
   if (o.op === 'save') {
     const v = validateGuideDraft(o.guide);
     if (!v.ok) return { status: 422, body: { error: v.error, field: v.field } };

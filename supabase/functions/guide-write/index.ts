@@ -7,7 +7,8 @@
  * word filter and calls the SQL functions as the SERVICE ROLE. The `guides` tables have no client write policy, so
  * every guard here and in the SQL is unbypassable:
  *   - authenticated caller required, and NOT a guest: an anonymous session is refused `sign_in_required`;
- *   - 64 KB body ceiling, checked before the body is parsed;
+ *   - 64 KB body ceiling, measured in UTF-8 bytes (guideBodyTooLarge) and checked before the body is parsed; the
+ *     declared Content-Length is checked first, and identity failures are answered before the body is read at all;
  *   - a Team Ascent guide can be written only by an account in `guide_team` (checked in SQL).
  *
  * Deploy: `npx supabase functions deploy guide-write`, after running supabase/migrations/2026-10-12-guides.sql.
@@ -16,7 +17,7 @@
  */
 // @ts-nocheck: Deno globals + remote imports aren't visible to the repo's Node TypeScript config.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { handleGuideWrite } from '../_shared/guidesServer.ts';
+import { guideBodyTooLarge, handleGuideWrite } from '../_shared/guidesServer.ts';
 import { GUIDE_LIMITS } from '../_shared/guidesTypes.ts';
 
 const CORS: Record<string, string> = {
@@ -45,9 +46,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const userId = user ? user.id : null;
   const anonymous = user ? user.is_anonymous === true : false;
 
-  // Size gate BEFORE parsing: read the raw text and measure it.
+  // Identity failures are answered BEFORE the body is read (the handler keeps its own checks too).
+  if (!userId) return json(401, { error: 'unauthenticated' });
+  if (anonymous) return json(403, { error: 'sign_in_required' });
+
+  // Size gate BEFORE parsing: refuse a declared oversize without reading it, then measure the real bytes.
+  const declared = Number(req.headers.get('content-length') ?? '0');
+  if (Number.isFinite(declared) && declared > GUIDE_LIMITS.bodyBytes) return json(413, { error: 'payload_too_large', maxBytes: GUIDE_LIMITS.bodyBytes });
   const raw = await req.text();
-  if (raw.length > GUIDE_LIMITS.bodyBytes) return json(413, { error: 'payload_too_large', maxBytes: GUIDE_LIMITS.bodyBytes });
+  if (guideBodyTooLarge(raw)) return json(413, { error: 'payload_too_large', maxBytes: GUIDE_LIMITS.bodyBytes });
   let body: unknown;
   try { body = JSON.parse(raw); } catch { return json(400, { error: 'bad_body' }); }
 

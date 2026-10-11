@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { handleGuideWrite, type RpcCall } from './server';
+import { guideBodyTooLarge, handleGuideWrite, type RpcCall } from './server';
+import { GUIDE_LIMITS } from './types';
 
 const UID = '00000000-0000-0000-0000-00000000000b';
 const GID = '11111111-1111-4111-8111-111111111111';
@@ -32,6 +33,30 @@ describe('handleGuideWrite: who', () => {
     expect((await handleGuideWrite(UID, false, 'nope', f.rpc)).body).toEqual({ error: 'bad_body' });
     expect((await handleGuideWrite(UID, false, { op: 'publishEverything' }, f.rpc)).body).toEqual({ error: 'bad_op' });
     expect(f.calls).toEqual([]);
+  });
+});
+
+describe('guideBodyTooLarge', () => {
+  it('measures UTF-8 bytes: exactly the ceiling passes, one more fails', () => {
+    expect(guideBodyTooLarge('a'.repeat(GUIDE_LIMITS.bodyBytes))).toBe(false);
+    expect(guideBodyTooLarge('a'.repeat(GUIDE_LIMITS.bodyBytes + 1))).toBe(true);
+  });
+  it('a body of 3-byte characters is too large even though its length is well under the limit', () => {
+    const cjk = String.fromCharCode(0x4e2d).repeat(Math.floor(GUIDE_LIMITS.bodyBytes / 3) + 1);
+    expect(cjk.length).toBeLessThan(GUIDE_LIMITS.bodyBytes);
+    expect(guideBodyTooLarge(cjk)).toBe(true);
+  });
+});
+
+describe('handleGuideWrite: never throws', () => {
+  it('a guide whose getter throws is a 500 guide_failed and makes no rpc call', async () => {
+    const f = fake();
+    const logged: string[] = [];
+    const evil = Object.defineProperty({}, 'title', { enumerable: true, get() { throw new Error('boom'); } });
+    const res = await handleGuideWrite(UID, false, { op: 'save', guide: evil }, f.rpc, (m) => logged.push(m));
+    expect(res).toEqual({ status: 500, body: { error: 'guide_failed' } });
+    expect(f.calls).toEqual([]);
+    expect(logged).toEqual(['guide-write threw']);
   });
 });
 
@@ -90,6 +115,20 @@ describe('handleGuideWrite: importBuiltIns', () => {
     expect(f.calls[0]!.fn).toBe('guide_import_builtins');
     expect(docs.map((d) => d.slug)).toEqual(['set2-beast-sunmane', 'set2-beast-oona']);
     expect(docs.every((d) => d.official === true)).toBe(true);
+  });
+  it('overrides a caller-supplied official: false and id on every entry', async () => {
+    const f = fake({ data: { inserted: 2, skipped: 0 } });
+    const forged = [
+      { ...builtIn, official: false, id: GID },
+      { ...builtIn, slug: 'set2-beast-oona', official: false, id: '22222222-2222-4222-8222-222222222222' },
+    ];
+    await handleGuideWrite(UID, false, { op: 'importBuiltIns', guides: forged }, f.rpc);
+    const docs = f.calls[0]!.args.p_docs as Array<Record<string, unknown>>;
+    expect(docs).toHaveLength(2);
+    for (const d of docs) {
+      expect(d.official).toBe(true);
+      expect(d.id).toBeNull();
+    }
   });
   it('refuses a missing slug, an empty list and more than 50', async () => {
     const f = fake();

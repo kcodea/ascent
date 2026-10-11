@@ -160,11 +160,20 @@ Guides (Team Ascent's and, from the next steps, players') live in `public.guides
 2. **Add the team, once.** In the SQL Editor, with the two real emails typed in (never commit them):
    `insert into public.guide_team (user_id) select id from auth.users where email in ('<mike>', '<kc>') on conflict do nothing;`
    Then check it took: `select count(*) from public.guide_team;` should say 2.
+   Also check that the write locks took. Each of these two queries should answer `f` (false):
+   `select has_function_privilege('authenticated', 'public.guide_save(uuid, jsonb)', 'execute');`
+   `select has_table_privilege('authenticated', 'public.guides', 'insert');`
+   Why check by hand: the tests model Supabase's default grants rather than using the real ones, so only the live
+   project can show that the migration's revokes beat them.
 3. **Deploy the function.** `npx supabase functions deploy guide-write`.
+   Deploying `guide-write` lets any signed-in account save PRIVATE guides by calling the function directly, before
+   the editor exists; deploy it with the editor (step 2) unless you want it earlier.
 
 Until step 1 runs, the client reads "relation does not exist", treats guides as switched off, and shows its built-in
 guides: shipping the client first is safe. Until the built-in guides are imported (a team-only button that arrives
-with the editor), the table has no official rows and every player still sees the built-in guides.
+with the editor), the table has no official rows and every player still sees the built-in guides. Import the built-in
+guides BEFORE creating any new Team Ascent guide, because the moment the server has one usable official guide the
+client shows the server's list instead of the eleven built-in ones.
 
 `functions/guide-write` imports `_shared/guides*.ts`, which are GENERATED from `packages/guides/src` by
 `npm run guides:shared` (CI fails if they drift, so never edit them by hand). The function is the only writer: the

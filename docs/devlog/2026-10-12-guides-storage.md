@@ -29,7 +29,9 @@ player sees changes yet: the editor is step 2, publishing step 3, moderation ste
   guides (`guides.bundled.ts`) show until the server answers with at least one usable guide. The rail takes its
   snapshot in a layout effect, before paint, when its Guides view opens, so a refresh never moves a card under the
   reader; the Compendium subscribes.
-- **Sets**: a guide carries `sets` instead of one `set`. `guidesFor` filters on it.
+- **Sets**: a guide carries `sets` instead of one `set`. `guidesFor` filters on it. One built-in guide (Ale) now
+  also qualifies for Set 3 under the carry-over rule, which is invisible while Set 3 is not live; Set 2's guides and
+  their order are unchanged.
 - **A card that left**: its portrait stays in the row, greyed and labelled "Missing or removed", with no hover. The
   slot is inert for every part of the card (a spell's cost coin re-enables pointer events otherwise), and a nickname
   for a missing card is not linked.
@@ -48,9 +50,13 @@ player sees changes yet: the editor is step 2, publishing step 3, moderation ste
    player's guides do not linger. `updated_by` still records the last editor.
 7. The invisible-character set is wider than first planned: zero-width characters, the bidi controls including the
    isolates (U+2066 to U+2069, U+061C), and blank-rendering fillers (U+00AD, U+034F, U+180E, U+2800, U+3164,
-   U+FFA0). A title made only of them is refused.
+   U+FFA0, the Hangul fillers U+115F and U+1160, the Khmer inherent vowels U+17B4 and U+17B5). A title made only of
+   them is refused. The set also strips U+200C and U+200D, which splits joined emoji and affects Persian and Indic
+   text; acceptable for an English-language game. The emoji variation selectors (U+FE00 to U+FE0F) are left alone.
 8. Reserved "by" lines are compared with repeated letters collapsed, so "Teaam Ascent" and "Aadmin" are refused too.
 9. A server row tagged with the tribe `neutral` is treated as a Neutral guide rather than dropped.
+10. Card ids and nicknames `__proto__`, `constructor` and `prototype` are refused by the server and treated as
+    unknown cards by the client, because the card index is a plain object.
 
 ## Owner actions before step 2 can be used
 
@@ -62,6 +68,8 @@ Run the migration, add the two team accounts, deploy `guide-write` (`supabase/RE
   and suffixed forms of whole-word entries, and non-Latin lookalike letters (which also get past the Team Ascent
   reservation). Nothing public depends on it until publishing ships in step 3; the owner reviews the list before
   then. Report and Hide (step 4) are the real defence.
+- "!" inside a word is read as the letter i, at the end of a word it is punctuation; whole-word matching also blocks
+  innocent uses such as a name containing a listed word.
 - The look of the "Missing or removed" slot is a first cut that has not been judged in a real render.
 - The advisory lock cannot be raced in PGlite (one connection), so it is verified by reading, not by a test.
 - Deleting an imported built-in guide is undone by the next import.
@@ -70,3 +78,30 @@ Run the migration, add the two team accounts, deploy `guide-write` (`supabase/RE
 
 Row-level security and the write functions are executed against PGlite, not the live project. The live check (a
 private guide unreadable by a second account) is in the step 2 plan, when there is a way to create one.
+
+The three local test timeouts in `packages/ui/src/audio/master.test.ts` and `packages/ui/src/audioDefaultMix.test.ts`
+fail identically on the code from before this branch on the development machine; CI is the gate.
+
+## Carried to the next steps
+
+Step 2 (the editor):
+
+- A team edit of a Team Ascent guide must send `official: true` (the server refuses a mismatch rather than ignoring
+  it).
+- The built-in import must run before any new Team Ascent guide is created.
+- Treat the capability `unknown` as not on.
+- Re-read guides on an identity change even while a read is in flight.
+- The live two-account check of row-level security.
+- The owner's look at the "Missing or removed" slot before the first import makes it reachable.
+
+Step 3 (publishing):
+
+- Publishing must re-run the text rules on the stored guide, because the word list will have changed since it was
+  saved.
+- The owner's word-list review.
+- Player titles imitating Team Ascent.
+
+Step 4 (moderation):
+
+- A hidden Team Ascent guide stays readable.
+- "Based on" snapshots outlive a hidden source.

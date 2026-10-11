@@ -16,14 +16,15 @@ Owner adds of 2026-10-10 (Set 2 Demons), shipped together in PR #2026.
 - **Shop (judgement call, flagged).** A forced Rally in the Shop (Lasting Cadence etc., R-RALLY-FORCED-01) hits YOUR
   non-Demons only. There is no enemy in the Shop, and this is the Fel Spikes / Blaster shop ruling. The damage is
   permanent Shop damage, so the owner may prefer a no-op instead.
-- Appended to `SET2_DEMONS_LATE`, so no seeded pool position moved.
+- Gasket and Rachel live in `SET2_DEMONS_1011`, appended after the rune-only Ruinous Lord, so no seeded pool
+  position moved.
 
 ## Rad Rachel (`dm_radrachel`, T6 8/10 Demon)
 
 "When a Demon deals damage, give your minions +2/+1." Gilded +4/+2. Every living friendly minion, Rachel included.
 
-- Shares `onFriendlyDemonDamageBuffTribe` with Ruinous Lord (`feat/rune-ruinous`, #2024). Here `tribe` is optional:
-  omitted means every friendly minion. Whichever PR lands second resolves an identical-name conflict.
+- Reuses `onFriendlyDemonDamageBuffTribe` from Ruinous Lord (#2024, merged first) with `tribe` omitted, which means
+  every friendly minion. The Shop spray helpers and R-BUFF-PHASE-01 are main's; this PR adds Rachel to that rule.
 - **Permanence, owner ruling 2026-10-11 (R-BUFF-PHASE-01, persistence domain):** "it is combat only if triggered in
   combat, if a minion is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it
   would be permanent." Combat half is a plain `ctx.buff` (Engraved carry-back applies). Shop half is a permanent

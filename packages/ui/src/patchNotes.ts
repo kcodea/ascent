@@ -71,6 +71,14 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Long fights stay smooth. The combat speed-up no longer slows the screen down.',
+        details: [
+          'While a long fight sped up, the game redrew the whole screen every frame. A big fight could drop to about 35 frames a second. It now holds full speed.',
+          'Playing a card from your hand does less work behind the scenes, so that frame finishes sooner.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Spell batch: cheaper spells, bigger buffs, a new Perfect Vision and a new Strange Revision. Two spells removed.',
         details: [

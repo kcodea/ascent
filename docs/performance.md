@@ -719,8 +719,8 @@ numbers and the method are in `docs/devlog/2026-10-10-gameplay-perf-recruit.md`.
   a variable that can hold a non-length, or that something transitions with `transition: all`.
 - **Style cost per element is the recruit ceiling.** Even after that, a full restyle is ~13 ms for ~1,100 elements,
   and a play or sell restyles 300-400 of them (~25-30 us each). Deleting only the ~280 matched rules that use `var()`
-  takes the full restyle to ~2 ms, so the cost is `var()` substitution in the card's own rules. The structural fix
-  (card-internal geometry on container-query units instead of `var(--ccw)` maths) is a proposal, not shipped.
+  takes the full restyle to ~2 ms. (Superseded by §3h: deletion also removes what renders. Rewriting the values
+  halves a cache-miss restyle, and container-query units made it slower, not faster.)
 - **Three hidden whole-document restyles, now gone.** (1) A universal, inherited rule on a body class
   (`body.dragging * { cursor }`) restyles everything when the class flips: the cursor is now a veil element
   (`dragCursorVeil.ts`). (2) GSAP `Flip.from` writes `width` / `overflow-y` onto `<body>` and removes them again on
@@ -758,6 +758,44 @@ last pointermove.
   setter by `particleTintFastPath.test.ts`).
 - **`getImageData` on a default 2D canvas is a GPU readback** (a synchronous flush; ~74 ms for the charge glyph's
   300x118 sample). Use `{ willReadFrequently: true }` for a canvas you read, and cache what you derive from it.
+
+## 3h. Restyle pass, 2026-10-11: what a restyle actually costs, and two whole-tree restyles
+
+Measured on PROD bench builds (heavy shop scenario, and a 7-Demon Rad Rachel fight), driven over CDP. Numbers and
+method: `docs/devlog/2026-10-11-restyle-pass.md`.
+
+- **A restyle costs per element, and it depends on the style cache.** Blink's matched-properties cache lets an
+  element that matches the same rules as one it already styled copy that result (~3 us an element). A new card
+  usually misses it (its own inline art/colour values), and a miss costs ~15 us an element on our card rules. A
+  roll or a play restyles 200-400 elements, so 3-8 ms.
+- **`var()` costs per reference, whatever the variable.** Replacing every `var()` with its literal value halves a
+  cache-miss restyle (15 -> 8 us an element). A registered size variable (`--ccw`) costs about the same as a colour
+  or a tuner knob, so a size-only rewrite buys a sixth of that.
+- **Container query units do NOT make it cheaper.** With `container-type` on each card and its geometry in `cqw`, a
+  card remount went from 8.1 to 13.9 ms: Blink restyles a container's descendants during LAYOUT, after sizing the
+  container. `container-type` alone made a cache-miss restyle cost ~20 us an element instead of 15. Keep
+  container units for genuinely container-sized layouts (Hall warbands), not as a way around `var()`.
+- **Deleting rules is not a measurement.** "Delete the matched `var()` rules" read as 13.4 -> 1.9 ms, but it also
+  deletes what renders. Rewrite the values instead (freeze each `var()` to its computed value) when you want to
+  know what a rule shape costs.
+- **Never write a custom property on `<html>` per frame.** The combat auto-ramp wrote `--combat-speed` and every
+  float var onto the root each frame for up to ~20 s of a long fight. Every root custom-property write restyles
+  the whole document (~1,000 elements, ~19 ms). A Rad Rachel fight sat at 30-40 fps. Now it holds 205-240. The
+  ramp records the live speed in memory, and the elements that animate at that speed stamp it on themselves when
+  they start (`speedVars`, floatConfig.ts). Re-setting an UNCHANGED value still invalidates, so root writers skip
+  equal values.
+- **A JS write of a custom property on a card restyles the card's whole subtree** if the property inherits. When
+  only the card's own rule reads it (`--hand-glide`), register it `inherits: false`: a write then restyles one
+  element instead of ~45.
+- **Read every position, then write.** The hand-glide seed read `offsetLeft` after writing the previous card's
+  seed: ~16 forced restyles inside one play. Reading first and writing after cut a play's long task from ~30 to
+  ~20 ms.
+- **A running CSS animation costs a main-thread restyle of its element every frame**, even a composited
+  transform/opacity one (Chrome ticks it on the main thread). A heavy board's 43 idle animations cost ~0.15 ms a
+  frame. It grows with the count, so do not add a looping animation per card where one shared element would do.
+- **Decoding art ahead does not fix a roll.** Pre-decoding the next roll's art removed all ~60 ms of decode work
+  but not one frame over budget: a roll's long frames are its React commit and the GPU upload of full-size art.
+  Card-size art would fix the upload, and it is an owner decision (it changes how art is delivered).
 
 ## 4. Established anti-patterns (don't reintroduce these)
 
@@ -874,6 +912,13 @@ These are the rules the audits surfaced; the codebase already follows them — k
 
 - **Never put a `filter` / `mask` on an element that animates a transform or opacity, or on its composited
   parent.** It becomes a GPU render pass every frame. Static paint goes on a non-composited child (§3f).
+- **Never write a custom property on `<html>` (or `<body>`) per frame or per beat.** It restyles the whole document.
+  Stamp the value on the elements that use it when they start (§3h, `speedVars`), and skip a write whose value did
+  not change.
+- **No `calc()` chains on custom properties in per-element card styles, and no container units as a substitute.**
+  Each `var()` reference costs on every cache-miss restyle (§3h). Prefer a literal; when a value must scale, register
+  the variable (`@property`) so it is computed once where it is declared. A JS-written per-card variable that only
+  the card's own rule reads is registered `inherits: false`.
 - **Never toggle a universal or inherited rule on `<body>` / `:root` in a hot path** (`body.x * {…}`, a body cursor,
   a root custom property). Each flip restyles the whole document (~13 ms). Scope the rule to the elements it
   styles, or carry it on a dedicated element (the drag cursor veil).

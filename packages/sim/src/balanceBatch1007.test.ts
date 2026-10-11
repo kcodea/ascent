@@ -210,7 +210,7 @@ describe('2026-10-07 Set 2 minions', () => {
     for (const set of ['set1', 'set2'] as const) expect(poolFor(set).buyable.some((c) => c.id === 'brood'), set).toBe(true);
     const all = poolFor('set2').all.map((c) => c.id);
     // The 2026-10-10 adds (Striker, Drunk Daniel, Hydraskus) were appended after these two, so they sit just before them.
-    expect(all.slice(-5, -3)).toEqual(['k3_jeweler', 'brood']);
+    expect(all.slice(-6, -4)).toEqual(['k3_jeweler', 'brood']); // -6/-4 since 2026-10-10: the rune-only Ruinous Lord is appended last
   });
 
   it('Big Brain Billy: T2 Dwarf 2/2 in Set 2, +1/+1 per Shop spell (gilded +2/+2), a Ruby does not count', () => {

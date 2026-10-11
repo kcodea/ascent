@@ -56,7 +56,7 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
-    date: '2026-10-10',
+    date: '2026-10-11',
     changes: [
       {
         category: 'Balance',
@@ -76,6 +76,33 @@ export const PATCH_NOTES: PatchNote[] = [
           'Perfect Vision is now a Tier 5 spell (was Tier 6). It sets a minion to 20/20, or to 50/50 if you are Shop Tier 6. The card shows which one applies right now.',
           'Eyes of Aresmar now costs 4 Gold (was 5).',
           'Strange Revision now costs 1 Gold (was 3). It turns a minion into a random minion of the tier above it, and the minion keeps its stats. A Tier 7 minion turns into another Tier 7.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'A targeted Shout that fires without you aiming it now picks a random legal target, not the same one every time.',
+        details: [
+          'This covers every Shout another effect triggers: Shrieker, Dawnclaw, Drakko, runes, End of Turn replays and combat re-fires.',
+          'Humphry, Twilight Emissary and Brood Whelp used to always buff your biggest Dragon. Now each trigger rolls its own Dragon.',
+          'Roomworks used to always pick the left-most End of Turn minion. Now it picks one at random.',
+          'A Cage Breaker Shout triggered this way now destroys a random friendly Undead and Discovers, instead of doing nothing.',
+          'If the clock runs out while you are aiming, the Shout lands on a random legal target. It never targets itself.',
+          'A minion or rune that casts a targeted spell also picks a random legal minion. It never targets the caster.',
+          'When you play the card and aim it yourself, your choice is used as before.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-10',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Demon rune: Rune of the Ruinous gets you a Ruinous Lord.',
+        details: [
+          'Rune of the Ruinous is a Basic rune that costs 4 Gold. It shows up in Set 2 runs that have Demons.',
+          'Ruinous Lord is a Tier 4 4/5 Demon you can only get from the rune.',
+          'When a friendly Demon deals damage, your Demons get +1/+1. In combat it lasts for that combat. In the Shop it is permanent. Gilded: +2/+2.',
         ],
       },
       {

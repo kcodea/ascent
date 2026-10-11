@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, pickAutoTarget, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -716,7 +716,7 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
   battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
   buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Rune of the Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
-  battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking the left-most minion with an End of Turn effect', line: 'triggers an End of Turn when the Shop opens' },
+  battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking a RANDOM friendly minion with an End of Turn effect (R-TARGET-07)', line: 'triggers an End of Turn when the Shop opens' },
   triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
 };
 
@@ -1049,15 +1049,20 @@ export function combatCastable(def: CardDef): boolean {
 
 /** Shared "this minion casts a NAMED spell mid-combat" path (Flamebeat's Rally, Warflame's on-Dragon-attack).
  *  A real cast via `castInCombat` + `resolveCombatSpellCast` — counts, fires spell watchers, golden = two casts.
- *  A targeted spell picks a seeded random living friendly; an untargeted one resolves its own targeting. A spell
+ *  A targeted spell picks a seeded random legal other friendly (`pickAutoTarget`, R-TARGET-07); an untargeted one resolves its own targeting. A spell
  *  with no combat implementation (or nothing to aim at) fizzles without counting. */
 export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId: string): void {
   const def = spellId ? ctx.getCard(spellId) : undefined;
   if (!def?.spell || self.dead || !combatCastable(def)) return;
   castInCombat(ctx, self, () => {
-    const friends = otherFriends(ctx, self); // never the caster itself (R-TARGET-03)
-    const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
-    if (def.target && (!targets || targets.length === 0)) return;
+    // R-TARGET-07 (owner 2026-10-10, "Yes, random too"): a TARGETED spell lands on a random LEGAL other friend (the
+    // aim's tribe, never a Gilded body for a `targetNoGolden` spell), one seeded draw; never the caster (R-TARGET-03).
+    const arena = combatArena(ctx, self);
+    const pick = def.target
+      ? pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => (!def.targetTribe || arena.isTribe(m, def.targetTribe)) && !(def.targetNoGolden && m.golden)))
+      : undefined;
+    if (def.target && !pick) return;
+    const targets = pick ? [pick] : undefined;
     // The cast's window is marked with the spell's identity by `resolveCombatSpellCast` itself (via
     // `withCastingSpell`), so the buffs it produces carry `spellId` on every combat cast path, not only this one.
     if (resolveCombatSpellCast(ctx, self, def, targets)) {
@@ -1652,9 +1657,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryBuffTargetPerGoldSpent: (ctx, self, params) => {
     const tribe = ctx.getCard(self.cardId)?.targetTribe;
     const arena = combatArena(ctx, self);
-    const pool = otherFriends(ctx, self, (m) => !tribe || arena.isTribe(m, tribe));
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => !tribe || arena.isTribe(m, tribe))); // R-TARGET-07
+    if (!target) return;
     const h = num(params.health, 1) * mul(self) * ctx.goldSpentThisTurnFor(self.side);
     const a = ctx.fullMeasureFor(self.side) ? h : 0;
     if (h > 0 || a > 0) ctx.buff(target, a, h, self.uid);
@@ -1769,9 +1773,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  next shop" holds for a combat re-fire too. */
   battlecryCopyEcho: (ctx, self) => {
     if (self.dead) return;
-    const pool = otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some((e) => e.on === 'onDeath'));
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some((e) => e.on === 'onDeath'))); // R-TARGET-07
+    if (!target) return;
     const def = ctx.getCard(target.cardId)!;
     const copy = (): EffectDef[] => def.effects.filter((e) => e.on === 'onDeath').map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
     ctx.grantDeathrattle(self, copy());
@@ -1783,9 +1786,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Ancient of Time combat gild: golden flag + its printed stats again, the run card untouched). A combat gain,
    *  like every other combat Shout's stats (R-REALTIME-04). */
   battlecryGildTarget: (ctx, self) => {
-    const pool = otherFriends(ctx, self, (m) => !m.golden);
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => !m.golden)); // R-TARGET-07
+    if (!target) return;
     const def = ctx.getCard(target.cardId);
     target.golden = true;
     ctx.log({ type: 'ascend', target: target.uid, into: target.cardId, gild: true });
@@ -1796,9 +1798,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  `gold(self)` random Shop spells of its tier to hand NOW (a live `toHand` that wakes the hand reactors). The
    *  spell first, then the death: the Shop body's order. */
   battlecryDestroyForSpell: (ctx, self) => {
-    const pool = otherFriends(ctx, self);
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self)); // R-TARGET-07
+    if (!target) return;
     const tier = ctx.getCard(target.cardId)?.tier ?? 1;
     const spellTribes = new Set<string>(['neutral', ...ctx.activeTribesFor(self.side)]); // the Shop's `runSpells` filter
     const spells = ctx.poolCards(self.side).filter((c) => c.spell && !c.token && c.tier === tier && spellTribes.has(c.tribe));
@@ -2316,7 +2317,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     castInCombat(ctx, self, () => {
       const friends = otherFriends(ctx, self); // never the Pup itself (R-TARGET-03)
       if (def.target && friends.length === 0) return;
-      const targets = def.target ? [ctx.rng.pick(friends)] : undefined;
+      const targets = def.target ? [pickAutoTarget(ctx.rng, friends)!] : undefined;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
       }
@@ -2413,7 +2414,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (def.target && beastPool().length === 0) continue;
       castInCombat(ctx, self, () => {
         const beasts = beastPool();
-        const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
+        const targets = def.target ? (beasts.length > 0 ? [pickAutoTarget(ctx.rng, beasts)!] : []) : undefined;
         if (def.target && (!targets || targets.length === 0)) return;
         if (resolveCombatSpellCast(ctx, self, def, targets)) {
           ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -2445,7 +2446,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (def.target && beastPool().length === 0) return;
     castInCombat(ctx, self, () => {
       const beasts = beastPool();
-      const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
+      const targets = def.target ? (beasts.length > 0 ? [pickAutoTarget(ctx.rng, beasts)!] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return; // the last Beast died mid-repetition
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -2469,7 +2470,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (pool.length === 0) return;
     castInCombat(ctx, self, () => {
       const spell = ctx.rng.pick(pool);
-      const target = ctx.rng.pick(beasts);
+      const target = pickAutoTarget(ctx.rng, beasts)!; // R-TARGET-07
       if (resolveCombatSpellCast(ctx, self, spell, [target])) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell.name}`, spellId: spell.id });
         ctx.grantToHand(spell.id, self.side, self.uid); // …and a copy of THAT spell
@@ -2524,7 +2525,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     castInCombat(ctx, self, () => {
       const def = ctx.rng.pick(pool);
       const friends = otherFriends(ctx, self); // never itself (R-TARGET-03)
-      const targets = def.target ? (friends.length > 0 ? [ctx.rng.pick(friends)] : []) : undefined;
+      const targets = def.target ? (friends.length > 0 ? [pickAutoTarget(ctx.rng, friends)!] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -2556,7 +2557,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         ctx.log({ type: 'questTrigger', flag: 'runeFloodedVault', side: self.side });
         castInCombat(ctx, self, () => {
           const pool = otherFriends(ctx, self); // never itself (R-TARGET-03)
-          const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;
+          const targets = def.target ? (pool.length > 0 ? [pickAutoTarget(ctx.rng, pool)!] : []) : undefined;
           if (def.target && (!targets || targets.length === 0)) return;
           if (resolveCombatSpellCast(ctx, self, def, targets)) {
             // The RUNE is the caster (owner ruling 2026-09-24): `rune` lets the spell's effect stem from its node.
@@ -4395,6 +4396,31 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, ia, ih, self.uid);
       ctx.grantImpBuff(ia, ih, self.side);
     }
+  },
+
+  /** Set 2 — "When a Demon deals damage, give your <tribe> minions +a/+h" (Ruinous Lord: your Demons, `tribe: 'demon'`;
+   *  omitted = every friendly minion, the shape Rad Rachel shares). The SAME trigger as Impossible Todd
+   *  (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon, attack, retaliation or incidental, its own hits
+   *  included; a Ward-absorbed 0-damage hit never fires). Pays every LIVING friendly minion (of `tribe` when given),
+   *  the source included. Gilded doubles via `mul`.
+   *
+   *  PERMANENCE (owner ruling 2026-10-11, R-BUFF-PHASE-01): "it is combat only if triggered in combat, if a minion
+   *  is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be
+   *  permanent." This combat half is a plain `ctx.buff`: no permaGain, so it ends with the fight except on an
+   *  Engraved body (the standing carry-back). The Shop half (recruit.ts) is a permanent `addBuff`.
+   *
+   *  One trigger = one run of `buff` events, which the replay collapses into one buff-wave moment, so a long Demon
+   *  fight shows one wave per landed hit (every minion's gain together), never one beat per minion. */
+  onFriendlyDemonDamageBuffTribe: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (!a && !h) return;
+    const tribe = str(params.tribe);
+    const arena = combatArena(ctx, self);
+    for (const m of ctx.living(self.side)) if (!tribe || arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.uid);
   },
 
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent

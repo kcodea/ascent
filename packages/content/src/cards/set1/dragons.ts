@@ -13,7 +13,7 @@ export const DRAGONS: CardDef[] = [
     // + `targetTribe: 'dragon'` drive the player's pick; `battlecryBuffTarget` applies it. Follows the standing
     // tribe-restricted-target convention (Toxin Tender): with no OTHER friendly Dragon on board there's no
     // viable target, so the Battlecry doesn't fire and the body plays as-is (no prompt). A Myra / face-Omen
-    // re-fire with no explicit target auto-picks the highest-Attack friendly Dragon. Golden doubles the grant.
+    // re-fire with no explicit target picks a RANDOM other friendly Dragon (R-TARGET-07). Golden doubles the grant.
     id: 'emissary',
     name: 'Twilight Emissary',
     tribe: 'dragon',

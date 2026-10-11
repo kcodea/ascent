@@ -264,6 +264,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onOtherDemonConsumeEcho:onConsume': { policy: 'foldedCue', family: 'react' },
   // ── Set 2 batch B (2026-08-18): new primitives ──
   'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Axeman
+  'factory:onFriendlyDemonDamageBuffTribe:friendlyDemonDealtDamage': { policy: 'ownBeat', family: 'react' }, // Ruinous Lord (2026-10-10): one buff-wave beat per trigger, every Demon's +1/+1 inside it
   // Kobe (owner rework 2026-09-18): "when this takes damage" — the Rubies land through the standard Ruby-landed
   // cue inside the hit that caused them, the Target Dummy / Faultline Scrapper shape (a damage reaction, not a beat).
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
@@ -702,6 +703,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_whelps:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Shouts: a Brood Whelp
   'rune:rune_voicekeeper:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Dragons sold: a plain copy of one
   'rune:rune_flaming_dragon:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Firebird
+  'rune:rune_ruinous:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get a Ruinous Lord (2026-10-10)
   'rune:rune_dragons_egg:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Dragon's Egg
   'rune:rune_wise_armory:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Spell Generator
   // ── owner batch 2026-10-07: the Beast runes ──

@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -393,7 +393,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     castNamedSpell: (spellId) => {
       const def = spellId ? CARD_INDEX[spellId] : undefined;
       if (!def?.spell) return;
-      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
+      // The full shop cast pipeline; a TARGETED spell gets a random legal other friend (R-TARGET-07), never none.
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpellFromMinion(state, self as BoardCard, def);
     },
     cardDef: (id) => CARD_INDEX[id],
     gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); starformFollowShopBuff(state, a, h, source ?? nameOf(self)); },
@@ -1627,13 +1628,15 @@ export function othersOnBoard(state: RunState, self: { uid: string }, pred?: (c:
   return state.board.filter((c) => c.uid !== self.uid && (!pred || pred(c)));
 }
 
-/** A targeted Shout RE-FIRED without an aim (Resonance, Myra, Echoing Roar, an End-of-Turn replay) picks its target
- *  at random from `pool`: one draw off the shared rng cursor, the draw Baby Gastrid and Appetite Agent use
- *  (R-TARGET-06, owner 2026-09-26). An empty pool draws nothing and returns undefined (the Shout does nothing). */
-export function refireTarget(state: RunState, pool: BoardCard[]): BoardCard | undefined {
+/** A targeted Shout fired WITHOUT an aim (Resonance, Myra, Echoing Roar, Shrieker, Drakko, a rune, an End-of-Turn
+ *  replay, a combat re-fire settled here, a stranded aim) picks its target at random from its legal `pool`: one draw
+ *  off the shared rng cursor through core's `pickAutoTarget`, the one helper every phase's auto-pick uses (R-TARGET-06,
+ *  owner 2026-09-26; R-TARGET-07, owner 2026-10-10). Each call is its own draw, so repeated triggers re-roll. An empty
+ *  pool draws nothing and returns undefined (the Shout does nothing). */
+export function refireTarget<T extends BoardCard>(state: RunState, pool: readonly T[]): T | undefined {
   if (pool.length === 0) return undefined;
   const rng = makeRng(state.rngCursor);
-  const pick = pool[rng.int(pool.length)]!;
+  const pick = pickAutoTarget(rng, pool);
   state.rngCursor = rng.state();
   return pick;
 }
@@ -4931,11 +4934,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let target = (payload as { target?: BoardCard } | undefined)?.target;
     if (!target) {
       const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
-      const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe));
-      if (pool.length === 0) return;
-      const rng = makeRng(ctx.state.rngCursor);
-      target = pool[rng.int(pool.length)]!;
-      ctx.state.rngCursor = rng.state();
+      target = refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe)));
+      if (!target) return;
     }
     const per = num(params.health, 1) * gold(self);
     const h = per * (ctx.state.goldSpentThisTurn ?? 0);
@@ -5284,13 +5284,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Cage Breaker (Shout, aimed): DESTROY a friendly <tribe> — the two-step death Graverobber uses, so its Echo,
    *  its departure and its Rise get their beat — then Discover a <tribe> at the tavern tier (owner 2026-09-09:
-   *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death. */
+   *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death.
+   *  Un-aimed (a Myra / Shrieker / rune / End-of-Turn re-fire) it destroys a RANDOM other friendly <tribe>, exactly as
+   *  Graverobber's un-aimed re-fire does (R-TARGET-06 / R-TARGET-07); none eligible → nothing happens. It used to do
+   *  nothing at all on a re-fire. */
   battlecryDestroyForDiscover: (ctx, self, params, payload) => {
-    const target = payload.target;
-    if (!target) return;
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const target = payload.target
+      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => (!tribe || isTribe(c, tribe)) && c.uid !== ctx.state.pendingDeath?.uid));
+    if (!target) return;
     if (tribe && !isTribe(target, tribe)) return; // aimed at the wrong tribe — no death, no Discover
-    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    // An un-aimed re-fire resolves its death at once (Graverobber's reason: a re-fire can land twice in one action or
+    // at End of Turn right before the fight, and a second `pendingDeath` mark would overwrite the first).
+    if (payload.target) ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    else destroyMinionInShop(ctx, target);
     for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId });
   },
 
@@ -5652,8 +5659,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Toxin Tender / Plaguebringer: grant keyword(s) to a friendly minion. Toxin Tender is
    *  player-targeted (`payload.target` is the chosen minion); the auto-pick fallback (Plaguebringer,
-   *  or a Myra/face-Omen re-fire with no explicit target) takes the highest-attack friend that still
-   *  lacks a granted keyword (never wasting it). A `targetTribe` on the card restricts the auto-pick to
+   *  or a Myra/face-Omen re-fire with no explicit target) takes a RANDOM friend that still lacks a
+   *  granted keyword (never wasting it; R-TARGET-07). A `targetTribe` on the card restricts the auto-pick to
    *  that tribe too (Toxin Tender → friendly Undead only; dual-types count) — so a re-fire can't grant
    *  Venomous off-tribe, and it simply no-ops when no eligible friend exists. */
   // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
@@ -5663,9 +5670,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Twilight Emissary: Battlecry — buff a chosen friendly minion +atk/+hp (golden doubles). The stat sibling
    *  of `battlecryGrantKeyword`, with the SAME target resolution: `payload.target` when the player picked one,
-   *  otherwise an auto-pick (a Myra / face-Omen re-fire with no explicit target) of the highest-Attack friend,
-   *  restricted by the card's `targetTribe` (Twilight Emissary → friendly Dragons only; dual-types count). It
-   *  falls back to buffing ITSELF when no other eligible friend is on board, and no-ops if even that fails. */
+   *  otherwise an auto-pick (a Myra / Shrieker / face-Omen re-fire with no explicit target) of a RANDOM other
+   *  friend (R-TARGET-07), restricted by the card's `targetTribe` (Twilight Emissary / Humphry → friendly Dragons
+   *  only; dual-types count). Never itself (R-TARGET-03): no other eligible friend → no grant. */
   // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
   battlecryBuffTarget: (ctx, self, params, payload) => {
     ARENA_EFFECTS.battlecryBuffTarget(shopArena(ctx.state, self), { ...params, target: payload.target });
@@ -6054,20 +6061,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  in the shop, same ruling as Blaster) EXCEPT your minions of `exceptTribe`. Bodies taken to 0 die here too,
    *  their own Echoes firing — mirroring the shop `damageAll`. */
   deathrattleDamageAllExceptTribe: (ctx, self, params) => {
-    const amount = num(params.amount, 1) * gold(self);
-    if (amount <= 0) return;
-    const exc = str(params.exceptTribe);
-    for (const c of [...ctx.state.board]) {
-      if (exc && isTribe(c, exc as never)) continue;
-      c.health -= amount;
-    }
-    const dead = ctx.state.board.filter((c) => c.health <= 0);
-    for (const d of dead) {
-      const idx = ctx.state.board.indexOf(d);
-      if (idx >= 0) ctx.state.board.splice(idx, 1);
-      fireOnFriendDeath(ctx.state, d); // owner ruling 2026-08-26: shop deaths notify on-death watchers
-    }
-    for (const d of dead) fireRecruitDeathrattles(makeContext(ctx.state), d);
+    shopSprayExceptTribe(ctx.state, num(params.amount, 1) * gold(self), str(params.exceptTribe), self);
+  },
+  /** Rad Rachel / Ruinous Lord, SHOP half: a friendly Demon dealt damage in the Shop (`fireShopDemonDealtDamage`).
+   *  PERMANENT, per the owner's phase ruling (2026-10-11, R-BUFF-PHASE-01): "if the effect is triggered in recruit
+   *  phase, it would be permanent." Every board minion (of `tribe` when given), this one included. Gilded doubles. */
+  onFriendlyDemonDamageBuffTribe: (ctx, self, params) => {
+    if (!ctx.state.board.includes(self)) return;
+    const a = num(params.attack, 0) * gold(self);
+    const h = num(params.health, 0) * gold(self);
+    if (!a && !h) return;
+    const tribe = str(params.tribe);
+    for (const c of ctx.state.board) if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), a, h);
   },
   // ARENA-BORN (Echo family): Nanon, Legion Shepherd's class.
   deathrattleSummonOverflowBuff: (ctx, self, params) => {
@@ -6383,11 +6388,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let target = payload.target;
     if (!target) {
       const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
-      const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe));
-      if (pool.length === 0) return;
-      const rng = makeRng(ctx.state.rngCursor);
-      target = pool[rng.int(pool.length)]!;
-      ctx.state.rngCursor = rng.state();
+      target = refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe)));
+      if (!target) return;
     }
     // Rune of Open Appetite bursts only when it actually ENABLED this pick — i.e. the eater is off-type for
     // the card's declared `targetTribe`. Deliberately not stamped inside `effectiveTargetTribe`: that helper
@@ -7728,8 +7730,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /**
    * ROOMWORKS (owner 2026-10-10): "Shout: Trigger a friendly minion's End of Turn effect." A TARGETED Shout ("you PICK
    * the target"): `payload.target` is the chosen body, and only a friendly OTHER minion with an End of Turn effect is
-   * legal (`battlecryTargetAllowed`, which the reducer enforces). A re-fire with no target (Drakko's extra fire, a
-   * combat re-fire settled in the Shop) auto-picks the LEFT-most legal minion, deterministic. Fires through the shared
+   * legal (`battlecryTargetAllowed`, which the reducer enforces). A fire with no target (a Drakko / rune / Myra re-fire,
+   * a combat re-fire settled in the Shop) picks a RANDOM legal minion off the run cursor (R-TARGET-07, owner 2026-10-10;
+   * it was the left-most every time). Fires through the shared
    * `replayEndOfTurn` (Chronos repeats + the End-of-Turn objective count, exactly like Dusk's power), as its own beat
    * sourced on the target. Gilded triggers it twice.
    *
@@ -7742,7 +7745,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[self.cardId];
     const legal = (c: BoardCard): boolean => c.uid !== self.uid && (!def || battlecryTargetAllowed(def, c));
     const chosen = payload.target && ctx.state.board.includes(payload.target) && legal(payload.target) ? payload.target : undefined;
-    const target = chosen ?? ctx.state.board.find(legal);
+    const target = chosen ?? refireTarget(ctx.state, ctx.state.board.filter(legal)); // R-TARGET-07: random, not left-most
     if (!target) return;
     const eot = CARD_INDEX[target.cardId]?.effects.find((e) => e.on === 'endOfTurn');
     SHOUT_EOT_CHAIN.shoutEot += 1;
@@ -9333,8 +9336,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** A minion casts a named spell from an event. A TARGETED spell auto-aims at the carry (the highest-attack
-   *  friend); an untargeted one (Lasso, Staff of Guel) is cast with no target, exactly as from hand.
+  /** A minion casts a named spell from an event. A TARGETED spell lands on a RANDOM legal other friend
+   *  (`castSpellFromMinion`, R-TARGET-07); an untargeted one (Lasso, Staff of Guel) is cast with no target, exactly as from hand.
    *
    *  THE ONE CAST PATH (owner ruling 2026-09-24, "fix that for all"): every repetition is a full `castSpell()`,
    *  the same function the player's own cast runs, so the rune payouts that live there (Rune of Lassoing's
@@ -9362,11 +9365,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // because the owner asked for one beat per cast. `eotTickCount` is the shared count.
     if (num(params.times, 0) > 0) {
       forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }, self?.golden),
-        () => castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined));
+        () => { castSpellFromMinion(ctx.state, self, spellDef, self ? `board:${self.uid}` : undefined); });
       return;
     }
     const castOnce = (): void => {
-      for (let i = 0; i < gold(self); i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
+      for (let i = 0; i < gold(self); i++) castSpellFromMinion(ctx.state, self, spellDef, self ? `board:${self.uid}` : undefined);
     };
     if (num(params.perGold, 0) > 0) {
       forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }), castOnce);
@@ -9397,7 +9400,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count this turn once
     const times = Math.max(1, self.eotTick ?? 1) * gold(self); // Nth End of Turn → N casts (golden doubles)
     // A full `castSpell()` per cast (owner ruling 2026-09-24) — see `castSpell` above.
-    for (let i = 0; i < times; i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
+    for (let i = 0; i < times; i++) castSpellFromMinion(ctx.state, self, spellDef, self ? `board:${self.uid}` : undefined);
   },
 
   /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
@@ -10295,13 +10298,9 @@ export function taughtAimSpell(card: BoardCard): CardDef | undefined {
 function pickRandomSpellTarget(state: RunState, def: CardDef, exclude?: { uid: string }): BoardCard | undefined {
   if (!def.target) return undefined;
   const tribe = effectiveTargetTribe(state, def);
-  const pool = state.board.filter((c) => c.uid !== exclude?.uid
-    && (!tribe || isTribe(c, tribe)) && !(def.targetNoGolden && c.golden));
-  if (pool.length === 0) return undefined;
-  const rng = makeRng(state.rngCursor);
-  const pick = pool[rng.int(pool.length)]!;
-  state.rngCursor = rng.state();
-  return pick;
+  // R-TARGET-07: the one un-aimed pick (`refireTarget` → core `pickAutoTarget`), the same seeded draw as before.
+  return refireTarget(state, state.board.filter((c) => c.uid !== exclude?.uid
+    && (!tribe || isTribe(c, tribe)) && !(def.targetNoGolden && c.golden)));
 }
 
 export function discoverSpecFor(state: RunState, def: CardDef, grantedTier?: number): DiscoverSpec | undefined {
@@ -11086,6 +11085,49 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
  * the token lives in the Shop and only grows / leaves there. Both fire through `captureBuffFx` so a watcher's
  * payout (Twin Star buffing itself, a Zenith-style payoff) animates like every other reaction.
  */
+/** The Shop half of "deal N to all minions except friendly <tribe>" (Fel Spikes' Echo): the Shop has no enemy, so
+ *  YOUR board takes it except your `exc` minions. `passes` sprays; a body at 0 stops taking hits, and bodies taken to 0
+ *  die once after the spray, their own Echoes firing, mirroring the shop `damageAll`. A Demon `source` dealing a landed
+ *  hit is a friendly Demon dealing damage IN THE SHOP, so each hit fires the Shop's Demon-damage watchers
+ *  (`fireShopDemonDealtDamage`), the combat rule (one proc per landed hit). */
+function shopSprayExceptTribe(state: RunState, amount: number, exc: string, source?: BoardCard, passes = 1): void {
+  if (amount <= 0) return;
+  const victims = state.board.filter((c) => !(exc && isTribe(c, exc as never)));
+  const demonSource = !!source && isTribe(source, 'demon');
+  for (let p = 0; p < passes; p++) {
+    for (const c of victims) {
+      if (c.health <= 0 || !state.board.includes(c)) continue;
+      c.health -= amount;
+      if (demonSource) fireShopDemonDealtDamage(state, source!);
+    }
+  }
+  const dead = state.board.filter((c) => c.health <= 0);
+  for (const d of dead) {
+    const idx = state.board.indexOf(d);
+    if (idx >= 0) state.board.splice(idx, 1);
+    fireOnFriendDeath(state, d); // owner ruling 2026-08-26: shop deaths notify on-death watchers
+  }
+  for (const d of dead) fireRecruitDeathrattles(makeContext(state), d);
+}
+
+/**
+ * A friendly DEMON dealt damage in the SHOP (a Shop-fired Fel Spikes Echo): the recruit twin of combat's
+ * `friendlyDemonDealtDamage` emit, fired once per landed hit. Every board body's `friendlyDemonDealtDamage` effect
+ * that HAS a Shop body runs (today: `onFriendlyDemonDamageBuffTribe`, Ruinous Lord, permanent per R-BUFF-PHASE-01).
+ * The self-buff reactors (Leech / Axeman / Impossible Todd) have no Shop body yet, so they stay combat-only here.
+ * A board SNAPSHOT, so a watcher that dies mid-spray still answers the hits it saw.
+ */
+export function fireShopDemonDealtDamage(state: RunState, source: BoardCard): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'friendlyDemonDealtDamage') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: source }));
+    }
+  }
+}
+
 export function fireStarformGained(state: RunState, attack: number, health: number): void {
   if (attack <= 0 && health <= 0) return;
   const ctx = makeContext(state);
@@ -13156,15 +13198,19 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
 }
 
 /**
- * WHERE A MINION'S CAST LANDS (the End-of-Turn casters: Rope Wrangler, Soul Defiler, the escalating caster). A
- * TARGETED spell aims at the carry, the highest-Attack OTHER friend (the caster itself on a lone board); an
- * untargeted one (Lasso, Staff of Guel) gets no target at all, so `castSpell()` treats it exactly as the same
- * spell cast from hand: nothing is "cast on" the carry (no Lorekeeping, no Mirrorwing re-cast for a Lasso).
+ * A MINION CASTS A NAMED SPELL with no player aim (the End-of-Turn casters: Rope Wrangler, Soul Defiler, the
+ * escalating caster; the arena's `castNamedSpell`: Firebird, Flamebeat, Warflame). A TARGETED spell lands on a
+ * RANDOM legal OTHER friend (R-TARGET-07, owner 2026-10-10: "Yes, random too"; it used to be the highest-Attack
+ * "carry", and the caster itself on a lone board, against R-TARGET-03). No legal target: the cast FIZZLES and is
+ * not counted, like `castSpellWithoutAim`. An untargeted one (Lasso, Staff of Guel) gets no target at all, so
+ * `castSpell()` treats it exactly as the same spell cast from hand. Returns whether it cast.
  */
-function minionCastTarget(state: RunState, self: BoardCard | undefined, spellDef: CardDef): BoardCard | undefined {
-  if (!spellDef.target) return undefined;
-  const friends = state.board.filter((c) => c !== self);
-  return friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+export function castSpellFromMinion(state: RunState, self: BoardCard | undefined, spellDef: CardDef, origin?: string): boolean {
+  if (!spellDef.target) { castSpell(state, spellDef, undefined, origin); return true; }
+  const target = pickRandomSpellTarget(state, spellDef, self);
+  if (!target) return false;
+  castSpell(state, spellDef, target, origin);
+  return true;
 }
 
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {

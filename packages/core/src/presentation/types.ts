@@ -48,4 +48,13 @@ export interface PresentationPolicyEntry {
   /** Marked by the classifier when the heuristic default deserves an owner look (PR-1 review workflow:
    *  the owner skims the audit table; flagged rows are the ones to actually weigh). */
   flagged?: boolean;
+  /**
+   * How the triggers this effect fires INSIDE itself present. Absent = together: a nested trigger is a reaction,
+   * placed at its parent's delivery alongside its siblings (King Oona, a Shout's own cast). `'sequential'` = each
+   * nested trigger is its OWN beat, one after another in emission (gameplay) order, each starting only after the
+   * previous one has finished and recovered, with a link cue from this source to that child as it starts. For the
+   * "trigger your minions' X" effects whose fires must read one at a time (Shrieker / Moira, owner 2026-10-10,
+   * R-SHRIEKER-BEATS-01). Presentation only: it never reorders anything, and the parent stretches to cover them.
+   */
+  children?: 'sequential';
 }

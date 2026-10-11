@@ -39,6 +39,7 @@ import type { CombatQuestDelta } from './store'; // type-only (erased) — no ru
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { fireBuffFx } from './buffFxRender';
+import { isShoutChainTrigger } from './choreo/shoutChain';
 import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
@@ -2439,6 +2440,26 @@ export function useCombatReplay(
       onShoutProc: (source: string, target: string) => {
         pulseWatcher(source);
         if (!bindingFor(cardIds.get(source) ?? null, 'shout')) bloomFrame(target);
+        // A CHAIN trigger-er (Dawnclaw / Ryme's Echo — R-SHRIEKER-BEATS-01, owner 2026-10-10: "dawnclaw and mykel
+        // should also do one at a time"): its tribe tendril to the Shout it is firing, on that fire's own moment (one
+        // moment per `shout` already, left neighbour first). An Echo's body has usually fallen, so it streams from its
+        // last slot, the Echo-buffer rule (`choreo/buffSource.ts`).
+        const srcCard = cardIds.get(source) ?? null;
+        if (srcCard && source !== target && isShoutChainTrigger(srcCard) && canPlayDefs()) {
+          const tEl = findEl(target);
+          const tr = tEl?.getBoundingClientRect();
+          const src = resolveBuffSource({
+            label: false,
+            live: () => { const el = findEl(source); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; },
+            lastSlot: () => { const r = lastRectRef.current.get(source); return r ? { x: r.cx, y: r.cy } : null; },
+          });
+          if (tr && src.center && !src.sourceless) {
+            fireBuffFx({
+              source: src.center, target: { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 }, cardId: srcCard,
+              tribe: CARD_INDEX[srcCard]?.tribe ?? 'neutral', sourceless: false, uids: { source, target },
+            });
+          }
+        }
       },
       // A PUMMEL (X) fire (`pummelTrigger` — Han Gover, Goldvein; the damage-dealt threshold keyword,
       // 2026-09-21): the `pummelFx` cue plays the owner's `pummel-trigger` ON the body's medallion, and that

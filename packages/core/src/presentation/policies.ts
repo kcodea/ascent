@@ -174,7 +174,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleGrantWardRandom:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleMaxGold:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattlePlayRubiesTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
-  'factory:deathrattleReplayAdjacentBattlecry:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleReplayAdjacentBattlecry:onDeath': { policy: 'ownBeat', family: 'echo', children: 'sequential' },
   'factory:deathrattleRubyStatGain:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Noggin (set 3)
@@ -207,7 +207,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnMagnetizeMechs:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnPlayRuby:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnRecastFirstSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnTriggerShouts:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Shrieker / Moira: every Shout it triggers is its OWN beat, left to right, each with a link tendril (R-SHRIEKER-BEATS-01).
+  'factory:endOfTurnTriggerShouts:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn', children: 'sequential' },
   'factory:gainEmbers:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch
@@ -476,7 +477,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellCastDemonConsumesShop:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
   'factory:spellCastImproveSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:spellCastTransform:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
-  'factory:spellCastTriggerAdjacentShouts:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'triggers a nested Shout right after the cast; near-zero windup' },
+  'factory:spellCastTriggerAdjacentShouts:spellCast': { policy: 'ownBeat', family: 'castPayoff', children: 'sequential', reason: 'triggers a nested Shout right after the cast; near-zero windup' },
   'factory:spellCopyRecent:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:spellCopyTargetExact:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDecoyNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },

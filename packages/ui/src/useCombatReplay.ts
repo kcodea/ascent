@@ -28,6 +28,7 @@ import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSumm
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
+import { wavesAheadOf } from './choreo/channels/windupWaves';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -2956,6 +2957,9 @@ export function useCombatReplay(
         // `heldLungeRef` release (struck / died / target gone). Owner call 2026-09-01, after the absorbed
         // version — every fire committing at once, then a frozen pause — was rejected.
         if (!heldWindup && shoutsAheadOf(cur, events, atkUid)) heldWindup = true;
+        // A WAVE VOLLEY the swing's own wind-up sprayed (Gasket's Rally, one wave per pass) parks it the same way:
+        // the volleys play as their own beats while the attacker holds, then it strikes (see `windupWaves.ts`).
+        if (!heldWindup && wavesAheadOf(cur, events, atkUid)) heldWindup = true;
         // A forced Echo that resolved ENTIRELY inside this moment (a Mammoth's summons, an Armadiyo's tribe buff
         // — every absorbed type) has no later beat for a park to span: the next event IS the attacker's own
         // strike. Parking it advanced the clock straight into that damage beat with the body still frozen, so

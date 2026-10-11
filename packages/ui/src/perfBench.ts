@@ -2,6 +2,9 @@ import { useGame } from './store';
 import { pixiFx } from './pixiFx';
 import { ensureDefsReady, playDef } from './fx/playDef';
 import { livePlaysSnapshot } from './fx/fxBudget';
+import { combatSide, makeRng, simulate } from '@game/core';
+import { CARD_INDEX } from '@game/content';
+import { FAN_PARTICLE_BUDGETS } from './fx/fanBudget';
 
 /**
  * PROD-BUILD BENCH HANDLES (perf report 2026-09-30). `docs/performance.md`'s rule is that a slowness number only
@@ -18,5 +21,10 @@ export function installPerfBench(): void {
     playDef,
     ready: ensureDefsReady,
     livePlays: livePlaysSnapshot,
+    // A hand-built fight for a combat measurement (Gasket's 7v7, 2026-10-11): `simulate` a chosen pair of boards and
+    // drop the result into a throwaway run's `lastCombat`, so a prod bundle can replay exactly the scene under test.
+    combat: { simulate, makeRng, combatSide, cards: CARD_INDEX },
+    // The per-def fan budgets (`fx/fanBudget.ts`), writable on a bench build only, so one bundle can A/B a budget.
+    fanBudgets: FAN_PARTICLE_BUDGETS as Record<string, number>,
   };
 }

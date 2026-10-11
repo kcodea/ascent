@@ -375,8 +375,9 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     // 21 → 20 on 2026-08-18: Errand Fiend (dm_errand) archived to ARCHIVED_CARDS (still in CARD_INDEX, in no set).
     // 20 → 22 on 2026-08-20: the RUNE-ONLY batch added dm_nightmarket + dm_behemoth. They are set members (an
     // id must resolve against the pinned pool) but token: true, so neither is buyable - see the buyable count below.
-    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(22);
-    expect(poolFor('set2').buyable.filter((c) => c.id.startsWith('dm_')).length, 'the two rune-only Demons are not drawable').toBe(20);
+    // 22 → 24 on 2026-10-10: Gasket (dm_gasket) and Rad Rachel (dm_radrachel) joined, both drawable.
+    expect(poolFor('set2').all.filter((c) => c.id.startsWith('dm_')).length).toBe(24);
+    expect(poolFor('set2').buyable.filter((c) => c.id.startsWith('dm_')).length, 'the two rune-only Demons are not drawable').toBe(22);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_chancellor'), 'archived — not in the set').toBe(false);
     expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });

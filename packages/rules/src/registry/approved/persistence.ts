@@ -736,4 +736,23 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-09',
     },
   },
+  {
+    id: 'R-BUFF-PHASE-01',
+    title: 'A triggered buff lasts for the combat when it triggers in combat, and is permanent when it triggers in the Shop',
+    statement:
+      'A "give your minions +X/+Y" style trigger follows the PHASE it fires in. Triggered in combat, the buff lasts for that '
+      + 'combat only. An Engraved minion carries its combat gains back through the standing Engraved carry-back. Triggered '
+      + 'in the Recruit phase (the Shop, End of Turn), the buff is permanent, like every Shop buff. No per-card ruling is '
+      + 'needed: this is the default for every such trigger. First applied to Rad Rachel ("When a Demon deals damage, give '
+      + 'your minions +2/+1") through the shared `onFriendlyDemonDamageBuffTribe` body.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-11 (Rad Rachel, and "give your minions" triggers in general)', quote: 'it is combat only if triggered in combat, if a minion is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be permanent.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts FACTORIES.onFriendlyDemonDamageBuffTribe (plain ctx.buff); packages/sim/src/recruit.ts RECRUIT_FACTORIES.onFriendlyDemonDamageBuffTribe (addBuff)' },
+    ],
+    contentIds: ['dm_radrachel'],
+    currentBehaviour: 'Conforms as of 2026-10-11 for Rad Rachel (all three cases pinned).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/radRachel.test.ts', 'packages/sim/src/beastCombatOnly0928.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
 ];

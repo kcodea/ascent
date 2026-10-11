@@ -246,6 +246,9 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Picnic's cast plays the Butcher's shop-buff def ON the right-most Shop minion it buffed, every source (owner 2026-09-24).
   sp_picnic: { spellCast: { def: 'shop-buff-shout' } },
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
+  // Gasket (owner FX 2026-10-10): the blast plays ON every unit a Rally pass struck, on the pass's beat. `shieldPop`
+  // too, since a pass whose first victim has a Ward compiles to a shieldPop-led moment.
+  dm_gasket: { damage: { def: 'gasket', fanOut: 'struck' }, shieldPop: { def: 'gasket', fanOut: 'struck' } },
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true }, minionPlayed: { def: 'sfx-vo-dm-felspikes', gain: 0.3 }, death: { def: 'sfx-vo-dm-felspikes-death', gain: 0.3 } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' }, minionPlayed: { def: 'sfx-vo-dm-tormentor', gain: 0.3 }, death: { def: 'sfx-vo-dm-tormentor-death', gain: 0.3 } },
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' }, death: { def: 'sfx-vo-dw-pimm-death', gain: 0.3 } }, // On Play is the coin Shout, so no line (owner 2026-09-27)

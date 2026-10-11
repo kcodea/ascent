@@ -246,17 +246,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-02",
-    "title": "Wording: Consume vs devour · 27 vs 2",
+    "title": "Wording: Consume vs devour · 25 vs 2",
     "statement": "The eat mechanic is the keyword \"Consume\" — flavor \"devour\" is reserved for non-mechanical prose. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Consume\" in 27 printed texts, \"devour\" in 2. Approving picks \"Consume\"; the LG-VERB-02 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Consume\" in 25 printed texts, \"devour\" in 2. Approving picks \"Consume\"; the LG-VERB-02 guide predicate then watches new text.",
     "cardText": "\"Consume\" — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · \"devour\" — Devour Soul: \"Devour a friendly minion and spit its stats onto a random other friend.\"",
     "example": "Devour Soul would be re-worded to the \"Consume\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-02 (corpus survey: 27 vs 2)"
+        "ref": "textParse.wording · LG-VERB-02 (corpus survey: 25 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -273,17 +273,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 216 vs 9",
+    "title": "Wording: Shop vs tavern · 214 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 216 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 214 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 216 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 214 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

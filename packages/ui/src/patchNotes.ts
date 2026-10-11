@@ -56,6 +56,34 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-11',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Demon: Gasket, a Tier 4 that blasts the whole board each time it attacks.',
+        details: [
+          'Gasket (Tier 4, 7/3 Demon). Rally: deal 2 damage to all minions except friendly Demons.',
+          'It hits every enemy, enemy Demons included, and your own non-Demons. Your Demons are safe.',
+          'Gilded: deals 2 damage twice.',
+          'In the Shop, a forced Rally only hits your non-Demons.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'New Demon: Rad Rachel, a Tier 6 that pumps your whole board whenever a Demon deals damage.',
+        details: [
+          'Rad Rachel (Tier 6, 8/10 Demon). When a Demon deals damage, give your minions +2/+1. Gilded: +4/+2.',
+          'In combat the buff lasts for that combat. Engraved minions keep it.',
+          'In the Shop the buff is permanent.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Cavern Fiend has been removed from the game.',
+      },
+    ],
+  },
+  {
     date: '2026-10-10',
     changes: [
       {

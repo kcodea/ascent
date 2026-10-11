@@ -1083,4 +1083,46 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-10: Storm Chaser was a SHOP_ONLY_SHOUTS entry (#2016) that deferred the whole cast to settle.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-GASKET-RALLY-01',
+    title: 'Gasket: a Rally that sprays 2 damage over every minion except friendly Demons, one pass per repeat',
+    statement:
+      'Each time Gasket Rallies (its own attack, or a forced Rally: R-RALLY-FORCED-01), it deals 2 damage to EVERY minion '
+      + 'on both sides except its friendly Demons: every enemy (enemy Demons included) and every friendly non-Demon. '
+      + 'Gasket is a Demon, so it spares itself. The pass hits every victim at once; a body at 0 stops taking hits and every '
+      + 'death resolves once, after the final pass. Gilded deals 2 damage TWICE: two separate passes, each its own tick '
+      + '(the repeat rule), never one 4-damage hit. A Ward absorbs the first pass and pops. Gasket is the damage source, so '
+      + 'each landed hit counts toward its Pummel and fires the "when a friendly Demon deals damage" reactors, per hit. '
+      + 'A target the pass kills is not then swung at (no clash). It is the SAME spray body as Fel Spikes\x27 Echo '
+      + '(`sprayDamageExceptFriendlyTribe`), fired from the Rally trigger (`rallyDamageAllExceptTribe`). In the SHOP (a forced '
+      + 'Rally there) there is no enemy, so only your non-Demons take it, the Fel Spikes / Blaster shop ruling.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner add 2026-10-10 (Gasket)', quote: 'Rally: Deal 2 damage to all minions except friendly Demons.' },
+      { kind: 'owner-chat', ref: 'Owner add 2026-10-10 (Gasket, Gilded)', quote: 'deals 2 damage twice' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts sprayDamageExceptFriendlyTribe + FACTORIES.rallyDamageAllExceptTribe; packages/sim/src/recruit.ts shopSprayExceptTribe + RECRUIT_FACTORIES.rallyDamageAllExceptTribe' },
+    ],
+    contentIds: ['dm_gasket', 'dm_felspikes'],
+    currentBehaviour: 'Conforms as of 2026-10-10 (new card; Fel Spikes\x27 body extracted unchanged).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/gasket.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
+  {
+    id: 'R-DEMON-DAMAGE-SHOP-01',
+    title: 'A friendly Demon dealing damage in the Shop fires the Shop half of "when a Demon deals damage"',
+    statement:
+      'When a friendly Demon deals damage in the Shop (a Shop-fired Gasket Rally or Fel Spikes Echo), each landed hit '
+      + 'fires the board\x27s "when a Demon deals damage" effects that have a Shop body, exactly as one landed combat hit '
+      + 'does. Today that is `onFriendlyDemonDamageBuffTribe` (Rad Rachel, Ruinous Lord), whose Shop buff is permanent '
+      + '(R-BUFF-PHASE-01). Leech, Axeman and Impossible Todd have no Shop body yet, so they stay combat-only.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-11 (Rad Rachel permanence)', quote: 'if the effect is triggered in recruit phase, it would be permanent.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireShopDemonDealtDamage (called per landed hit from shopSprayExceptTribe)' },
+    ],
+    contentIds: ['dm_radrachel', 'dm_gasket'],
+    currentBehaviour: 'Conforms as of 2026-10-11. Before, `friendlyDemonDealtDamage` had no Shop path at all.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/radRachel.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
 ];

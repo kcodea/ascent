@@ -111,6 +111,9 @@ export interface TimelineSourceNode {
   dependencyIds: string[];
   simultaneousGroupId?: string;
   repeat?: { index: number; count: number };
+  /** The registry's `children` for this node's `policyKey`: `'sequential'` plays its nested triggers one beat
+   *  at a time (R-SHRIEKER-BEATS-01). Absent = together (the reaction default). */
+  childOrder?: 'sequential';
   consequences: TimelineConsequenceNode[];
   runtimeAdapter: 'presentationBatch' | 'combatMoment';
   runtimeRef: unknown;
@@ -176,6 +179,12 @@ export interface CompiledBeat {
    * play the source cue, trigger sound and ribbons. Every tick still delivers its stats. Absent = unpaced.
    */
   pace?: { scale: number; accent: boolean; sharesSlot: boolean };
+  /**
+   * One link of a SEQUENTIAL chain (R-SHRIEKER-BEATS-01): this beat is the `index`-th of `count` nested triggers
+   * its parent fires one at a time. `from` is the parent's source, so the player can draw the link cue (Shrieker's
+   * tendril) from it to this beat's source as the beat starts. Absent = not a chain link.
+   */
+  chainLink?: { index: number; count: number; from: TriggerSourceRef };
   /** Resolved config + where each field came from, for the inspector. */
   config: ResolvedBeatConfig;
   provenance: BeatProvenance;

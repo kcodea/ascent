@@ -735,6 +735,30 @@ numbers and the method are in `docs/devlog/2026-10-10-gameplay-perf-recruit.md`.
 - **Tried and reverted:** holding the hover glow (`.cglow`) on its own layer permanently. It halved the hover
   re-raster but added ~10 render passes per frame at idle (a filtered layer costs a pass even at opacity 0).
 
+## 3g. Gameplay pass 2, 2026-10-10: the run-start freeze, and costs that hide outside JS labels
+
+From the owner's 2026-10-10 in-game report: 75-150 ms long tasks with no label, which the monitor blamed on the
+last pointermove.
+
+- **Never tear down a GL context the next run will need.** `<PixiFxLayer/>` used to unmount on every return to the
+  title. Its `detach()` destroyed the contexts and every linked program, so EACH run rebuilt them in its first shop
+  (`getContext` ~760 ms, `getProgramParameter` ~860 ms, as 75-800 ms long tasks). It is now mounted for the whole
+  session (the canvas is inert until something fires). The wipe canvas warms on idle at the title, like Discover's.
+  A new Pixi `Application` must follow the same pattern: create it once, at boot or title idle, never per run.
+- **Every warm-up step is labelled** (`fx:prewarm:<slot>`), so a link that still lands somewhere is attributed.
+- **The monitor reads Long Animation Frames.** On Chromium, a frame over 50 ms yields `loaf:<invoker>:<function>`
+  breakdown spans and `loaf:style-layout-paint`, recorded at their real times. So a slow frame with no JS label
+  still names its script, or says it was the browser's own style/layout/paint. Read `loaf:*` in the hotspots and
+  startup records before guessing.
+- **Setting `ConvolverNode.buffer` is main-thread work** (~6 ms for a 1.8 s impulse at 96 kHz). Reverb'd FX sound
+  layers take a pooled convolver (`acquireConvolver` / `releaseConvolver` in `fx/audioFilters.ts`), returned once
+  the tail has decayed, and pre-built on idle once the AudioContext exists.
+- **Pixi's `Particle.tint` setter parses colour every call** (`Color.shared.setValue().toBgrNumber()`). Per-frame
+  grey tints go through `setParticleGreyTint`, which writes the packed colour directly (pinned against the real
+  setter by `particleTintFastPath.test.ts`).
+- **`getImageData` on a default 2D canvas is a GPU readback** (a synchronous flush; ~74 ms for the charge glyph's
+  300x118 sample). Use `{ willReadFrequently: true }` for a canvas you read, and cache what you derive from it.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

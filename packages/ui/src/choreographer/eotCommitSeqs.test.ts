@@ -26,6 +26,7 @@ const ADVANCED: Record<string, string> = {
   shopFxSeq: 'prevShopFxSeq.current = committed.shopFxSeq',
   fodderEatenSeq: 'prevFodderSeq.current = committed.fodderEatenSeq',
   aleGrantSeq: 'prevAleSeq.current = committed.aleGrantSeq',
+  shoutLinkFxSeq: 'prevShoutLinkSeq.current = committed.shoutLinkFxSeq',
 };
 
 /** Bumped at End of Turn but cannot replay a beat — and why. */

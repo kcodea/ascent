@@ -30,6 +30,7 @@ import type {
   TimelineDiagnostic,
   TimelineSourceNode,
 } from './timelineTypes';
+import type { TriggerSourceRef } from '@game/core';
 
 export interface CompileOptions {
   config?: BeatConfigSnapshot;
@@ -124,11 +125,21 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
   const deliveries: CompiledConsequenceDelivery[] = [];
   const beatById = new Map<string, CompiledBeat>();
 
-  const makeBeat = (node: TimelineSourceNode, startMs: number, lane: 'source' | 'reaction', parentBeatId?: string, pace?: { scale: number; accent: boolean; sharesSlot: boolean }): CompiledBeat => {
+  const makeBeat = (
+    node: TimelineSourceNode,
+    startMs: number,
+    lane: 'source' | 'reaction',
+    parentBeatId?: string,
+    pace?: { scale: number; accent: boolean; sharesSlot: boolean },
+    chainLink?: { index: number; count: number; from: TriggerSourceRef },
+  ): CompiledBeat => {
     const { value: authored, provenance } = resolved.get(node.id)!;
+    // A chain link (R-SHRIEKER-BEATS-01) takes the chain's slot shape first: its delivery waits for the link cue
+    // to land, and its hold and recovery are trimmed so a wide board stays snappy.
+    const linkedValue = chainLink ? chainLinkTiming(authored) : authored;
     // A paced repeat tick (R-REPEAT-04) plays the same beat SHAPE, scaled: every offset shrinks by one factor,
     // so the delivery still lands inside the beat and the stagger still reads as a wave.
-    const value = pace && pace.scale !== 1 ? scaleTiming(authored, pace.scale) : authored;
+    const value = pace && pace.scale !== 1 ? scaleTiming(linkedValue, pace.scale) : linkedValue;
     const beat: CompiledBeat = {
       id: `beat:${node.id}`,
       nodeId: node.id,
@@ -148,6 +159,7 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
       provenance,
       runtimeRef: node.runtimeRef,
       ...(pace ? { pace: { scale: pace.scale, accent: pace.accent, sharesSlot: pace.sharesSlot } } : {}),
+      ...(chainLink ? { chainLink } : {}),
     };
     beats.push(beat);
     beatById.set(node.id, beat);
@@ -210,19 +222,31 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
    * extension propagates up the ancestry — the readable behaviour, without a fake sequential pause.
    */
   const placeChildren = (parentNode: TimelineSourceNode, parentBeat: CompiledBeat): void => {
-    for (const child of childrenOf.get(parentNode.id) ?? []) {
+    const children = childrenOf.get(parentNode.id) ?? [];
+    // A SEQUENTIAL parent (registry `children: 'sequential'`, R-SHRIEKER-BEATS-01) plays its nested triggers one
+    // beat at a time, in gameplay order: each starts once the previous one has completed AND recovered, so its
+    // consequences land on their own beat instead of all at the parent's delivery. Silent children still deliver
+    // but take no slot. The parent stretches over the whole chain (below), which is what advances the root cursor.
+    const sequential = parentNode.childOrder === 'sequential';
+    const linked = sequential ? children.filter((c) => resolved.get(c.id)!.value.mode !== 'silent') : [];
+    let siblingCursor = parentBeat.deliveryMs;
+    for (const child of children) {
       const { value } = resolved.get(child.id)!;
-      const start = resolveAnchorStart(child, parentBeat.deliveryMs, parentBeat);
+      const link = sequential && value.mode !== 'silent' ? linked.indexOf(child) : -1;
+      const start = link >= 0 ? siblingCursor : resolveAnchorStart(child, parentBeat.deliveryMs, parentBeat);
       // A silent reaction still delivers its consequences (the projection must update) but occupies no time.
       // A reaction inside a PACED repeat tick is paced with it, or it would stretch the tick back out.
-      const beat = makeBeat(child, start, 'reaction', parentBeat.id, parentBeat.pace);
+      const beat = makeBeat(child, start, 'reaction', parentBeat.id, parentBeat.pace, link >= 0 ? { index: link, count: linked.length, from: parentNode.source } : undefined);
       placeConsequences(child, beat);
       placeChildren(child, beat);
+      if (link >= 0) siblingCursor = Math.max(siblingCursor, beat.recoveryEndMs);
       if (value.mode !== 'silent' && beat.completionMs > parentBeat.completionMs) {
         parentBeat.completionMs = beat.completionMs;
         parentBeat.recoveryEndMs = beat.completionMs + parentBeat.config.recoveryMs;
       }
     }
+    // The chain's last link has a recovery of its own before the next root may start.
+    if (sequential && siblingCursor > parentBeat.recoveryEndMs) parentBeat.recoveryEndMs = siblingCursor;
   };
 
   // ── Pass 4–5: root order + placement ─────────────────────────────────────────────────────────────────
@@ -290,6 +314,39 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
     consequenceDeliveries: deliveries,
     diagnostics,
     configRevision: config.revision ?? 'default',
+  };
+}
+
+/**
+ * SEQUENTIAL CHAIN PACING (owner 2026-10-10, R-SHRIEKER-BEATS-01: "every shout minion that triggers an effect gets
+ * their own beat from left to right"). One link = one triggered Shout: the parent's link tendril leaves as the link
+ * starts and lands at `linkLeadMs` (the authored `tendril-trail-dragon` ribbon is 210 ms, its target burst at 210),
+ * the link's consequences deliver just after it lands, then a short hold and recovery before the next link.
+ *
+ * The slot is ~480 ms (230 delivery, 420 completion, 60 recovery) against a plain own beat's 710 (120 / 540 / 170):
+ * a 6-Shout board reads in ~2.9 s, a gilded double pass in ~5.8 s. The delivery is a FLOOR (a slower authored beat
+ * keeps its delivery) and the hold / recovery are CEILINGS (a snappier authored beat keeps its own), so tuning a
+ * Shout's beat in the Lab still applies inside the chain. Every named marker moves with the delivery.
+ */
+export const CHAIN_LINK_PACING = {
+  /** When the link cue (Shrieker's tendril) reaches the link's source: the ribbon's travel time. */
+  linkLeadMs: 210,
+  deliveryMs: 230,
+  completionMs: 420,
+  recoveryMs: 60,
+} as const;
+
+function chainLinkTiming(v: ResolvedBeatConfig): ResolvedBeatConfig {
+  const deliveryOffsetMs = Math.max(v.deliveryOffsetMs, CHAIN_LINK_PACING.deliveryMs);
+  const shift = deliveryOffsetMs - v.deliveryOffsetMs;
+  const markers: Record<string, number> = {};
+  for (const [key, ms] of Object.entries(v.deliveryMarkers)) markers[key] = ms + shift;
+  return {
+    ...v,
+    deliveryOffsetMs,
+    completionOffsetMs: Math.max(deliveryOffsetMs, Math.min(v.completionOffsetMs + shift, CHAIN_LINK_PACING.completionMs)),
+    recoveryMs: Math.min(v.recoveryMs, CHAIN_LINK_PACING.recoveryMs),
+    deliveryMarkers: markers,
   };
 }
 

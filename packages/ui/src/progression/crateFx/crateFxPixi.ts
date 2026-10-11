@@ -21,6 +21,7 @@ import type { CratePreset } from './crateFxConfig';
 import { CrateScene, type ChestTuning, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
 import { CHEST_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
+import { destroyPixiApp, guardAppRender, watchContextLoss } from '../../pixiAppSafety';
 import {
   CHEST, cutKeyholeMask, paintChestBody, paintChestLid, paintCoin, paintGlow, paintPedestal, paintRays, paintRing,
   paintRuneRing, paintSeamBar, paintShards, paintSpark, paintStreak,
@@ -96,15 +97,17 @@ class CrateFxPixi implements CrateFx {
         powerPreference: 'high-performance',
       });
       detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+      guardAppRender(app, 'crateFx');
+      watchContextLoss(app, 'crateFx');
       if (this.destroyed) {
-        app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+        destroyPixiApp(app); // never releases Pixi's shared global pools (pixiAppSafety.ts)
         return false;
       }
       const tex = await this.bake();
       if (this.destroyed) {
         for (const t of this.textures) t.destroy(true);
         this.textures = [];
-        app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+        destroyPixiApp(app); // never releases Pixi's shared global pools (pixiAppSafety.ts)
         return false;
       }
       const canvas = app.canvas;
@@ -227,7 +230,7 @@ class CrateFxPixi implements CrateFx {
     app.ticker.stop();
     for (const t of this.textures) t.destroy(true);
     this.textures = [];
-    app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+    destroyPixiApp(app); // never releases Pixi's shared global pools (pixiAppSafety.ts)
     this.app = null;
   }
 }

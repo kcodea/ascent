@@ -28,6 +28,7 @@ import type { FxInstance } from './fx/primitive';
 import { driveLayerHeads } from './fx/anchors';
 import type { FxAnchors, FxHeadSink } from './fx/anchors';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
+import { destroyPixiApp, reportFxFault, reviveTicker, watchContextLoss } from './pixiAppSafety';
 
 /**
  * The FX def the live targeting line plays — the WHOLE authored composition (the lasso plus any custom /
@@ -408,6 +409,9 @@ function sampleLut(lut: Float32Array, t: number): number {
  */
 export const MAX_SPRITE_PARTICLES = 1200;
 
+/** Consecutive main-render faults before the overlay rebuilds itself (see `renderOver`). ~0.1 s at 240 Hz. */
+const RENDER_FAULT_REBUILD_STREAK = 24;
+
 class FxController {
   private app: Application | null = null;
   /** Frame-rate cap for this controller's ticker (0 = uncapped). Every canvas renders from the MAIN app's
@@ -587,6 +591,7 @@ class FxController {
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    watchContextLoss(app, 'pixiFx under');
     const c = app.canvas;
     c.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
     c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0';
@@ -624,6 +629,7 @@ class FxController {
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    watchContextLoss(app, 'pixiFx above');
     const c = app.canvas;
     c.className = 'pixifx-above pixi-screen'; // position/z live in styles.css beside every other layer's; pixi-screen: see stage.ts
     c.style.pointerEvents = 'none';
@@ -660,12 +666,51 @@ class FxController {
   /** Render the above-modal stage, driven by the MAIN app's ticker. Skips while nothing is mounted AND the
    *  canvas is already clear, so an idle above canvas costs one array-length read per frame — the
    *  `renderUnder` bargain. The first frame after the last container leaves presents one empty stage. */
+  /** The main stage's render, guarded (see `init`). */
+  private renderOver = (): void => {
+    const app = this.app;
+    if (!app) return;
+    try {
+      app.render();
+      this.renderFaultStreak = 0;
+    } catch (e) {
+      reportFxFault(`pixiFx${this.label ? ` ${this.label}` : ''}:render`, e);
+      // A renderer whose own state is poisoned throws EVERY frame (measured: the old global-pool release left
+      // the FilterSystem's bind group destroyed). The guard keeps the ticker alive, but only a fresh
+      // Application draws again, so rebuild after a short streak (pixiAppSafety.ts).
+      if (++this.renderFaultStreak >= RENDER_FAULT_REBUILD_STREAK) this.scheduleRebuild();
+    }
+  };
+
+  private renderFaultStreak = 0;
+  private rebuildQueued = false;
+  /** Rebuilds since load (DEV console: `__pixiFx.rebuilds`). */
+  rebuilds = 0;
+
+  /** Tear the overlay down and bring it back up on the same parent: a new Application, a new GL context. Every
+   *  live play is retired by `detach`; the next `setAimLine` (every pointer move while aiming) respawns the aim. */
+  private scheduleRebuild(): void {
+    if (this.rebuildQueued) return;
+    this.rebuildQueued = true;
+    setTimeout(() => {
+      this.rebuildQueued = false;
+      const app = this.app;
+      if (!app) return;
+      const parent = app.canvas.parentElement;
+      console.warn(`[pixi fault] pixiFx${this.label ? ` ${this.label}` : ''}: renderer kept failing; rebuilding the FX layer`);
+      this.rebuilds++;
+      this.renderFaultStreak = 0;
+      this.detach();
+      if (parent) void this.attach(parent);
+    }, 0);
+  }
+
   private renderAbove = (): void => {
     const app = this.aboveApp;
     if (!app) return;
     const mounted = (this.aboveLayer?.children.length ?? 0) > 0;
     if (!mounted && !this.aboveShowing) return;
-    app.renderer.render(app.stage);
+    try { app.renderer.render(app.stage); } catch (e) { reportFxFault('pixiFx above:render', e); }
     this.aboveShowing = mounted;
   };
 
@@ -677,7 +722,7 @@ class FxController {
     if (!app) return;
     const mounted = (this.underLayer?.children.length ?? 0) > 0;
     if (!mounted && !this.underShowing) return;
-    app.renderer.render(app.stage);
+    try { app.renderer.render(app.stage); } catch (e) { reportFxFault('pixiFx under:render', e); }
     this.underShowing = mounted;
   };
 
@@ -778,7 +823,7 @@ class FxController {
    *  and this is the single, audited way back. A no-op when already running; never overrides a Skip freeze. */
   private wake(): void {
     if (this.manuallyPaused) return;
-    if (this.app) this.app.ticker.start();
+    if (this.app) reviveTicker(this.app.ticker, `pixiFx${this.label ? ` ${this.label}` : ''}`); // start, or restart a dead ticker (pixiAppSafety.ts)
     else this.startDetachedClock();
   }
 
@@ -855,6 +900,7 @@ class FxController {
       powerPreference: 'high-performance',
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    watchContextLoss(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
     // The replay may have remounted before init resolved; only attach if still wanted.
     const canvas = app.canvas;
     canvas.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
@@ -911,6 +957,10 @@ class FxController {
     app.ticker.add(this.renderAbove);
     app.ticker.add(this.perfRenderStart, undefined, UPDATE_PRIORITY.LOW + 1);
     app.ticker.add(this.perfTickEnd, undefined, UPDATE_PRIORITY.UTILITY);
+    // The app's own render listener (Pixi adds `app.render` at LOW), guarded: a render throw used to stop this
+    // ticker for the rest of the session (pixiAppSafety.ts, owner report 2026-10-10).
+    app.ticker.remove(app.render, app);
+    app.ticker.add(this.renderOver, undefined, UPDATE_PRIORITY.LOW);
     if (this.autoIdle) app.ticker.stop(); // idle controller (discoverFx): don't render an empty stage until a burst
     // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
     // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
@@ -983,6 +1033,16 @@ class FxController {
     // against destroyed objects, a pending container would be added to a stage it was never built for.
     this.extraUpdaters.length = 0;
     this.pendingMounts.length = 0;
+    // The aim line was built on THIS stage, which the teardown below destroys. Keep the gesture (from / to /
+    // def) but forget its instances, so the next frame on the new Application respawns it, and drop the
+    // draining tails outright. Left alone, the first tick after a re-attach threw on destroyed Graphics.
+    if (this.aim) {
+      for (const inst of this.aim.insts ?? []) { try { inst.destroy(); } catch { /* stage going anyway */ } }
+      this.aim.root = null; this.aim.insts = null; this.aim.containers = null; this.aim.specs = null;
+      this.aim.sink = null; this.aim.spawnedDefId = null;
+    }
+    for (const f of this.finishingAim) for (const inst of f.insts) { try { inst.destroy(); } catch { /* stage going anyway */ } }
+    this.finishingAim.length = 0;
     for (const p of this.live) p.sprite.destroy();
     this.live.length = 0;
     this.pool.length = 0;
@@ -1017,16 +1077,17 @@ class FxController {
     this.app.ticker.remove(this.update);
     this.app.ticker.remove(this.renderUnder);
     this.app.ticker.remove(this.renderAbove);
+    this.app.ticker.remove(this.renderOver);
     if (this.perfTickStart) this.app.ticker.remove(this.perfTickStart);
     if (this.perfRenderStart) this.app.ticker.remove(this.perfRenderStart);
     if (this.perfTickEnd) this.app.ticker.remove(this.perfTickEnd);
-    this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
+    // NEVER `releaseGlobalResources`: Pixi's global pools are shared with every other live renderer (the
+    // Discover overlay, the wipe), and releasing them under a live one stopped all its FX (pixiAppSafety.ts).
+    destroyPixiApp(this.app);
     if (this.underApp) {
-      // `releaseGlobalResources` is FALSE here, unlike the main app above: the under canvas shares Pixi's
-      // module-global caches (programCache, the FX shader/particle pools) with the main overlay, and this
-      // detach happens with the main app already gone — releasing them a second time would free descriptors
-      // the pools still reference. `resetFxPools()` above is what clears the FX side.
-      this.underApp.destroy({ removeView: true }, { children: true });
+      // No global release, like the main app above (pixiAppSafety.ts). `resetFxPools()` above is what clears
+      // the FX side.
+      destroyPixiApp(this.underApp);
       this.underApp = null;
       this.underLayer = null;
       this.underIniting = null;
@@ -1035,9 +1096,8 @@ class FxController {
     this.underShowing = false; // the canvas is gone with its last frame
     this.aboveShowing = false;
     if (this.aboveApp) {
-      // `releaseGlobalResources: false` for the same reason as the under canvas above — it shares Pixi's
-      // module-global caches with the main overlay, which has already been destroyed by this point.
-      this.aboveApp.destroy({ removeView: true }, { children: true });
+      // No global release, for the same reason as the under canvas above.
+      destroyPixiApp(this.aboveApp);
       this.aboveApp = null;
       this.aboveLayer = null;
       this.aboveIniting = null;
@@ -1797,7 +1857,7 @@ class FxController {
     this.manuallyPaused = paused; // recorded even pre-attach, so a wake() during the freeze can't thaw it
     if (!this.app) return;
     if (paused) this.app.ticker.stop();
-    else this.app.ticker.start();
+    else reviveTicker(this.app.ticker, `pixiFx${this.label ? ` ${this.label}` : ''}`);
   }
 
   /** Fade the WHOLE FX layer in/out over `ms` — used by the Skip transition so every particle fades WITH the
@@ -2658,6 +2718,23 @@ class FxController {
     this.wake(); // the drain ticks on the main loop — wake it if this was the only live work
   }
 
+  /** Drop the live aim after it threw: best-effort teardown, never rethrows. `setAimLine` starts a fresh one. */
+  private dropAimAfterFault(): void {
+    const a = this.aim;
+    this.aim = null;
+    if (!a) return;
+    for (const inst of a.insts ?? []) { try { inst.destroy(); } catch { /* already broken */ } }
+    if (a.root) { try { this.layer?.removeChild(a.root); a.root.destroy({ children: true }); } catch { /* already broken */ } }
+  }
+
+  /** Drop every draining aim tail after one threw: best-effort teardown, never rethrows. */
+  private dropDrainingAimAfterFault(): void {
+    for (const f of this.finishingAim.splice(0)) {
+      for (const inst of f.insts) { try { inst.destroy(); } catch { /* already broken */ } }
+      try { this.layer?.removeChild(f.root); f.root.destroy({ children: true }); } catch { /* already broken */ }
+    }
+  }
+
   /** Tick every released-aim tail and reap the ones that have fully drained (all sparks/motes dead) or hit the
    *  safety cap. Called once per frame from `update`. Heads are NOT re-driven — the sparks already in flight
    *  carry their own motion, so the tail fades in place from where the aim was released. */
@@ -3010,7 +3087,8 @@ class FxController {
 
   private update = (ticker: Ticker): void => {
     perfMonitor.begin(this.simLabel);
-    try { this.updateInner(ticker); } finally { perfMonitor.end(); }
+    // A throw here must never reach Pixi's Ticker: it does not catch, and it stops for good (pixiAppSafety.ts).
+    try { this.updateInner(ticker); } catch (e) { reportFxFault(this.simLabel, e); } finally { perfMonitor.end(); }
   };
 
   private updateInner(ticker: Ticker): void {
@@ -3114,9 +3192,11 @@ class FxController {
     }
 
     // The live aim line: the `targeting` primitive, advanced by this frame's delta while aiming.
-    this.updateAim(dtMs);
+    // ISOLATED: the aim plays an authored def, so a throw in it drops THAT aim (the next gesture respawns it
+    // clean) and the rest of this tick still runs. Before, one throw here stopped every Pixi effect.
+    try { this.updateAim(dtMs); } catch (e) { reportFxFault('fx:aim', e); this.dropAimAfterFault(); }
     // Released aim lines still draining their spark tail (see `clearAimLine`).
-    this.drainAim(dtMs);
+    try { this.drainAim(dtMs); } catch (e) { reportFxFault('fx:aim-drain', e); this.dropDrainingAimAfterFault(); }
 
 
     // Weld rings: advance + redraw each converging ring; retire once it lands.

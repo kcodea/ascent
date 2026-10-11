@@ -13,7 +13,7 @@ import { useGame } from './store'; // `useGame.getState()` — read the live han
 import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { applyFloatSpeed } from './floatConfig';
+import { applyFloatSpeed, setLiveCombatSpeed, speedVars } from './floatConfig';
 import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
 import { RESULT_TYPES, attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
@@ -1608,7 +1608,8 @@ export function useCombatReplay(
 
   // AUTO-RAMP (owner ask 2026-08-18): while a fight plays with the toggle on, ease the effective speed up from
   // the base slider to the ceiling after a grace hold, then back down to base as the fight's estimated time
-  // runs out. Drives a ref + CSS var + float speed only — NO per-frame React render. Off-path costs nothing.
+  // runs out. Drives a ref + the live float speed only (no DOM write, no React render; see floatConfig.ts
+  // `setLiveCombatSpeed`). Off-path costs nothing.
   useEffect(() => {
     const root = typeof document !== 'undefined' ? document.documentElement.style : null;
     if (!active || !rampEnabled) return; // off / not fighting → base drives everything (see the gated ref write)
@@ -1624,8 +1625,9 @@ export function useCombatReplay(
       const remaining = authored.remainingAt(beatIdxRef.current);
       const spd = rampSpeed(combatSpeed, elapsed, remaining, { ...cfg, ceiling });
       combatSpeedRef.current = spd;
-      root?.setProperty('--combat-speed', String(spd > 0 ? spd : 1));
-      applyFloatSpeed(spd);
+      // NO :root write here: a root custom property restyles the whole document, and this runs every frame of
+      // the ramp. The live speed is stamped by whatever starts an animation (floatConfig.ts `speedVars`).
+      setLiveCombatSpeed(spd);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -1633,7 +1635,10 @@ export function useCombatReplay(
       cancelAnimationFrame(raf);
       // Restore base on teardown so the post-combat UI + the next fight start from the slider value.
       combatSpeedRef.current = combatSpeed;
-      root?.setProperty('--combat-speed', String(combatSpeed > 0 ? combatSpeed : 1));
+      setLiveCombatSpeed(combatSpeed);
+      if (root && root.getPropertyValue('--combat-speed') !== String(combatSpeed > 0 ? combatSpeed : 1)) {
+        root.setProperty('--combat-speed', String(combatSpeed > 0 ? combatSpeed : 1));
+      }
       applyFloatSpeed(combatSpeed);
     };
     // combat in deps → new fight rebuilds `authored` and resets `elapsed`. `paused`/`beatIdx` intentionally
@@ -2510,7 +2515,10 @@ export function useCombatReplay(
       slotRectOf: rectOf,
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
       meleePair: meleePairOfImpact(beats, beatIdx - 1),
-      onFloats: (spawned) => {
+      onFloats: (spawnedRaw) => {
+        // Stamp the speed it STARTS at on the float itself (floatConfig.ts "The LIVE speed"), not on :root.
+        const sv = speedVars(combatSpeedRef.current);
+        const spawned = spawnedRaw.map((s) => ({ ...s, sv }));
         // Upsert by id: a re-spawned float (a climbing Fel Spikes volley number — same stable id, higher
         // running total) REPLACES the prior one in place so the number ticks up on ONE anchor instead of
         // stacking a pop per volley. Non-climbing floats always carry a fresh event-index id, so for them this
@@ -2525,7 +2533,9 @@ export function useCombatReplay(
         const ids = new Set(spawned.map((s) => s.id));
         floatTimersRef.current.push(window.setTimeout(() => setFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().floatMs / combatSpeedRef.current));
       },
-      onDeathFloats: (deaths) => {
+      onDeathFloats: (deathsRaw) => {
+        const sv = speedVars(combatSpeedRef.current);
+        const deaths = deathsRaw.map((d) => ({ ...d, sv }));
         setDeathFloats((arr) => [...arr, ...deaths.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(deaths.map((s) => s.id));
         floatTimersRef.current.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));

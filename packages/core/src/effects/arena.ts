@@ -357,6 +357,20 @@ const others = (arena: EffectArena, pred?: (m: ArenaBody) => boolean): ArenaBody
   arena.friends().filter((m) => m.uid !== arena.self.uid && (!pred || pred(m)));
 
 /**
+ * R-TARGET-07 — THE UN-AIMED TARGET PICK (owner bug 2026-10-10, extending R-TARGET-06). When a TARGETED effect fires
+ * without the player choosing (a Shrieker / Myra / Dawnclaw / Drakko / rune / End of Turn / combat re-fire, a
+ * Roomworks auto-trigger, a stranded aim), it picks a RANDOM body from its legal `pool`: ONE draw off the phase's
+ * seeded stream (`rng.int`, the exact draw `rng.pick` makes), so a replay picks the same body and each separate
+ * trigger re-rolls. Never "the highest-Attack", "the left-most" or "the first". The ONE helper every phase's
+ * auto-pick goes through: the arena bodies (`arena.rng()`), the combat factories (`ctx.rng`) and the Shop's
+ * `refireTarget` (the run cursor). An empty pool draws nothing and returns undefined (the effect does nothing).
+ */
+export function pickAutoTarget<T>(rng: Rng, pool: readonly T[]): T | undefined {
+  if (pool.length === 0) return undefined;
+  return pool[rng.int(pool.length)];
+}
+
+/**
  * R-VAULT-01 — VAULTKEEPER'S LOOP GUARD (owner 2026-10-10: "one pulse per gain event, with no re-entrant cascades").
  * A Vaultkeeper's pulse is itself an Attack gain on its neighbours, so two adjacent Vaultkeepers would feed each other
  * forever. The rule, in both phases: while ANY Vaultkeeper pulse is resolving, no Vaultkeeper reacts to a gain. Each
@@ -1211,7 +1225,7 @@ export const ARENA_EFFECTS = {
   },
 
   /** Targeted stat Shout (Brood Whelp / Baby Gastrid's kin): buff the chosen friend — or, unchosen (a
-   *  Myra / Dawnclaw re-fire, or combat), auto-pick the highest-Attack OTHER friend honouring `targetTribe`.
+   *  Myra / Dawnclaw / Shrieker re-fire, or combat), a RANDOM OTHER friend honouring `targetTribe` (R-TARGET-07).
    *  NEVER itself (R-TARGET-03, owner 2026-09-18 — the old self fallback is gone: no eligible other → no grant).
    *  The chosen target rides `params.target`, merged by the shop wrapper. */
   battlecryBuffTarget(arena: EffectArena, params: Record<string, unknown>): void {
@@ -1231,15 +1245,15 @@ export const ARENA_EFFECTS = {
     if (!target) {
       const restrict = arena.targetTribe();
       const ok = (f: ArenaBody): boolean => !restrict || arena.isTribe(f, restrict);
-      const pool = others(arena, ok); // never itself (R-TARGET-03)
-      if (pool.length === 0) return;
-      target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
+      // R-TARGET-07: a RANDOM legal Dragon/friend per trigger, never the highest-Attack one every time.
+      target = pickAutoTarget(arena.rng(), others(arena, ok)); // never itself (R-TARGET-03)
+      if (!target) return;
     }
     arena.buff(target, a, h);
   },
 
   /** Targeted keyword Shout (Toxin Tender / Plaguebringer): grant keyword(s) to the chosen friend — or
-   *  auto-pick the highest-Attack friend that still LACKS one (never wasting it), honouring `targetTribe`.
+   *  auto-pick a RANDOM friend that still LACKS one (never wasting it), honouring `targetTribe` (R-TARGET-07).
    *  Unification FIXED drift: combat's auto-pick ignored both the lacks-check and the tribe restriction. */
   battlecryGrantKeyword(arena: EffectArena, params: Record<string, unknown>): void {
     const kws = Array.isArray(params.keywords) ? (params.keywords as string[]) : [];
@@ -1249,9 +1263,9 @@ export const ARENA_EFFECTS = {
       const restrict = arena.targetTribe();
       const lacks = (f: ArenaBody): boolean => kws.some((k) => !f.keywords.includes(k));
       const ok = (f: ArenaBody): boolean => lacks(f) && (!restrict || arena.isTribe(f, restrict));
-      const pool = others(arena, ok); // never itself (R-TARGET-03 — the old self fallback is gone)
-      if (pool.length === 0) return;
-      target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
+      // R-TARGET-07: a RANDOM friend that still lacks one, never the highest-Attack one every time.
+      target = pickAutoTarget(arena.rng(), others(arena, ok)); // never itself (R-TARGET-03 — the old self fallback is gone)
+      if (!target) return;
     }
     for (const k of kws) {
       if (!target.keywords.includes(k)) arena.grantKeywordTo(target, k);

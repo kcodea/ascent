@@ -564,7 +564,7 @@ export type EffectFactoryId =
   | 'onTribeAttackBuffAttackerAndSelf' // Beev: when a friendly Beast attacks, buff it and this
   | 'onSummonBuffTribeAll' // Flo Rida: when you summon a Beast, buff your Beasts
   | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
-  | 'onFriendlyDemonDamageBuffTribe' // Set 2 — Rad Rachel / Ruinous Lord: when a friendly Demon deals damage, give your living (`tribe`) minions +a/+h (combat-only in combat, permanent in the Shop)
+  | 'onFriendlyDemonDamageBuffTribe' // Set 2 — Ruinous Lord (2026-10-10): when a friendly Demon deals damage, give your living `tribe` minions +a/+h for this combat
   | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — (Kobe's pre-2026-09-18 Start of Combat form): play N permanent Rubies on self + adjacent same-tribe
   | 'onDamagedPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (owner rework 2026-09-18): when THIS takes damage, play N permanent Rubies on self + adjacent same-tribe
   | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself

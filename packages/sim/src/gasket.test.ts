@@ -46,7 +46,7 @@ describe('Gasket: Rally, deal 2 damage to all minions except friendly Demons', (
     expect(d.keywords).toContain('RL');
     const { SETS } = await import('@game/content');
     const own = SETS.set2.own.map((c) => c.id);
-    expect(own.indexOf('dm_gasket')).toBe(own.indexOf('dm_hydraskus') + 1);
+    expect(own.indexOf('dm_gasket')).toBe(own.indexOf('dm_ruinouslord') + 1); // after every earlier add, Ruinous Lord last
   });
 
   it('hits every enemy (enemy Demons too) and friendly non-Demons; spares friendly Demons and itself', () => {

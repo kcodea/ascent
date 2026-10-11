@@ -66,6 +66,7 @@ describe('2026-10-10 set membership: Striker, Drunk Daniel and Hydraskus appende
     // Later adds (Gasket, 2026-10-10) append AFTER these three, so pin their run, not the tail.
     const at = own.indexOf('dw3_striker');
     expect(own.slice(at, at + 3)).toEqual(['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']);
+    expect(own.slice(-3)).toEqual(['dm_ruinouslord', 'dm_gasket', 'dm_radrachel']); // then the rune-only Ruinous Lord, then Gasket + Rad Rachel
     const buyable = poolFor('set2').buyable.map((c) => c.id);
     for (const id of ['dw3_striker', 'dw_drunkdaniel', 'dm_hydraskus']) expect(buyable, id).toContain(id);
   });

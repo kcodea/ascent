@@ -25,6 +25,7 @@ import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
 import { addedSecondTribe, instantiate, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
@@ -3541,7 +3542,7 @@ export function simulate(
         castInCombat(ctx, minion, () => {
           const friends = living(minion.side);
           if (taught.target && friends.length === 0) return;
-          const targets = taught.target ? [rng.pick(friends)] : undefined;
+          const targets = taught.target ? [pickAutoTarget(rng, friends)!] : undefined;
           if (resolveCombatSpellCast(ctx, minion, taught, targets)) {
             emit({ type: 'sc', source: minion.uid, text: `${minion.name} casts ${taught.name}`, spellId: taught.id });
           }
@@ -5580,7 +5581,7 @@ export function simulate(
       for (let k = 0; k < flagCopiesOf(side, 'runeMeteorStorm'); k++) {
         const pool = others();
         if (pool.length === 0) break;
-        const pick = rng.pick(pool);
+        const pick = pickAutoTarget(rng, pool)!; // R-TARGET-07
         castInCombat(ctx, shim, () => {
           if (resolveCombatSpellCast(ctx, shim, spell, [pick]) && side === 'player') emit({ type: 'sc', source: caster.uid, text: `Rune of the Meteor Storm casts ${spell.name} again`, spellId: spell.id, rune: 'rune_meteor_storm' });
         }, spell.id);
@@ -5600,7 +5601,7 @@ export function simulate(
     castInCombat(ctx, caster, () => {
       const pool = living(side).filter((m) => isTribeOf(m, 'celestial', cards));
       if (pool.length === 0) return;
-      const target = rng.pick(pool);
+      const target = pickAutoTarget(rng, pool)!; // R-TARGET-07
       if (resolveCombatSpellCast(ctx, caster, spell, [target]) && side === 'player') {
         emit({ type: 'sc', source: source.uid, text: `Rune of the Guiding Star casts ${spell.name}`, spellId: spell.id, rune: 'rune_guiding_star' });
       }

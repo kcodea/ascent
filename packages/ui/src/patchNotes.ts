@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      { category: 'Systems', text: 'Collection: the text on hero and minion skin tiles is easier to read over the art, and no longer runs under the Equipped ribbon.' },
       { category: 'Systems', text: 'Two more announcers join the crate rewards, both Legendary: Underdweller and Little Inu.' },
       { category: 'Systems', text: 'Announcers are now a Collection reward. The first new voice, Lemon, is a Legendary find from crates: equip it and it calls your games in place of the default announcer. You can hear a sample of any voice on the Announcers tab before you own it.' },
       { category: 'Systems', text: 'The announcer has 67 new lines. The moments you hear most games (back to the Shop, triples, knockouts, tier ups, wins and losses) no longer sound the same every time.' },

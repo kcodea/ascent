@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Gameplay runs smoother: the first Shop of a game no longer stutters, and busy Shout turns cost less.',
+        details: [
+          'The effects layer now gets ready once, while the menu is open, instead of at the start of every game.',
+          'Starting a second game is just as smooth as the first.',
+          'Effects with a reverb sound, like the Shout icon, no longer cause a hitch each time they play.',
+          'The charging glyph at the end of a turn no longer causes a hitch when it appears.',
+          'Nothing looks or sounds different.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed a bug where the targeting line and every other effect could stop showing for the rest of a game.',
         details: [
           'Closing the hero select, a crate or a hero attack preview could break the effects layer. The targeting line went first, and nothing came back until a reload.',

@@ -408,7 +408,7 @@ describe('Handy Flame + Rune of the Handy Flame', () => {
   it('on the board, a gain fires it too (a Growth cast) and it never feeds itself', () => {
     let s = run({ board: [body('hf', 'sp3_handyflame')], hand: [body('g', 'growth'), body('n', 'venom')] });
     s = play(s, 'g');
-    expect(stats(at(s, 'hf'))).toEqual([3, 14]);
+    expect(stats(at(s, 'hf'))).toEqual([4, 15]); // Growth +2/+2 (owner spell batch 2026-10-10)
     expect(stats(inHand(s, 'n'))).toEqual([7, 5]);
   });
 });

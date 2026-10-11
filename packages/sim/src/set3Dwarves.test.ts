@@ -76,7 +76,7 @@ describe('Striker — End of Turn: adjacent minions +1 Attack. Repeat for every 
     s = act(s, { type: 'faceOmen' });
     expect(at(s, 'l').attack - l0, 'left neighbour (neutral): base + 2 repeats').toBe(3);
     expect(at(s, 'r').attack - r0, 'right neighbour (Dwarf): base + 2 repeats').toBe(3);
-    expect(at(s, 'st').attack, 'never itself (Growth gave it +1, Striker gave it nothing)').toBe(3 + 1); // Striker 3/3 since 2026-09-18
+    expect(at(s, 'st').attack, 'never itself (Growth gave it +2, Striker gave it nothing)').toBe(3 + 2); // Striker 3/3 since 2026-09-18
     expect(at(s, 'st').buffs?.some((b) => b.source === 'Striker')).toBeFalsy();
   });
   it('REPEATS per card played as separate ticks — Kneel pays once per tick (owner 2026-09-09 / 2026-09-24)', () => {
@@ -207,10 +207,10 @@ describe('Kneel / Tankerchief — when a Dwarf gains Attack', () => {
   });
   it('SHOP: ignores a non-Dwarf gaining Attack, and a watcher in HAND never pays', () => {
     let s = run({ board: [body('k', 'dw3_kneel'), body('n', 'e3_frank')], hand: [body('k2', 'dw3_kneel'), body('sp', 'growth', { tribe: 'neutral', attack: 0, health: 1 })] });
-    // Growth is untargeted board-wide (+1/+1 to your minions): Frank gains Attack (not a Dwarf), Kneel gains
-    // Attack (its OWN gain — excluded). So Kneel gets Growth's +1/+1 and nothing from itself.
+    // Growth is untargeted board-wide (+2/+2 to your minions): Frank gains Attack (not a Dwarf), Kneel gains
+    // Attack (its OWN gain — excluded). So Kneel gets Growth's +2/+2 and nothing from itself.
     s = act(s, { type: 'play', uid: 'sp' });
-    expect(at(s, 'k').health).toBe(6 + 1);
+    expect(at(s, 'k').health).toBe(6 + 2);
     expect(s.hand.find((c) => c.uid === 'k2')!.health, 'hand copy untouched').toBe(6);
   });
   it('golden Kneel gains +4 Health per Dwarf', () => {

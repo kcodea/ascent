@@ -283,9 +283,9 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'n1' }); // Nimbus battlecry arms the charge
     expect(s.nextSpellExtraCasts).toBe(1); // +1 extra cast (was a x2 multiplier)
-    s = reduce(s, { type: 'play', uid: 'g1' }); // cast Growth (+1/+1) — doubled to +2/+2
+    s = reduce(s, { type: 'play', uid: 'g1' }); // cast Growth (+2/+2) — doubled to +4/+4
     const m = s.board.find((c) => c.uid === 'm1')!;
-    expect([m.attack, m.health]).toEqual([2 + 2, 3 + 2]); // two casts of +1/+1
+    expect([m.attack, m.health]).toEqual([2 + 4, 3 + 4]); // two casts of +2/+2
     expect(s.nextSpellExtraCasts).toBeUndefined(); // charge spent
   });
 
@@ -308,10 +308,10 @@ describe('run loop (@game/sim)', () => {
 
     const before = s.board.find((c) => c.uid === 'm1')!;
     const [a0, h0] = [before.attack, before.health];
-    s = reduce(s, { type: 'play', uid: 'g1' }); // Growth: +1/+1 per cast
+    s = reduce(s, { type: 'play', uid: 'g1' }); // Growth: +2/+2 per cast
     const after = s.board.find((c) => c.uid === 'm1')!;
-    // 1 base cast + 2 banked = 3 resolutions of +1/+1.
-    expect([after.attack - a0, after.health - h0]).toEqual([3, 3]);
+    // 1 base cast + 2 banked = 3 resolutions of +2/+2.
+    expect([after.attack - a0, after.health - h0]).toEqual([6, 6]);
     expect(s.nextSpellExtraCasts).toBeUndefined(); // the whole charge is spent by one spell
   });
 
@@ -1703,7 +1703,7 @@ describe('run loop (@game/sim)', () => {
     const before = s.board.find((c) => c.uid === 'w')!.attack;
     s = reduce(s, { type: 'play', uid: 'g' }); // cast Growth from hand next turn
     expect(s.nextSpellExtraCasts).toBeUndefined(); // NOW the charge is spent
-    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(before + 2); // doubled: Growth +1 Attack × 2 casts
+    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(before + 4); // doubled: Growth +2 Attack × 2 casts
   });
 
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
@@ -1882,7 +1882,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.spell).toBeNull(); // slot empties until the next roll
   });
 
-  it('Spirit Fire buffs the targeted friend +4/+4, is consumed, and counts as a cast', () => {
+  it('Spirit Fire buffs the targeted friend +6/+6, is consumed, and counts as a cast', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 5,
@@ -1893,7 +1893,7 @@ describe('run loop (@game/sim)', () => {
     const spell = s.hand.find((c) => c.cardId === 'spiritfire')!;
     s = reduce(s, { type: 'play', uid: spell.uid, targetUid: 'm' });
     const m = s.board.find((c) => c.uid === 'm')!;
-    expect([m.attack, m.health]).toEqual([3, 4]); // 1/1 + 2/3
+    expect([m.attack, m.health]).toEqual([7, 7]); // 1/1 + 6/6 (owner spell batch 2026-10-10)
     expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(false); // no board slot — consumed
     expect(s.spellsCast).toBe(1);
   });
@@ -1907,7 +1907,7 @@ describe('run loop (@game/sim)', () => {
     expect(after.spellsCast).toBe(0);
   });
 
-  it('Growth buffs every friendly minion (+3/+4, untargeted)', () => {
+  it('Growth buffs every friendly minion (+2/+2, untargeted)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -1917,8 +1917,8 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' }); // no target — buffs the whole board
-    expect([s.board.find((c) => c.uid === 'a')!.attack, s.board.find((c) => c.uid === 'a')!.health]).toEqual([2, 2]);
-    expect([s.board.find((c) => c.uid === 'b')!.attack, s.board.find((c) => c.uid === 'b')!.health]).toEqual([3, 3]);
+    expect([s.board.find((c) => c.uid === 'a')!.attack, s.board.find((c) => c.uid === 'a')!.health]).toEqual([3, 3]);
+    expect([s.board.find((c) => c.uid === 'b')!.attack, s.board.find((c) => c.uid === 'b')!.health]).toEqual([4, 4]);
     expect(s.hand.some((c) => c.cardId === 'growth')).toBe(false); // consumed
     expect(s.spellsCast).toBe(1);
   });
@@ -2250,13 +2250,13 @@ describe('run loop (@game/sim)', () => {
       ...createRun(1),
       tier: 5,
       embers: 10,
-      shop: [{ uid: 'sp1', cardId: 'spiritfire' }], // a spell offer in the minion row (cost 2)
+      shop: [{ uid: 'sp1', cardId: 'spiritfire' }], // a spell offer in the minion row (cost 3)
       hand: [],
     };
     s = reduce(s, { type: 'buy', uid: 'sp1' });
     expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // bought into hand
     expect(s.shop.some((o) => o.cardId === 'spiritfire')).toBe(false); // left the shop
-    expect(s.embers).toBe(8); // 10 − Spirit Fire's cost (2)
+    expect(s.embers).toBe(7); // 10 − Spirit Fire's cost (3)
   });
 
   it('Ember Pouch gains an Ember when cast (net-neutral after its 1 cost)', () => {
@@ -3009,18 +3009,18 @@ describe('run loop (@game/sim)', () => {
     expect(golden.hpGrantBonus).toBe(4);
   });
 
-  it('Staff of Guel permanently buffs every minion bought from the tavern (+3/+4 since 2026-09-23; +3/+3 before, +2/+2 before that), not Discovered ones', () => {
+  it('Staff of Guel permanently buffs every minion bought from the tavern (+3/+3 since 2026-10-10; +3/+4 from 2026-09-23, +3/+3 before, +2/+2 before that), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],
       shop: [{ uid: 'x', cardId: 'alley' }],
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 4 }); // run-wide buy buff, set on cast
-    expect(spellDisplayText('staffofguel', 1)).toContain('{{+4/+5}}'); // +3/+4 + 1 spell power, live
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 3 }); // run-wide buy buff, set on cast
+    expect(spellDisplayText('staffofguel', 1)).toContain('{{+4/+4}}'); // +3/+3 + 1 spell power, live
     s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + the run-wide buy buff
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([4, 5]); // 1/1 + 3/4
+    expect([bought.attack, bought.health]).toEqual([4, 4]); // 1/1 + 3/3
     // A Discovered minion does NOT get it (tavern purchases only).
     s = reduce({ ...s, discover: ['sandbag'] }, { type: 'discover', index: 0 });
     const disc = s.hand.find((c) => c.cardId === 'sandbag')!;
@@ -3035,15 +3035,15 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    // The Fodder type is enchanted run-wide (+3/+4), like Ritualist's End-of-Turn buff…
-    expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 4 });
+    // The Fodder type is enchanted run-wide (+3/+3), like Ritualist's End-of-Turn buff…
+    expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 3 });
     // …and Fodder already on the board gets it immediately.
     const onBoard = s.board.find((c) => c.cardId === 'fred')!;
-    expect([onBoard.attack, onBoard.health]).toEqual([4, 5]);
+    expect([onBoard.attack, onBoard.health]).toEqual([4, 4]);
     // Buying a Fodder applies the Staff buff ONCE (via the enchant), not twice.
     s = reduce(s, { type: 'buy', uid: 'f' });
     const bought = s.hand.find((c) => c.cardId === 'fred')!;
-    expect([bought.attack, bought.health]).toEqual([4, 5]); // 1/1 + 3/4, not +6/+8
+    expect([bought.attack, bought.health]).toEqual([4, 4]); // 1/1 + 3/3, not +6/+6
   });
 
   it('Undead Army completes a triple (its conjured copies are checked, not just minion plays)', () => {
@@ -3451,9 +3451,9 @@ describe('run loop (@game/sim)', () => {
       return s;
     };
     const two = cast(false).board.find((c) => c.uid === 'm')!;
-    expect([two.attack, two.health]).toEqual([5, 7]); // 1/1 + (2/3 × 2)
+    expect([two.attack, two.health]).toEqual([13, 13]); // 1/1 + (6/6 × 2)
     const three = cast(true).board.find((c) => c.uid === 'm')!;
-    expect([three.attack, three.health]).toEqual([7, 10]); // 1/1 + (2/3 × 3)
+    expect([three.attack, three.health]).toEqual([19, 19]); // 1/1 + (6/6 × 3)
     expect(cast(false).spellsCast).toBe(2); // the effect (and tally) repeats per Yazzus multiplier
   });
 
@@ -3468,7 +3468,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     const m = s.board.find((c) => c.uid === 'm')!;
-    expect([m.attack, m.health]).toEqual([2, 2]); // 1/1 + 1/1 ONCE — Yazzus ignores untargeted spells
+    expect([m.attack, m.health]).toEqual([3, 3]); // 1/1 + 2/2 ONCE — Yazzus ignores untargeted spells
     expect(s.spellsCast).toBe(1);
   });
 
@@ -3479,7 +3479,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     const m = s.board.find((c) => c.uid === 'm')!;
-    expect([m.attack, m.health]).toEqual([2, 2]); // 1/1 + 1/1 once
+    expect([m.attack, m.health]).toEqual([3, 3]); // 1/1 + 2/2 once
   });
 
   it('tripling combines current stats (top two) and unions keywords', () => {
@@ -3637,13 +3637,13 @@ describe('run loop (@game/sim)', () => {
         { uid: 'a', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +1/+1 to the board → Hunter gains Attack → +1/+1 to OTHERS
+    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +2/+2 to the board → Hunter gains Attack → +1/+1 to OTHERS
     const hunter = s.board.find((c) => c.uid === 'h')!;
     const ally = s.board.find((c) => c.uid === 'a')!;
-    expect(hunter.attack).toBe(5 + 1); // Growth +1 Attack (Hunter doesn't buff itself)
-    expect(ally.health).toBe(3 + 1 + 1); // Growth +1 + Hunter's onGainAttack +1
-    expect(ally.attack).toBe(3 + 1 + 1); // Growth +1 + Hunter's +1
-    expect(hunter.health).toBe(7 + 1); // Growth +1 only — Hunter excludes itself (no self-loop)
+    expect(hunter.attack).toBe(5 + 2); // Growth +2 Attack (Hunter doesn't buff itself)
+    expect(ally.health).toBe(3 + 2 + 1); // Growth +2 + Hunter's onGainAttack +1
+    expect(ally.attack).toBe(3 + 2 + 1); // Growth +2 + Hunter's +1
+    expect(hunter.health).toBe(7 + 2); // Growth +2 only — Hunter excludes itself (no self-loop)
   });
 
   it('a shop action with no board Attack gain does NOT proc Hunter (Mend heals the hero)', () => {
@@ -3669,9 +3669,9 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
       board: [{ uid: 'd', cardId: 'frontdrake', tribe: 'dragon', attack: 2, health: 1, keywords: [], golden: false }],
     };
-    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +1/+1 to the board
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 2]);
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Growth', attack: 1, health: 1, count: 1 }]);
+    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +2/+2 to the board
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 3]);
+    expect(s.board[0]!.buffs).toEqual([{ source: 'Growth', attack: 2, health: 2, count: 1 }]);
   });
 
   it('Karwind flame-flags the Dragons its battlecry-trigger buffs', () => {
@@ -4019,12 +4019,12 @@ describe('hero powers (@game/sim)', () => {
       return s.board[0]!;
     };
     const crown = { per: 6, attack: 1, health: 1 };
-    // Spirit Fire = +2/+3. Below the threshold the rune pays nothing → base (2/2 → 4/5).
-    expect(cast(crown, 0).attack).toBe(4);
-    // At/over the threshold it adds +1 → +3/+4 (2/2 → 5/6).
-    expect(cast(crown, 6).attack).toBe(5);
+    // Spirit Fire = +6/+6. Below the threshold the rune pays nothing → base (2/2 → 8/8).
+    expect(cast(crown, 0).attack).toBe(8);
+    // At/over the threshold it adds +1 → +7/+7 (2/2 → 9/9).
+    expect(cast(crown, 6).attack).toBe(9);
     // Un-runed runs are unaffected.
-    expect(cast(undefined, 20).attack).toBe(4);
+    expect(cast(undefined, 20).attack).toBe(8);
   });
 
   it('Soren marks one minion for resummon (clearing any previous mark)', () => {
@@ -4362,9 +4362,9 @@ describe('spell stat bonus + display (@game/sim)', () => {
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
     // No bonus → unchanged base text.
-    expect(spellDisplayText('spiritfire', 0)).toBe('Give a minion **+2/+3**.');
+    expect(spellDisplayText('spiritfire', 0)).toBe('Give a minion **+6/+6**.');
     // +1 bonus → the value updates and is highlighted.
-    expect(spellDisplayText('spiritfire', 1)).toBe('Give a minion **{{+3/+4}}**.');
+    expect(spellDisplayText('spiritfire', 1)).toBe('Give a minion **{{+7/+7}}**.');
     expect(spellDisplayText('bulwark', 1)).toBe('Give a minion **{{+1/+2}}** and **Taunt**.');
     // A non-stat spell (Gold Pouch) is untouched even with a bonus.
     expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**.');
@@ -4392,15 +4392,15 @@ describe('spell stat bonus + display (@game/sim)', () => {
   it('the displayed value matches what a cast actually grants (Rune of the Crown)', () => {
     const s = { ...createRun(1), wave: 1, runeCrown: { per: 0, attack: 1, health: 1 } } as RunState;
     const bonus = spellStatBonus(s);
-    // Spirit Fire's base is +2/+3; with +1 spell power the card shows +3/+4 and a cast grants +3/+4.
-    expect(spellDisplayText('spiritfire', bonus)).toContain('+3/+4');
+    // Spirit Fire's base is +6/+6; with +1 spell power the card shows +7/+7 and a cast grants +7/+7.
+    expect(spellDisplayText('spiritfire', bonus)).toContain('+7/+7');
     let r: RunState = {
       ...s, board: [{ uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
       hand: [{ uid: 'sf', cardId: 'spiritfire', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
     };
     r = reduce(r, { type: 'play', uid: 'sf', targetUid: 't' });
-    expect(r.board[0]!.attack).toBe(5); // 2 + (2 base + 1 spell power)
-    expect(r.board[0]!.health).toBe(6); // 2 + (3 base + 1 Rohan bonus)
+    expect(r.board[0]!.attack).toBe(9); // 2 + (6 base + 1 spell power)
+    expect(r.board[0]!.health).toBe(9); // 2 + (6 base + 1 Rohan bonus)
   });
 });
 
@@ -5174,7 +5174,7 @@ describe('content batch: new minions (@game/sim)', () => {
     expect([neutral.attack, neutral.health]).toEqual([0, 4]); // non-Dragon untouched
   });
 
-  it('Cinderwing Matron (cinder) Battlecry raises the run spell HEALTH bonus; a later Spirit Fire grants +4/+5', () => {
+  it('Cinderwing Matron (cinder) Battlecry raises the run spell HEALTH bonus; a later Spirit Fire grants +6/+7', () => {
     let s: RunState = {
       ...createRun(1),
       board: [card('t', 'sandbag', 'neutral', 2, 2)],
@@ -5184,12 +5184,12 @@ describe('content batch: new minions (@game/sim)', () => {
     expect(s.spellBonus).toEqual({ attack: 0, health: 1 }); // +1 spell Health
     expect(spellAttackBonus(s)).toBe(0); // Attack unchanged (warden hero amplify = 0)
     expect(spellHealthBonus(s)).toBe(1);
-    // Spirit Fire (+2/+3) now grants +2/+4 (Health bonus folds onto Health only).
+    // Spirit Fire (+6/+6) now grants +6/+7 (Health bonus folds onto Health only).
     s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
     const target = s.board.find((c) => c.uid === 't')!;
-    expect([target.attack, target.health]).toEqual([4, 6]); // 2/2 + 2/4
+    expect([target.attack, target.health]).toEqual([8, 9]); // 2/2 + 6/7
     // And the card text shows the effective Health bump (Attack unchanged).
-    expect(spellDisplayText('spiritfire', spellAttackBonus(s), 0, spellHealthBonus(s))).toBe('Give a minion **{{+2/+4}}**.');
+    expect(spellDisplayText('spiritfire', spellAttackBonus(s), 0, spellHealthBonus(s))).toBe('Give a minion **{{+6/+7}}**.');
   });
 
   it('a golden Cinderwing Matron grants +2 spell Health', () => {
@@ -5198,7 +5198,7 @@ describe('content batch: new minions (@game/sim)', () => {
     expect(s.spellBonus).toEqual({ attack: 0, health: 2 });
   });
 
-  it("Skullblade's spell-power carry-back lands in settleCombat: spellBonus.attack += 1, next spell +5/+4", () => {
+  it("Skullblade's spell-power carry-back lands in settleCombat: spellBonus.attack += 1, next spell +7/+6", () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'combat',
@@ -5209,11 +5209,11 @@ describe('content batch: new minions (@game/sim)', () => {
     };
     s = reduce(s, { type: 'settleCombat' });
     expect(s.spellBonus).toEqual({ attack: 1, health: 0 }); // carried back
-    // A Spirit Fire (+2/+3) now grants +3/+3 (Attack bonus folds onto Attack only).
+    // A Spirit Fire (+6/+6) now grants +7/+6 (Attack bonus folds onto Attack only).
     s = { ...s, phase: 'recruit' };
     s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
     const target = s.board.find((c) => c.uid === 't')!;
-    expect([target.attack, target.health]).toEqual([5, 5]); // 2/2 + 3/3
+    expect([target.attack, target.health]).toEqual([9, 8]); // 2/2 + 7/6
   });
 
   it('Grave Knit (knit) run-wide +3/+2 carry-back lands in settleCombat — board, hand, and future copies', () => {
@@ -5591,8 +5591,8 @@ describe('Dragon quests + reward minions', () => {
       activeQuests: [{ questId: 'q_skybound_pact', progress: 0, completed: false }],
       board: [dragon('d')], hand: [{ uid: 'gr', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
-    s = reduce(s, { type: 'play', uid: 'gr' }); // Growth: +1/+1 to the board Dragon → +2 stats
-    expect(s.activeQuests![0]!.progress).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'gr' }); // Growth: +2/+2 to the board Dragon → +4 stats
+    expect(s.activeQuests![0]!.progress).toBe(4);
   });
 
   it('Hoardwake Ritual (shoutRepeat always) makes a played Shout fire an extra time', () => {
@@ -5622,7 +5622,7 @@ describe('Dragon quests + reward minions', () => {
 
   it("Taragosa's Heir amplifies its OWN stat gains (×2, golden ×3) from any source", () => {
     const buff = { uid: 'gr', cardId: 'growth', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false };
-    // ×2: Growth buffs the board Dragon +1/+1; the Heir doubles its own gain → +2/+2.
+    // ×2: Growth buffs the board Dragon +2/+2; the Heir doubles its own gain → +4/+4.
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
       board: [{ uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: false }],
@@ -5630,8 +5630,8 @@ describe('Dragon quests + reward minions', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g1' });
     let heir = s.board.find((c) => c.uid === 'heir')!;
-    expect([heir.attack, heir.health]).toEqual([7 + 2, 6 + 2]); // +1/+1 natural, doubled
-    // ×3: a golden Heir triples the same +1/+1 → +3/+3.
+    expect([heir.attack, heir.health]).toEqual([7 + 4, 6 + 4]); // +2/+2 natural, doubled
+    // ×3: a golden Heir triples the same +2/+2 → +6/+6.
     let g: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
       board: [{ uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: true }],
@@ -5639,7 +5639,7 @@ describe('Dragon quests + reward minions', () => {
     };
     g = reduce(g, { type: 'play', uid: 'g1' });
     heir = g.board.find((c) => c.uid === 'heir')!;
-    expect([heir.attack, heir.health]).toEqual([7 + 3, 6 + 3]);
+    expect([heir.attack, heir.health]).toEqual([7 + 6, 6 + 6]);
   });
 
   it("Taragosa's Heir also amplifies its COMBAT stat gains (Engraved carry-back ×2, golden ×3)", () => {

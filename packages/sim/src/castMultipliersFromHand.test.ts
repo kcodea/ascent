@@ -25,7 +25,7 @@ const run = (over: Partial<RunState> = {}): RunState => ({ ...createRun(1), phas
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const GROWTH = CARD_INDEX['growth']!;
 
-/** A board with a CHARGED Living Grimoire (x2) and a 1/1 to watch Growth land on. */
+/** A board with a CHARGED Living Grimoire (x2) and a 1/1 to watch Growth (+2/+2 since 2026-10-10) land on. */
 const charged = (over: Partial<RunState> = {}): RunState =>
   run({ board: [body('g', 'd2_grimoire'), body('a', 'stray', { attack: 1, health: 1 })], grimoireMult: 2, ...over } as Partial<RunState>);
 
@@ -34,7 +34,7 @@ describe('a MINION\'s cast (a Mage-Pup casting its taught Growth) is never multi
 
   it('Living Grimoire: Growth lands once and the charge survives', () => {
     const next = reduce(charged({ hand: [pup] }), { type: 'play', uid: 'p', toIndex: 2 });
-    expect(at(next, 'a')).toMatchObject({ attack: 2, health: 2 });
+    expect(at(next, 'a')).toMatchObject({ attack: 3, health: 3 });
     expect(next.grimoireMult, 'the charge is still armed for the next hand cast').toBe(2);
   });
 
@@ -44,7 +44,7 @@ describe('a MINION\'s cast (a Mage-Pup casting its taught Growth) is never multi
       spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false, spellDoubleAlways: true, nextSpellExtraCasts: 1,
     } as Partial<RunState>);
     const next = reduce(s, { type: 'play', uid: 'p', toIndex: 1 });
-    expect(at(next, 'a')).toMatchObject({ attack: 2, health: 2 });
+    expect(at(next, 'a')).toMatchObject({ attack: 3, health: 3 });
     expect(next.spellFirstUsedThisTurn ?? false, 'Spell Thesis is still this turn\'s to spend').toBe(false);
     expect(next.nextSpellExtraCasts, 'the Nimbus / Comet charge waits for a hand cast').toBe(1);
   });
@@ -64,7 +64,7 @@ describe('a RUNE\'s cast (Rune of Recurrence re-casting the turn\'s first spell 
   it('Living Grimoire: its two casts land once each and the charge survives', () => {
     const s = charged(recurring);
     applyEndOfTurn(s);
-    expect(at(s, 'a')).toMatchObject({ attack: 3, health: 3 });
+    expect(at(s, 'a')).toMatchObject({ attack: 5, health: 5 });
     expect(s.grimoireMult).toBe(2);
   });
 
@@ -79,7 +79,7 @@ describe('a RUNE\'s cast (Rune of Recurrence re-casting the turn\'s first spell 
 describe('a spell cast FROM HAND still doubles and still spends', () => {
   it('Living Grimoire: Growth lands twice and the charge is spent', () => {
     const next = reduce(charged({ hand: [body('x', 'growth')] }), { type: 'play', uid: 'x' });
-    expect(at(next, 'a')).toMatchObject({ attack: 3, health: 3 });
+    expect(at(next, 'a')).toMatchObject({ attack: 5, health: 5 });
     expect(next.grimoireMult ?? 0).toBe(0);
   });
 
@@ -89,7 +89,7 @@ describe('a spell cast FROM HAND still doubles and still spends', () => {
       spellFirstDoubleEachTurn: true, spellFirstUsedThisTurn: false,
     } as Partial<RunState>);
     const next = reduce(s, { type: 'play', uid: 'x' });
-    expect(at(next, 'a')).toMatchObject({ attack: 3, health: 3 });
+    expect(at(next, 'a')).toMatchObject({ attack: 5, health: 5 });
     expect(next.spellFirstUsedThisTurn).toBe(true);
   });
 
@@ -100,9 +100,9 @@ describe('a spell cast FROM HAND still doubles and still spends', () => {
       spellFirstMultEachTurn: 3, spellMultMark: 0, spellsThisTurn: 0,
     } as Partial<RunState>);
     const afterPup = reduce(s, { type: 'play', uid: 'p', toIndex: 1 });
-    expect(at(afterPup, 'a'), 'the Pup\'s Growth: once').toMatchObject({ attack: 2, health: 2 });
+    expect(at(afterPup, 'a'), 'the Pup\'s Growth: once').toMatchObject({ attack: 3, health: 3 });
     const afterHand = reduce(afterPup, { type: 'play', uid: 'x' });
-    expect(at(afterHand, 'a'), 'the hand Growth: three times').toMatchObject({ attack: 5, health: 5 });
+    expect(at(afterHand, 'a'), 'the hand Growth: three times').toMatchObject({ attack: 9, health: 9 });
     expect(spellCasts(afterHand, GROWTH), 'and then the window is spent').toBe(1);
   });
 });

@@ -305,18 +305,18 @@ describe('a Shop spell aimed at a held offer acts on the stashed BODY', () => {
     expect(offerBuyStats(next, next.shop.find((o) => o.uid === offer.uid)!)).toEqual({ attack: 8, health: 9 });
   });
 
-  it('Strange Revision re-identifies the stash too: the restore is the NEW minion at the printed total, ledger kept', () => {
+  it('Strange Revision re-identifies the stash too: the restore is the NEW minion (a tier up) at the SAME printed total, ledger kept', () => {
     const { s, offer } = displace(darah({ board: [dummy()], shop: [{ uid: 's1', cardId: 'gnash' }], hand: [mkSpell('sr', 'strangerevision')] }));
     addOfferBuff(s.shop.find((o) => o.uid === offer.uid)!, 'Ruby', 1, 1);
     const next = reduce(s, { type: 'play', uid: 'sr', targetUid: offer.uid });
     const o = next.shop.find((x) => x.uid === offer.uid)!;
     expect(o.cardId).not.toBe('sandbag');
     expect(o.held!.cardId, 'the stash follows the offer').toBe(o.cardId);
-    expect(CARD_INDEX[o.cardId]!.tier).toBe(CARD_INDEX['sandbag']!.tier);
+    expect(CARD_INDEX[o.cardId]!.tier).toBe(CARD_INDEX['sandbag']!.tier + 1); // owner spell batch 2026-10-10: the tier above
     const back = restoreHeldOffer(next, o);
     expect(back.cardId).toBe(o.cardId);
     expect([back.attack, back.health]).toEqual([offerBuyStats(next, o).attack, offerBuyStats(next, o).health]);
-    expect([back.attack, back.health], 'new base + the 9/4 it had above the old base + the Ruby').toEqual([CARD_INDEX[o.cardId]!.attack + 10, CARD_INDEX[o.cardId]!.health + 5]);
+    expect([back.attack, back.health], 'it keeps its stats: the old base + the 9/4 above it + the Ruby').toEqual([CARD_INDEX['sandbag']!.attack + 10, CARD_INDEX['sandbag']!.health + 5]);
     expect(back.buffs?.find((b) => b.source === 'Growth')).toMatchObject({ attack: 3, health: 3 });
     expect(rubyOf(back)).toMatchObject({ attack: 1, health: 1 });
   });

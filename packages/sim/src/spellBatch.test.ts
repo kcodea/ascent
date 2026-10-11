@@ -289,7 +289,8 @@ describe('spell batch — tranche B3 (offer / minion manipulation)', () => {
 });
 
 describe('spell batch — tranche B4 (transform / combat-pending)', () => {
-  it('Strange Revision: transforms into a random same-tier minion, keeping bonus stats', () => {
+  // Owner spell batch 2026-10-10: the tier ABOVE, keeping its current stats (was: same tier, bonus re-based).
+  it('Strange Revision: transforms into a random minion of the tier above, keeping its current stats', () => {
     // sandbag is Tier 1, base 0/4. Give it +3/+3 above base (3/7), then transform.
     const m: BoardCard = { uid: 'm1', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 7, keywords: [], golden: false, buffs: [{ source: 'X', attack: 3, health: 3, count: 1 }] };
     let s: RunState = { ...createRun(1), board: [m], hand: [mkSpell('sp', 'strangerevision')] };
@@ -297,8 +298,8 @@ describe('spell batch — tranche B4 (transform / combat-pending)', () => {
     const t = s.board.find((c) => c.uid === 'm1')!;
     expect(t.cardId).not.toBe('sandbag'); // became something else
     const nd = CARD_INDEX[t.cardId]!;
-    expect(nd.tier).toBe(1); // same tier
-    expect([t.attack, t.health]).toEqual([nd.attack + 3, nd.health + 3]); // new base + the old +3/+3 bonus
+    expect(nd.tier).toBe(2); // the tier above Tier 1
+    expect([t.attack, t.health]).toEqual([3, 7]); // keeps its stats
   });
 
   it('Marked Target: the enemy right-most minion enters combat with Taunt, then the mark clears', () => {

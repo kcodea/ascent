@@ -240,7 +240,7 @@ describe('Rune of Lorekeeping — ANY spell cast on a friendly minion gives it +
     let s = lore({ hand: [bc('sp', 'spiritfire', 0, 1)] });
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 't' }) as RunState;
     expect(buffsOf(t(s), 'Rune of Lorekeeping')).toEqual([[3, 3]]);
-    expect([t(s).attack, t(s).health]).toEqual([2 + 2 + 3, 2 + 3 + 3]);
+    expect([t(s).attack, t(s).health]).toEqual([2 + 6 + 3, 2 + 6 + 3]); // Spirit Fire +6/+6 (owner spell batch 2026-10-10)
   });
   it('a Clue (a Gift)', () => {
     let s = lore({ setId: 'set3', hand: [bc('cl', 'clue', 0, 1)] } as Partial<RunState>);
@@ -273,8 +273,8 @@ describe('Rune of Distillation — a Shop-minion cast lands on BOTH your edge mi
     });
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o1' }) as RunState;
     const at = (uid: string) => s.board.find((c) => c.uid === uid)!;
-    expect([at('l').attack, at('r').attack, at('m').attack]).toEqual([4, 4, 2]);
-    expect(s.shop[0]!.atk, 'the offer still got its own cast').toBe(2);
+    expect([at('l').attack, at('r').attack, at('m').attack]).toEqual([8, 8, 2]); // Spirit Fire +6/+6
+    expect(s.shop[0]!.atk, 'the offer still got its own cast').toBe(6);
   });
   it('Ruby: same two edges, as real Ruby landings', () => {
     let s: RunState = withRune('rune_distillation', {
@@ -288,7 +288,7 @@ describe('Rune of Distillation — a Shop-minion cast lands on BOTH your edge mi
   it('a one-minion board is both ends: ONE extra cast, never two', () => {
     let s: RunState = withRune('rune_distillation', { board: [bc('l', 'stray', 2, 2)], hand: [bc('sp', 'spiritfire', 0, 1)], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o1' }) as RunState;
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 5]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([8, 8]); // one Spirit Fire, +6/+6
   });
 });
 
@@ -297,7 +297,7 @@ describe('Rune of Enchantment — combat casts only, +6/+8', () => {
     const s = withRune('rune_enchantment', { board: [bc('t', 'stray', 2, 2)] });
     castSpell(s, CARD_INDEX['growth']!);
     expect(buffsOf(s.board[0]!, 'Rune of Enchantment')).toEqual([]);
-    expect([s.board[0]!.attack, s.board[0]!.health], 'Growth alone').toEqual([3, 3]);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'Growth alone').toEqual([4, 4]);
   });
   it('a COMBAT cast (a Spellstone Ruby from Attacking Gems) gives every minion +6/+8', () => {
     const player: BoardMinion[] = [{ cardId: 'pack', attack: 3, health: 30, sourceUid: 'p0', keywords: [] }, { cardId: 'stray', attack: 1, health: 30, sourceUid: 'p1', keywords: [] }];
@@ -316,8 +316,8 @@ describe('Rune of the Spellmarket — every 4 Shop spells casts a Staff of Guel'
     for (let i = 0; i < 3; i++) castSpell(s, CARD_INDEX['growth']!);
     expect(s.tavernBuyBonus.atk, 'three casts bank').toBe(0);
     castSpell(s, CARD_INDEX['growth']!);
-    // 2026-09-23: +3/+3 → +3/+4 — the Balance 9/23 minions pass (merged from main) raised Staff of Guel's Health.
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'Staff of Guel: minions in the shop +3/+4').toEqual([3, 4]);
+    // 2026-09-23: +3/+3 → +3/+4; owner spell batch 2026-10-10: back to +3/+3.
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'Staff of Guel: minions in the shop +3/+3').toEqual([3, 3]);
     expect(s.spellsCast, '4 Growths + the Staff itself').toBe(5);
     expect(s.runeThresholds!.find((t) => t.sourceId === 'rune_spellmarket')!.tick, 'the Staff cast ticked the meter once').toBe(1);
   });

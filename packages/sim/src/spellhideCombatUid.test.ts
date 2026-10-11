@@ -24,7 +24,7 @@ function armed(spells = 1): RunState {
   return reduce(s, { type: 'buyRune', index: 0 }) as RunState;
 }
 
-/** Cast Spirit Fire (+2/+3) on the Beast, face the fight, and return the combat + the Beast's combat body. */
+/** Cast Spirit Fire (+6/+6 since 2026-10-10) on the Beast, face the fight, and return the combat + the Beast's combat body. */
 function castAndFight(s: RunState, casts = 1) {
   for (let i = 0; i < casts; i++) s = reduce(s, { type: 'play', uid: `sf${i}`, targetUid: 'beast' }) as RunState;
   const recorded = s.spellhidePending ?? [];
@@ -42,8 +42,8 @@ describe('Rune of Spellhide: the Start-of-Combat re-cast finds its Beast through
     expect(body.uid, 'combat renames the body, so the lookup must go through sourceUid').not.toBe('beast');
     const fired = combat.events.filter((e) => e.type === 'questTrigger' && e.flag === 'runeSpellhide' && e.side === 'player');
     expect(fired, 'Rune of Spellhide never fired: its Beast was not found in combat').toHaveLength(1);
-    const buffs = combat.events.filter((e) => e.type === 'buff' && e.target === body.uid && e.attack === 2 && e.health === 3);
-    expect(buffs.length, 'the re-cast Spirit Fire (+2/+3) did not land on the Beast').toBeGreaterThanOrEqual(1);
+    const buffs = combat.events.filter((e) => e.type === 'buff' && e.target === body.uid && e.attack === 6 && e.health === 6);
+    expect(buffs.length, 'the re-cast Spirit Fire (+6/+6) did not land on the Beast').toBeGreaterThanOrEqual(1);
   });
 
   it('only the turn’s FIRST stat spell on a Beast is recorded and re-cast', () => {

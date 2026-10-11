@@ -584,14 +584,14 @@ describe('simulate (handoff A.3)', () => {
     expect(hit.size).toBe(2);
   });
 
-  it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +1/+1)', () => {
+  it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +2/+2)', () => {
     const p: BoardMinion[] = [
       { cardId: 'hoardbreaker', attack: 4, health: 20 },
       { cardId: 'sandbag', attack: 0, health: 20 },
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker → Slaughter
     const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true); // Growth +2/+2 (owner spell batch 2026-10-10)
   });
 
   it('Hoardbreaker Drake Rally casts Growth on its own attack (no kill needed)', () => {
@@ -601,10 +601,10 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }]; // survives — no Slaughter, only Rally
     const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true); // Rally cast Growth
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true); // Rally cast Growth (+2/+2)
   });
 
-  it('golden Hoardbreaker casts Growth as genuine 2× instances — base +1/+1 events, never a doubled +2/+2', () => {
+  it('golden Hoardbreaker casts Growth as genuine 2× instances — base +2/+2 events, never a doubled +4/+4', () => {
     const p: BoardMinion[] = [
       { cardId: 'hoardbreaker', attack: 4, health: 20, golden: true },
       { cardId: 'sandbag', attack: 0, health: 1 }, // dies to one enemy swing → combat ends after the first Hoardbreaker swing
@@ -612,8 +612,8 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker's swing → Rally + Slaughter both fire
     const r = run(p, e, 3);
     const hb = r.initial.player[0]!.uid; // Hoardbreaker buffs all friends including itself
-    const base = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 1 && ev.health === 1);
-    const doubled = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 2 && ev.health === 2);
+    const base = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 2 && ev.health === 2);
+    const doubled = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 4 && ev.health === 4);
     expect(doubled.length).toBe(0); // golden is TWO base casts, never one doubled cast
     expect(base.length % 2).toBe(0); // each trigger fires the cast twice (Rally + Slaughter → a multiple of 2)
     expect(base.length).toBeGreaterThanOrEqual(2);
@@ -1952,11 +1952,11 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'sandbag', attack: 0, health: 100 },
     ];
     const enemy: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 4000, keywords: [] }];
-    // spellPowerAtk/spellPowerHp = 4/4. With +4/+4 spell power each Growth is +7/+8.
+    // spellPowerAtk/spellPowerHp = 4/4. With +4/+4 spell power each Growth is +6/+6 (base +2/+2, owner spell batch 2026-10-10).
     const r = simulate(board, enemy, makeRng(1), CARD_INDEX, combatSide({ spellPowerAtk: 4, spellPowerHp: 4 }));
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 7 && e.health === 8)).toBe(true);
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 6 && e.health === 6)).toBe(true);
     const r0 = simulate(board, enemy, makeRng(1), CARD_INDEX, combatSide());
-    expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
+    expect(r0.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // no spell power → base
   });
 
   it('Den Mother is RECRUIT-ONLY — it does NOT buff or improve on combat summons (owner ruling 2026-07-08)', () => {
@@ -1985,12 +1985,12 @@ describe('simulate (handoff A.3)', () => {
     const a = run(p, e, 1);
     const ascend = a.events.find((ev) => ev.type === 'ascend');
     expect(ascend && ascend.type === 'ascend' ? ascend.into : null).toBe('taragosa'); // transformed mid-fight
-    // The new form's effect is live the rest of the combat: Taragosa casts Growth (+3/+4 to all) on a later attack.
+    // The new form's effect is live the rest of the combat: Taragosa casts Growth (+2/+2 to all) on a later attack.
     const ai = a.events.findIndex((ev) => ev.type === 'ascend');
-    expect(a.events.slice(ai + 1).some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+    expect(a.events.slice(ai + 1).some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
   });
 
-  it("Gnasher's kill raises spell power LIVE — Taragosa's Growth jumps from 3/4 to 4/5 the same fight", () => {
+  it("Gnasher's kill raises spell power LIVE — Taragosa's Growth jumps from 2/2 to 3/3 the same fight", () => {
     const p: BoardMinion[] = [
       { cardId: 'gnash', attack: 20, health: 40 },
       { cardId: 'taragosa', attack: 3, health: 40, keywords: ['EG'] },
@@ -2001,9 +2001,9 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'omen', attack: 1, health: 400 },
     ];
     const a = run(p, e, 1); // spell power starts at 0
-    const growth = a.events.filter((ev) => ev.type === 'buff' && ev.attack >= 3).map((ev) => (ev.type === 'buff' ? `${ev.attack}/${ev.health}` : ''));
-    expect(growth).toContain('3/4'); // Growth before the kill (spell power 0)
-    expect(growth).toContain('4/5'); // after Gnasher's kill bumped spell power +1/+1 — read LIVE, same fight
+    const growth = a.events.filter((ev) => ev.type === 'buff' && ev.attack >= 2).map((ev) => (ev.type === 'buff' ? `${ev.attack}/${ev.health}` : ''));
+    expect(growth).toContain('2/2'); // Growth before the kill (spell power 0)
+    expect(growth).toContain('3/3'); // after Gnasher's kill bumped spell power +1/+1 — read LIVE, same fight
   });
 
   it("Forsaken Weaver procs PERMANENTLY from an in-combat spell (Taragosa's Growth) — undeadBuyAtk carries back", () => {
@@ -2581,7 +2581,7 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true); // improved after attack 4
   });
 
-  it('Taragosa casts Growth (+3/+4 to all your minions) on each ally attack', () => {
+  it('Taragosa casts Growth (+2/+2 to all your minions) on each ally attack', () => {
     const a = run(
       [
         { cardId: 'taragosa', attack: 4, health: 50 },
@@ -2590,7 +2590,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 60 }],
       3,
     );
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // Growth +3/+4
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // Growth +2/+2
   });
 
   it('Taragosa casts a REAL spell in combat → triggers Guel and carries the cast back to the run', () => {

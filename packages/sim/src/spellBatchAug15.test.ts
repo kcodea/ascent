@@ -9,9 +9,9 @@ const minion = (uid: string, cardId = 'stray'): never =>
   ({ uid, cardId, tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }) as never;
 
 describe('Blessing — +3/+4 twice to a minion', () => {
-  it('is a T4 2-Gold targeted spell granting +3/+4 twice', () => {
+  it('is a T4 1-Gold targeted spell granting +3/+4 twice', () => {
     const def = CARD_INDEX['sp_blessing']!;
-    expect([def.tier, def.cost, def.spell, def.target]).toEqual([4, 2, true, 'any']);
+    expect([def.tier, def.cost, def.spell, def.target]).toEqual([4, 1, true, 'any']); // 1 Gold since the owner spell batch 2026-10-10
     // Owner balance 2026-08-18: two spellBuffTarget entries of +3/+4 (net +6/+8 before spell power).
     expect(def.effects).toHaveLength(2);
     expect(def.effects[0]!.params).toMatchObject({ attack: 3, health: 4 });
@@ -58,9 +58,9 @@ describe('Beefy — the target AND its neighbours', () => {
 });
 
 describe('Gamble — roll a die, get a card of that Tier', () => {
-  it('is a T5 2-Gold untargeted spell', () => {
+  it('is a T5 1-Gold untargeted spell', () => {
     const def = CARD_INDEX['sp_gamble']!;
-    expect([def.tier, def.cost, def.spell]).toEqual([5, 2, true]);
+    expect([def.tier, def.cost, def.spell]).toEqual([5, 1, true]); // 1 Gold since the owner spell batch 2026-10-10
     expect(def.target, 'untargeted').toBeUndefined();
   });
 

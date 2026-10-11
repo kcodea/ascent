@@ -117,9 +117,9 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
     s = reduce(s, { type: 'play', uid: 's2' }); // second cast must NOT grant it again
     aw = s.board.find((c) => c.uid === 'aw')!;
     // Growth buffs the whole board too, so compare the DELTA between the two casts: the second adds only
-    // Growth's +1/+1, while the first added Growth's +1/+1 plus Ashscribe's own +2/+2.
-    expect([aw.attack - afterFirst[0]!, aw.health - afterFirst[1]!]).toEqual([1, 1]);
-    expect(afterFirst).toEqual([1 + 1 + 2, 3 + 1 + 2]);
+    // Growth's +2/+2, while the first added Growth's +2/+2 plus Ashscribe's own +2/+2.
+    expect([aw.attack - afterFirst[0]!, aw.health - afterFirst[1]!]).toEqual([2, 2]);
+    expect(afterFirst).toEqual([1 + 2 + 2, 3 + 2 + 2]);
   });
 
   it('Ashscribe Whelp: counts from PLACEMENT too — a spell cast before it does not eat its proc', () => {
@@ -272,13 +272,13 @@ describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
     const [a0, h0] = [t0.attack, t0.health];
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'tgt' });
     const t1 = s.board.find((c) => c.uid === 'tgt')!;
-    expect([t1.attack - a0, t1.health - h0]).toEqual([4, 6]); // Spirit Fire +2/+3, cast TWICE
+    expect([t1.attack - a0, t1.health - h0]).toEqual([12, 12]); // Spirit Fire +6/+6 (owner spell batch 2026-10-10), cast TWICE
     expect(s.grimoireMult).toBe(0); // spent
 
     // the next spell this turn is single, and it stays discharged
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 'tgt' });
     const t2 = s.board.find((c) => c.uid === 'tgt')!;
-    expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([2, 3]);
+    expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([6, 6]);
     expect(s.grimoireMult).toBe(0);
   });
 
@@ -314,7 +314,7 @@ describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
     expect(s.grimoireMult).toBe(2);
     s = reduce(s, { type: 'play', uid: 'post', targetUid: 'tgt' }); // the next spell doubles
     const t1 = s.board.find((c) => c.uid === 'tgt')!;
-    expect([t1.attack - a0, t1.health - h0]).toEqual([4, 6]); // +2/+3 x2, despite being the turn’s 2nd spell
+    expect([t1.attack - a0, t1.health - h0]).toEqual([12, 12]); // +6/+6 x2, despite being the turn’s 2nd spell
   });
 
   it('multiplies UNTARGETED spells too, not just aimed ones', () => {
@@ -401,7 +401,7 @@ describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
     const [a0, h0] = [t0.attack, t0.health];
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'tgt' });
     const t1 = s.board.find((c) => c.uid === 'tgt')!;
-    expect([t1.attack - a0, t1.health - h0]).toEqual([2, 3]); // single cast — no orphaned multiplier
+    expect([t1.attack - a0, t1.health - h0]).toEqual([6, 6]); // single cast — no orphaned multiplier
   });
 });
 
@@ -472,7 +472,7 @@ describe('set 2 — Voicekeeper copies the first Dragon sold each turn', () => {
 
 describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
   it('Mirrorwing Hatchling: the first spell on it casts AGAIN — and does not recurse', () => {
-    // Spirit Fire is +2/+3 to one minion. Cast once on Mirrorwing → it should land TWICE (the cast + the
+    // Spirit Fire is +6/+6 to one minion. Cast once on Mirrorwing → it should land TWICE (the cast + the
     // re-cast), not once and not forever. The recursion guard is the whole reason this card is safe: its
     // effect is another cast on itself, so without the count check it would re-enter until the stack blew.
     let s: RunState = {
@@ -482,7 +482,7 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'mw' });
     const mw = s.board.find((c) => c.uid === 'mw')!;
-    expect([mw.attack - 2, mw.health - 4]).toEqual([4, 6]); // exactly 2x (+2/+3), so no runaway
+    expect([mw.attack - 2, mw.health - 4]).toEqual([12, 12]); // exactly 2x (+6/+6), so no runaway
     expect(mw.spellsOnThisTurn).toBe(2); // the original + the single re-cast
   });
 
@@ -497,7 +497,7 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
     const a1 = afterFirst.attack, h1 = afterFirst.health;
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 'mw' });
     const mw = s.board.find((c) => c.uid === 'mw')!;
-    expect([mw.attack - a1, mw.health - h1]).toEqual([2, 3]); // the second lands ONCE
+    expect([mw.attack - a1, mw.health - h1]).toEqual([6, 6]); // the second lands ONCE
   });
 
 });
@@ -555,10 +555,10 @@ describe("set 2 — Orivax's LEGACY run modes (old saves / replays)", () => {
     const [a0, h0] = [t0.attack, t0.health];
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 't' });
     const t1 = s.board.find((c) => c.uid === 't')!;
-    expect([t1.attack - a0, t1.health - h0]).toEqual([6, 9]); // Spirit Fire +2/+3 x3
+    expect([t1.attack - a0, t1.health - h0]).toEqual([18, 18]); // Spirit Fire +6/+6 x3
     s = reduce(s, { type: 'play', uid: 's2', targetUid: 't' });
     const t2 = s.board.find((c) => c.uid === 't')!;
-    expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([2, 3]); // second spell single
+    expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([6, 6]); // second spell single
   });
 });
 

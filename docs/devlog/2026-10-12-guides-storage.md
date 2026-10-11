@@ -69,10 +69,23 @@ Run the migration, add the two team accounts, deploy `guide-write` (`supabase/RE
   reservation). Nothing public depends on it until publishing ships in step 3; the owner reviews the list before
   then. Report and Hide (step 4) are the real defence.
 - "!" inside a word is read as the letter i, at the end of a word it is punctuation; whole-word matching also blocks
-  innocent uses such as a name containing a listed word.
+  innocent uses such as a name containing a listed word. Two consequences of that rule pass today and are for the
+  list review: a doubled "!!" inside a word ("sh!!t"), and a listed word whose last letter is written as "!".
 - The look of the "Missing or removed" slot is a first cut that has not been judged in a real render.
 - The advisory lock cannot be raced in PGlite (one connection), so it is verified by reading, not by a test.
 - Deleting an imported built-in guide is undone by the next import.
+
+## Performance
+
+Measured headlessly (the logic only): with the content package already loaded, importing the guides module costs
+14 to 19 ms once, under `tsx`, which includes transpiling its files on the fly; the bundled game pays less. That is
+the eleven built-in guides plus the card-id sets for the three sets. `guidesFor` takes about 0.002 ms a call and
+`guideMissingIds` about 0.0002 ms a guide, and both sit behind `useMemo`. Nothing was added to a per-frame path and
+nothing animates.
+
+NOT measured: the DevTools render pass on the production build that `docs/performance.md` asks for (opening the
+rail's Guides view and the Compendium Guides tab). This step draws nothing new unless a guide holds a missing card,
+which cannot happen before the step 2 import. That measurement is owed with step 2, where the screens change.
 
 ## Not verified here
 

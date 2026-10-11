@@ -895,7 +895,7 @@ export function MinionBook() {
           {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), the runes (Runes tab), or the
               heroes (Heroes tab). */}
           {guidesOn ? (
-            <CompendiumGuides guides={guidesToShow} tribes={tribes} run={liveRun} />
+            <CompendiumGuides guides={guidesToShow} tribes={tribes} run={liveRun} setId={setId} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
               <div className="book-grid is-heroes">

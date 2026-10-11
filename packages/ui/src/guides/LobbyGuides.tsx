@@ -3,7 +3,7 @@ import type { Tribe } from '@game/core';
 import { Icon } from '../Icon';
 import { toStage } from '../stage';
 import { useGame } from '../store';
-import { type Guide, type GuidesMode } from './guides';
+import { guideMissingIds, type Guide, type GuidesMode } from './guides';
 import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
 import './lobbyGuides.css';
 
@@ -135,11 +135,12 @@ function GuideBody({ guide, full, onMode }: { guide: Guide; full: boolean; onMod
   const run = useGame((st) => st.run);
   const ids = useMemo(() => guideCardIds(guide), [guide]);
   const { views, refs } = useGuideViews(ids, run);
+  const missing = useMemo(() => guideMissingIds(guide, run.setId), [guide, run.setId]);
   return (
     <div className="lobbyguide-body">
-      {full && <GuideText guide={guide} ids={ids} views={views} refs={refs} />}
-      <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} />
-      {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} />}
+      {full && <GuideText guide={guide} ids={ids} views={views} refs={refs} missing={missing} />}
+      <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} missing={missing} />
+      {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} missing={missing} />}
       {/* DETAILED / SIMPLE, per open card: Detailed widens the rail to the left and adds the write-up; Simple folds
           back to the normal rail. The choice is remembered (LobbyPanel). */}
       <button type="button" className="lobbyguide-modebtn"

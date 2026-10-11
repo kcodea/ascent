@@ -1,13 +1,19 @@
 import type { ProgressionProfile } from '@game/progression';
 
 /**
- * THE COLLECTION'S "SEEN" LIST: which owned items this account has looked at on THIS device (the NEW badge). Its own
- * module so the progression store can take the baseline without loading the album model. Local only, best-effort.
+ * THE COLLECTION'S "SEEN" LIST ON THIS DEVICE: which owned items this account has looked at (the NEW badge).
+ *
+ * The list itself lives ON THE ACCOUNT (`player_cosmetics.seen_at`, 2026-10-11, owner: "i want to save the 'seen'
+ * on the account level"); the progression store reads it and writes it (`refreshSeenList`, `markCosmeticsSeen`).
+ * This file is the device's COPY of it, in localStorage, which does three jobs: the page can draw the badges before
+ * the server answers (and offline), an item you just looked at stays seen even if the write did not get through, and
+ * it IS the list on a server from before the migration (see `ensureSeenBaseline`). Local only, best-effort.
  */
 
 const SEEN_KEY = (userId: string): string => `ascent.collection.seen.${userId}`;
+const BASELINE_KEY = (userId: string): string => `ascent.collection.baseline.${userId}`;
 
-/** The item ids this account has looked at on this device. Empty when unreadable. */
+/** The item ids this account has looked at, as this device knows it. Empty when unreadable. */
 export function loadSeen(userId: string | null | undefined): Set<string> {
   if (!userId) return new Set();
   try {
@@ -18,14 +24,14 @@ export function loadSeen(userId: string | null | undefined): Set<string> {
   }
 }
 
-/** Remember that `ids` were seen. Best-effort; local only (never sent anywhere). */
+/** Remember that `ids` were seen. Best-effort. */
 export function saveSeen(userId: string | null | undefined, seen: ReadonlySet<string>): void {
   if (!userId) return;
   try { localStorage.setItem(SEEN_KEY(userId), JSON.stringify([...seen])); } catch { /* best-effort */ }
 }
 
-/** Add `ids` to the STORED list (a union with what is there, so the page, the baseline and a second tab never drop
- *  each other's ids). Writes only when something is new. */
+/** Add `ids` to the STORED list (a union with what is there, so the page, the account's answer and a second tab
+ *  never drop each other's ids). Writes only when something is new. */
 export function addSeen(userId: string | null | undefined, ids: Iterable<string>): void {
   if (!userId) return;
   const seen = loadSeen(userId);
@@ -34,23 +40,33 @@ export function addSeen(userId: string | null | undefined, ids: Iterable<string>
   if (seen.size !== before) saveSeen(userId, seen);
 }
 
-const BASELINE_KEY = (userId: string): string => `ascent.collection.baseline.${userId}`;
+/**
+ * Whether this device KNOWS what the account has seen: the account's list has been read here at least once, or (on
+ * a server from before the migration) the device took its baseline. Until then the Collection shows no NEW badge at
+ * all: an empty list is "not asked yet", never "nothing seen" (that reading is what badged the whole collection).
+ */
+export function hasSeenBaseline(userId: string | null | undefined): boolean {
+  if (!userId) return false;
+  try { return !!localStorage.getItem(BASELINE_KEY(userId)); } catch { return false; }
+}
+
+/** The account's own list landed: copy it here and note that this device now knows it. */
+export function adoptAccountSeen(userId: string | null | undefined, ids: Iterable<string>): void {
+  if (!userId) return;
+  addSeen(userId, ids);
+  try { localStorage.setItem(BASELINE_KEY(userId), '1'); } catch { /* best-effort */ }
+}
 
 /**
- * THE BASELINE (owner 2026-10-11: "whenever i load the game, all of my stuff that i already own shows up as 'new'").
- * The seen list lives in this browser's storage, so a device (or a new address: another dev port, the desktop app,
- * the web build) that has never seen the account started with an EMPTY list and badged the whole collection, one
- * click per item to clear. Now the first readable ownership list a device gets for an account is taken as already
- * seen, ONCE (a marker key), so only what is earned after that wears NEW. A list the device already had is kept and
- * topped up. A profile whose ownership could not be read (no `cosmetics`) is skipped: the next full read takes it.
+ * THE DEVICE BASELINE, only for a server from BEFORE the seen migration (the list cannot live on the account yet):
+ * the first readable ownership list this device gets is taken as already seen, ONCE, so only what is earned after
+ * that wears NEW. Returns the ids it just took, or null when there was nothing to do (already taken, or the
+ * ownership could not be read: no `cosmetics`, so a failed read never burns it).
  */
-export function ensureSeenBaseline(userId: string | null | undefined, profile: Pick<ProgressionProfile, 'cosmetics'> | null | undefined): void {
-  if (!userId || !profile?.cosmetics) return;
-  try {
-    if (localStorage.getItem(BASELINE_KEY(userId))) return;
-    addSeen(userId, profile.cosmetics);
-    localStorage.setItem(BASELINE_KEY(userId), '1');
-  } catch { /* best-effort: blocked storage just means the badges show for this session */ }
+export function ensureSeenBaseline(userId: string | null | undefined, profile: Pick<ProgressionProfile, 'cosmetics'> | null | undefined): readonly string[] | null {
+  if (!userId || !profile?.cosmetics || hasSeenBaseline(userId)) return null;
+  adoptAccountSeen(userId, profile.cosmetics);
+  return profile.cosmetics;
 }
 
 /** An owned item not seen yet wears NEW. */

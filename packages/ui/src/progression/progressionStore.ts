@@ -26,7 +26,7 @@
  */
 import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
-import { ensureSeenBaseline } from './collectionSeen';
+import { addSeen, adoptAccountSeen, ensureSeenBaseline } from './collectionSeen';
 import {
   COSMETICS, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
@@ -36,7 +36,7 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchServerCatalogState, openCrateRemote, progressionRequestFor,
+  equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
   type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
@@ -69,6 +69,10 @@ interface ProgressionStore {
   /** ACHIEVEMENTS (2026-09-28): `on` once the owner set `achievements_epoch`. Shows the Career tab and the post-game
    *  "Achievement unlocked" rows, and makes a settlement carry its run metrics (V2 facts). */
   achievementsCapability: ProgressionCapability;
+  /** THE COLLECTION'S SEEN LIST as last answered from outside the page: the ids the ACCOUNT has looked at (read from
+   *  the server), or, on a server from before the seen migration, the baseline this device just took. Null until
+   *  one of those lands. The Collection lays it over its own snapshot, so the answer shows the moment it arrives. */
+  seenKnown: { userId: string; ids: ReadonlySet<string> } | null;
 }
 
 const MIRROR_KEY = 'ascent.progression';
@@ -112,6 +116,7 @@ export const useProgression = create<ProgressionStore>(() => ({
   crateList: null,
   catalogEpoch: 0,
   achievementsCapability: 'unknown',
+  seenKnown: null,
 }));
 
 // The last server kill-switch answer we saw, applied before anything renders (never un-retires on its own).
@@ -130,8 +135,6 @@ export function mirrorFor(userId: string | null | undefined, mirror: Progression
  * Returns whether it was adopted.
  */
 export function adoptProgressionProfile(userId: string, profile: ProgressionProfile): boolean {
-  // The Collection's NEW baseline: the first ownership list this device reads for the account is already seen.
-  ensureSeenBaseline(userId, profile);
   const cur = useProgression.getState().mirror;
   if (cur && cur.userId === userId && profile.revision < cur.revision) return false;
   const next: ProgressionMirror = { ...profile, userId };
@@ -158,6 +161,56 @@ export function applyProgressionOutcome(item: Pick<PendingProgression, 'userId' 
   }
 }
 
+// ── The Collection's seen list (owner 2026-10-11: "i want to save the 'seen' on the account level") ───────────
+
+/** The account whose seen list the SERVER holds (the migration has run and it answered). Null = the list is this
+ *  device's own: nothing is sent. */
+let seenAccount: string | null = null;
+/** The ids the server is known to hold as seen for `seenAccount` (its answer + every write that got through), so an
+ *  item is sent once. Not reactive on purpose: a badge you are looking at must not vanish because its write landed. */
+const seenOnServer = new Set<string>();
+
+/**
+ * Read the account's seen list (run with the probe, when identity lands or changes).
+ *  - it answers: the list is the account's. Copy it to this device and publish it (`seenKnown`).
+ *  - `unsupported` (a server from before the migration): the list is this device's. Take the one-time baseline from
+ *    `profile` (the ownership just read), so the collection you already own is not badged.
+ *  - no answer: change nothing. A device that has never had an answer shows no NEW badge until it gets one.
+ */
+export async function refreshSeenList(userId: string, profile: Pick<ProgressionProfile, 'cosmetics'> | null): Promise<void> {
+  const seen = await fetchSeenCosmeticIds(userId);
+  if (seen === undefined || currentUserId() !== userId) return;
+  if (seen === 'unsupported') {
+    seenAccount = null;
+    seenOnServer.clear();
+    const took = ensureSeenBaseline(userId, profile);
+    if (took) useProgression.setState({ seenKnown: { userId, ids: new Set(took) } });
+    return;
+  }
+  seenAccount = userId;
+  seenOnServer.clear();
+  for (const id of seen) seenOnServer.add(id);
+  adoptAccountSeen(userId, seen);
+  useProgression.setState({ seenKnown: { userId, ids: new Set(seen) } });
+}
+
+/**
+ * The player looked at `ids` (opened their tab, or selected one): seen on this device at once, and on the account
+ * when the server holds the list. Best-effort and never queued: a write that fails is sent again the next time the
+ * items are looked at. The server marks only the caller's own unseen items, so an id it does not know is a no-op.
+ */
+export function markCosmeticsSeen(userId: string | null | undefined, ids: readonly string[]): void {
+  if (!userId || !ids.length) return;
+  addSeen(userId, ids);
+  if (seenAccount !== userId) return;
+  const send = ids.filter((id) => !seenOnServer.has(id));
+  if (!send.length) return;
+  for (const id of send) seenOnServer.add(id);
+  void markCosmeticsSeenRemote(send).then((ok) => {
+    if (!ok && seenAccount === userId) for (const id of send) seenOnServer.delete(id);
+  });
+}
+
 let probing: Promise<void> | null = null;
 
 /**
@@ -179,6 +232,8 @@ export function probeProgression(): Promise<void> {
     if (!userId) return;
     const profile = await fetchOwnProgression();
     if (profile) adoptProgressionProfile(userId, profile);
+    // The Collection's seen list, alongside the rest (its baseline fallback needs the ownership just read).
+    const seenRead = refreshSeenList(userId, profile ?? null);
     await flushPendingProgressions(applyProgressionOutcome, { force: true });
     // The crates probe: a separate switch, so the XP panel works before the crates migration runs.
     const crates = await fetchCratesEnabled();
@@ -187,6 +242,7 @@ export function probeProgression(): Promise<void> {
     // The achievements probe: its own switch (the owner flips it after deploying the Edge Function).
     const ach = await fetchAchievementsEnabled();
     if (ach !== undefined) useProgression.setState({ achievementsCapability: ach ? 'on' : 'off' });
+    await seenRead;
   };
   const p = run().catch(() => { /* never throws */ }).finally(() => { if (probing === p) probing = null; });
   probing = p;
@@ -444,7 +500,9 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown' });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', seenKnown: null });
+  seenAccount = null;
+  seenOnServer.clear();
 }
 
 // ── DEV ONLY: "Unlock everything (dev)" (the Crate opening tuner's switch) ───────────────────────────────────

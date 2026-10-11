@@ -11,6 +11,8 @@
  *  - CRATES (2026-09-28): `fetchCratesEnabled` (the second probe: the crates migration has run and
  *    `crates_enabled` is on), `fetchOwnCrates`, and the `progression-inventory` Edge Function (`openCrateRemote`,
  *    `equipTitleRemote`). Opening and equipping are interactive and never queued: a failure is shown, not retried.
+ *  - THE COLLECTION'S SEEN LIST (2026-10-11): `fetchSeenCosmeticIds` reads which owned items the account has looked
+ *    at (`player_cosmetics.seen_at`), `markCosmeticsSeenRemote` marks more (the `mark_cosmetics_seen` function).
  *
  * Never throws; every read is time-boxed.
  */
@@ -195,6 +197,51 @@ async function fetchOwnedCosmeticIds(userId: string): Promise<{ titles: string[]
   if (legacy.error) return null;
   const titles = (legacy.data ?? []).map((r) => r.title_id).filter((t): t is string => typeof t === 'string');
   return { titles, all: titles };
+}
+
+/**
+ * THE COLLECTION'S SEEN LIST, from the account (owner 2026-10-11: "i want to save the 'seen' on the account level"):
+ * the ids of the owned items this account has looked at, on any device. `'unsupported'` = asked, and the server is
+ * from before the seen migration (no `seen_at` column, or no ownership table): the list then lives on the device.
+ * `undefined` = could not ask (no backend, offline, timeout): say nothing, keep what the device has.
+ */
+export async function fetchSeenCosmeticIds(userId: string): Promise<string[] | 'unsupported' | undefined> {
+  try {
+    const c = supabaseClient();
+    if (!c) return undefined;
+    const res = await Promise.race([
+      fetchAllRows<{ cosmetic_id?: unknown }>((from, to) => c.from('player_cosmetics').select('cosmetic_id').eq('user_id', userId)
+        .not('seen_at', 'is', null).order('cosmetic_id', { ascending: true }).range(from, to)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res) return undefined;
+    if (res.error) {
+      // ONLY a definite "no such column / table" means the list is the device's. Anything else is "could not ask":
+      // guessing 'unsupported' on a hiccup would let a device take its own baseline over the account's list.
+      const code = String((res.error as { code?: string }).code ?? '');
+      return code === '42703' || code === 'PGRST204' || code === '42P01' || code === 'PGRST205' ? 'unsupported' : undefined;
+    }
+    return (res.data ?? []).map((r) => r.cosmetic_id).filter((t): t is string => typeof t === 'string');
+  } catch {
+    return undefined;
+  }
+}
+
+/** Mark THIS account's `ids` as seen (`mark_cosmetics_seen`: it only ever touches the caller's own unseen items).
+ *  False = it did not get through; the caller sends them again the next time they are looked at. */
+export async function markCosmeticsSeenRemote(ids: readonly string[]): Promise<boolean> {
+  try {
+    const c = supabaseClient();
+    if (!c || !ids.length) return false;
+    const res = await Promise.race([
+      // rows: a write that answers one scalar (how many it marked), never a list
+      Promise.resolve(c.rpc('mark_cosmetics_seen', { p_ids: [...ids] })),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    return !!res && !res.error;
+  } catch {
+    return false;
+  }
 }
 
 /**

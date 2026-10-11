@@ -13,10 +13,9 @@ import { HEROES } from '@game/sim';
  *                a STABLE order (rarest first, then catalog order) so an item never moves when you find it;
  *   filters      Show (All / Owned / Missing) x Rarity (All / one rarity);
  *   counts       owned / total, per category, per rarity, and overall;
- *   NEW          an owned item you have not looked at yet. A LOCAL flag per account (localStorage), never written
- *                to the server. The first time a device reads the account, everything already owned counts as seen
- *                (the BASELINE), so only what is earned afterwards is NEW; it clears when you select the item, or
- *                once you leave the tab you saw it on (Fortnite's "clears on view"). See the seen list below.
+ *   NEW          an owned item you have not looked at yet. Saved ON THE ACCOUNT (2026-10-11), so it follows you to
+ *                every device; this device keeps a copy (`collectionSeen.ts`). It clears when you select the item,
+ *                or once you leave the tab you saw it on (Fortnite's "clears on view").
  *
  * RETIRED ITEMS ARE HIDDEN (the kill switch, owner 2026-09-28: "we need to have the ability to remove any rewards
  * from the game"). An item that is not LIVE (`isCosmeticLive`: retired in the TS catalog or by the server's one-line
@@ -153,4 +152,4 @@ export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
 
 // ── NEW: the local "seen" list ────────────────────────────────────────────────────────────────────────────
 
-export { addSeen, ensureSeenBaseline, isNew, loadSeen, saveSeen } from './collectionSeen';
+export { hasSeenBaseline, isNew, loadSeen } from './collectionSeen';

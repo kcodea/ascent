@@ -62,6 +62,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Collection: items you already own no longer show as New every time you load the game.',
         details: [
+          'What you have looked at is now saved on your account, so it is the same on every device.',
           'Only items you earn from now on show New.',
           'Opening a tab clears its New badges once you leave it. Selecting an item clears its badge right away.',
           'The item you have equipped never shows New.',

@@ -128,9 +128,9 @@ export function flushPendingRanks(onSettled: RankSettleListener): Promise<void> 
   const run = async (): Promise<void> => {
     for (const item of pendingRanks()) {
       if (currentUserId() !== item.userId) return; // the account changed under us — never cross-submit
-      // THE ABANDON PENALTY IS OFF (owner 2026-10-02, R-RANK-05): an abandon request still waiting here (queued
-      // while it was on, then left unsent by a dropped connection) is DROPPED, never sent. No answer is reported:
-      // it is not the current run's result and it moves nothing.
+      // WHILE THE ABANDON PENALTY IS OFF (R-RANK-05; it is ON again since 2026-10-11): an abandon request still
+      // waiting here (queued while it was on, then left unsent by a dropped connection) is DROPPED, never sent. No
+      // answer is reported: it is not the current run's result and it moves nothing. With it on, this is a no-op.
       if (isDroppedAbandon(item)) { removeItem(item); continue; }
       const outcome = await submitRating(item);
       if (outcome.status === 'retryable') { recordAttempt(item, outcome.reason); onSettled(item, outcome); return; }

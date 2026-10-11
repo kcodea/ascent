@@ -11,7 +11,8 @@ import { Icon } from './Icon';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
-import { withAbandonWarning } from './rank/ratedRun';
+import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
+import { RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { Crest, IconChest, IconHelm } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
@@ -103,6 +104,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // retire it. (The mode picker / Learn hub views are `titleView` in the store — returning to the title lands
   // on the MAIN menu because `openTitle` / `cancelPracticeSetup` reset it; owner ask 2026-08-24.)
   const [tutorialPrompt, setTutorialPrompt] = useState(false);
+  // THE RANKED CONFIRMATION (owner 2026-10-11, R-RANK-06): the Play card never opens hero select directly. It asks
+  // first, because from "Yes" on, leaving the match (even from hero select) settles as an 8th.
+  const [rankedConfirm, setRankedConfirm] = useState(false);
   // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
   // non-signed in players change the portrait either, they need to sign in for that"). Read fresh per click.
   const [portraitGate, setPortraitGate] = useState(false);
@@ -129,12 +133,16 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // once before the real game, rather than dropping them in cold.
   const learnStatus = getCourseProgress(LEARN_ASCENT.id)?.status;
   const isNewPlayer = !learnStatus || learnStatus === 'not_started';
-  // Play from the mode picker: nudge a new player to the tutorial first; everyone else starts the lobby.
+  // Play from the mode picker: nudge a new player to the tutorial first; everyone else gets the ranked
+  // confirmation, and only its "Yes" starts the lobby.
   const onPlay = () => {
     sfx.pulse();
     if (isNewPlayer) setTutorialPrompt(true);
-    else startLobby();
+    else setRankedConfirm(true);
   };
+  // Saying yes with an unfinished RATED game in the save slot also gives that game up once a hero is picked (the
+  // new run replaces the one slot, R-RANK-05), so the confirmation names that cost too. Null otherwise.
+  const savedGameWarning = abandonWarningOf(savedRun);
 
   // A first-time player with no name yet: show the auto-assigned temp handle (the same one on the leaderboard)
   // and NUDGE the chip so they notice it's theirs to change, rather than a bare "Set your name".
@@ -442,7 +450,22 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <p className="tutprompt-sub">A quick coached game teaches you everything: shop, build, position, and win. About five minutes.</p>
             <div className="tutprompt-actions">
               <button className="endplay pressable" onClick={() => { sfx.pulse(); setTutorialPrompt(false); startTutorial(LEARN_ASCENT); }}>Start the Tutorial</button>
-              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); startLobby(); }}>Skip and just play</button>
+              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); setRankedConfirm(true); }}>Skip and just play</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* THE RANKED CONFIRMATION (owner 2026-10-11, R-RANK-06) — the Play card's gate, in the owner's words. "Yes"
+          commits the ranked entry and opens hero select (`startLobby`); "No" returns to the mode picker under it. */}
+      {rankedConfirm && (
+        <div className="modepick tutprompt-ov" role="dialog" aria-label="Ranked lobby">
+          <div className="tutprompt-card rankedconfirm">
+            <p className="tutprompt-sub rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
+            {savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
+            <div className="rankedconfirm-actions">
+              <button className="endplay pressable" onClick={() => { sfx.pulse(); setRankedConfirm(false); startLobby(); }}>{RANKED_CONFIRM_YES}</button>
+              <button className="rankedconfirm-no pressable" onClick={() => { sfx.pulse(); setRankedConfirm(false); }}>{RANKED_CONFIRM_NO}</button>
             </div>
           </div>
         </div>

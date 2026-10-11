@@ -6936,9 +6936,10 @@ notify pgrst, 'reload schema';
 --    callable only by the service role (the `guide-write` Edge Function), are the only writers.
 --    Official (Team Ascent) guides belong to NO account: `author_id` is null on them (a check constraint pins that
 --    shape: official means no author, published, by line "Team Ascent"), so a team member leaving cannot delete
---    them. A player's guides belong to the player and go with the account (`on delete cascade`).
+--    them. A player's guides belong to the player and go with the account (`on delete cascade`), and a second
+--    check constraint refuses a guide that is neither official nor anyone's (a player guide always has an author).
 --  - `guide_bookmarks`, `guide_reports`: created now so later steps add functions, not tables.
---  - `guide_writes`: one row per save, for the 30-per-hour rate limit.
+--  - `guide_writes`: one row per save, for the 30-per-hour rate limit. A deleted account's rows go with it.
 --  - `guide_save`, `guide_delete`, `guide_import_builtins`: the row rules (ownership, official = team only, the
 --    20-guide cap, the rate limit, edit conflicts). The text rules (limits, word filter) are the Edge Function's.
 --    One account's saves are serialised (an advisory lock), so a parallel burst cannot beat the cap or the limit.
@@ -6997,7 +6998,8 @@ create table if not exists public.guides (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   updated_by     uuid,
-  constraint guides_official_shape check (not official or (author_id is null and published and byline = 'Team Ascent'))
+  constraint guides_official_shape check (not official or (author_id is null and published and byline = 'Team Ascent')),
+  constraint guides_player_has_author check (official or author_id is not null)
 );
 create index if not exists guides_sets on public.guides using gin (sets);
 create index if not exists guides_author on public.guides (author_id);
@@ -7035,7 +7037,7 @@ drop policy if exists "team reads guide_reports" on public.guide_reports;
 create policy "team reads guide_reports" on public.guide_reports for select to authenticated using ((select public.is_guide_team()));
 
 create table if not exists public.guide_writes (
-  user_id uuid not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
   at      timestamptz not null default now()
 );
 create index if not exists guide_writes_user_at on public.guide_writes (user_id, at desc);
@@ -7069,7 +7071,7 @@ begin
   if p_user is null then raise exception 'unauthenticated'; end if;
   -- The 20-guide cap and the 30-per-hour limit are count-then-insert; this serialises one account's saves so a
   -- parallel burst cannot beat them. (Released at the end of the transaction.)
-  perform pg_advisory_xact_lock(hashtextextended(p_user::text, 0));
+  perform pg_advisory_xact_lock(hashtextextended('guides:' || p_user::text, 0));
   v_team := exists (select 1 from public.guide_team where user_id = p_user);
   if v_official and not v_team then raise exception 'not_allowed'; end if;
 

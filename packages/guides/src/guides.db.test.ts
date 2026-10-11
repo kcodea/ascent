@@ -205,6 +205,26 @@ describe('official guides own no account', () => {
     const team = (await db.query<{ n: number }>('select count(*)::int as n from public.guide_team where user_id = $1', [LEFT])).rows[0]!.n;
     expect(team).toBe(0);
   });
+
+  it('the table refuses a guide that is not official and has no author', async () => {
+    expect(await err(db.query("insert into public.guides (author_id, byline, icon_card, title, body, core) values (null, 'Nobody', 'grim', 'Orphan', 'B', '{grim}')")))
+      .toMatch(/guides_player_has_author/);
+    const mine = await save(BOB, doc({ byline: 'Bob', title: 'Keeps its author' }));
+    expect(await err(db.query('update public.guides set author_id = null where id = $1', [mine.id]))).toMatch(/guides_player_has_author/);
+    expect((await db.query<{ n: number }>("select count(*)::int as n from public.guides where title = 'Orphan' or author_id is null and not official")).rows[0]!.n).toBe(0);
+  });
+
+  it('deleting an account removes its save log, and the log takes no account that does not exist', async () => {
+    const LOGGED = '00000000-0000-0000-0000-000000000015';
+    await db.query('insert into auth.users (id) values ($1)', [LOGGED]);
+    await save(LOGGED, doc({ byline: 'Logged', title: 'Logged' }));
+    const logged = async (): Promise<number> =>
+      (await db.query<{ n: number }>('select count(*)::int as n from public.guide_writes where user_id = $1', [LOGGED])).rows[0]!.n;
+    expect(await logged()).toBe(1);
+    await db.query('delete from auth.users where id = $1', [LOGGED]);
+    expect(await logged()).toBe(0);
+    expect(await err(db.query("insert into public.guide_writes (user_id) values ('99999999-9999-4999-8999-999999999999')"))).toMatch(/foreign key/);
+  });
 });
 
 describe('who can read a guide', () => {

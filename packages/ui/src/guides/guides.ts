@@ -96,16 +96,18 @@ export const GUIDES: readonly Guide[] = BUNDLED_GUIDE_DATA.map((d, i) => {
 /**
  * A server row as the UI draws it. Null for a guide this build cannot place: one for a tribe it has never heard of
  * (an older client must not show it as Neutral, in every lobby). An unknown set id or crossover tribe is dropped
- * from the guide; an unknown card id is kept and greys out (`guideMissingIds`).
+ * from the guide; an unknown card id is kept and greys out (`guideMissingIds`). A literal 'neutral' in `tribes` (or
+ * `pairsWith`) means "no tribe": it is removed first, so a `['neutral']` row is a Neutral guide (`tribes: []`).
  */
 export function toGuide(r: GuideRecord): Guide | null {
-  if (r.tribes.some((t) => !KNOWN_TRIBES.has(t))) return null;
-  const pairsWith = r.pairsWith.filter((t) => KNOWN_TRIBES.has(t)) as Tribe[];
+  const tribes = r.tribes.filter((t) => t !== 'neutral');
+  if (tribes.some((t) => !KNOWN_TRIBES.has(t))) return null;
+  const pairsWith = r.pairsWith.filter((t) => t !== 'neutral' && KNOWN_TRIBES.has(t)) as Tribe[];
   return {
     id: r.slug ?? r.id,
     rowId: r.id,
     sets: r.sets.filter((s): s is SetId => KNOWN_SETS.has(s)),
-    tribes: r.tribes as Tribe[],
+    tribes: tribes as Tribe[],
     pairsWith: pairsWith.length ? pairsWith : undefined,
     iconCard: r.iconCard,
     title: r.title,
@@ -137,21 +139,22 @@ export function tribeInk(t: Tribe): string {
 
 /**
  * The guides this game shows, from `list` (the store's, or the built-in ones): the set's, and only tribes in this
- * lobby (neutral always). A tribe's guides stay together: tribes come in the order each FIRST appears in the list,
- * Neutral last, and each tribe's guides in list order. So today's order is unchanged, and a guide the team adds
- * later for an existing tribe lands beside that tribe's others.
+ * lobby (neutral always). A tribe's guides stay together: tribes come in the order each first appears once the list
+ * is ordered by `order` then id; Neutral last; a tribe's guides are always adjacent, even when orders tie. So today's
+ * order is unchanged, and a guide the team adds later for an existing tribe lands beside that tribe's others.
  */
 export function guidesFor(setId: SetId | undefined, tribes: readonly Tribe[], list: readonly Guide[] = GUIDES): Guide[] {
   const set = setId ?? 'set1';
   const shown = list.filter((g) => g.sets.includes(set) && (g.tribes.length === 0 || g.tribes.some((t) => tribes.includes(t))));
-  const firstSeen = new Map<string, number>();
-  for (const g of shown) {
-    const key = g.tribes[0] ?? '';
-    const at = firstSeen.get(key);
-    if (at === undefined || g.order < at) firstSeen.set(key, g.order);
-  }
-  const rank = (g: Guide): number => (g.tribes.length === 0 ? Number.MAX_SAFE_INTEGER : firstSeen.get(g.tribes[0]!)!);
-  return [...shown].sort((a, b) => rank(a) - rank(b) || a.order - b.order || a.id.localeCompare(b.id));
+  const base = [...shown].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  const rankOf = new Map<string, number>();
+  base.forEach((g, i) => {
+    const t = g.tribes[0];
+    if (t !== undefined && !rankOf.has(t)) rankOf.set(t, i);
+  });
+  const rank = (g: Guide): number => (g.tribes.length === 0 ? Number.MAX_SAFE_INTEGER : rankOf.get(g.tribes[0]!)!);
+  // Array.prototype.sort is stable, so guides of one rank keep their `base` order.
+  return [...base].sort((a, b) => rank(a) - rank(b));
 }
 
 const NO_MISSING: ReadonlySet<string> = new Set();

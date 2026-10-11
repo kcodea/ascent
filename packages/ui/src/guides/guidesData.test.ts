@@ -33,6 +33,10 @@ describe('toGuide (a server row -> what the UI draws)', () => {
   it('a guide for a tribe this build has never heard of is dropped, not shown as Neutral', () => {
     expect(toGuide(rec({ tribes: ['merfolk'] }))).toBeNull();
   });
+  it("a row whose tribes name 'neutral' means no tribe: it becomes a Neutral guide, or just loses the word", () => {
+    expect(toGuide(rec({ tribes: ['neutral'] }))!.tribes).toEqual([]);
+    expect(toGuide(rec({ tribes: ['beast', 'neutral'] }))!.tribes).toEqual(['beast']);
+  });
   it('an unknown set id and an unknown pairs-with tribe are dropped from the guide; unknown cards are kept (they grey out)', () => {
     const out = toGuide(rec({ sets: ['set2', 'set99'], pairsWith: ['merfolk'], core: ['b2_sunmane', 'card_from_the_future'] }))!;
     expect(out.sets).toEqual(['set2']);
@@ -56,6 +60,21 @@ describe('guidesFor over a list', () => {
       g({ id: 'neutral-1', tribes: [], order: 2 }), g({ id: 'beast-2', tribes: ['beast'], order: 3 }),
     ];
     expect(guidesFor('set2', ['beast', 'dragon'], list).map((x) => x.id)).toEqual(['beast-1', 'beast-2', 'dragon-1', 'neutral-1']);
+  });
+  it("a tribe's guides stay adjacent even when orders tie", () => {
+    const list = [
+      g({ id: 'b-sunmane', tribes: ['beast'], order: 0, sets: ['set2'] }), g({ id: 'b-oona', tribes: ['beast'], order: 1, sets: ['set2'] }),
+      g({ id: 'a-dragon', tribes: ['dragon'], order: 0, sets: ['set2'] }), g({ id: 'a-neutral', tribes: [], order: 0, sets: ['set2'] }),
+    ];
+    expect(guidesFor('set2', ['beast', 'dragon'], list).map((x) => x.id)).toEqual(['a-dragon', 'b-sunmane', 'b-oona', 'a-neutral']);
+  });
+  it("a tribe's guides stay adjacent when a tied tribe's id sorts between them (the community Dragon guide case)", () => {
+    const list = [
+      g({ id: 'b-sunmane', tribes: ['beast'], order: 0, sets: ['set2'] }), g({ id: 'b-oona', tribes: ['beast'], order: 1, sets: ['set2'] }),
+      g({ id: 'b-thorn', tribes: ['dragon'], order: 0, sets: ['set2'] }),
+    ];
+    // Base order by (order, id) is b-sunmane, b-thorn, b-oona: Beast is seen first, so both Beasts come before the Dragon.
+    expect(guidesFor('set2', ['beast', 'dragon'], list).map((x) => x.id)).toEqual(['b-sunmane', 'b-oona', 'b-thorn']);
   });
 });
 

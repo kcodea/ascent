@@ -55,6 +55,7 @@ describe('the guides store', () => {
     answer = async () => ({ state: 'offline' });
     await loadGuides();
     expect(useGuides.getState().capability).toBe('offline');
+    expect(useGuides.getState().source).toBe('server');
     expect(useGuides.getState().list).toBe(loaded);
   });
   it('an unchanged reload keeps the SAME list object, so nothing re-renders; a new revision replaces it', async () => {

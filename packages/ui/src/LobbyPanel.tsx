@@ -103,7 +103,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const runTribes = useGame((st) => st.run.tribes);
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
-  // subscription: a refresh that lands while the player is reading must not move a card under them.
+  // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
+  // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
+  // one-frame jump on open.
   const [guideList, setGuideList] = useState(() => useGuides.getState().list);
   const guides = useMemo(() => guidesFor(setId, runTribes, guideList), [setId, runTribes, guideList]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
@@ -114,7 +116,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useEffect(() => { if (railViewMemo.run !== runKey) { setView('opponents'); setSwap(null); } }, [runKey]);
   useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
   const showGuides = guidesOn && view === 'guides';
-  useEffect(() => { if (showGuides) setGuideList(useGuides.getState().list); }, [showGuides]);
+  useLayoutEffect(() => { if (showGuides) setGuideList(useGuides.getState().list); }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);
     setPinned(null);

@@ -2306,8 +2306,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'detail panel: large on a nameplate, its rarity, its status, how it is found ("Found in crates.", "Reach Level 2."), a '
       + 'preview under your name, and Equip or Take off (a missing item says how to get it instead). A crate bay (count, '
       + 'next crate, Open, Open all) stays in view whatever tab is open and starts the unchanged crate opening. An owned item '
-      + 'you have not looked at wears NEW until you select it; that flag is local to the device and never sent to the '
-      + 'server. A guest sees a slim save row.',
+      + 'you have not looked at wears NEW (what sets and clears it, and where it is saved: R-PROG-COLLECTION-05). A guest '
+      + 'sees a slim save row.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -5066,5 +5066,68 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms from 2026-10-11. Before it, 24 minions and the Aster portrait, hand-copied in on 2026-08-19 (PRs #1090, '
       + '#1093, #1097), shipped at 1254 px; they were re-encoded with the optimize-art settings (512 px, WebP q85).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artMaxSize.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
+  {
+    id: 'R-PROG-COLLECTION-05',
+    title: 'NEW in the Collection marks what you have not looked at yet, and that is saved on the account, not on the device',
+    statement:
+      'A NEW badge in the Collection means "you own this and have not looked at it yet", on ANY device. What a player '
+      + 'has looked at is saved on the ACCOUNT, so it follows them to every device, every address and every fresh '
+      + 'install; a device keeps a copy only so the badges can draw before the server answers. Loading the game somewhere '
+      + 'new never badges the collection you already own, and an item looked at on one device is not NEW on another. A '
+      + 'device that has not yet been told what the account has seen shows NO badge at all: an empty list means "not '
+      + 'asked yet", never "nothing seen". NEW clears on view: opening a tab shows its badges for that visit and they are '
+      + 'gone once you leave the tab or the Collection; selecting an item clears its badge at once. A tab you have not '
+      + 'opened keeps its count, so the count still leads you to it. While anything is NEW the Collection offers "Mark '
+      + 'all as seen": one press clears every badge on every tab at once (and on every device), and the button leaves '
+      + 'with the last badge. The item you are wearing never wears NEW. Looking '
+      + 'at an item you do not own never spends its badge. Everything owned when the account-level list was introduced '
+      + 'counted as seen. On a server from before that change the list is the device\x27s own, with a one-time baseline '
+      + 'of what is owned. A player can only ever mark their own items seen. This holds for every category, present and '
+      + 'future.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (Collection screenshot: NEW on owned and equipped items)',
+        quote: 'whenever i load the game, all of my stuff that i already own sh ows up as "new" how can we fix this?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (the owner\x27s pick among three offered behaviours)',
+        quote: 'Baseline + clear on view (Recommended)',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (follow-up, after the device-only fix was opened)',
+        quote: 'i want to save the "seen" on the account level, though',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (follow-up, same PR)',
+        quote: 'we should also create a button that "Marks all as seen". when a player clicks that, all "new" pills go away.',
+      },
+      { kind: 'fix-pr', ref: 'PR #2030 fix/collection-new-baseline (2026-10-11)' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-11-cosmetics-seen.sql (player_cosmetics.seen_at, the baseline, mark_cosmetics_seen); packages/ui/src/progression/progressionRemote.ts (fetchSeenCosmeticIds, markCosmeticsSeenRemote); packages/ui/src/progression/progressionStore.ts (refreshSeenList on the probe, markCosmeticsSeen, `seenKnown`); packages/ui/src/progression/collectionSeen.ts (the device copy, hasSeenBaseline, the pre-migration ensureSeenBaseline); packages/ui/src/progression/CollectionScreen.tsx (`seenFor` snapshot, `seenReady`, the clear-on-view effect, `fresh`, `markAllSeen`)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-11. The owner ran supabase/migrations/2026-10-11-cosmetics-seen.sql on the live project '
+      + 'that day (checked from outside: the column answers, no owned item was left unseen, the function refuses a '
+      + 'signed-out caller). Against a database from before that file the server answers "undefined column" and the '
+      + 'client keeps the list per device with the one-time baseline (PARTIAL there: an item earned on one device shows '
+      + 'NEW once on each other device). Before 2026-10-11 the list was device-only, started empty in every browser storage '
+      + '(each dev port, the desktop app and the web build keep their own) and only a click on one tile added that one '
+      + 'item, so every owned item wore NEW on each new address, the equipped one included.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/progression/CollectionScreen.test.tsx',
+        'packages/ui/src/progression/cosmeticsSeenRemote.test.ts',
+        'packages/ui/src/progression/progressionStore.test.ts',
+        'packages/progression/src/cosmeticsSeen.db.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-11',
+    },
   },
 ];

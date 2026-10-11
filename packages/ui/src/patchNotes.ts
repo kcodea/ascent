@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Collection: items you already own no longer show as New every time you load the game.',
+        details: [
+          'What you have looked at is now saved on your account, so it is the same on every device.',
+          'Only items you earn from now on show New.',
+          'Opening a tab clears its New badges once you leave it. Selecting an item clears its badge right away.',
+          'A new Mark all as seen button at the top of the Collection clears every New badge at once.',
+          'The item you have equipped never shows New.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Celestial and Spirit cards now have their own frames, Taunt shields and card plates, like every other tribe.',
       },
       { category: 'Balance', text: 'Rad Rachel has new art.' },

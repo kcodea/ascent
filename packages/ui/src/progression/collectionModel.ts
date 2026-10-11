@@ -13,8 +13,9 @@ import { HEROES } from '@game/sim';
  *                a STABLE order (rarest first, then catalog order) so an item never moves when you find it;
  *   filters      Show (All / Owned / Missing) x Rarity (All / one rarity);
  *   counts       owned / total, per category, per rarity, and overall;
- *   NEW          an owned item you have not looked at yet. A LOCAL flag per account (localStorage), never written
- *                to the server: it clears when you select the item (Fortnite's "clears on view").
+ *   NEW          an owned item you have not looked at yet. Saved ON THE ACCOUNT (2026-10-11), so it follows you to
+ *                every device; this device keeps a copy (`collectionSeen.ts`). It clears when you select the item,
+ *                or once you leave the tab you saw it on (Fortnite's "clears on view").
  *
  * RETIRED ITEMS ARE HIDDEN (the kill switch, owner 2026-09-28: "we need to have the ability to remove any rewards
  * from the game"). An item that is not LIVE (`isCosmeticLive`: retired in the TS catalog or by the server's one-line
@@ -151,24 +152,4 @@ export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
 
 // ── NEW: the local "seen" list ────────────────────────────────────────────────────────────────────────────
 
-const SEEN_KEY = (userId: string): string => `ascent.collection.seen.${userId}`;
-
-/** The item ids this account has looked at on this device. Empty when unreadable. */
-export function loadSeen(userId: string | null | undefined): Set<string> {
-  if (!userId) return new Set();
-  try {
-    const parsed = JSON.parse(localStorage.getItem(SEEN_KEY(userId)) ?? '[]') as unknown;
-    return new Set(Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []);
-  } catch {
-    return new Set();
-  }
-}
-
-/** Remember that `ids` were seen. Best-effort; local only (never sent anywhere). */
-export function saveSeen(userId: string | null | undefined, seen: ReadonlySet<string>): void {
-  if (!userId) return;
-  try { localStorage.setItem(SEEN_KEY(userId), JSON.stringify([...seen])); } catch { /* best-effort */ }
-}
-
-/** An owned item not seen yet wears NEW. */
-export const isNew = (id: string, owned: ReadonlySet<string>, seen: ReadonlySet<string>): boolean => owned.has(id) && !seen.has(id);
+export { hasSeenBaseline, isNew, loadSeen } from './collectionSeen';

@@ -181,6 +181,9 @@
   letter-spacing: 0.08em; text-transform: uppercase; color: #ffe08a; background: rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(232, 200, 119, 0.6); --pr-edge-c: rgba(0, 0, 0, 0.55); }
 .colls-quiet:hover:not(:disabled) { border-color: #ffe08a; }
 .colls-quiet:disabled { opacity: 0.5; }
+/* "Mark all as seen": in the header beside the meters, only while something is NEW. The meters sit on the right, so
+   it comes and goes on their left without moving them. */
+.colls-markall { align-self: center; flex: none; white-space: nowrap; }
 
 /* ── The detail panel ───────────────────────────────────────────────────────────────────────────────────── */
 .colls-detail { flex: 1 0 auto; }

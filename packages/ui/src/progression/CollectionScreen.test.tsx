@@ -9,12 +9,13 @@
  *  - category switching: the locked categories open a "coming soon" view; the crate bay stays in view;
  *  - the detail panel: nameplate, how to get it, the preview under your name, Equip / Take off / a refusal;
  *  - the crate bay: count, next crate, Open / Open all into the (unchanged) theatre, empty, off, loading;
- *  - the NEW badge: local only, clears on pick, survives a remount, returns for a newly found item;
+ *  - the NEW badge: saved on the account (with a copy on the device); clears on pick at once and on view once you
+ *    leave the tab, never on the equipped item, returns for a newly found item; the device-only fallback;
  *  - guest mode, and the stage + performance tripwires on the screen's own stylesheet.
  * No native tooltips, no em dashes.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act } from 'react';
+import { StrictMode, act } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { OpenCrateResult, ProgressionProfile } from '@game/progression';
@@ -26,6 +27,8 @@ vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unkn
 const openCrateRemote = vi.fn();
 const equipTitleRemote = vi.fn();
 const fetchOwnCrates = vi.fn(async () => undefined as unknown);
+const fetchSeenCosmeticIds = vi.fn(async (): Promise<string[] | 'unsupported' | undefined> => undefined);
+const markCosmeticsSeenRemote = vi.fn(async (_ids: readonly string[]) => true);
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
 // The account backend's presence (the crate sign-in gate says "unavailable" without one). On unless a test turns it off.
 const backend = vi.hoisted(() => ({ on: true }));
@@ -35,10 +38,12 @@ vi.mock('./progressionRemote', async (orig) => ({
   openCrateRemote: (id: string) => openCrateRemote(id),
   equipTitleRemote: (id: string | null) => equipTitleRemote(id),
   fetchOwnCrates: () => fetchOwnCrates(),
+  fetchSeenCosmeticIds: () => fetchSeenCosmeticIds(),
+  markCosmeticsSeenRemote: (ids: readonly string[]) => markCosmeticsSeenRemote(ids),
 }));
 
 import { CollectionPage, CollectionScreen } from './CollectionScreen';
-import { resetProgressionForTests, useProgression } from './progressionStore';
+import { refreshSeenList, resetProgressionForTests, useProgression } from './progressionStore';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
 import { useGame } from '../store';
 
@@ -55,6 +60,8 @@ beforeEach(() => {
   localStorage.clear();
   openCrateRemote.mockReset();
   equipTitleRemote.mockReset();
+  fetchSeenCosmeticIds.mockReset().mockResolvedValue(undefined);
+  markCosmeticsSeenRemote.mockReset().mockResolvedValue(true);
   setCrateFxFactoryForTests(noopFx);
   backend.on = true;
   useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null }, accountPanelOpen: false, showCollection: false, showCareer: false, playerName: 'Kevin' });
@@ -70,9 +77,11 @@ const crateList = [
   { crateId: 'c-2', earnedLevel: 2, state: 'sealed' as const, rewardId: null, earnedAt: null, openedAt: null },
   { crateId: 'c-3', earnedLevel: 3, state: 'sealed' as const, rewardId: null, earnedAt: null, openedAt: null },
 ];
-/** Seen ids pre-seeded so a test starts without NEW badges unless it wants them. */
+/** Seen ids pre-seeded so a test starts without NEW badges unless it wants them, on a device that already knows
+ *  what the account has seen (the marker): without it the page shows no badge at all. */
 function open(over: Partial<ProgressionProfile> = {}, opts: { seen?: string[]; crates?: typeof crateList | null; cratesOn?: 'on' | 'off' } = {}): void {
   localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(opts.seen ?? ['alpha_tester', 'title_star_chaser']));
+  localStorage.setItem('ascent.collection.baseline.u-1', '1');
   useProgression.setState({ capability: 'on', cratesCapability: opts.cratesOn ?? 'on', crateList: opts.crates === undefined ? crateList : opts.crates, mirror: { userId: 'u-1', ...profile(over) } });
   ui = mount(<CollectionPage reducedMotion />);
 }
@@ -287,28 +296,214 @@ describe('the Collection screen: the crate bay', () => {
 });
 
 describe('the Collection screen: NEW', () => {
-  it('an owned, unseen item wears NEW (and its tab counts it) until you pick it; the flag is local only', () => {
-    open({ titles: ['alpha_tester', 'title_star_chaser', 'title_kingbreaker'] }, { seen: ['alpha_tester'] });
-    expect($$('.colls-tile.fresh .colls-tile-name').map((n) => n.textContent).sort()).toEqual(['Kingbreaker', 'Star Chaser']);
+  const seenList = (): string[] => JSON.parse(localStorage.getItem('ascent.collection.seen.u-1') ?? '[]') as string[];
+  const freshNames = (): string[] => $$('.colls-tile.fresh .colls-tile-name').map((n) => n.textContent ?? '').sort();
+  const three = ['alpha_tester', 'title_star_chaser', 'title_kingbreaker'];
+  /** The account's list lands (what the probe does once identity is known). */
+  const accountSays = async (seen: string[] | 'unsupported' | undefined, p: ProgressionProfile | null = null): Promise<void> => {
+    fetchSeenCosmeticIds.mockResolvedValueOnce(seen);
+    await act(async () => { await refreshSeenList('u-1', p); });
+  };
+  /** Mount on a device that has NEVER had an answer about this account (no copy, no marker). */
+  const openCold = (over: Partial<ProgressionProfile> = {}): void => {
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile(over) } });
+    ui = mount(<CollectionPage reducedMotion />);
+  };
+
+  it('an owned, unseen item wears NEW (and its tab counts it); a pick clears it at once', () => {
+    open({ titles: three }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Kingbreaker', 'Star Chaser']);
     expect(text('.colls-tab.on .colls-tab-new')).toBe('2');
-    expect(text('.colls-plate-name')).toBe('Alpha Tester'); // opening the page never clears a badge by itself
+    expect(text('.colls-plate-name')).toBe('Alpha Tester'); // opening the page never hides a badge before you have looked
     act(() => tile('Kingbreaker').click());
     expect(tile('Kingbreaker').querySelector('.colls-new')).toBeNull();
     expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
-    expect(JSON.parse(localStorage.getItem('ascent.collection.seen.u-1')!)).toContain('title_kingbreaker');
+    expect(seenList()).toContain('title_kingbreaker');
+    expect(freshNames()).toEqual(['Star Chaser']); // the rest of the tab keeps its badges for this visit
     expect(equipTitleRemote).not.toHaveBeenCalled();
     expect(openCrateRemote).not.toHaveBeenCalled();
+  });
+
+  // Owner 2026-10-11: "whenever i load the game, all of my stuff that i already own shows up as 'new'".
+  it('CLEAR ON VIEW: a tab you have opened shows its badges for that visit, then they are gone the next time', () => {
+    open({ titles: three }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Kingbreaker', 'Star Chaser']); // still shown: you are looking at them now
     ui!.unmount();
-    ui = mount(<CollectionPage reducedMotion />); // survives a remount
-    expect($$('.colls-tile.fresh .colls-tile-name').map((n) => n.textContent)).toEqual(['Star Chaser']);
+    ui = mount(<CollectionPage reducedMotion />); // the next load: nothing you already saw is NEW again
+    expect(freshNames()).toEqual([]);
+    expect($('.colls-tab.on .colls-tab-new')).toBeNull();
+  });
+
+  it('CLEAR ON VIEW under StrictMode (the dev build re-runs effects): the open tab still keeps its badges for this visit', () => {
+    localStorage.setItem('ascent.collection.baseline.u-1', '1');
+    localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(['alpha_tester']));
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser'] }) } });
+    ui = mount(<StrictMode><CollectionPage reducedMotion /></StrictMode>);
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(seenList()).toContain('title_star_chaser'); // stored as seen, for the next visit
+  });
+
+  it('CLEAR ON VIEW is per tab: leaving a tab clears it; a tab you never opened keeps its count', () => {
+    open({ titles: ['alpha_tester', 'title_star_chaser'], cosmetics: ['alpha_tester', 'title_star_chaser', 'skin_albus_1'] }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
+    expect(tab('Heroes').querySelector('.colls-tab-new')?.textContent).toBe('1');
+    ui!.unmount();
+    ui = mount(<CollectionPage reducedMotion />); // Heroes was never opened: its badge survives the reload
+    expect(tab('Heroes').querySelector('.colls-tab-new')?.textContent).toBe('1');
+    expect(tab('Titles').querySelector('.colls-tab-new')).toBeNull();
+    act(() => tab('Heroes').click());
+    expect($$('.colls-tile.fresh')).toHaveLength(1); // shown while you look
+    act(() => tab('Titles').click());
+    expect(tab('Heroes').querySelector('.colls-tab-new')).toBeNull(); // and cleared once you leave
+    act(() => tab('Heroes').click());
+    expect($$('.colls-tile.fresh')).toHaveLength(0);
+  });
+
+  it('the EQUIPPED item never wears NEW, and its tab does not count it', () => {
+    open({ titles: three, equippedTitleId: 'title_kingbreaker' }, { seen: ['alpha_tester'] });
+    expect(tile('Kingbreaker').querySelector('.colls-new')).toBeNull();
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
+  });
+
+  // Owner 2026-10-11: "we should also create a button that 'Marks all as seen'. when a player clicks that, all
+  // 'new' pills go away."
+  it('MARK ALL AS SEEN: one press clears every badge on every tab, and the button leaves with them', () => {
+    open({ titles: ['alpha_tester', 'title_star_chaser'], cosmetics: ['alpha_tester', 'title_star_chaser', 'skin_albus_1'] }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(tab('Heroes').querySelector('.colls-tab-new')?.textContent).toBe('1');
+    act(() => button('Mark all as seen')!.click());
+    expect($$('.colls-tile.fresh')).toHaveLength(0); // the open tab: gone now, not on the next visit
+    expect($$('.colls-tab-new')).toHaveLength(0); // and every other tab's count
+    expect(button('Mark all as seen')).toBeUndefined();
+    expect(seenList().sort()).toEqual(['alpha_tester', 'skin_albus_1', 'title_star_chaser']);
+    act(() => tab('Heroes').click());
+    expect($$('.colls-tile.fresh')).toHaveLength(0);
+    ui!.unmount();
+    ui = mount(<CollectionPage reducedMotion />); // and it stays that way
+    expect($$('.colls-tab-new')).toHaveLength(0);
+    expect(button('Mark all as seen')).toBeUndefined();
+    clean();
+  });
+
+  it('MARK ALL AS SEEN is only offered while something is NEW, and returns with the next find', () => {
+    open(); // everything owned has been seen
+    expect(button('Mark all as seen')).toBeUndefined();
+    act(() => { useProgression.setState({ mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser', 'title_ironbeard'], revision: 20 }) } }); });
+    expect(button('Mark all as seen')).toBeDefined();
   });
 
   it('peeking at a missing item does not spend its NEW: it still shows the day a crate gives it', () => {
     open({}, { seen: ['alpha_tester', 'title_star_chaser'] });
     act(() => tile('Ironbeard').click());
-    expect(JSON.parse(localStorage.getItem('ascent.collection.seen.u-1')!)).not.toContain('title_ironbeard');
+    expect(seenList()).not.toContain('title_ironbeard');
     act(() => { useProgression.setState({ mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser', 'title_ironbeard'], revision: 20 }) } }); });
     expect(tile('Ironbeard').querySelector('.colls-new')?.textContent).toBe('New');
+  });
+
+  // Owner 2026-10-11: "i want to save the 'seen' on the account level, though".
+  describe('the list lives on the ACCOUNT', () => {
+    it('a device that has never had an answer shows NO badge (an empty copy is "not asked yet"), and marks nothing', () => {
+      openCold({ titles: three });
+      expect(freshNames()).toEqual([]);
+      expect($$('.colls-tab-new')).toHaveLength(0);
+      expect(localStorage.getItem('ascent.collection.seen.u-1')).toBeNull();
+      expect(markCosmeticsSeenRemote).not.toHaveBeenCalled();
+    });
+
+    it('a new device: the account\'s answer lands, and only what the ACCOUNT has not seen wears NEW', async () => {
+      openCold({ titles: three });
+      await accountSays(['alpha_tester', 'title_star_chaser']);
+      expect(freshNames()).toEqual(['Kingbreaker']); // the open page corrects itself
+      // You are looking at the tab: its unseen item is written to the account, once, and only that one.
+      expect(markCosmeticsSeenRemote.mock.calls).toEqual([[['title_kingbreaker']]]);
+      ui!.unmount();
+      ui = mount(<CollectionPage reducedMotion />);
+      expect(freshNames()).toEqual([]);
+      expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1);
+    });
+
+    it('an item you looked at on ANOTHER device is not NEW here', async () => {
+      open({ titles: three }, { seen: ['alpha_tester'] }); // this device's copy is behind
+      expect(freshNames()).toEqual(['Kingbreaker', 'Star Chaser']);
+      await accountSays(['alpha_tester', 'title_star_chaser']);
+      expect(freshNames()).toEqual(['Kingbreaker']);
+      expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
+    });
+
+    it('a pick writes that one item to the account; an item already there is never sent', async () => {
+      localStorage.setItem('ascent.collection.baseline.u-1', '1');
+      await accountSays(['alpha_tester']);
+      useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'skin_albus_1'] }) } });
+      ui = mount(<CollectionPage reducedMotion />);
+      expect(markCosmeticsSeenRemote).not.toHaveBeenCalled(); // Titles holds nothing the account has not seen
+      act(() => tab('Heroes').click());
+      expect(markCosmeticsSeenRemote.mock.calls).toEqual([[['skin_albus_1']]]);
+      act(() => $$('.colls-tile.fresh')[0]!.click());
+      expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1); // the view already sent it
+    });
+
+    it('MARK ALL AS SEEN writes every unseen item to the account in one call, other tabs included', async () => {
+      localStorage.setItem('ascent.collection.baseline.u-1', '1');
+      await accountSays(['alpha_tester']);
+      useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'skin_albus_1', 'skin_blackbelt_1'] }) } });
+      ui = mount(<CollectionPage reducedMotion />);
+      expect(markCosmeticsSeenRemote).not.toHaveBeenCalled(); // Titles holds nothing new; the skins are on other tabs
+      act(() => button('Mark all as seen')!.click());
+      expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1);
+      expect([...markCosmeticsSeenRemote.mock.calls[0]![0]].sort()).toEqual(['skin_albus_1', 'skin_blackbelt_1']);
+      expect($$('.colls-tab-new')).toHaveLength(0);
+    });
+
+    it('a write that did not get through is sent again the next time you look', async () => {
+      localStorage.setItem('ascent.collection.baseline.u-1', '1');
+      await accountSays(['alpha_tester']);
+      markCosmeticsSeenRemote.mockResolvedValueOnce(false);
+      open({ titles: ['alpha_tester', 'title_star_chaser'] }, { seen: ['alpha_tester'] });
+      await settle();
+      expect(markCosmeticsSeenRemote.mock.calls).toEqual([[['title_star_chaser']]]);
+      act(() => tab('Heroes').click());
+      act(() => tab('Titles').click());
+      expect(markCosmeticsSeenRemote.mock.calls).toEqual([[['title_star_chaser']], [['title_star_chaser']]]);
+      expect(freshNames()).toEqual([]); // seen on this device either way
+    });
+
+    it('NO ANSWER (offline, timeout): nothing changes, and no baseline is taken on a guess', async () => {
+      openCold({ titles: three, cosmetics: three });
+      await accountSays(undefined, profile({ cosmetics: three }));
+      expect(freshNames()).toEqual([]);
+      expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBeNull();
+      expect(localStorage.getItem('ascent.collection.seen.u-1')).toBeNull();
+    });
+
+    it('A SERVER FROM BEFORE THE MIGRATION: the list is this device\'s, with a one-time baseline of what you own', async () => {
+      const owned = [...three, 'skin_albus_1'];
+      openCold({ titles: three, cosmetics: owned });
+      await accountSays('unsupported', profile({ cosmetics: owned }));
+      expect(seenList().sort()).toEqual([...owned].sort());
+      expect($$('.colls-tab-new')).toHaveLength(0);
+      expect(freshNames()).toEqual([]);
+      // Only what is earned AFTER the baseline is NEW, and nothing is ever sent.
+      act(() => { useProgression.setState({ mirror: { userId: 'u-1', ...profile({ titles: [...three, 'title_ironbeard'], cosmetics: [...owned, 'title_ironbeard'], revision: 20 }) } }); });
+      expect(freshNames()).toEqual(['Ironbeard']);
+      // Taken once: the next read does not swallow the new find. An unreadable ownership list never burns it.
+      await accountSays('unsupported', profile({ cosmetics: [...owned, 'title_ironbeard'] }));
+      ui!.unmount();
+      localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(owned)); // (the view marked Ironbeard; put it back)
+      ui = mount(<CollectionPage reducedMotion />);
+      expect(freshNames()).toEqual(['Ironbeard']);
+      expect(markCosmeticsSeenRemote).not.toHaveBeenCalled();
+    });
+
+    it('before the migration, an ownership list that could not be read does not burn the baseline', async () => {
+      await accountSays('unsupported', null);
+      await accountSays('unsupported', profile({ titles: [] }));
+      expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBeNull();
+      await accountSays('unsupported', profile({ cosmetics: ['alpha_tester'] }));
+      expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBe('1');
+      expect(seenList()).toEqual(['alpha_tester']);
+    });
   });
 });
 

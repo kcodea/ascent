@@ -143,6 +143,13 @@ pool keeps the crate sealed; equip checks ownership). Logic in `_shared/progress
 `_shared/progressionCosmetics.ts`, both **GENERATED** by `npm run progression:shared`. Deploy:
 `npx supabase functions deploy progression-inventory`. Runbook: `docs/devlog/2026-09-28-progression-crates.md`.
 
+## The Collection's seen list (2026-10-11)
+
+Which owned items a player has looked at (the Collection's NEW badge) is saved on the account:
+`player_cosmetics.seen_at`, written only by `mark_cosmetics_seen(p_ids)` (the caller's own items). No Edge Function
+and nothing to deploy: run `migrations/2026-10-11-cosmetics-seen.sql` in the SQL Editor once. Its first run marks
+everything owned so far as seen. A client that reaches a database from before it keeps the list on the device.
+
 ### Note
 
 This directory is **Deno**, not part of the Node monorepo build: the repo's `tsc`/`eslint` skip it

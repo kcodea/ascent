@@ -12,6 +12,7 @@ let remote = true;
 const enabled = vi.fn<() => Promise<boolean | undefined>>();
 const achEnabled = vi.fn<() => Promise<boolean | undefined>>(async () => false);
 const own = vi.fn<() => Promise<ProgressionProfile | null | undefined>>();
+const seenIds = vi.fn<() => Promise<string[] | 'unsupported' | undefined>>(async () => undefined);
 const flush = vi.fn(async () => {});
 const enqueue = vi.fn((req: { runId: string }) => (userId && remote ? { ...req, userId, at: '', attempts: 0 } : null));
 
@@ -23,6 +24,7 @@ vi.mock('./progressionRemote', async (orig) => ({
   fetchCratesEnabled: () => Promise.resolve(false),
   fetchAchievementsEnabled: () => achEnabled(),
   fetchOwnProgression: () => own(),
+  fetchSeenCosmeticIds: () => seenIds(),
 }));
 vi.mock('./progressionQueue', () => ({
   enqueuePendingProgression: (req: { runId: string }) => enqueue(req),
@@ -47,6 +49,8 @@ beforeEach(() => {
   S.resetProgressionForTests();
   userId = 'u-1'; remote = true;
   enabled.mockReset(); own.mockReset(); flush.mockClear(); enqueue.mockClear();
+  seenIds.mockReset().mockResolvedValue(undefined);
+  localStorage.clear();
 });
 
 describe('the mirror', () => {
@@ -88,6 +92,44 @@ describe('the capability probe (the feature flag)', () => {
     remote = false;
     await S.probeProgression();
     expect(S.useProgression.getState().capability).toBe('off');
+  });
+});
+
+// Owner 2026-10-11: "i want to save the 'seen' on the account level". The Collection's own tests cover the badges.
+describe('the Collection seen list rides the probe', () => {
+  const stored = (k: string): unknown => JSON.parse(localStorage.getItem(k) ?? 'null');
+  it('the account answers: its list is published, copied to this device, and the device is marked as knowing it', async () => {
+    enabled.mockResolvedValue(true);
+    own.mockResolvedValue(profile({ cosmetics: ['alpha_tester', 'skin_albus_1'] }));
+    seenIds.mockResolvedValue(['alpha_tester']);
+    await S.probeProgression();
+    const known = S.useProgression.getState().seenKnown;
+    expect(known?.userId).toBe('u-1');
+    expect([...known!.ids]).toEqual(['alpha_tester']); // NOT everything owned: the skin is still to be looked at
+    expect(stored('ascent.collection.seen.u-1')).toEqual(['alpha_tester']);
+    expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBe('1');
+  });
+  it('a server from before the migration: the device takes a one-time baseline from the ownership just read', async () => {
+    enabled.mockResolvedValue(true);
+    own.mockResolvedValue(profile({ cosmetics: ['alpha_tester', 'skin_albus_1'] }));
+    seenIds.mockResolvedValue('unsupported');
+    await S.probeProgression();
+    expect([...S.useProgression.getState().seenKnown!.ids].sort()).toEqual(['alpha_tester', 'skin_albus_1']);
+    expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBe('1');
+  });
+  it('no answer: nothing is published and nothing is written', async () => {
+    enabled.mockResolvedValue(true);
+    own.mockResolvedValue(profile({ cosmetics: ['alpha_tester'] }));
+    await S.probeProgression();
+    expect(S.useProgression.getState().seenKnown).toBeNull();
+    expect(localStorage.getItem('ascent.collection.seen.u-1')).toBeNull();
+    expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBeNull();
+  });
+  it('an answer for an account that is no longer the live one is dropped', async () => {
+    seenIds.mockImplementation(async () => { userId = 'u-2'; return ['alpha_tester']; });
+    await S.refreshSeenList('u-1', null);
+    expect(S.useProgression.getState().seenKnown).toBeNull();
+    expect(localStorage.getItem('ascent.collection.baseline.u-1')).toBeNull();
   });
 });
 

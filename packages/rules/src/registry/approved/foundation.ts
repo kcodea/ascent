@@ -5134,8 +5134,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-ANNOUNCER-01',
     title: 'Announcers are a crate cosmetic in the account-wide announcer slot: an equipped voice plays the same takes from its own folder, only its wearer hears it, and a missing clip falls back to the default voice',
     statement:
-      'The announcer category ("Announcers", target global, enabled) holds announcer voices; the first is Lemon '
-      + '(announcer_lemon, Legendary, from crates at the fixed rarity odds, equal chance within the rarity). An announcer '
+      'The announcer category ("Announcers", target global, enabled) holds announcer voices: Lemon (announcer_lemon), '
+      + 'Underdweller (announcer_underdweller, the hero Underdweller\x27s voice) and Little Inu (announcer_little_inu), '
+      + 'all Legendary, from crates at the fixed rarity odds, equal chance within the rarity. An announcer '
       + 'is ACCOUNT-WIDE: equip_cosmetic(user, \x27announcer\x27, \x27\x27, id) wears an owned, live one (one cosmetic_loadouts '
       + 'row, target \x27\x27); null takes it off, and NOTHING equipped is the default announcer (there is no default item). '
       + 'An announcer names a PACK (assets.pack): a folder apps/web/public/announcer/<pack>/ holding one clip per default '
@@ -5152,6 +5153,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'i want to create a new announcer voice - the current one is the default. this will be offered as a reward in collections' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'it will be a Legendary reward players can unlock through opening chests' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'call the announcer: Lemon' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (two more announcers)', quote: 'i want to create an underdweller announcer' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (two more announcers)', quote: 'i want to create an announcer with this voice too after underdweller. unless you can do both at the same time. we will call her Little Inu' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (two more announcers)', quote: 'legendary for both' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (announcer(), announcer_lemon, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, announcerOf); supabase/migrations/2026-10-11-announcer-slot.sql (equip_cosmetic); packages/ui/src/announcer.ts (announcerClipUrl, playClip, setAnnouncerPackProvider, previewAnnouncerPack); packages/ui/src/progression/announcerPack.ts; packages/ui/src/progression/CollectionScreen.tsx' },
     ],
     currentBehaviour:

@@ -558,6 +558,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // ANNOUNCERS (owner 2026-10-11: "call the announcer: Lemon"; "it will be a Legendary reward players can unlock
   // through opening chests").
   announcer('announcer_lemon', 'Lemon', 'legendary', 'lemon'),
+  // Owner 2026-10-11: "i want to create an underdweller announcer" (the hero Underdweller's voice) and "we will
+  // call her Little Inu"; "legendary for both".
+  announcer('announcer_underdweller', 'Underdweller', 'legendary', 'underdweller'),
+  announcer('announcer_little_inu', 'Little Inu', 'legendary', 'little-inu'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

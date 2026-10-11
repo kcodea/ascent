@@ -2604,7 +2604,7 @@ describe('announcer voices (owner 2026-10-11: "a new announcer voice ... offered
     const dir = resolve(process.cwd(), 'apps/web/public/announcer');
     const mp3 = (d: string): string[] => readdirSync(d).filter((f) => f.endsWith('.mp3')).sort();
     const base = mp3(dir);
-    expect(PACKS).toContain('lemon');
+    expect(PACKS).toEqual(['lemon', 'underdweller', 'little-inu']);
     for (const pack of PACKS) expect(mp3(resolve(dir, pack)), pack).toEqual(base);
     for (const f of ANNOUNCER_SAMPLE_LINES) expect(base, f).toContain(`${f}.mp3`);
   });

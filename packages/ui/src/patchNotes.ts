@@ -58,6 +58,8 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      { category: 'Systems', text: 'Hero select: the Select Your Hero prompt is larger and sits a little higher above the heroes.' },
+      { category: 'Systems', text: 'Practice hero list: heroes now fade out softly at the top and bottom edges as you scroll.' },
       { category: 'Systems', text: 'The announcer has 67 new lines. The moments you hear most games (back to the Shop, triples, knockouts, tier ups, wins and losses) no longer sound the same every time.' },
       { category: 'Systems', text: 'The Compendium now shows the current set.' },
       {

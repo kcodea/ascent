@@ -1216,11 +1216,14 @@ export const ARENA_EFFECTS = {
    *  The chosen target rides `params.target`, merged by the shop wrapper. */
   battlecryBuffTarget(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
-    // `perPlayedTribe` (Humphry, owner 2026-10-10): "+2/+2 for every Dragon played this turn" — ONE lump buff sized by
-    // the count of that tribe played this turn. The Shout fires after its own play is recorded, so Humphry's own play
-    // is in the count: the first Dragon of the turn gives +2/+2, the second +4/+4 (R-HUMPHRY-01). Combat reads the
-    // side's frozen per-tribe map.
-    const per = typeof params.perPlayedTribe === 'string' ? arena.playedThisTurn(params.perPlayedTribe) : 1;
+    // `perPlayedTribe` (Humphry, R-HUMPHRY-01): ONE lump buff = the +2/+2 BASELINE plus +2/+2 for every OTHER Dragon
+    // played this turn (owner 2026-10-10: "humphry should buff +2/+2 baseline, not 0/0 baseline"), so it is never +0/+0.
+    // A real play from hand (the Shop wrapper passes the player's chosen `target`) has already recorded its own play in
+    // the tally, so that one entry is itself, not an "other". A re-fire (Shrieker, a Shout repeater, any combat fire) is
+    // not a play: every Dragon played this turn is an other. Combat reads the side's frozen per-tribe map.
+    const per = typeof params.perPlayedTribe === 'string'
+      ? 1 + Math.max(0, arena.playedThisTurn(params.perPlayedTribe) - (params.target !== undefined ? 1 : 0))
+      : 1;
     const a = (typeof params.attack === 'number' ? params.attack : 0) * g * per;
     const h = (typeof params.health === 'number' ? params.health : 0) * g * per;
     if (a <= 0 && h <= 0) return;

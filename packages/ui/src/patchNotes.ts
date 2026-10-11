@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      { category: 'Systems', text: 'Hero Select voices are louder again.' },
       {
         category: 'Systems',
         text: 'When a Demon deals damage, Rad Rachel, Ruinous Lord and Impossible Todd now show their buffs right away, with a tendril to each minion they buff.',

@@ -45,6 +45,23 @@ export const ARCHIVED_CARDS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellPlayRubiesAll', params: { rubies: 2 } }],
     text: 'Cast **2 Rubies** on all of your minions.',
   },
+  {
+    // ARCHIVED 2026-10-10 (owner: archive Cavern Fiend). Moved verbatim from set2/kobolds.ts; belongs to no set now.
+    // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).
+    id: 'k_gemgorge',
+    name: 'Cavern Fiend', // was 'Gemgorge Fiend' (owner 2026-10-09); id unchanged
+    tribe: 'kobold',
+    tribe2: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    // Owner balance 2026-10-10: the meal is the HIGHEST-HEALTH Shop minion (was random). `pick` names the target
+    // rule; ties go to the right-most (the shared `pickShopMinionFor`). Gilded eats twice, re-picking each time.
+    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3, pick: 'highestHealth' } }],
+    text: 'When you cast **3 spells**, Consume the highest-Health minion in the Shop.',
+    goldenText: 'When you cast **3 spells**, Consume the **2** highest-Health minions in the Shop.',
+  },
   // -- 2026-10-10 owner balance batch: three minions (Hellrider, Chicken Brawl, Arnold) and five Shop spells (Rival's
   //    Reflection, Common Ground, Might of Aeon, Ironclad Requisition, Dissipate) archived from EVERY set. Might of Aeon is
   //    still CAST by Rune of Might by owner ruling; it resolves by id through CARD_INDEX. --

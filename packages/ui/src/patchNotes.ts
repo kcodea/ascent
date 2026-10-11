@@ -79,6 +79,29 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'New Demon: Gasket, a Tier 4 that blasts the whole board each time it attacks.',
+        details: [
+          'Gasket (Tier 4, 7/3 Demon). Rally: deal 2 damage to all minions except friendly Demons.',
+          'It hits every enemy, enemy Demons included, and your own non-Demons. Your Demons are safe.',
+          'Gilded: deals 2 damage twice.',
+          'In the Shop, a forced Rally only hits your non-Demons.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'New Demon: Rad Rachel, a Tier 6 that pumps your whole board whenever a Demon deals damage.',
+        details: [
+          'Rad Rachel (Tier 6, 8/10 Demon). When a Demon deals damage, give your minions +2/+1. Gilded: +4/+2.',
+          'In combat the buff lasts for that combat. Engraved minions keep it.',
+          'In the Shop the buff is permanent.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Cavern Fiend has been removed from the game.',
+      },
+      {
         category: 'Systems',
         text: 'A targeted Shout that fires without you aiming it now picks a random legal target, not the same one every time.',
         details: [

@@ -458,13 +458,8 @@ describe('grammar families (2026-09-11) — sabotage: each new comparator convic
     expect(taxonomiesOf({ ...artificer, triggers: [{ event: 'onPlay', phase: 'shop' }] })).toContain('wrong-trigger');
   });
 
-  it('Gem Gorger: "you cast 3 spells" over a `rubyCast` factory is correct text — the trigger is the spell+Ruby umbrella (owner 2026-07-24, 2026-09-11)', () => {
-    const gorger = one('k_gemgorge');
-    expect(gorger.triggers?.map((t) => t.event)).toContain('rubyCast');
-    expect(taxonomiesOf(gorger)).toEqual([]);
-    // Sabotage: the same text over a contract that names an unrelated trigger is still convicted.
-    expect(taxonomiesOf({ ...gorger, triggers: [{ event: 'onBuy', phase: 'shop' }] })).toContain('wrong-trigger');
-  });
+  // (The Gem Gorger / Cavern Fiend `rubyCast` text case was retired 2026-10-10 with the card: archived, it holds no
+  // active contract, and no active card says "you cast N spells" over `rubyCast` any more.)
 
   it('the Brood draft-contract gap reproduces when its curated gild shape is doctored back to ×2', () => {
     const brood = one('brood');

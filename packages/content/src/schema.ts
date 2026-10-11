@@ -250,6 +250,7 @@ export const EffectFactoryIdSchema = z.enum([
   'minionSoldConsumeRightmost',
   'onConsumeBuffShop',
   'deathrattleDamageAllExceptTribe',
+  'rallyDamageAllExceptTribe',
   'deathrattleGrantWardRandom',
   'onConsumeSelfGrantSpell',
   'spellPlayRubiesAll',

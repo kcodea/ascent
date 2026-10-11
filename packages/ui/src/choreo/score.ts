@@ -20,6 +20,7 @@ import type { FxBinding } from './bindings';
 import { cascade, scheduleLands } from '../fx/land';
 import { claimOrHold } from '../fx/statHold';
 import { canPlayDefs, playDef } from '../fx/playDef';
+import { fanIntensityFor } from '../fx/fanBudget';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
@@ -995,9 +996,13 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           at(cue, () => {
             // The cast's own event carries no target (Bloodbinder emits one `sc` then a damage event per
             // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
+            // A def with a FAN BUDGET (Gasket's blast: ~372 particles × up to 13 targets) spawns every play at the
+            // same evenly reduced density when the fan is wide, so the pass stays inside the frame budget and every
+            // target still reads the hit. One target (or a fan that fits) plays exactly as authored (intensity 1).
+            const intensity = fanIntensityFor(binding.def, claimed.length);
             claimed.forEach((uid, i) => {
               const fanAnchors = anchorsForUnits(source, uid);
-              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i, gain: binding.gain });
+              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i, gain: binding.gain, ...(intensity < 1 ? { intensity } : {}) });
             });
           });
         }

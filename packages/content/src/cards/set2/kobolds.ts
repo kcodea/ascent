@@ -186,22 +186,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'Rubies applied **in combat** give **3× stats**.',
   },
   {
-    // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).
-    id: 'k_gemgorge',
-    name: 'Cavern Fiend', // was 'Gemgorge Fiend' (owner 2026-10-09); id unchanged
-    tribe: 'kobold',
-    tribe2: 'demon',
-    tier: 6,
-    attack: 6,
-    health: 6,
-    keywords: [],
-    // Owner balance 2026-10-10: the meal is the HIGHEST-HEALTH Shop minion (was random). `pick` names the target
-    // rule; ties go to the right-most (the shared `pickShopMinionFor`). Gilded eats twice, re-picking each time.
-    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3, pick: 'highestHealth' } }],
-    text: 'When you cast **3 spells**, Consume the highest-Health minion in the Shop.',
-    goldenText: 'When you cast **3 spells**, Consume the **2** highest-Health minions in the Shop.',
-  },
-  {
     // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).
     id: 'k_geode',
     name: 'Geode Guardian',

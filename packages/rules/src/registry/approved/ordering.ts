@@ -130,4 +130,24 @@ export const ORDERING_RULES: GameRule[] = [
       + 'buffs); the other banks were pre-baked into the starting board or acted silently.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/bankedCast.test.ts', 'packages/sim/src/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-FX-WAVE-WINDUP-01',
+    title: 'A volley a swing\x27s wind-up sprays plays before the strike, on every struck unit, inside the frame budget',
+    statement:
+      'When a swing\x27s own wind-up produces a wave volley (Gasket\x27s Rally, one wave per pass), the attacker holds its '
+      + 'wind-up while each pass plays as its own beat, then strikes (or settles, when a pass killed its target). A pass is '
+      + 'not the melee exchange: every unit it struck (the defender included) gets the bound effect, played once per unit at '
+      + 'the moment the pass lands, and the clash after the passes keeps its melee pair. A wide pass of a heavy authored '
+      + 'effect spawns every play at the same, evenly reduced particle count (its fan budget); one target plays exactly '
+      + 'as authored.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner FX for Gasket 2026-10-10', quote: 'plays on all valid targets, aka all non-friendly demons' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/channels/windupWaves.ts wavesAheadOf; packages/ui/src/combatBeats.ts meleePairOfImpact/attackerOfImpact (skip wave beats); packages/ui/src/fx/fanBudget.ts; packages/ui/src/choreo/score.ts (struck fan-out intensity)' },
+    ],
+    contentIds: ['dm_gasket'],
+    currentBehaviour: 'Conforms as of 2026-10-11.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/gasketBeats.test.ts', 'packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
 ];

@@ -8,7 +8,7 @@
  *
  * This layer does no timing. It knows nothing about milliseconds.
  */
-import type { ConsequenceEvent, PresentationBatch, PresentationPolicy, SourceTriggerEvent, ZoneTargetRef } from '@game/core';
+import { PRESENTATION_POLICIES, type ConsequenceEvent, type PresentationBatch, type PresentationPolicy, type SourceTriggerEvent, type ZoneTargetRef } from '@game/core';
 import type {
   NormalizedTimelineInput,
   PresentationMode,
@@ -65,6 +65,9 @@ export function normalizePresentationBatch(batch: PresentationBatch): Normalized
       dependencyIds: t.dependencyIds ?? [],
       simultaneousGroupId: t.simultaneousGroupId,
       repeat: t.repeatCount !== undefined ? { index: t.repeatIndex ?? 0, count: t.repeatCount } : undefined,
+      // Read off the REGISTRY by the key gameplay stamped (never inferred from the source), so a recorded batch
+      // from before the field existed presents the same way a fresh one does (R-SHRIEKER-BEATS-01).
+      ...(t.policyKey && PRESENTATION_POLICIES[t.policyKey]?.children === 'sequential' ? { childOrder: 'sequential' as const } : {}),
       consequences: [],
       runtimeAdapter: 'presentationBatch',
       runtimeRef: t,

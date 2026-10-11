@@ -179,6 +179,7 @@ import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
+import { planShoutChain } from './choreo/shoutChain';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
 import { releaseSotRuneProcs, sotRunKey } from './sotRuneHold';
 import { resolveBuffSource } from './choreo/buffSource';
@@ -1777,6 +1778,8 @@ export function Recruit() {
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  const prevShoutLinkSeq = useRef(run.shoutLinkFxSeq); // the Shop's Shout chain links (R-SHRIEKER-BEATS-01), same mount rule
+  const shoutChainTimersRef = useRef<number[]>([]); // the chain's delayed links + buff waves, cleared on unmount
   /** Buff-FX waves captured while the arena covered the board (a combat-grant's settle-time reactor) — replayed on the shop reveal. */
   const settleFxRef = useRef<RunState['recruitBuffFx']>([]);
   // The buffed minions an ale cast is visualizing this action, so the generic buff tendril is suppressed for
@@ -5095,9 +5098,54 @@ export function Recruit() {
     // A REPEAT-pattern play (Squirl Scout's "Repeat for every Beast you own", a Dragonflame cast) tags one wave
     // per repeat (R-REPEAT-01, owner 2026-09-22). Pace those waves apart, as the End-of-Turn beats do, so the
     // repeats read as repeats rather than one burst; an untagged action keeps its simultaneous replay.
-    const taggedWaves = new Set(events.filter((e) => e.fxWave !== undefined).map((e) => e.fxWave)).size;
-    replayBuffFxEvents(events, taggedWaves > 1 ? waveGapFor(Math.min(taggedWaves, getBuffFxConfig().waveMaxCount)) : 0);
+    // A SHOUT CHAIN this action (Dawnclaw / Ryme Echo, High King Mykel — R-SHRIEKER-BEATS-01): each fire's buffs
+    // play on ITS link, after the trigger-er's tendril lands (drawn by the `shoutLinkFxSeq` watcher below), one
+    // fire at a time. Everything else this action captured plays as before.
+    const chain = run.shoutLinkFx?.length ? planShoutChain(run.shoutLinkFx, run.recruitBuffFx) : null;
+    const rest = chain ? events.filter((e) => !chain.claimed.has(e)) : events;
+    if (chain) {
+      const playing = new Set(events);
+      for (const p of chain.links) {
+        const mine = p.buffs.filter((b) => playing.has(b));
+        if (mine.length) shoutChainTimersRef.current.push(window.setTimeout(() => replayBuffFxEvents(mine), p.buffAtMs));
+      }
+    }
+    if (rest.length === 0) return;
+    const taggedWaves = new Set(rest.filter((e) => e.fxWave !== undefined).map((e) => e.fxWave)).size;
+    replayBuffFxEvents(rest, taggedWaves > 1 ? waveGapFor(Math.min(taggedWaves, getBuffFxConfig().waveMaxCount)) : 0);
   }, [run.recruitFxSeq]);
+  // …and the chain's LINKS: the trigger-er's tribe tendril (Dawnclaw's beast ribbon, Mykel's dwarf ribbon) to each
+  // Shout's owner, one per fire, `SHOP_CHAIN_SLOT_MS` apart, left neighbour first. Skipped under the arena or the
+  // curtain, exactly where the wave above parks instead of chaining (the records then play in the settle wave).
+  useEffect(() => {
+    if (run.shoutLinkFxSeq === prevShoutLinkSeq.current) return;
+    prevShoutLinkSeq.current = run.shoutLinkFxSeq;
+    const links = run.shoutLinkFx ?? [];
+    if (links.length === 0 || inCombat || wipe !== 'idle') return;
+    const departedAtLink = departedCentreRef.current;
+    for (const p of planShoutChain(links, run.recruitBuffFx).links) {
+      const fire = (): void => {
+        if (!canPlayDefs()) return;
+        const tEl = findEl(p.link.toUid);
+        const target = tEl ? restingCenterOf(tEl as HTMLElement) : null;
+        if (!target) return;
+        // The trigger-er may have left the board (a shop destroy fired its Echo): stream from where it stood.
+        const src = resolveBuffSource({
+          label: false,
+          live: () => { const el = findEl(p.link.fromUid); return el ? restingCenterOf(el as HTMLElement) : null; },
+          lastSlot: () => { const d = departedAtLink.get(p.link.fromUid); return d ? { x: d.x, y: d.y } : null; },
+        });
+        if (src.sourceless || !src.center) return;
+        fireBuffFx({
+          source: src.center, target, cardId: p.link.fromCardId, tribe: CARD_INDEX[p.link.fromCardId]?.tribe ?? 'neutral', sourceless: false,
+          uids: { source: p.link.fromUid, target: p.link.toUid },
+        });
+      };
+      if (p.linkAtMs <= 0) fire();
+      else shoutChainTimersRef.current.push(window.setTimeout(fire, p.linkAtMs));
+    }
+  }, [run.shoutLinkFxSeq]);
+  useEffect(() => () => { for (const t of shoutChainTimersRef.current) window.clearTimeout(t); shoutChainTimersRef.current = []; }, []);
   // …and the parked wave plays once the curtain has revealed the shop (`wipe` back to `idle` with the phase on
   // `recruit`), when the warband is measurable again. A decisive combat (end screen) drops it — no board to land on.
   useEffect(() => {
@@ -6731,6 +6779,21 @@ export function Recruit() {
         // 2026-09-01: the Reliquary "had no beats, animations or anything firing").
         const runeId = beat.source.kind === 'minion' && beat.policyKey?.startsWith('rune:') ? beat.policyKey.split(':')[1] : undefined;
         if (runeId && uid) presenterCtx.questTendril('rune', runeId, uid, 0);
+        // A LINK of a sequential chain (R-SHRIEKER-BEATS-01, owner 2026-10-10): Shrieker's End of Turn triggers each
+        // Shout as its own beat, and THIS beat's tendril flies from Shrieker to the minion it is triggering, one at a
+        // time. The tendril is the trigger-er's tribe ribbon (`tendril-trail-dragon` for Shrieker) through the shared
+        // `fireBuffFx`; the compiler holds the link's consequences until it lands (`CHAIN_LINK_PACING.linkLeadMs`).
+        const link = beat.chainLink;
+        if (link && link.from.kind === 'minion' && link.from.uid && uid && link.from.uid !== uid && canPlayDefs()) {
+          const from = restingOf(link.from.uid);
+          const to = restingOf(uid);
+          if (from && to) {
+            fireBuffFx({
+              source: from, target: to, cardId: link.from.id, tribe: CARD_INDEX[link.from.id]?.tribe ?? 'neutral', sourceless: false,
+              uids: { source: link.from.uid, target: uid },
+            });
+          }
+        }
         setEotProcUids(uid ? new Set([uid]) : new Set());
         setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();
@@ -6832,6 +6895,7 @@ export function Recruit() {
         prevFodderHoldSeq.current = committed.fodderEatenSeq;
         prevRubyLandedSeq.current = committed.rubyLandedFxSeq;
         prevAleSeq.current = committed.aleGrantSeq;
+        prevShoutLinkSeq.current = committed.shoutLinkFxSeq; // Dawnclaw / Mykel chains played on their beats (R-SHRIEKER-BEATS-01)
         setEotConsumedUids(new Set());
         }, EOT_COMBAT_PAD_MS + lassoTail);
       },

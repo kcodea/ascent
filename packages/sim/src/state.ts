@@ -2244,6 +2244,15 @@ export interface RunState {
   questTendrilFx?: { effect: string; uid: string }[];
   /** Bumped when `questTendrilFx` is refilled, so the UI fires once per action even if the list repeats. */
   questTendrilSeq?: number;
+  /** SHOUT CHAIN LINKS (R-SHRIEKER-BEATS-01, owner 2026-10-10: "dawnclaw and mykel should also do one at a time"):
+   *  one entry per Shout a Dawnclaw / Ryme Echo or a High King Mykel triggered THIS action, in fire order (left
+   *  neighbour first). `fxStart`/`fxEnd` bound the `recruitBuffFx` records that fire produced, so the Shop can play
+   *  the trigger-er's tendril to the Shout's owner, THEN that Shout's buffs, one fire at a time. Display metadata
+   *  only (no RNG, no stats); cleared per action like `questTendrilFx`. End of Turn presents the same fires from
+   *  the beat batch instead and skips these at its commit. */
+  shoutLinkFx?: { fromUid: string; fromCardId: string; toUid: string; fxStart: number; fxEnd: number }[];
+  /** Bumped when a `shoutLinkFx` entry is stamped, so the UI fires once per action. */
+  shoutLinkFxSeq?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
   /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an

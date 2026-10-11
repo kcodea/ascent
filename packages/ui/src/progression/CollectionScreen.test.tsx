@@ -9,12 +9,13 @@
  *  - category switching: the locked categories open a "coming soon" view; the crate bay stays in view;
  *  - the detail panel: nameplate, how to get it, the preview under your name, Equip / Take off / a refusal;
  *  - the crate bay: count, next crate, Open / Open all into the (unchanged) theatre, empty, off, loading;
- *  - the NEW badge: local only, clears on pick, survives a remount, returns for a newly found item;
+ *  - the NEW badge: local only; a first-visit baseline, clears on pick at once and on view once you leave the tab,
+ *    never on the equipped item, returns for a newly found item;
  *  - guest mode, and the stage + performance tripwires on the screen's own stylesheet.
  * No native tooltips, no em dashes.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act } from 'react';
+import { StrictMode, act } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { OpenCrateResult, ProgressionProfile } from '@game/progression';
@@ -38,7 +39,7 @@ vi.mock('./progressionRemote', async (orig) => ({
 }));
 
 import { CollectionPage, CollectionScreen } from './CollectionScreen';
-import { resetProgressionForTests, useProgression } from './progressionStore';
+import { adoptProgressionProfile, resetProgressionForTests, useProgression } from './progressionStore';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
 import { useGame } from '../store';
 
@@ -287,26 +288,103 @@ describe('the Collection screen: the crate bay', () => {
 });
 
 describe('the Collection screen: NEW', () => {
-  it('an owned, unseen item wears NEW (and its tab counts it) until you pick it; the flag is local only', () => {
+  const seenList = (): string[] => JSON.parse(localStorage.getItem('ascent.collection.seen.u-1') ?? '[]') as string[];
+  const freshNames = (): string[] => $$('.colls-tile.fresh .colls-tile-name').map((n) => n.textContent ?? '').sort();
+
+  it('an owned, unseen item wears NEW (and its tab counts it); a pick clears it at once; the flag is local only', () => {
     open({ titles: ['alpha_tester', 'title_star_chaser', 'title_kingbreaker'] }, { seen: ['alpha_tester'] });
-    expect($$('.colls-tile.fresh .colls-tile-name').map((n) => n.textContent).sort()).toEqual(['Kingbreaker', 'Star Chaser']);
+    expect(freshNames()).toEqual(['Kingbreaker', 'Star Chaser']);
     expect(text('.colls-tab.on .colls-tab-new')).toBe('2');
-    expect(text('.colls-plate-name')).toBe('Alpha Tester'); // opening the page never clears a badge by itself
+    expect(text('.colls-plate-name')).toBe('Alpha Tester'); // opening the page never hides a badge before you have looked
     act(() => tile('Kingbreaker').click());
     expect(tile('Kingbreaker').querySelector('.colls-new')).toBeNull();
     expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
-    expect(JSON.parse(localStorage.getItem('ascent.collection.seen.u-1')!)).toContain('title_kingbreaker');
+    expect(seenList()).toContain('title_kingbreaker');
+    expect(freshNames()).toEqual(['Star Chaser']); // the rest of the tab keeps its badges for this visit
     expect(equipTitleRemote).not.toHaveBeenCalled();
     expect(openCrateRemote).not.toHaveBeenCalled();
+  });
+
+  // Owner 2026-10-11: "whenever i load the game, all of my stuff that i already own shows up as 'new'".
+  it('CLEAR ON VIEW: a tab you have opened shows its badges for that visit, then they are gone the next time', () => {
+    open({ titles: ['alpha_tester', 'title_star_chaser', 'title_kingbreaker'] }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Kingbreaker', 'Star Chaser']); // still shown: you are looking at them now
     ui!.unmount();
-    ui = mount(<CollectionPage reducedMotion />); // survives a remount
-    expect($$('.colls-tile.fresh .colls-tile-name').map((n) => n.textContent)).toEqual(['Star Chaser']);
+    ui = mount(<CollectionPage reducedMotion />); // the next load: nothing you already saw is NEW again
+    expect(freshNames()).toEqual([]);
+    expect($('.colls-tab.on .colls-tab-new')).toBeNull();
+  });
+
+  it('CLEAR ON VIEW under StrictMode (the dev build re-runs effects): the open tab still keeps its badges for this visit', () => {
+    localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(['alpha_tester']));
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser'] }) } });
+    ui = mount(<StrictMode><CollectionPage reducedMotion /></StrictMode>);
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(seenList()).toContain('title_star_chaser'); // stored as seen, for the next visit
+  });
+
+  it('CLEAR ON VIEW is per tab: leaving a tab clears it; a tab you never opened keeps its count', () => {
+    localStorage.setItem('ascent.collection.baseline.u-1', '1'); // this device took its baseline long ago
+    open({ titles: ['alpha_tester', 'title_star_chaser'], cosmetics: ['alpha_tester', 'title_star_chaser', 'skin_albus_1'] }, { seen: ['alpha_tester'] });
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
+    expect(tab('Heroes').querySelector('.colls-tab-new')?.textContent).toBe('1');
+    ui!.unmount();
+    ui = mount(<CollectionPage reducedMotion />); // Heroes was never opened: its badge survives the reload
+    expect(tab('Heroes').querySelector('.colls-tab-new')?.textContent).toBe('1');
+    expect(tab('Titles').querySelector('.colls-tab-new')).toBeNull();
+    act(() => tab('Heroes').click());
+    expect($$('.colls-tile.fresh')).toHaveLength(1); // shown while you look
+    act(() => tab('Titles').click());
+    expect(tab('Heroes').querySelector('.colls-tab-new')).toBeNull(); // and cleared once you leave
+    act(() => tab('Heroes').click());
+    expect($$('.colls-tile.fresh')).toHaveLength(0);
+  });
+
+  it('the EQUIPPED item never wears NEW, and its tab does not count it', () => {
+    open({ titles: ['alpha_tester', 'title_star_chaser', 'title_kingbreaker'], equippedTitleId: 'title_kingbreaker' }, { seen: ['alpha_tester'] });
+    expect(tile('Kingbreaker').querySelector('.colls-new')).toBeNull();
+    expect(freshNames()).toEqual(['Star Chaser']);
+    expect(text('.colls-tab.on .colls-tab-new')).toBe('1');
+  });
+
+  it('BASELINE: the first time this device reads the account, everything already owned counts as seen', () => {
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList });
+    const owned = ['alpha_tester', 'title_star_chaser', 'title_kingbreaker', 'skin_albus_1'];
+    adoptProgressionProfile('u-1', profile({ titles: owned.slice(0, 3), cosmetics: owned }));
+    expect(seenList().sort()).toEqual([...owned].sort());
+    ui = mount(<CollectionPage reducedMotion />);
+    expect($$('.colls-tab-new')).toHaveLength(0);
+    expect(freshNames()).toEqual([]);
+    // Only what is earned AFTER the baseline is NEW.
+    act(() => { adoptProgressionProfile('u-1', profile({ titles: [...owned.slice(0, 3), 'title_ironbeard'], cosmetics: [...owned, 'title_ironbeard'], revision: 20 })); });
+    expect(freshNames()).toEqual(['Ironbeard']);
+  });
+
+  it('BASELINE is taken once, keeps a list this device already had, and waits for a readable ownership list', () => {
+    // Ownership could not be read (no `cosmetics`): no baseline yet, so a later full read still takes it.
+    adoptProgressionProfile('u-1', profile({ titles: [] }));
+    expect(localStorage.getItem('ascent.collection.seen.u-1')).toBeNull();
+    // A device that already has a partial list (the click-by-click list from before the baseline existed) is topped up.
+    localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(['alpha_tester']));
+    adoptProgressionProfile('u-1', profile({ cosmetics: ['alpha_tester', 'title_star_chaser'], revision: 10 }));
+    expect(seenList().sort()).toEqual(['alpha_tester', 'title_star_chaser']);
+    // Taken once: the next read's new item is not swallowed.
+    adoptProgressionProfile('u-1', profile({ cosmetics: ['alpha_tester', 'title_star_chaser', 'title_kingbreaker'], revision: 11 }));
+    expect(seenList()).not.toContain('title_kingbreaker');
+  });
+
+  it('BASELINE also covers a page opened on the saved copy, before the server read lands', () => {
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile({ cosmetics: ['alpha_tester', 'title_star_chaser'] }) } });
+    ui = mount(<CollectionPage reducedMotion />);
+    expect(freshNames()).toEqual([]);
+    expect(seenList().sort()).toEqual(['alpha_tester', 'title_star_chaser']);
   });
 
   it('peeking at a missing item does not spend its NEW: it still shows the day a crate gives it', () => {
     open({}, { seen: ['alpha_tester', 'title_star_chaser'] });
     act(() => tile('Ironbeard').click());
-    expect(JSON.parse(localStorage.getItem('ascent.collection.seen.u-1')!)).not.toContain('title_ironbeard');
+    expect(seenList()).not.toContain('title_ironbeard');
     act(() => { useProgression.setState({ mirror: { userId: 'u-1', ...profile({ titles: ['alpha_tester', 'title_star_chaser', 'title_ironbeard'], revision: 20 }) } }); });
     expect(tile('Ironbeard').querySelector('.colls-new')?.textContent).toBe('New');
   });

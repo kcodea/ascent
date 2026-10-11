@@ -2306,8 +2306,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'detail panel: large on a nameplate, its rarity, its status, how it is found ("Found in crates.", "Reach Level 2."), a '
       + 'preview under your name, and Equip or Take off (a missing item says how to get it instead). A crate bay (count, '
       + 'next crate, Open, Open all) stays in view whatever tab is open and starts the unchanged crate opening. An owned item '
-      + 'you have not looked at wears NEW until you select it; that flag is local to the device and never sent to the '
-      + 'server. A guest sees a slim save row.',
+      + 'you have not looked at wears NEW (what sets and clears it: R-PROG-COLLECTION-05); that flag is local to the device '
+      + 'and never sent to the server. A guest sees a slim save row.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -5044,5 +5044,41 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Shout, but the compiler placed every nested trigger at its parent\'s delivery, so all the Shouts and their buffs '
       + 'landed in the same moment with no tendril. A registry flag now makes this parent\'s children play as a chain.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/shriekerChainBeats.test.ts', 'packages/ui/src/choreographer/shoutChainDawnclawMykel.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
+  {
+    id: 'R-PROG-COLLECTION-05',
+    title: 'NEW in the Collection marks only what you earned since you last looked: never the collection you already had',
+    statement:
+      'A NEW badge in the Collection means "you got this since you last looked", never "this device has not been clicked '
+      + 'on yet". The first time a device reads an account\x27s owned items, all of them count as already seen (the baseline, '
+      + 'taken once per account per device), so loading the game on a new device, a new address or a fresh install never '
+      + 'badges the collection you already own; only an item earned after that wears NEW. NEW clears on view: opening a '
+      + 'tab shows its badges for that visit and they are gone once you leave the tab or the Collection; selecting an '
+      + 'item clears its badge at once. A tab you have not opened keeps its count, so the count still leads you to it. '
+      + 'The item you are wearing never wears NEW. Looking at an item you do not own never spends its badge. The flag '
+      + 'stays local to the device and is never sent to the server. This holds for every category, present and future.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (Collection screenshot: NEW on owned and equipped items)',
+        quote: 'whenever i load the game, all of my stuff that i already own sh ows up as "new" how can we fix this?',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-11 (the owner\x27s pick among three offered behaviours)',
+        quote: 'Baseline + clear on view (Recommended)',
+      },
+      { kind: 'fix-pr', ref: 'PR fix/collection-new-baseline (2026-10-11)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/collectionSeen.ts (ensureSeenBaseline, addSeen, isNew); packages/ui/src/progression/progressionStore.ts adoptProgressionProfile (takes the baseline on the first readable ownership list); packages/ui/src/progression/CollectionScreen.tsx (`seenFor` snapshot, the clear-on-view effect, `fresh`)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-11. Before, the seen list started empty in every browser storage (each dev port, the '
+      + 'desktop app and the web build keep their own) and only a click on one tile added that one item, so every owned '
+      + 'item wore NEW on each new address, the equipped one included, with one click per item to clear. PARTIAL by '
+      + 'design: the list is still per device, so an item earned on one device shows NEW once on each other device that '
+      + 'already took its baseline.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-10-11' },
   },
 ];

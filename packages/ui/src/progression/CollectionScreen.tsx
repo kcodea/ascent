@@ -10,8 +10,8 @@ import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 import { cratesVisible, equipCosmetic, equipTitle, mirrorFor, refreshCrates, useProgression } from './progressionStore';
 import {
-  COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, isEquipped, isNew,
-  loadSeen, masteryText, missingHint, ownedIds, rarityCounts, saveSeen, skinTargetName, type RarityFilter, type ShowFilter,
+  COMING_BLURB, acquisitionText, addSeen, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, ensureSeenBaseline, filterAlbum,
+  isEquipped, isNew, loadSeen, masteryText, missingHint, ownedIds, rarityCounts, skinTargetName, type RarityFilter, type ShowFilter,
 } from './collectionModel';
 import { defaultArtOf, skinArtOf } from '../skins/skinArt';
 import { HeroPortraitRing } from '../portraitFrame/HeroPortraitRing';
@@ -41,7 +41,8 @@ import './collection.css';
  *   ALBUM       every item of the category, owned or not, in a STABLE order (Hearthstone / Snap). Owned tiles are
  *               bright in a rarity frame; missing tiles are dimmed with the rarity still readable (Clash Royale's
  *               rarity-coloured frame; Fortnite's players asked for rarity colour back). Equipped wears a
- *               full-tile gold ring and a ribbon, not a corner tick (Fortnite). NEW until selected.
+ *               full-tile gold ring and a ribbon, not a corner tick (Fortnite). NEW until selected, or until you
+ *               leave the tab (owner 2026-10-11); never on the equipped item. See `seenFor` below.
  *   DETAIL      the selected item large on a nameplate (Valorant's big preview), with a preview of it under your
  *               name, how it is found, and Equip / Take off.
  *   CRATE BAY   sealed crates always in view, whatever tab is open: the crate, the count, Open and Open all, and
@@ -95,7 +96,16 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [category, setCategory] = useState<CosmeticCategory>(() => (categoryLive('title') ? 'title' : collectionCategories()[0]!));
   const [show, setShow] = useState<ShowFilter>('all');
   const [rarity, setRarity] = useState<RarityFilter>('all');
-  const [seen, setSeen] = useState<Set<string>>(() => loadSeen(userId));
+  // NEW (owner 2026-10-11: "whenever i load the game, all of my stuff that i already own shows up as 'new'").
+  // `seen` is a SNAPSHOT of the stored list, taken when the page opens, when the account (or its first mirror)
+  // lands, and on a tab switch. The tab you are on is written to STORAGE as seen while you look (the effect below),
+  // but the snapshot is not, so its badges stay for this visit and are gone the next time. Re-read during render,
+  // never in an effect: a mount effect would run after the view effect (twice under StrictMode) and wipe them.
+  const hasMirror = !!me;
+  const readSeen = (): Set<string> => { ensureSeenBaseline(userId, me); return loadSeen(userId); };
+  const [seenFor, setSeenFor] = useState(() => ({ userId, hasMirror, ids: readSeen() }));
+  if (seenFor.userId !== userId || seenFor.hasMirror !== hasMirror) setSeenFor({ userId, hasMirror, ids: readSeen() });
+  const seen = seenFor.ids;
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +119,6 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const closeGate = useCallback(() => setGate(false), []);
 
   useEffect(() => { void refreshCrates(); }, []);
-  useEffect(() => { setSeen(loadSeen(userId)); }, [userId]);
 
   const sealed: CrateQueueItem[] = useMemo(
     () => (crateList ?? []).filter((c) => c.state === 'sealed').map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
@@ -126,9 +135,11 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const byRarity = useMemo(() => rarityCounts(album, owned), [album, owned]);
   const albumCount = useMemo(() => countOf(album, owned), [album, owned]);
 
+  // CLEAR ON VIEW: everything you own on the open tab is stored as seen (the snapshot keeps its badges up for now).
+  useEffect(() => { addSeen(userId, album.filter((c) => owned.has(c.id)).map((c) => c.id)); }, [userId, album, owned]);
+
   // The selected item: the one you picked, else what you wear, else your first owned item, else the album's first.
-  // Only a PICK clears NEW (Fortnite's "clears on view"): a default selection never does, so opening the page
-  // never wipes the badges before you have looked.
+  // A default selection never clears a badge on screen: a PICK does at once, the rest go when you leave the tab.
   const selectedId = picked && album.some((c) => c.id === picked) ? picked
     : wornId
     ?? album.find((c) => owned.has(c.id))?.id ?? album[0]?.id ?? null;
@@ -146,13 +157,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const clearHover = useCallback(() => setHover(null), []);
 
   const markSeen = useCallback((id: string) => {
-    setSeen((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      saveSeen(userId, next);
-      return next;
-    });
+    addSeen(userId, [id]);
+    setSeenFor((prev) => (prev.ids.has(id) ? prev : { ...prev, ids: new Set(prev.ids).add(id) }));
   }, [userId]);
 
   const onPick = useCallback((id: string) => {
@@ -196,12 +202,17 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     setTheatre({ queue: [...sealed], openAll });
   };
 
-  const pickCategory = (c: CosmeticCategory): void => { sfx.pulse(); setCategory(c); setPicked(null); setDefaultShown(null); setHover(null); setError(null); };
+  const pickCategory = (c: CosmeticCategory): void => {
+    sfx.pulse(); setCategory(c); setPicked(null); setDefaultShown(null); setHover(null); setError(null);
+    setSeenFor((prev) => ({ ...prev, ids: loadSeen(userId) })); // the tab you are leaving has been seen
+  };
   const back = (): void => { sfx.pulse(); close(); };
   const lp = levelProgress(me?.accountXp ?? 0);
   const name = playerName || tempHandle(userId);
   const live = categoryLive(category);
-  const newIn = (c: CosmeticCategory): number => albumOf(c, undefined, owned).filter((i) => isNew(i.id, owned, seen)).length;
+  /** NEW: owned, not seen yet, and not the item you are wearing (you know that one). */
+  const fresh = (c: CosmeticDef): boolean => isNew(c.id, owned, seen) && !isEquipped(c, me);
+  const newIn = (c: CosmeticCategory): number => albumOf(c, undefined, owned).filter(fresh).length;
 
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
@@ -239,18 +250,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
             {categories.map((c) => {
               const on = categoryLive(c);
               const cnt = on ? countOf(albumOf(c, undefined, owned), owned) : null;
-              const fresh = on ? newIn(c) : 0;
+              const freshCount = on ? newIn(c) : 0;
               return (
                 <button
                   key={c} type="button" role="tab" aria-selected={category === c}
                   className={`colls-tab${category === c ? ' on' : ''}${on ? '' : ' locked'}`}
-                  aria-label={on ? `${COSMETIC_CATEGORY_DEFS[c].label}, ${cnt!.owned} of ${cnt!.total}${fresh ? `, ${fresh} new` : ''}` : `${COSMETIC_CATEGORY_DEFS[c].label}, coming soon`}
+                  aria-label={on ? `${COSMETIC_CATEGORY_DEFS[c].label}, ${cnt!.owned} of ${cnt!.total}${freshCount ? `, ${freshCount} new` : ''}` : `${COSMETIC_CATEGORY_DEFS[c].label}, coming soon`}
                   onClick={() => pickCategory(c)}
                 >
                   <CategoryIcon category={c} />
                   <span className="colls-tab-name">{COSMETIC_CATEGORY_DEFS[c].label}</span>
                   {on ? <span className="colls-tab-count">{cnt!.owned}/{cnt!.total}</span> : <span className="colls-tab-soon"><LockGlyph />Soon</span>}
-                  {fresh > 0 && <span className="colls-tab-new" aria-hidden>{fresh}</span>}
+                  {freshCount > 0 && <span className="colls-tab-new" aria-hidden>{freshCount}</span>}
                 </button>
               );
             })}
@@ -290,7 +301,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                       <li key={c.id}>
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : skinArtOf(c)} ring={c.category === 'portrait_frame'} target={skinTargetName(c) ?? undefined}
-                          owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={isNew(c.id, owned, seen)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
+                          owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
                           onPick={onPick} onHover={c.target?.type === 'card' ? onHover : undefined}
                         />
                       </li>

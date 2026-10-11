@@ -711,8 +711,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   Show (All / Owned / Missing) and Rarity filters with counts, and every item of the category, owned or not
   (missing ones dimmed, rarity still shown; the equipped one ribboned). Selecting an item shows it large with how
   it is found, a preview under your name, and Equip / Take off. The crate bay (count, Open, Open all) stays in
-  view on every tab. An owned item you have not looked at wears NEW until you select it; that flag lives on the
-  device only. Oracle R-PROG-COLLECTION-02.
+  view on every tab. Oracle R-PROG-COLLECTION-02.
+- **NEW in the Collection (2026-10-11).** NEW marks what you earned since you last looked. The first time a device
+  reads your account, everything you already own counts as seen, so only later finds wear NEW. Opening a tab shows
+  its badges for that visit; they clear when you leave the tab, and selecting an item clears its badge at once. A
+  tab you have not opened keeps its count. The item you are wearing never wears NEW. The flag lives on the device
+  only. Oracle R-PROG-COLLECTION-05.
 - **Achievements (batch 1, 2026-09-28).** XP rewards only (owner: "let's just get the normal xp related
   achievements in for now though"). 248 achievements: Career 17, Ranked 28, Heroes 132 (Debut, Contender, Victory,
   Mastery for each of the 33 playable heroes), Economy and Build 15, Mechanics 7, Runes 5, Set 2 44 (by tribe, plus

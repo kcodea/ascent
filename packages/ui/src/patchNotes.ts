@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Collection: items you already own no longer show as New every time you load the game.',
+        details: [
+          'Only items you earn from now on show New.',
+          'Opening a tab clears its New badges once you leave it. Selecting an item clears its badge right away.',
+          'The item you have equipped never shows New.',
+        ],
+      },
       { category: 'Systems', text: 'Hero Select voices are louder again.' },
       {
         category: 'Systems',

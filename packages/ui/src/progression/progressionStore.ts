@@ -26,6 +26,7 @@
  */
 import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
+import { ensureSeenBaseline } from './collectionSeen';
 import {
   COSMETICS, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
@@ -129,6 +130,8 @@ export function mirrorFor(userId: string | null | undefined, mirror: Progression
  * Returns whether it was adopted.
  */
 export function adoptProgressionProfile(userId: string, profile: ProgressionProfile): boolean {
+  // The Collection's NEW baseline: the first ownership list this device reads for the account is already seen.
+  ensureSeenBaseline(userId, profile);
   const cur = useProgression.getState().mirror;
   if (cur && cur.userId === userId && profile.revision < cur.revision) return false;
   const next: ProgressionMirror = { ...profile, userId };

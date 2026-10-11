@@ -33,7 +33,22 @@ regenerated (`docbot:sync`); final-report contract total 1069 → 1071.
 Art: `RuneOfTheRuinous.png` → `rune_ruinous.webp`, `RuinousLord.png` (Special Rune Rewards) → `dm_ruinouslord.webp`
 via `art:wire --only=rune-reward minions,runes` + `optimize-art`; every other file the pass touched was reverted.
 
+## Permanence by phase (owner ruling, added 2026-10-11)
+
+"it is combat only if triggered in combat, if a minion is engraved, they obviously carry it back, and if the
+effect is triggered in recruit phase, it would be permanent." Oracle **R-BUFF-PHASE-01** (persistence domain).
+The trigger now has a Shop twin: `fireShopDemonDealtDamage` (recruit.ts) fires once per landed hit when a Demon
+damages your board in the Shop (a Shop-fired Fel Spikes Echo, through the new shared `shopSprayExceptTribe`), and the
+recruit body of `onFriendlyDemonDamageBuffTribe` pays your board Demons with a permanent `addBuff`. Leech / Axeman /
+Todd have no Shop body, so they stay combat-only. Tests cover all three cases (combat-only, Engraved carry-back via
+`playerPermaBuffs`, Shop permanent incl. gilded).
+
+The factory name and shape match `feat/gasket` (#2026, Rad Rachel): `tribe` is optional (omitted = every friendly
+minion), and `shopSprayExceptTribe` / `fireShopDemonDealtDamage` are the same code, so that branch rebases cleanly.
+
 ## Judgement calls (flag to owner)
+
+- Shop half pays BOARD Demons only (mirrors the combat body's living board), not Demons in hand.
 
 - Self-inclusion: the Lord's own hits fire it and it buffs itself (Todd precedent). A Lord at 0 Health in the same
   exchange pays nobody.

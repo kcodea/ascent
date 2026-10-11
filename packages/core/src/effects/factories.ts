@@ -4397,15 +4397,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Set 2 — Ruinous Lord (Rune of the Ruinous, owner 2026-10-10): "When a Demon deals damage, give your Demons
-   *  +1/+1." The SAME trigger as Impossible Todd (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon —
-   *  attack, retaliation or incidental; a Ward-absorbed 0-damage hit never fires), so "deals damage" means
-   *  exactly what it means for Todd, and the Lord's own hits count (Todd's precedent). Pays every living friendly
-   *  `tribe` minion `attack`/`health` (the Lord itself included when it is one — it is a Demon). COMBAT-ONLY
-   *  (owner ruling 2026-10-10: "this combat only"): no permaGain is written, so nothing carries back except on
-   *  an Engraved body, the standing rule for every combat stat gain. Gilded doubles via `mul`. One trigger = one
-   *  contiguous run of `buff` events, which the replay collapses into ONE buff-wave moment (its own beat, every
-   *  Demon's +1/+1 landing together), so a long Demon fight shows one wave per hit, never one beat per Demon. */
+  /** Set 2 — "When a Demon deals damage, give your <tribe> minions +a/+h" (Ruinous Lord: your Demons, `tribe: 'demon'`;
+   *  omitted = every friendly minion, the shape Rad Rachel shares). The SAME trigger as Impossible Todd
+   *  (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon, attack, retaliation or incidental, its own hits
+   *  included; a Ward-absorbed 0-damage hit never fires). Pays every LIVING friendly minion (of `tribe` when given),
+   *  the source included. Gilded doubles via `mul`.
+   *
+   *  PERMANENCE (owner ruling 2026-10-11, R-BUFF-PHASE-01): "it is combat only if triggered in combat, if a minion
+   *  is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be
+   *  permanent." This combat half is a plain `ctx.buff`: no permaGain, so it ends with the fight except on an
+   *  Engraved body (the standing carry-back). The Shop half (recruit.ts) is a permanent `addBuff`.
+   *
+   *  One trigger = one run of `buff` events, which the replay collapses into one buff-wave moment, so a long Demon
+   *  fight shows one wave per landed hit (every minion's gain together), never one beat per minion. */
   onFriendlyDemonDamageBuffTribe: (ctx, self, params, payload) => {
     if (self.dead) return;
     const { minion } = payload as MinionPayload;
@@ -4413,9 +4417,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 0) * mul(self);
     const h = num(params.health, 0) * mul(self);
     if (!a && !h) return;
-    const tribe = str(params.tribe) as Tribe;
+    const tribe = str(params.tribe);
     const arena = combatArena(ctx, self);
-    for (const m of ctx.living(self.side)) if (arena.isTribe(m, tribe)) ctx.buff(m, a, h, self.uid);
+    for (const m of ctx.living(self.side)) if (!tribe || arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.uid);
   },
 
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent

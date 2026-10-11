@@ -64,7 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Rune of the Ruinous is a Basic rune that costs 4 Gold. It shows up in Set 2 runs that have Demons.',
           'Ruinous Lord is a Tier 4 4/5 Demon you can only get from the rune.',
-          'When a friendly Demon deals damage, your Demons get +1/+1 for the rest of that combat. Gilded: +2/+2.',
+          'When a friendly Demon deals damage, your Demons get +1/+1. In combat it lasts for that combat. In the Shop it is permanent. Gilded: +2/+2.',
         ],
       },
       {

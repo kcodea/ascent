@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
 import { artFor } from '../art';
 import { GUIDES, PLACEHOLDER_BODY, guidesFor } from './guides';
+import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 
 describe('lobby rail guides', () => {
   it('has unique ids and at least one core unit per guide', () => {
@@ -15,7 +16,7 @@ describe('lobby rail guides', () => {
   });
 
   it('every card id resolves to a card in the guide\'s own set', () => {
-    for (const g of GUIDES) {
+    for (const g of BUNDLED_GUIDE_DATA) {
       const pool = poolFor(g.set);
       const inSet = new Set([...pool.buyable, ...pool.spells].map((c) => c.id));
       for (const id of [...g.core, ...g.enablers, ...(g.mentions ?? [])]) {
@@ -34,7 +35,7 @@ describe('lobby rail guides', () => {
   });
 
   it('every tribe a guide names is one of its set\'s tribes', () => {
-    for (const g of GUIDES) {
+    for (const g of BUNDLED_GUIDE_DATA) {
       for (const t of [...g.tribes, ...(g.pairsWith ?? [])]) expect(SETS[g.set].tribes, `${g.id}: ${t}`).toContain(t);
     }
   });
@@ -89,7 +90,7 @@ describe('lobby rail guides', () => {
       expect(names(id, 'enablers'), id).toEqual(enablers);
     }
     // Every Set 2 guide is written now: no placeholder left.
-    for (const g of GUIDES.filter((x) => x.set === 'set2')) expect(g.body, g.id).not.toBe(PLACEHOLDER_BODY);
+    for (const g of BUNDLED_GUIDE_DATA.filter((x) => x.set === 'set2')) expect(g.body, g.id).not.toBe(PLACEHOLDER_BODY);
     for (const g of GUIDES) expect(g.body, g.id).not.toMatch(/—|--/); // no em dashes in player text
   });
 
@@ -102,7 +103,7 @@ describe('lobby rail guides', () => {
   });
 
   it('is one card per build line: eleven Set 2 lines, every tribe of the set covered', () => {
-    expect(GUIDES.filter((g) => g.set === 'set2')).toHaveLength(11);
+    expect(BUNDLED_GUIDE_DATA.filter((g) => g.set === 'set2')).toHaveLength(11);
     for (const t of SETS.set2.tribes) expect(GUIDES.filter((g) => g.tribes.includes(t)).length, t).toBe(2);
   });
 });

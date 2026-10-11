@@ -11,14 +11,15 @@
  *   - Save & Quit + Continue is NOT a quit: nothing settles until the game really ends, and then it settles once,
  *     at the real placement.
  *
- * SWITCHED OFF 2026-10-02 (owner: "oh i didnt know there was an abandon penalty in. can we remove that for now?").
- * The rule is KEPT behind `ABANDON_PENALTY_ENABLED`, so this file pins it with the switch forced ON (the mock
- * below), proving it still works the day it is turned back on. The live, switched-off behaviour is pinned in
- * `abandonPenaltyOff.test.ts`.
+ * ON AGAIN since 2026-10-11. It was switched off on 2026-10-02 (owner: "oh i didnt know there was an abandon
+ * penalty in. can we remove that for now?") because nothing warned the player; the Play card now asks first
+ * (R-RANK-06, `rankedEntry.test.tsx`) and the owner, asked whether leaving mid-match should cost MMR again, chose
+ * "Yes, turn it back on". This file pins the REAL `ABANDON_PENALTY_ENABLED`, no mock: every door that gives up an
+ * unfinished rated save (Clear, a new game / `newRun` / the tutorial over it, a cloud copy adopted over it).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatResult } from '@game/core';
-import { RANK_RULES, createLobbyRun, resolveRank, type BoardCard, type RunState } from '@game/sim';
+import { RANK_RULES, TUTORIAL_COURSES, createLobbyRun, resolveRank, serialize, type BoardCard, type RunState } from '@game/sim';
 
 vi.mock('../remoteBoards', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../remoteBoards')>();
@@ -48,19 +49,9 @@ vi.mock('./rankSubmission', async (importOriginal) => {
   };
 });
 
-// Force the switch ON for this file only: the store calls these exports, so wrapping them is enough.
-vi.mock('./ratedRun', async (importOriginal) => {
-  const mod = await importOriginal<typeof import('./ratedRun')>();
-  return {
-    ...mod,
-    rankedAbandonOf: (run: Parameters<typeof mod.rankedAbandonOf>[0]) => mod.rankedAbandonOf(run, true),
-    abandonWarningOf: (run: Parameters<typeof mod.abandonWarningOf>[0]) => mod.abandonWarningOf(run, true),
-  };
-});
-
-import { useGame } from '../store';
+import { adoptCloudRun, useGame } from '../store';
 import { enqueuePendingRank, flushPendingRanks } from './rankSubmission';
-import { abandonWarningOf, rankedAbandonOf } from './ratedRun';
+import { ABANDON_PENALTY_ENABLED, abandonWarningOf, rankedAbandonOf, withAbandonWarning } from './ratedRun';
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const MID = { divisionIndex: 4, points: 50, demotionReady: false };
@@ -90,11 +81,19 @@ function finishingRatedLobby(seed: number, runId: string): RunState {
 
 const queued = () => vi.mocked(enqueuePendingRank).mock.calls.map((c) => c[0]);
 
-describe('with the abandon penalty switched ON, quitting a rated game settles it at the lowest open place', () => {
+describe('quitting a rated game settles it at the lowest open place', () => {
   beforeEach(() => {
     vi.mocked(enqueuePendingRank).mockClear();
     vi.mocked(flushPendingRanks).mockClear();
     localStorage.clear();
+  });
+
+  it('the switch is on, and switching it off would make the same save cost nothing', () => {
+    expect(ABANDON_PENALTY_ENABLED).toBe(true);
+    const saved = ratedLobby(10, 0);
+    expect(rankedAbandonOf(saved)).toEqual({ runId: 'r-10', placement: 8 });
+    expect(rankedAbandonOf(saved, false)).toBeNull();
+    expect(abandonWarningOf(saved, false)).toBeNull();
   });
 
   it('Clear with nobody out: an 8th, submitted through the rank queue, with the 8th-place award', () => {
@@ -126,6 +125,35 @@ describe('with the abandon penalty switched ON, quitting a rated game settles it
     expect(queued()).toHaveLength(1);
     expect(queued()[0]).toMatchObject({ runId: 'r-13', placement: 7 });
     expect(useGame.getState().run.seed).toBe(99);
+  });
+
+  it('a new Ranked game, newRun and the tutorial over the save each abandon it, tagged an abandon', () => {
+    const a = ratedLobby(31, 0);
+    useGame.setState({ playerName: 'Kev', run: a, savedRun: a, showTitle: false, pendingMode: 'lobby', pendingSeed: 99, rankedEntry: null, replaying: false });
+    useGame.getState().pickHero('brackus');
+    const b = ratedLobby(32, 0);
+    useGame.setState({ run: b, savedRun: b, showTitle: false });
+    useGame.getState().newRun(77, 'brackus');
+    const c = ratedLobby(33, 0);
+    useGame.setState({ run: c, savedRun: c, showTitle: false });
+    useGame.getState().startTutorial(Object.values(TUTORIAL_COURSES)[0]!);
+    expect(queued().map((q) => [q.runId, q.placement, q.kind])).toEqual([['r-31', 8, 'abandon'], ['r-32', 8, 'abandon'], ['r-33', 8, 'abandon']]);
+  });
+
+  it('a cloud copy of another run adopted over the save abandons the local one', () => {
+    const local = ratedLobby(34, 0);
+    useGame.setState({ run: local, savedRun: local, showTitle: true, heroChoices: null, practiceSetupOpen: false, replaying: false });
+    const other = ratedLobby(35, 0, 'r-other');
+    const ok = adoptCloudRun({ runKey: 'run:r-other', revision: 3, deviceId: 'elsewhere', updatedAt: new Date().toISOString(), payload: { v: 1, save: JSON.stringify({ run: serialize(other), actions: [] }) } });
+    expect(ok).toBe(true);
+    expect(useGame.getState().savedRun?.runId).toBe('r-other');
+    expect(queued()).toHaveLength(1);
+    expect(queued()[0]).toMatchObject({ runId: 'r-34', placement: 8 });
+  });
+
+  it('the title tips name the placement a rated save would take', () => {
+    expect(withAbandonWarning('New run. Replaces your saved run.', ratedLobby(36, 0)))
+      .toBe('New run. Replaces your saved run. It is a rated game, so giving it up counts as finishing 8th.');
   });
 
   it('practice, an unrated all-generated lobby and an empty slot cost nothing', () => {

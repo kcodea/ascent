@@ -46,8 +46,9 @@ export interface RankSubmitRequest {
    *  on a request queued before the bonus existed (settles with no bonus). */
   seatKeys?: string[];
   /** CLIENT-ONLY (never sent to the server): why this request exists. `'finish'` = the game really ended;
-   *  `'abandon'` = R-RANK-05 settled a game the player left. Tagged since 2026-10-02 so the queue can drop
-   *  abandon requests while the penalty is switched off (`ABANDON_PENALTY_ENABLED`). Absent on an item queued
+   *  `'abandon'` = a game the player left (R-RANK-05) or a ranked entry backed out of on hero select (R-RANK-06).
+   *  Tagged since 2026-10-02 so the queue can drop abandon requests whenever the penalty is switched off
+   *  (`ABANDON_PENALTY_ENABLED`; it is on again since 2026-10-11). Absent on an item queued
    *  by an older build, which cannot be told apart from a finish and is sent as before. */
   kind?: 'finish' | 'abandon';
 }

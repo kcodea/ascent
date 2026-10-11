@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      { category: 'Balance', text: 'Rad Rachel has new art.' },
       { category: 'Systems', text: 'Hero Select voices are louder again.' },
       {
         category: 'Systems',

@@ -59,6 +59,20 @@ describe('missing or removed cards in a guide', () => {
     expect(links).toEqual([present.name]);
     expect(c.querySelector('.lobbyguide-text')!.textContent).toContain(archived.name);
   });
+  it('a nickname for the present card links, and a nickname for the missing card stays plain text', () => {
+    const presentNick = 'zzpresentnick';
+    const missingNick = 'zzmissingnick';
+    const aliased: Guide = {
+      ...guide,
+      body: `Lead with ${presentNick}, then ${missingNick}.`,
+      aliases: { [presentNick]: present.id, [missingNick]: archived.id },
+    };
+    ui = mount(<CompendiumGuides guides={[aliased]} tribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+    const c = ui.container;
+    const links = [...c.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent);
+    expect(links).toEqual([presentNick]);
+    expect(c.querySelector('.lobbyguide-text')!.textContent).toContain(missingNick);
+  });
   it('carries no native tooltip', () => {
     const c = render();
     expect(c.querySelector('[title]')).toBeNull();

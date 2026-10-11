@@ -226,7 +226,9 @@
 /* -- A CARD THAT LEFT (owner 2026-10-11: "lets grey out the card and say 'missing or removed'") --------------------
    A guide keeps a card that was archived out of the set or no longer exists. Its slot stays in the row, greyed and
    labelled, and is inert (no hover preview). STATIC filter on a handful of portraits: nothing here animates. */
-.lobbyguide-unit.missing { pointer-events: none; }
+/* Inert for EVERY descendant, not just the slot: some card parts re-enable pointer events (the cost coin sets
+   `pointer-events: auto` at (0,1,0)), and a child's `auto` beats a parent's `none`. This selector is (0,2,0). */
+.lobbyguide-unit.missing, .lobbyguide-unit.missing * { pointer-events: none; }
 .lobbyguide-unit.missing .lobbyguide-unitscale { filter: grayscale(1) brightness(0.5); }
 /* No definition at all: an empty oval where the portrait would sit (the scaled card box, less the frame's overhang). */
 .lobbyguide-blank {

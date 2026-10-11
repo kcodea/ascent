@@ -7,8 +7,11 @@
  *   1. it opens on the ACTIVE set,
  *   2. picking another set swaps the listed cards (and the tribe rail) to that set's,
  *   3. it is VIEW-ONLY: the active set and the store's run are untouched afterwards.
+ *
+ * And it is a DEV-ONLY tool (owner ask 2026-10-11: "the compendium only shows the active set. the set selector
+ * should be a dev-only tool"): a player build renders no picker and pins every tab to the active set.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { EPIC_RUNES, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { MinionBook } from './MinionBook';
@@ -132,5 +135,58 @@ describe('Compendium set picker', () => {
       click(neutralPill());
       expect(runeCount()).toBe(setRunes(id).length);
     }
+  });
+});
+
+describe('Compendium set picker is dev-only', () => {
+  let prevShowTitle: boolean;
+  beforeEach(() => {
+    prevShowTitle = useGame.getState().showTitle;
+    useGame.setState({ showTitle: true });
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    useGame.setState({ showTitle: prevShowTitle });
+  });
+
+  const snapshot = (el: HTMLElement) => ({
+    sub: subtitle(el),
+    rail: railLabels(el),
+    cells: el.querySelectorAll('.book-grid .book-cell').length,
+  });
+
+  it('a DEV render shows the picker', () => {
+    vi.stubEnv('DEV', true);
+    const m = mount(<MinionBook />);
+    try {
+      expect(pickerBtn(m.container)).toBeTruthy();
+      expect(pickerBtn(m.container).getAttribute('aria-label')).toContain(activeSet().name);
+    } finally { m.unmount(); }
+  });
+
+  it('a PROD render has no picker and shows the ACTIVE set on every tab', () => {
+    const live = activeSet();
+    vi.stubEnv('DEV', true);
+    const dev = mount(<MinionBook />);
+    const devView = snapshot(dev.container);
+    dev.unmount();
+
+    vi.stubEnv('DEV', false);
+    const m = mount(<MinionBook />);
+    try {
+      expect(m.container.querySelector('.book-setpick')).toBeNull();
+      expect(m.container.querySelector('.book-setpick-btn')).toBeNull();
+      // Nothing left in the far-right cluster, so it isn't rendered (the tribe pills re-centre into its space).
+      expect(m.container.querySelector('.book-tiers-end')).toBeNull();
+      // The same listing the dev picker opens on: the active set's cards and its tribe roster.
+      expect(snapshot(m.container)).toEqual(devView);
+      expect(railLabels(m.container)).toHaveLength(live.tribes.length + 6);
+      expect(m.container.querySelectorAll('.book-grid .book-cell').length).toBeGreaterThan(0);
+      // The Runes tab's tribe pills are the active set's tribes, then Neutral.
+      act(() => { (m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]') as HTMLElement).click(); });
+      expect(m.container.querySelectorAll('.book-runetribe')).toHaveLength(live.tribes.length + 1);
+      const setRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || r.sets.includes(live.id));
+      expect(m.container.querySelectorAll('.book-grid .book-cell').length).toBe(setRunes.length);
+    } finally { m.unmount(); }
   });
 });

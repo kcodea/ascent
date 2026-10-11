@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      { category: 'Systems', text: 'The Compendium now shows the current set.' },
       {
         category: 'Systems',
         text: 'Celestial and Spirit cards now have their own frames, Taunt shields and card plates, like every other tribe.',

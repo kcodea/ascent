@@ -60,6 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Hero select: the Select Your Hero prompt is larger and sits a little higher above the heroes.' },
       { category: 'Systems', text: 'Practice hero list: heroes now fade out softly at the top and bottom edges as you scroll.' },
+      { category: 'Systems', text: 'Collection: the text on hero and minion skin tiles is easier to read over the art, and no longer runs under the Equipped ribbon.' },
       {
         category: 'Balance',
         text: 'Ranked: Play now asks before it starts a ranked lobby, and abandoning a ranked match costs MMR again.',

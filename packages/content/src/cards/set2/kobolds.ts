@@ -31,9 +31,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 2, // owner balance 2026-09-23: 1/2 → 2/3
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 2 } }], // owner balance 2026-10-10: +1 -> +2 Health
-    text: '**Shout:** Your Rubies gain **+2 Health**.',
-    goldenText: '**Shout:** Your Rubies gain **+4 Health**.',
+    // Owner balance 2026-10-10: +1 -> +2 Health. Owner balance 2026-10-11 ("kobolds are overtuned"): back to +1.
+    effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }],
+    text: '**Shout:** Your Rubies gain **+1 Health**.',
+    goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
   {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
@@ -66,9 +67,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner balance 2026-10-10: "End of Turn: Cast Veinstorm 3 times" (was: get a Veinstorm). The shared
     // `castSpell` factory with `times`: every cast is a full Shop-spell cast AND its own End-of-Turn tick (one
     // beat per cast). Gilded doubles the TICKS (6 casts, 6 beats), since the owner asked for a beat per cast.
-    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'veinstorm', times: 3 } }],
-    text: '**End of Turn:** Cast **Veinstorm** 3 times.',
-    goldenText: '**End of Turn:** Cast **Veinstorm** 6 times.',
+    // Owner balance 2026-10-11 ("kobolds are overtuned"): 3 casts -> 2 (Gilded 6 -> 4).
+    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'veinstorm', times: 2 } }],
+    text: '**End of Turn:** Cast **Veinstorm** 2 times.',
+    goldenText: '**End of Turn:** Cast **Veinstorm** 4 times.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -99,14 +101,15 @@ export const SET2_KOBOLDS: CardDef[] = [
     // burst (four Rubies right now). Both halves reuse primitives that already exist.
     effects: [],
     // Owner balance 2026-10-10: +1/+1 -> +2/+2, and the burst is now 4 RANDOM Rubies (`getRandomRubies`).
+    // Owner balance 2026-10-11 ("kobolds are overtuned"): +2/+2 -> +2/+1 (Gilded +4/+2). The burst is unchanged.
     chooseOne: [
-      { text: 'Give your Rubies **+2/+2**.', goldenText: 'Give your Rubies **+4/+4**.',
-        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 2 } }] },
+      { text: 'Give your Rubies **+2/+1**.', goldenText: 'Give your Rubies **+4/+2**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 1 } }] },
       { text: 'Get **4** random **Rubies**.', goldenText: 'Get **8** random **Rubies**.',
         effects: [{ on: 'onPlay', do: 'getRandomRubies', params: { count: 4 } }] },
     ],
-    text: '**Choose One:** give your Rubies **+2/+2**, or get **4** random **Rubies**.',
-    goldenText: '**Choose One:** give your Rubies **+4/+4**, or get **8** random **Rubies**.',
+    text: '**Choose One:** give your Rubies **+2/+1**, or get **4** random **Rubies**.',
+    goldenText: '**Choose One:** give your Rubies **+4/+2**, or get **8** random **Rubies**.',
   },
   {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
@@ -120,9 +123,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner ruling 2026-07-29 (found by `npm run text:audit`): the Ruby-play half is CUT. The card is the stat
     // gain only — the extra clause was strictly more than the roster says, so the game was ahead of the sheet
     // rather than behind it, which is the rarer and easier-to-miss direction of drift.
-    effects: [{ on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 2, health: 3 } }], // owner balance 2026-10-10: +1/+1 -> +2/+3
-    text: '**Rally:** Give your Rubies **+2/+3**.',
-    goldenText: '**Rally:** Give your Rubies **+4/+6**.',
+    // Owner balance 2026-10-10: +1/+1 -> +2/+3. Owner balance 2026-10-11 ("kobolds are overtuned"): +2/+3 -> +1/+2.
+    effects: [{ on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 2 } }],
+    text: '**Rally:** Give your Rubies **+1/+2**.',
+    goldenText: '**Rally:** Give your Rubies **+2/+4**.',
   },
   {
     // Echo (owner change 2026-07-25, was an onDamaged trigger) → raise your Ruby strength for the rest of the
@@ -139,19 +143,20 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Echo:** Your Rubies gain **+2/+2**.',
   },
   {
-    // Un-archived 2026-08-19 (owner) — back in the pool at its archived spec.
-    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
-    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
-    id: 'k_frenzied',
-    name: 'Frenzied Excavator',
+    // Owner add 2026-10-11, REPLACING Frenzied Excavator (archived the same day; see `cards/archive.ts`). It sits
+    // in the Excavator's slot on purpose: declaration order drives seeded pool picks, so a swap in place moves no
+    // other set-2 card. Tier and body are the Excavator's (the owner gave only the name and the text).
+    // `excludeSelf` is the "other": the Assembler never Rubies itself. Gilded doubles the count.
+    id: 'k_assembler',
+    name: 'Assembler',
     tribe: 'kobold',
     tier: 4,
     attack: 4,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
-    text: '**Shout:** cast a Ruby on all of your minions.',
-    goldenText: '**Shout:** cast **2 Rubies** on all of your minions.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnPlayRuby', params: { tribe: 'kobold', count: 2, excludeSelf: true } }],
+    text: '**End of Turn:** Cast **2 Rubies** on your other **Kobolds**.',
+    goldenText: '**End of Turn:** Cast **4 Rubies** on your other **Kobolds**.',
   },
   {
     // Echo (combat Deathrattle): summon a Gemheart Golem that is a 1/1 PLUS the Rubies played on THIS minion —
@@ -278,11 +283,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: ['DS'],
     effects: [
       // Owner balance 2026-10-10: +1/+1 -> +2/+2, and 2 random Kobolds (was 1).
-      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 2, health: 2 } },
+      // Owner balance 2026-10-11 ("kobolds are overtuned"): the Ruby half is back to +1/+1; still 2 Kobolds.
+      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } },
       { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 2 } },
     ],
-    text: '**Ward.** **Avenge (3):** Improve your Rubies **+2/+2** and get **2 random Kobolds**.',
-    goldenText: '**Ward.** **Avenge (3):** Improve your Rubies **+4/+4** and get **4 random Kobolds**.',
+    text: '**Ward.** **Avenge (3):** Improve your Rubies **+1/+1** and get **2 random Kobolds**.',
+    goldenText: '**Ward.** **Avenge (3):** Improve your Rubies **+2/+2** and get **4 random Kobolds**.',
   },
   {
     // Owner rework 2026-09-18: "When this takes damage" (was Start of Combat) — every landed hit plays PERMANENT

@@ -20,9 +20,9 @@ const gemBuffs = (events: readonly CombatEvent[]) =>
 
 describe('mid-combat Ruby buffs reach later in-combat Ruby plays', () => {
   it("Crownvein's Rally raises the Ruby minted on the SAME swing — and every one after", () => {
-    // Crownvein alone, Attacking Gems armed, base Ruby strength 0. Each swing: Rally (+2/+3 Rubies since the
-    // 2026-10-10 balance batch) fires on onAttack BEFORE the rune plays its Ruby — so swing 1 mints at 1+2 / 1+3 =
-    // +3/+4, swing 2 at +5/+7, climbing.
+    // Crownvein alone, Attacking Gems armed, base Ruby strength 0. Each swing: Rally (+1/+2 Rubies since the
+    // 2026-10-11 nerf batch; +2/+3 for the day before) fires on onAttack BEFORE the rune plays its Ruby — so swing 1
+    // mints at 1+1 / 1+2 = +2/+3, swing 2 at +3/+5, climbing.
     const r = simulate(
       [{ cardId: 'k_crownvein', attack: 5, health: 60, sourceUid: 'CV' }],
       wall, makeRng(3), CARD_INDEX,
@@ -31,10 +31,10 @@ describe('mid-combat Ruby buffs reach later in-combat Ruby plays', () => {
     );
     const gems = gemBuffs(r.events); // only the player side has the rune here — every gem buff is ours
     expect(gems.length, 'the rune never played a Ruby').toBeGreaterThanOrEqual(2);
-    expect([gems[0]!.attack, gems[0]!.health], 'swing 1 must mint at the JUST-buffed value').toEqual([3, 4]);
-    expect([gems[1]!.attack, gems[1]!.health], 'swing 2 must keep climbing').toEqual([5, 7]);
+    expect([gems[0]!.attack, gems[0]!.health], 'swing 1 must mint at the JUST-buffed value').toEqual([2, 3]);
+    expect([gems[1]!.attack, gems[1]!.health], 'swing 2 must keep climbing').toEqual([3, 5]);
     // The carry-back still reports the total the run should bank.
-    expect(r.playerRubyBonusGain?.attack ?? 0).toBe(gems.length * 2);
+    expect(r.playerRubyBonusGain?.attack ?? 0).toBe(gems.length * 1);
   });
 
   it('the base snapshot still folds in: base 2 + the live gain', () => {
@@ -45,7 +45,7 @@ describe('mid-combat Ruby buffs reach later in-combat Ruby plays', () => {
       combatSide({ tier: 1 }),
     );
     const gems = gemBuffs(r.events);
-    expect([gems[0]!.attack, gems[0]!.health], 'base 2 + live 2/3 + the printed 1').toEqual([5, 6]);
+    expect([gems[0]!.attack, gems[0]!.health], 'base 2 + live 1/2 + the printed 1').toEqual([4, 5]);
   });
 
   it("an ENEMY Crownvein grows the enemy's own Rubies too — but never carries back", () => {
@@ -58,7 +58,7 @@ describe('mid-combat Ruby buffs reach later in-combat Ruby plays', () => {
     );
     const gems = gemBuffs(r.events);
     expect(gems.length, "the enemy's rune never played a Ruby").toBeGreaterThanOrEqual(2);
-    expect([gems[0]!.attack, gems[0]!.health], "the enemy's own Rally must feed its own Rubies").toEqual([3, 4]);
+    expect([gems[0]!.attack, gems[0]!.health], "the enemy's own Rally must feed its own Rubies").toEqual([2, 3]);
     expect(r.playerRubyBonusGain, 'an enemy gain must never reach the PLAYER carry-back').toBeUndefined();
   });
 });

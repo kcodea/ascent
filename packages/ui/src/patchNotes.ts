@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Kobolds are toned down: smaller Ruby buffs, one fewer Veinstorm from Gemling, and Assembler replaces Frenzied Excavator.',
+        details: [
+          'Ruby Mender: Shout now gives your Rubies +1 Health (was +2). Gilded: +2.',
+          'Cave Cutter: choose your Rubies +2/+1 (was +2/+2), or 4 random Rubies. Gilded: +4/+2 or 8.',
+          'Crownvein: Rally now gives your Rubies +1/+2 (was +2/+3). Gilded: +2/+4.',
+          'Portsmith: Avenge (3) now improves your Rubies +1/+1 (was +2/+2). It still gets 2 random Kobolds.',
+          'Gemling: End of Turn now casts Veinstorm 2 times (was 3). Gilded casts it 4 times.',
+          'Frenzied Excavator has been removed from the game.',
+          'New Kobold, Assembler (Tier 4, 4/3): End of Turn, cast 2 Rubies on your other Kobolds. Gilded casts 4.',
+        ],
+      },
       { category: 'Systems', text: 'Two more announcers join the crate rewards, both Legendary: Underdweller and Little Inu.' },
       { category: 'Systems', text: 'Announcers are now a Collection reward. The first new voice, Lemon, is a Legendary find from crates: equip it and it calls your games in place of the default announcer. You can hear a sample of any voice on the Announcers tab before you own it.' },
       { category: 'Systems', text: 'The announcer has 67 new lines. The moments you hear most games (back to the Shop, triples, knockouts, tier ups, wins and losses) no longer sound the same every time.' },

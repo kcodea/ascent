@@ -117,6 +117,12 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   // than merely the presence of a param.
   onSpellCastBuffRandomTribe: 'the arena pool is `others(arena, tribe)` — R-TARGET-03 (owner 2026-09-18) made the old '
     + '`excludeSelf` opt-in the rule, so the Runekeg "2 random other friendly Dwarves" holds with or without the param',
+  endOfTurnPlayRuby: {
+    param: 'excludeSelf', expect: true,
+    why: 'recruit Rubies every friendly `tribe` minion INCLUDING the caster (Alchemist Brisbane, by owner ruling) unless '
+      + '`excludeSelf: true` routes the list through `othersOnBoard`, the R-TARGET-03 pool. Assembler prints "your other '
+      + 'Kobolds" and passes it (2026-10-11); a second Assembler is another Kobold, so two do feed each other',
+  },
   battlecryBuffTribe: {
     param: 'includeSelf', expect: false,
     why: 'the arena buffs the whole tribe INCLUDING the caster unless `includeSelf: false` — Cleric prints '

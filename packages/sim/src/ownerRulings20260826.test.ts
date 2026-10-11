@@ -36,9 +36,9 @@ describe('shop-side Echo + death watchers (q-phase-*)', () => {
   it("Scavvers' Echo triggers an ADJACENT Rally through the shop dispatcher (deathrattleTriggerAdjacentRally)", () => {
     const s = state([mk('cv', 'k_crownvein'), mk('sc', 'b2_scavenger')]);
     fireRecruitDeathrattlesForTest(s, s.board[1]!);
-    // Re-pin 2026-10-10: Crownvein's Rally is +2/+3 (Kobold balance batch).
-    expect(s.rubyBonus?.attack ?? 0, "Crownvein's Rally (Rubies +2/+3) fired").toBe(2);
-    expect(s.rubyBonus?.health ?? 0).toBe(3);
+    // Re-pin 2026-10-11: Crownvein's Rally is +1/+2 (Kobold nerf batch; +2/+3 for the day before).
+    expect(s.rubyBonus?.attack ?? 0, "Crownvein's Rally (Rubies +1/+2) fired").toBe(1);
+    expect(s.rubyBonus?.health ?? 0).toBe(2);
   });
 
   it('Ashen Heir hands a shop-destroyed Imp\'s stats to a living Imp (impInheritOnDeath)', () => {

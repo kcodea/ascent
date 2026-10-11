@@ -12,6 +12,24 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-11 owner Kobold balance batch ("kobolds are overtuned"): Frenzied Excavator archived; Assembler
+  //    (`k_assembler`, set2/kobolds.ts) took its slot. --
+  {
+    // ARCHIVED 2026-10-11 (owner: "archive frenzied excavator"). Moved verbatim from set2/kobolds.ts; belongs to no set now.
+    // Un-archived 2026-08-19 (owner) — back in the pool at its archived spec.
+    // A Shout since the owner's rework; the golden text (and the SC keyword badge) had been left behind from
+    // the old Start-of-Combat scaler shape, promising a trigger the card no longer has (owner report 2026-07-31).
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Shout:** cast a Ruby on all of your minions.',
+    goldenText: '**Shout:** cast **2 Rubies** on all of your minions.',
+  },
   // -- 2026-10-10 owner SPELL batch: Turnabout and Ruby Excavation archived from EVERY set. --
   {
     // ARCHIVED 2026-10-10 (owner spell batch: archived everywhere, all sets). Moved verbatim from set1/spells.ts; belongs to no set now.

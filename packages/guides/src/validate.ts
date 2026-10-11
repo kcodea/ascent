@@ -32,8 +32,8 @@ export interface GuideDraft {
 
 export type GuideValidation = { ok: true; draft: GuideDraft } | { ok: false; error: 'bad_guide'; field: string };
 
-/** Zero-width and bidi control characters: invisible, and a way to fake an empty or reordered title. */
-const INVISIBLE = /[​-‏‪-‮⁠-⁤﻿]/g;
+/** Zero-width characters, bidi controls (including the isolates) and blank-rendering fillers: invisible, and a way to fake an empty or reordered title. */
+const INVISIBLE = /[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\u2800\u3164\uFEFF\uFFA0]/g;
 
 /** One line of clean text: invisible characters removed, every whitespace run one space, trimmed. */
 export function cleanText(v: unknown): string {

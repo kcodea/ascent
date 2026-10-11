@@ -13,7 +13,8 @@ const bad = (patch: Record<string, unknown>, opts?: { requireSlug?: boolean }): 
 describe('cleanText', () => {
   it('collapses whitespace, trims, and strips zero-width and bidi control characters', () => {
     expect(cleanText('  a \n\t b  ')).toBe('a b');
-    expect(cleanText('a​b‮c﻿')).toBe('abc');
+    expect(cleanText('a\u200Bb\u202Ec\uFEFF')).toBe('abc');
+    expect(cleanText('a\u2066b\u061Cc')).toBe('abc');
     expect(cleanText(42)).toBe('');
   });
 });
@@ -45,7 +46,12 @@ describe('validateGuideDraft', () => {
     expect(bad({ sets: [] })).toBe('sets');
   });
   it('REVIEW FOCUS 1: a title of only invisible characters is refused, and length counts code points', () => {
-    expect(bad({ title: '​​‮' })).toBe('title');
+    expect(bad({ title: '\u200B\u200B\u202E' })).toBe('title');
+    expect(bad({ title: '\u2066\u2069' })).toBe('title');
+    expect(bad({ title: '\u061C' })).toBe('title');
+    expect(bad({ title: '\u00AD' })).toBe('title');
+    expect(bad({ title: '\u3164' })).toBe('title');
+    expect(bad({ title: '\u2800' })).toBe('title');
     expect(bad({ title: '   ' })).toBe('title');
     expect(bad({ title: '🐉'.repeat(40) })).toBe('ok');
     expect(bad({ title: '🐉'.repeat(41) })).toBe('title');

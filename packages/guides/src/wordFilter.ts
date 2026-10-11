@@ -49,13 +49,15 @@ export function isBlockedText(text: string): boolean {
   return false;
 }
 
-const RESERVED_PHRASES: readonly string[] = ['teamascent', 'ascentteam', 'ascentofficial'];
-const RESERVED_WORDS: ReadonlySet<string> = new Set(['admin', 'moderator', 'developer', 'official']);
+/** Stored with repeated letters collapsed, to match the collapsed input in isReservedByline. */
+const RESERVED_PHRASES: readonly string[] = ['teamascent', 'ascentteam', 'ascentofficial'].map(squeeze1);
+const RESERVED_WORDS: ReadonlySet<string> = new Set(['admin', 'moderator', 'developer', 'official'].map(squeeze1));
 
-/** True when a "by" line would pass a guide off as the team's, or as staff. */
+/** True when a "by" line would pass a guide off as the team's, or as staff. Repeated letters are collapsed before
+ *  comparing, on both sides, so "Teaam Ascent" and "Aadmin" match the reserved lists. */
 export function isReservedByline(text: string): boolean {
-  const toks = tokens(text);
-  const joined = toks.join('');
+  const toks = tokens(text).map(squeeze1);
+  const joined = squeeze1(toks.join(''));
   if (RESERVED_PHRASES.some((p) => joined.includes(p))) return true;
   return toks.some((t) => RESERVED_WORDS.has(t));
 }

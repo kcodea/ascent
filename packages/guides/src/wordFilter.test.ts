@@ -26,11 +26,24 @@ describe('isBlockedText', () => {
     for (const c of Object.values(CARD_INDEX)) expect(isBlockedText(c.name), c.name).toBe(false);
     for (const r of [...RUNES, ...EPIC_RUNES]) expect(isBlockedText(r.name), r.name).toBe(false);
   });
+  it('blocks the doubled-letter stems, and documents the known stretched-vowel gap', () => {
+    for (const s of ['nigger', 'faggot', 'bullshit', 'niggger']) expect(isBlockedText(s), s).toBe(true);
+    // KNOWN GAP: a stretched vowel inside a doubled-letter stem passes. Closing it by squeezing would block "Niger". For the owner's word review.
+    expect(isBlockedText('faggooot')).toBe(false);
+  });
+});
+
+it('the word list is not part of the package\'s public entry', async () => {
+  const entry = await import('./index');
+  const keys = Object.keys(entry);
+  expect(keys).not.toContain('isBlockedText');
+  expect(keys).not.toContain('isReservedByline');
+  expect(keys).not.toContain('guideTextProblem');
 });
 
 describe('isReservedByline', () => {
   it('reserves Team Ascent and its lookalikes, and staff words', () => {
-    for (const s of ['Team Ascent', 'team  ascent', 'T3am Asc3nt', 'TeamAscent', 'Ascent Team', 'Ascent Official', 'xX Team Ascent Xx', 'Admin', 'the moderator', 'Developer', 'Official']) expect(isReservedByline(s), s).toBe(true);
+    for (const s of ['Team Ascent', 'team  ascent', 'T3am Asc3nt', 'TeamAscent', 'Ascent Team', 'Ascent Official', 'xX Team Ascent Xx', 'Admin', 'the moderator', 'Developer', 'Official', 'Teaam Ascent', 'Teeam  Asscent', 'Aadmin', 'Admiin', 'Ascent Offficial', 'Modderator']) expect(isReservedByline(s), s).toBe(true);
   });
   it('leaves ordinary names alone', () => {
     for (const s of ['Mike', 'KC', 'Ascendant', 'Teamwork', 'Dev', 'Administrivia']) expect(isReservedByline(s), s).toBe(false);

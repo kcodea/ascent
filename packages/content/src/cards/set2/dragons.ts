@@ -372,7 +372,7 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // Owner batch 2026-09-24. A targeted Dragon Shout on the Twilight Emissary / Brood Whelp convention:
     // `target: 'friendly'` + `targetTribe: 'dragon'` drive the pick, `battlecryBuffTarget` applies it; a
-    // re-fire with no target auto-picks the highest-Attack other Dragon. Golden doubles the grant.
+    // re-fire with no target picks a RANDOM other Dragon (R-TARGET-07). Golden doubles the grant.
     id: 'd2_humphry',
     name: 'Humphry',
     tribe: 'dragon',
@@ -400,7 +400,7 @@ export const SET2_DRAGONS: CardDef[] = [
     // A TARGETED Shout (owner: "you PICK the target"): only a friendly minion with an End of Turn effect is a legal
     // pick (`targetHasEndOfTurn`, enforced by the reducer and mirrored by the aim UI). It replays that minion's End of
     // Turn through the shared `replayEndOfTurn` path (Chronos repeats, the End-of-Turn objective). A re-fire with no
-    // chosen target (Drakko's extra fire, a combat re-fire settled in the Shop) auto-picks the left-most legal minion.
+    // chosen target (Drakko's extra fire, a combat re-fire settled in the Shop) picks a RANDOM legal minion (R-TARGET-07).
     // Gilded triggers it twice.
     id: 'd2_roomworks',
     name: 'Roomworks',

@@ -393,7 +393,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     castNamedSpell: (spellId) => {
       const def = spellId ? CARD_INDEX[spellId] : undefined;
       if (!def?.spell) return;
-      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def); // the full shop cast pipeline
+      // The full shop cast pipeline; a TARGETED spell gets a random legal other friend (R-TARGET-07), never none.
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpellFromMinion(state, self as BoardCard, def);
     },
     cardDef: (id) => CARD_INDEX[id],
     gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); starformFollowShopBuff(state, a, h, source ?? nameOf(self)); },
@@ -9326,8 +9327,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** A minion casts a named spell from an event. A TARGETED spell auto-aims at the carry (the highest-attack
-   *  friend); an untargeted one (Lasso, Staff of Guel) is cast with no target, exactly as from hand.
+  /** A minion casts a named spell from an event. A TARGETED spell lands on a RANDOM legal other friend
+   *  (`castSpellFromMinion`, R-TARGET-07); an untargeted one (Lasso, Staff of Guel) is cast with no target, exactly as from hand.
    *
    *  THE ONE CAST PATH (owner ruling 2026-09-24, "fix that for all"): every repetition is a full `castSpell()`,
    *  the same function the player's own cast runs, so the rune payouts that live there (Rune of Lassoing's
@@ -9355,11 +9356,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // because the owner asked for one beat per cast. `eotTickCount` is the shared count.
     if (num(params.times, 0) > 0) {
       forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }, self?.golden),
-        () => castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined));
+        () => { castSpellFromMinion(ctx.state, self, spellDef, self ? `board:${self.uid}` : undefined); });
       return;
     }
     const castOnce = (): void => {
-      for (let i = 0; i < gold(self); i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
+      for (let i = 0; i < gold(self); i++) castSpellFromMinion(ctx.state, self, spellDef, self ? `board:${self.uid}` : undefined);
     };
     if (num(params.perGold, 0) > 0) {
       forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }), castOnce);
@@ -9390,7 +9391,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count this turn once
     const times = Math.max(1, self.eotTick ?? 1) * gold(self); // Nth End of Turn → N casts (golden doubles)
     // A full `castSpell()` per cast (owner ruling 2026-09-24) — see `castSpell` above.
-    for (let i = 0; i < times; i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
+    for (let i = 0; i < times; i++) castSpellFromMinion(ctx.state, self, spellDef, self ? `board:${self.uid}` : undefined);
   },
 
   /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
@@ -10288,13 +10289,9 @@ export function taughtAimSpell(card: BoardCard): CardDef | undefined {
 function pickRandomSpellTarget(state: RunState, def: CardDef, exclude?: { uid: string }): BoardCard | undefined {
   if (!def.target) return undefined;
   const tribe = effectiveTargetTribe(state, def);
-  const pool = state.board.filter((c) => c.uid !== exclude?.uid
-    && (!tribe || isTribe(c, tribe)) && !(def.targetNoGolden && c.golden));
-  if (pool.length === 0) return undefined;
-  const rng = makeRng(state.rngCursor);
-  const pick = pool[rng.int(pool.length)]!;
-  state.rngCursor = rng.state();
-  return pick;
+  // R-TARGET-07: the one un-aimed pick (`refireTarget` → core `pickAutoTarget`), the same seeded draw as before.
+  return refireTarget(state, state.board.filter((c) => c.uid !== exclude?.uid
+    && (!tribe || isTribe(c, tribe)) && !(def.targetNoGolden && c.golden)));
 }
 
 export function discoverSpecFor(state: RunState, def: CardDef, grantedTier?: number): DiscoverSpec | undefined {
@@ -13132,15 +13129,19 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
 }
 
 /**
- * WHERE A MINION'S CAST LANDS (the End-of-Turn casters: Rope Wrangler, Soul Defiler, the escalating caster). A
- * TARGETED spell aims at the carry, the highest-Attack OTHER friend (the caster itself on a lone board); an
- * untargeted one (Lasso, Staff of Guel) gets no target at all, so `castSpell()` treats it exactly as the same
- * spell cast from hand: nothing is "cast on" the carry (no Lorekeeping, no Mirrorwing re-cast for a Lasso).
+ * A MINION CASTS A NAMED SPELL with no player aim (the End-of-Turn casters: Rope Wrangler, Soul Defiler, the
+ * escalating caster; the arena's `castNamedSpell`: Firebird, Flamebeat, Warflame). A TARGETED spell lands on a
+ * RANDOM legal OTHER friend (R-TARGET-07, owner 2026-10-10: "Yes, random too"; it used to be the highest-Attack
+ * "carry", and the caster itself on a lone board, against R-TARGET-03). No legal target: the cast FIZZLES and is
+ * not counted, like `castSpellWithoutAim`. An untargeted one (Lasso, Staff of Guel) gets no target at all, so
+ * `castSpell()` treats it exactly as the same spell cast from hand. Returns whether it cast.
  */
-function minionCastTarget(state: RunState, self: BoardCard | undefined, spellDef: CardDef): BoardCard | undefined {
-  if (!spellDef.target) return undefined;
-  const friends = state.board.filter((c) => c !== self);
-  return friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+export function castSpellFromMinion(state: RunState, self: BoardCard | undefined, spellDef: CardDef, origin?: string): boolean {
+  if (!spellDef.target) { castSpell(state, spellDef, undefined, origin); return true; }
+  const target = pickRandomSpellTarget(state, spellDef, self);
+  if (!target) return false;
+  castSpell(state, spellDef, target, origin);
+  return true;
 }
 
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {

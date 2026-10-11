@@ -1049,15 +1049,20 @@ export function combatCastable(def: CardDef): boolean {
 
 /** Shared "this minion casts a NAMED spell mid-combat" path (Flamebeat's Rally, Warflame's on-Dragon-attack).
  *  A real cast via `castInCombat` + `resolveCombatSpellCast` — counts, fires spell watchers, golden = two casts.
- *  A targeted spell picks a seeded random living friendly; an untargeted one resolves its own targeting. A spell
+ *  A targeted spell picks a seeded random legal other friendly (`pickAutoTarget`, R-TARGET-07); an untargeted one resolves its own targeting. A spell
  *  with no combat implementation (or nothing to aim at) fizzles without counting. */
 export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId: string): void {
   const def = spellId ? ctx.getCard(spellId) : undefined;
   if (!def?.spell || self.dead || !combatCastable(def)) return;
   castInCombat(ctx, self, () => {
-    const friends = otherFriends(ctx, self); // never the caster itself (R-TARGET-03)
-    const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
-    if (def.target && (!targets || targets.length === 0)) return;
+    // R-TARGET-07 (owner 2026-10-10, "Yes, random too"): a TARGETED spell lands on a random LEGAL other friend (the
+    // aim's tribe, never a Gilded body for a `targetNoGolden` spell), one seeded draw; never the caster (R-TARGET-03).
+    const arena = combatArena(ctx, self);
+    const pick = def.target
+      ? pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => (!def.targetTribe || arena.isTribe(m, def.targetTribe)) && !(def.targetNoGolden && m.golden)))
+      : undefined;
+    if (def.target && !pick) return;
+    const targets = pick ? [pick] : undefined;
     // The cast's window is marked with the spell's identity by `resolveCombatSpellCast` itself (via
     // `withCastingSpell`), so the buffs it produces carry `spellId` on every combat cast path, not only this one.
     if (resolveCombatSpellCast(ctx, self, def, targets)) {
@@ -2312,7 +2317,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     castInCombat(ctx, self, () => {
       const friends = otherFriends(ctx, self); // never the Pup itself (R-TARGET-03)
       if (def.target && friends.length === 0) return;
-      const targets = def.target ? [ctx.rng.pick(friends)] : undefined;
+      const targets = def.target ? [pickAutoTarget(ctx.rng, friends)!] : undefined;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
       }
@@ -2409,7 +2414,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (def.target && beastPool().length === 0) continue;
       castInCombat(ctx, self, () => {
         const beasts = beastPool();
-        const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
+        const targets = def.target ? (beasts.length > 0 ? [pickAutoTarget(ctx.rng, beasts)!] : []) : undefined;
         if (def.target && (!targets || targets.length === 0)) return;
         if (resolveCombatSpellCast(ctx, self, def, targets)) {
           ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -2441,7 +2446,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (def.target && beastPool().length === 0) return;
     castInCombat(ctx, self, () => {
       const beasts = beastPool();
-      const targets = def.target ? (beasts.length > 0 ? [ctx.rng.pick(beasts)] : []) : undefined;
+      const targets = def.target ? (beasts.length > 0 ? [pickAutoTarget(ctx.rng, beasts)!] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return; // the last Beast died mid-repetition
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -2465,7 +2470,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (pool.length === 0) return;
     castInCombat(ctx, self, () => {
       const spell = ctx.rng.pick(pool);
-      const target = ctx.rng.pick(beasts);
+      const target = pickAutoTarget(ctx.rng, beasts)!; // R-TARGET-07
       if (resolveCombatSpellCast(ctx, self, spell, [target])) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell.name}`, spellId: spell.id });
         ctx.grantToHand(spell.id, self.side, self.uid); // …and a copy of THAT spell
@@ -2520,7 +2525,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     castInCombat(ctx, self, () => {
       const def = ctx.rng.pick(pool);
       const friends = otherFriends(ctx, self); // never itself (R-TARGET-03)
-      const targets = def.target ? (friends.length > 0 ? [ctx.rng.pick(friends)] : []) : undefined;
+      const targets = def.target ? (friends.length > 0 ? [pickAutoTarget(ctx.rng, friends)!] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -2552,7 +2557,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         ctx.log({ type: 'questTrigger', flag: 'runeFloodedVault', side: self.side });
         castInCombat(ctx, self, () => {
           const pool = otherFriends(ctx, self); // never itself (R-TARGET-03)
-          const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;
+          const targets = def.target ? (pool.length > 0 ? [pickAutoTarget(ctx.rng, pool)!] : []) : undefined;
           if (def.target && (!targets || targets.length === 0)) return;
           if (resolveCombatSpellCast(ctx, self, def, targets)) {
             // The RUNE is the caster (owner ruling 2026-09-24): `rune` lets the spell's effect stem from its node.

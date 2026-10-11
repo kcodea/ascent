@@ -14,9 +14,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CardDef } from '@game/core';
 import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, replayBattlecry } from './recruit';
+import { applyEndOfTurn, castSpellFromMinion, replayBattlecry } from './recruit';
 
 const bc = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -186,5 +186,70 @@ describe('R-TARGET-07 combat — a targeted Shout re-fired mid-fight picks a RAN
   });
   it('deterministic: the same seed replays the same fight', () => {
     expect(dawnclawRefire(17).events).toEqual(dawnclawRefire(17).events);
+  });
+});
+
+// ── NAMED SPELLS a minion casts (owner 2026-10-10: "Yes, random too") ──────────────────────────────────────────
+
+describe('R-TARGET-07 Shop — a TARGETED named spell a minion casts lands on a RANDOM legal other friend', () => {
+  const spell = CARD_INDEX['tower_shield']!; // a plain targeted stat spell
+  const hit = (s: RunState) => s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === spell.name)).map((c) => c.uid);
+  it('across seeds it reaches every other friend (was the highest-Attack one every time), never the caster', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = set2({ rngCursor: seed * 7919, board: [bc('c', 'stray'), bc('a', 'stray', { attack: 1 }), bc('b', 'stray', { attack: 99 })] });
+      expect(castSpellFromMinion(s, on(s, 'c'), spell)).toBe(true);
+      const h = hit(s);
+      expect(h).toHaveLength(1);
+      expect(h[0]).not.toBe('c');
+      seen.add(h[0]!);
+    }
+    expect([...seen].sort()).toEqual(['a', 'b']);
+  });
+  it('a lone caster has no legal target: the cast fizzles and is not counted (it used to land on the caster)', () => {
+    const s = set2({ board: [bc('c', 'stray')] });
+    const before = s.spellsCast;
+    expect(castSpellFromMinion(s, on(s, 'c'), spell)).toBe(false);
+    expect(hit(s)).toEqual([]);
+    expect(s.spellsCast).toBe(before);
+  });
+  it('deterministic per cursor', () => {
+    const run = () => { const s = set2({ rngCursor: 5, board: [bc('c', 'stray'), bc('a', 'stray'), bc('b', 'stray')] }); castSpellFromMinion(s, on(s, 'c'), spell); return hit(s); };
+    expect(run()).toEqual(run());
+  });
+});
+
+describe('R-TARGET-07 combat — a TARGETED named spell cast mid-fight lands on a RANDOM legal other friend', () => {
+  // Flamebeat Drake's Rally casts a named spell (`rallyCastNamedSpell` → `castNamedSpellInCombat`). Point it at a
+  // targeted spell through a test-only card index; the shipped cards never change.
+  const cards: Record<string, CardDef> = {
+    ...CARD_INDEX,
+    d2_flamebeat: { ...CARD_INDEX.d2_flamebeat!, effects: [{ on: 'onAttack', do: 'rallyCastNamedSpell', params: { spellId: 'tower_shield' } }] },
+  };
+  const fight = (seed: number) => simulate(
+    [bm('d2_flamebeat', 1, 9999), bm('stray', 1, 9999), bm('stray', 99, 9999)],
+    [bm('sandbag', 0, 99999)], makeRng(seed), cards as never, combatSide({ tier: 6 }), combatSide({ tier: 6 }));
+  const firstCastTarget = (seed: number): string | undefined => {
+    const r = fight(seed);
+    const caster = r.initial.player[0]!.uid;
+    const i = r.events.findIndex((e) => e.type === 'sc' && (e as { source?: string }).source === caster && /casts/.test((e as { text: string }).text));
+    if (i < 0) return undefined;
+    const buff = r.events.slice(0, i).reverse().find((e) => e.type === 'buff') as { target: string } | undefined;
+    return buff?.target;
+  };
+  it('the cast reaches both other friends across seeds, never the caster', () => {
+    const seen = new Set<number>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const t = firstCastTarget(seed);
+      if (!t) continue;
+      const r = fight(seed);
+      const idx = r.initial.player.findIndex((m) => m.uid === t);
+      expect(idx, 'never the caster').not.toBe(0);
+      seen.add(idx);
+    }
+    expect([...seen].sort()).toEqual([1, 2]);
+  });
+  it('deterministic: the same seed replays the same fight', () => {
+    expect(fight(9).events).toEqual(fight(9).events);
   });
 });

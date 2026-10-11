@@ -38,9 +38,17 @@ Shop (`replayEconomyBattlecry`). Each `replayBattlecry` repeat calls the factory
 (`applyBattlecryTarget` passes `target` on every repeat). A gilded Roomworks' "twice" is one trigger and replays the
 same picked minion twice. Neither is an un-aimed trigger.
 
-**Not changed (flag for the owner):** minion-cast TARGETED SPELLS (named-spell casts, rune casts) still auto-aim at
-"the carry", the highest-Attack other friend (`recruit.ts` ~9320 / ~13084 and the combat twin). Those are spells,
-not targeted minions, and have their own documented convention; ask before moving them.
+**Owner rulings on #2027 (2026-10-10):** Cage Breaker "Yes, random Undead" (kept). Named spells "Yes, random
+too": a minion or rune that CASTS a named targeted spell with no aim now goes through the same helper.
+`minionCastTarget` (the highest-Attack "carry", the caster itself on a lone board) is replaced by
+`castSpellFromMinion`, used by the `castSpell` factory (Rope Wrangler, Gemling), `endOfTurnCastSpellEscalating` and
+the shop arena's `castNamedSpell` (Firebird, Flamebeat, Warflame); a targeted cast with no legal other friend
+fizzles and is not counted, like `castSpellWithoutAim`. `pickRandomSpellTarget` (rune casts, Mage-Pup) now draws
+through `refireTarget` (same draw). Combat's `castNamedSpellInCombat` now honours the spell's `targetTribe` /
+`targetNoGolden`; the other combat cast paths (Sporebat, Mage-Pup, Beast casters, Meteor Storm, Celestial casts, a
+taught Echo) were already random and now call `pickAutoTarget` (same draw). No live card currently casts a targeted
+named spell at a chosen-by-engine target (Arnold casts on itself, Adept on "this"), so this is future-proofing plus
+the R-TARGET-03 self-fallback fix. Stale comments in `set1/dragons.ts` / `set2/dragons.ts` fixed after #2023 landed.
 
 ## Verification
 
@@ -49,6 +57,8 @@ not targeted minions, and have their own documented convention; ask before movin
 cursor; an aimed Humphry still lands on the aim; Roomworks random + aimed; stranded aim random; Cage Breaker random;
 Twilight Emissary re-fired by Dawnclaw in combat reaches both Dragons, never the non-Dragon; same seed, same fight.
 
-Stale content comments left for a follow-up to avoid colliding with the `fix/humphry-baseline` branch:
-`packages/content/src/cards/set2/dragons.ts` (Humphry "highest-Attack", Roomworks "left-most") and
-`packages/content/src/cards/set1/dragons.ts` (Emissary "highest-Attack").
+Named-spell tests (5 more): a Shop minion cast reaches every other friend across seeds, fizzles alone, is
+deterministic; a combat Rally cast (test-only card index) reaches both other friends, never the caster.
+
+Not changed: `deathrattleBuffRandom` (Shop half) still buffs the highest-Attack friend despite "random" in its name;
+no card uses it today, and it is a random effect rather than a targeted one. Flagged, not changed.

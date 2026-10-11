@@ -56,6 +56,24 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-11',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A targeted Shout that fires without you aiming it now picks a random legal target, not the same one every time.',
+        details: [
+          'This covers every Shout another effect triggers: Shrieker, Dawnclaw, Drakko, runes, End of Turn replays and combat re-fires.',
+          'Humphry, Twilight Emissary and Brood Whelp used to always buff your biggest Dragon. Now each trigger rolls its own Dragon.',
+          'Roomworks used to always pick the left-most End of Turn minion. Now it picks one at random.',
+          'A Cage Breaker Shout triggered this way now destroys a random friendly Undead and Discovers, instead of doing nothing.',
+          'If the clock runs out while you are aiming, the Shout lands on a random legal target. It never targets itself.',
+          'A minion or rune that casts a targeted spell also picks a random legal minion. It never targets the caster.',
+          'When you play the card and aim it yourself, your choice is used as before.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-10',
     changes: [
       {
@@ -86,18 +104,6 @@ export const PATCH_NOTES: PatchNote[] = [
           "Dawnclaw's Echo triggers its left neighbour's Shout first, then the right one, each with a beast tendril. This works in the Shop and in combat.",
           'High King Mykel sends a tendril to each Shout it triggers, one at a time.',
           'What the Shouts do is unchanged. Only how they are shown.',
-        ],
-      },
-      {
-        category: 'Systems',
-        text: 'A targeted Shout that fires without you aiming it now picks a random legal target, not the same one every time.',
-        details: [
-          'This covers every Shout another effect triggers: Shrieker, Dawnclaw, Drakko, runes, End of Turn replays and combat re-fires.',
-          'Humphry, Twilight Emissary and Brood Whelp used to always buff your biggest Dragon. Now each trigger rolls its own Dragon.',
-          'Roomworks used to always pick the left-most End of Turn minion. Now it picks one at random.',
-          'A Cage Breaker Shout triggered this way now destroys a random friendly Undead and Discovers, instead of doing nothing.',
-          'If the clock runs out while you are aiming, the Shout lands on a random legal target. It never targets itself.',
-          'When you play the card and aim it yourself, your choice is used as before.',
         ],
       },
       {

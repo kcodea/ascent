@@ -410,12 +410,16 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
       onPointerLeave={onHover ? () => onHover(null) : undefined}
     >
       {art && <img className="colls-tile-art" src={art} alt="" draggable={false} decoding="sync" />}
-      {target && <span className="colls-tile-for">{target}</span>}
-      <span className="colls-tile-top">
-        <span className="colls-gem" aria-hidden />
-        <span className="colls-tile-rar">{RARITY_LABELS[rarity]}</span>
+      {/* The text block. `display: contents` everywhere except a skin tile, where it becomes the faint dark band
+          behind the text (collection.css, "LEGIBILITY OVER ART"). */}
+      <span className="colls-tile-text">
+        {target && <span className="colls-tile-for">{target}</span>}
+        <span className="colls-tile-top">
+          <span className="colls-gem" aria-hidden />
+          <span className="colls-tile-rar">{RARITY_LABELS[rarity]}</span>
+        </span>
+        <span className="colls-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
       </span>
-      <span className="colls-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
       {!owned && <span className="colls-tile-lock" aria-hidden><LockGlyph /></span>}
       {fresh && <span className="colls-new" aria-hidden>New</span>}
       {equipped && <span className="colls-tile-ribbon" aria-hidden>Equipped</span>}

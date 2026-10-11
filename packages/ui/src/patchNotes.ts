@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-11',
     changes: [
+      { category: 'Systems', text: 'Collection: the text on hero and minion skin tiles is easier to read over the art, and no longer runs under the Equipped ribbon.' },
       {
         category: 'Balance',
         text: 'Ranked: Play now asks before it starts a ranked lobby, and abandoning a ranked match costs MMR again.',

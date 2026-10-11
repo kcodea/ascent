@@ -68,6 +68,7 @@ export default defineConfig(({ command }) => ({
       '@game/content': r('../../packages/content/src/index.ts'),
       '@game/sim': r('../../packages/sim/src/index.ts'),
       '@game/progression': r('../../packages/progression/src/index.ts'),
+      '@game/guides': r('../../packages/guides/src/index.ts'),
       '@game/ui': r('../../packages/ui/src/index.ts'),
       // Order matters: Vite's string aliases prefix-match, so the deep contracts entrypoints must be
       // listed BEFORE the bare '@game/rules' or they resolve to '…/index.ts/contracts/…' (ENOENT).

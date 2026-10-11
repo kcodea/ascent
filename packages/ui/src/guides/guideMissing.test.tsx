@@ -73,6 +73,25 @@ describe('missing or removed cards in a guide', () => {
     expect(links).toEqual([presentNick]);
     expect(c.querySelector('.lobbyguide-text')!.textContent).toContain(missingNick);
   });
+  it('an id that every plain object answers to ("constructor", "__proto__") is a blank missing slot, never a crash', () => {
+    // CARD_INDEX is a plain object, so these two resolve to Object's own members unless the lookup asks for an OWN key.
+    const hostile: Guide = { ...guide, id: 'test-proto', body: `Play ${present.name}.`, iconCard: 'constructor', core: [present.id, 'constructor'], enablers: ['__proto__'] };
+    expect(() => {
+      ui = mount(<CompendiumGuides guides={[hostile]} tribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+    }).not.toThrow();
+    const c = ui!.container;
+    const units = [...c.querySelectorAll('.lobbyguide-unit')];
+    expect(units).toHaveLength(3);
+    expect(units[0]!.classList.contains('missing')).toBe(false);
+    for (const u of units.slice(1)) {
+      expect(u.classList.contains('missing')).toBe(true);
+      expect(u.getAttribute('aria-label')).toBe('Missing or removed card');
+      expect(u.querySelector('.lobbyguide-blank')).not.toBeNull();
+      expect(u.querySelector('.lobbyguide-unitscale')).toBeNull();
+    }
+    // The emblem never hands the art pipe anything but a URL: no art for an id that is not a card.
+    expect(c.querySelector('.lobbyguide-art')!.getAttribute('src')).toBeNull();
+  });
   it('carries no native tooltip', () => {
     const c = render();
     expect(c.querySelector('[title]')).toBeNull();

@@ -37,11 +37,19 @@ export function guideChips(guide: Guide, tribes: readonly Tribe[]): Tribe[] {
 export const guideAccent = (chips: readonly Tribe[]): CSSProperties =>
   ({ '--gc': tribeInk(chips[0]!), '--gc2': tribeInk(chips[chips.length - 1]!) }) as CSSProperties;
 
-/** The guide's ART icon: its signature card's illustration in a round, tribe-rimmed frame. */
+/**
+ * An id is a card only when it is an OWN key of the card index. `CARD_INDEX` (and the art indexes) are plain objects,
+ * so a guide row whose card id is `constructor` or `__proto__` would otherwise resolve to Object's own members and
+ * throw during render. Every lookup of a guide's card id goes through this.
+ */
+const cardDef = (id: string): CardDef | undefined => (Object.hasOwn(CARD_INDEX, id) ? CARD_INDEX[id] : undefined);
+
+/** The guide's ART icon: its signature card's illustration in a round, tribe-rimmed frame. No art for an id that is
+ *  not a card (the frame stays, empty). */
 export function GuideEmblem({ guide, chips }: { guide: Guide; chips: readonly Tribe[] }): JSX.Element {
   return (
     <span className={`lobbyguide-emblem${chips.length > 1 ? ' duo' : ''}`} aria-hidden="true">
-      <FadeImg className="lobbyguide-art" src={artFor(guide.iconCard)} alt="" />
+      <FadeImg className="lobbyguide-art" src={cardDef(guide.iconCard) ? artFor(guide.iconCard) : undefined} alt="" />
     </span>
   );
 }
@@ -69,10 +77,10 @@ export function useGuideViews(ids: readonly string[], run: RunState | undefined)
   return useMemo(() => {
     const views = new Map<string, CardView>();
     const refs = new Map<string, CardView[]>();
-    const def = (id: string): CardDef | undefined => CARD_INDEX[id];
+    const def = cardDef;
     for (const id of ids) {
       const d = def(id);
-      if (!d) continue;
+      if (!d) continue; // not a card: never reaches relatedCardIds / relatedPickOneIds, which index plain objects
       views.set(id, toView(d, false, run));
       const r = [
         ...relatedCardIds(id).map(def).filter((x): x is CardDef => !!x).map((x) => toView(x, false, run)),

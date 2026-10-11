@@ -689,18 +689,19 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
 // rune note, `runeModifiedNote`.)
 
 /**
- * HUMPHRY (owner 2026-10-10): "Shout: Give a Dragon +2/+2 for every Dragon played this turn. (+X/+Y)". Generic over a
- * `battlecryBuffTarget` with `perPlayedTribe`: the live (+X/+Y) is the ONE lump buff the Shout lands right now. The
- * count includes the Shout's own play (R-HUMPHRY-01), so a copy NOT yet on the board (hand, Shop, Discover) counts the
- * Dragons played so far PLUS itself, and a board / combat body (whose Shout can only re-fire) counts what was played.
- * Golden-aware. Null for every other card.
+ * HUMPHRY (R-HUMPHRY-01): "+2/+2, plus +2/+2 for every other Dragon played this turn (+X/+Y)". Generic over a
+ * `battlecryBuffTarget` with `perPlayedTribe`: the live (+X/+Y) is the ONE lump buff its Shout lands right now, the
+ * baseline plus one step per OTHER Dragon played (owner 2026-10-10: "+2/+2 baseline, not 0/0 baseline"). That is the
+ * same number on every surface: an unplayed copy (hand, Shop, Discover) would add its own play and then not count it,
+ * and a board / combat body's Shout can only re-fire, where every Dragon played is an other. Never +0/+0. Golden-aware.
+ * Null for every other card.
  */
-export function perPlayedTargetText(cardId: string, golden: boolean, played: (tribe: string) => number, onBoard: boolean): string | null {
+export function perPlayedTargetText(cardId: string, golden: boolean, played: (tribe: string) => number): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'battlecryBuffTarget' && typeof (e.params as { perPlayedTribe?: unknown } | undefined)?.perPlayedTribe === 'string');
   if (!def || !eff) return null;
   const p = eff.params as { perPlayedTribe: string; attack?: number; health?: number };
-  const n = played(p.perPlayedTribe) + (onBoard ? 0 : 1);
+  const n = 1 + Math.max(0, played(p.perPlayedTribe));
   const g = golden ? 2 : 1;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return `${src} {{(+${Number(p.attack ?? 0) * g * n}/+${Number(p.health ?? 0) * g * n})}}`;

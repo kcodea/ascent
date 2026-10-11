@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-10',
     changes: [
       {
+        category: 'Balance',
+        text: 'Humphry fix: its Shout always gives at least +2/+2 now.',
+        details: [
+          'Humphry gives a friendly Dragon +2/+2, plus +2/+2 for every other Dragon you played this turn. Gilded: +4/+4, plus +4/+4 each.',
+          'It never shows or gives +0/+0 any more, in the Shop, in hand, on the board or in combat.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Fixed a bug where the targeting line and every other effect could stop showing for the rest of a game.',
         details: [
@@ -107,7 +115,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Rune of the Vaultkeeper: your Vaultkeepers now buff all your Dragons.',
           'Mushy: Shout and Echo now get a Dragonflame instead of a Growth.',
           'Karwind: now Tier 5 and gives your Dragons +4/+4. Gilded gives +4/+4 twice.',
-          'Humphry: Shout gives a Dragon +2/+2 for every Dragon played this turn, counting Humphry. Its text shows the current total.',
+          'Humphry: Shout gives a Dragon +2/+2, plus +2/+2 for every other Dragon played this turn. Its text shows the current total.',
           'Broodfire: Shout now gives your Dragons +3/+2.',
           'Riverback: Sell now gets you a Dragonflame.',
           'Fatecarver: now Tier 6. When you cast a Shop Spell, give a friendly minion of each type +6/+6. No more Choose One. Its alternate art is now a skin.',

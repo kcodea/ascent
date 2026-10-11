@@ -191,7 +191,8 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
 });
 
 // ── R-HUMPHRY-01 ────────────────────────────────────────────────────────────────────────────────────────────
-describe('Humphry: +2/+2 for every Dragon played this turn, its own play included (R-HUMPHRY-01)', () => {
+// Owner fix 2026-10-10: "humphry should buff +2/+2 baseline, not 0/0 baseline". +2/+2, plus +2/+2 per OTHER Dragon.
+describe('Humphry: +2/+2 baseline, plus +2/+2 for every other Dragon played this turn (R-HUMPHRY-01)', () => {
   const playHumphry = (s: RunState, golden = false): RunState => {
     s = act({ ...s, hand: [...s.hand, bc('h', 'd2_humphry', { golden })] }, { type: 'play', uid: 'h' });
     expect(s.pendingTarget?.uid).toBe('h');
@@ -206,10 +207,37 @@ describe('Humphry: +2/+2 for every Dragon played this turn, its own play include
     s = playHumphry(s);
     expect(totalFrom(on(s, 't'), 'Humphry')).toEqual([4, 4]);
   });
-  it('a non-Dragon played earlier does not count; gilded is +4/+4 per Dragon', () => {
+  it('a non-Dragon played earlier does not count; gilded is +4/+4 baseline', () => {
     let s = act(set2({ board: [bc('t', 'd2_cinderchef')], hand: [bc('x', 'stray')] }), { type: 'play', uid: 'x' });
     s = playHumphry(s, true);
     expect(totalFrom(on(s, 't'), 'Humphry')).toEqual([4, 4]);
+  });
+  it('gilded after one other Dragon: +8/+8; after two: +6/+6 plain', () => {
+    let g = act(set2({ board: [bc('t', 'd2_cinderchef')], hand: [bc('e', 'd2_embermouth')] }), { type: 'play', uid: 'e' });
+    g = playHumphry(g, true);
+    expect(totalFrom(on(g, 't'), 'Humphry')).toEqual([8, 8]);
+    let s = act(set2({ board: [bc('t', 'd2_cinderchef')], hand: [bc('e', 'd2_embermouth'), bc('e2', 'd2_embermouth')] }), { type: 'play', uid: 'e' });
+    s = act(s, { type: 'play', uid: 'e2' });
+    s = playHumphry(s);
+    expect(totalFrom(on(s, 't'), 'Humphry')).toEqual([6, 6]);
+  });
+  it('a re-fire with no Dragons played this turn still lands the +2/+2 baseline (Shop and combat), never +0/+0', () => {
+    // Shop: Shrieker re-fires the Shout of a Humphry played on an earlier turn (nothing played this turn).
+    // The auto-pick takes the highest-Attack other Dragon, so the target carries the biggest Attack.
+    const s = set2({ board: [bc('h', 'd2_humphry'), bc('t', 'd2_cinderchef', { attack: 50 }), bc('sh', 'd2_shrieker')], playedThisTurn: [] });
+    applyEndOfTurn(s);
+    expect(totalFrom(on(s, 't'), 'Humphry')).toEqual([2, 2]);
+    // Combat: Ryme's Echo (fired at Start of Combat by Rune of the Herald) re-fires the adjacent Humphry's Shout.
+    const r = simulate(
+      [{ cardId: 'd2_humphry', attack: 3, health: 300, sourceUid: 'h', keywords: [] }, { cardId: 'ryme', attack: 1, health: 1, sourceUid: 'ry', keywords: [] },
+        { cardId: 'd2_cinderchef', attack: 1, health: 300, sourceUid: 'c', keywords: [] }],
+      [{ cardId: 'sandbag', attack: 1, health: 900, sourceUid: 'e0', keywords: [] }],
+      makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['dragon', 'beast'] as never, questMods: { runeHerald: true } }), combatSide());
+    const hu = r.initial.player[0]!.uid;
+    const grants = r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === hu);
+    expect(grants.length, 'the combat re-fire landed').toBeGreaterThan(0);
+    for (const g of grants) expect([(g as { attack: number }).attack, (g as { health: number }).health]).toEqual([2, 2]);
   });
 });
 

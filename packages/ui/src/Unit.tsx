@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type CSSProperties } from 'react';
 import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
@@ -7,6 +7,7 @@ import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
 import { useGame } from './store';
 import { perfMonitor } from './perfMonitor';
+import { liveCombatSpeed } from './floatConfig';
 import type { UnitFrame } from './useCombatReplay';
 
 /* Floats (damage numbers, keyword glyphs) used to render HERE, as siblings of the `<Card>`. They now live in
@@ -43,6 +44,12 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   // beat; a number near the board size means the comparator is missing. One branch when the monitor is off.
   perfMonitor.count('unit renders');
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
+  // A death / Rise / Rebirth animation is timed by `--combat-speed` (styles.css). Stamp the LIVE speed on the
+  // unit as it starts, rather than the auto-ramp writing :root every frame (floatConfig.ts "The LIVE speed").
+  const speedTimed = !!anim && /(dying|reborn|rebirthing)/.test(anim);
+  const unitStyle: CSSProperties | undefined = u.ghost || speedTimed
+    ? { ...(u.ghost ? { visibility: 'hidden' } : null), ...(speedTimed ? { '--combat-speed': String(liveCombatSpeed()) } : null) } as CSSProperties
+    : undefined;
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
   // Run-level scalers. For a PLAYER minion these come from the live run (frozen during combat so the text
@@ -205,7 +212,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   return (
     // A `ghost` (a dead body kept only to anchor its own still-playing FX) is hidden but keeps its layout box,
     // so the volley launches from its slot and the board doesn't reflow into the gap until the effect finishes.
-    <div className={cls} data-uid={u.uid} data-card={u.cardId} style={u.ghost ? { visibility: 'hidden' } : undefined}>
+    <div className={cls} data-uid={u.uid} data-card={u.cardId} style={unitStyle}>
       {/* `uid` connects this badge to the shared hold store (`fx/statHold`), so a combat buff rolls the same
           way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
           number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold

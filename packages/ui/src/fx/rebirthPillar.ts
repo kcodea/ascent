@@ -11,6 +11,7 @@
  * itself after its run. Presentation only.
  */
 import { getRebirthConfig } from '../rebirthConfig';
+import { liveCombatSpeed } from '../floatConfig';
 import { stageHost, toStage } from '../stage';
 
 type Rect = { cx: number; cy: number; w: number; h: number };
@@ -41,6 +42,7 @@ export function spawnRebirthBurn(screenRect: Rect | null): void {
     el.style.left = `${rect.cx}px`;
     el.style.top = `${top}px`;
     el.style.setProperty('--cw', `${cw}px`);
+    el.style.setProperty('--combat-speed', String(liveCombatSpeed())); // the speed it starts at (floatConfig.ts)
     stageHost().appendChild(el);
     return el;
   };
@@ -74,5 +76,7 @@ export function spawnRebirthPillar(host: HTMLElement | null, screenRect: Rect | 
     stageHost().appendChild(el);
     made.push(el);
   }
+  // Each node's burn is timed by `--combat-speed`: stamp the speed it starts at (floatConfig.ts "The LIVE speed").
+  for (const el of made) el.style.setProperty('--combat-speed', String(liveCombatSpeed()));
   if (made.length) window.setTimeout(() => { for (const el of made) el.remove(); }, durMs + 80);
 }

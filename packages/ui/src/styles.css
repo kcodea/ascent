@@ -12,6 +12,11 @@
 @property --ccw { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
 @property --u-base { syntax: '<length-percentage>'; inherits: true; initial-value: 0px; }
 @property --u { syntax: '<length-percentage>'; inherits: true; initial-value: 1px; }
+/* PER-CARD MOTION CHANNELS (perf 2026-10-11). JS writes these inline on ONE card, and only that card's own rule reads
+   them. As plain (inherited) custom properties every write restyled the card's whole ~45-element subtree; registered
+   NON-inherited, a write restyles the card alone. The initial value equals every `var(--x, 0px)` fallback, so nothing
+   renders differently. Do not read one of these from a descendant: it would see the initial value, not the card's. */
+@property --hand-glide { syntax: '<length>'; inherits: false; initial-value: 0px; }
 
 :root {
   /* Font roles (swappable live via the dev font selector on the title). `title` = big display headings,

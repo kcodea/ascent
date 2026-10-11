@@ -169,7 +169,6 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Granted Rise leads the text while the body still HAS it (owner 2026-09-26): spent on Rising, back on a
         // regain. `u.keywords` is already in the memo comparator, so no extra re-render trigger is needed.
         keywords: u.keywords,
-        inCombat: true, // Humphry's live (+X/+Y): a combat body counts what was played, never its own play again
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

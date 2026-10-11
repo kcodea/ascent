@@ -1022,21 +1022,23 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-HUMPHRY-01',
-    title: 'Humphry counts the Dragons played this turn, its own play included, as one lump buff',
+    title: 'Humphry gives a +2/+2 baseline plus +2/+2 per other Dragon played this turn, as one lump buff, never +0/+0',
     statement:
-      'Humphry: "Shout: Give a Dragon +2/+2 for every Dragon played this turn." The count is the Dragons played from hand '
-      + 'this turn at the moment the Shout fires, and Humphry\x27s own play is already in it: played as the first Dragon of '
-      + 'the turn it gives +2/+2, as the second +4/+4. It is ONE buff (the lump pattern of R-REPEAT-01), gilded +4/+4 per '
-      + 'Dragon. Its text prints the live total: a copy in hand, the Shop or a Discover counts its own coming play, a board '
-      + 'or combat copy counts what was played.',
+      'Humphry: "Shout: Give a friendly Dragon +2/+2, plus +2/+2 for every other Dragon played this turn." ONE buff (the '
+      + 'lump pattern of R-REPEAT-01): the +2/+2 baseline plus +2/+2 for every OTHER Dragon played from hand this turn, so '
+      + 'it is never +0/+0. Played as the first Dragon of the turn it gives +2/+2; after one other Dragon, +4/+4. A real '
+      + 'play does not count itself; a re-fire (Shrieker, a Shout repeater, any combat fire) is not a play, so every '
+      + 'Dragon played this turn counts. Gilded: +4/+4 baseline plus +4/+4 per other Dragon. Its live text (+X/+Y) prints '
+      + 'that same total on every surface (Shop, hand, Discover, board, combat).',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Humphry)', quote: 'if it\x27s the first Dragon played this turn the buff is +2/+2, if it\x27s the second it\x27s +4/+4' },
+      { kind: 'owner-chat', ref: 'Owner fix 2026-10-10 (Humphry baseline)', quote: 'humphry should buff +2/+2 baseline, not 0/0 baseline.' },
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts battlecryBuffTarget (perPlayedTribe); packages/ui/src/cardText.ts perPlayedTargetText' },
     ],
     contentIds: ['d2_humphry'],
-    currentBehaviour: 'Conforms as of 2026-10-10.',
+    currentBehaviour: 'Conforms as of 2026-10-10 (fix/humphry-baseline). Before, a re-fire with no Dragons played this turn gave +0/+0, and a board or combat copy printed (+0/+0).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
   {

@@ -68,6 +68,36 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Humphry fix: its Shout always gives at least +2/+2 now.',
+        details: [
+          'Humphry gives a friendly Dragon +2/+2, plus +2/+2 for every other Dragon you played this turn. Gilded: +4/+4, plus +4/+4 each.',
+          'It never shows or gives +0/+0 any more, in the Shop, in hand, on the board or in combat.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Gameplay runs smoother: the first Shop of a game no longer stutters, and busy Shout turns cost less.',
+        details: [
+          'The effects layer now gets ready once, while the menu is open, instead of at the start of every game.',
+          'Starting a second game is just as smooth as the first.',
+          'Effects with a reverb sound, like the Shout icon, no longer cause a hitch each time they play.',
+          'The charging glyph at the end of a turn no longer causes a hitch when it appears.',
+          'Nothing looks or sounds different.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Shrieker, Dawnclaw and High King Mykel now trigger Shouts one at a time, left to right.',
+        details: [
+          'A dragon tendril flies from Shrieker to each Shout minion in turn, then that Shout plays out before the next one starts.',
+          'Gilded Shrieker runs the whole row twice.',
+          "Dawnclaw's Echo triggers its left neighbour's Shout first, then the right one, each with a beast tendril. This works in the Shop and in combat.",
+          'High King Mykel sends a tendril to each Shout it triggers, one at a time.',
+          'What the Shouts do is unchanged. Only how they are shown.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Fixed a bug where the targeting line and every other effect could stop showing for the rest of a game.',
         details: [
@@ -116,7 +146,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Rune of the Vaultkeeper: your Vaultkeepers now buff all your Dragons.',
           'Mushy: Shout and Echo now get a Dragonflame instead of a Growth.',
           'Karwind: now Tier 5 and gives your Dragons +4/+4. Gilded gives +4/+4 twice.',
-          'Humphry: Shout gives a Dragon +2/+2 for every Dragon played this turn, counting Humphry. Its text shows the current total.',
+          'Humphry: Shout gives a Dragon +2/+2, plus +2/+2 for every other Dragon played this turn. Its text shows the current total.',
           'Broodfire: Shout now gives your Dragons +3/+2.',
           'Riverback: Sell now gets you a Dragonflame.',
           'Fatecarver: now Tier 6. When you cast a Shop Spell, give a friendly minion of each type +6/+6. No more Choose One. Its alternate art is now a skin.',

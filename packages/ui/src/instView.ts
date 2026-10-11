@@ -71,8 +71,6 @@ export interface LiveTextParams {
   /** True once the card is a real body (board or combat) rather than a shop/hand offer — Conductor reads the
    *  CURRENT snowball there, not "what playing this would make it". */
   onBoard?: boolean;
-  /** A COMBAT body (Unit.tsx). Distinguishes it from a Shop offer, which also passes no `onBoard`. */
-  inCombat?: boolean;
   /** True for a card sitting in the player's HAND (the hand row) — Goldilox prints its doubled in-hand gain. */
   inHand?: boolean;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
@@ -224,7 +222,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             // Humphry: the live lump (+X/+Y). Board AND combat bodies (combat passes no zone) count what was played;
             // a hand / Shop / Discover copy also counts its own play.
-            perPlayedTargetText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe as Tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn, cardTribes: p.cardTribes }, tribe as Tribe) : 0), p.onBoard === true || p.inCombat === true) ??
+            perPlayedTargetText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe as Tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn, cardTribes: p.cardTribes }, tribe as Tribe) : 0)) ??
             overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn, cardTribes: p.cardTribes }, tribe) : 0)) ?? // Bicycle Bob: the current per-Undead-played grant
             drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
             shredderText(c.id, p.golden, p.unusedEquipment) ?? // Shredder: the End-of-Turn total for the Equipment still unused

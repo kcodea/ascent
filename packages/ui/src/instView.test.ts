@@ -97,13 +97,19 @@ describe('Goldilox — live text shows the gain it takes RIGHT NOW (owner 2026-0
 });
 
 describe('owner Dragon batch 2026-10-10: live text', () => {
-  it('Humphry prints the lump it lands right now: a hand / Shop copy counts its own coming play, a board or combat body does not', () => {
-    const two = { ...base, playedThisTurn: ['d2_embermouth', 'd2_cinderchef'] };
-    expect(liveCardText('d2_humphry', { ...two, inHand: true }).text).toContain('{{(+6/+6)}}'); // 2 played + itself
-    expect(liveCardText('d2_humphry', two).text, 'a Shop offer also counts its own play').toContain('{{(+6/+6)}}');
-    expect(liveCardText('d2_humphry', { ...two, onBoard: true }).text).toContain('{{(+4/+4)}}');
-    expect(liveCardText('d2_humphry', { ...two, inCombat: true }).text).toContain('{{(+4/+4)}}');
-    expect(liveCardText('d2_humphry', { ...base, inHand: true, golden: true }).goldenText, 'gilded +4/+4 per Dragon').toContain('{{(+4/+4)}}');
+  // Owner fix 2026-10-10: "humphry should buff +2/+2 baseline, not 0/0 baseline" (R-HUMPHRY-01). The live (+X/+Y) is the
+  // +2/+2 baseline plus +2/+2 per OTHER Dragon played, the same number on every surface, and NEVER +0/+0.
+  it('Humphry prints baseline + every other Dragon played, on every surface, never +0/+0', () => {
+    const surfaces = [{ inHand: true }, {}, { onBoard: true }] as const; // hand, Shop / Discover offer (and combat), board
+    for (const at of surfaces) {
+      expect(liveCardText('d2_humphry', { ...base, ...at }).text, `nothing played: the baseline (${JSON.stringify(at)})`).toContain('{{(+2/+2)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth'] }).text).toContain('{{(+4/+4)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth', 'stray'] }).text, 'a non-Dragon never counts').toContain('{{(+4/+4)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, tribesPlayed: {} }).text, 'an empty combat tally').toContain('{{(+2/+2)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, golden: true }).goldenText, 'gilded baseline').toContain('{{(+4/+4)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, golden: true, playedThisTurn: ['d2_embermouth'] }).goldenText).toContain('{{(+8/+8)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth'] }).text).not.toContain('+0/+0');
+    }
   });
   it('Vaultkeeper prints the Rune of the Vaultkeeper widening as a rune note, only with the rune', () => {
     expect(liveCardText('d2_herzog', { ...base, runeFlags: { vaultkeeper: true } }).text).toContain('Buffs all your Dragons (Rune of the Vaultkeeper).');

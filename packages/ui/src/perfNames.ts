@@ -54,6 +54,7 @@ const CODE_NAMES: Record<string, string> = {
   'view:hand': 'building the hand view',
   'layout:flip': 'the board re-layout (FLIP)',
   'layout:flip:write': 'the board re-layout — animating (FLIP write)',
+  'loaf:style-layout-paint': "a slow frame's style + layout + paint (the browser's own work, from the Long Animation Frame entry)",
   'layout:flip:read': 'the board re-layout — capturing (FLIP read)',
   'layout:handglide': 'the hand glide',
   'drag:flushMove': 'the drag move handler',
@@ -99,7 +100,7 @@ const CODE_NAMES: Record<string, string> = {
  * or the HUD shows an address where the owner expects a name. `input:` and `render:recruit:` are families
  * so a new handler or Profiler region degrades to a readable address rather than an unknown one.
  */
-const LABEL_FAMILIES = [/^fx:/, /^reduce:/, /^discover /, /^input:/, /^render:recruit:/];
+const LABEL_FAMILIES = [/^fx:/, /^reduce:/, /^discover /, /^input:/, /^render:recruit:/, /^loaf:/];
 export function isKnownLabel(label: string): boolean {
   return label in CODE_NAMES || LABEL_FAMILIES.some((re) => re.test(label));
 }
@@ -159,6 +160,8 @@ export function shortName(label: string): string {
   if (short) return short;
   if (label.startsWith('render:recruit:')) return `shop render · ${label.slice(15)}`;
   if (label.startsWith('input:')) return label.slice(6);
+  if (label === 'loaf:style-layout-paint') return 'style + layout + paint';
+  if (label.startsWith('loaf:')) return `slow frame · ${label.slice(5)}`;
   if (label.startsWith('discover ')) return `Discover · ${shortName(label.slice(9))}`;
   if (label.startsWith('fx:def:')) return `${effectName(label.slice(7))} fx/frame`;
   if (label.startsWith('fx:')) {

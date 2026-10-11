@@ -43,7 +43,13 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
   // nowhere to go, so the section is omitted; a run saves & quits.
   const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showCollection || s.titleView !== 'menu');
-  const primary: 'replay' | 'menu' | 'none' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : 'run';
+  // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby and no run exists
+  // yet, so there is nothing to "Save & Quit". Leaving from here is an abandon that settles as an 8th, and the
+  // button says so (two taps, like Quit game).
+  const rankedPick = useGame((s) => !s.showTitle && s.heroChoices !== null && s.pendingMode === 'lobby' && s.rankedEntry !== null);
+  const abandonRankedEntry = useGame((s) => s.abandonRankedEntry);
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
+  const primary: 'replay' | 'menu' | 'none' | 'abandon' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : rankedPick ? 'abandon' : 'run';
   // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
   const godMode = useGame((s) => s.run.godMode === true);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
@@ -105,6 +111,14 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             note="Closes this page and returns to the main menu."
             primary
             onPress={() => { openTitle(); onClose(); }}
+          />
+        )}
+        {primary === 'abandon' && (
+          <ActionButton
+            label={confirmAbandon ? 'Tap again to abandon' : 'Abandon match'}
+            note="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
+            danger={confirmAbandon}
+            onPress={() => { if (!confirmAbandon) { setConfirmAbandon(true); return; } abandonRankedEntry(); onClose(); }}
           />
         )}
         {primary === 'run' && (

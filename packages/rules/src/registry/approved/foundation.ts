@@ -3461,39 +3461,40 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RANK-05',
-    title: 'Ranked: leaving an unfinished rated game early costs NOTHING (the 2026-09-29 abandon penalty is switched off, owner 2026-10-02)',
+    title: 'Ranked: leaving an unfinished rated game settles it at the lowest place still open (on again 2026-10-11, after being off since 2026-10-02)',
     statement:
-      'SWITCHED OFF 2026-10-02. Leaving or replacing an unfinished RATED game (Clear on the title, starting any new game '
-      + '(Play, Practice, the tutorial) over the save, or a cloud copy of another run adopted over it) simply drops the '
-      + 'run: no rank request, no rank_results row, no Rating change, no Career row, no XP. The title tips name no '
-      + 'placement. An abandon request still waiting in a player\x27s local rank queue (ascent.rankqueue, queued by a build '
-      + 'that charged it) is dropped, never sent. Save & Quit + Continue is unchanged: the game settles once at its real end. '
-      + 'SUPERSEDED RULE, kept in code behind ABANDON_PENALTY_ENABLED (packages/ui/src/rank/ratedRun.ts) so it can be '
-      + 'turned back on: an abandoned rated game settled as a finish in the lowest place still open (the number of seats '
-      + 'alive: 8th with nobody out, 7th with one out), with that place\x27s normal award and gates.',
+      'Giving up an unfinished RATED game (Clear on the title, starting any new game (Play, Practice, the tutorial) '
+      + 'over the save, or a cloud copy of another run adopted over it) settles it as a finish in the lowest place '
+      + 'still open: the number of seats alive (8th with nobody out, 7th with one out), with that place\x27s normal '
+      + 'award and gates. Only the Rating moves: no Career row, no Recent Games row, no XP. Save & Quit + Continue is '
+      + 'not an abandon: the game settles once, at its real end. Practice, the tutorial, a sandbox run and an '
+      + 'all-generated (offline) lobby cost nothing. The player is warned before any of this can happen (R-RANK-06). '
+      + 'HISTORY: live 2026-09-29, switched off 2026-10-02 (nothing warned the player), on again 2026-10-11 with the '
+      + 'Play confirmation. The switch is ABANDON_PENALTY_ENABLED (packages/ui/src/rank/ratedRun.ts); while it is '
+      + 'false every door above simply drops the run and a waiting abandon request is dropped unsent.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (MMR stayed flat after three Ranked wins: each win was followed by an abandon-settled 8th of a newly started game)', quote: 'oh i didnt know there was an abandon penalty in. can we remove that for now?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (the Play confirmation). Asked: "should leaving a ranked game MID-MATCH cost MMR again too (Clear on the title, or starting a new game over a saved ranked one)?"', quote: 'Yes, turn it back on (Recommended)' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-10-11 (the confirmation\x27s own copy)', quote: 'This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you like to proceed?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (MMR stayed flat after three Ranked wins: each win was followed by an abandon-settled 8th of a newly started game). SUPERSEDED 2026-10-11', quote: 'oh i didnt know there was an abandon penalty in. can we remove that for now?' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (quitting a rated game)', quote: 'yes, quitting an official game should lose you MMR relative to the lowest available place when you quit. for example. if one player was already out, then quitting would place you in 7th place. losing you MMR' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit with 4 or fewer alive may gain Rating / promote', quote: 'YES' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether a quit should earn Account XP for its placement', quote: 'NO' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked whether quits should show in Career and Recent Games', quote: 'NO' },
       { kind: 'owner-chat', ref: 'Same session, 2026-09-29 — asked about closing the wipe-the-save gap server-side', quote: 'Eventually - we will want to write saved and quit games to supabase as well.' },
-      { kind: 'code', ref: 'packages/ui/src/rank/ratedRun.ts ABANDON_PENALTY_ENABLED (false) gates rankedAbandonOf, so store.settleAbandonedRun (clearRun, pickHero, newRun, startTutorial, adoptCloudRun) queues nothing; rankSubmission.ts isDroppedAbandon drops a queued kind:abandon item at flush. The kept rule: packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/ratedRun.ts rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
+      { kind: 'code', ref: 'packages/ui/src/rank/ratedRun.ts ABANDON_PENALTY_ENABLED (true) gates rankedAbandonOf / abandonWarningOf; packages/ui/src/store.ts settleAbandonedRun (clearRun, pickHero, newRun, startTutorial, adoptCloudRun); packages/sim/src/lobby/runLobby.ts abandonPlacementOf; packages/ui/src/rank/rankSubmission.ts isDroppedAbandon (a no-op while the switch is on); settles through the existing rank queue + supabase/functions/submit-rating (unchanged, it already accepts any placement 1-8)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-10-02 (fix/mmr-flat-after-win). From 2026-09-29 to then, leaving a rated game settled it at '
-      + 'the lowest open place: the owner\x27s Bram, Brackus and Keshi 1sts each counted (+40), but after each he started '
-      + 'a new game and left it, so three abandon 8ths (-40) took him back to Bronze III 10 every time and his MMR looked '
-      + 'flat. Abandon requests are tagged kind:abandon on the client from this build; an UNTAGGED item queued by an older '
-      + 'build cannot be told apart from a finish and is still sent (abandons flush at once, so one only lingers if it '
-      + 'was queued offline). The server has no abandon path of its own (submit-rating / settle_rank settle any placement '
-      + 'they are sent), so older clients keep charging abandons until the new build is deployed.',
+      'Conforms as of 2026-10-11 (feat/ranked-entry-confirm). From 2026-10-02 until then the switch was off and '
+      + 'leaving a rated game cost nothing. PARTIAL by design: the settlement is made by the client from the local '
+      + 'save, so wiping local storage (or never opening the game again) dodges it; the server has no abandon path of '
+      + 'its own. An abandon request queued before 2026-10-02 and never sent is sent now that the switch is on.',
     example:
-      'Bronze III 50, start a new Ranked game, leave it on round 3 and press Play again: nothing is settled, still 50. '
-      + 'Save & Quit on round 6, Continue, win the lobby: one settlement, a 1st.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/abandonPenaltyOff.test.ts', 'packages/ui/src/rank/rankSubmission.test.ts', 'packages/ui/src/rank/quitCostsRating.test.ts', 'packages/sim/src/lobby/abandonPlacement.test.ts'], lastVerifiedAt: '2026-10-02' },
+      'Bronze III 50, start a Ranked game, Save & Quit on round 3, then Clear the save on the title with nobody out: '
+      + 'an 8th is settled and the Rating drops by the 8th-place award. Save & Quit on round 6, Continue, win the '
+      + 'lobby: one settlement, a 1st.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/quitCostsRating.test.ts', 'packages/ui/src/rank/rankSubmission.test.ts', 'packages/sim/src/lobby/abandonPlacement.test.ts'], lastVerifiedAt: '2026-10-11' },
   },
   // ── A card's On Death sound plays for the card that died (owner report 2026-09-29) ─────────────────────
   {
@@ -5129,5 +5130,90 @@ export const FOUNDATION_RULES: GameRule[] = [
       ],
       lastVerifiedAt: '2026-10-11',
     },
+  },
+  {
+    id: 'R-PROG-ANNOUNCER-01',
+    title: 'Announcers are a crate cosmetic in the account-wide announcer slot: an equipped voice plays the same takes from its own folder, only its wearer hears it, and a missing clip falls back to the default voice',
+    statement:
+      'The announcer category ("Announcers", target global, enabled) holds announcer voices: Lemon (announcer_lemon), '
+      + 'Underdweller (announcer_underdweller, the hero Underdweller\x27s voice) and Little Inu (announcer_little_inu), '
+      + 'all Legendary, from crates at the fixed rarity odds, equal chance within the rarity. An announcer '
+      + 'is ACCOUNT-WIDE: equip_cosmetic(user, \x27announcer\x27, \x27\x27, id) wears an owned, live one (one cosmetic_loadouts '
+      + 'row, target \x27\x27); null takes it off, and NOTHING equipped is the default announcer (there is no default item). '
+      + 'An announcer names a PACK (assets.pack): a folder apps/web/public/announcer/<pack>/ holding one clip per default '
+      + 'clip under the SAME file name. Wearing one changes only WHERE a clip is fetched from: which moments speak, how '
+      + 'often, the random take, the no-repeat bag (keyed by take name) and every timing rule are identical to the default '
+      + 'voice. If the pack lacks a clip, or it fails to load, the default voice\x27s clip plays, so a moment is never silent '
+      + 'because of the voice worn. Only the wearer hears it: it is read from the live loadout when a line speaks (so an '
+      + 'equip applies to the next line) and is never written to a run snapshot, a replay or an opponent\x27s view. The '
+      + 'Collection lists the voices on the Announcers tab (last on the rail) and plays a sample line of any of them, owned '
+      + 'or not, through the Announcer volume and mute.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'i want to create a new announcer voice - the current one is the default. this will be offered as a reward in collections' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'it will be a Legendary reward players can unlock through opening chests' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a second announcer)', quote: 'call the announcer: Lemon' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (two more announcers)', quote: 'i want to create an underdweller announcer' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (two more announcers)', quote: 'i want to create an announcer with this voice too after underdweller. unless you can do both at the same time. we will call her Little Inu' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (two more announcers)', quote: 'legendary for both' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (announcer(), announcer_lemon, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, announcerOf); supabase/migrations/2026-10-11-announcer-slot.sql (equip_cosmetic); packages/ui/src/announcer.ts (announcerClipUrl, playClip, setAnnouncerPackProvider, previewAnnouncerPack); packages/ui/src/progression/announcerPack.ts; packages/ui/src/progression/CollectionScreen.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms in the client from 2026-10-11. PARTIAL on the live server until the owner runs '
+      + 'supabase/migrations/2026-10-11-announcer-slot.sql and deploys progression-inventory: before that the database '
+      + 'still has the announcer category switched off and equip_cosmetic refuses the announcer slot, so Lemon shows in '
+      + 'the Collection (and can be previewed) but cannot drop or be equipped. Before 2026-10-11 the category was switched '
+      + 'off and the tab read "Soon".',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/announcer.test.ts',
+        'packages/ui/src/progression/CollectionScreen.test.tsx',
+        'packages/progression/src/cosmetics.test.ts',
+        'packages/progression/src/sqlParity.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-11',
+    },
+  },
+  // ── The Play card asks first; from "Yes" on, leaving is an 8th (owner 2026-10-11) ────────────────────────
+  {
+    id: 'R-RANK-06',
+    title: 'Ranked: the Play card asks before it starts a ranked lobby, and from "Yes" on, backing out (even from hero select) is an 8th',
+    statement:
+      'Nothing starts a ranked lobby without the player\x27s explicit yes. Pressing the Play card opens a confirmation '
+      + 'that reads "This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you like '
+      + 'to proceed?" with exactly two answers, "Yes, let\x27s go." and "No, go back.". No returns to the mode picker '
+      + 'and commits nothing. Yes commits a RANKED ENTRY (a ranked run id, the seed and the hero offer rolled for it) '
+      + 'and opens hero select. From that moment the player owes a result: going back to the menu from hero select '
+      + '(the Back button, or Settings) settles the entry as an 8th place with the 8th-place award, exactly as if the '
+      + 'game had been played and lost first; picking a hero spends the entry, and the game carries the entry\x27s id, '
+      + 'so one entry can never settle twice. Closing the game on hero select is NOT an abandon and NOT a reroll: the '
+      + 'entry is kept, and the next launch (or the next Play) reopens hero select on the SAME heroes. An entry this '
+      + 'build can no longer offer is dropped at no cost. Backing out costs nothing where the game could not have been '
+      + 'rated (the opponent pool unreachable, so the lobby would be all-generated; no account; no backend). A leave '
+      + 'that costs MMR always takes a second press that names the cost first.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-11 (a screenshot of the Play card, "The ranked eight-seat lobby.")', quote: 'when pressing play and then selecting the ranked mode. when clicking on the play section there should be a confirmation that says: This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you like to proceed? Then have two button options: 1. Yes, let\x27s go. 2. No, go back.' },
+      { kind: 'owner-chat', ref: 'Same message, 2026-10-11', quote: 'from there, even at the hero select screen, if they go back, they should place as if they came in eighth place and lose the associated mmr' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-10-11. Asked: "a player sits on hero select and CLOSES the game or tab instead of pressing Back (the obvious way to dodge the penalty and reroll heroes). What should happen?"', quote: 'Reopen on the same heroes (Recommended)' },
+      { kind: 'code', ref: 'packages/ui/src/rank/rankedEntry.ts (RankedEntry, RANKED_CONFIRM_TEXT / _YES / _NO, RANKED_ENTRY_PLACEMENT, load / save / clearRankedEntry); packages/ui/src/Title.tsx (rankedConfirm: onPlay and the tutorial nudge\x27s skip both open it, only Yes calls startLobby); packages/ui/src/store.ts (BOOT_ENTRY, rankedEntry, startLobby resumes a live entry, pickHero spends it, abandonRankedEntry, settleAbandonedEntry); packages/ui/src/HeroSelect.tsx (the two-press Back); packages/ui/src/EscMenu.tsx (Abandon match in place of Save & Quit on the ranked hero select)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-11 (feat/ranked-entry-confirm). Before it the Play card opened hero select at once, '
+      + 'Back from hero select was free and re-rolled the heroes on the next Play, and nothing was settled until a '
+      + 'hero was picked. PARTIAL on two points, both by design for now: the entry lives in this device\x27s local '
+      + 'storage, so wiping it dodges the 8th and re-rolls the heroes (the same client-side gap R-RANK-05 has); and '
+      + 'cancelling the "Finding opponents..." wait after picking a hero returns to the title with the entry kept '
+      + '(same heroes on the next Play), not settled. The second-press guard on Back and on Settings is Claude\x27s '
+      + 'judgement call, not an owner ruling: the owner asked only for the Play confirmation.',
+    example:
+      'Press Play: the confirmation appears and hero select stays shut. "No, go back.": still on the mode picker, '
+      + 'nothing committed. "Yes, let\x27s go.": hero select opens on three heroes. Press Main Menu: the button reads '
+      + '"Abandon? Counts as 8th place"; press it again: an 8th is settled and the Rating drops. Instead, close the '
+      + 'game on hero select and reopen it: hero select comes back with the same three heroes and nothing was settled.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/rankedEntry.test.tsx'], lastVerifiedAt: '2026-10-11' },
   },
 ];

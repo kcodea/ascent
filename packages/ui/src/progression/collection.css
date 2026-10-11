@@ -240,6 +240,29 @@
 .colls-tile.skin .colls-tile-top, .colls-tile.skin .colls-tile-name, .colls-tile.skin .colls-tile-for { position: relative; }
 .colls-tile.skin .colls-tile-name { font-size: 22px; }
 .colls-tile-for { font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 246, 228, 0.85); text-shadow: 0 1px 4px #000; }
+/* LEGIBILITY OVER ART (owner ask 2026-10-11, Heroes and Minions): every line of text on a skin tile wears a thin
+   black stroke and a heavy drop shadow, and the text block sits clear of the Equipped ribbon (22px tall at the
+   foot; the name used to run under it). The lift is on EVERY skin tile, not only the equipped one, so the names
+   in a row stay on one line. `paint-order` puts the stroke BEHIND the fill, so the 2px stroke shows 1px outside
+   the glyph and never thins the letters. An unowned name is blurred, so it takes neither. All static. A
+   portrait frame's tile (`.ring`) is laid out around its ring and is left alone.
+
+   THE BAND (owner, same day: "a dark square that stretches across from one edge ... to the other ... opacity
+   only 15% or so ... edges faded out"): `.colls-tile-text` wraps the three lines. Everywhere else it is
+   `display: contents`, so no other tile's layout changes. On a skin tile it is the band: it bleeds through the
+   tile's 14px side padding to reach both edges and is 60% dark (raised from 15%, then 40%, the same day). Its TOP and
+   BOTTOM edges are SHARP and its LEFT and RIGHT ends fade out (owner, same day: "i want the top and bottom to
+   be sharp and the left and right to fade", then "bring in the left and right sides a bit": the fade runs from
+   28% in to 8% in on each side, so the band is gone before it reaches the frame). Its padding is 4px on top and 6px below (owner-tuned by eye); that 6px plus the tile's
+   22px keeps the name 28px off the foot, and puts the band's bottom edge exactly on the ribbon's top. */
+.colls-tile-text { display: contents; }
+.colls-tile.skin:not(.ring) { padding-bottom: 22px; }
+.colls-tile.skin:not(.ring) .colls-tile-text { position: relative; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin: 0 -14px; padding: 4px 14px 6px;
+  background: linear-gradient(90deg, rgba(4, 8, 18, 0) 8%, rgba(4, 8, 18, 0.6) 28%, rgba(4, 8, 18, 0.6) 72%, rgba(4, 8, 18, 0) 92%); }
+.colls-tile.skin:not(.ring) .colls-tile-for, .colls-tile.skin:not(.ring) .colls-tile-rar, .colls-tile.skin.owned:not(.ring) .colls-tile-name {
+  -webkit-text-stroke: 2px #000; paint-order: stroke fill;
+  text-shadow: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); }
 .colls-tile.skin.missing .colls-tile-art { filter: blur(6px) saturate(0.35) brightness(0.45); transform: scale(1.08); }
 .colls-tile.skin.missing .colls-tile-for { color: rgba(255, 246, 228, 0.55); }
 /* A PORTRAIT FRAME's tile (2026-10-01): the ring shown whole, centred above the name (static). */

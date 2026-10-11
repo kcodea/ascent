@@ -1030,9 +1030,32 @@ export function announcerRoll(seed: number, event: AnnouncerEvent, wave: number,
   return h / 0x1_0000_0000;
 }
 
-function clipUrl(file: string): string {
+// ── ANNOUNCER VOICES (owner 2026-10-11: "i want to create a new announcer voice - the current one is the default. this
+// will be offered as a reward in collections"). An equipped announcer cosmetic names a PACK: a folder of clips with
+// the SAME file names as the default voice (`announcer/<pack>/<name>.mp3`). The take picked, the no-repeat bag and
+// every rule above are unchanged: only the folder the clip is fetched from differs, so the bag stays keyed by take.
+let packProvider: () => string | null = () => null;
+/** Game.tsx hands in "the pack of the announcer the local player has equipped" (null = the default voice), so this
+ *  module never imports the progression store. Read at the moment a line speaks: an equip takes effect on the next line. */
+export function setAnnouncerPackProvider(provider: () => string | null): void {
+  packProvider = provider;
+}
+const PACK_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const safePack = (pack: string | null | undefined): string | null => (pack && pack.length <= 32 && PACK_ID.test(pack) ? pack : null);
+
+/** A clip's URL: the default voice's, or `pack`'s copy of the same line. */
+export function announcerClipUrl(file: string, pack: string | null = null): string {
   const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
-  return `${base}announcer/${file}.mp3`;
+  const dir = safePack(pack);
+  return `${base}announcer/${dir ? `${dir}/` : ''}${file}.mp3`;
+}
+
+/** Play `file` in `pack` (default: the equipped one). A pack that lacks the clip (a line added to the default voice
+ *  before the pack was re-recorded, a failed fetch) FALLS BACK to the default voice's, so a moment is never silent
+ *  just because of the voice worn. */
+function playClip(file: string, onEnded: () => void, gain: number, pack: string | null = safePack(packProvider())): Promise<AnnouncerHandle | null> {
+  if (!pack) return deps.play(announcerClipUrl(file), onEnded, gain);
+  return deps.play(announcerClipUrl(file, pack), onEnded, gain).then((h) => h ?? deps.play(announcerClipUrl(file), onEnded, gain));
 }
 
 const isTerminal = (e: AnnouncerEvent): boolean => UNCAPPED_EVENTS.includes(e);
@@ -1146,7 +1169,7 @@ function speak(line: PendingLine): void {
   };
   let p: Promise<AnnouncerHandle | null>;
   try {
-    p = deps.play(clipUrl(file), ended, announcerEventVolume(line.event));
+    p = playClip(file, ended, announcerEventVolume(line.event));
   } catch {
     p = Promise.resolve(null);
   }
@@ -2160,12 +2183,40 @@ export function previewAnnouncerEvent(event: AnnouncerEvent): string {
   const done = (): void => { if (token === previewToken) previewHandle = null; };
   let p: Promise<AnnouncerHandle | null>;
   try {
-    p = deps.play(clipUrl(file), done, announcerEventVolume(event));
+    p = playClip(file, done, announcerEventVolume(event));
   } catch {
     p = Promise.resolve(null);
   }
   p.then((h) => { if (token === previewToken) previewHandle = h; else h?.stop(0); }, () => {});
   return file;
+}
+
+/** The lines the Collection's announcer preview cycles through: short, clean, and present in every pack. */
+export const ANNOUNCER_SAMPLE_LINES: readonly string[] = ['game-start-3', 'triple-3', 'knockout-3', 'game-won-2', 'back-to-shop-4'];
+let sampleNext = 0;
+/** THE COLLECTION'S PREVIEW: play one sample line in `pack` (null = the default voice) NOW, outside the queue (nothing
+ *  marked, no cooldown). Each press moves to the next sample; a new press cuts the previous one. Through the Announcer
+ *  channel, so the Settings slider and mute apply. Returns the file it played. */
+export function previewAnnouncerPack(pack: string | null): string {
+  const file = ANNOUNCER_SAMPLE_LINES[sampleNext++ % ANNOUNCER_SAMPLE_LINES.length]!;
+  previewHandle?.stop(ANNOUNCER_STOP_FADE_MS);
+  previewHandle = null;
+  const token = ++previewToken;
+  const done = (): void => { if (token === previewToken) previewHandle = null; };
+  let p: Promise<AnnouncerHandle | null>;
+  try {
+    p = playClip(file, done, 1, safePack(pack));
+  } catch {
+    p = Promise.resolve(null);
+  }
+  p.then((h) => { if (token === previewToken) previewHandle = h; else h?.stop(0); }, () => {});
+  return file;
+}
+/** Cut the Collection's preview (leaving the tab or the screen). */
+export function stopAnnouncerPreview(): void {
+  previewToken++;
+  previewHandle?.stop(ANNOUNCER_STOP_FADE_MS);
+  previewHandle = null;
 }
 
 /** Read-only view for the DEV surface (`window.__announcer`) and the tests. */

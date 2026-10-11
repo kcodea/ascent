@@ -5577,8 +5577,12 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .heroselect:has(.hsrow.browse) .hslogo .crest { font-size: clamp(30px, calc(4 * var(--vw, 1vw)), 50px); }
 .heroselect:has(.hsrow.browse) .hslogo .hsword { font-size: clamp(22px, calc(3.4 * var(--vw, 1vw)), 38px); }
 /* "Select Your Hero" — the picker prompt directly above the portraits (owner ask 2026-08-24). Static label,
-   nothing animated. */
-.hsprompt { margin: 0 0 16px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.88); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
+   nothing animated. Bigger and lifted toward the lockup (owner ask 2026-10-11): the negative top margin raises
+   it and the bottom margin gives the same amount back, so the lockup and the portraits do not move. */
+.hsprompt { margin: -18px 0 34px; font-family: var(--font-ui); font-weight: 800; font-size: 24px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.88); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
+/* A mode that shows a pill above the prompt (the Oath line, a Rift) keeps the old spacing: lifting the prompt
+   there would press it against the pill. */
+.hsline + .hsprompt, .riftpill + .hsprompt { margin: 0 0 16px; }
 /* Run-start Line telegraph on the hero picker (ascent only). */
 .hsline { display: inline-flex; align-items: center; gap: 10px; margin: -8px 0 20px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
@@ -5725,6 +5729,30 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   -ms-overflow-style: none;           /* legacy Edge */
 }
 .hsrow.browse::-webkit-scrollbar { width: 0; height: 0; display: none; }  /* Chromium / WebKit */
+/* SOFT SCROLL EDGES (owner ask 2026-10-11: "hard lines appear when hero portraits are partially scrolled into
+   view"). The scroll box fades to transparent at an edge that has more heroes behind it, so a half-scrolled
+   portrait dissolves instead of being sliced by the box. Each fade is tied to the scroll position: none at the
+   top while the list is at rest (the first row's name pills stay crisp), growing over the first
+   `--hs-fade` of travel, and the bottom one shrinking to nothing as the last row arrives.
+
+   The two lengths are REGISTERED non-inheriting properties so a scroll timeline can animate them without
+   restyling every card, and their initial value is 0: a list too short to scroll has an inactive timeline and
+   so gets no fade at all. Browsers without scroll timelines keep the old hard edge (the `@supports`), because
+   a fade that never retracts would permanently dim the first or last row. `animation-timeline` /
+   `animation-range` must come AFTER the `animation` shorthand, which resets them. */
+@property --hs-fade-top { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --hs-fade-bot { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes hsfadetop { from { --hs-fade-top: 0px; } to { --hs-fade-top: var(--hs-fade); } }
+@keyframes hsfadebot { from { --hs-fade-bot: var(--hs-fade); } to { --hs-fade-bot: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .hsrow.browse {
+    --hs-fade: 72px;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--hs-fade-top), #000 calc(100% - var(--hs-fade-bot)), transparent 100%);
+    animation: hsfadetop linear both, hsfadebot linear both;
+    animation-timeline: scroll(self), scroll(self);
+    animation-range: 0px var(--hs-fade), calc(100% - var(--hs-fade)) 100%;
+  }
+}
 .hsrow.browse .herocard { width: calc((100% - (var(--hs-cols) - 1) * var(--hs-gap)) / var(--hs-cols)); }
 /* The hover-lift would clip against the scroll box's edge; a little room lets it breathe. */
 .hsrow.browse .herocard:hover { transform: translateY(-6px); }
@@ -8449,6 +8477,25 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   padding: 8px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; border-radius: 10px;
 }
 .tutprompt-skip:hover { color: #e6ecf6; text-decoration: underline; }
+/* THE RANKED CONFIRMATION (Title `rankedConfirm`, owner 2026-10-11) — the tutorial nudge's card with the two
+   answers as equal-height buttons side by side: Yes in the orange primary, No as a plain outlined button. No
+   per-element `cursor`: the global button rule paints the game cursor. */
+.rankedconfirm { max-width: 640px; gap: 20px; }
+.rankedconfirm-text { font-size: 23px; line-height: 1.45; color: #f6efe2; }
+.rankedconfirm-save { font-size: 16px; line-height: 1.45; color: #f0c98a; margin: 0; }
+.rankedconfirm-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; justify-content: center; margin-top: 8px; }
+.rankedconfirm-actions .endplay { margin-top: 0; white-space: nowrap; font-size: 20px; letter-spacing: 0.06em; padding: 16px 30px; }
+.rankedconfirm-no {
+  position: relative; --pr-edge: 5px; --pr-edge-c: rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase;
+  white-space: nowrap; color: #f6efe2; background: rgba(255, 255, 255, 0.06);
+  border: 3px solid rgba(255, 255, 255, 0.28); border-radius: 18px; padding: 16px 30px;
+}
+.rankedconfirm-no:hover { border-color: rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.1); }
+/* THE RANKED HERO SELECT's Back (HeroSelect.tsx): one press arms it and the label names the cost; a second
+   press abandons. Armed = the danger red, a static change (no looping paint animation). */
+.hsback.armed { border-color: #ff8a7a; color: #ffd9d2; background: rgba(140, 28, 20, 0.72); }
+.hsback.armed:hover { border-color: #ffb3a8; color: #fff; }
 @media (prefers-reduced-motion: reduce) { .mcswirl { animation: none; } }
 
 /* ---- REFRESH CRYSTAL (RefreshButton.tsx) — the blue crystal pinned TOP-CENTRE of the board, replacing the

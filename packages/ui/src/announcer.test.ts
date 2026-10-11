@@ -14,12 +14,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { ALE_IDS, TRIBES, type CardDef, type CombatEvent, type MinionSnapshot, type Tribe } from '@game/core';
 import { HEROES, type PracticeTribe } from '@game/sim';
+import { COSMETICS } from '@game/progression';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
-  announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent,
+  announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent, announcerClipUrl, ANNOUNCER_SAMPLE_LINES, previewAnnouncerPack, setAnnouncerPackProvider, stopAnnouncerPreview,
   CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
   CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
@@ -40,7 +41,7 @@ class StubHandle {
   stopped: number | null = null;
   stop(ms: number): void { this.stopped = ms; }
 }
-interface Play { file: string; t: number; handle: StubHandle; gain: number }
+interface Play { file: string; t: number; handle: StubHandle; gain: number; url: string }
 let plays: Play[] = [];
 let failNext = false;
 
@@ -137,7 +138,7 @@ function stubDeps(): Partial<AnnouncerDeps> {
     play: (url, onEnded, gain) => {
       if (failNext) { failNext = false; return Promise.resolve(null); }
       const handle = new StubHandle();
-      plays.push({ file: url.replace(/^.*\/announcer\//, '').replace(/\.mp3$/, ''), t: Date.now(), handle, gain });
+      plays.push({ file: url.replace(/^.*\/announcer\//, '').replace(/\.mp3$/, '').replace(/^.*\//, ''), url, t: Date.now(), handle, gain });
       setTimeout(() => { if (handle.stopped === null) onEnded(); }, LINE_MS);
       return Promise.resolve(handle);
     },
@@ -2546,5 +2547,65 @@ describe('the Gauntlet round call (owner 2026-09-30: "Round 1" when round 1 star
       expect(roundCalls()).toEqual([]);
       expect(announced.fired.gauntletRound).toBeUndefined();
     }
+  });
+});
+
+describe('announcer voices (owner 2026-10-11: "a new announcer voice ... offered as a reward in collections")', () => {
+  afterEach(() => { setAnnouncerPackProvider(() => null); stopAnnouncerPreview(); });
+  const PACKS = COSMETICS.filter((c) => c.category === 'announcer').map((c) => c.assets.pack!);
+
+  it('a clip URL is the default voice\'s, or the pack\'s copy of the same file; an unsafe pack id is ignored', () => {
+    expect(announcerClipUrl('triple-1')).toMatch(/\/announcer\/triple-1\.mp3$/);
+    expect(announcerClipUrl('triple-1', 'lemon')).toMatch(/\/announcer\/lemon\/triple-1\.mp3$/);
+    for (const bad of ['../secrets', 'Lemon', 'a/b', '', 'x'.repeat(33)]) expect(announcerClipUrl('triple-1', bad)).toBe(announcerClipUrl('triple-1'));
+  });
+
+  it('with an announcer equipped, the SAME take plays from its folder and the no-repeat bag still records the take', async () => {
+    setAnnouncerPackProvider(() => 'lemon');
+    go(run({ wave: 1, tier: 1 }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS);
+    expect(events()).toEqual(['game-start']);
+    expect(plays[0]!.url).toMatch(/\/announcer\/lemon\/game-start-\d+\.mp3$/);
+    expect(announced.heard?.gameStart).toEqual([files()[0]]); // the take name, never the folder
+  });
+
+  it('with none equipped (or an unsafe pack id) the default voice plays', async () => {
+    setAnnouncerPackProvider(() => '../x');
+    go(run({ wave: 1, tier: 1 }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS);
+    expect(plays[0]!.url).toMatch(/\/announcer\/game-start-\d+\.mp3$/);
+  });
+
+  it('a pack that lacks the clip falls back to the default voice\'s: the moment is never silent', async () => {
+    setAnnouncerPackProvider(() => 'lemon');
+    failNext = true; // the pack's clip fails to load
+    go(run({ wave: 1, tier: 1 }));
+    await tick(ANNOUNCER_GAME_START_DELAY_MS);
+    expect(plays).toHaveLength(1);
+    expect(plays[0]!.url).toMatch(/\/announcer\/game-start-\d+\.mp3$/);
+    expect(announcerDebug().playing).toBe('gameStart');
+  });
+
+  it('the Collection preview plays a sample line in the named voice, cycling, each press cutting the last', async () => {
+    const a = previewAnnouncerPack('lemon');
+    await tick(0);
+    const b = previewAnnouncerPack(null);
+    await tick(0);
+    expect(ANNOUNCER_SAMPLE_LINES).toContain(a);
+    expect(b).not.toBe(a);
+    expect(plays.map((x) => x.url)).toEqual([announcerClipUrl(a, 'lemon'), announcerClipUrl(b)]);
+    expect(plays[0]!.handle.stopped).toBe(ANNOUNCER_STOP_FADE_MS);
+    expect(announced.count).toBe(0); // a preview marks nothing
+  });
+
+  it('every announcer in the catalog ships EVERY default clip under its pack folder (and nothing extra)', async () => {
+    const { readdirSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const dir = resolve(process.cwd(), 'apps/web/public/announcer');
+    const mp3 = (d: string): string[] => readdirSync(d).filter((f) => f.endsWith('.mp3')).sort();
+    const base = mp3(dir);
+    expect(PACKS).toEqual(['lemon', 'underdweller', 'little-inu']);
+    for (const pack of PACKS) expect(mp3(resolve(dir, pack)), pack).toEqual(base);
+    for (const f of ANNOUNCER_SAMPLE_LINES) expect(base, f).toContain(`${f}.mp3`);
   });
 });

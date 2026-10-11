@@ -154,7 +154,7 @@ export const CONDITIONAL_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
   [/you buy \d+ /i, 'cardsBought'],
   [/you buy/i, 'onBuy'],
   [/you (?:sell|sold)/i, 'onSell'],
-  [/friendly Demon deals damage/i, 'friendlyDemonDealtDamage'],
+  [/(?:friendly |a )Demon deals damage/i, 'friendlyDemonDealtDamage'], // 'a Demon': Ruinous Lord (2026-10-10), Todd's trigger
   [/(?:Ruby|Rubies) (?:is |are )?cast on/i, 'rubyPlayedAnywhere'],
   [/you get a Ruby/i, 'onGetRuby'],
   [/you cast \d+ Rubies|Rubies you cast/i, 'rubyCast'],

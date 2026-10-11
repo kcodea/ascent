@@ -389,3 +389,29 @@ export const SET2_DEMONS_LATE: CardDef[] = [
     goldenText: '**End of Turn:** your **Demons** consume a minion in the Shop and gain **double** its stats.',
   },
 ];
+
+/**
+ * Rune-granted Demons (owner add 2026-10-10): forge-only, so `token: true` (the `SET2_DRAGON_RUNE_MINIONS` /
+ * `SET2_DWARF_RUNE_MINIONS` convention: "Source: Rune" is never drawn from the tavern). Appended at the very end of
+ * set 2's `own`, so no seeded pool position moves.
+ */
+export const SET2_DEMON_RUNE_MINIONS: CardDef[] = [
+  {
+    // RUINOUS LORD (Rune of the Ruinous, owner 2026-10-10): "When a Demon deals damage, give your Demons +1/+1."
+    // Impossible Todd's trigger (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon, the Lord's own hits
+    // included), paying every living friendly Demon (the Lord itself included: it is a Demon). OWNER RULING: the
+    // buff lasts for THIS COMBAT ONLY (nothing carries back, Engraved aside). Gilded: +2/+2. Fixed numbers, so the
+    // printed text is always current.
+    id: 'dm_ruinouslord',
+    name: 'Ruinous Lord',
+    tribe: 'demon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    token: true, // forge-only: Source = Rune of the Ruinous
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffTribe', params: { tribe: 'demon', attack: 1, health: 1 } }],
+    text: 'When a **Demon** deals damage, give your **Demons +1/+1**.',
+    goldenText: 'When a **Demon** deals damage, give your **Demons +2/+2**.',
+  },
+];

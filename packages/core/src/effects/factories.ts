@@ -4397,6 +4397,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Ruinous Lord (Rune of the Ruinous, owner 2026-10-10): "When a Demon deals damage, give your Demons
+   *  +1/+1." The SAME trigger as Impossible Todd (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon —
+   *  attack, retaliation or incidental; a Ward-absorbed 0-damage hit never fires), so "deals damage" means
+   *  exactly what it means for Todd, and the Lord's own hits count (Todd's precedent). Pays every living friendly
+   *  `tribe` minion `attack`/`health` (the Lord itself included when it is one — it is a Demon). COMBAT-ONLY
+   *  (owner ruling 2026-10-10: "this combat only"): no permaGain is written, so nothing carries back except on
+   *  an Engraved body, the standing rule for every combat stat gain. Gilded doubles via `mul`. One trigger = one
+   *  contiguous run of `buff` events, which the replay collapses into ONE buff-wave moment (its own beat, every
+   *  Demon's +1/+1 landing together), so a long Demon fight shows one wave per hit, never one beat per Demon. */
+  onFriendlyDemonDamageBuffTribe: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (!a && !h) return;
+    const tribe = str(params.tribe) as Tribe;
+    const arena = combatArena(ctx, self);
+    for (const m of ctx.living(self.side)) if (arena.isTribe(m, tribe)) ctx.buff(m, a, h, self.uid);
+  },
+
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent
    *  same-`tribe` neighbour. Threads `permanent: true` through `playRubyOn`, so the gain carries back to the
    *  run board (see `applyRubyStats`); golden doubles `count`. */

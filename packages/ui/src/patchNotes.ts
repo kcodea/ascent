@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-10',
     changes: [
       {
+        category: 'Balance',
+        text: 'New Demon rune: Rune of the Ruinous gets you a Ruinous Lord.',
+        details: [
+          'Rune of the Ruinous is a Basic rune that costs 4 Gold. It shows up in Set 2 runs that have Demons.',
+          'Ruinous Lord is a Tier 4 4/5 Demon you can only get from the rune.',
+          'When a friendly Demon deals damage, your Demons get +1/+1 for the rest of that combat. Gilded: +2/+2.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Fixed a bug where the targeting line and every other effect could stop showing for the rest of a game.',
         details: [

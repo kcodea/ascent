@@ -60,13 +60,56 @@ describe('Storm Chaser: "Shout: Cast Veinstorm"', () => {
   });
 });
 
-describe('Storm Chaser in combat (a Shout re-fire)', () => {
-  it('a Ryme re-fire defers the Veinstorm cast to settle (SHOP_ONLY_SHOUTS), golden state carried', () => {
-    for (const golden of [false, true]) {
-      const r = simulate([{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: 'k_stormchaser', attack: 0, health: 100, golden } as BoardMinion],
-        [{ cardId: 'omen', attack: 50, health: 2000 } as BoardMinion], makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-      expect(r.playerDeferredBattlecries?.map((d) => [d.cardId, d.golden])).toEqual([['k_stormchaser', golden]]);
-    }
+describe('Storm Chaser in combat: "Split (real time)" (owner ruling 2026-10-10)', () => {
+  // Ryme (5 Attack, 1 Health) re-fires its neighbour's Shout in combat; the omen wall never dies.
+  const refire = (golden: boolean, side = combatSide({ tier: 6 })) => simulate(
+    [{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: 'k_stormchaser', attack: 0, health: 100, golden, sourceUid: 'SC' } as BoardMinion],
+    [{ cardId: 'omen', attack: 50, health: 2000 } as BoardMinion], makeRng(1), CARD_INDEX, side, combatSide({ tier: 1 }));
+  const rubyBuffs = (r: ReturnType<typeof refire>) =>
+    r.events.filter((e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && (e as { ruby?: boolean }).ruby === true);
+
+  it('the minion half lands INSTANTLY in combat (a live Ruby on the living minions); nothing defers as a Shout', () => {
+    const r = refire(false);
+    expect(r.playerDeferredBattlecries ?? [], 'no longer a Shop-only Shout').toEqual([]);
+    const sc = r.initial.player.find((m) => m.cardId === 'k_stormchaser')!.uid;
+    const live = rubyBuffs(r);
+    expect(live.some((e) => (e as { target: string }).target === sc), 'Storm Chaser itself gets the Ruby').toBe(true);
+    for (const e of live) expect([(e as { attack: number }).attack, (e as { health: number }).health]).toEqual([1, 1]);
+    expect(r.events.some((e) => e.type === 'sc' && /casts Veinstorm/.test((e as { text: string }).text)), 'the cast has its own line / beat').toBe(true);
+    expect(r.playerShoutCarry?.shopSpellHalves, 'ONE Shop half banked for settle').toEqual(['veinstorm']);
+  });
+
+  it('Gilded casts twice: two live Rubies and two banked Shop halves', () => {
+    const r = refire(true);
+    expect(r.playerShoutCarry?.shopSpellHalves).toEqual(['veinstorm', 'veinstorm']);
+  });
+
+  it('spell power folds the same way as the Shop half (1 + Ruby strength + spell power)', () => {
+    const r = refire(false, combatSide({ tier: 6, spellPowerAtk: 2, spellPowerHp: 1, rubyBonus: { attack: 1, health: 0 } }));
+    const live = rubyBuffs(r);
+    expect(live.length).toBeGreaterThan(0);
+    for (const e of live) expect([(e as { attack: number }).attack, (e as { health: number }).health]).toEqual([4, 2]);
+  });
+
+  it('settle applies the Shop half ONCE per cast; the run board gets no second Ruby', () => {
+    const r = refire(false);
+    const s0 = run({ phase: 'combat', lastCombat: r, board: [body('SC', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] } as Partial<RunState>);
+    const s = act(s0, { type: 'resolveCombat' });
+    expect(s.veinstormRubies, 'the Shop bank grew by one Veinstorm').toEqual({ atk: 1, hp: 1 });
+    expect(rubyBuff(s.board.find((c) => c.uid === 'SC')) ?? { attack: 0, health: 0 }, 'combat Rubies are temporary; settle adds none to the board').toEqual({ attack: 0, health: 0 });
+  });
+
+  it('in the Shop nothing changed: a played Storm Chaser still casts the whole Veinstorm at once', () => {
+    const s = act(run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', 'k_stormchaser')] }), { type: 'play', uid: 'sc' });
+    expect(rubyBuff(at(s, 'a'))).toEqual({ attack: 1, health: 1 });
+    expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
+  });
+
+  it('Shrieker (End of Turn: trigger Shouts) runs in the Shop: its Storm Chaser re-fire casts the whole Veinstorm', () => {
+    const s = run({ board: [body('sh', 'd2_shrieker'), body('sc', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
+    applyEndOfTurn(s);
+    expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
+    expect(rubyBuff(at(s, 'sh'))).toEqual({ attack: 1, health: 1 });
   });
 });
 
@@ -193,5 +236,14 @@ describe('shared cards: Set 3 sees the same defs', () => {
       const inSet3 = poolFor('set3').all.find((c) => c.id === id);
       if (inSet3) expect(inSet3).toBe(CARD_INDEX[id]);
     }
+  });
+});
+
+describe('First Blood is archived (owner 2026-10-10)', () => {
+  it('is offered in no set, but still resolves by id so old saves load', async () => {
+    const { QUEST_INDEX } = await import('@game/content');
+    const q = QUEST_INDEX['q_first_blood'];
+    expect(q?.name, 'still resolvable by id').toBe('First Blood');
+    expect(q?.sets, 'offered in no set').toEqual([]);
   });
 });

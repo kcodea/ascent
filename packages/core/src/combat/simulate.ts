@@ -1559,6 +1559,9 @@ export function simulate(
       (shoutCarry[side].runShopBuffs ??= []).push({ source, ...(sourceCardId ? { cardId: sourceCardId } : {}), attack, health });
       if (side === 'player' && sourceUid) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Shop` });
     },
+    deferShopSpellHalf: (spellId, side) => {
+      (shoutCarry[side].shopSpellHalves ??= []).push(spellId);
+    },
     grantToHandThenEcho: (cardId, side, sourceUid) => {
       const idx = handGrants[side].length;
       ctx.grantToHand(cardId, side, sourceUid);

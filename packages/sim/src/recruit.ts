@@ -11997,6 +11997,22 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
  * count, so NO extra repeats here. `golden` mirrors the re-fired minion so the factory's golden doubling is
  * correct. Karwind/Bane already procced in combat (the `battlecryTriggered` event), so no re-proc here.
  */
+/** Storm Chaser's split (owner ruling 2026-10-10, "Split (real time)"): the SHOP half of a Shop-Ruby spell cast in
+ *  combat, applied once at settle. It runs the spell's own `spellBuffShopByRuby` body WITHOUT `minions` (the minion
+ *  half already landed live in the fight), so the Shop gets exactly what a Shop cast gives it, at the run's live
+ *  Ruby strength + spell power. Not a second cast: the cast was counted in combat. */
+export function applyShopSpellHalf(state: RunState, spellId: string): void {
+  const def = CARD_INDEX[spellId];
+  if (!def) return;
+  const ctx = makeContext(state);
+  for (const e of def.effects) {
+    if (e.on !== 'cast' || e.do !== 'spellBuffShopByRuby') continue;
+    const { minions: _minions, ...shopOnly } = (e.params ?? {}) as Record<string, unknown>;
+    void _minions;
+    RECRUIT_FACTORIES.spellBuffShopByRuby!(ctx, undefined as unknown as BoardCard, shopOnly, { minion: undefined as unknown as BoardCard });
+  }
+}
+
 export function replayEconomyBattlecry(state: RunState, cardId: string, golden: boolean, uid?: string): void {
   const def = CARD_INDEX[cardId];
   if (!def) return;

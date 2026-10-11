@@ -157,7 +157,10 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_unstable_riches', name: 'Unstable Riches', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'castRuby', count: 18 }, reward: { kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, sets: ['set2'] },
   { id: 'q_faultline_coronation', name: 'Faultline Coronation', tribe: 'kobold', tier: 'greater', wave: 11, objective: { event: 'buy', count: 12 }, reward: { kind: 'rubyStatGain', attack: 4, health: 4 }, sets: ['set2'] },
   // ── SET 2 — the two straight "get this minion" quests. Pure data: both minions already ship in set 2.
-  { id: 'q_first_blood', name: 'First Blood', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['d2_skald'], grantKeywords: ['DS'] }, sets: ['set2'] },
+  // ARCHIVED 2026-10-10 (owner: "quests arent in game rn but archive that quest"). `sets: []` = offered in NO set (the
+  // rune archive's convention); the def stays in QUEST_DEFS / QUEST_INDEX verbatim, so a saved run or replay that
+  // holds it still loads, tracks and pays out. History: was `sets: ['set2']`.
+  { id: 'q_first_blood', name: 'First Blood', tribe: 'dragon', tier: 'lesser', wave: 5, objective: { event: 'slaughter', count: 6, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['d2_skald'], grantKeywords: ['DS'] }, sets: [] },
   { id: 'q_market_feast', name: 'Market Feast', tribe: 'demon', tier: 'lesser', wave: 5, objective: { event: 'buy', count: 7 }, reward: { kind: 'grant', cards: ['dm_tormentor'] }, sets: ['set2'] },
   // ── HERO QUESTS — Fi & Coran (owner spec 2026-08-21) ──────────────────────────────────────────────────
   //

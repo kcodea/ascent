@@ -5970,25 +5970,35 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), ctx.state.spellsCast * per, ctx.state.spellsCast * per);
   },
 
-  /** Strange Revision — cast on a friendly minion: transform it into a random OTHER minion of the SAME tier
-   *  (from your active tribes + neutral), keeping its BONUS stats — the new form is its new base plus whatever
-   *  the old minion had gained above its base. Keeps the buff breakdown + added keywords + golden flag. */
-  spellTransformSameTier: (ctx, self) => {
+  /** Strange Revision (owner spell batch 2026-10-10) — "Transform a minion into a random minion of the tier above it.
+   *  It keeps its stats."
+   *
+   *  - THE TIER ABOVE is the target's printed tier + 1, drawn from the run's pinned pool (`poolOf`, buyable minions
+   *    in the run's tribes + neutral) off the run cursor, so a reload or replay picks identically.
+   *  - TIER 7 has no tier above: it re-rolls into a random OTHER Tier 7 (the Skybound Ascendant ruling of
+   *    2026-09-09, the transform's existing precedent: never a dead line at the top of the curve). The same ceiling
+   *    applies to every run, like Skybound's: an authored source, not the Shop's Tier-7 access gate.
+   *  - KEEPS ITS STATS: the body's CURRENT stored Attack/Health are untouched (only the identity changes), so no
+   *    stat-gain watcher fires and a Displaced or Shop offer folds back at the same printed total.
+   *  - Also kept (the transform precedent): golden status, the buff ledger (enchantments), per-instance counters,
+   *    and every keyword the body GAINED. Keywords the OLD card printed are swapped for the NEW card's printed ones,
+   *    so a Taunt minion turned into a non-Taunt one does not keep a Taunt it never earned.
+   *  - No candidate (an empty tier in this run's tribes) → no-op; the spell is still spent. */
+  spellTransformTierUp: (ctx, self) => {
     const oldDef = CARD_INDEX[self.cardId];
     if (!oldDef) return;
+    const want = strangeRevisionTier(oldDef.tier);
     const pool = poolOf(ctx.state).buyable.filter(
-      (c) => c.tier === oldDef.tier && c.id !== self.cardId && inRunTribes(c, ctx.state.tribes),
+      (c) => c.tier === want && c.id !== self.cardId && inRunTribes(c, ctx.state.tribes),
     );
-    if (pool.length === 0) return; // nothing to become → no-op (spell still consumed)
+    if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     const newDef = pool[rng.int(pool.length)]!;
     ctx.state.rngCursor = rng.state();
-    const bonusA = self.attack - oldDef.attack; // the stats it had gained above its old base
-    const bonusH = self.health - oldDef.health;
+    const gained = self.keywords.filter((k) => !oldDef.keywords.includes(k));
     self.cardId = newDef.id;
     self.tribe = newDef.tribe;
-    self.attack = newDef.attack + bonusA;
-    self.health = newDef.health + bonusH;
+    self.keywords = [...newDef.keywords, ...gained.filter((k) => !newDef.keywords.includes(k))];
   },
 
   /** Available primitive: +atk/+hp on each spell cast (buff self). No card uses it currently. */
@@ -8829,8 +8839,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  tracked buff so the inspect breakdown shows it and the stats land exactly at a/h. No spell-power scaling
    *  (it's a set, not a grant); a repeat cast (Yazzus) is a harmless no-op once the target is already there. */
   spellSetStats: (ctx, self, params) => {
-    const a = num(params.attack, 20);
-    const h = num(params.health, 20);
+    // PERFECT VISION's tier step (owner spell batch 2026-10-10: "Set it to 50/50 if you're Shop Tier 6"): read off the
+    // run's CURRENT Shop Tier at the cast, through the same helper the card text uses.
+    const { attack: a, health: h } = setStatsValue(params, ctx.state.tier);
     // An absolute SET: the target's true stats become a/h and the auras re-apply on top (see the layer note on
     // `bakedAuraOf`). Perfect Vision on a Spear Warden showing 20/20 (3/3 own + 17/17 aura) ends at 37/37, not
     // 20/20 — overwriting the accrual made the spell a DOWNGRADE on the minions it should reward.
@@ -10459,8 +10470,12 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // same shape as the Ruby line above. Spell power on top is already folded in by the generic path below
   // for spells routed through bonusA; Growth's whole magnitude lives here instead, base + accrual + power.
   if (def.id === 'growth' && (extra?.growthBonus ?? 0) > 0) {
-    const g = 1 + (extra!.growthBonus ?? 0);
-    return def.text.replace('+1/+1', `{{+${g + bonusA}/+${g + bonusH}}}`);
+    // The base is read off the card's own params (owner spell batch 2026-10-10 moved it +1/+1 → +2/+2; a hardcoded
+    // '+1/+1' here would have silently stopped matching the printed token).
+    const p = def.effects.find((e) => e.on === 'cast' && e.do === 'spellBuffAll')?.params;
+    const ba = num(p?.attack, 2), bh = num(p?.health, 2);
+    const g = extra!.growthBonus ?? 0;
+    return def.text.replace(`+${ba}/+${bh}`, `{{+${ba + g + bonusA}/+${bh + g + bonusH}}}`);
   }
   // Ruby Shipment: "your most common type" resolves against the CURRENT board, so it names the type it would
   // actually hand over right now (audit 2026-07-31 — a grant whose target shifts with cards played must say
@@ -10569,6 +10584,19 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       const ih = nh + bonusH;
       return bonusA > 0 || bonusH > 0 ? `{{+${ia}/+${ih}}}` : m;
     });
+  }
+  // PERFECT VISION (owner spell batch 2026-10-10): "Set a minion's stats to 20/20. Set it to 50/50 if you're Shop Tier
+  // 6." The value the cast would set RIGHT NOW greens (the live-text rule), read through `setStatsValue` — the cast's
+  // own helper. A set never folds spell power, so this returns before the spell-power handling below.
+  const setStats = def.effects.find((e) => e.on === 'cast' && e.do === 'spellSetStats');
+  if (setStats && setStats.params?.atTier !== undefined) {
+    if (extra?.tier === undefined) return def.text;
+    const lo = setStatsValue({ ...setStats.params, atTier: 0 }, 0);
+    const hi = setStatsValue(setStats.params, 99);
+    const now = setStatsValue(setStats.params, extra.tier);
+    const tok = now.stepped ? `**${hi.attack}/${hi.health}**` : `**${lo.attack}/${lo.health}**`;
+    const at = def.text.indexOf(tok);
+    return at < 0 ? def.text : def.text.slice(0, at) + `**{{${now.attack}/${now.health}}}**` + def.text.slice(at + tok.length);
   }
   // Patch Job: the per-step "+a/+h" greens for spell power (it grows per step); and once Gold's been spent this
   // turn, append the CURRENT total it will grant right now (steps × the per-step value) so the card shows what it
@@ -13354,7 +13382,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
  *  A Displacement-HELD offer is the stashed BODY sitting in the row, so the spell acts on that body's stats and
  *  keywords (Perfect Vision sets the displaced minion to 20/20, Turnabout swaps ITS Attack and Health) and the
  *  delta folds back relative to the body, exactly what `restoreHeldOffer` adds on top of it. A transform
- *  (Strange Revision) re-identifies the stash too, keeping its bonus above base the way the factory did. */
+ *  (Strange Revision) re-identifies the stash too, keeping the body's stats the way the factory does. */
 export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: ShopCard): void {
   const card = CARD_INDEX[offer.cardId];
   if (!card) return;
@@ -13375,8 +13403,9 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
   castSpell(state, spellDef, temp);
   // Fold the result back against what the card IS NOW — a transform (Strange Revision, owner 2026-08-04)
   // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
-  // (the factory already re-based the bonus stats onto the new form). For every ordinary spell
-  // `after === card` and this is byte-identical to the old fold.
+  // (the factory keeps the body's stats, so the offer lands at the same printed total; the difference between
+  // the two printed bases is ledgered under the spell's name). For every ordinary spell `after === card` and this
+  // is byte-identical to the old fold.
   // THE STARFORM keeps its identity: a transform spell (Strange Revision) cannot rewrite the token — only the
   // stat delta folds back, through `buffStarform` so Twin Star hears the gain and the ledger names the spell.
   if (offer.starform) {
@@ -13385,11 +13414,11 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
   }
   const after = CARD_INDEX[temp.cardId] ?? card;
   if (held && temp.cardId !== held.cardId) {
-    // The transform re-identifies the stashed body: new printed base + the bonus it had above its old one.
-    held.attack = after.attack + (held.attack - card.attack);
-    held.health = after.health + (held.health - card.health);
+    // The transform re-identifies the stashed body and KEEPS its stats (owner spell batch 2026-10-10: "It keeps its
+    // stats"). Printed keywords swap to the new card's; the ones the body gained ride along (the factory's rule).
     held.cardId = temp.cardId;
     held.tribe = temp.tribe;
+    held.keywords = [...after.keywords, ...held.keywords.filter((k) => !card.keywords.includes(k) && !after.keywords.includes(k))];
   }
   offer.cardId = temp.cardId;
   const atk = temp.attack - (held ? held.attack : after.attack);
@@ -16079,4 +16108,22 @@ export function syncUnity(state: RunState): void {
 export function unityAuraFold(state: Pick<RunState, 'questFlags' | 'undeadAttackBonus' | 'undeadBuyAtk' | 'undeadHealthBonus'>): { attack: number; health: number } | undefined {
   if (!state.questFlags?.runeUnity) return undefined;
   return { attack: undeadAuraAttack(state), health: state.undeadHealthBonus ?? 0 };
+}
+
+/** STRANGE REVISION's destination tier (owner spell batch 2026-10-10): the tier above the target, and a Tier 7 target
+ *  stays at Tier 7 (re-rolls there, the Skybound Ascendant precedent). One function so the factory, its tests and any
+ *  preview can never disagree. */
+export function strangeRevisionTier(tier: number): number {
+  return Math.min(7, tier + 1);
+}
+
+/** The stats a `spellSetStats` cast sets RIGHT NOW (Perfect Vision): `attack`/`health`, or `tierAttack`/`tierHealth`
+ *  once the run's Shop Tier is at least `atTier` (owner spell batch 2026-10-10: 20/20, or 50/50 at Shop Tier 6). One
+ *  function for the cast and the live card text, so the two can never disagree. */
+export function setStatsValue(params: Record<string, unknown> | undefined, shopTier: number | undefined): { attack: number; health: number; stepped: boolean } {
+  const p = params ?? {};
+  const atTier = num(p.atTier, 0);
+  const stepped = atTier > 0 && (shopTier ?? 0) >= atTier;
+  if (stepped) return { attack: num(p.tierAttack, 50), health: num(p.tierHealth, 50), stepped };
+  return { attack: num(p.attack, 20), health: num(p.health, 20), stepped };
 }

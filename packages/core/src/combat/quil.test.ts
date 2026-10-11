@@ -32,11 +32,11 @@ const quilBuffs = (r: CombatResult) =>
 
 describe('Quil — Start of Combat, cast the left-most held spell on adjacent Beasts', () => {
   it('casts the LEFT-MOST spell, not any other one in hand', () => {
-    // Growth is +1/+1; Spirit Fire is +2/+3. Putting Growth first must produce Growth's numbers.
+    // Growth is +2/+2; Spirit Fire is +6/+6. Putting Growth first must produce Growth's numbers.
     const r = fight(['growth', 'spiritfire']);
     const buffs = quilBuffs(r);
     expect(buffs.length, 'Quil never cast').toBeGreaterThan(0);
-    expect(buffs.every((b) => b.attack === 1 && b.health === 1), 'cast the wrong spell').toBe(true);
+    expect(buffs.every((b) => b.attack === 2 && b.health === 2), 'cast the wrong spell').toBe(true);
   });
 
   it('a TARGETED spell hits both adjacent Beasts and nothing else', () => {

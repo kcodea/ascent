@@ -58,7 +58,7 @@ describe('set 2 — Beast spell payoffs', () => {
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     s = reduce(s, { type: 'play', uid: 's1', targetUid: 'rm' });
     const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    expect(after - before, 'only Spirit Fire (+2/+3) should have landed').toBe(5);
+    expect(after - before, 'only Spirit Fire (+6/+6) should have landed').toBe(12);
   });
 });
 

@@ -204,7 +204,8 @@ describe('Goldcrafter (and reward cards generally) do not count as spells', () =
 });
 
 describe('Strange Revision can be cast on Shop minions', () => {
-  it('transforms the OFFER into a same-tier minion, bonus stats kept', () => {
+  // Owner spell batch 2026-10-10: the transform now steps UP a tier and keeps the body's current stats.
+  it('transforms the OFFER into a minion of the tier above, keeping its printed stats', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20, tier: 3,
       board: [], hand: [card('sr', 'strangerevision', 0, 1)],
@@ -214,9 +215,10 @@ describe('Strange Revision can be cast on Shop minions', () => {
     s = reduce(s, { type: 'play', uid: 'sr', targetUid: 'o1' });
     const offer = s.shop[0]!;
     expect(offer.cardId, 'the offer became a different minion').not.toBe(beforeId);
-    expect(CARD_INDEX[offer.cardId]!.tier, 'same tier').toBe(CARD_INDEX[beforeId]!.tier);
-    expect(offer.atk, 'the +2 bonus attack re-based onto the new form').toBe(2);
-    expect(offer.hp, 'the +2 bonus health re-based onto the new form').toBe(2);
+    expect(CARD_INDEX[offer.cardId]!.tier, 'the tier above').toBe(CARD_INDEX[beforeId]!.tier + 1);
+    const nd = CARD_INDEX[offer.cardId]!;
+    expect(nd.attack + (offer.atk ?? 0), 'the printed Attack (base + the +2) is kept').toBe(CARD_INDEX[beforeId]!.attack + 2);
+    expect(nd.health + (offer.hp ?? 0), 'the printed Health (base + the +2) is kept').toBe(CARD_INDEX[beforeId]!.health + 2);
   });
 });
 

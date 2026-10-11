@@ -12,6 +12,39 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-10 owner SPELL batch: Turnabout and Ruby Excavation archived from EVERY set. --
+  {
+    // ARCHIVED 2026-10-10 (owner spell batch: archived everywhere, all sets). Moved verbatim from set1/spells.ts; belongs to no set now.
+    // Swap the target's Attack and Health (spellSwapStats). No spell-power scaling — it moves existing stats,
+    // it doesn't grant them. `any` → warband minion or tavern offer.
+    id: 'turnabout',
+    name: 'Turnabout',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellSwapStats' }],
+    text: "Swap a minion's **Attack and Health**.",
+  },
+  {
+    // ARCHIVED 2026-10-10 (owner spell batch: archived everywhere, all sets). Moved verbatim from set2/spells.ts; belongs to no set now.
+    // SET 2 ONLY (owner correction 2026-07-31): Rubies are a set-2 currency.
+    id: 'rubyexcavation',
+    name: 'Ruby Excavation',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellPlayRubiesAll', params: { rubies: 2 } }],
+    text: 'Cast **2 Rubies** on all of your minions.',
+  },
   {
     // ARCHIVED 2026-10-10 (owner: archive Cavern Fiend). Moved verbatim from set2/kobolds.ts; belongs to no set now.
     // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).

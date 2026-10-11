@@ -24,7 +24,10 @@ describe('findings (synthetic fixture)', () => {
     // same stream that deals the card / rune ids), so the Balance 9/23 pool change (11 runes archived, Picnic added)
     // reshuffled the stream and nadja's latent draw landed at ~3.5 across the overlapping windows 1–6 — a fixture
     // artefact (nothing here touches the reducer), not a hero change. Windows 100/200/500/1000/2000/3000 all scan clean.
-    const nullF = computeFindings(job(30, {}, 100), { bootstrapReps: 400 });
+    // Window 100 → 200 on 2026-10-11, the same kind of artefact: the combined pool (owner spell batch archives + Gasket,
+    // Rad Rachel, Cavern Fiend archived) reshuffled the stream and midas's draw flagged at window 100. Windows
+    // 200/300/500/1000/2000/3000 all scan clean.
+    const nullF = computeFindings(job(30, {}, 200), { bootstrapReps: 400 });
     for (const h of nullF.heroes) { expect(h.suppressed).toBe(false); expect(h.placement.n).toBe(30); }
     expect(nullF.heroes.filter((h) => h.verdict !== 'none').map((h) => h.heroId)).toEqual([]);
     expect(nullF.fdr.families[0]).toEqual({ family: 'heroes', tested: 8, flagged: 0 });

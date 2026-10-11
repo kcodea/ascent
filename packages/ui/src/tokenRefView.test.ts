@@ -16,17 +16,17 @@ const spellLive = (growthBonus: number) => ({
 describe('tokenRefView — referenced Growth popup pays the Rune of Living Growth accrual', () => {
   it('folds growthBonus into the previewed Growth text', () => {
     const v = tokenRefView('growth', undefined, undefined, spellLive(3));
-    expect(v.text, 'popup must print the improved value (1 base + 3 accrued)').toContain('{{+4/+4}}');
+    expect(v.text, 'popup must print the improved value (2 base + 3 accrued)').toContain('{{+5/+5}}');
   });
 
   it('spell power stacks on top of the accrual, matching the shop chain', () => {
     const v = tokenRefView('growth', undefined, undefined, { ...spellLive(2), a: 1, h: 1 });
-    expect(v.text).toContain('{{+4/+4}}');
+    expect(v.text).toContain('{{+5/+5}}');
   });
 
   it('without the rune the printed base stands', () => {
     const v = tokenRefView('growth', undefined, undefined, spellLive(0));
-    expect(v.text).toContain('+1/+1');
+    expect(v.text).toContain('+2/+2'); // Growth's base since the owner spell batch 2026-10-10
     expect(v.text).not.toContain('{{');
   });
 });

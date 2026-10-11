@@ -54,10 +54,10 @@ describe("Keshi's Crown", () => {
   });
 
   it('banks a spell bought from the right-hand spell slot', () => {
-    let s = keshiRun({ spell: { uid: 'sp', cardId: 'perfectvision' } }); // tier 6 spell
+    let s = keshiRun({ spell: { uid: 'sp', cardId: 'perfectvision' } }); // tier 5 spell (was tier 6 until the owner spell batch 2026-10-10)
     s = reduce(s, { type: 'buy', uid: 'sp' });
     expect(s.hand.some((c) => c.cardId === 'perfectvision')).toBe(true); // the buy really happened
-    expect(s.keshiTierPoints).toBe(6);
+    expect(s.keshiTierPoints).toBe(5);
   });
 
   it('banks a spell bought out of the minion row (Spell Cart)', () => {

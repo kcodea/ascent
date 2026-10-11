@@ -182,20 +182,6 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'grantRandomAle', params: { count: 3 } }],
     text: 'Get **3 random Dwarven Ales**.',
   },
-  {
-    // SET 2 ONLY (owner correction 2026-07-31): Rubies are a set-2 currency.
-    id: 'rubyexcavation',
-    name: 'Ruby Excavation',
-    tribe: 'neutral',
-    tier: 6,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 3,
-    effects: [{ on: 'cast', do: 'spellPlayRubiesAll', params: { rubies: 2 } }],
-    text: 'Cast **2 Rubies** on all of your minions.',
-  },
 
   {
     // The bait: point a Demon at the buffet. Four RANDOM shop consumes with the target as the eater, so every
@@ -225,7 +211,7 @@ export const SET2_SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 2,
+    cost: 1, // owner spell batch 2026-10-10: 2 → 1 Gold
     target: 'any',
     effects: [
       { on: 'cast', do: 'spellBuffTarget', params: { attack: 3, health: 4 } },
@@ -244,7 +230,7 @@ export const SET2_SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 2,
+    cost: 1, // owner spell batch 2026-10-10: 2 → 1 Gold
     effects: [{ on: 'cast', do: 'spellGambleTierPull', params: {} }],
     text: 'Roll a die. Get a random minion or spell of that Tier.',
   },
@@ -262,7 +248,7 @@ export const SET2_SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 3,
+    cost: 2, // owner spell batch 2026-10-10: 3 → 2 Gold
     effects: [{ on: 'cast', do: 'spellBuffRandomPerTribe', params: { tribe: 'dragon', base: 1, attack: 4, health: 4 } }],
     text: 'Give a friendly minion **+4/+4**. Repeat for every **Dragon** you control.',
   },

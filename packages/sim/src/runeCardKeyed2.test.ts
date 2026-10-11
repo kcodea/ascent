@@ -128,8 +128,8 @@ describe('Rune of Living Growth', () => {
     const [a0, h0] = [before.attack, before.health];
     s = reduce(s, { type: 'play', uid: 'g' }) as RunState;
     const after = s.board.find((c) => c.uid === 't')!;
-    // Base +1/+1 plus the banked +1/+1 = +2/+2 on every friendly minion.
-    expect([after.attack - a0, after.health - h0]).toEqual([2, 2]);
+    // Base +2/+2 plus the banked +1/+1 = +3/+3 on every friendly minion.
+    expect([after.attack - a0, after.health - h0]).toEqual([3, 3]);
   });
 
   it('combat-created Growths tick the improver at settle (owner ruling: combat counts too)', () => {
@@ -152,10 +152,10 @@ describe('Rune of Living Growth', () => {
   });
 
   it('the Growth card itself prints the upgraded value (the live-text rule)', () => {
-    expect(spellDisplayText('growth', 0, 0, 0, 0, 0, 0, {})).toContain('+1/+1');
-    expect(spellDisplayText('growth', 0, 0, 0, 0, 0, 0, { growthBonus: 2 })).toContain('{{+3/+3}}');
+    expect(spellDisplayText('growth', 0, 0, 0, 0, 0, 0, {})).toContain('+2/+2');
+    expect(spellDisplayText('growth', 0, 0, 0, 0, 0, 0, { growthBonus: 2 })).toContain('{{+4/+4}}');
     // Spell power stacks on top, exactly as it does at cast time.
-    expect(spellDisplayText('growth', 1, 0, 1, 0, 0, 0, { growthBonus: 2 })).toContain('{{+4/+4}}');
+    expect(spellDisplayText('growth', 1, 0, 1, 0, 0, 0, { growthBonus: 2 })).toContain('{{+5/+5}}');
   });
 
   it('without the rune Mushy ticks nothing', () => {

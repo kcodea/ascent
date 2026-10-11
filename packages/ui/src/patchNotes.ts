@@ -60,6 +60,26 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Spell batch: cheaper spells, bigger buffs, a new Perfect Vision and a new Strange Revision. Two spells removed.',
+        details: [
+          'Ruby Excavation has been removed from the game.',
+          'Turnabout has been removed from the game.',
+          'Invitation Above now costs 3 Gold (was 4).',
+          'Dragonflame now costs 2 Gold (was 3).',
+          'Gamble now costs 1 Gold (was 2).',
+          'Quick Study now costs 2 Gold (was 3).',
+          'Blessing now costs 1 Gold (was 2).',
+          'Spirit Fire now costs 3 Gold (was 2) and gives +6/+6 (was +2/+3).',
+          'Growth now gives your minions +2/+2 (was +1/+1). Taragosa casts the same Growth, so it now gives +2/+2 too (was +3/+4).',
+          'Staff of Guel now gives minions in the Shop +3/+3 (was +3/+4).',
+          'Waking Rift now reads "Give your minions +5/+5 twice." It works the same as before.',
+          'Perfect Vision is now a Tier 5 spell (was Tier 6). It sets a minion to 20/20, or to 50/50 if you are Shop Tier 6. The card shows which one applies right now.',
+          'Eyes of Aresmar now costs 4 Gold (was 5).',
+          'Strange Revision now costs 1 Gold (was 3). It turns a minion into a random minion of the tier above it, and the minion keeps its stats. A Tier 7 minion turns into another Tier 7.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'New Demon: Gasket, a Tier 4 that blasts the whole board each time it attacks.',
         details: [
           'Gasket (Tier 4, 7/3 Demon). Rally: deal 2 damage to all minions except friendly Demons.',

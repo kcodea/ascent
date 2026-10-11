@@ -550,11 +550,11 @@ describe('Fatecarver (owner roster 2026-07-29; reworked 2026-10-10)', () => {
     const atk = (uid: string, st: RunState): number => st.board.find((x) => x.uid === uid)!.attack;
     const before = [atk('b1', s), atk('b2', s), atk('d1', s)];
     s = reduce(s, { type: 'play', uid: 'sp' });
-    // Growth itself buffs the whole board +1/+1, so compare the DELTA above that baseline.
+    // Growth itself buffs the whole board +2/+2, so compare the DELTA above that baseline.
     const after = [atk('b1', s), atk('b2', s), atk('d1', s)];
-    expect(after[0]! - before[0]!, 'the first Beast should get Growth +1 AND Fatecarver +6').toBe(7);
-    expect(after[1]! - before[1]!, 'the second Beast should get Growth only').toBe(1);
-    expect(after[2]! - before[2]!, 'the Demon should get Growth +1 AND Fatecarver +6').toBe(7);
+    expect(after[0]! - before[0]!, 'the first Beast should get Growth +2 AND Fatecarver +6').toBe(8);
+    expect(after[1]! - before[1]!, 'the second Beast should get Growth only').toBe(2);
+    expect(after[2]! - before[2]!, 'the Demon should get Growth +2 AND Fatecarver +6').toBe(8);
   });
 
   it('an old save body that chose the retired Growth branch casts nothing on a friendly attack', () => {
@@ -669,7 +669,7 @@ describe('the run-wide Ale multiplier (Bottomless Cellar / Rune of the Bottomles
     s = { ...s, aleExtraCasts: 3, board: [body('dw_brunni', 'b')], hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     const before = s.board[0]!.attack;
     s = reduce(s, { type: 'play', uid: 'g' });
-    expect(s.board[0]!.attack - before, 'Growth was multiplied by the ALE flag').toBe(1);
+    expect(s.board[0]!.attack - before, 'Growth was multiplied by the ALE flag').toBe(2);
   });
 
   it('both the quest and the rune ride the same primitive', () => {

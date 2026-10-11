@@ -77,9 +77,9 @@ describe('set 2 — Ruby exclusion matches the printed text', () => {
     const [a1, h1] = [afterRuby.attack, afterRuby.health];
     s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'mw' }); // then a Shop spell
     const after = s.board.find((c) => c.uid === 'mw')!;
-    // Spirit Fire is +2/+3 and Mirrorwing re-casts it, so the Shop spell must land TWICE (+4/+6). A single
+    // Spirit Fire is +6/+6 and Mirrorwing re-casts it, so the Shop spell must land TWICE (+12/+12). A single
     // +2/+3 here would mean the Ruby had eaten the slot.
-    expect([after.attack - a1, after.health - h1]).toEqual([4, 6]);
+    expect([after.attack - a1, after.health - h1]).toEqual([12, 12]);
   });
 
   it('a Ruby arms neither Recaller nor Spellvault nor Archivist', () => {

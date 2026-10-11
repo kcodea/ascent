@@ -1113,12 +1113,12 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
   });
 
   it('Rune of Recurrence: End of Turn recasts the first spell TWICE (owner sheet 2026-07-31)', () => {
-    // Untargeted: Growth (+1/+1 board-wide) recast twice at EoT → +2/+2 total.
+    // Untargeted: Growth (+2/+2 board-wide) recast twice at EoT → +4/+4 total.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'growth',
       board: [mkAlley('m')] };
     applyEndOfTurn(s);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 2, 1 + 2]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 4, 1 + 4]);
     // Aimed: Patch Job (+1/+1 baseline at 0 Gold spent) recast twice onto a (seeded-random) board minion.
     const t: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'patchjob', goldSpentThisTurn: 0,

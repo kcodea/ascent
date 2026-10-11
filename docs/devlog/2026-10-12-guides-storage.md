@@ -1,0 +1,72 @@
+# 2026-10-12: Guides move to the server (step 1 of 4)
+
+Owner ask (2026-10-11): "i'd like the ability to edit existing guides while in game and save them. The existing
+[guides] are written by 'Team Ascent' and should only be able to be modified by myself and KC. outside of that, one
+should be able to create a new guide either from scratch or by duplicating an existing guide."
+
+Spec: `docs/superpowers/specs/2026-10-11-community-guides-design.md`. Plan:
+`docs/superpowers/plans/2026-10-11-community-guides-1-storage.md`. This is the storage and reading step. Nothing a
+player sees changes yet: the editor is step 2, publishing step 3, moderation step 4.
+
+## What shipped
+
+- **`@game/guides`** (`packages/guides/`): wire types, the owner's limits, draft validation, the game's first word
+  filter, the set carry-over rule, and the `guide-write` handler. Dependency-free; `npm run guides:shared` generates
+  the Deno copies and a test fails CI when they drift.
+- **Database** (`supabase/migrations/2026-10-12-guides.sql`): `guides`, `guide_team`, `guide_bookmarks`,
+  `guide_reports` and `guide_writes` (a save log for the rate limit). Read under row-level security (official, or
+  published and not hidden, or your own, or you are on the team). No client write policy: `guide_save`,
+  `guide_delete` and `guide_import_builtins` are the only writers and only the service role may call them. They hold
+  the row rules: official = team only, 20 guides per player, 30 saves an hour, a stale revision is a conflict.
+  Official (Team Ascent) rows store no author, so they depend on no account, and a deleted player's guides are
+  deleted with the account. Each account's saves are serialised with an advisory lock so a burst of parallel saves
+  cannot beat the 20-guide cap or the 30-per-hour limit. Table writes and the write functions are revoked from
+  client roles as a second line behind row-level security.
+- **`guide-write`** Edge Function: verifies the token, refuses guests, and answers 401 / 403 before reading the body.
+  It refuses a body over 64 KB measured in bytes (a declared-size check before reading, then a tested byte count)
+  before parsing it, then runs the handler.
+- **Client**: `guidesStore` loads the official guides in the background when identity lands; the eleven built-in
+  guides (`guides.bundled.ts`) show until the server answers with at least one usable guide. The rail takes its
+  snapshot in a layout effect, before paint, when its Guides view opens, so a refresh never moves a card under the
+  reader; the Compendium subscribes.
+- **Sets**: a guide carries `sets` instead of one `set`. `guidesFor` filters on it.
+- **A card that left**: its portrait stays in the row, greyed and labelled "Missing or removed", with no hover. The
+  slot is inert for every part of the card (a spell's cost coin re-enables pointer events otherwise), and a nickname
+  for a missing card is not linked.
+
+## Decisions that differ from the spec
+
+1. The art icon does not count toward set membership (the Imps guide's icon is a token in no set's pool).
+2. Official guides keep today's order: a `sort_order` column, guides grouped by first tribe in the order each tribe
+   first appears once the list is ordered by `sort_order` then id, Neutral last. A tribe's guides stay adjacent even
+   when orders tie.
+3. A dropped connection keeps the last loaded list rather than falling back to the built-in copies mid-session.
+4. `store.ts` gets the boot call (one import, two lines).
+5. The import button waits for step 2; the op and its tests are here.
+6. Official rows store `author_id = null` and the foreign key is `on delete cascade` (the spec said the author is
+   the team member who created the guide). A team member leaving cannot delete Team Ascent guides, and a deleted
+   player's guides do not linger. `updated_by` still records the last editor.
+7. The invisible-character set is wider than first planned: zero-width characters, the bidi controls including the
+   isolates (U+2066 to U+2069, U+061C), and blank-rendering fillers (U+00AD, U+034F, U+180E, U+2800, U+3164,
+   U+FFA0). A title made only of them is refused.
+8. Reserved "by" lines are compared with repeated letters collapsed, so "Teaam Ascent" and "Aadmin" are refused too.
+9. A server row tagged with the tribe `neutral` is treated as a Neutral guide rather than dropped.
+
+## Owner actions before step 2 can be used
+
+Run the migration, add the two team accounts, deploy `guide-write` (`supabase/README.md`, "Guides on the server").
+
+## Known gaps (for the owner)
+
+- The word filter is deliberately basic. Known to pass today: a stretched vowel inside a doubled-letter stem, plurals
+  and suffixed forms of whole-word entries, and non-Latin lookalike letters (which also get past the Team Ascent
+  reservation). Nothing public depends on it until publishing ships in step 3; the owner reviews the list before
+  then. Report and Hide (step 4) are the real defence.
+- The look of the "Missing or removed" slot is a first cut that has not been judged in a real render.
+- The advisory lock cannot be raced in PGlite (one connection), so it is verified by reading, not by a test.
+- Deleting an imported built-in guide is undone by the next import.
+
+## Not verified here
+
+Row-level security and the write functions are executed against PGlite, not the live project. The live check (a
+private guide unreadable by a second account) is in the step 2 plan, when there is a way to create one.

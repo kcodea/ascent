@@ -2938,3 +2938,9 @@ Do **not** arm auto-merge on this PR: it adds server tables and Kevin should see
 - Spec section 9 step 1 lists: the migration (Task 4), `@game/guides` (Tasks 1 to 3, 5), `guide-write` with `save` / `delete` / `importBuiltIns` (Task 5), `guidesRemote` + `guidesStore` (Tasks 7, 8), the bundled fallback split and `sets`-based `guidesFor` (Task 6), the missing-card slot (Task 9), the word filter on every save (Tasks 2, 5), `supabase/README.md` (Task 10).
 - Not in this step, by the spec: the editor, the team flag on the client, My guides / Saved / Community pills, `setPublished`, bookmarks, reports, hide, carry-over, `guides:pull`, retiring the owner's title and card pins, patch notes (nothing a player sees changes), the rules wiki entry.
 - No oracle rule is added: this is a feature, not a bug fix. R-NET-01 is honoured by the read seam and re-checked in Tasks 5 and 7.
+
+## Execution notes (2026-10-11)
+
+The code in this plan was corrected during execution by review rulings, so the shipped code differs from the snippets
+above. The plan's deviation 6 was replaced: official rows store no author (`author_id = null`) and the foreign key
+cascades on delete. The full list of decisions is in `docs/devlog/2026-10-12-guides-storage.md`.

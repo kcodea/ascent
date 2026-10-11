@@ -150,6 +150,27 @@ Which owned items a player has looked at (the Collection's NEW badge) is saved o
 and nothing to deploy: run `migrations/2026-10-11-cosmetics-seen.sql` in the SQL Editor once. Its first run marks
 everything owned so far as seen. A client that reaches a database from before it keeps the list on the device.
 
+## Guides on the server (2026-10-12)
+
+Guides (Team Ascent's and, from the next steps, players') live in `public.guides`. Spec:
+`docs/superpowers/specs/2026-10-11-community-guides-design.md`.
+
+1. **Run the migration.** Paste `supabase/migrations/2026-10-12-guides.sql` into the SQL Editor and Run. It is
+   idempotent and depends on nothing but `auth.users`.
+2. **Add the team, once.** In the SQL Editor, with the two real emails typed in (never commit them):
+   `insert into public.guide_team (user_id) select id from auth.users where email in ('<mike>', '<kc>') on conflict do nothing;`
+   Then check it took: `select count(*) from public.guide_team;` should say 2.
+3. **Deploy the function.** `npx supabase functions deploy guide-write`.
+
+Until step 1 runs, the client reads "relation does not exist", treats guides as switched off, and shows its built-in
+guides: shipping the client first is safe. Until the built-in guides are imported (a team-only button that arrives
+with the editor), the table has no official rows and every player still sees the built-in guides.
+
+`functions/guide-write` imports `_shared/guides*.ts`, which are GENERATED from `packages/guides/src` by
+`npm run guides:shared` (CI fails if they drift, so never edit them by hand). The function is the only writer: the
+tables have no client write policy. The function refuses guests, answers before reading the body, and caps the body
+at 64 KB in bytes.
+
 ### Note
 
 This directory is **Deno**, not part of the Node monorepo build: the repo's `tsc`/`eslint` skip it

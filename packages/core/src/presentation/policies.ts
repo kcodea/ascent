@@ -174,7 +174,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleGrantWardRandom:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleMaxGold:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattlePlayRubiesTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
-  'factory:deathrattleReplayAdjacentBattlecry:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleReplayAdjacentBattlecry:onDeath': { policy: 'ownBeat', family: 'echo', children: 'sequential' },
   'factory:deathrattleRubyStatGain:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Noggin (set 3)
@@ -475,7 +475,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellCastDemonConsumesShop:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
   'factory:spellCastImproveSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:spellCastTransform:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },
-  'factory:spellCastTriggerAdjacentShouts:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'triggers a nested Shout right after the cast; near-zero windup' },
+  'factory:spellCastTriggerAdjacentShouts:spellCast': { policy: 'ownBeat', family: 'castPayoff', children: 'sequential', reason: 'triggers a nested Shout right after the cast; near-zero windup' },
   'factory:spellCopyRecent:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:spellCopyTargetExact:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellDecoyNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },

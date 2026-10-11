@@ -29,11 +29,33 @@ Gilded order stays A, B, C, A, B, C: that is the engine's order (the gild loop w
 precedent), and presentation must not reorder. Orivax / Drakko repeats run inside `replayBattlecry`, so they stay
 inside that minion's one beat.
 
+## Follow-up on the same PR: Dawnclaw and High King Mykel (owner: "dawnclaw and mykel should also do one at a time")
+
+- **Engine (presentation only).** `deathrattleReplayAdjacentBattlecry` (Dawnclaw, Ryme) and
+  `spellCastTriggerAdjacentShouts` (Mykel) now route their fires through `replayShoutsAsChain` (recruit.ts). It
+  calls `replayBattlecry` once per fire, in the same order as before, inside a parent trigger (the trigger-er,
+  `factory:<do>:<on>`) with one nested trigger per Shout, both `discardIfEmpty`. It skips opening the parent when
+  the caller already opened that same trigger for that minion (`recruitTriggerSpecs`). Both registry entries get
+  `children: 'sequential'`. With no collector, the fires are byte-for-byte the old loop.
+- **Order.** Left neighbour first. Gilded Dawnclaw is L, L, R, R: the shop loop was already per-neighbour-then-repeat,
+  and so is the combat factory, so both phases agree. Mykel gilded is L, R; plain picks one seeded neighbour.
+- **Shop (mid-turn).** Mid-turn actions never play the beat batch (only End of Turn does; the batch is DEV-only
+  elsewhere), so the sim also stamps `shoutLinkFx` (`{ fromUid, fromCardId, toUid, fxStart, fxEnd }`, per action,
+  reset in `reduce` beside `questTendrilFx`) + `shoutLinkFxSeq`. `choreo/shoutChain.ts` `planShoutChain` lays link k
+  at `k x 480 ms` and that fire's `recruitBuffFx` slice at its delivery (+230 ms), the same `CHAIN_LINK_PACING` as
+  End of Turn. Recruit draws the tendril per link (`shoutLinkFxSeq` watcher, the trigger-er's last slot if it has
+  left the board) and the `recruitFxSeq` watcher holds each fire's buff records for its link. Under the arena or the
+  curtain the chain is skipped and the records play in the normal settle wave. The End-of-Turn commit advances
+  `prevShoutLinkSeq` (eotCommitSeqs ADVANCED).
+- **Combat.** Already one moment per `shout` fire (`channels/shoutFired.ts`), left neighbour first
+  (`livingNeighbours`). `useCombatReplay` `onShoutProc` now draws the trigger-er's tribe tendril on that moment when
+  `isShoutChainTrigger(card)` (read off the same registry flag), streaming from the fallen Echo body's last slot.
+  Combat moment timing is unchanged, so the combat tendril starts with that fire's moment rather than strictly
+  before its buffs. Mykel has no combat factory (Shop only).
+
 ## Not changed (different code paths)
 
 - Moira (archived) shares the factory, so she gets the same chain (with a beast tendril).
 - Roomworks (one targeted End of Turn), Echoing Roar, Rune of the Crucible Choir, Drakko x Time: one Shout each, so
   there is no chain to split.
-- Dawnclaw's Shop Echo (`deathrattleReplayAdjacentBattlecry`) and High King Mykel (`spellCastTriggerAdjacentShouts`)
-  fire two Shouts inside one beat with no per-Shout nested trigger. They could opt in by wrapping each fire in a
-  nested trigger and adding `children: 'sequential'` to their registry entry.
+- Dawnclaw and Mykel: done in the follow-up above.

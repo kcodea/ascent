@@ -273,7 +273,7 @@ const stable = (v: unknown): string => {
 const CAST_NOISE = new Set([
   'rngCursor', 'uidCounter', 'uidSeq', 'presentation', 'fx', 'beats', 'log',
   'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx', 'lastShoutFires', 'lastEchoFires', 'lastRallyFires', 'lastEotFires',
-  'questTendrilFx', 'fodderEaten', 'shopEaten', 'gainCardFiredUids', 'gainAttackFiredUids', 'equipmentSpellCasts', 'recruitBuffFx',
+  'questTendrilFx', 'shoutLinkFx', 'shoutLinkFxSeq', 'fodderEaten', 'shopEaten', 'gainCardFiredUids', 'gainAttackFiredUids', 'equipmentSpellCasts', 'recruitBuffFx',
   'aleGranted', 'veinstormStamped', 'weldFxBaseSeq', 'karwindFlash', 'shopDeathFx', 'equipFx',
   'spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'spellsCastIds', 'alesCastThisTurn',
   'embers', 'goldSpent', 'goldSpentThisTurn', 'playedThisTurn', 'cardsPlayedTotal', 'hand', 'nextSpellBonus',

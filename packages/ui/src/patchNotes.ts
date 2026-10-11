@@ -60,10 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: "Shrieker's End of Turn now triggers your Shouts one at a time, left to right.",
+        text: 'Shrieker, Dawnclaw and High King Mykel now trigger Shouts one at a time, left to right.',
         details: [
           'A dragon tendril flies from Shrieker to each Shout minion in turn, then that Shout plays out before the next one starts.',
           'Gilded Shrieker runs the whole row twice.',
+          "Dawnclaw's Echo triggers its left neighbour's Shout first, then the right one, each with a beast tendril. This works in the Shop and in combat.",
+          'High King Mykel sends a tendril to each Shout it triggers, one at a time.',
           'What the Shouts do is unchanged. Only how they are shown.',
         ],
       },

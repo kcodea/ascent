@@ -78,6 +78,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'New Demon rune: Rune of the Ruinous gets you a Ruinous Lord.',
+        details: [
+          'Rune of the Ruinous is a Basic rune that costs 4 Gold. It shows up in Set 2 runs that have Demons.',
+          'Ruinous Lord is a Tier 4 4/5 Demon you can only get from the rune.',
+          'When a friendly Demon deals damage, your Demons get +1/+1. In combat it lasts for that combat. In the Shop it is permanent. Gilded: +2/+2.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Humphry fix: its Shout always gives at least +2/+2 now.',
         details: [
           'Humphry gives a friendly Dragon +2/+2, plus +2/+2 for every other Dragon you played this turn. Gilded: +4/+4, plus +4/+4 each.',

@@ -1083,4 +1083,25 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-10: Storm Chaser was a SHOP_ONLY_SHOUTS entry (#2016) that deferred the whole cast to settle.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-RUINOUS-01',
+    title: 'Ruinous Lord: every landed friendly-Demon hit gives your living Demons +1/+1 for this combat only',
+    statement:
+      'Ruinous Lord (granted only by Rune of the Ruinous) watches the same trigger as Impossible Todd (R-DEALT-01): it '
+      + 'fires once for every instance of damage a FRIENDLY Demon lands in combat, its own swings included; a Ward-absorbed '
+      + 'hit dealt nothing and does not count, and an enemy Demon never fires it. Each fire gives every living friendly '
+      + 'Demon (the Lord itself included) +1/+1, gilded +2/+2. Fired in combat the gain lasts THIS COMBAT ONLY, except on '
+      + 'an Engraved body, which carries it back; a friendly Demon dealing damage in the Shop (a Shop-fired Fel Spikes Echo, '
+      + 'one fire per landed hit) pays your board Demons PERMANENTLY (R-BUFF-PHASE-01). Each combat fire is its own '
+      + 'beat: one buff wave, all the Demon gains landing together.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner add 2026-10-10 (Rune of the Ruinous)', quote: 'When a Demon deals damage, give your Demons +1/+1. The buff lasts for this combat only.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts onFriendlyDemonDamageBuffTribe; packages/content/src/cards/set2/demons.ts dm_ruinouslord; packages/content/src/runes.ts rune_ruinous' },
+    ],
+    contentIds: ['dm_ruinouslord', 'rune_ruinous'],
+    currentBehaviour: 'Conforms as of 2026-10-11 (new card + new primitive; the Shop half added with the owner phase ruling).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ruinousRune1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

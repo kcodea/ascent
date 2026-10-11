@@ -736,4 +736,24 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-09',
     },
   },
+  {
+    id: 'R-BUFF-PHASE-01',
+    title: 'A triggered buff is combat-only when it fires in combat, permanent when it fires in the Shop; Engraved carries combat gains back',
+    statement:
+      'The permanence of a triggered stat buff follows the PHASE its trigger fires in, not a per-card setting. Fired '
+      + 'during combat, the gain lasts that fight only and is gone at settle, except on an Engraved minion, which carries '
+      + 'it back to the run board like every combat gain. Fired in the recruit phase (the Shop, End of Turn), the gain is '
+      + 'permanent. A card whose text says "permanently" or "this combat" overrides the default. First applied to Ruinous '
+      + 'Lord: a Demon hit in combat pays your Demons for that fight; a Demon dealing damage in the Shop (a Shop-fired Fel '
+      + 'Spikes Echo) pays your board Demons for good.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-10 (on Rad Rachel / Ruinous Lord)', quote: 'it is combat only if triggered in combat, if a minion is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be permanent.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts onFriendlyDemonDamageBuffTribe (ctx.buff, no permaGain); packages/core/src/combat/simulate.ts ctx.buff (Engraved permaGain); packages/sim/src/recruit.ts RECRUIT_FACTORIES.onFriendlyDemonDamageBuffTribe (addBuff) + fireShopDemonDealtDamage + shopSprayExceptTribe' },
+    ],
+    contentIds: ['dm_ruinouslord'],
+    currentBehaviour: 'Conforms as of 2026-10-11 for Ruinous Lord (combat, Engraved and Shop cases each tested).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ruinousRune1010.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
 ];

@@ -4398,6 +4398,31 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — "When a Demon deals damage, give your <tribe> minions +a/+h" (Ruinous Lord: your Demons, `tribe: 'demon'`;
+   *  omitted = every friendly minion, the shape Rad Rachel shares). The SAME trigger as Impossible Todd
+   *  (`friendlyDemonDealtDamage`: a LANDED hit by a friendly Demon, attack, retaliation or incidental, its own hits
+   *  included; a Ward-absorbed 0-damage hit never fires). Pays every LIVING friendly minion (of `tribe` when given),
+   *  the source included. Gilded doubles via `mul`.
+   *
+   *  PERMANENCE (owner ruling 2026-10-11, R-BUFF-PHASE-01): "it is combat only if triggered in combat, if a minion
+   *  is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be
+   *  permanent." This combat half is a plain `ctx.buff`: no permaGain, so it ends with the fight except on an
+   *  Engraved body (the standing carry-back). The Shop half (recruit.ts) is a permanent `addBuff`.
+   *
+   *  One trigger = one run of `buff` events, which the replay collapses into one buff-wave moment, so a long Demon
+   *  fight shows one wave per landed hit (every minion's gain together), never one beat per minion. */
+  onFriendlyDemonDamageBuffTribe: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.side !== self.side) return;
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (!a && !h) return;
+    const tribe = str(params.tribe);
+    const arena = combatArena(ctx, self);
+    for (const m of ctx.living(self.side)) if (!tribe || arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.uid);
+  },
+
   /** Set 2 — Kobe (Start of Combat): play `count` PERMANENT Rubies on this minion AND each living adjacent
    *  same-`tribe` neighbour. Threads `permanent: true` through `playRubyOn`, so the gain carries back to the
    *  run board (see `applyRubyStats`); golden doubles `count`. */

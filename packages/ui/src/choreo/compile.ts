@@ -1,6 +1,7 @@
 import type { CombatEvent } from '@game/core';
 import { RESULT_TYPES, type Beat } from '../combatBeats';
 import { momentKind, type MomentKind } from './kinds';
+import { hitReactionStart } from './hitReactions';
 
 /**
  * The Moment Compiler — phase 1 of the combat choreographer (spec: docs/superpowers/specs/
@@ -93,6 +94,9 @@ export interface Moment extends Beat {
   stepGroups: number[][];
   /** Presentation kind (phase 2) — see kinds.ts. */
   kind: MomentKind;
+  /** Set on a wave pass's REACTION beat, split off the pass's tail (`hitReactions.ts`, R-DEMON-DMG-BEATS-01): the
+   *  clock starts it right after the pass lands and holds it until its tendrils have read. */
+  hitReaction?: true;
 }
 
 /** Split a moment's index range into contiguous runs sharing a DEFINED `step` tag. */
@@ -160,6 +164,14 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
       // event type; the next pass (a new id) is its own moment (a pause between waves). MUST mirror `buildBeats`
       // (the equivalence oracle) exactly. Real logs today carry no wave tags, so equivalence is untouched.
       while (i < events.length && events[i]!.wave === w) i++;
+      // The pass's REACTIONS (a Demon's landed hits buffing through Rad Rachel / Ruinous Lord / Todd) are their own
+      // beat, right after the pass (R-DEMON-DMG-BEATS-01). MUST mirror `buildBeats`.
+      const split = hitReactionStart(events, start, i);
+      if (split > start) {
+        moments.push({ start, end: split, primary: events[start]!, stepGroups: groupBySteps(events, start, split), kind: momentKind(events[start]!) });
+        moments.push({ start: split, end: i, primary: events[split]!, stepGroups: groupBySteps(events, split, i), kind: momentKind(events[split]!), hitReaction: true });
+        continue;
+      }
     } else if (rules.collapse.has(t)) {
       // `i > start` so a run always keeps its OWN opening damage — it is only a LATER swing's first damage
       // that starts a new moment.

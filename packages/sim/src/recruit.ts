@@ -11106,7 +11106,7 @@ function shopSprayExceptTribe(state: RunState, amount: number, exc: string, sour
     for (const c of victims) {
       if (c.health <= 0 || !state.board.includes(c)) continue;
       c.health -= amount;
-      if (demonSource) fireShopDemonDealtDamage(state, source!);
+      if (demonSource) fireShopDemonDealtDamage(state, source!, p);
     }
   }
   const dead = state.board.filter((c) => c.health <= 0);
@@ -11125,16 +11125,40 @@ function shopSprayExceptTribe(state: RunState, amount: number, exc: string, sour
  * The self-buff reactors (Leech / Axeman / Impossible Todd) have no Shop body yet, so they stay combat-only here.
  * A board SNAPSHOT, so a watcher that dies mid-spray still answers the hits it saw.
  */
-export function fireShopDemonDealtDamage(state: RunState, source: BoardCard): void {
+export function fireShopDemonDealtDamage(state: RunState, source: BoardCard, pass = 0): void {
   const ctx = makeContext(state);
-  for (const card of [...state.board]) {
+  const phase: PresentationPhase = endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit';
+  const board = [...state.board];
+  board.forEach((card, slot) => {
     for (const effect of instanceEffects(card)) {
       if (effect.on !== 'friendlyDemonDealtDamage') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: source }));
+      if (!fn) continue;
+      // REAL TIME, ITS OWN BEAT (R-DEMON-DMG-BEATS-01, owner 2026-10-11): each reaction is a nested trigger under
+      // whatever dealt the hit (Gasket's forced Rally, a Fel Spikes Echo), opened AFTER that hit, with the registry
+      // identity combat uses, so the batch places it at the hit. `discardIfEmpty`: a reaction that paid nothing
+      // (no living member of its tribe) leaves no beat.
+      const fxStart = state.recruitBuffFx.length;
+      withRecruitTrigger(
+        ctx,
+        {
+          phase,
+          source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+          trigger: 'friendlyDemonDealtDamage',
+          ...beatIdentity(`factory:${effect.do}:friendlyDemonDealtDamage`),
+        },
+        () => captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: source })),
+        { discardIfEmpty: true },
+      );
+      // The mid-turn Shop replay (which plays `recruitBuffFx`, not the batch) coalesces to ONE tendril per target per
+      // `fxWave`. Untagged, Rad Rachel's ribbon to a Demon swallowed Ruinous Lord's. One wave per (pass, source):
+      // every minion a source buffed this pass gets one tendril FROM that source, sources and passes in order.
+      for (let i = fxStart; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave ??= DEMON_DMG_FX_WAVE_BASE + pass * 16 + slot;
     }
-  }
+  });
 }
+/** Keeps the Demon-damage reaction waves after any small-integer `fxWave` another effect in the same action used. */
+const DEMON_DMG_FX_WAVE_BASE = 1000;
 
 export function fireStarformGained(state: RunState, attack: number, health: number): void {
   if (attack <= 0 && health <= 0) return;

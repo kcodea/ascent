@@ -251,14 +251,15 @@
    only 15% or so ... edges faded out"): `.colls-tile-text` wraps the three lines. Everywhere else it is
    `display: contents`, so no other tile's layout changes. On a skin tile it is the band: it bleeds through the
    tile's 14px side padding to reach both edges and is 40% dark (raised from 15% the same day). Its TOP and
-   BOTTOM edges are SHARP and its LEFT and RIGHT ends fade out over the outer fifth (owner, same day: "i want
-   the top and bottom to be sharp and the left and right to fade"). Its own 10px bottom padding plus the tile's
+   BOTTOM edges are SHARP and its LEFT and RIGHT ends fade out (owner, same day: "i want the top and bottom to
+   be sharp and the left and right to fade", then "bring in the left and right sides a bit": the fade runs from
+   28% in to 8% in on each side, so the band is gone before it reaches the frame). Its own 10px bottom padding plus the tile's
    22px keeps the name 32px off the foot, and puts the band's bottom edge exactly on the ribbon's top. */
 .colls-tile-text { display: contents; }
 .colls-tile.skin:not(.ring) { padding-bottom: 22px; }
 .colls-tile.skin:not(.ring) .colls-tile-text { position: relative; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 8px;
   margin: 0 -14px; padding: 10px 14px;
-  background: linear-gradient(90deg, rgba(4, 8, 18, 0) 0, rgba(4, 8, 18, 0.4) 20%, rgba(4, 8, 18, 0.4) 80%, rgba(4, 8, 18, 0) 100%); }
+  background: linear-gradient(90deg, rgba(4, 8, 18, 0) 8%, rgba(4, 8, 18, 0.4) 28%, rgba(4, 8, 18, 0.4) 72%, rgba(4, 8, 18, 0) 92%); }
 .colls-tile.skin:not(.ring) .colls-tile-for, .colls-tile.skin:not(.ring) .colls-tile-rar, .colls-tile.skin.owned:not(.ring) .colls-tile-name {
   -webkit-text-stroke: 2px #000; paint-order: stroke fill;
   text-shadow: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); }

@@ -289,6 +289,12 @@ const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }
   return <LazyCell eager={eager}>{() => <Card card={view} forceFull suppressPop plated refCards={refs} />}</LazyCell>;
 });
 
+/** Whether the Compendium's SET PICKER is shown: dev builds only (owner ask 2026-10-11). Read at render time, not
+ *  module load, so a test can flip it with `vi.stubEnv('DEV', false)`; in a prod bundle Vite folds it to `false`. */
+function compendiumSetPickerEnabled(): boolean {
+  return import.meta.env.DEV;
+}
+
 /**
  * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
@@ -297,12 +303,6 @@ const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }
  * for the enlarged inspect (the global Inspect overlay handles it). UI-only — reads `run.pool`'s eligibility
  * rule (neutral + active tribes) off `BUYABLE_CARDS` so the contents stay stable as you buy/sell.
  */
-/** Whether the Compendium's SET PICKER is shown: dev builds only (owner ask 2026-10-11). Read at render time, not
- *  module load, so a test can flip it with `vi.stubEnv('DEV', false)`; in a prod bundle Vite folds it to `false`. */
-function compendiumSetPickerEnabled(): boolean {
-  return import.meta.env.DEV;
-}
-
 export function MinionBook() {
   const run = useGame((s) => s.run);
   const showTitle = useGame((s) => s.showTitle);

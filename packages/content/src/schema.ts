@@ -404,7 +404,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellRefreshTierUp',
   'spellLayaway',
   'spellReturnToHand',
-  'spellTransformSameTier',
+  'spellTransformTierUp',
   'spellMarkEnemyTaunt',
   'spellSummonImpsNextCombat',
   'spellBuffShopByRuby',

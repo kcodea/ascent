@@ -7534,7 +7534,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeBrew': s.runeBrew = true; break;
     case 'runeEvolution': {
       // Transform each board minion into a random minion of `tier` from the run's pinned pool. Buffs and
-      // golden do NOT carry — it is a transform, the same contract as spellTransformSameTier.
+      // golden do NOT carry — this rune's own contract (Strange Revision, by contrast, keeps the body's stats and golden).
       const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === (r.tier ?? 4));
       if (pool.length > 0) {
         const rng = makeRng(s.rngCursor);

@@ -121,8 +121,11 @@ export const TOKENS: CardDef[] = [
   },
   {
     // Tara's ascend form (obtained only via Tara, so `token: true` keeps it out of the shop). Engraved; on
-    // EVERY ally attack it casts Growth (+3/+4 to your minions) — explosive on a wide board. Golden casts it
-    // twice. Keeps Tara's accumulated stats at ascension; its 3/3 base is only the schema floor.
+    // EVERY ally attack it casts Growth — explosive on a wide board. Golden casts it twice. Keeps Tara's
+    // accumulated stats at ascension; its 3/3 base is only the schema floor.
+    // The params MIRROR the Growth spell's own magnitude (the shared arena body cannot read card defs), so the
+    // named spell's hover preview tells the truth. They had drifted at +3/+4 since Growth went to +1/+1 (#622);
+    // owner spell batch 2026-10-10 re-synced both at +2/+2, and a tripwire test now pins them together.
     id: 'taragosa',
     name: 'Taragosa',
     tribe: 'dragon',
@@ -131,7 +134,7 @@ export const TOKENS: CardDef[] = [
     health: 3,
     keywords: ['EG'],
     token: true,
-    effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 3, health: 4, spellId: 'growth' } }],
+    effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 2, health: 2, spellId: 'growth' } }],
     text: 'All stats are **Engraved**. When a minion attacks, cast **Growth**.',
     goldenText: 'All stats are **Engraved**. When a minion attacks, cast **Growth twice**.',
   },

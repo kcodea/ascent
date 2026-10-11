@@ -48,4 +48,47 @@ export const ACTIONS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-09-30). Before this the lock was UI-only and the hero power / Equipment / Henchman buttons never checked it, so an untargeted power (Nadja’s Goldspring) fired at 0:00.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopClock.test.ts', 'packages/ui/src/shopClockLock.test.tsx'], lastVerifiedAt: '2026-09-30' },
   },
+  {
+    id: 'R-TRANSFORM-01',
+    title: 'Strange Revision: transform a minion into a random minion of the tier above it, keeping its current stats',
+    statement:
+      'Strange Revision reads "Transform a minion into a random minion of the tier above it. It keeps its stats." It is a '
+      + 'targeted recruit-phase spell (a board minion or a Shop minion). The new form is drawn off the run cursor from the '
+      + 'own pool of the run (`poolOf`, buyable minions in the run tribes plus neutral) at the printed tier of the target + 1 '
+      + '(`strangeRevisionTier`). A Tier 7 target re-rolls into a different Tier 7, the Skybound Ascendant precedent '
+      + '(owner 2026-09-09: never a dead line at the top of the curve). The body keeps its CURRENT stored Attack and Health; '
+      + 'only its identity changes, so no stat-gain watcher fires. Golden status, the enchantment ledger, per-instance '
+      + 'counters and every keyword the body gained are kept; the printed keywords of the old card swap for those of the new card. '
+      + 'A Shop minion becomes the new card at the same printed total. An empty destination tier does nothing (the spell is '
+      + 'still spent).',
+    domain: 'actions',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner spell batch 2026-10-10 (Strange Revision)', quote: 'Transform a minion into a random minion of the tier above it. It keeps its stats.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts spellTransformTierUp / strangeRevisionTier / castSpellOnOffer; packages/content/src/cards/set1/spells.ts strangerevision' },
+    ],
+    contentIds: ['strangerevision'],
+    cardText: 'Transform a minion into a random minion of the **tier above it**. It keeps its stats.',
+    currentBehaviour: 'Conforms (2026-10-10). Was "Transform a friendly or Shop minion into a random minion of the same tier. It keeps its bonus stats." at 3 Gold.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/spellBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
+  {
+    id: 'R-SETSTATS-TIER-01',
+    title: 'Perfect Vision: set a minion to 20/20, or 50/50 at Shop Tier 6, read at the cast; the card text greens the live value',
+    statement:
+      "Perfect Vision (a Tier 5 targeted spell) reads 'Set a minion's stats to 20/20. Set it to 50/50 if you're Shop Tier 6.' "
+      + 'The condition is the CURRENT Shop Tier of the run at the cast (Tier 6 or higher sets 50/50). It is an absolute set, '
+      + 'never scaled by spell power, and lands through the stat-spell layer rule (auras re-apply on top). ONE helper '
+      + '(`setStatsValue`) answers both the cast and the live card text, which greens whichever value applies right now.',
+    domain: 'actions',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner spell batch 2026-10-10 (Perfect Vision)', quote: "Set a minion's stats to 20/20. Set it to 50/50 if you're Shop Tier 6." },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts spellSetStats / setStatsValue / spellDisplayText; packages/content/src/cards/set1/spells.ts perfectvision' },
+    ],
+    contentIds: ['perfectvision'],
+    cardText: "Set a minion's stats to **20/20**. Set it to **50/50** if you're **Shop Tier 6**.",
+    currentBehaviour: 'Conforms (2026-10-10). Was a Tier 6 spell that always set 20/20.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/spellBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

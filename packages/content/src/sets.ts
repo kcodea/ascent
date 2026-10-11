@@ -33,7 +33,7 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   // Existing cards are NEVER re-specced from a sheet: the shipped card is the current truth (owner 2026-09-10).
   'apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone',
   'manafont', 'growth', /* hourglassreserve — archived everywhere 2026-10-07 (owner balance batch) */ 'refreshtexts', 'tribeschoice',
-  /* commonground — removed from set 3 by the owner 2026-09-14 */ 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'turnabout',
+  /* commonground — removed from set 3 by the owner 2026-09-14 */ 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', /* turnabout: archived everywhere 2026-10-10 (owner spell batch) */
   'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy',
   'devour', 'chronostaff', 'corpseboard', 'resonance', /* rivalsreflection: archived everywhere 2026-10-10 (owner balance batch) */ 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
   'displacement', 'aresmar', 'perfectvision', 'sparkplug',

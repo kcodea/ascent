@@ -16,10 +16,10 @@ export const SPELLS: CardDef[] = [
     health: 1, // unused for a spell; kept positive so the shared schema validates
     keywords: [],
     spell: true,
-    cost: 2,
+    cost: 3, // owner spell batch 2026-10-10: 2 → 3 Gold, +2/+3 → +6/+6
     target: 'any',
-    effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 2, health: 3 } }],
-    text: 'Give a minion **+2/+3**.',
+    effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 6, health: 6 } }],
+    text: 'Give a minion **+6/+6**.',
   },
   {
     id: 'emberpouch',
@@ -81,8 +81,9 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffAll', params: { attack: 1, health: 1 } }],
-    text: 'Give your minions **+1/+1**.',
+    // Owner spell batch 2026-10-10: +1/+1 → +2/+2. Taragosa's "cast Growth" carries the same numbers (tokens.ts).
+    effects: [{ on: 'cast', do: 'spellBuffAll', params: { attack: 2, health: 2 } }],
+    text: 'Give your minions **+2/+2**.',
   },
   {
     /**
@@ -184,7 +185,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 5,
+    cost: 4, // owner spell batch 2026-10-10: 5 → 4 Gold
     target: 'friendly',
     targetMaxTier: 4,
     effects: [{ on: 'cast', do: 'spellGildTarget' }],
@@ -232,9 +233,9 @@ export const SPELLS: CardDef[] = [
     cost: 2,
     // 2026-09-14 (owner): +3/+3 and the shorter wording — a TEXT change, not a mechanic change: it is still the
     // permanent buy-buff channel (every minion bought from now on), every set. Owner balance 2026-09-23:
-    // +3/+4, and the text says "permanently" again.
-    effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 3, health: 4 } }],
-    text: 'Give minions in the shop **+3/+4** permanently.',
+    // +3/+4, and the text says "permanently" again. Owner spell batch 2026-10-10: +3/+4 → +3/+3.
+    effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 3, health: 3 } }],
+    text: 'Give minions in the shop **+3/+3** permanently.',
   },
   {
     // Conjure a random buyable Tier 1 minion (active tribes + neutral) into the hand.
@@ -374,20 +375,22 @@ export const SPELLS: CardDef[] = [
     text: '**Discover** a **Deathrattle** minion.',
   },
   {
-    // Set a friendly minion's stats to 20/20 — an absolute SET (not a grant), so it does NOT scale with
+    // Set a minion's stats to 20/20 — an absolute SET (not a grant), so it does NOT scale with
     // spell power. Targets a friend; the player won't aim it at a bigger minion (a literal set can lower).
+    // Owner spell batch 2026-10-10: Tier 6 → Tier 5, and 50/50 once you are Shop Tier 6 (`atTier` / `tierAttack` /
+    // `tierHealth`, read against the run's CURRENT Shop Tier at the cast; the text greens whichever value applies).
     id: 'perfectvision',
     name: 'Perfect Vision',
     tribe: 'neutral',
-    tier: 6,
+    tier: 5,
     attack: 0,
     health: 1,
     keywords: [],
     spell: true,
     cost: 2,
     target: 'any',
-    effects: [{ on: 'cast', do: 'spellSetStats', params: { attack: 20, health: 20 } }],
-    text: "Set a minion's stats to **20/20**.",
+    effects: [{ on: 'cast', do: 'spellSetStats', params: { attack: 20, health: 20, atTier: 6, tierAttack: 50, tierHealth: 50 } }],
+    text: "Set a minion's stats to **20/20**. Set it to **50/50** if you're **Shop Tier 6**.",
   },
   {
     // Choose One: buff THIS tavern's offers by +2/+4 (rides on each offer, so a buy bakes it in — lost on
@@ -676,7 +679,7 @@ export const SPELLS: CardDef[] = [
       { on: 'cast', do: 'spellBuffAll', params: { attack: 5, health: 5 } },
       { on: 'cast', do: 'spellBuffAll', params: { attack: 5, health: 5 } },
     ],
-    text: 'Give your entire board **+5/+5** twice.',
+    text: 'Give your minions **+5/+5** twice.', // owner spell batch 2026-10-10: wording only (it already cast twice)
   },
   {
     // Ossuary Rite reward (also a repeatable quest payoff). Reward-only spell (token: true). Cast: trigger a
@@ -772,22 +775,6 @@ export const SPELLS: CardDef[] = [
     text: '**Choose One:** give a minion **+4 Attack**, or **+4 Health**.',
   },
   {
-    // Swap the target's Attack and Health (spellSwapStats). No spell-power scaling — it moves existing stats,
-    // it doesn't grant them. `any` → warband minion or tavern offer.
-    id: 'turnabout',
-    name: 'Turnabout',
-    tribe: 'neutral',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    target: 'any',
-    effects: [{ on: 'cast', do: 'spellSwapStats' }],
-    text: "Swap a minion's **Attack and Health**.",
-  },
-  {
     // Comeback economy: +5 Gold, but ONLY if you lost your last combat (a draw doesn't count). Untargeted;
     // no last combat yet (turn 1) → no payout.
     id: 'insurancepolicy',
@@ -844,7 +831,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 4, // owner balance 2026-08-11 (5 → 4)
+    cost: 3, // owner balance 2026-08-11 (5 → 4); owner spell batch 2026-10-10 (4 → 3)
     effects: [],
     discoverOnPlay: { exactTier: 6 },
     text: '**Discover** a **Tier 6** minion.',
@@ -969,8 +956,11 @@ export const SPELLS: CardDef[] = [
 
   // --- New spells (2026-07-23 batch, tranche B4 — transform / combat-pending; set-agnostic). ---
   {
-    // Transform a friendly minion into a random OTHER minion of the same tier, keeping its bonus stats
-    // (its gains above base re-based onto the new form). singleCast so a Yazzus can't re-roll the new form.
+    // Owner spell batch 2026-10-10 (new text + mechanic): transform a minion into a random minion of the tier
+    // ABOVE it (its tier + 1, from the run's own pool), keeping its CURRENT stats. A Tier 7 target re-rolls into
+    // another Tier 7 (the Skybound Ascendant ruling of 2026-09-09: never a dead line at the top of the curve).
+    // Was: a random OTHER minion of the SAME tier, keeping its bonus stats above base. singleCast so a Yazzus
+    // can't re-roll the new form.
     id: 'strangerevision',
     name: 'Strange Revision',
     tribe: 'neutral',
@@ -980,12 +970,12 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     singleCast: true,
-    cost: 3,
+    cost: 1, // owner spell batch 2026-10-10: 3 → 1 Gold
     // `any` (owner 2026-08-04): it can also land on a SHOP minion — the offer transforms pre-buy (the
     // castSpellOnOffer fold-back carries the new cardId, see recruit.ts).
     target: 'any',
-    effects: [{ on: 'cast', do: 'spellTransformSameTier' }],
-    text: 'Transform a friendly or **Shop** minion into a random minion of the **same tier**. It keeps its **bonus stats**.',
+    effects: [{ on: 'cast', do: 'spellTransformTierUp' }],
+    text: 'Transform a minion into a random minion of the **tier above it**. It keeps its stats.',
   },
   {
     // +4/+4, plus +1/+1 for each Dragon you PLAYED this turn (flat — no spell power, so the printed value stays
@@ -1075,7 +1065,7 @@ export const SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 3,
+    cost: 2, // owner spell batch 2026-10-10: 3 → 2 Gold
     effects: [{ on: 'cast', do: 'spellGainSpellPower', params: { attack: 1, health: 1 } }],
     text: 'Give your **Shop spells +1/+1**.',
   },

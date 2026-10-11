@@ -713,7 +713,7 @@ export type EffectFactoryId =
   | 'spellRefreshTierUp' // Elevation Ritual: cast — refresh the shop with minions one tier higher
   | 'spellLayaway' // Layaway: cast on an offer — keep it through rerolls and cut its cost
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
-  | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
+  | 'spellTransformTierUp' // Strange Revision: cast — transform a minion into a random one of the tier above it (T7 re-rolls at T7), keeping its current stats
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
   | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
   | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies

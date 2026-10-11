@@ -53,7 +53,10 @@ export interface Beat {
  *  attacker (the previous beat's `attack` primary) is dropped. Also handles an `attack` grouped alongside its
  *  own damage, defensively. Returns null when this impact isn't an attack's (SC/Deathrattle damage, etc.). */
 export function attackerOfImpact(beats: Beat[], resultIndex: number): string | null {
-  const prev = beats[resultIndex - 1];
+  // A WAVE beat is never the swing's impact (it is a volley the wind-up set off), and the swing's own clash lands
+  // AFTER any waves its wind-up sprayed (Gasket's Rally, Echohorn forcing Fel Spikes), so look back past them.
+  if (beats[resultIndex]?.primary.wave !== undefined) return null;
+  const prev = beats[swingBeatBefore(beats, resultIndex)];
   if (prev?.primary.type === 'attack') return prev.primary.attacker;
   const self = beats[resultIndex]?.primary;
   return self?.type === 'attack' ? self.attacker : null;
@@ -65,8 +68,19 @@ export function attackerOfImpact(beats: Beat[], resultIndex: number): string | n
  *  sibling of `attackerOfImpact` rather than an extension of it: that function answers "whose damage NUMBER
  *  is suppressed", this one answers "whose hit FX is already covered", and the two must stay free to diverge. */
 export function meleePairOfImpact(beats: Beat[], resultIndex: number): { attacker: string; defender: string } | null {
-  const prev = beats[resultIndex - 1]?.primary;
+  // A wave beat (a Rally / forced-Echo volley in the wind-up) is not the melee exchange: its victims include the
+  // defender, which must keep its authored hit FX. The clash after the waves IS the exchange (see `attackerOfImpact`).
+  if (beats[resultIndex]?.primary.wave !== undefined) return null;
+  const prev = beats[swingBeatBefore(beats, resultIndex)]?.primary;
   return prev?.type === 'attack' ? { attacker: prev.attacker, defender: prev.defender } : null;
+}
+
+/** The index of the beat a result beat at `resultIndex` follows, skipping any WAVE beats in between (a swing's
+ *  wind-up volleys sit between its `attack` beat and its own clash). Without waves this is `resultIndex - 1`. */
+function swingBeatBefore(beats: Beat[], resultIndex: number): number {
+  let j = resultIndex - 1;
+  while (j >= 0 && beats[j]!.primary.wave !== undefined) j--;
+  return j;
 }
 
 export function buildBeats(events: CombatEvent[]): Beat[] {

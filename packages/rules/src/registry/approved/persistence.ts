@@ -752,8 +752,8 @@ export const PERSISTENCE_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-10 (on Rad Rachel / Ruinous Lord)', quote: 'it is combat only if triggered in combat, if a minion is engraved, they obviously carry it back, and if the effect is triggered in recruit phase, it would be permanent.' },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts onFriendlyDemonDamageBuffTribe (ctx.buff, no permaGain); packages/core/src/combat/simulate.ts ctx.buff (Engraved permaGain); packages/sim/src/recruit.ts RECRUIT_FACTORIES.onFriendlyDemonDamageBuffTribe (addBuff) + fireShopDemonDealtDamage + shopSprayExceptTribe' },
     ],
-    contentIds: ['dm_ruinouslord'],
-    currentBehaviour: 'Conforms as of 2026-10-11 for Ruinous Lord (combat, Engraved and Shop cases each tested).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ruinousRune1010.test.ts'], lastVerifiedAt: '2026-10-11' },
+    contentIds: ['dm_ruinouslord', 'dm_radrachel'],
+    currentBehaviour: 'Conforms as of 2026-10-11 for Ruinous Lord and Rad Rachel (combat, Engraved and Shop cases each tested for both).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ruinousRune1010.test.ts', 'packages/sim/src/radRachel.test.ts'], lastVerifiedAt: '2026-10-11' },
   },
 ];

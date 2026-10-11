@@ -147,6 +147,7 @@ describe('set 3 scaffold', () => {
     // Set 3 taking eleven of set 2's Kobolds is a SHARED reference, not a move: set 2 keeps every one of
     // them. 22 buyable of 23 authored — Gem Sage is a token, so it is in neither set's drawable pool.
     // +1 on 2026-10-07: Jewel (a set-3 Kobold) joined set 2 (owner), appended at the end of set 2.
-    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(23);
+    // -1 on 2026-10-10: Cavern Fiend (k_gemgorge, a Kobold/Demon) archived (owner).
+    expect(poolFor('set2').buyable.filter((c) => c.tribe === 'kobold')).toHaveLength(22);
   });
 });

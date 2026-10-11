@@ -576,6 +576,7 @@ export type EffectFactoryId =
   | 'minionSoldConsumeRightmost' // Set 2 — Grevlin & Co. (minionSold): every N sells, a Demon consumes the right-most Shop minion
   | 'onConsumeBuffShop' // Set 2 — Enigma (onConsume): when this consumes a minion, buff Shop minions permanently
   | 'deathrattleDamageAllExceptTribe' // Set 2 — Fel Spikes (Echo): deal N to all minions except FRIENDLY <tribe>
+  | 'rallyDamageAllExceptTribe' // Set 2 — Gasket (Rally): deal N to all minions except FRIENDLY <tribe> (Fel Spikes' spray)
   | 'deathrattleGrantWardRandom' // Set 2 — Lastlight: Echo — give N friendly minions Ward
   | 'onConsumeSelfGrantSpell'
   | 'spellPlayRubiesAll' // Ruby Excavation: play N Rubies on every friendly minion

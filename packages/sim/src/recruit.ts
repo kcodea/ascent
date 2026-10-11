@@ -6053,6 +6053,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleDamageAllExceptTribe: (ctx, self, params) => {
     shopSprayExceptTribe(ctx.state, num(params.amount, 1) * gold(self), str(params.exceptTribe), self);
   },
+  /** Set 2 — Gasket (Rally), SHOP half: a forced Rally in the Shop (Rune of Lasting Cadence, R-RALLY-FORCED-01).
+   *  The Shop has no enemy, so "all minions except friendly Demons" is YOUR non-Demons — Fel Spikes' shop ruling
+   *  (and Blaster's, owner 2026-08-04), the same spray body. Gilded's two passes of 2 land as 4: there is no
+   *  enemy volley to pace and the deaths resolve once after the spray either way. */
+  rallyDamageAllExceptTribe: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    shopSprayExceptTribe(ctx.state, num(params.amount, 2), str(params.exceptTribe), self, gold(self));
+  },
   /** Rad Rachel / Ruinous Lord, SHOP half: a friendly Demon dealt damage in the Shop (`fireShopDemonDealtDamage`).
    *  PERMANENT, per the owner's phase ruling (2026-10-11, R-BUFF-PHASE-01): "if the effect is triggered in recruit
    *  phase, it would be permanent." Every board minion (of `tribe` when given), this one included. Gilded doubles. */

@@ -275,6 +275,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:minionSoldConsumeRightmost:minionSold': { policy: 'ownBeat', family: 'economy' }, // Grevlin & Co.
   'factory:onConsumeBuffShop:onConsume': { policy: 'foldedCue', family: 'react' }, // Enigma
   'factory:deathrattleDamageAllExceptTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Fel Spikes
+  'factory:rallyDamageAllExceptTribe:onAttack': { policy: 'ownBeat', family: 'rally' }, // Gasket (2026-10-10)
   'factory:avengeRubyStatGain:avenge': { policy: 'ownBeat', family: 'avenge' }, // Gem Portsmith (first live user)
   'factory:onRallyBuffOnePerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },

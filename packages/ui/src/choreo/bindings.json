@@ -1879,6 +1879,16 @@
         "def": "sfx-vo-n2-reflector-death",
         "gain": 0.3
       }
+    },
+    "dm_gasket": {
+      "damage": {
+        "def": "gasket",
+        "fanOut": "struck"
+      },
+      "shieldPop": {
+        "def": "gasket",
+        "fanOut": "struck"
+      }
     }
   }
 }

@@ -12,6 +12,9 @@ import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { bindingFor, setBinding, resetBindings } from './bindings';
+// Side-effect: register the built-in primitives, so the def registry (`getDef`) keeps the real layers the fan budget
+// reads (`coerceDef` drops a layer whose primitive is unknown). The game registers them before any def can play.
+import '../fx/primitives';
 
 // The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
 // so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
@@ -736,6 +739,49 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
     runMomentCues({ start: 0, end: 2, primary: events[0]!, stepGroups: [[0, 1]], kind: 'damage' }, ctx);
     expect(mockPlayDef).not.toHaveBeenCalled();     // relocated to the death handler
     expect(ctx.onDamageFx).not.toHaveBeenCalled();  // e2 claimed; e1 is a ward pop with no stock burst
+  });
+
+  // GASKET (owner FX 2026-10-10): its Rally pass plays the owner's `gasket` blast ON EVERY unit it struck, at the
+  // moment the pass lands (no `launchOnDeath`). A wide pass spreads one fan budget evenly over every play.
+  describe('Gasket: the owner blast plays once per struck unit, on the pass beat', () => {
+    const wave = (n: number, wardFirst = false): CombatEvent[] => Array.from({ length: n }, (_, i) =>
+      (wardFirst && i === 0
+        ? { type: 'shield', target: 'v0', step: 4, wave: 1 }
+        : { type: 'dmg', target: `v${i}`, amount: 2, remainingHp: 5, source: 'g', step: 4, wave: 1 }) as CombatEvent);
+    const run = (events: CombatEvent[], kind: Moment['kind'] = 'damage') => {
+      const c = baseCtx(events, withCard('g', 'dm_gasket'));
+      runMomentCues({ start: 0, end: events.length, primary: events[0]!, stepGroups: [events.map((_, i) => i)], kind }, c);
+      return c;
+    };
+
+    it('one play per struck unit, each anchored on that unit; the stock hit-burst is claimed', () => {
+      const c = run(wave(3));
+      const plays = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
+      expect(plays.map(([, , o]) => o?.uids?.target)).toEqual(['v0', 'v1', 'v2']);
+      expect(c.onDamageFx).not.toHaveBeenCalled();
+    });
+
+    it('a single target plays exactly as authored (no intensity)', () => {
+      run(wave(1));
+      const [[, , o]] = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
+      expect(o?.intensity).toBeUndefined();
+    });
+
+    it('a full 13-wide pass thins EVERY play evenly to the fan budget', () => {
+      run(wave(13));
+      const plays = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
+      expect(plays).toHaveLength(13);
+      const ks = plays.map(([, , o]) => o?.intensity);
+      expect(new Set(ks).size, 'the same density on every target').toBe(1);
+      expect(ks[0]).toBeGreaterThan(0.1); // 600 / (372 x 13) = 0.124
+      expect(ks[0]).toBeLessThan(0.15);
+    });
+
+    it('a pass that LEADS with a Ward pop (a shieldPop moment) still plays on every struck unit, the Ward included', () => {
+      run(wave(3, true), 'shieldPop');
+      const plays = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
+      expect(plays.map(([, , o]) => o?.uids?.target).sort()).toEqual(['v0', 'v1', 'v2']);
+    });
   });
 });
 

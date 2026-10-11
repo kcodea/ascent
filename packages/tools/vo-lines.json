@@ -413,6 +413,16 @@
         "similarity_boost": 0.75,
         "style": 0.45
       }
+    },
+    "announcer-underdweller": {
+      "id": "Vs5CmVCVJwW4odQS2pVf",
+      "model": "eleven_multilingual_v2",
+      "dest": "apps/web/public/announcer/underdweller"
+    },
+    "announcer-little-inu": {
+      "id": "EeQEodFZVtBkjtgK3HBc",
+      "model": "eleven_multilingual_v2",
+      "dest": "apps/web/public/announcer/little-inu"
     }
   },
   "lines": [

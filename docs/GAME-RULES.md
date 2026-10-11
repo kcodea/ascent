@@ -472,8 +472,8 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The crate is the owner's treasure chest in
   two layers (body + lid): the lid rattles, light leaks from the seam and the keyhole, the lid blasts off at the burst
   and the open body stays on the pedestal while the reward rises above it (oracle R-PROG-COLLECTION-03).
-- **Announcers (2026-10-11, R-PROG-ANNOUNCER-01).** An announcer is an account-wide cosmetic from crates; the first is
-  **Lemon** (Legendary). Wearing one swaps the VOICE that calls your games and nothing else: the same moments speak, as
+- **Announcers (2026-10-11, R-PROG-ANNOUNCER-01).** An announcer is an account-wide cosmetic from crates. There are
+  three, all Legendary: **Lemon**, **Underdweller** and **Little Inu**. Wearing one swaps the VOICE that calls your games and nothing else: the same moments speak, as
   often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
   voice, owned or not.

@@ -14,6 +14,10 @@ const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-10-12-guides
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
+  -- Supabase grants the API roles every privilege on every new table and function by default; the migration's own
+  -- revokes (and row level security) are what must hold the line, so model those defaults here.
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
   create schema auth;
   create table auth.users (id uuid primary key);
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
@@ -26,6 +30,7 @@ const TEAM = '00000000-0000-0000-0000-00000000000a';
 const ALICE = '00000000-0000-0000-0000-00000000000b';
 const BOB = '00000000-0000-0000-0000-00000000000c';
 const SPAM = '00000000-0000-0000-0000-00000000000d';
+const TEAM2 = '00000000-0000-0000-0000-00000000000e';
 let db: PGlite;
 
 const doc = (patch: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -53,6 +58,19 @@ async function asRole<T = Row>(role: 'anon' | 'authenticated', user: string | nu
     return String((e as Error).message);
   }
 }
+/** Run a statement as the real `service_role`, the way the Edge Function does. */
+async function asServiceRole<T = Row>(sql: string): Promise<T[]> {
+  await db.exec('begin');
+  try {
+    await db.exec('set local role service_role');
+    const rows = (await db.query<T>(sql)).rows;
+    await db.exec('commit');
+    return rows;
+  } catch (e) {
+    await db.exec('rollback');
+    throw e;
+  }
+}
 const titlesSeenBy = async (role: 'anon' | 'authenticated', user: string | null): Promise<string[]> => {
   const rows = await asRole<{ title: string }>(role, user, 'select title from public.guides order by title');
   if (typeof rows === 'string') throw new Error(rows);
@@ -64,10 +82,8 @@ beforeAll(async () => {
   await db.exec(STUB);
   await db.exec(MIGRATION);
   await db.exec(MIGRATION); // re-runs cleanly
-  for (const u of [TEAM, ALICE, BOB, SPAM]) await db.query('insert into auth.users (id) values ($1)', [u]);
-  await db.query('insert into public.guide_team (user_id) values ($1)', [TEAM]);
-  // Supabase grants the API roles every table privilege by default; row level security is what holds the line.
-  await db.exec('grant select, insert, update, delete on all tables in schema public to anon, authenticated;');
+  for (const u of [TEAM, ALICE, BOB, SPAM, TEAM2]) await db.query('insert into auth.users (id) values ($1)', [u]);
+  for (const t of [TEAM, TEAM2]) await db.query('insert into public.guide_team (user_id) values ($1)', [t]);
 }, 60_000);
 afterAll(async () => { await db.close(); });
 
@@ -84,7 +100,7 @@ describe('guide_save', () => {
   it('a team member creates an official guide: by line forced to Team Ascent, public, appended in order', async () => {
     const a = await save(TEAM, doc({ official: true, byline: 'ignored', title: 'Official A' }));
     const b = await save(TEAM, doc({ official: true, title: 'Official B' }));
-    expect(a).toMatchObject({ official: true, published: true, byline: 'Team Ascent' });
+    expect(a).toMatchObject({ official: true, published: true, byline: 'Team Ascent', author_id: null, updated_by: TEAM });
     expect(Number(b.sort_order)).toBe(Number(a.sort_order) + 1);
   });
 
@@ -120,19 +136,74 @@ describe('guide_save', () => {
     expect(copy).toMatchObject({ forked_from: off.id, forked_title: 'Source', forked_byline: 'Team Ascent' });
     const secret = await save(ALICE, doc({ title: 'Alice secret' }));
     const sneaky = await save(BOB, doc({ byline: 'Bob', forked_from: secret.id }));
-    expect(sneaky).toMatchObject({ forked_from: null, forked_title: null });
+    expect(sneaky).toMatchObject({ forked_from: null, forked_title: null, forked_byline: null });
   });
 
   it('a player may own at most 20 guides; official guides do not count', async () => {
     for (let i = 0; i < 20; i++) await save(SPAM, doc({ byline: 'Spam', title: `S${i}` }));
     expect(await err(save(SPAM, doc({ byline: 'Spam', title: 'S20' })))).toMatch(/too_many_guides/);
+    // Official guides do not count toward the cap: a team account at 20 player guides can still publish an official one.
+    for (let i = 0; i < 20; i++) await save(TEAM2, doc({ byline: 'Team', title: `T${i}` }));
+    expect(await err(save(TEAM2, doc({ byline: 'Team', title: 'T20' })))).toMatch(/too_many_guides/);
+    expect(await save(TEAM2, doc({ official: true, title: 'Official from Team2' }))).toMatchObject({ official: true, author_id: null });
   });
 
-  it('30 saves an hour, then rate_limited (SPAM has made 20)', async () => {
-    const first = (await db.query<Row>('select id, revision from public.guides where author_id = $1 order by created_at limit 1', [SPAM])).rows[0]!;
+  it('30 saves an hour, then rate_limited', async () => {
+    const RATE = '00000000-0000-0000-0000-000000000011';
+    await db.query('insert into auth.users (id) values ($1)', [RATE]);
+    const first = await save(RATE, doc({ byline: 'Rate', title: 'R' }));
     let rev = Number(first.revision);
-    for (let i = 0; i < 10; i++) rev = Number((await save(SPAM, doc({ id: first.id, revision: rev, byline: 'Spam' }))).revision);
-    expect(await err(save(SPAM, doc({ id: first.id, revision: rev, byline: 'Spam' })))).toMatch(/rate_limited/);
+    for (let i = 0; i < 29; i++) rev = Number((await save(RATE, doc({ id: first.id, revision: rev, byline: 'Rate' }))).revision);
+    expect(await err(save(RATE, doc({ id: first.id, revision: rev, byline: 'Rate' })))).toMatch(/rate_limited/);
+  });
+
+  it('the rate log forgets saves older than a day', async () => {
+    const OLD = '00000000-0000-0000-0000-000000000012';
+    await db.query('insert into auth.users (id) values ($1)', [OLD]);
+    await db.query("insert into public.guide_writes (user_id, at) values ($1, now() - interval '2 days'), ($1, now() - interval '3 hours')", [OLD]);
+    await save(OLD, doc({ byline: 'Old', title: 'O' }));
+    const left = (await db.query<{ n: number }>("select count(*)::int as n from public.guide_writes where user_id = $1 and at < now() - interval '1 day'", [OLD])).rows[0]!.n;
+    expect(left).toBe(0);
+  });
+
+  it('every write function refuses a missing caller as unauthenticated', async () => {
+    expect(await err(db.query("select public.guide_save(null::uuid, '{}'::jsonb)"))).toMatch(/unauthenticated/);
+    expect(await err(db.query('select public.guide_delete(null::uuid, $1::uuid)', [ALICE]))).toMatch(/unauthenticated/);
+    expect(await err(db.query("select public.guide_import_builtins(null::uuid, '[]'::jsonb)"))).toMatch(/unauthenticated/);
+  });
+});
+
+describe('official guides own no account', () => {
+  it('the table refuses an official guide with an author, an unpublished one or a different by line', async () => {
+    const off = await save(TEAM, doc({ official: true, title: 'Shape' }));
+    expect(off.author_id).toBeNull();
+    expect(await err(db.query('update public.guides set published = false where id = $1', [off.id]))).toMatch(/guides_official_shape/);
+    expect(await err(db.query('update public.guides set author_id = $2 where id = $1', [off.id, ALICE]))).toMatch(/guides_official_shape/);
+    expect(await err(db.query("update public.guides set byline = 'Alice' where id = $1", [off.id]))).toMatch(/guides_official_shape/);
+  });
+
+  it('deleting a player account deletes their guides', async () => {
+    const GONE = '00000000-0000-0000-0000-000000000013';
+    await db.query('insert into auth.users (id) values ($1)', [GONE]);
+    const a = await save(GONE, doc({ byline: 'Gone', title: 'Gone A' }));
+    const b = await save(GONE, doc({ byline: 'Gone', title: 'Gone B' }));
+    await db.query('update public.guides set published = true where id = $1', [b.id]);
+    await db.query('delete from auth.users where id = $1', [GONE]);
+    const left = (await db.query<{ n: number }>('select count(*)::int as n from public.guides where id = any($1::uuid[])', [[a.id, b.id]])).rows[0]!.n;
+    expect(left).toBe(0);
+  });
+
+  it("deleting a team member's account keeps the official guide and drops their team row", async () => {
+    const LEFT = '00000000-0000-0000-0000-000000000014';
+    await db.query('insert into auth.users (id) values ($1)', [LEFT]);
+    await db.query('insert into public.guide_team (user_id) values ($1)', [LEFT]);
+    const off = await save(LEFT, doc({ official: true, title: 'Survivor' }));
+    await db.query('delete from auth.users where id = $1', [LEFT]);
+    const guide = (await db.query<Row>('select title, official, author_id from public.guides where id = $1', [off.id])).rows;
+    expect(guide).toHaveLength(1);
+    expect(guide[0]).toMatchObject({ title: 'Survivor', official: true, author_id: null });
+    const team = (await db.query<{ n: number }>('select count(*)::int as n from public.guide_team where user_id = $1', [LEFT])).rows[0]!.n;
+    expect(team).toBe(0);
   });
 });
 
@@ -159,20 +230,38 @@ describe('who can read a guide', () => {
     expect(team).toEqual(expect.arrayContaining(['Alice private', 'Alice hidden']));
     const anon = await titlesSeenBy('anon', null);
     expect(anon).toContain('Official A');
+    expect(anon).toContain('Alice public');
     expect(anon).not.toContain('Alice private');
+    expect(anon).not.toContain('Alice hidden');
   });
 
   it('no client can write the table or call a write function', async () => {
-    await asRole('authenticated', BOB, "update public.guides set title = 'hacked'");
-    await asRole('authenticated', BOB, 'delete from public.guides');
-    await asRole('authenticated', BOB, `insert into public.guides (author_id, byline, icon_card, title, body, core) values ('${BOB}', 'Bob', 'grim', 'Sneak', 'B', '{grim}')`);
+    const before = (await db.query<{ n: number }>('select count(*)::int as n from public.guides')).rows[0]!.n;
+    for (const role of ['authenticated', 'anon'] as const) {
+      const uid = role === 'anon' ? null : BOB;
+      expect(await asRole(role, uid, "update public.guides set title = 'hacked'")).toMatch(/permission denied/);
+      expect(await asRole(role, uid, 'delete from public.guides')).toMatch(/permission denied/);
+      expect(await asRole(role, uid, `insert into public.guides (author_id, byline, icon_card, title, body, core) values ('${BOB}', 'Bob', 'grim', 'Sneak', 'B', '{grim}')`)).toMatch(/permission denied/);
+      expect(await asRole(role, uid, 'truncate public.guides cascade')).toMatch(/permission denied/);
+      expect(await asRole(role, uid, 'select count(*) from public.guide_writes')).toMatch(/permission denied/);
+    }
     const all = (await db.query<{ title: string }>('select title from public.guides')).rows.map((r) => r.title);
+    expect(all).toHaveLength(before);
     expect(all).not.toContain('hacked');
     expect(all).not.toContain('Sneak');
     expect(all).toContain('Official A');
-    expect(await asRole('authenticated', BOB, `select public.guide_save('${BOB}'::uuid, '{}'::jsonb)`)).toMatch(/permission denied/);
-    expect(await asRole('authenticated', BOB, `select public.guide_delete('${BOB}'::uuid, '${String(hiddenId)}'::uuid)`)).toMatch(/permission denied/);
-    expect(await asRole('authenticated', BOB, `select public.guide_import_builtins('${BOB}'::uuid, '[]'::jsonb)`)).toMatch(/permission denied/);
+    for (const role of ['authenticated', 'anon'] as const) {
+      const uid = role === 'anon' ? null : BOB;
+      expect(await asRole(role, uid, `select public.guide_save('${BOB}'::uuid, '{}'::jsonb)`)).toMatch(/permission denied/);
+      expect(await asRole(role, uid, `select public.guide_delete('${BOB}'::uuid, '${String(hiddenId)}'::uuid)`)).toMatch(/permission denied/);
+      expect(await asRole(role, uid, `select public.guide_import_builtins('${BOB}'::uuid, '[]'::jsonb)`)).toMatch(/permission denied/);
+      expect(await asRole(role, uid, "select public.guide_text_array('[]'::jsonb)")).toMatch(/permission denied/);
+    }
+  });
+
+  it('the service role can call the write functions (the grant works)', async () => {
+    const rows = await asServiceRole<{ r: Row }>(`select public.guide_save('${ALICE}'::uuid, '${JSON.stringify(doc({ title: 'Via service role' }))}'::jsonb) as r`);
+    expect(rows[0]!.r).toMatchObject({ author_id: ALICE, title: 'Via service role', revision: 1 });
   });
 
   it('a player learns only their own team membership', async () => {
@@ -206,11 +295,15 @@ describe('guide_import_builtins', () => {
   it('team only', async () => {
     expect(await err(imp(ALICE, docs))).toMatch(/not_allowed/);
   });
-  it('inserts each built-in once as an official guide, in the order given', async () => {
+  it('inserts each built-in once as an official guide, in the order given, after the official guides already there', async () => {
+    const maxBefore = Number((await db.query<Row>('select max(sort_order) as m from public.guides where official')).rows[0]!.m);
+    expect(maxBefore).toBeGreaterThanOrEqual(1); // earlier tests made official guides
     expect(await imp(TEAM, docs)).toEqual({ inserted: 2, skipped: 0 });
-    const rows = (await db.query<Row>("select slug, official, published, byline, sort_order from public.guides where slug like 'set2-%' order by sort_order")).rows;
+    const rows = (await db.query<Row>("select slug, official, published, byline, author_id, sort_order from public.guides where slug like 'set2-%' order by sort_order")).rows;
     expect(rows.map((r) => r.slug)).toEqual(['set2-one', 'set2-two']);
-    expect(rows[0]).toMatchObject({ official: true, published: true, byline: 'Team Ascent' });
+    expect(rows[0]).toMatchObject({ official: true, published: true, byline: 'Team Ascent', author_id: null });
+    expect(rows.every((r) => Number(r.sort_order) > maxBefore)).toBe(true);
+    expect(Number(rows[1]!.sort_order)).toBe(Number(rows[0]!.sort_order) + 1);
   });
   it('pressing it twice changes nothing, and never overwrites a guide the team has edited since', async () => {
     await db.query("update public.guides set title = 'One, edited' where slug = 'set2-one'");

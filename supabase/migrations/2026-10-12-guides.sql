@@ -14,12 +14,16 @@
 -- WHAT
 --  - `guide_team`: the accounts that may edit Team Ascent guides. A player can read only their own row.
 --  - `guides`: every guide. READ: official, or published and not hidden, or your own, or you are on the team.
---    WRITE: no client policy at all. The three functions below, callable only by the service role (the
---    `guide-write` Edge Function), are the only writers.
+--    WRITE: no client policy at all, and the API roles' write privileges are revoked. The three functions below,
+--    callable only by the service role (the `guide-write` Edge Function), are the only writers.
+--    Official (Team Ascent) guides belong to NO account: `author_id` is null on them (a check constraint pins that
+--    shape: official means no author, published, by line "Team Ascent"), so a team member leaving cannot delete
+--    them. A player's guides belong to the player and go with the account (`on delete cascade`).
 --  - `guide_bookmarks`, `guide_reports`: created now so later steps add functions, not tables.
 --  - `guide_writes`: one row per save, for the 30-per-hour rate limit.
 --  - `guide_save`, `guide_delete`, `guide_import_builtins`: the row rules (ownership, official = team only, the
 --    20-guide cap, the rate limit, edit conflicts). The text rules (limits, word filter) are the Edge Function's.
+--    One account's saves are serialised (an advisory lock), so a parallel burst cannot beat the cap or the limit.
 --
 -- AFTER RUNNING: add the team, ONCE, with the two real emails typed here and NOT committed anywhere:
 --   insert into public.guide_team (user_id) select id from auth.users where email in ('<mike>', '<kc>')
@@ -35,7 +39,7 @@ create table if not exists public.guide_team (
 );
 alter table public.guide_team enable row level security;
 drop policy if exists "read own guide_team" on public.guide_team;
-create policy "read own guide_team" on public.guide_team for select to authenticated using (auth.uid() = user_id);
+create policy "read own guide_team" on public.guide_team for select to authenticated using ((select auth.uid()) = user_id);
 
 create or replace function public.is_guide_team() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -47,7 +51,7 @@ grant execute on function public.is_guide_team() to anon, authenticated, service
 create table if not exists public.guides (
   id             uuid primary key default gen_random_uuid(),
   slug           text unique,                                             -- imported built-ins only
-  author_id      uuid references auth.users(id) on delete set null,       -- set null: a team member leaving must not delete Team Ascent guides
+  author_id      uuid references auth.users(id) on delete cascade,        -- null on official (Team Ascent) guides, which belong to no account, so a team member leaving cannot delete them; a deleted player's guides go with the account
   byline         text not null,
   official       boolean not null default false,
   published      boolean not null default false,
@@ -74,7 +78,8 @@ create table if not exists public.guides (
   revision       int not null default 1,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
-  updated_by     uuid
+  updated_by     uuid,
+  constraint guides_official_shape check (not official or (author_id is null and published and byline = 'Team Ascent'))
 );
 create index if not exists guides_sets on public.guides using gin (sets);
 create index if not exists guides_author on public.guides (author_id);
@@ -83,7 +88,7 @@ create index if not exists guides_official on public.guides (sort_order) where o
 alter table public.guides enable row level security;
 drop policy if exists "read guides" on public.guides;
 create policy "read guides" on public.guides for select to anon, authenticated
-  using (official or (published and not hidden) or author_id = auth.uid() or public.is_guide_team());
+  using (official or (published and not hidden) or author_id = (select auth.uid()) or (select public.is_guide_team()));
 
 create table if not exists public.guide_bookmarks (
   user_id    uuid not null references auth.users(id) on delete cascade,
@@ -93,7 +98,7 @@ create table if not exists public.guide_bookmarks (
 );
 alter table public.guide_bookmarks enable row level security;
 drop policy if exists "read own guide_bookmarks" on public.guide_bookmarks;
-create policy "read own guide_bookmarks" on public.guide_bookmarks for select to authenticated using (auth.uid() = user_id);
+create policy "read own guide_bookmarks" on public.guide_bookmarks for select to authenticated using ((select auth.uid()) = user_id);
 
 create table if not exists public.guide_reports (
   id          uuid primary key default gen_random_uuid(),
@@ -109,7 +114,7 @@ create table if not exists public.guide_reports (
 );
 alter table public.guide_reports enable row level security;
 drop policy if exists "team reads guide_reports" on public.guide_reports;
-create policy "team reads guide_reports" on public.guide_reports for select to authenticated using (public.is_guide_team());
+create policy "team reads guide_reports" on public.guide_reports for select to authenticated using ((select public.is_guide_team()));
 
 create table if not exists public.guide_writes (
   user_id uuid not null,
@@ -118,9 +123,15 @@ create table if not exists public.guide_writes (
 create index if not exists guide_writes_user_at on public.guide_writes (user_id, at desc);
 alter table public.guide_writes enable row level security; -- no policy: the service role only
 
+-- Row level security has no write policy on these tables, but TRUNCATE is not covered by row level security, and
+-- Supabase grants the API roles every table privilege by default. Take the write privileges away as well: the
+-- functions below are the only writers. (guide_writes is the service role's alone, so it loses select too.)
+revoke insert, update, delete, truncate on public.guides, public.guide_team, public.guide_bookmarks, public.guide_reports, public.guide_writes from anon, authenticated;
+revoke select on public.guide_writes from anon, authenticated;
+
 -- A jsonb array of strings as text[], order kept. Anything that is not an array is the empty list.
 create or replace function public.guide_text_array(j jsonb) returns text[]
-language sql immutable as $$
+language sql immutable set search_path = public as $$
   select coalesce(array_agg(x order by n), '{}'::text[])
   from jsonb_array_elements_text(case when jsonb_typeof(j) = 'array' then j else '[]'::jsonb end) with ordinality as t(x, n);
 $$;
@@ -138,6 +149,9 @@ declare
   v_count    int;
 begin
   if p_user is null then raise exception 'unauthenticated'; end if;
+  -- The 20-guide cap and the 30-per-hour limit are count-then-insert; this serialises one account's saves so a
+  -- parallel burst cannot beat them. (Released at the end of the transaction.)
+  perform pg_advisory_xact_lock(hashtextextended(p_user::text, 0));
   v_team := exists (select 1 from public.guide_team where user_id = p_user);
   if v_official and not v_team then raise exception 'not_allowed'; end if;
 
@@ -157,7 +171,7 @@ begin
     insert into public.guides (author_id, byline, official, published, published_at, sets, tribes, pairs_with, icon_card,
                                title, tagline, body, core, enablers, mentions, aliases,
                                forked_from, forked_title, forked_byline, sort_order, updated_by)
-    values (p_user,
+    values (case when v_official then null else p_user end,
             case when v_official then 'Team Ascent' else p_doc->>'byline' end,
             v_official, v_official, case when v_official then now() end,
             public.guide_text_array(p_doc->'sets'), public.guide_text_array(p_doc->'tribes'), public.guide_text_array(p_doc->'pairs_with'),
@@ -198,6 +212,7 @@ begin
     returning * into v_row;
   end if;
 
+  delete from public.guide_writes where user_id = p_user and at < now() - interval '1 day';
   insert into public.guide_writes (user_id) values (p_user);
   return to_jsonb(v_row);
 end $$;
@@ -224,27 +239,31 @@ declare
   v_n    bigint;
   v_in   int := 0;
   v_skip int := 0;
+  v_base int;
 begin
   if p_user is null then raise exception 'unauthenticated'; end if;
   if not exists (select 1 from public.guide_team where user_id = p_user) then raise exception 'not_allowed'; end if;
+  v_base := (select coalesce(max(sort_order), -1) + 1 from public.guides where official);
   for v_doc, v_n in select value, ordinality from jsonb_array_elements(case when jsonb_typeof(p_docs) = 'array' then p_docs else '[]'::jsonb end) with ordinality loop
     if coalesce(v_doc->>'slug', '') = '' then v_skip := v_skip + 1; continue; end if;
     insert into public.guides (slug, author_id, byline, official, published, published_at, sets, tribes, pairs_with, icon_card,
                                title, tagline, body, core, enablers, mentions, aliases, sort_order, updated_by)
-    values (v_doc->>'slug', p_user, 'Team Ascent', true, true, now(),
+    values (v_doc->>'slug', null, 'Team Ascent', true, true, now(),
             public.guide_text_array(v_doc->'sets'), public.guide_text_array(v_doc->'tribes'), public.guide_text_array(v_doc->'pairs_with'),
             v_doc->>'icon_card', v_doc->>'title', coalesce(v_doc->>'tagline', ''), v_doc->>'body',
             public.guide_text_array(v_doc->'core'), public.guide_text_array(v_doc->'enablers'), public.guide_text_array(v_doc->'mentions'),
-            coalesce(v_doc->'aliases', '{}'::jsonb), (v_n - 1)::int, p_user)
+            coalesce(v_doc->'aliases', '{}'::jsonb), v_base + (v_n - 1)::int, p_user)
     on conflict (slug) do nothing;
     if found then v_in := v_in + 1; else v_skip := v_skip + 1; end if;
   end loop;
   return jsonb_build_object('inserted', v_in, 'skipped', v_skip);
 end $$;
 
+revoke all on function public.guide_text_array(jsonb) from public, anon, authenticated;
 revoke all on function public.guide_save(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.guide_delete(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.guide_import_builtins(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.guide_text_array(jsonb) to service_role;
 grant execute on function public.guide_save(uuid, jsonb) to service_role;
 grant execute on function public.guide_delete(uuid, uuid) to service_role;
 grant execute on function public.guide_import_builtins(uuid, jsonb) to service_role;

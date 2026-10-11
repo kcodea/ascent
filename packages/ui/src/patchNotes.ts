@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Shrieker's End of Turn now triggers your Shouts one at a time, left to right.",
+        details: [
+          'A dragon tendril flies from Shrieker to each Shout minion in turn, then that Shout plays out before the next one starts.',
+          'Gilded Shrieker runs the whole row twice.',
+          'What the Shouts do is unchanged. Only how they are shown.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed a bug where the targeting line and every other effect could stop showing for the rest of a game.',
         details: [
           'Closing the hero select, a crate or a hero attack preview could break the effects layer. The targeting line went first, and nothing came back until a reload.',

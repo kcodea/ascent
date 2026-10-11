@@ -6731,6 +6731,21 @@ export function Recruit() {
         // 2026-09-01: the Reliquary "had no beats, animations or anything firing").
         const runeId = beat.source.kind === 'minion' && beat.policyKey?.startsWith('rune:') ? beat.policyKey.split(':')[1] : undefined;
         if (runeId && uid) presenterCtx.questTendril('rune', runeId, uid, 0);
+        // A LINK of a sequential chain (R-SHRIEKER-BEATS-01, owner 2026-10-10): Shrieker's End of Turn triggers each
+        // Shout as its own beat, and THIS beat's tendril flies from Shrieker to the minion it is triggering, one at a
+        // time. The tendril is the trigger-er's tribe ribbon (`tendril-trail-dragon` for Shrieker) through the shared
+        // `fireBuffFx`; the compiler holds the link's consequences until it lands (`CHAIN_LINK_PACING.linkLeadMs`).
+        const link = beat.chainLink;
+        if (link && link.from.kind === 'minion' && link.from.uid && uid && link.from.uid !== uid && canPlayDefs()) {
+          const from = restingOf(link.from.uid);
+          const to = restingOf(uid);
+          if (from && to) {
+            fireBuffFx({
+              source: from, target: to, cardId: link.from.id, tribe: CARD_INDEX[link.from.id]?.tribe ?? 'neutral', sourceless: false,
+              uids: { source: link.from.uid, target: uid },
+            });
+          }
+        }
         setEotProcUids(uid ? new Set([uid]) : new Set());
         setEotPulseUids(uid && beat.mode === 'ownBeat' ? new Set([uid]) : new Set());
         if (beat.mode === 'ownBeat') sfx.triggerPulse(); else sfx.triggerGlow();

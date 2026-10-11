@@ -207,7 +207,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnMagnetizeMechs:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnPlayRuby:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:endOfTurnRecastFirstSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'factory:endOfTurnTriggerShouts:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Shrieker / Moira: every Shout it triggers is its OWN beat, left to right, each with a link tendril (R-SHRIEKER-BEATS-01).
+  'factory:endOfTurnTriggerShouts:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn', children: 'sequential' },
   'factory:gainEmbers:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch

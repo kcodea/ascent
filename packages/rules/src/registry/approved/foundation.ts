@@ -5005,4 +5005,34 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'context itself, and destroyed apps lose their context, so the live count stays bounded.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiAppSafety.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-SHRIEKER-BEATS-01',
+    title: 'Shrieker triggers each Shout as its own beat, left to right, one dragon tendril at a time',
+    statement:
+      'When Shrieker\'s End of Turn ("trigger your minions\' Shouts", and Moira, which shares its effect) triggers your '
+      + 'Shout minions, every Shout that does something gets its OWN beat, strictly left to right, one after another. A '
+      + 'dragon tendril flies from Shrieker to that minion, then its Shout resolves and its buffs, grants and casts land '
+      + 'on that beat; the next Shout starts only after that beat has finished. They never all happen at the same time. '
+      + 'Gilded Shrieker runs the whole left-to-right pass twice (A, B, C, then A, B, C), each Shout again with its own '
+      + 'tendril and beat, which is the order the engine resolves them in. A repeated Shout (Orivax, Drakko) stays '
+      + 'inside that minion\'s one beat. A Shout that changes nothing plays no beat. Each beat is about 480 ms, so six '
+      + 'Shouts read in under 3 seconds. Presentation only: no outcome or order changes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask relayed by the coordinator, 2026-10-10 (Shrieker End of Turn)',
+        quote: "make shrieker use the dragon tendril effect when it triggers shout minions. shrieker's end of turn beat is somewhat unqiue - every shout minion that triggers an effect gets their own beat from left to right. they do not all happen at the same time. can you fix this? this also means the tendrils will fire 1 at a time as each shout triggers etc",
+      },
+      { kind: 'fix-pr', ref: 'PR fix/shrieker-sequential-beats (2026-10-10)' },
+      { kind: 'code', ref: 'packages/core/src/presentation/policies.ts (`children: \'sequential\'` on factory:endOfTurnTriggerShouts:endOfTurn); packages/core/src/presentation/types.ts PresentationPolicyEntry.children; packages/ui/src/choreographer/adapters/presentationBatchAdapter.ts (childOrder); packages/ui/src/choreographer/compileTimeline.ts placeChildren / CHAIN_LINK_PACING / chainLinkTiming; packages/ui/src/Recruit.tsx onBeatActivate (the chainLink tendril via fireBuffFx); packages/sim/src/recruit.ts endOfTurnTriggerShouts (one nested trigger per Shout, already left to right)' },
+    ],
+    contentIds: ['d2_shrieker', 'b2_moira'],
+    currentBehaviour:
+      'Conforms from 2026-10-10. The engine already resolved the Shouts left to right and emitted one nested trigger per '
+      + 'Shout, but the compiler placed every nested trigger at its parent\'s delivery, so all the Shouts and their buffs '
+      + 'landed in the same moment with no tendril. A registry flag now makes this parent\'s children play as a chain.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/shriekerChainBeats.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

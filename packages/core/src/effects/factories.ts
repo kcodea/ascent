@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, pickAutoTarget, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -716,7 +716,7 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
   battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
   buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Rune of the Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
-  battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking the left-most minion with an End of Turn effect', line: 'triggers an End of Turn when the Shop opens' },
+  battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking a RANDOM friendly minion with an End of Turn effect (R-TARGET-07)', line: 'triggers an End of Turn when the Shop opens' },
   triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
 };
 
@@ -1652,9 +1652,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryBuffTargetPerGoldSpent: (ctx, self, params) => {
     const tribe = ctx.getCard(self.cardId)?.targetTribe;
     const arena = combatArena(ctx, self);
-    const pool = otherFriends(ctx, self, (m) => !tribe || arena.isTribe(m, tribe));
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => !tribe || arena.isTribe(m, tribe))); // R-TARGET-07
+    if (!target) return;
     const h = num(params.health, 1) * mul(self) * ctx.goldSpentThisTurnFor(self.side);
     const a = ctx.fullMeasureFor(self.side) ? h : 0;
     if (h > 0 || a > 0) ctx.buff(target, a, h, self.uid);
@@ -1769,9 +1768,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  next shop" holds for a combat re-fire too. */
   battlecryCopyEcho: (ctx, self) => {
     if (self.dead) return;
-    const pool = otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some((e) => e.on === 'onDeath'));
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => (ctx.getCard(m.cardId)?.effects ?? []).some((e) => e.on === 'onDeath'))); // R-TARGET-07
+    if (!target) return;
     const def = ctx.getCard(target.cardId)!;
     const copy = (): EffectDef[] => def.effects.filter((e) => e.on === 'onDeath').map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
     ctx.grantDeathrattle(self, copy());
@@ -1783,9 +1781,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Ancient of Time combat gild: golden flag + its printed stats again, the run card untouched). A combat gain,
    *  like every other combat Shout's stats (R-REALTIME-04). */
   battlecryGildTarget: (ctx, self) => {
-    const pool = otherFriends(ctx, self, (m) => !m.golden);
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => !m.golden)); // R-TARGET-07
+    if (!target) return;
     const def = ctx.getCard(target.cardId);
     target.golden = true;
     ctx.log({ type: 'ascend', target: target.uid, into: target.cardId, gild: true });
@@ -1796,9 +1793,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  `gold(self)` random Shop spells of its tier to hand NOW (a live `toHand` that wakes the hand reactors). The
    *  spell first, then the death: the Shop body's order. */
   battlecryDestroyForSpell: (ctx, self) => {
-    const pool = otherFriends(ctx, self);
-    if (pool.length === 0) return;
-    const target = ctx.rng.pick(pool);
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self)); // R-TARGET-07
+    if (!target) return;
     const tier = ctx.getCard(target.cardId)?.tier ?? 1;
     const spellTribes = new Set<string>(['neutral', ...ctx.activeTribesFor(self.side)]); // the Shop's `runSpells` filter
     const spells = ctx.poolCards(self.side).filter((c) => c.spell && !c.token && c.tier === tier && spellTribes.has(c.tribe));

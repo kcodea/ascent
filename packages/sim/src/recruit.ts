@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -1627,13 +1627,15 @@ export function othersOnBoard(state: RunState, self: { uid: string }, pred?: (c:
   return state.board.filter((c) => c.uid !== self.uid && (!pred || pred(c)));
 }
 
-/** A targeted Shout RE-FIRED without an aim (Resonance, Myra, Echoing Roar, an End-of-Turn replay) picks its target
- *  at random from `pool`: one draw off the shared rng cursor, the draw Baby Gastrid and Appetite Agent use
- *  (R-TARGET-06, owner 2026-09-26). An empty pool draws nothing and returns undefined (the Shout does nothing). */
-export function refireTarget(state: RunState, pool: BoardCard[]): BoardCard | undefined {
+/** A targeted Shout fired WITHOUT an aim (Resonance, Myra, Echoing Roar, Shrieker, Drakko, a rune, an End-of-Turn
+ *  replay, a combat re-fire settled here, a stranded aim) picks its target at random from its legal `pool`: one draw
+ *  off the shared rng cursor through core's `pickAutoTarget`, the one helper every phase's auto-pick uses (R-TARGET-06,
+ *  owner 2026-09-26; R-TARGET-07, owner 2026-10-10). Each call is its own draw, so repeated triggers re-roll. An empty
+ *  pool draws nothing and returns undefined (the Shout does nothing). */
+export function refireTarget<T extends BoardCard>(state: RunState, pool: readonly T[]): T | undefined {
   if (pool.length === 0) return undefined;
   const rng = makeRng(state.rngCursor);
-  const pick = pool[rng.int(pool.length)]!;
+  const pick = pickAutoTarget(rng, pool);
   state.rngCursor = rng.state();
   return pick;
 }
@@ -4931,11 +4933,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let target = (payload as { target?: BoardCard } | undefined)?.target;
     if (!target) {
       const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
-      const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe));
-      if (pool.length === 0) return;
-      const rng = makeRng(ctx.state.rngCursor);
-      target = pool[rng.int(pool.length)]!;
-      ctx.state.rngCursor = rng.state();
+      target = refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe)));
+      if (!target) return;
     }
     const per = num(params.health, 1) * gold(self);
     const h = per * (ctx.state.goldSpentThisTurn ?? 0);
@@ -5284,13 +5283,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Cage Breaker (Shout, aimed): DESTROY a friendly <tribe> — the two-step death Graverobber uses, so its Echo,
    *  its departure and its Rise get their beat — then Discover a <tribe> at the tavern tier (owner 2026-09-09:
-   *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death. */
+   *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death.
+   *  Un-aimed (a Myra / Shrieker / rune / End-of-Turn re-fire) it destroys a RANDOM other friendly <tribe>, exactly as
+   *  Graverobber's un-aimed re-fire does (R-TARGET-06 / R-TARGET-07); none eligible → nothing happens. It used to do
+   *  nothing at all on a re-fire. */
   battlecryDestroyForDiscover: (ctx, self, params, payload) => {
-    const target = payload.target;
-    if (!target) return;
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
+    const target = payload.target
+      ?? refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => (!tribe || isTribe(c, tribe)) && c.uid !== ctx.state.pendingDeath?.uid));
+    if (!target) return;
     if (tribe && !isTribe(target, tribe)) return; // aimed at the wrong tribe — no death, no Discover
-    ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    // An un-aimed re-fire resolves its death at once (Graverobber's reason: a re-fire can land twice in one action or
+    // at End of Turn right before the fight, and a second `pendingDeath` mark would overwrite the first).
+    if (payload.target) ctx.state.pendingDeath = { uid: target.uid, kind: 'destroy' };
+    else destroyMinionInShop(ctx, target);
     for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId });
   },
 
@@ -5648,8 +5654,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Toxin Tender / Plaguebringer: grant keyword(s) to a friendly minion. Toxin Tender is
    *  player-targeted (`payload.target` is the chosen minion); the auto-pick fallback (Plaguebringer,
-   *  or a Myra/face-Omen re-fire with no explicit target) takes the highest-attack friend that still
-   *  lacks a granted keyword (never wasting it). A `targetTribe` on the card restricts the auto-pick to
+   *  or a Myra/face-Omen re-fire with no explicit target) takes a RANDOM friend that still lacks a
+   *  granted keyword (never wasting it; R-TARGET-07). A `targetTribe` on the card restricts the auto-pick to
    *  that tribe too (Toxin Tender → friendly Undead only; dual-types count) — so a re-fire can't grant
    *  Venomous off-tribe, and it simply no-ops when no eligible friend exists. */
   // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
@@ -5659,9 +5665,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Twilight Emissary: Battlecry — buff a chosen friendly minion +atk/+hp (golden doubles). The stat sibling
    *  of `battlecryGrantKeyword`, with the SAME target resolution: `payload.target` when the player picked one,
-   *  otherwise an auto-pick (a Myra / face-Omen re-fire with no explicit target) of the highest-Attack friend,
-   *  restricted by the card's `targetTribe` (Twilight Emissary → friendly Dragons only; dual-types count). It
-   *  falls back to buffing ITSELF when no other eligible friend is on board, and no-ops if even that fails. */
+   *  otherwise an auto-pick (a Myra / Shrieker / face-Omen re-fire with no explicit target) of a RANDOM other
+   *  friend (R-TARGET-07), restricted by the card's `targetTribe` (Twilight Emissary / Humphry → friendly Dragons
+   *  only; dual-types count). Never itself (R-TARGET-03): no other eligible friend → no grant. */
   // ARENA-MIGRATED (Shout family): one body; the chosen target rides params.
   battlecryBuffTarget: (ctx, self, params, payload) => {
     ARENA_EFFECTS.battlecryBuffTarget(shopArena(ctx.state, self), { ...params, target: payload.target });
@@ -6369,11 +6375,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let target = payload.target;
     if (!target) {
       const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
-      const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe));
-      if (pool.length === 0) return;
-      const rng = makeRng(ctx.state.rngCursor);
-      target = pool[rng.int(pool.length)]!;
-      ctx.state.rngCursor = rng.state();
+      target = refireTarget(ctx.state, othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe)));
+      if (!target) return;
     }
     // Rune of Open Appetite bursts only when it actually ENABLED this pick — i.e. the eater is off-type for
     // the card's declared `targetTribe`. Deliberately not stamped inside `effectiveTargetTribe`: that helper
@@ -7714,8 +7717,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /**
    * ROOMWORKS (owner 2026-10-10): "Shout: Trigger a friendly minion's End of Turn effect." A TARGETED Shout ("you PICK
    * the target"): `payload.target` is the chosen body, and only a friendly OTHER minion with an End of Turn effect is
-   * legal (`battlecryTargetAllowed`, which the reducer enforces). A re-fire with no target (Drakko's extra fire, a
-   * combat re-fire settled in the Shop) auto-picks the LEFT-most legal minion, deterministic. Fires through the shared
+   * legal (`battlecryTargetAllowed`, which the reducer enforces). A fire with no target (a Drakko / rune / Myra re-fire,
+   * a combat re-fire settled in the Shop) picks a RANDOM legal minion off the run cursor (R-TARGET-07, owner 2026-10-10;
+   * it was the left-most every time). Fires through the shared
    * `replayEndOfTurn` (Chronos repeats + the End-of-Turn objective count, exactly like Dusk's power), as its own beat
    * sourced on the target. Gilded triggers it twice.
    *
@@ -7728,7 +7732,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[self.cardId];
     const legal = (c: BoardCard): boolean => c.uid !== self.uid && (!def || battlecryTargetAllowed(def, c));
     const chosen = payload.target && ctx.state.board.includes(payload.target) && legal(payload.target) ? payload.target : undefined;
-    const target = chosen ?? ctx.state.board.find(legal);
+    const target = chosen ?? refireTarget(ctx.state, ctx.state.board.filter(legal)); // R-TARGET-07: random, not left-most
     if (!target) return;
     const eot = CARD_INDEX[target.cardId]?.effects.find((e) => e.on === 'endOfTurn');
     SHOUT_EOT_CHAIN.shoutEot += 1;

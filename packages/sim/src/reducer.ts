@@ -28,7 +28,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget } from './recruit';
 import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -1458,7 +1458,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // pendingTarget aim, so the timer can expire mid-aim — and the UI then blocks the target pick too (`timeUp`).
   // With End Turn also rejected here, the player was permanently softlocked, and since `pendingTarget` is
   // saved, a reload landed straight back in it (owner report 2026-07-22). `faceOmen` already auto-resolves a
-  // pending target onto the highest-Attack legal carry, so ending the turn is a safe, defined escape.
+  // pending target onto a random legal target (R-TARGET-07), so ending the turn is a safe, defined escape.
   // The exemption is deliberately NARROW — only `pendingTarget`, NOT the other modals: `chooseOne`'s options
   // stay clickable under `timeUp` (so it can always be resolved and needs no escape), and letting End Turn fire
   // over an open Discover / Choose One / quest / Runeforge would strand it going into combat.
@@ -4332,8 +4332,8 @@ function endRecruitTurn(s: RunState): void {
   // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
   s.cardDiscountWindow = undefined;
   s.shopClockExpired = undefined; // the 0:00 lock belongs to this Shop turn only (R-TIMER-LOCK-01)
-  // An unresolved targeted Battlecry (the player ended the turn mid-pick) auto-resolves on the
-  // carry — never strand a played Toxin Tender without its grant.
+  // An unresolved targeted Battlecry (the player ended the turn mid-pick, or the clock ran out under the aim) auto-
+  // resolves on a RANDOM legal target — never strand a played Toxin Tender without its grant (R-TARGET-07).
   if (s.pendingTarget?.deferredPlay) {
     // A DEFERRED Choose One aim (the card is still in hand and nothing has resolved): ending the turn
     // abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
@@ -4343,14 +4343,16 @@ function endRecruitTurn(s: RunState): void {
     const pt = s.pendingTarget;
     const src = s.board.find((c) => c.uid === pt.uid);
     const def = src ? CARD_INDEX[src.cardId] : undefined;
-    // A tribe-restricted pick (Toxin Tender → another friendly Undead, never self) must respect it;
-    // otherwise any friend works. No eligible target → the play resolves with no effect.
+    // The player never got to aim, so the engine picks the way every un-aimed targeted effect does (R-TARGET-07, owner
+    // 2026-10-10): a RANDOM legal body off the run cursor — never itself (R-TARGET-03), honouring a tribe restriction
+    // (Toxin Tender → another friendly Undead) and the aim filters (Roomworks → an End of Turn minion). It used to be
+    // the highest-Attack "carry", self included on an untyped aim. No eligible target → the play resolves with no effect.
+    const opt = pt.optionIndex !== undefined ? def?.chooseOne?.[pt.optionIndex] : undefined;
     const autoTribe = effectiveTargetTribe(s, def);
-    const pool = autoTribe ? s.board.filter((c) => c !== src && isTribe(c, autoTribe)) : s.board;
-    const carry = pool.length ? pool.reduce((a, b) => (b.attack > a.attack ? b : a)) : undefined;
+    const pool = s.board.filter((c) => c !== src && (!autoTribe || isTribe(c, autoTribe)) && (!def || !!opt || battlecryTargetAllowed(def, c)));
+    const carry = src ? refireTarget(s, pool) : undefined;
     if (src && carry) {
-      // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the carry.
-      const opt = pt.optionIndex !== undefined ? def?.chooseOne?.[pt.optionIndex] : undefined;
+      // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the pick.
       if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
       else applyBattlecryTarget(s, src, carry);
     }

@@ -145,6 +145,8 @@ const TRIBE_TAUNTS: Partial<Record<Tribe, { base: string; gold: string }>> = {
   neutral: { base: 'taunt-neutral.webp', gold: 'taunt-neutral-gilded.webp' },
   kobold: { base: 'taunt-kobold.webp', gold: 'taunt-kobold-gilded.webp' },
   dwarf: { base: 'taunt-dwarf.webp', gold: 'taunt-dwarf-gilded.webp' },
+  celestial: { base: 'taunt-celestial.webp', gold: 'taunt-celestial-gilded.webp' },
+  spirit: { base: 'taunt-spirit.webp', gold: 'taunt-spirit-gilded.webp' },
 };
 /** The heater a Taunt card should wear: its tribe's shield (gilded variant when golden), else the shared gold. */
 function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
@@ -179,6 +181,8 @@ const TRIBE_OVALS: Partial<Record<Tribe, { base: string; gold: string }>> = {
   neutral: { base: 'oval-neutral.webp', gold: 'oval-neutral-gilded.webp' },
   kobold: { base: 'oval-kobold.webp', gold: 'oval-kobold-gilded.webp' },
   dwarf: { base: 'oval-dwarf.webp', gold: 'oval-dwarf-gilded.webp' },
+  celestial: { base: 'oval-celestial.webp', gold: 'oval-celestial-gilded.webp' },
+  spirit: { base: 'oval-spirit.webp', gold: 'oval-spirit-gilded.webp' },
 };
 /** The oval a card should wear: its tribe's frame (gilded variant when golden), else the shared silver oval. */
 function stdFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
@@ -226,8 +230,9 @@ const msFrameSrc = (stat: 'atk' | 'hp', tier: number): string =>
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
 // shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
-// `frames/` to give it a plate (all eight tribes have one as of 2026-07-31). A tribe-plated card also relocates its tribe
-// LABEL to the plate's bottom gem (no icon) — see `TRIBE_PLATE_SET` / `.plate-tribe`.
+// `frames/` to give it a plate (all ten tribes have one as of 2026-10-11, when Set 3's Celestial and Spirit got
+// theirs). A tribe-plated card also relocates its tribe LABEL to the plate's bottom gem (no icon) — see
+// `TRIBE_PLATE_SET` / `.plate-tribe`.
 const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   beast: `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`,
   dragon: `${import.meta.env.BASE_URL}frames/cardplate-dragon.webp`,
@@ -237,12 +242,8 @@ const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
   neutral: `${import.meta.env.BASE_URL}frames/cardplate-neutral.webp`,
   kobold: `${import.meta.env.BASE_URL}frames/cardplate-kobold.webp`,
   dwarf: `${import.meta.env.BASE_URL}frames/cardplate-dwarf.webp`,
-  // Set 3's tribes have NO authored plate yet, so they wear the generic plate — but they are registered here so
-  // their tribe NAME sits on the plate's bottom gem like every other tribe's, instead of falling back to the
-  // icon+label drawer line (owner report 2026-09-14: "place their tribe names correctly like the other tribes").
-  // Swap the path for `cardplate-celestial.webp` / `cardplate-spirit.webp` once the owner draws them.
-  celestial: CARD_PLATE_SRC,
-  spirit: CARD_PLATE_SRC,
+  celestial: `${import.meta.env.BASE_URL}frames/cardplate-celestial.webp`,
+  spirit: `${import.meta.env.BASE_URL}frames/cardplate-spirit.webp`,
 };
 const plateSrcFor = (tribe: Tribe | undefined): string =>
   (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;

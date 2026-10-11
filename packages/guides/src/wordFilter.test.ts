@@ -16,6 +16,9 @@ describe('isBlockedText', () => {
   it('blocks a listed word whatever its case, accents, letter swaps or stretched letters', () => {
     for (const s of ['shit', 'SHIT', 'sh1t', '$hit', 'shiiiit', 'shít', 'well shit.']) expect(isBlockedText(s), s).toBe(true);
   });
+  it('reads "!" as the letter i inside a word and as punctuation everywhere else', () => {
+    for (const s of ['this is shit!', 'bitch!!', 'sh!t', 'shit!?']) expect(isBlockedText(s), s).toBe(true);
+  });
   it('blocks the strong stems inside a longer word', () => {
     for (const s of ['fucking', 'motherfucker', 'bullshitter']) expect(isBlockedText(s), s).toBe(true);
   });
@@ -44,6 +47,9 @@ it('the word list is not part of the package\'s public entry', async () => {
 describe('isReservedByline', () => {
   it('reserves Team Ascent and its lookalikes, and staff words', () => {
     for (const s of ['Team Ascent', 'team  ascent', 'T3am Asc3nt', 'TeamAscent', 'Ascent Team', 'Ascent Official', 'xX Team Ascent Xx', 'Admin', 'the moderator', 'Developer', 'Official', 'Teaam Ascent', 'Teeam  Asscent', 'Aadmin', 'Admiin', 'Ascent Offficial', 'Modderator']) expect(isReservedByline(s), s).toBe(true);
+  });
+  it('a trailing "!" does not hide a reserved name, and "!" inside a word is still the letter i', () => {
+    for (const s of ['Team Ascent!', 'Adm!n']) expect(isReservedByline(s), s).toBe(true);
   });
   it('leaves ordinary names alone', () => {
     for (const s of ['Mike', 'KC', 'Ascendant', 'Teamwork', 'Dev', 'Administrivia']) expect(isReservedByline(s), s).toBe(false);

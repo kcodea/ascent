@@ -18,11 +18,17 @@ const WORDS: readonly string[] = [
 /** Matched anywhere inside a word: stems that do not occur inside innocent words. */
 const STEMS: readonly string[] = ['fuck', 'nigger', 'faggot', 'bullshit'];
 
-const SWAPS: Readonly<Record<string, string>> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i' };
+const SWAPS: Readonly<Record<string, string>> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's' };
 
-/** Lower case, accents stripped, letter swaps undone. */
+/**
+ * Lower case, accents stripped, letter swaps undone. "!" stands in for the letter i only INSIDE a word, which is when
+ * a letter or another swap character follows it ("sh!t"). Anywhere else it is punctuation and is left alone, so it
+ * ends the word like any other mark ("shit!" is the word "shit").
+ */
 const fold = (text: string): string =>
-  text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[013457@$!]/g, (c) => SWAPS[c] ?? c);
+  text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/!(?=[a-z013457@$])/g, 'i')
+    .replace(/[013457@$]/g, (c) => SWAPS[c] ?? c);
 
 /** The words of a text: runs of a to z. */
 const tokens = (text: string): string[] => fold(text).split(/[^a-z]+/).filter(Boolean);

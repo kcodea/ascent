@@ -4,7 +4,7 @@
  *
  * Dependency-free. Generated VERBATIM into supabase/functions/_shared/guidesValidate.ts.
  */
-import { CARD_ID_RE, GUIDE_LIMITS, SET_ID_RE, SLUG_RE, TRIBE_RE, UUID_RE } from './types';
+import { CARD_ID_RE, FORBIDDEN_KEYS, GUIDE_LIMITS, SET_ID_RE, SLUG_RE, TRIBE_RE, UUID_RE } from './types';
 
 /** A guide as the save path accepts it, already cleaned. */
 export interface GuideDraft {
@@ -32,8 +32,13 @@ export interface GuideDraft {
 
 export type GuideValidation = { ok: true; draft: GuideDraft } | { ok: false; error: 'bad_guide'; field: string };
 
-/** Zero-width characters, bidi controls (including the isolates) and blank-rendering fillers: invisible, and a way to fake an empty or reordered title. */
-const INVISIBLE = /[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\u2800\u3164\uFEFF\uFFA0]/g;
+/**
+ * Zero-width characters, bidi controls (including the isolates) and blank-rendering fillers (the Hangul fillers
+ * U+115F, U+1160, U+3164 and U+FFA0, the Khmer inherent vowels U+17B4 and U+17B5, the blank Braille cell U+2800):
+ * invisible, and a way to fake an empty or reordered title. The variation selectors (U+FE00 to U+FE0F) are
+ * deliberately NOT here: stripping them changes how ordinary emoji render.
+ */
+const INVISIBLE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\u2800\u3164\uFEFF\uFFA0]/g;
 
 /** One line of clean text: invisible characters removed, every whitespace run one space, trimmed. */
 export function cleanText(v: unknown): string {
@@ -46,13 +51,13 @@ const len = (s: string): number => [...s].length;
 
 const fail = (field: string): GuideValidation => ({ ok: false, error: 'bad_guide', field });
 
-/** A list of strings matching `re`, at most `max`, with no repeats. Null when it is not that. */
-function list(v: unknown, re: RegExp, max: number): string[] | null {
+/** A list of strings matching `re`, at most `max`, with no repeats and none of `forbidden`. Null when it is not that. */
+function list(v: unknown, re: RegExp, max: number, forbidden?: ReadonlySet<string>): string[] | null {
   if (v === undefined || v === null) return [];
   if (!Array.isArray(v) || v.length > max) return null;
   const out: string[] = [];
   for (const x of v) {
-    if (typeof x !== 'string' || !re.test(x) || out.includes(x)) return null;
+    if (typeof x !== 'string' || !re.test(x) || forbidden?.has(x) || out.includes(x)) return null;
     out.push(x);
   }
   return out;
@@ -94,14 +99,16 @@ export function validateGuideDraft(v: unknown, opts: { requireSlug?: boolean } =
   const pairsWith = list(o.pairsWith, TRIBE_RE, GUIDE_LIMITS.pairsWith);
   if (!pairsWith) return fail('pairsWith');
 
-  if (typeof o.iconCard !== 'string' || !CARD_ID_RE.test(o.iconCard)) return fail('iconCard');
-  const core = list(o.core, CARD_ID_RE, GUIDE_LIMITS.core);
+  if (typeof o.iconCard !== 'string' || !CARD_ID_RE.test(o.iconCard) || FORBIDDEN_KEYS.has(o.iconCard)) return fail('iconCard');
+  const core = list(o.core, CARD_ID_RE, GUIDE_LIMITS.core, FORBIDDEN_KEYS);
   if (!core || core.length < 1) return fail('core');
-  const enablers = list(o.enablers, CARD_ID_RE, GUIDE_LIMITS.enablers);
+  const enablers = list(o.enablers, CARD_ID_RE, GUIDE_LIMITS.enablers, FORBIDDEN_KEYS);
   if (!enablers) return fail('enablers');
-  const mentions = list(o.mentions, CARD_ID_RE, GUIDE_LIMITS.mentions);
+  const mentions = list(o.mentions, CARD_ID_RE, GUIDE_LIMITS.mentions, FORBIDDEN_KEYS);
   if (!mentions) return fail('mentions');
 
+  // A plain object, so it serialises and compares normally. The refusals below are what keep `__proto__` (which would
+  // be dropped silently on assignment) and Object's other member names out of its keys and its values.
   const aliases: Record<string, string> = {};
   if (o.aliases !== undefined && o.aliases !== null) {
     if (typeof o.aliases !== 'object' || Array.isArray(o.aliases)) return fail('aliases');
@@ -110,8 +117,8 @@ export function validateGuideDraft(v: unknown, opts: { requireSlug?: boolean } =
     const listed = new Set([...core, ...enablers, ...mentions]);
     for (const [word, target] of entries) {
       const w = cleanText(word);
-      if (len(w) < 1 || len(w) > GUIDE_LIMITS.aliasWord) return fail('aliases');
-      if (typeof target !== 'string' || !listed.has(target)) return fail('aliases');
+      if (len(w) < 1 || len(w) > GUIDE_LIMITS.aliasWord || FORBIDDEN_KEYS.has(w)) return fail('aliases');
+      if (typeof target !== 'string' || FORBIDDEN_KEYS.has(target) || !listed.has(target)) return fail('aliases');
       aliases[w] = target;
     }
   }

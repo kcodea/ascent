@@ -31,6 +31,9 @@ export const GUIDE_LIMITS = Object.freeze({
 export const TEAM_BYLINE = 'Team Ascent';
 
 export const CARD_ID_RE = /^[a-z0-9_-]{1,48}$/;
+/** Never a card id and never a nickname, although they fit the shapes: the client indexes cards in plain objects,
+ *  where these three name Object's own members instead of a card. */
+export const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
 export const TRIBE_RE = /^[a-z]{2,20}$/;
 export const SET_ID_RE = /^set[0-9]{1,3}$/;
 export const SLUG_RE = /^[a-z0-9-]{3,60}$/;

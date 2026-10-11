@@ -45,7 +45,7 @@ describe('validateGuideDraft', () => {
     expect(bad({ pairsWith: ['dwarf', 'kobold'] })).toBe('pairsWith');
     expect(bad({ sets: [] })).toBe('sets');
   });
-  it('REVIEW FOCUS 1: a title of only invisible characters is refused, and length counts code points', () => {
+  it('a title of only invisible characters is refused, and length counts code points', () => {
     expect(bad({ title: '\u200B\u200B\u202E' })).toBe('title');
     expect(bad({ title: '\u2066\u2069' })).toBe('title');
     expect(bad({ title: '\u061C' })).toBe('title');
@@ -55,6 +55,27 @@ describe('validateGuideDraft', () => {
     expect(bad({ title: '   ' })).toBe('title');
     expect(bad({ title: '🐉'.repeat(40) })).toBe('ok');
     expect(bad({ title: '🐉'.repeat(41) })).toBe('title');
+  });
+  it('a title of only Hangul or Khmer blank fillers is refused', () => {
+    expect(bad({ title: '\u115F' })).toBe('title');
+    expect(bad({ title: '\u1160' })).toBe('title');
+    expect(bad({ title: '\u17B4' })).toBe('title');
+    expect(bad({ title: '\u17B5' })).toBe('title');
+  });
+  it('refuses the three names every plain object answers to, as a card id and as a nickname', () => {
+    for (const id of ['__proto__', 'constructor', 'prototype']) {
+      expect(bad({ iconCard: id }), id).toBe('iconCard');
+      expect(bad({ core: ['b2_sunmane', id] }), id).toBe('core');
+      expect(bad({ enablers: [id] }), id).toBe('enablers');
+      expect(bad({ mentions: [id] }), id).toBe('mentions');
+      expect(bad({ aliases: { sunny: id } }), id).toBe('aliases'); // a nickname's target
+    }
+    expect(bad({ aliases: { constructor: 'b2_sunmane' } })).toBe('aliases');
+    expect(bad({ aliases: { prototype: 'b2_sunmane' } })).toBe('aliases');
+    // An object literal's `__proto__:` sets the prototype; JSON.parse makes it an own key, as a request body would.
+    const protoWord = JSON.parse('{"__proto__":"b2_sunmane"}') as Record<string, unknown>;
+    expect(Object.keys(protoWord)).toEqual(['__proto__']);
+    expect(bad({ aliases: protoWord })).toBe('aliases');
   });
   it('refuses ids, tribes and sets that are not the right shape', () => {
     expect(bad({ iconCard: 'Not An Id' })).toBe('iconCard');

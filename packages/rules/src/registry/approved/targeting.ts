@@ -166,4 +166,38 @@ export const TARGETING_RULES: GameRule[] = [
       + 'bodies returned on a missing target; the #1755 combat halves were empty).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shoutRefireTargets.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
+  {
+    id: 'R-TARGET-07',
+    title: 'Every targeted effect the player did not aim picks a RANDOM legal target, re-rolled per trigger',
+    statement:
+      'R-TARGET-06 made universal. Whenever a TARGETED minion effect fires without the player choosing its target (Shrieker '
+      + 'or Moira at End of Turn, Myra, Resonance, Echoing Roar, Drakko / Orivax extra fires of a re-fire, a rune-triggered '
+      + 'Shout, High King Mykel, Dawnclaw / Ryme / an Ancient of Time in combat, a combat re-fire settled in the Shop, a '
+      + 'Shout fired off a borrowed card, a Roomworks re-fire, or an aim stranded when the turn ends), it picks a RANDOM '
+      + 'body from the targets it could legally take: never itself (R-TARGET-03), honouring its tribe and aim filters. '
+      + 'Never "the highest-Attack", "the left-most" or "the first". Each trigger is its own seeded draw (the run cursor '
+      + 'in the Shop, the fight’s rng in combat), so repeated triggers can land on different bodies and a replay '
+      + 'picks the same ones. The same holds when a minion or rune CASTS a named TARGETED spell with no player aim '
+      + '(`castSpellFromMinion` / `castSpellWithoutAim` in the Shop, `castNamedSpellInCombat` and the combat cast '
+      + 'paths): a random legal OTHER friend; with none, the cast fizzles and is not counted. Cage Breaker fired '
+      + 'this way destroys a random other friendly Undead, then Discovers. A target the player DID choose (playing the card from hand) is used as chosen, including '
+      + 'by that play’s own Drakko / Warm Embers repeats (`applyBattlecryTarget`).',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-10 (two Humphrys + two Shriekers, the buff always on the 125/124 Shrieker)', quote: 'it picks a random minion from the available options, not the same one every time.' },
+      { kind: 'owner-chat', ref: 'PR #2027 ruling 1, 2026-10-10 (Cage Breaker re-fire)', quote: 'Yes, random Undead' },
+      { kind: 'owner-chat', ref: 'PR #2027 ruling 2, 2026-10-10 (a minion or rune casting a named targeted spell)', quote: 'Yes, random too' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts pickAutoTarget (+ battlecryBuffTarget / battlecryGrantKeyword); packages/core/src/effects/factories.ts combat halves; packages/sim/src/recruit.ts refireTarget (Roomworks, Cage Breaker, Baby Gastrid, Appetite Agent, Gravetwin, Runemaster, Graverobber); packages/sim/src/reducer.ts endRecruitTurn stranded aim; packages/sim/src/recruit.ts castSpellFromMinion + pickRandomSpellTarget; packages/core/src/combat/simulate.ts (Meteor Storm / Celestial casts, a taught Echo cast)' },
+    ],
+    contentIds: ['d2_humphry', 'emissary', 'd2_broodwhelp', 'd2_roomworks', 'd2_shrieker', 'u3_cagebreaker', 'dw_dorrin', 'dm_agent'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-10: the un-aimed fallback of `battlecryBuffTarget` and `battlecryGrantKeyword` took the '
+      + 'highest-Attack legal friend in both phases, Roomworks took the left-most End of Turn minion, the stranded-aim '
+      + 'resolve took the highest-Attack "carry" (self included on an untyped aim), and Cage Breaker did nothing. All now '
+      + 'draw through the one `pickAutoTarget` helper. A named targeted cast by a minion in the Shop aimed at the '
+      + 'highest-Attack other friend (the caster itself on a lone board); it now picks at random and fizzles alone. '
+      + 'The combat cast paths were already random and now share the helper (same draw).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/autoTargetRandom.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
 ];

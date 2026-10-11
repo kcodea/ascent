@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, type CSSProperties, type MouseEvent } from 'react';
+import { useEffect, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
@@ -44,6 +44,13 @@ export function HeroSelect() {
   // HeroSelect renders null (but stays MOUNTED) once pickHero clears heroChoices — so the machine must be
   // reset whenever a new offer arrives, or a finished `launching` state would eat every click next run.
   useEffect(() => { dispatch({ type: 'reset' }); }, [choices]);
+  // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby to get here, so Back
+  // is an ABANDON that settles as an 8th. One press arms it (the label then names the cost), a second press
+  // leaves; pressing anything else, or a new offer, disarms it. Every other mode's Back is free and immediate.
+  const ranked = useGame((s) => s.pendingMode === 'lobby' && s.rankedEntry !== null);
+  const abandonRankedEntry = useGame((s) => s.abandonRankedEntry);
+  const [abandonArmed, setAbandonArmed] = useState(false);
+  useEffect(() => { setAbandonArmed(false); }, [choices]);
   // DEV tuner "Replay" (heroCeremonyTunerConfig): re-run the ceremony with the CURRENT selection so a timing
   // change can be judged without re-clicking through Title → mode. Reset unmounts the ceremony (its cleanup
   // restores the hidden original card + cancels every animation); one frame later the same selection
@@ -132,9 +139,18 @@ export function HeroSelect() {
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}
-      {!active && (
+      {!active && (ranked ? (
+        <button
+          className={`hsback${abandonArmed ? ' armed' : ''}`}
+          onPointerDown={() => { sfx.pulse(); if (abandonArmed) abandonRankedEntry(); else setAbandonArmed(true); }}
+          onBlur={() => setAbandonArmed(false)}
+          aria-description="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
+        >
+          {abandonArmed ? 'Abandon? Counts as 8th place' : '← Main Menu'}
+        </button>
+      ) : (
         <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }}>← Main Menu</button>
-      )}
+      ))}
       {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
           screen wears, so the two screens read as one product. It lives OUTSIDE `.hsbox` (`.heroselect` is a
           two-row grid: this lockup, then the box) and the pair centres as ONE group, the lockup sitting just

@@ -212,6 +212,9 @@ Rulings made during the build, in plain terms:
 - A publish, unpublish or bookmark whose answer is lost shows a sentence, and the true state shows only after the next
   read of the guides. A publish or unpublish asks for that read at once. A bookmark does not, and its sentence still
   says nothing was changed.
+- When that read after a lost publish answer cannot reach the server either, the whole Guides tab reads "Guides are
+  offline." and its buttons are off, with the sentence still on the card. It comes back when the browser reports it is
+  online again, or when the Guides tab is reopened. Before this fix a lost publish answer left the tab as it was.
 - Removing a bookmark at the instant its guide is deleted can fail once. A second press works.
 - Until step 4 the only way to take a published guide down is the SQL in the runbook.
 

@@ -160,4 +160,46 @@ describe('validateReport', () => {
   it('refuses anything that is not an object', () => {
     for (const v of [null, 'spam', 7, []]) expect(validateReport(v)).toEqual({ ok: false, error: 'bad_report', field: 'report' });
   });
+  it('counts the note AFTER cleaning: invisible characters and space runs do not use up the limit', () => {
+    const limit = GUIDE_LIMITS.reportNote;
+    const zw = String.fromCodePoint(0x200b);
+    const first = 'x'.repeat(149);
+    const second = 'y'.repeat(limit - 150);
+    // Cleaned: 149 + one space + 150 = exactly the limit. Raw: far more than the limit.
+    const raw = first + '    ' + zw.repeat(25) + second + zw.repeat(25);
+    expect([...raw].length).toBeGreaterThan(limit + 50);
+    const r = validateReport({ reason: 'spam', note: raw });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect([...r.note].length).toBe(limit);
+      expect(r.note).toBe(first + ' ' + second);
+    }
+  });
+  it('counts the note in characters, not UTF-16 units', () => {
+    const fire = String.fromCodePoint(0x1f525);
+    expect(fire.length).toBe(2);
+    const atLimit = validateReport({ reason: 'spam', note: fire.repeat(GUIDE_LIMITS.reportNote) });
+    expect(atLimit.ok).toBe(true);
+    if (atLimit.ok) expect([...atLimit.note].length).toBe(GUIDE_LIMITS.reportNote);
+    expect(validateReport({ reason: 'spam', note: fire.repeat(GUIDE_LIMITS.reportNote + 1) })).toEqual({ ok: false, error: 'bad_report', field: 'note' });
+  });
+  it('a null, undefined or missing note is an empty note', () => {
+    expect(validateReport({ reason: 'spam', note: null })).toEqual({ ok: true, reason: 'spam', note: '' });
+    expect(validateReport({ reason: 'spam', note: undefined })).toEqual({ ok: true, reason: 'spam', note: '' });
+    expect(validateReport({ reason: 'spam' })).toEqual({ ok: true, reason: 'spam', note: '' });
+  });
+  it('takes the reason as it is: never trimmed, case-folded or coerced', () => {
+    const coercible = { toString: () => 'spam' };
+    for (const reason of ['Spam', ' spam', 'spam ', 'SPAM', coercible, ['spam']]) {
+      expect(validateReport({ reason })).toEqual({ ok: false, error: 'bad_report', field: 'reason' });
+    }
+  });
+  it('never throws on odd values: each is refused', () => {
+    const odd: unknown[] = [Object.create(null), new Date(0), new Map([['reason', 'spam']]), () => 'spam'];
+    for (const v of odd) {
+      const r = validateReport(v);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(['reason', 'report']).toContain(r.field);
+    }
+  });
 });

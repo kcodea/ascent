@@ -70,6 +70,24 @@ export function duplicateDraft(g: Guide, byline: string): EditorDraft {
 
 export const sameDraft = (a: EditorDraft, b: EditorDraft): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/**
+ * A fresh id for one press of Save. The editor sends it with the save and again if the same document is retried, so
+ * a save that timed out here but landed on the server is not applied twice. Empty when this browser cannot make one
+ * (the save is then sent without it, as before).
+ */
+export function newSaveId(): string {
+  const c: Crypto | undefined = globalThis.crypto;
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+  if (c && typeof c.getRandomValues === 'function') {
+    const b = c.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6]! & 0x0f) | 0x40;
+    b[8] = (b[8]! & 0x3f) | 0x80;
+    const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+  return '';
+}
+
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 interface NameIndex { byName: Map<string, string>; re: RegExp | null }

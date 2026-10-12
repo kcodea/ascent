@@ -137,7 +137,8 @@ export function GuideUnits({ label, ids, views, refs, missing }: {
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The body paragraph with every named guide card turned into a hoverable highlight (case-insensitive, so the
- *  owner's "Edward Keg-Hands" finds the card "Edward Keg-hands"). A guide's `aliases` add shorter names ("Oona"). */
+ *  owner's "Edward Keg-Hands" finds the card "Edward Keg-hands"). A guide's `aliases` add shorter names ("Oona").
+ *  Names are matched whole: a name inside a longer word is plain text. */
 function linkCardNames(text: string, ids: readonly string[], views: Map<string, CardView>, refs: Map<string, CardView[]>,
   aliases?: Readonly<Record<string, string>>): ReactNode[] {
   const byName = new Map<string, string>();
@@ -145,7 +146,8 @@ function linkCardNames(text: string, ids: readonly string[], views: Map<string, 
   for (const [word, id] of Object.entries(aliases ?? {})) if (views.has(id) && ids.includes(id)) byName.set(word.toLowerCase(), id);
   if (byName.size === 0) return [text];
   const names = [...byName.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
-  const re = new RegExp(`(${names.join('|')})`, 'gi');
+  // A whole name only: not glued to a letter or digit on either side (so "imp" is not found inside "important").
+  const re = new RegExp(`(?<![a-z0-9])(${names.join('|')})(?![a-z0-9])`, 'gi');
   return text.split(re).map((part, i) => {
     const id = i % 2 === 1 ? byName.get(part.toLowerCase()) : undefined;
     const v = id ? views.get(id) : undefined;

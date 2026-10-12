@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
-import { GUIDE_LIMITS, validateGuideDraft } from '@game/guides';
+import { GUIDE_LIMITS, UUID_RE, validateGuideDraft } from '@game/guides';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, type Guide } from './guides';
 import {
-  builtInImportPayload, draftFromGuide, draftProblems, duplicateDraft, emptyDraft, mentionsFor, missingIn, sameDraft, toWire,
+  builtInImportPayload, draftFromGuide, draftProblems, duplicateDraft, emptyDraft, mentionsFor, missingIn, newSaveId, sameDraft, toWire,
 } from './guideDrafts';
 
 const REGEX_SPECIAL: ReadonlySet<string> = new Set('.*+?^${}()|[]' + String.fromCharCode(92));
@@ -186,5 +186,15 @@ describe('builtInImportPayload', () => {
       expect(p.official).toBe(true);
       expect(validateGuideDraft(p, { requireSlug: true }), p.slug).toMatchObject({ ok: true });
     }
+  });
+});
+
+describe('newSaveId', () => {
+  it('makes a different uuid each time', () => {
+    const a = newSaveId();
+    const b = newSaveId();
+    expect(UUID_RE.test(a)).toBe(true);
+    expect(UUID_RE.test(b)).toBe(true);
+    expect(a).not.toBe(b);
   });
 });

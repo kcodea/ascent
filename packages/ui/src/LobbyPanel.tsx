@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   boardIntel, getHero, lastRoundDamage, playerOpponent, roundLossCap, seatResults, snapshotBoard,
@@ -17,7 +17,7 @@ import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { LobbyGuides } from './guides/LobbyGuides';
-import { guidesFor, type GuidesMode } from './guides/guides';
+import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
@@ -105,9 +105,16 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
-  // one-frame jump on open.
-  const [guideList, setGuideList] = useState(() => useGuides.getState().list);
-  const guides = useMemo(() => guidesFor(setId, runTribes, guideList), [setId, runTribes, guideList]);
+  // one-frame jump on open. The player's own guides are part of the same snapshot.
+  const [guideSnap, setGuideSnap] = useState(() => ({ list: useGuides.getState().list, mine: useGuides.getState().mine }));
+  const guides = useMemo(() => guidesFor(setId, runTribes, guideSnap.list), [setId, runTribes, guideSnap.list]);
+  const myGuides = useMemo(() => guidesFor(setId, runTribes, guideSnap.mine), [setId, runTribes, guideSnap.mine]);
+  // Who may edit: a boolean and an id, both cheap to subscribe to. The guide LISTS are still only a snapshot.
+  // Editing needs the server, so no Edit button unless the guides capability is on.
+  const guideTeam = useGuides((s) => s.team);
+  const guidesLive = useGuides((s) => s.capability === 'on');
+  const guideUserId = useGame((st) => st.account.userId);
+  const canEditInRail = useCallback((g: Guide) => guidesLive && canEditGuide(g, guideUserId, guideTeam), [guidesLive, guideUserId, guideTeam]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
   const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
   // The swap animation, set only by a toggle (never on mount): the rail widens into the FULL Guides view and narrows
@@ -116,7 +123,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useEffect(() => { if (railViewMemo.run !== runKey) { setView('opponents'); setSwap(null); } }, [runKey]);
   useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
   const showGuides = guidesOn && view === 'guides';
-  useLayoutEffect(() => { if (showGuides) setGuideList(useGuides.getState().list); }, [showGuides]);
+  useLayoutEffect(() => {
+    if (!showGuides) return;
+    const s = useGuides.getState();
+    // Same two arrays as last time = the same snapshot object, so nothing re-renders.
+    setGuideSnap((cur) => (cur.list === s.list && cur.mine === s.mine ? cur : { list: s.list, mine: s.mine }));
+  }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);
     setPinned(null);
@@ -304,7 +316,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
 
       {showGuides ? (
         <div className={`lobbyview${swap ? ' lobbyview-in' : ''}`} key="guides">
-          <LobbyGuides guides={guides} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
+          <LobbyGuides guides={guides} mine={myGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
         </div>
       ) : (
       <div className={`lobbyseats${swap ? ' lobbyview-in' : ''}`} key="seats">

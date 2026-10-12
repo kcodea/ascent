@@ -3,6 +3,7 @@ import type { Tribe } from '@game/core';
 import { Icon } from '../Icon';
 import { toStage } from '../stage';
 import { useGame } from '../store';
+import { requestGuideEdit } from './guidesStore';
 import { guideMissingIds, type Guide, type GuidesMode } from './guides';
 import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
 import './lobbyGuides.css';
@@ -16,8 +17,13 @@ let openMemo: { run: string; id: string | null } = { run: '', id: null };
  * a time. The expansion animates `grid-template-rows` (0fr -> 1fr) as a one-shot transition, so nothing is measured.
  * A guide's body mounts the first time it opens and stays mounted, so collapsing can animate too.
  */
-export const LobbyGuides = memo(function LobbyGuides({ guides, tribes, runKey, mode, onMode }: {
-  guides: readonly Guide[]; tribes: readonly Tribe[]; runKey: string;
+export const LobbyGuides = memo(function LobbyGuides({ guides, mine, canEdit, tribes, runKey, mode, onMode }: {
+  guides: readonly Guide[];
+  /** The player's own guides for this game (set + lobby tribes), shown after Team Ascent's. */
+  mine: readonly Guide[];
+  /** May this account edit this guide? Draws the Edit button on an open card. */
+  canEdit: (g: Guide) => boolean;
+  tribes: readonly Tribe[]; runKey: string;
   /** SIMPLE: the normal-width rail, portraits only. FULL: the wide rail, with the tagline and the write-up. */
   mode: GuidesMode;
   /** The open card's Detailed / Simple button (owner 2026-10-09: per card, not a header pill). */
@@ -62,7 +68,7 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, tribes, runKey, m
     const ro = new ResizeObserver(fit);
     ro.observe(list);
     return () => ro.disconnect();
-  }, [guides.length]);
+  }, [guides.length + mine.length]);
   // A mode switch reflows the open card (the rail widens / narrows): re-centre it once the widen has played.
   const firstMode = useRef(true);
   useEffect(() => {
@@ -71,14 +77,20 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, tribes, runKey, m
     const t = window.setTimeout(() => centreGuide(listRef.current, open), 300);
     return () => window.clearTimeout(t);
   }, [mode]);
-  if (guides.length === 0) return <div className="lobbyguides"><div className="lobbyguides-empty">No guides for this game yet.</div></div>;
+  if (guides.length === 0 && mine.length === 0) return <div className="lobbyguides"><div className="lobbyguides-empty">No guides for this game yet.</div></div>;
   return (
     <div className="lobbyguides" ref={listRef}>
       <div className="lobbyguide-unitrow lobbyguides-probe" ref={probeRef} aria-hidden="true"><div className="lobbyguide-unit"><div className="lobbyguide-unitscale" /></div></div>
       {/* Data order keeps each tribe's builds together; the tribe itself is on each card (owner 2026-10-09: no group
           headings, "we reference the tribes in the card"). */}
       {guides.map((g) => (
-        <GuideRow key={g.id} guide={g} tribes={tribes} open={open === g.id} full={mode === 'full'} onMode={onMode}
+        <GuideRow key={g.id} guide={g} tribes={tribes} open={open === g.id} full={mode === 'full'} onMode={onMode} editable={canEdit(g)}
+          onToggle={() => { userOpened.current = open !== g.id; setOpen((o) => (o === g.id ? null : g.id)); }} />
+      ))}
+      {/* The player's own guides (2026-10-12): the same rows, after Team Ascent's, under one quiet label. */}
+      {mine.length > 0 && <div className="lobbyguides-sec" role="presentation">Your guides</div>}
+      {mine.map((g) => (
+        <GuideRow key={g.id} guide={g} tribes={tribes} open={open === g.id} full={mode === 'full'} onMode={onMode} editable={canEdit(g)}
           onToggle={() => { userOpened.current = open !== g.id; setOpen((o) => (o === g.id ? null : g.id)); }} />
       ))}
     </div>
@@ -105,8 +117,8 @@ function centreGuide(list: HTMLElement | null, id: string): void {
   scroller.scrollTo({ top: Math.max(0, Math.min(top, scroller.scrollHeight - viewH)), behavior: reduce ? 'auto' : 'smooth' });
 }
 
-function GuideRow({ guide, tribes, open, full, onMode, onToggle }: {
-  guide: Guide; tribes: readonly Tribe[]; open: boolean; full: boolean; onMode: (m: GuidesMode) => void; onToggle: () => void;
+function GuideRow({ guide, tribes, open, full, onMode, editable, onToggle }: {
+  guide: Guide; tribes: readonly Tribe[]; open: boolean; full: boolean; onMode: (m: GuidesMode) => void; editable: boolean; onToggle: () => void;
 }): JSX.Element {
   const [mounted, setMounted] = useState(open);
   useEffect(() => { if (open) setMounted(true); }, [open]);
@@ -124,14 +136,14 @@ function GuideRow({ guide, tribes, open, full, onMode, onToggle }: {
       </button>
       <div className="lobbyguide-fold" id={bodyId} role="region" aria-label={guide.title} aria-hidden={!open}>
         <div className="lobbyguide-foldin">
-          {mounted && <GuideBody guide={guide} full={full} onMode={onMode} />}
+          {mounted && <GuideBody guide={guide} full={full} onMode={onMode} editable={editable} />}
         </div>
       </div>
     </div>
   );
 }
 
-function GuideBody({ guide, full, onMode }: { guide: Guide; full: boolean; onMode: (m: GuidesMode) => void }): JSX.Element {
+function GuideBody({ guide, full, onMode, editable }: { guide: Guide; full: boolean; onMode: (m: GuidesMode) => void; editable: boolean }): JSX.Element {
   const run = useGame((st) => st.run);
   const ids = useMemo(() => guideCardIds(guide), [guide]);
   const { views, refs } = useGuideViews(ids, run);
@@ -141,13 +153,22 @@ function GuideBody({ guide, full, onMode }: { guide: Guide; full: boolean; onMod
       {full && <GuideText guide={guide} ids={ids} views={views} refs={refs} missing={missing} />}
       <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} missing={missing} />
       {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} missing={missing} />}
-      {/* DETAILED / SIMPLE, per open card: Detailed widens the rail to the left and adds the write-up; Simple folds
-          back to the normal rail. The choice is remembered (LobbyPanel). */}
-      <button type="button" className="lobbyguide-modebtn"
-        aria-label={full ? 'Simple view: portraits only, normal rail width' : 'Detailed view: wider rail with the write-up'}
-        onClick={() => onMode(full ? 'simple' : 'full')}>
-        {full ? 'Simple' : 'Detailed'}
-      </button>
+      <div className="lobbyguide-foot">
+        {/* DETAILED / SIMPLE, per open card: Detailed widens the rail to the left and adds the write-up; Simple folds
+            back to the normal rail. The choice is remembered (LobbyPanel). */}
+        <button type="button" className="lobbyguide-modebtn"
+          aria-label={full ? 'Simple view: portraits only, normal rail width' : 'Detailed view: wider rail with the write-up'}
+          onClick={() => onMode(full ? 'simple' : 'full')}>
+          {full ? 'Simple' : 'Detailed'}
+        </button>
+        {/* EDIT (2026-10-12): opens the Compendium on this guide in the editor. The rail is too narrow to write in. */}
+        {editable && guide.rowId && (
+          <button type="button" className="lobbyguide-modebtn lobbyguide-editbtn" aria-label={`Edit ${guide.title} in the Compendium`}
+            onClick={() => { requestGuideEdit(guide.rowId!); const st = useGame.getState(); if (!st.showBook) st.toggleBook(); }}>
+            Edit
+          </button>
+        )}
+      </div>
     </div>
   );
 }

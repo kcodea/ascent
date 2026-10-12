@@ -18,8 +18,13 @@ import { GUIDES, guidesFor } from './guides';
 import { resetGuidesForTests, useGuides } from './guidesStore';
 
 let ui: Mounted | null = null;
+const prevAccount = useGame.getState().account;
 beforeEach(() => { try { localStorage.removeItem('ascent.guidesMode'); } catch { /* ignore */ } });
-afterEach(() => { resetGuidesForTests(); ui?.unmount(); ui = null; });
+afterEach(() => {
+  act(() => { resetGuidesForTests(); });
+  act(() => { useGame.setState({ account: prevAccount, showBook: false }); });
+  ui?.unmount(); ui = null;
+});
 
 const click = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
 
@@ -150,5 +155,76 @@ describe('lobby rail guides view', () => {
     click(tab);
     click(tab);
     expect(c.textContent).toContain('Renamed on the server');
+  });
+
+  it('the player\'s own guides for this game follow Team Ascent\'s, under a "Your guides" label', () => {
+    const c = mountRail(8181);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'My private build', sets: [run.setId ?? 'set1'], tribes: [run.tribes[0]!] };
+    const elsewhere = { ...own, id: 'own-2', rowId: 'own-2', title: 'For another set', sets: [] };
+    // Set before the Guides view opens: opening it is when the rail takes its snapshot.
+    act(() => { useGuides.setState({ mine: [own, elsewhere] }); });
+    openGuides(c);
+    const labels = [...c.querySelectorAll('.lobbyguides-sec')].map((n) => n.textContent);
+    expect(labels).toEqual(['Your guides']);
+    const ids = [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide'));
+    expect(ids[ids.length - 1]).toBe('own-1');
+    expect(ids).not.toContain('own-2');
+    expect(ids.slice(0, -1)).toEqual(guidesFor(run.setId, run.tribes).map((g) => g.id));
+  });
+
+  it('with no guides of their own there is no "Your guides" label', () => {
+    const c = mountRail(8282);
+    openGuides(c);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+  });
+
+  it('an open guide the player may edit has an Edit button that opens the Compendium on it; one they may not edit has none', () => {
+    const c = mountRail(8383);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null }, showBook: false });
+      useGuides.setState({ mine: [own], capability: 'on' });
+    });
+    openGuides(c);
+    const head = (id: string): Element => c.querySelector(`.lobbyguide[data-guide="${id}"] .lobbyguide-head`)!;
+    const official = guidesFor(run.setId, run.tribes)[0]!;
+    click(head(official.id));
+    expect(c.querySelector(`.lobbyguide[data-guide="${official.id}"] .lobbyguide-editbtn`)).toBeNull();
+    click(head('own-1'));
+    const edit = c.querySelector(`.lobbyguide[data-guide="own-1"] .lobbyguide-editbtn`)!;
+    expect(edit.textContent).toBe('Edit');
+    click(edit);
+    expect(useGuides.getState().pendingEdit).toBe('own-1');
+    expect(useGame.getState().showBook).toBe(true);
+    act(() => { useGame.setState({ showBook: false }); });
+  });
+
+  it('without the guides server there is no Edit button, even on a guide the player owns', () => {
+    const c = mountRail(8585);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } });
+      useGuides.setState({ mine: [own], capability: 'off' });
+    });
+    openGuides(c);
+    click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-head')!);
+    expect(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-modebtn')).not.toBeNull();
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+  });
+
+  it('the rail takes its own guides as a snapshot too: a save that lands while it is open does not add a card', () => {
+    const c = mountRail(8484);
+    const run = useGame.getState().run;
+    openGuides(c);
+    const before = c.querySelectorAll('.lobbyguide').length;
+    act(() => { useGuides.setState({ mine: [{ ...GUIDES[0]!, id: 'late', rowId: 'late', official: false, authorId: 'u-1', sets: [run.setId ?? 'set1'], tribes: [] }] }); });
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(before);
+    const tab = c.querySelector('.lobbyrailtab')!;
+    click(tab);
+    click(tab);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(before + 1);
   });
 });

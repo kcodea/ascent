@@ -240,3 +240,12 @@
   font-family: var(--font-ui); font-size: calc(var(--lgu-w) * 0.13); line-height: 1.15; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--ui-title); text-shadow: 0 1px 2px #000, 0 0 6px #000;
 }
+
+/* -- YOUR GUIDES (2026-10-12): a quiet label between Team Ascent's guides and the player's own, and the open card's
+   foot holding its two buttons. Reuses the rail's own sizing variables; nothing animates. */
+.lobbyguides-sec {
+  margin: calc(4 * var(--lrow)) 0 calc(1 * var(--lrow)); padding-left: calc(4 * var(--lrow));
+  font-size: calc(11 * var(--lfont) * 0.85 * var(--lgt, 1.6)); font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-muted);
+}
+.lobbyguide-foot { display: flex; justify-content: center; gap: calc(6 * var(--lu)); }
+.lobbyguide-foot .lobbyguide-modebtn { align-self: auto; }

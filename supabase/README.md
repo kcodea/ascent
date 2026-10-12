@@ -180,6 +180,20 @@ client shows the server's list instead of the eleven built-in ones.
 tables have no client write policy. The function refuses guests, answers before reading the body, and caps the body
 at 64 KB in bytes.
 
+### The editor (step 2)
+
+Nothing new to run in SQL. The client now calls `guide-write`, so:
+
+1. **Deploy the function** if it is not deployed yet: `npx supabase functions deploy guide-write`.
+2. **Import the built-in guides, once.** Signed in as a team account, open the Compendium, Guides, and press
+   **Import built-in guides**. It is offered only to the team and only while the built-in copies are showing. Do this
+   before creating any new Team Ascent guide.
+3. **Check row-level security with two real accounts** (this has never been run against the live project):
+   - Account A (not on the team): New guide, save. It appears under My guides.
+   - Account B: it must NOT see A's guide anywhere. In the SQL editor, `select count(*) from public.guides where not official;` shows it exists; B's Compendium does not.
+   - Account A: a Team Ascent guide shows no Edit button. Team account: it does, and an edit shows for A after reopening the Compendium.
+   - Guest: New guide asks to sign in.
+
 ### Note
 
 This directory is **Deno**, not part of the Node monorepo build: the repo's `tsc`/`eslint` skip it

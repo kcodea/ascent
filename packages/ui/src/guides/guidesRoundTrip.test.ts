@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,7 +11,8 @@ import { handleGuideWrite, type RpcCall } from '../../../guides/src/server';
 import { isBlockedText } from '../../../guides/src/wordFilter';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, toGuide, type Guide } from './guides';
-import { GUIDE_COLUMNS } from './guidesRemote';
+import { GUIDE_COLUMNS, saveGuideRemote, type GuideDraftInput } from './guidesRemote';
+import { builtInImportPayload } from './guideDrafts';
 import { TRIBE_NAME } from './GuideParts';
 
 /**
@@ -74,6 +75,21 @@ async function readAs(role: 'anon' | 'authenticated', user: string | null, sql: 
   }
 }
 
+// THE CLIENT'S OWN SAVE PATH (`saveGuideRemote`), with the Edge Function stood in by the real handler over the real
+// SQL. Both directions cross as JSON text, as they do on the wire, so the client reads exactly what the function sends.
+vi.mock('../remoteBoards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../remoteBoards')>()),
+  supabaseClient: () => ({
+    functions: {
+      invoke: async (_fn: string, opts: { body: unknown }) => {
+        const res = await handleGuideWrite(PLAYER, false, JSON.parse(JSON.stringify(opts.body)), rpc);
+        const body = JSON.parse(JSON.stringify(res.body)) as Record<string, unknown>;
+        return res.status === 200 ? { data: body, error: null } : { data: null, error: { context: { status: res.status, json: async () => body } } };
+      },
+    },
+  }),
+}));
+
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(STUB);
@@ -93,15 +109,9 @@ const comparable = (g: Guide): Record<string, unknown> =>
 describe('guides, end to end: handler -> SQL -> the client reader', () => {
   it('the eleven built-in guides import through the real handler and read back identical', async () => {
     expect(BUNDLED_GUIDE_DATA).toHaveLength(11);
-    // The payload, built the way the Import button (step 2) builds it.
-    const guides = BUNDLED_GUIDE_DATA.map((d, i) => {
-      expect(GUIDES[i]!.id).toBe(d.id);
-      return {
-        slug: d.id, official: true, sets: [...GUIDES[i]!.sets], tribes: [...d.tribes], pairsWith: [...(d.pairsWith ?? [])], iconCard: d.iconCard,
-        title: d.title, tagline: d.tagline, body: d.body, core: [...d.core], enablers: [...d.enablers], mentions: [...(d.mentions ?? [])],
-        aliases: { ...(d.aliases ?? {}) },
-      };
-    });
+    // The payload, built by the same function the Import button uses.
+    BUNDLED_GUIDE_DATA.forEach((d, i) => expect(GUIDES[i]!.id).toBe(d.id));
+    const guides = builtInImportPayload();
     const logged: unknown[] = [];
     const res = await handleGuideWrite(TEAM, false, { op: 'importBuiltIns', guides }, rpc, (msg, detail) => { logged.push([msg, detail]); });
     expect(logged).toEqual([]);
@@ -156,6 +166,36 @@ describe('guides, end to end: handler -> SQL -> the client reader', () => {
     expect({ ...answered, createdAt: '', updatedAt: '' }).toStrictEqual({ ...back!, createdAt: '', updatedAt: '' });
     // And it is private: a signed-out player does not see it.
     expect(await readAs('anon', null, `select id from public.guides where id = '${answered.id}'`)).toHaveLength(0);
+  });
+
+  it('what the client reads out of a save answer is the stored row, field for field', async () => {
+    // A copy of an imported Team Ascent guide, so the "Based on" fields are filled in too. The icon is not the first
+    // Core card and there is a "pairs with": the two fields a second edit would write back wrong if they were lost.
+    const source = (await readAs('anon', null, 'select id, title, byline from public.guides where official order by sort_order, id limit 1'))[0]!;
+    const draft: GuideDraftInput = {
+      official: false, byline: 'Mike', sets: ['set2'], tribes: ['beast'], pairsWith: ['dwarf'], iconCard: 'b2_sunmane', title: 'Sunmane, second opinion',
+      tagline: 'Rally early, rally often.', body: 'Open on Sunny and stack the rally every turn.', core: ['b2_solaris', 'b2_sunmane'],
+      enablers: ['b2_sunmane'], mentions: ['sylus'], aliases: { sunny: 'b2_sunmane' }, forkedFrom: String(source.id),
+    };
+    const res = await saveGuideRemote(draft);
+    expect(res.ok, JSON.stringify(res)).toBe(true);
+    const saved = (res as { ok: true; value: GuideRecord }).value;
+
+    const rows = await readAs('authenticated', PLAYER, `select ${GUIDE_COLUMNS} from public.guides where id = '${saved.id}'`);
+    expect(rows).toHaveLength(1);
+    const back = parseGuideRecord(rows[0])!;
+    // The stored row is what was asked for...
+    expect(back).toMatchObject({
+      authorId: PLAYER, iconCard: 'b2_sunmane', pairsWith: ['dwarf'], forkedFrom: String(source.id), forkedTitle: String(source.title),
+      forkedByline: String(source.byline), official: false, published: false, sets: ['set2'], revision: 1,
+    });
+    // ...and the client read every field of it out of the answer (the timestamps differ only in type: this driver
+    // returns Dates for a direct read, the answer carries text).
+    expect({ ...saved, createdAt: '', updatedAt: '' }).toStrictEqual({ ...back, createdAt: '', updatedAt: '' });
+    for (const [got, col] of [[saved.createdAt, 'created_at'], [saved.updatedAt, 'updated_at']] as const) {
+      expect(got, col).not.toBe('');
+      expect(new Date(got).getTime(), col).toBe(new Date(rows[0]![col] as string | Date).getTime());
+    }
   });
 });
 

@@ -13,6 +13,7 @@ import { MinionBook } from '../MinionBook';
 import { useGame } from '../store';
 import { mount, type Mounted } from '../renderedText.mount';
 import { GUIDES, guidesFor } from './guides';
+import { loadGuides } from './guidesStore';
 
 const click = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
 /** The Guides toggle sits in the header beside Glossary (owner 2026-10-09), not in the left rail. */
@@ -22,9 +23,12 @@ const shownIds = (c: HTMLElement): string[] => [...c.querySelectorAll('.bookguid
 describe('Compendium Guides tab', () => {
   let m: Mounted;
   let prevShowTitle: boolean;
-  beforeEach(() => {
+  beforeEach(async () => {
     prevShowTitle = useGame.getState().showTitle;
     useGame.setState({ showTitle: true });
+    // The game reads the guides when identity lands, long before the Compendium can be opened. Do the same here, so
+    // the first answer does not arrive (and redraw the Guides tab) after a test has already finished.
+    await loadGuides();
     m = mount(<MinionBook />);
   });
   afterEach(() => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
@@ -12,7 +12,7 @@ import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/Portra
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
-import { RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES } from './rank/rankedEntry';
+import { RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { Crest, IconChest, IconHelm } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
@@ -106,7 +106,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [tutorialPrompt, setTutorialPrompt] = useState(false);
   // THE RANKED CONFIRMATION (owner 2026-10-11, R-RANK-06): the Play card never opens hero select directly. It asks
   // first, because from "Yes" on, leaving the match (even from hero select) settles as an 8th.
-  const [rankedConfirm, setRankedConfirm] = useState(false);
+  // It opens OVER the mode picker (owner 2026-10-12: "take place on the play menu screen ... have the background
+  // blurred and darkened ... this window expands out with a little bit of a bounce"): `open` plays the entrance,
+  // `closing` is the short reverse "No, go back." plays before the card unmounts.
+  const [rankedConfirm, setRankedConfirm] = useState<'open' | 'closing' | null>(null);
+  const rankedCloseTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (rankedCloseTimer.current != null) window.clearTimeout(rankedCloseTimer.current); }, []);
   // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
   // non-signed in players change the portrait either, they need to sign in for that"). Read fresh per click.
   const [portraitGate, setPortraitGate] = useState(false);
@@ -133,12 +138,22 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // once before the real game, rather than dropping them in cold.
   const learnStatus = getCourseProgress(LEARN_ASCENT.id)?.status;
   const isNewPlayer = !learnStatus || learnStatus === 'not_started';
+  const openRankedConfirm = (): void => {
+    if (rankedCloseTimer.current != null) { window.clearTimeout(rankedCloseTimer.current); rankedCloseTimer.current = null; }
+    setRankedConfirm('open');
+  };
+  // "No, go back." (or a press on the dimmed picker around the card): play the exit, then unmount.
+  const closeRankedConfirm = (): void => {
+    if (rankedConfirm !== 'open') return;
+    setRankedConfirm('closing');
+    rankedCloseTimer.current = window.setTimeout(() => { rankedCloseTimer.current = null; setRankedConfirm(null); }, RANKED_CONFIRM_EXIT_MS);
+  };
   // Play from the mode picker: nudge a new player to the tutorial first; everyone else gets the ranked
   // confirmation, and only its "Yes" starts the lobby.
   const onPlay = () => {
     sfx.pulse();
     if (isNewPlayer) setTutorialPrompt(true);
-    else setRankedConfirm(true);
+    else openRankedConfirm();
   };
   // Saying yes with an unfinished RATED game in the save slot also gives that game up once a hero is picked (the
   // new run replaces the one slot, R-RANK-05), so the confirmation names that cost too. Null otherwise.
@@ -450,22 +465,33 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <p className="tutprompt-sub">A quick coached game teaches you everything: shop, build, position, and win. About five minutes.</p>
             <div className="tutprompt-actions">
               <button className="endplay pressable" onClick={() => { sfx.pulse(); setTutorialPrompt(false); startTutorial(LEARN_ASCENT); }}>Start the Tutorial</button>
-              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); setRankedConfirm(true); }}>Skip and just play</button>
+              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); openRankedConfirm(); }}>Skip and just play</button>
             </div>
           </div>
         </div>
       )}
 
       {/* THE RANKED CONFIRMATION (owner 2026-10-11, R-RANK-06) — the Play card's gate, in the owner's words. "Yes"
-          commits the ranked entry and opens hero select (`startLobby`); "No" returns to the mode picker under it. */}
+          commits the ranked entry and opens hero select (`startLobby`); "No" returns to the mode picker under it.
+          It sits OVER the mode picker (owner 2026-10-12), which stays on screen behind a veil that darkens and
+          blurs it while the card expands out with a small bounce. Motion is `transform` + `opacity` only: the
+          veil's blur is static and only its opacity fades (styles.css, "THE RANKED CONFIRMATION"). */}
       {rankedConfirm && (
-        <div className="modepick tutprompt-ov" role="dialog" aria-label="Ranked lobby">
-          <div className="tutprompt-card rankedconfirm">
-            <p className="tutprompt-sub rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
+        <div className={`rankedconfirm-ov${rankedConfirm === 'closing' ? ' closing' : ''}`} role="dialog" aria-modal="true" aria-label="Ranked lobby">
+          <div className="rankedconfirm-veil" onClick={closeRankedConfirm} aria-hidden="true" />
+          {/* THE WINDOW wears the Compendium's chrome (owner 2026-10-12: "use the border that the compendium uses ...
+              emulate the title and underline structure ... make the buttons look like the UI elements" in its top
+              right): the painted 9-slice frame + its two crests, the title over the painted name divider, and the
+              answers as Gem plates. Its own classes in styles.css, since compendium.css loads with the book. */}
+          <div className="rankedconfirm">
+            <span className="rc-crest" aria-hidden="true" />
+            <span className="rc-crest rc-crest-foot" aria-hidden="true" />
+            <div className="rc-title">{RANKED_CONFIRM_TITLE}</div>
+            <p className="rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
             {savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
             <div className="rankedconfirm-actions">
-              <button className="endplay pressable" onClick={() => { sfx.pulse(); setRankedConfirm(false); startLobby(); }}>{RANKED_CONFIRM_YES}</button>
-              <button className="rankedconfirm-no pressable" onClick={() => { sfx.pulse(); setRankedConfirm(false); }}>{RANKED_CONFIRM_NO}</button>
+              <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onClick={() => { sfx.pulse(); setRankedConfirm(null); startLobby(); }}>{RANKED_CONFIRM_YES}</button>
+              <button className="rc-btn" onClick={() => { sfx.pulse(); closeRankedConfirm(); }}>{RANKED_CONFIRM_NO}</button>
             </div>
           </div>
         </div>

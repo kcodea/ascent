@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
+      { category: 'Systems', text: 'The ranked lobby confirmation now opens over the Play menu, in the Compendium\'s gold frame: the menu darkens and blurs behind it as the window pops out.' },
+      { category: 'Systems', text: 'Lobby guides: with a guide in Detailed view, clicking anywhere outside the guides panel folds it back to Simple.' },
+      {
+        category: 'Systems',
+        text: 'Guides: write your own. Sign in, open the Compendium, and press New guide, or Duplicate on any guide to start from it.',
+        details: [
+          'Your guides are private for now: only you see them, under My guides and in your own lobby rail.',
+          'Pick the cards, write the build, and any card name you type lights up for hovering.',
+          'Edit or delete your guides any time. An unfinished guide is kept on this device if you close the Compendium.',
+          'A guide that names a card which has left the set shows that card greyed out as "Missing or removed".',
+        ],
+      },
+      { category: 'Systems', text: 'The tribe name under a card is a stronger, less washed-out version of its tribe colour, for every tribe.' },
       {
         category: 'Systems',
         text: 'Choosing a hero power (Mimic, Void, Power Shifter) now looks and works like every other Discover.',

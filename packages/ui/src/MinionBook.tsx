@@ -1,4 +1,4 @@
-import { Fragment, memo, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { inRunTribes, type CardDef, type QuestReward, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -308,6 +308,9 @@ export function MinionBook() {
   const run = useGame((s) => s.run);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
+  // The dimmed surround closes the Compendium only for a press that BEGAN on it. A press that began inside the window
+  // and ended on the surround (a text selection dragged out of a text box) still lands its click on the surround.
+  const pressBeganOnSurround = useRef(false);
   // THE SET PICKER (owner ask 2026-09-24: "view any card sets, default to the active set"). The DEFAULT is the set
   // the book has always opened on: from the TITLE the ACTIVE set (what a new run would play; the same question
   // `createRun` asks, which is why `activeSet()` is read here), mid-run the run's own PINNED set (normally the
@@ -350,7 +353,7 @@ export function MinionBook() {
   // THE GUIDES VIEW (owner 2026-10-09): a header toggle beside Glossary ("move the guides button to the top next to
   // glossary"), exclusive with Rules / Glossary and with the left-rail tabs. Unlike those two codex panels it keeps the
   // tier bar (its chart space carries the guides' tribe pills, its end the set picker) and the search box.
-  const [guidesOn, setGuidesOn] = useState(false);
+  const [guidesOn, setGuidesOn] = useState(() => useGuides.getState().pendingEdit !== null);
   const codex = glossary || rules; // a text panel is up: the card-gallery controls (search, Gilded, zoom) step aside
   const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
@@ -434,6 +437,9 @@ export function MinionBook() {
 
   // The Compendium SUBSCRIBES to the guides store (unlike the rail's snapshot), and refreshes it when the tab opens.
   const guideList = useGuides((s) => s.list);
+  // The pill (Team Ascent / My guides) lives in the guides store, so this list and the tab's toolbar agree.
+  const guideTab = useGuides((s) => s.tab);
+  const guideMine = useGuides((s) => s.mine);
   useEffect(() => { if (guidesOn) void loadGuides(); }, [guidesOn]);
 
   // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
@@ -442,10 +448,12 @@ export function MinionBook() {
   // search box (title, tagline, write-up).
   const guidesToShow = useMemo(() => {
     const m = makeSearchMatcher(searchQ);
-    return guidesFor(setId, tribes, guideList)
+    // My guides lists every guide the player owns, whatever its set or tribe (a guide that did not carry over is
+    // repaired from here); Team Ascent keeps the set + lobby-tribe rule.
+    return (guideTab === 'mine' ? [...guideMine] : guidesFor(setId, tribes, guideList))
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
       .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
-  }, [setId, tribes, guideTribes, searchQ, guideList]);
+  }, [setId, tribes, guideTribes, searchQ, guideList, guideTab, guideMine]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -615,7 +623,9 @@ export function MinionBook() {
   };
 
   return (
-    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
+    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
+      onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
       <div className="book" onClick={(e) => e.stopPropagation()}>
         {/* The window's painted frame (the Runeforge frame's corners + rails, compendium.css) carries two crests: the
             top one over the title, the foot one under the gallery. Decorative, inert. */}
@@ -895,7 +905,7 @@ export function MinionBook() {
           {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), the runes (Runes tab), or the
               heroes (Heroes tab). */}
           {guidesOn ? (
-            <CompendiumGuides guides={guidesToShow} tribes={tribes} run={liveRun} setId={setId} />
+            <CompendiumGuides guides={guidesToShow} tribes={tribes} setTribes={SETS[setId].tribes} run={liveRun} setId={setId} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
               <div className="book-grid is-heroes">

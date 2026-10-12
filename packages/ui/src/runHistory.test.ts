@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, type RunState } from '@game/sim';
-import { buildRunHistoryEntry, careerStats, ordinal, runVerdict, type RunHistoryEntry } from './runHistory';
+import { buildRunHistoryEntry, careerStats, careerTotalsOf, ordinal, runVerdict, type RunHistoryEntry } from './runHistory';
 
 const scored = 15;
 const finishedRun = (over: Partial<RunState> = {}): RunState => ({
@@ -199,5 +199,17 @@ describe('lobby career stats (owner recalibration 2026-08-08)', () => {
     const s = careerStats([course, course]);
     expect(s.lobbyRuns).toBe(0);
     expect(s.avgPlacement).toBeNull();
+  });
+});
+
+describe('careerTotalsOf — the leaderboard totals over EVERY run (owner 2026-10-12: "only showing 50 games max?")', () => {
+  it('counts every row, never a 50-row window', () => {
+    const heroes = Array.from({ length: 137 }, (_, i) => (i % 3 === 0 ? 'brackus' : 'sable'));
+    expect(careerTotalsOf(heroes).runs).toBe(137);
+    expect(careerTotalsOf(heroes).favoriteHero).toBe('sable');
+  });
+  it('a tie goes to the most recently played hero (newest first); a row without a hero still counts as a game', () => {
+    expect(careerTotalsOf(['sable', 'brackus', 'brackus', 'sable', null])).toEqual({ runs: 5, favoriteHero: 'sable' });
+    expect(careerTotalsOf([])).toEqual({ runs: 0, favoriteHero: undefined });
   });
 });

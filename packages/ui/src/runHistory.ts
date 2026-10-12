@@ -225,6 +225,26 @@ export interface CareerStats {
   lobbyStreak: number;       // consecutive newest lobby runs that finished top 4
 }
 
+/**
+ * THE LEADERBOARD'S TWO TOTALS (owner report 2026-10-12: "is this page broken and only showing 50 games max?"): the
+ * account's games played and its most-played hero, over EVERY `run_history` row it has (newest first), never a
+ * window. Before this the profile write counted `careerStats` over the newest 50 entries, so `games_played` stopped
+ * at 50. A tie on the favourite goes to the hero met first, i.e. the most recently played (the same rule
+ * `careerStats.perHero[0]` applies to its newest-first entries). Pure.
+ */
+export function careerTotalsOf(heroIdsNewestFirst: ReadonlyArray<string | null | undefined>): { runs: number; favoriteHero: string | undefined } {
+  const counts = new Map<string, number>();
+  let favoriteHero: string | undefined;
+  let best = 0;
+  for (const h of heroIdsNewestFirst) {
+    if (typeof h !== 'string' || !h) continue;
+    const n = (counts.get(h) ?? 0) + 1;
+    counts.set(h, n);
+  }
+  for (const [h, n] of counts) if (n > best) { best = n; favoriteHero = h; } // Map order = first seen = newest
+  return { runs: heroIdsNewestFirst.length, favoriteHero };
+}
+
 /** Aggregate the match history into overall + per-hero career stats. Pure. */
 export function careerStats(entries: RunHistoryEntry[]): CareerStats {
   const runs = entries.length;

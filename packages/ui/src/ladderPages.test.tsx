@@ -48,8 +48,14 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
 const lobbyDisplay = vi.hoisted(() => ({ show: false }));
 vi.mock('./lobbyStrengthDisplay', () => ({ get SHOW_LOBBY_STRENGTH() { return lobbyDisplay.show; } }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
+// The leaderboard's ONE loadout read (owner 2026-10-12: "the portrait skins should show here").
+const fetchHeroSkinLoadouts = vi.fn<(ids: readonly string[]) => Promise<Map<string, unknown>>>();
+vi.mock('./progression/progressionRemote', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./progression/progressionRemote')>()),
+  fetchHeroSkinLoadouts: (ids: readonly string[]) => fetchHeroSkinLoadouts(ids),
+}));
 
-import { Rankings } from './Rankings';
+import { Rankings, rankFrameIdOf } from './Rankings';
 import { Leaderboard } from './Leaderboard';
 import { RecentGames } from './RecentGames';
 import { useGame } from './store';
@@ -118,6 +124,7 @@ beforeEach(() => {
   clearSocialCache(); // the ladder lists are cached across opens (socialCache.ts); every case starts cold
   remote = true;
   fetchTopPlayers.mockReset().mockResolvedValue(PLAYERS);
+  fetchHeroSkinLoadouts.mockReset().mockResolvedValue(new Map());
   fetchLatestReplayForUser.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchHallRecords.mockReset().mockResolvedValue(RECORDS);
   fetchHallHistory.mockReset().mockResolvedValue(HISTORY);
@@ -331,6 +338,49 @@ describe('Rankings — the MMR column', () => {
     expect(ui.container.querySelector('.lb-table')!.classList.contains('lb-has-mmr')).toBe(false);
     expect(ui.container.querySelectorAll('.lb-c-mmr, .lb-unranked')).toHaveLength(0);
     expect(text('.lb-rating')).toEqual(['782', '763', '264']);
+  });
+});
+
+describe('Rankings — skins and rank frames on the portrait (owner 2026-10-12)', () => {
+  const rankAt = (divisionIndex: number) => ({ seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex, points: 10, demotionReady: false }, highest: { divisionIndex, points: 10, demotionReady: false } });
+  const portraitSrc = (): string[] => [...ui.container.querySelectorAll('.lb-trow-btn .heroimg')].map((n) => n.getAttribute('src') ?? '');
+  const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.lb-trow-btn .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
+
+  it('rankFrameIdOf: the medal ring by division, Rank #1 for the top row, nothing for an unranked row', () => {
+    expect(rankFrameIdOf({ divisionIndex: 9, points: 0 }, 0)).toBe('rank1');
+    expect(rankFrameIdOf({ divisionIndex: 0, points: 0 }, 1)).toBe('bronze');
+    expect(rankFrameIdOf({ divisionIndex: 4, points: 0 }, 1)).toBe('silver');
+    expect(rankFrameIdOf({ divisionIndex: 6, points: 0 }, 2)).toBe('gold');
+    expect(rankFrameIdOf({ divisionIndex: 9, points: 0 }, 3)).toBe('platinum');
+    expect(rankFrameIdOf(null, 0)).toBeUndefined();
+  });
+
+  it('each ranked row wears its rank ring (#1 the Rank #1 ring); an unranked row keeps the default look', async () => {
+    fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rank: rankAt(9) }, { ...PLAYERS[1]!, rank: rankAt(6) }, PLAYERS[2]!]);
+    useGame.setState({ showRankings: true });
+    ui = mount(<Rankings />);
+    await flush();
+    expect(frames()).toEqual(['rank1', 'gold', null]);
+  });
+
+  it('the portrait is the player’s equipped skin for that hero, read once for the shown players, through the opponent switch', async () => {
+    fetchHeroSkinLoadouts.mockResolvedValue(new Map([['u-top', { heroSkinByHeroId: { brackus: 'skin_brackus_2' } }]]));
+    useGame.setState({ showRankings: true, showOpponentSkins: true });
+    ui = mount(<Rankings />);
+    await flush();
+    await flush();
+    expect(fetchHeroSkinLoadouts).toHaveBeenCalledTimes(1);
+    expect(fetchHeroSkinLoadouts.mock.calls[0]![0]).toEqual(['u-top', 'me-1', 'u-three']);
+    expect(portraitSrc()[0]).toContain('skin_brackus_2');
+    expect(portraitSrc()[1]).not.toContain('skin_');
+    ui.unmount();
+    // "Show opponent skins" off: someone else's row shows the hero's own art.
+    clearSocialCache();
+    useGame.setState({ showRankings: true, showOpponentSkins: false });
+    ui = mount(<Rankings />);
+    await flush();
+    await flush();
+    expect(portraitSrc()[0]).not.toContain('skin_');
   });
 });
 

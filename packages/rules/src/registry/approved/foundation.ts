@@ -896,6 +896,37 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-03',
     },
   },
+  // ── The leaderboard's games played is the full total, never a 50-row window (owner 2026-10-12) ─────────────────────
+  {
+    id: 'R-LADDER-GAMES-01',
+    title: 'The Leaderboard prints every game a player has finished, not the newest 50',
+    statement:
+      'A player\'s games played on the Leaderboard (profiles.games_played) is the number of ALL their finished runs in '
+      + 'run_history, and their favourite hero is the most-played hero over all of them (a tie goes to the most recently '
+      + 'played). The run-end profile write reads every run_history row (one light hero_id column, paged to the end per '
+      + 'R-NET-01); a failed read skips the write rather than storing a short count.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report on the Leaderboard page, 2026-10-12',
+        quote: 'is this page broken and only showing 50 games max?',
+      },
+      { kind: 'code', ref: 'packages/ui/src/remoteBoards.ts fetchCareerTotals; packages/ui/src/runHistory.ts careerTotalsOf; packages/ui/src/store.ts (run-end profile write); supabase/migrations/2026-10-12-games-played-backfill.sql' },
+    ],
+    example: 'A player with 100 finished games shows 100 PLAYED, not 50.',
+    currentBehaviour:
+      'Conforms as of 2026-10-12. Before it the profile write counted fetchRunHistory(), whose default page is the newest '
+      + '50 rows, so every player past 50 games was stored as exactly 50 (the top player showed 50 PLAYED with 100 '
+      + 'recorded ranked games). Rows already stored at 50 heal on that player\'s next game, or at once with the one-off '
+      + 'backfill SQL.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/runEndUploadOrder.test.ts', 'packages/ui/src/runHistory.test.ts'],
+      lastVerifiedAt: '2026-10-12',
+    },
+  },
   {
     id: 'R-HALL-02',
     title: 'Hall of Champions: the own-game line counts the same fights as the record line',

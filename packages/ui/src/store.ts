@@ -93,7 +93,7 @@ import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced,
 import { perfMonitor } from './perfMonitor';
 import { boardStrengthScorer, lobbyBandFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { runStrengthFromScores, type StrengthScore } from '@game/sim';
-import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
@@ -101,7 +101,7 @@ import { supabaseCloudSaveApi } from './cloudSaveRemote';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
-import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
+import { buildRunHistoryEntry, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { ABANDON_PENALTY_ENABLED, rankedAbandonOf, rankedRunIdForFinish } from './rank/ratedRun';
 import { RANKED_ENTRY_PLACEMENT, clearRankedEntry, loadRankedEntry, saveRankedEntry, type RankedEntry } from './rank/rankedEntry';
@@ -1825,17 +1825,18 @@ function commitResolvedAction(
         // run's own career row by its full run key, never by seed + hero alone.
         const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
         void uploadRunHistory({ ...entry, ...(endedActiveMs != null ? { activeMs: endedActiveMs } : {}), ...(match ? { match } : {}), ...(unratedLobby ? { unrated: 'all-generated' } : {}), ...(boardStrength?.value != null ? { boardStrength: boardStrength.value } : {}), author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
-          .then(() => fetchRunHistory<RunHistoryEntry>())
-          .then((remote) => {
+          .then(() => fetchCareerTotals())
+          .then((career) => {
             // A FAILED read returns null, and we skip the profile write entirely rather than upserting
             // games-played 0 over a real number — the read is the only source of those totals now.
-            if (!remote) return;
-            const career = careerStats(remote);
+            // EVERY row is counted (owner report 2026-10-12, "only showing 50 games max"): this used to be
+            // `careerStats` over `fetchRunHistory()`'s newest 50 entries, which froze games_played at 50.
+            if (!career) return;
             // DISPLAY columns only — the ladder itself settled through `beginRankSubmission` below, on its own
             // path, so a failed history read here can no longer keep a result from being ranked.
             void uploadPlayerProfile({
               author, gamesPlayed: career.runs,
-              favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+              favoriteHero: career.favoriteHero, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
             });
             set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
           });

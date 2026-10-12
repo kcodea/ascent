@@ -212,7 +212,8 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
   });
 
   it('Rankings passes your own row as self', () => {
-    expect(read('Rankings.tsx')).toMatch(/<LbHeroFrame heroId=\{r\.favoriteHero\} side=\{mine \? 'self' : 'opp'\} \/>/);
+    // Since 2026-10-12 the row also passes the skinned portrait and its rank ring (`rankFrameIdOf`).
+    expect(read('Rankings.tsx')).toMatch(/<LbHeroFrame\s+heroId=\{r\.favoriteHero\}\s+side=\{mine \? 'self' : 'opp'\}[\s\S]*?frameId=\{rankFrameIdOf\(rowRank, i\)\}\s*\/>/);
   });
 });
 

@@ -19,7 +19,7 @@
 import {
   COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type EquipSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
   parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
-  type ProgressionRunFacts, factsAsV1,
+  type ProgressionRunFacts, factsAsV1, loadoutFromRows, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { supabaseClient } from '../remoteBoards';
@@ -261,6 +261,43 @@ async function fetchLoadoutRows(userId: string): Promise<Array<{ slot: string; t
       .map((r) => ({ slot: r.slot as string, targetId: r.target_id as string, cosmeticId: r.cosmetic_id as string }));
   } catch {
     return null;
+  }
+}
+
+/**
+ * THE LEADERBOARD'S PORTRAITS (owner 2026-10-12: "the portrait skins should show here"): the equipped HERO SKINS of
+ * several players at once, from the same public `cosmetic_loadouts` table the Career page reads (`fetchLoadoutRows`),
+ * in ONE paged read (`.in('user_id', …)`, `fetchAllRows`), folded per player through the same `loadoutFromRows`. Only
+ * the `hero_skin` slot is read: a row prints one portrait, never a minion. A player with no hero skin is absent from
+ * the map (default art). An empty map on any failure (default art everywhere, never a throw).
+ */
+export async function fetchHeroSkinLoadouts(userIds: readonly string[]): Promise<Map<string, RunCosmeticSnapshot>> {
+  const out = new Map<string, RunCosmeticSnapshot>();
+  const ids = [...new Set(userIds.filter((u) => typeof u === 'string' && u.length > 0))];
+  const c = supabaseClient();
+  if (!c || ids.length === 0) return out;
+  try {
+    const res = await Promise.race([
+      fetchAllRows<{ user_id?: unknown; slot?: unknown; target_id?: unknown; cosmetic_id?: unknown }>((from, to) =>
+        c.from('cosmetic_loadouts').select('user_id, slot, target_id, cosmetic_id').in('user_id', ids).eq('slot', 'hero_skin')
+          .order('user_id', { ascending: true }).order('target_id', { ascending: true }).range(from, to)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error || !res.data) return out;
+    const byUser = new Map<string, unknown[]>();
+    for (const r of res.data) {
+      if (typeof r.user_id !== 'string') continue;
+      const list = byUser.get(r.user_id) ?? [];
+      list.push(r);
+      byUser.set(r.user_id, list);
+    }
+    for (const [u, rows] of byUser) {
+      const snap = loadoutFromRows(rows);
+      if (snap.heroSkinByHeroId) out.set(u, snap);
+    }
+    return out;
+  } catch {
+    return out;
   }
 }
 

@@ -425,11 +425,18 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
             <button type="button" key={t} className={`book-runetribe${d.tribes.includes(t) ? ' on' : ''}`} style={{ '--c': tribeInk(t) } as CSSProperties}
               aria-pressed={d.tribes.includes(t)} onClick={() => toggleTribe(t)}>{TRIBE_NAME[t] ?? t}</button>
           ))}
+          {/* A tribe the guide holds that this set does not have (a guide from another set): drawn so it can be un-picked. */}
+          {d.tribes.filter((t) => !tribes.includes(t)).map((t) => (
+            <button type="button" key={t} className="book-runetribe on off-roster" style={{ '--c': tribeInk(t) } as CSSProperties}
+              aria-pressed aria-description="Not in this set. Press to remove." onClick={() => toggleTribe(t)}>{TRIBE_NAME[t] ?? t}</button>
+          ))}
           <label className="gedit-field gedit-field-inline">
             <span className="gedit-label">Pairs with</span>
             <select className="gedit-input gedit-pairs" value={d.pairsWith[0] ?? ''} onChange={(e) => patch({ pairsWith: e.target.value ? [e.target.value as Tribe] : [] })}>
               <option value="">None</option>
               {tribes.filter((t) => !d.tribes.includes(t)).map((t) => <option key={t} value={t}>{TRIBE_NAME[t] ?? t}</option>)}
+              {/* The current choice when this set does not have it: listed so it shows, and so None can replace it. */}
+              {d.pairsWith.slice(0, 1).filter((t) => !tribes.includes(t)).map((t) => <option key={t} value={t}>{TRIBE_NAME[t] ?? t} (not in this set)</option>)}
             </select>
           </label>
         </div>

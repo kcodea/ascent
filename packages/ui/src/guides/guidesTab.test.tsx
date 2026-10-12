@@ -7,6 +7,9 @@
  * It also pins what the editor needs from its host: the device keeps ONE unsaved guide, so a second editor never
  * opens while one is waiting; an empty kept guide is not offered; Resume hands the editor the kept guide as it was
  * read; the editor closes when the account changes; and one open editor is never swapped for another.
+ *
+ * And what a player must be able to see and find: an ask (sign in; resume or discard first) is scrolled into view and
+ * takes keyboard focus; the Resume bar's Discard asks before it deletes; a newly saved guide is shown under My guides.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -17,6 +20,10 @@ import { useGame } from '../store';
 import type { GuideDraftInput, GuideWriteResult } from './guidesRemote';
 
 const imports: GuideDraftInput[][] = [];
+type ImportAnswer = GuideWriteResult<{ inserted: number; skipped: number }>;
+/** What the import answers. Null: it imports everything it was sent. */
+let importAnswer: (() => ImportAnswer) | null = null;
+let accounts = true;
 let officialCalls = 0;
 const OFFLINE: GuideWriteResult<GuideRecord> = { ok: false, code: 'offline' };
 let saveAnswer: GuideWriteResult<GuideRecord> = OFFLINE;
@@ -28,14 +35,18 @@ vi.mock('./guidesRemote', () => ({
   fetchGuideById: async () => undefined,
   saveGuideRemote: async () => saveAnswer,
   deleteGuideRemote: async () => ({ ok: false, code: 'offline' }),
-  importBuiltInsRemote: async (g: GuideDraftInput[]) => { imports.push(g); return { ok: true, value: { inserted: g.length, skipped: 0 } }; },
+  importBuiltInsRemote: async (g: GuideDraftInput[]): Promise<ImportAnswer> => {
+    imports.push(g);
+    return importAnswer ? importAnswer() : { ok: true, value: { inserted: g.length, skipped: 0 } };
+  },
 }));
-vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => true }));
+vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => accounts }));
 
 const { CompendiumGuides } = await import('./CompendiumGuides');
 const { GUIDES, canEditGuide, guidesFor } = await import('./guides');
+type Guide = (typeof GUIDES)[number];
 const { emptyDraft } = await import('./guideDrafts');
-const { loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
+const { clearLocalDraft, loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
 const { requestGuideEdit, resetGuidesForTests, useGuides } = await import('./guidesStore');
 
 const ROW = '11111111-1111-4111-8111-111111111111';
@@ -44,13 +55,13 @@ const mineGuide = { ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, publish
 
 let ui: Mounted | null = null;
 const prev = useGame.getState();
-const as = (who: 'guest' | 'player' | 'team', patch: Partial<ReturnType<typeof useGuides.getState>> = {}): HTMLElement => {
+const as = (who: 'guest' | 'player' | 'team', patch: Partial<ReturnType<typeof useGuides.getState>> = {}, guides?: readonly Guide[]): HTMLElement => {
   act(() => {
     useGame.setState({ account: { userId: who === 'guest' ? 'g-1' : 'u-1', email: who === 'guest' ? null : 'm@example.test', anonymous: who === 'guest', discriminator: null }, playerName: 'Mike' });
     useGuides.setState({ capability: 'on', source: 'server', list: serverList, team: who === 'team', mine: who === 'guest' ? [] : [mineGuide], ...patch });
   });
   const s = useGuides.getState();
-  const shown = s.tab === 'mine' ? s.mine : guidesFor('set2', SETS.set2.tribes, s.list);
+  const shown = guides ?? (s.tab === 'mine' ? s.mine : guidesFor('set2', SETS.set2.tribes, s.list));
   ui = mount(<CompendiumGuides guides={shown} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
   return ui.container;
 };
@@ -72,11 +83,18 @@ const becomeAccount = (userId: string | null, anonymous = false): void => {
   act(() => { useGame.setState({ account: { userId, email: anonymous || !userId ? null : 'other@example.test', anonymous, discriminator: null } }); });
 };
 
+/** The server's answer to a save: the guide as a row this player owns. */
+const savedRow = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
+  id: '22222222-2222-4222-8222-222222222222', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'],
+  tribes: [], pairsWith: [], iconCard: 'grim', title: 'Left behind', tagline: '', body: 'half', core: ['grim'], enablers: [], mentions: [], aliases: {},
+  forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 1, createdAt: '', updatedAt: '', ...patch,
+});
+
 /** A guide left unsaved on this device, with something in it. */
 const kept = { ...emptyDraft('Mike'), title: 'Left behind', body: 'half', core: ['grim'] };
 const RESUME_FIRST = 'Resume or discard your unsaved guide first.';
 
-beforeEach(() => { localStorage.clear(); resetGuidesForTests(); imports.length = 0; officialCalls = 0; saveAnswer = OFFLINE; });
+beforeEach(() => { localStorage.clear(); resetGuidesForTests(); imports.length = 0; officialCalls = 0; saveAnswer = OFFLINE; importAnswer = null; accounts = true; });
 afterEach(() => { ui?.unmount(); ui = null; act(() => { useGame.setState({ account: prev.account, playerName: prev.playerName, showBook: prev.showBook, accountPanelOpen: prev.accountPanelOpen }); }); });
 
 describe('canEditGuide', () => {
@@ -99,6 +117,11 @@ describe('who sees which button', () => {
     const first = card(c, serverList[0]!.id);
     expect(first.textContent).toContain('by Team Ascent');
     expect(button(first, 'Duplicate')).toBeDefined();
+  });
+  it('a card\'s Edit and Duplicate say which guide they act on, for a screen reader', () => {
+    const first = card(as('team'), serverList[0]!.id);
+    expect(button(first, 'Edit')!.getAttribute('aria-label')).toBe(`Edit ${serverList[0]!.title}`);
+    expect(button(first, 'Duplicate')!.getAttribute('aria-label')).toBe(`Duplicate ${serverList[0]!.title}`);
   });
   it('a player sees no Edit on a Team Ascent guide; a team member does', () => {
     expect(button(card(as('player'), serverList[0]!.id), 'Edit')).toBeUndefined();
@@ -124,6 +147,17 @@ describe('who sees which button', () => {
     const c = as('player', { tab: 'mine', mine: [] });
     expect(c.textContent).toContain('You have not written a guide yet.');
     expect(button(c, 'New guide')).toBeDefined();
+  });
+  it('My guides with guides that the filters all hide says the filters hide them, not that none was written', () => {
+    const c = as('player', { tab: 'mine' }, []);
+    expect(button(c, 'My guides (1)')).toBeDefined();
+    expect(c.textContent).toContain('No guides match these filters.');
+    expect(c.textContent).not.toContain('You have not written a guide yet.');
+  });
+  it('Team Ascent with nothing to show says no guides match, even for a player who has written none', () => {
+    const c = as('player', { mine: [] }, []);
+    expect(c.textContent).toContain('No guides match these filters.');
+    expect(c.textContent).not.toContain('You have not written a guide yet.');
   });
 });
 
@@ -171,7 +205,9 @@ describe('starting to write', () => {
       const c = as('player', { capability });
       expect(button(c, 'New guide')!.disabled, capability).toBe(true);
       expect(button(card(c, serverList[0]!.id), 'Duplicate')!.disabled, capability).toBe(true);
-      expect(c.textContent, capability).toContain('Guides are offline.');
+      // Not known yet is not offline: nothing is said until the first read has answered.
+      if (capability === 'unknown') expect(c.textContent, capability).not.toContain('Guides are offline.');
+      else expect(c.textContent, capability).toContain('Guides are offline.');
     }
   });
   it('the editor gets a scroll box of its own, so it opens at its top wherever the list was scrolled', async () => {
@@ -204,21 +240,45 @@ describe('the kept draft', () => {
     expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Left behind');
     await press(c, 'Cancel');
     await press(c, 'Discard');
+    await press(c, 'Discard for good');
     expect(c.textContent).not.toContain('You have an unsaved guide');
   });
   it('another account\'s draft is not offered', () => {
     saveLocalDraft('someone-else', { ...emptyDraft('X'), title: 'Not yours' });
     expect(as('player').textContent).not.toContain('You have an unsaved guide');
   });
-  it('Discard forgets the kept guide on the device, not only on screen', async () => {
+  it('Discard asks first: Keep it changes nothing, Discard for good forgets the guide on the device and the bar goes', async () => {
     saveLocalDraft('u-1', kept);
     const c = as('player');
     await press(c, 'Discard');
+    expect(c.textContent).toContain('Discard this unsaved guide? It cannot be brought back.');
+    expect(loadLocalDraft('u-1')).toEqual(kept);
+    expect(document.activeElement).toBe(button(c, 'Keep it')); // the safe answer takes focus
+    await press(c, 'Keep it');
+    expect(c.textContent).not.toContain('Discard this unsaved guide?');
+    expect(c.textContent).toContain('You have an unsaved guide: Left behind');
+    expect(loadLocalDraft('u-1')).toEqual(kept);
+    expect(document.activeElement).toBe(button(c, 'Discard'));
+    await press(c, 'Discard');
+    await press(c, 'Discard for good');
     expect(loadLocalDraft('u-1')).toBeNull();
+    expect(c.querySelector('.gtool-resume')).toBeNull();
+  });
+  it('Resume reads the device again: a guide that was saved or cleared meanwhile is not opened, and the bar goes', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    expect(button(c, 'Resume')).toBeDefined();
+    clearLocalDraft(); // behind the tab's back, as a save landing late does
+    await press(c, 'Resume');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(c.querySelector('.gtool-resume')).toBeNull();
+    expect(c.textContent).toContain('That guide was already saved.');
+    await press(c, 'New guide'); // and nothing is waiting any more
+    expect(c.querySelector('.gedit')).not.toBeNull();
   });
   it('a kept guide with nothing in it is not offered, is forgotten, and does not stop a new guide', async () => {
-    // Only the "by" line (filled in for the author), a tagline and a tribe: no title, write-up, card or nickname.
-    saveLocalDraft('u-1', { ...emptyDraft('Someone'), title: '   ', body: ' \n ', tagline: 'a line', tribes: ['beast'] });
+    // Only the "by" line (filled in for the author), tribes and an art icon: no title, tagline, write-up, card or nickname.
+    saveLocalDraft('u-1', { ...emptyDraft('Someone'), title: '   ', tagline: ' ', body: ' \n ', tribes: ['beast'], pairsWith: ['dragon'], iconCard: 'grim' });
     const c = as('player');
     expect(c.textContent).not.toContain('You have an unsaved guide');
     expect(loadLocalDraft('u-1')).toBeNull();
@@ -226,8 +286,8 @@ describe('the kept draft', () => {
     expect(c.querySelector('.gedit')).not.toBeNull();
     expect(c.textContent).not.toContain(RESUME_FIRST);
   });
-  it('a kept guide holding only a title, only a write-up, only a card or only a nickname row is offered', () => {
-    for (const part of [{ title: 'T' }, { body: 'words' }, { core: ['grim'] }, { enablers: ['grim'] }, { aliases: [{ word: '', card: '' }] }]) {
+  it('a kept guide holding only a title, only a tagline, only a write-up, only a card or only a nickname row is offered', () => {
+    for (const part of [{ title: 'T' }, { tagline: 'a line' }, { body: 'words' }, { core: ['grim'] }, { enablers: ['grim'] }, { aliases: [{ word: '', card: '' }] }]) {
       ui?.unmount();
       localStorage.clear();
       saveLocalDraft('u-1', { ...emptyDraft('Mike'), ...part });
@@ -246,14 +306,7 @@ describe('the kept draft', () => {
   });
   it('a resumed guide that is saved leaves the device, and is no longer offered', async () => {
     saveLocalDraft('u-1', kept);
-    saveAnswer = {
-      ok: true,
-      value: {
-        id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'], tribes: [], pairsWith: [],
-        iconCard: 'grim', title: 'Left behind', tagline: '', body: 'half', core: ['grim'], enablers: [], mentions: [], aliases: {}, forkedFrom: null,
-        forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 1, createdAt: '', updatedAt: '',
-      },
-    };
+    saveAnswer = { ok: true, value: savedRow() };
     const c = as('player', { mine: [] });
     await press(c, 'Resume');
     await press(c, 'Save');
@@ -306,6 +359,7 @@ describe('one unsaved guide at a time', () => {
     await press(c, 'New guide');
     blocked(c);
     await press(c, 'Discard');
+    await press(c, 'Discard for good');
     expect(c.textContent).not.toContain(RESUME_FIRST);
     await press(c, 'New guide');
     expect(c.querySelector('.gedit')).not.toBeNull();
@@ -337,6 +391,28 @@ describe('the team-only import', () => {
     expect(officialCalls).toBeGreaterThan(0); // it re-reads afterwards
     expect(c.textContent).toContain('Imported 11 guides.');
   });
+  it('a successful import is said quietly, not as an alert', async () => {
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    await press(c, 'Import built-in guides');
+    expect(c.querySelector('[role="alert"]')).toBeNull();
+    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === 'Imported 11 guides.')).toBe(true);
+  });
+  it('a refused import is announced, and the button can be pressed again', async () => {
+    importAnswer = () => ({ ok: false, code: 'not_allowed' });
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    await press(c, 'Import built-in guides');
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('You cannot change this guide. Duplicate it to make your own.');
+    expect(c.textContent).not.toContain('Imported');
+    expect(officialCalls).toBe(0); // nothing changed, so nothing is read again
+    expect(button(c, 'Import built-in guides')!.disabled).toBe(false);
+  });
+  it('an import that breaks is announced, and the button can be pressed again', async () => {
+    importAnswer = () => { throw new Error('boom'); };
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    await press(c, 'Import built-in guides');
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('The import did not finish. Try again.');
+    expect(button(c, 'Import built-in guides')!.disabled).toBe(false);
+  });
   it('a team member cannot start a Team Ascent guide before the import', async () => {
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'New guide');
@@ -364,6 +440,7 @@ describe('the rail\'s edit request', () => {
     expect(c.querySelector('.gedit')).toBeNull();
     expect(c.querySelector('.gtool-resume.gtool-resume-ask')!.textContent).toContain(RESUME_FIRST);
     expect(loadLocalDraft('u-1')).toEqual(kept);
+    expect(document.activeElement).toBe(button(c, 'Resume'));
   });
   it('a request that arrives while the editor is open is used up and ignored: the open guide stays as it is', async () => {
     const c = as('player');
@@ -435,6 +512,118 @@ describe('the account changes while the editor is open', () => {
     becomeAccount('u-2');
     expect(c.textContent).toContain('You have an unsaved guide: Two left this');
     expect(c.querySelector('.gedit')).toBeNull();
+  });
+});
+
+describe('an ask is brought into view', () => {
+  // jsdom does not scroll: stand in for the element method and note what it was asked.
+  const proto = Element.prototype as unknown as { scrollTo?: unknown };
+  const real = Object.getOwnPropertyDescriptor(proto, 'scrollTo');
+  let scrolls: Array<{ el: Element; top: unknown }> = [];
+  beforeEach(() => {
+    scrolls = [];
+    Object.defineProperty(proto, 'scrollTo', { configurable: true, writable: true, value(this: Element, o?: { top?: number }) { scrolls.push({ el: this, top: o?.top }); } });
+  });
+  afterEach(() => {
+    if (real) Object.defineProperty(proto, 'scrollTo', real); else delete proto.scrollTo;
+  });
+  const away = (): void => { act(() => { (document.activeElement as HTMLElement | null)?.blur(); }); };
+
+  it('a guest who presses Duplicate far down the list: the tab scrolls to its top and Create account takes focus', async () => {
+    const c = as('guest');
+    await press(card(c, serverList[5]!.id), 'Duplicate');
+    expect(scrolls).toEqual([{ el: c.querySelector('.bookguides'), top: 0 }]);
+    expect(document.activeElement).toBe(button(c, 'Create account'));
+  });
+  it('pressing again while the ask is already showing brings it into view again', async () => {
+    const c = as('guest');
+    await press(card(c, serverList[5]!.id), 'Duplicate');
+    away();
+    expect(document.activeElement).not.toBe(button(c, 'Create account'));
+    await press(card(c, serverList[5]!.id), 'Duplicate');
+    expect(scrolls).toHaveLength(2);
+    expect(scrolls[1]).toEqual({ el: c.querySelector('.bookguides'), top: 0 });
+    expect(document.activeElement).toBe(button(c, 'Create account'));
+  });
+  it('when accounts cannot be reached there is no button to focus, so the sign-in line itself takes focus', async () => {
+    accounts = false;
+    const c = as('guest');
+    await press(c, 'New guide');
+    expect(button(c, 'Create account')).toBeUndefined();
+    const line = c.querySelector<HTMLElement>('.gtool-signin')!;
+    expect(line.textContent).toContain('Accounts cannot be reached right now.');
+    expect(document.activeElement).toBe(line);
+    expect(scrolls).toHaveLength(1);
+  });
+  it('with an unsaved guide waiting, New guide scrolls to the top and Resume takes focus, each time it is pressed', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    await press(c, 'New guide');
+    expect(scrolls).toEqual([{ el: c.querySelector('.bookguides'), top: 0 }]);
+    expect(document.activeElement).toBe(button(c, 'Resume'));
+    away();
+    await press(card(c, serverList[5]!.id), 'Duplicate');
+    expect(scrolls).toHaveLength(2);
+    expect(document.activeElement).toBe(button(c, 'Resume'));
+  });
+  it('asked while the bar is confirming a discard, the bar goes back to Resume and Discard, and Resume takes focus', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    await press(c, 'Discard');
+    await press(c, 'New guide');
+    expect(c.textContent).not.toContain('Discard this unsaved guide?');
+    expect(c.textContent).toContain(RESUME_FIRST);
+    expect(document.activeElement).toBe(button(c, 'Resume'));
+    expect(loadLocalDraft('u-1')).toEqual(kept);
+  });
+  it('opening the editor does not scroll or ask', async () => {
+    const c = as('player');
+    await press(c, 'New guide');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+    expect(scrolls).toHaveLength(0);
+  });
+});
+
+describe('a newly saved guide is shown', () => {
+  it('Duplicate from Team Ascent, then Save: the pill moves to My guides and the tab says where it went', async () => {
+    saveAnswer = { ok: true, value: savedRow({ title: `${serverList[0]!.title} (copy)` }) };
+    const c = as('player');
+    expect(useGuides.getState().tab).toBe('team');
+    await press(card(c, serverList[0]!.id), 'Duplicate');
+    await press(c, 'Save');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(useGuides.getState().mine).toHaveLength(2);
+    expect(useGuides.getState().tab).toBe('mine');
+    expect(button(c, 'My guides (2)')!.getAttribute('aria-pressed')).toBe('true');
+    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === 'Saved to My guides.')).toBe(true);
+  });
+  it('Duplicate, then Cancel: the pill stays and nothing is said', async () => {
+    const c = as('player');
+    await press(card(c, serverList[0]!.id), 'Duplicate');
+    await press(c, 'Cancel');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(useGuides.getState().tab).toBe('team');
+    expect(c.textContent).not.toContain('Saved to My guides.');
+  });
+  it('saving an edit of a guide the player already owns moves nothing and says nothing', async () => {
+    saveAnswer = { ok: true, value: savedRow({ id: ROW, title: 'My Sunmane', revision: 2 }) };
+    const c = as('player');
+    act(() => { requestGuideEdit(ROW); }); // the player's own guide, opened while the Team Ascent pill is showing
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('My Sunmane');
+    await press(c, 'Save');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(useGuides.getState().mine).toHaveLength(1);
+    expect(useGuides.getState().tab).toBe('team');
+    expect(c.textContent).not.toContain('Saved to My guides.');
+  });
+  it('a team member saving a Team Ascent guide stays on Team Ascent', async () => {
+    saveAnswer = { ok: true, value: savedRow({ id: serverList[1]!.rowId, official: true, authorId: null, byline: 'Team Ascent', published: true, title: serverList[1]!.title, revision: 2 }) };
+    const c = as('team');
+    await press(card(c, serverList[1]!.id), 'Edit');
+    await press(c, 'Save');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(useGuides.getState().tab).toBe('team');
+    expect(c.textContent).not.toContain('Saved to My guides.');
   });
 });
 

@@ -114,6 +114,45 @@ describe('editing the fields', () => {
     click(pills[0]!);
     expect(pills.filter((p) => p.getAttribute('aria-pressed') === 'true')).toHaveLength(1);
   });
+  it('a tribe that is not in this set still has a pill, lit and marked, so it can be removed; once removed the pill is gone', () => {
+    expect(SETS.set2.tribes).not.toContain('undead');
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], tribes: ['undead'] });
+    const pills = (): HTMLButtonElement[] => [...c.querySelectorAll<HTMLButtonElement>('.gedit-tribes .book-runetribe')];
+    const undead = (): HTMLButtonElement | undefined => pills().find((p) => p.textContent === 'Undead');
+    expect(pills().indexOf(undead()!)).toBe(SETS.set2.tribes.length); // after the set's own tribes
+    expect(undead()!.getAttribute('aria-pressed')).toBe('true');
+    expect(undead()!.classList.contains('on')).toBe(true);
+    expect(undead()!.classList.contains('off-roster')).toBe(true);
+    expect(undead()!.getAttribute('aria-description')).toBe('Not in this set. Press to remove.');
+    expect(c.querySelectorAll('.gedit-tribes .off-roster')).toHaveLength(1); // the set's own pills are not marked
+    click(undead()!);
+    expect(undead()).toBeUndefined();
+    expect(pills()).toHaveLength(SETS.set2.tribes.length);
+  });
+  it('a "pairs with" tribe that is not in this set is shown selected and named as such, and choosing None clears it', () => {
+    expect(SETS.set2.tribes).not.toContain('spirit');
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], tribes: ['beast'], pairsWith: ['spirit'] });
+    const sel = c.querySelector<HTMLSelectElement>('.gedit-pairs')!;
+    expect(sel.value).toBe('spirit');
+    expect(sel.selectedOptions[0]!.textContent).toBe('Spirits (not in this set)');
+    act(() => { sel.value = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(sel.value).toBe('');
+    expect([...sel.options].map((o) => o.value)).not.toContain('spirit');
+  });
+  it('a guide holding tribes that are not in this set cannot be saved until they are removed; then Save sends it without them', async () => {
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], tribes: ['beast', 'undead'], pairsWith: ['spirit'] });
+    await press(c, 'Save');
+    expect(saves).toHaveLength(0);
+    expect(alertText(c)).toContain('tribes that are in this set');
+    click([...c.querySelectorAll<HTMLButtonElement>('.gedit-tribes .book-runetribe')].find((p) => p.textContent === 'Undead')!);
+    const sel = c.querySelector<HTMLSelectElement>('.gedit-pairs')!;
+    act(() => { sel.value = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+    await press(c, 'Save');
+    expect(saves).toHaveLength(1);
+    expect(saves[0]!.tribes).toEqual(['beast']);
+    expect(saves[0]!.pairsWith).toEqual([]);
+    expect(closed).toBe(1);
+  });
   it('Add opens the picker under the row, picking adds the card and closes it, x removes, the arrows reorder', () => {
     const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim', 'b2_sunmane'] });
     const core = c.querySelector('.gedit-row[data-row="core"]')!;

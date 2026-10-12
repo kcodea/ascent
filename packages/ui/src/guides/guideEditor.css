@@ -63,6 +63,7 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 .gedit-iconpick { padding: 0 26px 4px; }
 .gedit-who, .gedit-tribes { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .gedit-tribes .gedit-field-inline { margin-left: 12px; }
+.gedit-tribes .book-runetribe.off-roster { border-style: dashed; }
 
 .gedit-preview { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; border: 1px dashed var(--ui-divider); }
 

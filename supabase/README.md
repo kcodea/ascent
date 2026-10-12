@@ -194,6 +194,33 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
    - Account A: a Team Ascent guide shows no Edit button. Team account: it does, and an edit shows for A after reopening the Compendium.
    - Guest: New guide asks to sign in.
 
+### Publishing and bookmarks (step 3)
+
+1. **Read the word list and the limits first.** Publishing makes player text public. The list is
+   `packages/guides/src/wordFilter.ts` (`WORDS`, `STEMS`, the reserved names); the limits are `GUIDE_LIMITS` in
+   `packages/guides/src/types.ts`. Change either in a pull request, then run `npm run guides:shared`.
+2. **Run the migration.** Paste `supabase/migrations/2026-10-13-guides-community.sql` into the SQL Editor and Run,
+   after the 2026-10-12 file. It is idempotent. It adds `last_save_id` (a retried save is recognised only when it
+   names the same guide), the functions `guide_own_row`, `guide_set_published` and `guide_bookmark`, a trigger that
+   keeps `bookmark_count` true, and four indexes (the last save id, Community by most bookmarked, Community by
+   newest, and bookmarks by guide). The trigger function is revoked from every role.
+   **Do not run the 2026-10-12 file alone after this one.** It puts the old `guide_save` back, and a retried save is
+   no longer recognised. If that happens, run the 2026-10-13 file again.
+   Check the locks took. Each of these should answer `f`:
+   `select has_function_privilege('authenticated', 'public.guide_set_published(uuid, uuid, boolean, int)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_bookmark(uuid, uuid, boolean)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_own_row(uuid, uuid)', 'execute');`
+3. **Redeploy the function.** `npx supabase functions deploy guide-write`. Until then Publish and Bookmark answer
+   "Something went wrong. Nothing was changed." Saving keeps working either way.
+4. **Check with two real accounts** (never yet run against the live project):
+   - Account A: write a guide, Publish it from its card under My guides. It reads Published.
+   - Account B: it is in Community. Bookmark it: it shows under Bookmarked, and in B's lobby rail when its tribe is in
+     the lobby. B's card for it has no Edit button.
+   - Account A: Unpublish. After B reopens the Compendium it is gone from Community and from B's Bookmarked.
+     Publish again: it is back in B's Bookmarked without B doing anything.
+   - Account A: put "Team Ascent" in the title and Save: it is refused, naming the title.
+   - Guest: Community can be read; Bookmark asks to sign in.
+
 ### Note
 
 This directory is **Deno**, not part of the Node monorepo build: the repo's `tsc`/`eslint` skip it

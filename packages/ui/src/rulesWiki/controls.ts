@@ -80,6 +80,15 @@ export const ENTRIES: readonly WikiEntry[] = [
     q: 'How do I open the Compendium (and this Rules page)?',
     a: "Press **Tab**, on the title screen or in the middle of a run. Press Tab or Esc again (or click outside it) to close it. In a run it only shows the cards you can actually find that game. The **Rules** button up top is where you are right now.",
     aliases: ['card list', 'book', 'codex', 'glossary', 'help', 'wiki'],
+    seeAlso: ['build-guides'],
+  },
+  {
+    id: 'build-guides',
+    topic: 'controls',
+    q: 'What are guides? Can I write my own?',
+    a: "Guides are short build write-ups: the cards a build needs and how to play it. Open the **Compendium** and pick **Guides**, or flip the lobby list to its Guides side during a game to see the ones for the tribes in your lobby. **Team Ascent** writes the main ones. Signed in, you can write your own with **New guide**, or press **Duplicate** on any guide to start from it. Your guides are private until you press **Publish**. **Community** lists what other players published, and **Bookmark** keeps one handy under Bookmarked and in your lobby list.",
+    aliases: ['guide', 'build', 'builds', 'comp', 'comps', 'community', 'bookmark', 'publish', 'write a guide', 'strategy'],
+    seeAlso: ['open-compendium'],
   },
   {
     id: 'combat-speed',

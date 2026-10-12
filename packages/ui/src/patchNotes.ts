@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Guides: publish yours, and browse everyone else\'s. The Compendium\'s Guides tab has a Community list and your Bookmarked guides.',
+        details: [
+          'Publish a guide from its card under My guides. It asks first, and you can unpublish any time.',
+          'Community shows published guides for the current set. Sort by Most bookmarked or Newest, filter by tribe, and search by title, tagline or author.',
+          'Bookmark a guide to keep it under Bookmarked and in your lobby rail, when its tribe is in your game.',
+          'You can delete a guide straight from its card under My guides.',
+          'A guide\'s title cannot use the name Team Ascent, or words like "official".',
+        ],
+      },
       { category: 'Systems', text: 'Lobby guides: with a guide in Detailed view, clicking anywhere outside the guides panel folds it back to Simple.' },
       {
         category: 'Systems',

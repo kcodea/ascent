@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
 import { GUIDE_LIMITS, TEAM_BYLINE } from '@game/guides';
@@ -6,6 +6,7 @@ import type { RunState } from '@game/sim';
 import { Card, type CardView } from '../Card';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
+import { useGame } from '../store';
 import { toGuide, tribeInk, type Guide } from './guides';
 import { GuideCardPicker } from './GuideCardPicker';
 import { GuideEmblem, GuideText, TRIBE_NAME, guideAccent, useGuideViews } from './GuideParts';
@@ -28,11 +29,17 @@ import './guideEditor.css';
  * editor open with the text intact and a plain sentence.
  *
  * KEYS. The game closes the Compendium on Esc and toggles it on Tab (window listeners in Game.tsx). While this is
- * mounted a CAPTURE listener stops both first: Tab moves focus as usual, Esc closes the card picker if it is open,
- * else asks to leave the editor. Nothing else is touched.
+ * mounted a CAPTURE listener stops both first: Tab moves focus as usual; Esc closes the card inspect overlay if one is
+ * open above the editor, else the card picker if it is open, else asks to leave the editor. While the bug reporter is
+ * open the editor stands aside entirely (its own listener owns the keys). Nothing else is touched.
  *
- * THE DEVICE DRAFT. A changed draft is written to this device shortly after each change and cleared by a save, a
- * delete or a confirmed discard, so closing the Compendium mid-edit loses nothing (guideDraftStore.ts).
+ * THE DEVICE DRAFT. A changed draft is written to this device shortly after each change, at once when a save is
+ * refused, and when the editor is closed from outside (the Compendium shutting) with changes unsaved. It is cleared by
+ * a save, a delete, a confirmed discard, or a change being undone, so closing the Compendium mid-edit loses nothing
+ * (guideDraftStore.ts).
+ *
+ * BUSY. While a save, delete or refetch is on its way every field is inert (one disabled fieldset), so nothing typed
+ * can be lost to the answer, and nothing runs once the editor has closed.
  *
  * PERFORMANCE. Nothing animates. The preview and the derived card list follow a deferred copy of the draft, so
  * typing never waits on them. Portraits are the memoized compact `Card`.
@@ -66,9 +73,10 @@ function previewOf(d: EditorDraft, mentions: readonly string[], aliases: Readonl
 }
 
 /** One editable portrait row (Core or Enablers): each card with move and remove buttons, and Add. */
-function EditRow({ row, label, ids, max, views, missing, adding, setId, onChange, onToggleAdd }: {
+function EditRow({ row, label, ids, max, views, missing, adding, setId, addRef, onChange, onToggleAdd }: {
   row: 'core' | 'enablers'; label: string; ids: readonly string[]; max: number; views: Map<string, CardView>;
-  missing: ReadonlySet<string>; adding: boolean; setId: SetId; onChange: (ids: string[]) => void; onToggleAdd: () => void;
+  missing: ReadonlySet<string>; adding: boolean; setId: SetId; addRef: RefObject<HTMLButtonElement>;
+  onChange: (ids: string[]) => void; onToggleAdd: () => void;
 }): JSX.Element {
   return (
     <div className="lobbyguide-units gedit-row" data-row={row}>
@@ -79,7 +87,7 @@ function EditRow({ row, label, ids, max, views, missing, adding, setId, onChange
           const gone = !v || missing.has(id);
           const name = v?.name ?? 'this card';
           return (
-            <div className="gedit-unit" data-card={id} key={`${id}-${i}`}>
+            <div className="gedit-unit" data-card={id} key={id}>
               <div className={`lobbyguide-unit${gone ? ' missing' : ''}`} role={gone ? 'img' : undefined} aria-label={gone ? (v ? `${v.name}: missing or removed` : 'Missing or removed card') : undefined}>
                 {v ? <div className="lobbyguide-unitscale"><Card card={v} forceCompact suppressPop /></div> : <div className="lobbyguide-blank" />}
                 {gone && <span className="lobbyguide-missing" aria-hidden="true">Missing or removed</span>}
@@ -92,7 +100,7 @@ function EditRow({ row, label, ids, max, views, missing, adding, setId, onChange
             </div>
           );
         })}
-        <button type="button" className="gbtn gedit-add" disabled={ids.length >= max} aria-expanded={adding} onClick={onToggleAdd}>Add</button>
+        <button type="button" className="gbtn gedit-add" ref={addRef} disabled={ids.length >= max} aria-expanded={adding} onClick={onToggleAdd}>Add</button>
       </div>
       {adding && <GuideCardPicker setId={setId} label={`Add to ${label}`} exclude={ids} onPick={(id) => { onChange([...ids, id]); onToggleAdd(); }} />}
     </div>
@@ -123,29 +131,83 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const dirty = !sameDraft(d, base);
   const isNew = d.rowId === null;
 
-  // Keys: see the header. The handler reads the latest state through a ref so it is installed once.
-  const live = useRef({ picker, dirty, busy });
-  live.current = { picker, dirty, busy };
+  // Latest values for the handlers and cleanups below, which are installed once.
+  const live = useRef({ picker, dirty, busy, d });
+  live.current = { picker, dirty, busy, d };
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const userRef = useRef(userId);
+  userRef.current = userId;
+  /** True once the editor is gone or has called onClose: nothing may run after it. */
+  const closed = useRef(false);
+  /** True once a save, a delete or a confirmed discard ended the editor: then the device draft stays cleared. */
+  const finished = useRef(false);
+  /** True while this editor has put a draft on the device that a later undo or save must clear. */
+  const wrote = useRef(false);
+  const safeRef = useRef<HTMLButtonElement>(null);
+  const iconRef = useRef<HTMLButtonElement>(null);
+  const coreAddRef = useRef<HTMLButtonElement>(null);
+  const enablersAddRef = useRef<HTMLButtonElement>(null);
+  const focusAfter = useRef<'icon' | 'core' | 'enablers' | null>(null);
+
+  /** Close the editor, once. */
+  const finish = useCallback((): void => {
+    finished.current = true;
+    if (closed.current) return;
+    closed.current = true;
+    onCloseRef.current();
+  }, []);
+  const keep = useCallback((draft: EditorDraft): void => {
+    saveLocalDraft(userRef.current, draft);
+    wrote.current = true;
+  }, []);
+  /** Close the card picker and hand focus back to the button that opened it. */
+  const closePicker = useCallback((): void => {
+    focusAfter.current = live.current.picker;
+    setPicker(null);
+  }, []);
   useEffect(() => {
+    if (picker !== null || focusAfter.current === null) return;
+    const to = { icon: iconRef, core: coreAddRef, enablers: enablersAddRef }[focusAfter.current];
+    focusAfter.current = null;
+    to.current?.focus();
+  }, [picker]);
+  // A confirm bar takes focus on its safe button, so it is noticed (and scrolled into view).
+  useEffect(() => { if (ask) safeRef.current?.focus(); }, [ask]);
+
+  // Keys: see the header. The handler reads the latest state through a ref so it is installed once.
+  useEffect(() => {
+    closed.current = false;
     const onKey = (e: KeyboardEvent): void => {
+      const g = useGame.getState();
+      if (g.bugReportOpen) return; // the bug reporter's own listener owns the keys
       if (e.key === 'Tab') { e.stopPropagation(); return; }
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       e.preventDefault();
+      if (g.inspect) { g.clearInspect(); return; }
       if (live.current.busy) return;
-      if (live.current.picker) { setPicker(null); return; }
-      if (live.current.dirty) setAsk('discard'); else onClose();
+      if (live.current.picker) { closePicker(); return; }
+      if (live.current.dirty) setAsk('discard'); else finish();
     };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      // Closed from outside with changes unsaved: keep them on the device, now, not 400 ms from now.
+      if (!finished.current && live.current.dirty) saveLocalDraft(userRef.current, live.current.d);
+      closed.current = true;
+    };
+  }, [closePicker, finish]);
 
-  // The device draft: written shortly after a change, so a burst of typing is one write.
+  // The device draft: written shortly after a change, so a burst of typing is one write. A change undone clears it.
   useEffect(() => {
-    if (!dirty) return;
-    const t = window.setTimeout(() => saveLocalDraft(userId, d), 400);
+    if (!dirty) {
+      if (wrote.current) { wrote.current = false; clearLocalDraft(); }
+      return;
+    }
+    const t = window.setTimeout(() => { if (!closed.current && !finished.current) keep(d); }, 400);
     return () => window.clearTimeout(t);
-  }, [d, dirty, userId]);
+  }, [d, dirty, keep]);
 
   // Derived from a deferred copy, so typing never waits on the name scan.
   const shown = useDeferredValue(d);
@@ -159,20 +221,36 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
 
   const save = async (override?: EditorDraft): Promise<void> => {
     const cur = override ?? d;
+    if (cur.aliases.some((a) => (a.word.trim() !== '') !== (a.card !== ''))) {
+      setError('Finish or remove the nickname that is missing its word or its card.');
+      sfx.tick();
+      return;
+    }
     const problems = draftProblems(cur, setId);
     if (problems.length > 0) { setError(problems[0]!.message); sfx.tick(); return; }
     setBusy(true);
     setError(null);
     const res = await saveGuideRemote(toWire(cur, setId));
+    if (closed.current) return;
     setBusy(false);
     if (res.ok) {
       clearLocalDraft();
+      wrote.current = false;
       const g = toGuide(res.value);
       if (g) guideSaved(g);
       sfx.pulse();
-      onClose();
+      finish();
       return;
     }
+    if (res.code === 'not_found' && cur.rowId) {
+      // Deleted elsewhere while it was being edited: keep the text, as a new guide.
+      const fresh = { ...cur, rowId: null, revision: null };
+      keep(fresh);
+      setD(fresh);
+      setError('This guide was deleted. Press Save again to keep your text as a new guide.');
+      return;
+    }
+    keep(cur);
     if (res.code === 'conflict') { setAsk('conflict'); return; }
     setError(guideErrorMessage(res.code, res.field));
   };
@@ -182,6 +260,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     if (!d.rowId) return null;
     setBusy(true);
     const rec = await fetchGuideById(d.rowId);
+    if (closed.current) return null;
     setBusy(false);
     const g = rec ? toGuide(rec) : null;
     if (!g) { setAsk(null); setError(guideErrorMessage(rec === null ? 'not_found' : 'offline')); }
@@ -208,17 +287,19 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     if (!d.rowId) return;
     setBusy(true);
     const res = await deleteGuideRemote(d.rowId);
+    if (closed.current) return;
     setBusy(false);
     // A guide the server no longer has is as good as deleted: finish the same way (its sentence would say the text is
     // kept on this device, which is not true after a delete).
     if (!res.ok && res.code !== 'not_found') { setAsk(null); setError(guideErrorMessage(res.code, res.field)); return; }
     clearLocalDraft();
+    wrote.current = false;
     guideDeleted(d.rowId);
     sfx.tick();
-    onClose();
+    finish();
   };
-  const discard = (): void => { clearLocalDraft(); sfx.tick(); onClose(); };
-  const cancel = (): void => { if (dirty) setAsk('discard'); else onClose(); };
+  const discard = (): void => { clearLocalDraft(); wrote.current = false; sfx.tick(); finish(); };
+  const cancel = (): void => { if (dirty) setAsk('discard'); else finish(); };
 
   const toggleTribe = (t: Tribe): void => {
     if (d.tribes.includes(t)) patch({ tribes: d.tribes.filter((x) => x !== t) });
@@ -227,8 +308,9 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
 
   return (
     <article className="bookguide gedit" style={guideAccent(chips)} aria-label={isNew ? 'New guide' : `Editing ${base.title}`}>
+      <fieldset className="gedit-fields" disabled={busy}>
       <header className="bookguide-head gedit-head">
-        <button type="button" className="gedit-icon" aria-label="Change the art icon" aria-expanded={picker === 'icon'} onClick={() => setPicker(picker === 'icon' ? null : 'icon')}>
+        <button type="button" className="gedit-icon" ref={iconRef} aria-label="Change the art icon" aria-expanded={picker === 'icon'} onClick={() => (picker === 'icon' ? closePicker() : setPicker('icon'))}>
           <GuideEmblem guide={preview} chips={chips} />
           <span className="gedit-iconhint" aria-hidden="true">Change</span>
         </button>
@@ -259,7 +341,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       </header>
       {picker === 'icon' && (
         <div className="gedit-iconpick">
-          <GuideCardPicker setId={setId} label="Pick the art icon" onPick={(id) => { patch({ iconCard: id }); setPicker(null); }} />
+          <GuideCardPicker setId={setId} label="Pick the art icon" onPick={(id) => { patch({ iconCard: id }); closePicker(); }} />
         </div>
       )}
       <div className="bookguide-body gedit-bodywrap">
@@ -287,10 +369,10 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
             <GuideText guide={preview} ids={ids} views={views} refs={refs} missing={missing} />
           </div>
         )}
-        <EditRow row="core" label="Core" ids={d.core} max={GUIDE_LIMITS.core} views={views} missing={missing} adding={picker === 'core'} setId={setId}
-          onChange={(core) => patch({ core })} onToggleAdd={() => setPicker(picker === 'core' ? null : 'core')} />
-        <EditRow row="enablers" label="Enablers" ids={d.enablers} max={GUIDE_LIMITS.enablers} views={views} missing={missing} adding={picker === 'enablers'} setId={setId}
-          onChange={(enablers) => patch({ enablers })} onToggleAdd={() => setPicker(picker === 'enablers' ? null : 'enablers')} />
+        <EditRow row="core" label="Core" ids={d.core} max={GUIDE_LIMITS.core} views={views} missing={missing} adding={picker === 'core'} setId={setId} addRef={coreAddRef}
+          onChange={(core) => patch({ core })} onToggleAdd={() => (picker === 'core' ? closePicker() : setPicker('core'))} />
+        <EditRow row="enablers" label="Enablers" ids={d.enablers} max={GUIDE_LIMITS.enablers} views={views} missing={missing} adding={picker === 'enablers'} setId={setId} addRef={enablersAddRef}
+          onChange={(enablers) => patch({ enablers })} onToggleAdd={() => (picker === 'enablers' ? closePicker() : setPicker('enablers'))} />
         <div className="gedit-aliases">
           <span className="gedit-label">Nicknames <span className="gedit-hint">A short word in your write-up that means one of the guide's cards.</span></span>
           {d.aliases.map((a, i) => {
@@ -312,32 +394,33 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
           <button type="button" className="gbtn" disabled={d.aliases.length >= GUIDE_LIMITS.aliases} onClick={() => patch({ aliases: [...d.aliases, { word: '', card: '' }] })}>Add nickname</button>
         </div>
       </div>
+      </fieldset>
       <footer className="gedit-foot">
         {error && <p className="gedit-error" role="alert">{error}</p>}
         {ask === 'discard' && (
           <div className="gedit-ask" role="alertdialog" aria-label="Discard your changes?">
             <span>Discard your changes?</span>
-            <button type="button" className="gbtn gbtn-danger" onClick={discard}>Discard</button>
-            <button type="button" className="gbtn" onClick={() => setAsk(null)}>Keep editing</button>
+            <button type="button" className="gbtn gbtn-danger" disabled={busy} onClick={discard}>Discard</button>
+            <button type="button" className="gbtn" ref={safeRef} disabled={busy} onClick={() => setAsk(null)}>Keep editing</button>
           </div>
         )}
         {ask === 'delete' && (
           <div className="gedit-ask" role="alertdialog" aria-label="Delete this guide?">
             <span>Delete this guide? It cannot be brought back.</span>
             <button type="button" className="gbtn gbtn-danger" disabled={busy} onClick={() => void remove()}>Delete for good</button>
-            <button type="button" className="gbtn" onClick={() => setAsk(null)}>Keep it</button>
+            <button type="button" className="gbtn" ref={safeRef} disabled={busy} onClick={() => setAsk(null)}>Keep it</button>
           </div>
         )}
         {ask === 'conflict' && (
           <div className="gedit-ask" role="alertdialog" aria-label="Someone else saved this guide">
             <span>{guideErrorMessage('conflict')}</span>
-            <button type="button" className="gbtn" disabled={busy} onClick={() => void loadTheirs()}>Load their version</button>
+            <button type="button" className="gbtn" ref={safeRef} disabled={busy} onClick={() => void loadTheirs()}>Load their version</button>
             <button type="button" className="gbtn gbtn-danger" disabled={busy} onClick={() => void overwrite()}>Overwrite with mine</button>
           </div>
         )}
         <div className="gedit-actions">
           {missing.size > 0 && (
-            <button type="button" className="gbtn" onClick={() => patch({
+            <button type="button" className="gbtn" disabled={busy} onClick={() => patch({
               core: d.core.filter((id) => !missing.has(id)),
               enablers: d.enablers.filter((id) => !missing.has(id)),
               aliases: d.aliases.filter((a) => !missing.has(a.card)),
@@ -346,7 +429,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
           {!isNew && <button type="button" className="gbtn gbtn-danger" disabled={busy} onClick={() => setAsk('delete')}>Delete</button>}
           <span className="gedit-spacer" />
           <button type="button" className="gbtn" disabled={busy} onClick={cancel}>Cancel</button>
-          <button type="button" className="gbtn gbtn-primary" disabled={busy || (!isNew && !dirty)} onClick={() => void save()}>{busy ? 'Saving' : 'Save'}</button>
+          <button type="button" className="gbtn gbtn-primary" disabled={busy} onClick={() => void save()}>{busy ? 'Saving' : 'Save'}</button>
         </div>
       </footer>
     </article>

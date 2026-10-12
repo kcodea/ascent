@@ -15,6 +15,9 @@ import type { GuideDraftInput, GuideWriteResult } from './guidesRemote';
 let saveAnswer: (g: GuideDraftInput) => GuideWriteResult<GuideRecord>;
 let deleteAnswer: () => GuideWriteResult<true>;
 let byIdAnswer: GuideRecord | null | undefined;
+let gate: Promise<void> | null = null;
+/** Hold the next save/delete at the server until the returned function is called. */
+const hold = (): (() => void) => { let r!: () => void; gate = new Promise<void>((res) => { r = res; }); return r; };
 const saves: GuideDraftInput[] = [];
 const deletes: string[] = [];
 vi.mock('./guidesRemote', () => ({
@@ -23,14 +26,15 @@ vi.mock('./guidesRemote', () => ({
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
   fetchGuideById: async () => byIdAnswer,
-  saveGuideRemote: async (g: GuideDraftInput) => { saves.push(g); return saveAnswer(g); },
+  saveGuideRemote: async (g: GuideDraftInput) => { saves.push(g); if (gate) await gate; return saveAnswer(g); },
   deleteGuideRemote: async (rowId: string) => { deletes.push(rowId); return deleteAnswer(); },
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
 }));
 
 const { GuideEditor } = await import('./GuideEditor');
 const { draftFromGuide, emptyDraft } = await import('./guideDrafts');
-const { loadLocalDraft } = await import('./guideDraftStore');
+const { loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
+const { useGame } = await import('../store');
 const { GUIDES } = await import('./guides');
 const { resetGuidesForTests, useGuides } = await import('./guidesStore');
 
@@ -71,10 +75,17 @@ beforeEach(() => {
   deletes.length = 0;
   closed = 0;
   byIdAnswer = rec();
+  gate = null;
   saveAnswer = (g) => ({ ok: true, value: rec({ title: g.title, body: g.body, core: g.core }) });
   deleteAnswer = () => ({ ok: true, value: true });
 });
-afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); });
+afterEach(() => {
+  ui?.unmount();
+  ui = null;
+  vi.useRealTimers();
+  useGame.setState({ inspect: null, bugReportOpen: false });
+});
+const existing = (patch: Record<string, unknown> = {}) => draftFromGuide({ ...GUIDES[0]!, rowId: ROW, revision: 5, official: false, authorId: 'u-1', ...patch });
 
 describe('editing the fields', () => {
   it('title, tagline, write-up and by line are typed straight onto the card and are sent on Save', async () => {
@@ -113,7 +124,30 @@ describe('editing the fields', () => {
     expect(ids()).toHaveLength(2);
     expect(c.querySelector('.gpick')).toBeNull();
   });
-  it('the Add button is disabled at the limit, and the picker never offers a card already in the row', () => {
+  it('the later arrow moves a card later', () => {
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim', 'b2_sunmane'] });
+    const core = c.querySelector('.gedit-row[data-row="core"]')!;
+    click(core.querySelector('.gedit-unit[data-card="grim"] .gedit-later')!);
+    expect([...core.querySelectorAll('.gedit-unit')].map((u) => u.getAttribute('data-card'))).toEqual(['b2_sunmane', 'grim']);
+  });
+  it('a card keeps its portrait (the same element) when it is moved', () => {
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim', 'b2_sunmane'] });
+    const core = c.querySelector('.gedit-row[data-row="core"]')!;
+    const before = core.querySelector('.gedit-unit[data-card="grim"]');
+    click(core.querySelector('.gedit-unit[data-card="grim"] .gedit-later')!);
+    expect(core.querySelector('.gedit-unit[data-card="grim"]')).toBe(before);
+  });
+  it('after the picker closes, by a pick or by Esc, focus returns to the Add button of its row', () => {
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'] });
+    const add = c.querySelector<HTMLButtonElement>('.gedit-row[data-row="core"] .gedit-add')!;
+    click(add);
+    click(c.querySelector('.gpick .gpick-row')!);
+    expect(document.activeElement).toBe(c.querySelector('.gedit-row[data-row="core"] .gedit-add'));
+    click(c.querySelector('.gedit-row[data-row="enablers"] .gedit-add')!);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(document.activeElement).toBe(c.querySelector('.gedit-row[data-row="enablers"] .gedit-add'));
+  });
+  it('the Add button is disabled at the limit', () => {
     const six = poolFor('set2').buyable.slice(0, 6).map((x) => x.id);
     const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: six });
     expect(c.querySelector<HTMLButtonElement>('.gedit-row[data-row="core"] .gedit-add')!.disabled).toBe(true);
@@ -216,6 +250,88 @@ describe('a save that cannot go through', () => {
     }
     expect(closed).toBe(0);
   });
+  it('while a save is on its way nothing can be typed or added, and after a refusal the fields work again with the text intact', async () => {
+    const release = hold();
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Keep me');
+    await press(c, 'Save');
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.matches(':disabled')).toBe(true);
+    expect(c.querySelector<HTMLTextAreaElement>('.gedit-body')!.matches(':disabled')).toBe(true);
+    expect([...c.querySelectorAll<HTMLButtonElement>('.gedit-add')].every((b) => b.matches(':disabled'))).toBe(true);
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.matches(':disabled')).toBe(false);
+    expect(c.querySelector<HTMLButtonElement>('.gedit-add')!.matches(':disabled')).toBe(false);
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Keep me');
+  });
+  it('a save that finishes after the editor has gone changes nothing and closes nothing', async () => {
+    const release = hold();
+    const c = open();
+    await press(c, 'Save');
+    expect(saves).toHaveLength(1);
+    ui!.unmount();
+    ui = null;
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(closed).toBe(0);
+    expect(useGuides.getState().mine).toEqual([]);
+  });
+  it('the editor closes once, however many times it is asked to', () => {
+    const c = open();
+    const title = c.querySelector('.gedit-title')!;
+    act(() => { title.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    act(() => { title.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(closed).toBe(1);
+  });
+  it('an existing guide opened unchanged can be saved as it stands', async () => {
+    const c = open(existing());
+    expect(c.querySelector<HTMLButtonElement>('.gbtn-primary')!.disabled).toBe(false);
+    await press(c, 'Save');
+    expect(saves).toHaveLength(1);
+    expect(saves[0]).toMatchObject({ id: ROW, revision: 5 });
+  });
+  it('a save answered not found turns the text into a new guide, which the next Save sends without an id', async () => {
+    let n = 0;
+    saveAnswer = (g) => (n++ === 0 ? { ok: false, code: 'not_found' } : { ok: true, value: rec({ title: g.title }) });
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Still mine');
+    await press(c, 'Save');
+    expect(alertText(c)).toBe('This guide was deleted. Press Save again to keep your text as a new guide.');
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Still mine');
+    expect(closed).toBe(0);
+    expect([...c.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Delete')).toBe(false);
+    await press(c, 'Save');
+    expect(saves).toHaveLength(2);
+    expect('id' in saves[1]!).toBe(false);
+    expect('revision' in saves[1]!).toBe(false);
+    expect(saves[1]).toMatchObject({ title: 'Still mine' });
+    expect(closed).toBe(1);
+  });
+  it('a half-typed nickname stops the save, whichever half is missing', async () => {
+    const sentence = 'Finish or remove the nickname that is missing its word or its card.';
+    for (const row of [{ word: 'cat', card: '' }, { word: '  ', card: 'grim' }]) {
+      ui?.unmount();
+      const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], aliases: [row] });
+      await press(c, 'Save');
+      expect(alertText(c)).toBe(sentence);
+    }
+    expect(saves).toEqual([]);
+  });
+  it('a refused save is written to the device at once', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Keep me');
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')!.title).toBe('Keep me');
+  });
+  it('a change that is undone clears the device copy', async () => {
+    vi.useFakeTimers();
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Different');
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(loadLocalDraft('u-1')!.title).toBe('Different');
+    type(c.querySelector('.gedit-title')!, 'My guide');
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
   it('a conflict offers Load their version, which replaces the text with the server\'s', async () => {
     saveAnswer = () => ({ ok: false, code: 'conflict' });
     byIdAnswer = rec({ title: 'Theirs', revision: 9 });
@@ -255,9 +371,44 @@ describe('leaving the editor', () => {
     expect(c.textContent).toContain('Discard your changes?');
     await press(c, 'Keep editing');
     expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Changed');
+    saveLocalDraft('u-1', { ...emptyDraft('Mike'), title: 'Kept on the device' });
+    expect(loadLocalDraft('u-1')).not.toBeNull();
     await press(c, 'Cancel');
     await press(c, 'Discard');
     expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+    ui!.unmount();
+    ui = null;
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('Cancel closes without asking after Load their version', async () => {
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    byIdAnswer = rec({ title: 'Theirs', revision: 9 });
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    await press(c, 'Load their version');
+    await press(c, 'Cancel');
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(closed).toBe(1);
+  });
+  it('the confirm bar takes focus on its safe button when it appears', async () => {
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Changed');
+    act(() => { c.querySelector('.gedit-title')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(document.activeElement?.textContent).toBe('Keep editing');
+  });
+  it('an unprompted close keeps the typed text on the device', () => {
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Typed just now');
+    ui!.unmount();
+    ui = null;
+    expect(loadLocalDraft('u-1')!.title).toBe('Typed just now');
+  });
+  it('closing with nothing changed writes nothing to the device', () => {
+    open();
+    ui!.unmount();
+    ui = null;
     expect(loadLocalDraft('u-1')).toBeNull();
   });
   it('Delete asks first, then deletes the row and closes', async () => {
@@ -275,6 +426,8 @@ describe('leaving the editor', () => {
     useGuides.setState({ mine: [{ ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, authorId: 'u-1' }] });
     const c = open(draftFromGuide({ ...GUIDES[0]!, rowId: ROW, revision: 5, official: false, authorId: 'u-1' }));
     type(c.querySelector('.gedit-title')!, 'Changed');
+    saveLocalDraft('u-1', { ...emptyDraft('Mike'), title: 'Kept on the device' });
+    expect(loadLocalDraft('u-1')).not.toBeNull();
     await press(c, 'Delete');
     await press(c, 'Delete for good');
     expect(deletes).toEqual([ROW]);
@@ -316,6 +469,42 @@ describe('the keyboard never closes the Compendium from inside the editor', () =
     expect(c.querySelector('.gpick')).toBeNull();
     expect(closed).toBe(0);
     expect(c.textContent).not.toContain('Discard your changes?');
+  });
+  it('Esc with a card inspect open closes only the inspect, even with unsaved changes', () => {
+    const c = open();
+    const title = c.querySelector<HTMLInputElement>('.gedit-title')!;
+    type(title, 'Changed');
+    act(() => { useGame.setState({ inspect: { name: 'Looked at' } as never }); });
+    const reached: string[] = [];
+    const game = (e: KeyboardEvent): void => { reached.push(e.key); };
+    window.addEventListener('keydown', game);
+    try {
+      act(() => { title.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    } finally {
+      window.removeEventListener('keydown', game);
+    }
+    expect(useGame.getState().inspect).toBeNull();
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(closed).toBe(0);
+    expect(reached).toEqual([]);
+  });
+  it('with the bug reporter open, Esc and Tab pass through and the editor does nothing', () => {
+    const c = open();
+    const title = c.querySelector<HTMLInputElement>('.gedit-title')!;
+    type(title, 'Changed');
+    act(() => { useGame.setState({ bugReportOpen: true }); });
+    const reached: string[] = [];
+    const game = (e: KeyboardEvent): void => { reached.push(e.key); };
+    window.addEventListener('keydown', game);
+    try {
+      act(() => { title.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+      act(() => { title.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })); });
+    } finally {
+      window.removeEventListener('keydown', game);
+    }
+    expect(reached).toEqual(['Escape', 'Tab']);
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(closed).toBe(0);
   });
   it('once unmounted, the editor no longer claims the keys', () => {
     open();

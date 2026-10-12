@@ -7,6 +7,7 @@ import {
   builtInImportPayload, draftFromGuide, draftProblems, duplicateDraft, emptyDraft, mentionsFor, missingIn, sameDraft, toWire,
 } from './guideDrafts';
 
+const REGEX_SPECIAL: ReadonlySet<string> = new Set('.*+?^${}()|[]' + String.fromCharCode(92));
 const name = (id: string): string => CARD_INDEX[id]!.name;
 const inSet2 = new Set(poolFor('set2').all.map((c) => c.id));
 const archived = Object.values(CARD_INDEX).find((c) => !inSet2.has(c.id) && !c.spell && !c.token)!;
@@ -39,6 +40,18 @@ describe('mentionsFor: the cards a write-up names', () => {
   it('handles a name with punctuation in it', () => {
     const punct = poolFor('set2').all.find((c) => /[^a-zA-Z0-9 ]/.test(c.name))!;
     expect(mentionsFor(`Use ${punct.name}, then pass.`, 'set2', [])).toEqual([punct.id]);
+  });
+  it('reads a character that means something in a pattern as itself, not as a pattern', () => {
+    const special = poolFor('set2').all.find((c) => [...c.name].some((ch) => REGEX_SPECIAL.has(ch)));
+    if (special) {
+      expect(mentionsFor(`Use (${special.name})? now.`, 'set2', []), special.id).toContain(special.id);
+      // The same name with its pattern character swapped for a letter is a different word, not a mention.
+      const swapped = [...special.name].map((ch) => (REGEX_SPECIAL.has(ch) ? 'x' : ch)).join('');
+      expect(mentionsFor(`Use ${swapped} now.`, 'set2', []), swapped).not.toContain(special.id);
+    }
+    // And the guard holds for any name wrapped in pattern characters: it finds the card and does not throw.
+    const plain = poolFor('set2').all.find((c) => c.id === 'grim')!;
+    expect(mentionsFor(`(${plain.name})?`, 'set2', [])).toEqual(['grim']);
   });
   it('a card that is not in this set is not found', () => {
     expect(mentionsFor(`Old ${archived.name}.`, 'set2', [])).toEqual([]);
@@ -102,6 +115,18 @@ describe('toWire: the document sent to the server', () => {
     expect(wire.aliases).toEqual({});
     expect(wire.iconCard).toBe('grim');
   });
+  it('a nickname\'s card keeps its slot even when the write-up names a full set of other cards', () => {
+    const all = poolFor('set2').all;
+    const named = all.slice(0, GUIDE_LIMITS.mentions + 5);
+    const body = named.map((c) => c.name).join(', ');
+    const lower = body.toLowerCase();
+    const nick = all.slice(GUIDE_LIMITS.mentions + 5).find((c) => c.id !== 'grim' && !lower.includes(c.name.toLowerCase()))!;
+    const d = { ...emptyDraft('Mike'), title: 'T', body, core: ['grim'], aliases: [{ word: 'nick', card: nick.id }] };
+    const wire = toWire(d, 'set2');
+    expect(wire.mentions.length).toBeLessThanOrEqual(GUIDE_LIMITS.mentions);
+    expect(wire.mentions).toContain(nick.id);
+    expect(validateGuideDraft(wire)).toMatchObject({ ok: true });
+  });
   it('a duplicate sends its source only when it is new', () => {
     expect(toWire({ ...duplicateDraft(serverGuide(sunmane), 'Mike') }, 'set2').forkedFrom).toBe('11111111-1111-4111-8111-111111111111');
     expect(toWire(draftFromGuide(serverGuide(sunmane)), 'set2').forkedFrom ?? null).toBeNull();
@@ -133,6 +158,23 @@ describe('draftProblems: what stops a save, in the player\'s words', () => {
     const offRoster = [...new Set(Object.values(SETS).flatMap((s) => [...s.tribes]))].find((t) => !SETS.set2.tribes.includes(t))!;
     const p = draftProblems({ ...ok, tribes: [offRoster] }, 'set2');
     expect(p[0]).toMatchObject({ field: 'tribes' });
+  });
+  it('a "pairs with" tribe that is not in this set is reported as pairs with, not as tribes', () => {
+    const offRoster = [...new Set(Object.values(SETS).flatMap((s) => [...s.tribes]))].find((t) => !SETS.set2.tribes.includes(t))!;
+    expect(draftProblems({ ...ok, pairsWith: [offRoster] }, 'set2')[0]).toMatchObject({ field: 'pairsWith' });
+    expect(draftProblems({ ...ok, tribes: [SETS.set2.tribes[0]!], pairsWith: [offRoster] }, 'set2')[0]).toMatchObject({ field: 'pairsWith' });
+    expect(draftProblems({ ...ok, tribes: [offRoster] }, 'set2')[0]).toMatchObject({ field: 'tribes' });
+  });
+  it('a nickname whose card is not in this set is a missing card, never a tribe problem', () => {
+    const d = { ...ok, aliases: [{ word: 'old', card: archived.id }] };
+    expect(missingIn(d, 'set2')).toContain(archived.id);
+    expect(draftProblems(d, 'set2')[0]).toMatchObject({ field: 'cards' });
+    expect(draftProblems(d, 'set2')[0]!.message).toMatch(/missing or removed/i);
+  });
+  it('a nickname row with no card yet is not a missing card', () => {
+    const d = { ...ok, aliases: [{ word: 'half', card: '' }] };
+    expect(missingIn(d, 'set2')).toEqual([]);
+    expect(draftProblems(d, 'set2')).toEqual([]);
   });
 });
 

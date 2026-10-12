@@ -32,6 +32,7 @@ export interface EditorDraft {
   body: string;
   core: string[];
   enablers: string[];
+  /** Nickname rows. A row's card counts as one of the guide's cards: it must be in the set (`missingIn`). */
   aliases: Array<{ word: string; card: string }>;
   /** The guide this one was duplicated from (a server row id), sent only when the guide is first created. */
   forkedFrom: string | null;
@@ -105,10 +106,14 @@ export function mentionsFor(body: string, setId: SetId, listed: readonly string[
   return out;
 }
 
-/** The Core and Enabler cards of the draft that are not in `setId`'s pool (archived, moved, or gone). */
+/**
+ * The draft's cards that are not in `setId`'s pool (archived, moved, or gone), each once: Core, Enablers and the card of
+ * every nickname row (a nickname's card counts as one of the guide's cards; a row with no card yet is skipped).
+ */
 export function missingIn(d: EditorDraft, setId: SetId): string[] {
   const pool = poolIdsFor(setId);
-  return [...new Set([...d.core, ...d.enablers])].filter((id) => !pool.has(id));
+  const nicknameCards = d.aliases.map((a) => a.card).filter((id) => id !== '');
+  return [...new Set([...d.core, ...d.enablers, ...nicknameCards])].filter((id) => !pool.has(id));
 }
 
 /** The document for `guide-write`. Derives `mentions` and `sets`; never sends a half-typed nickname. */
@@ -119,9 +124,15 @@ export function toWire(d: EditorDraft, setId: SetId): GuideDraftInput {
     if (word && a.card) aliases[word] = a.card;
   }
   const listed = [...d.core, ...d.enablers];
-  const mentions = mentionsFor(d.body, setId, listed);
+  // A nickname's card that is not Core or Enabler must be listed, so those take their slots first; the write-up's
+  // names fill what is left. (Order is not shown to players.)
+  const mentions: string[] = [];
   for (const id of Object.values(aliases)) {
     if (!listed.includes(id) && !mentions.includes(id) && mentions.length < GUIDE_LIMITS.mentions) mentions.push(id);
+  }
+  for (const id of mentionsFor(d.body, setId, [...listed, ...mentions])) {
+    if (mentions.length >= GUIDE_LIMITS.mentions) break;
+    mentions.push(id);
   }
   const sets = guideSetsFor({ core: d.core, enablers: d.enablers, mentions, tribes: d.tribes, pairsWith: d.pairsWith }, SET_FACTS);
   return {
@@ -159,6 +170,12 @@ const HELP: Readonly<Record<string, string>> = {
   sets: 'Add cards from this set.',
 };
 
+/** Which tribe field to blame when this set is left out: "pairs with" only when every picked tribe is on the roster and it is not. */
+function tribeField(d: EditorDraft, setId: SetId): 'tribes' | 'pairsWith' {
+  const roster = new Set<string>(SET_FACTS.find((f) => f.id === setId)?.tribes ?? []);
+  return d.tribes.every((t) => roster.has(t)) && d.pairsWith.some((t) => !roster.has(t)) ? 'pairsWith' : 'tribes';
+}
+
 /** Why this draft cannot be saved yet, most important first. Empty = it can. */
 export function draftProblems(d: EditorDraft, setId: SetId): Array<{ field: string; message: string }> {
   const missing = missingIn(d, setId);
@@ -171,30 +188,37 @@ export function draftProblems(d: EditorDraft, setId: SetId): Array<{ field: stri
     // Two refusals are reported under the field the author can act on. An empty Core row leaves no art icon, and the
     // server checks the icon first: say Core. With every card in this set, an empty `sets` can only mean a tribe that
     // shares no roster with these cards: say tribes.
-    const field = v.field === 'iconCard' && d.core.length === 0 ? 'core' : v.field === 'sets' ? 'tribes' : v.field;
+    const field = v.field === 'iconCard' && d.core.length === 0 ? 'core' : v.field === 'sets' ? tribeField(d, setId) : v.field;
     return [{ field, message: HELP[field] ?? 'Something on this guide is not valid.' }];
   }
   // Every card is in this set, so the only way this set is absent from `sets` is a tribe that is not on its roster.
-  if (!wire.sets.includes(setId)) return [{ field: 'tribes', message: HELP.tribes! }];
+  if (!wire.sets.includes(setId)) {
+    const field = tribeField(d, setId);
+    return [{ field, message: HELP[field]! }];
+  }
   return [];
 }
 
 /** The built-in guides as the documents the team-only import sends (the Import button and the round-trip test). */
 export function builtInImportPayload(): GuideDraftInput[] {
-  return BUNDLED_GUIDE_DATA.map((b, i) => ({
-    slug: b.id,
-    official: true,
-    byline: TEAM_BYLINE,
-    sets: [...GUIDES[i]!.sets],
-    tribes: [...b.tribes],
-    pairsWith: [...(b.pairsWith ?? [])],
-    iconCard: b.iconCard,
-    title: b.title,
-    tagline: b.tagline,
-    body: b.body,
-    core: [...b.core],
-    enablers: [...b.enablers],
-    mentions: [...(b.mentions ?? [])],
-    aliases: { ...(b.aliases ?? {}) },
-  }));
+  return BUNDLED_GUIDE_DATA.map((b) => {
+    const guide = GUIDES.find((g) => g.id === b.id);
+    if (!guide) throw new Error(`built-in guide ${b.id} has no matching Guide`);
+    return {
+      slug: b.id,
+      official: true,
+      byline: TEAM_BYLINE,
+      sets: [...guide.sets],
+      tribes: [...b.tribes],
+      pairsWith: [...(b.pairsWith ?? [])],
+      iconCard: b.iconCard,
+      title: b.title,
+      tagline: b.tagline,
+      body: b.body,
+      core: [...b.core],
+      enablers: [...b.enablers],
+      mentions: [...(b.mentions ?? [])],
+      aliases: { ...(b.aliases ?? {}) },
+    };
+  });
 }

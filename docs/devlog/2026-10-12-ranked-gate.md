@@ -55,6 +55,17 @@ the impact is at the very start, then a long tail).
 when reduced motion skips the gate. Its tail runs under the grind and the slam. Warmed with the other cues when the
 confirmation opens.
 
+**Then, after hearing it:** "there seems to be a slight delay before i hear the sound. is it possible to have it
+play any sooner? and can we up the volume of it by about 20%". Two delays were found and removed:
+
+- The button acted on `click`, which only fires when the mouse button comes back UP (typically 80 to 150 ms after
+  it goes down). "Yes, let's go." now acts on pointer DOWN (left button), keeping `onClick` for the keyboard; the
+  `open` guard makes the release a no-op.
+- The file opens on 49 ms of dead silence before the hit (measured in 10 ms windows). `sfx.gate('intro')` now
+  starts 45 ms in (`GATE_INTRO_SLICE`), with no re-encode.
+
+Volume: the `gateintro` fader 0.6 -> 0.72.
+
 ## Judgement calls to confirm with the owner
 
 - **Length: 4.7 s**, every time a ranked lobby starts, and it cannot be skipped. That is longer than the "about 3

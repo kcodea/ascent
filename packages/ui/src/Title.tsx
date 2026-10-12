@@ -148,8 +148,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // "Yes, let's go." (owner 2026-10-12): the window leaves, the ranked gate slams shut over the mode picker, and
   // `startLobby` (the entry + hero select) runs BEHIND the shut doors, so they open on hero select. With no gate
   // (reduced motion, a test) `requestRankedGate` runs it at once.
+  // It acts on the PRESS (pointer down), not the release (owner 2026-10-12: "is it possible to have it play any
+  // sooner?"): a click only fires when the mouse button comes back up, which is where most of the wait was. The
+  // button keeps `onClick` too for the keyboard; the `open` guard makes the second of the two a no-op.
   const confirmRanked = (): void => {
     if (rankedConfirm !== 'open') return;
+    sfx.pulse();
     // The cinematic hit on the press itself (owner 2026-10-12: "add this sound when the player clicks yes"). Played
     // HERE, not by the gate, so it sounds on every "Yes", including when reduced motion skips the gate.
     sfx.gate('intro');
@@ -504,7 +508,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <p className="rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
             {savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
             <div className="rankedconfirm-actions">
-              <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onClick={() => { sfx.pulse(); confirmRanked(); }}>{RANKED_CONFIRM_YES}</button>
+              <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onPointerDown={(e) => { if (e.button === 0) confirmRanked(); }} onClick={confirmRanked}>{RANKED_CONFIRM_YES}</button>
               <button className="rc-btn" onClick={() => { sfx.pulse(); closeRankedConfirm(); }}>{RANKED_CONFIRM_NO}</button>
             </div>
           </div>

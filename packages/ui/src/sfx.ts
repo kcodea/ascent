@@ -431,6 +431,8 @@ interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 const GOOD_LUCK_SPARK_CLIP = 'fx/djartmusic-christmas-sparkle-whoosh-1-275404';
 /** Play only a window of a clip (seconds into the file, and for how long). */
 interface ClipSlice { offset: number; duration: number; }
+/** `gateintro.mp3` from just before its hit to its end (a duration past the clip's end simply plays it out). */
+const GATE_INTRO_SLICE: ClipSlice = { offset: 0.045, duration: 60 };
 /** A tailed play with every dial off: the clip's own end, no reverb (the old behaviour, for bare calls). */
 const NO_TAIL: TailOpts = { fadeOutMs: 0, reverbMix: 0, reverbSec: 0 };
 
@@ -1502,7 +1504,9 @@ export const sfx = {
    * silence, and the sequence is visual-driven either way (the audio-never-blocks rule).
    */
   gate: (cue: 'intro' | 'close' | 'slam' | 'rattle' | 'open', delay = 0): void => {
-    playSample(`gate${cue}`, `gate${cue}`, Math.max(0, delay) / 1000);
+    // `intro` skips its own lead-in: the file opens on 49 ms of dead silence before the hit (measured 2026-10-12;
+    // owner: "there seems to be a slight delay before i hear the sound"), so it starts 45 ms in.
+    playSample(`gate${cue}`, `gate${cue}`, Math.max(0, delay) / 1000, undefined, cue === 'intro' ? GATE_INTRO_SLICE : undefined);
   },
   /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
    *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */

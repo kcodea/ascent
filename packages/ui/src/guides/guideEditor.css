@@ -55,6 +55,8 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 .bookguide-headtext.gedit-headtext { flex: 1; gap: 12px; }
 .gedit-icon { position: relative; flex: none; padding: 0; border: 0; background: none; border-radius: 12px; }
 .gedit-icon:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 3px; }
+/* Inside the button the emblem is an inline span, so its 88px box would not apply and the button would collapse. */
+.gedit-icon .lobbyguide-emblem { display: block; }
 .gedit-iconhint {
   position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 0; border-radius: 0 0 12px 12px; text-align: center;
   background: rgba(0, 0, 0, 0.72); color: var(--ui-title);

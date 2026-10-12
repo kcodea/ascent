@@ -171,11 +171,29 @@ holds at that moment; "Saved to My guides." comes from the editor's report, not 
 marked busy for a screen reader until it is known whether guides can be written; an error note that replaces a status
 note is announced; and the Resume bar's Discard question is withdrawn when the bar hides.
 
+## Found by rendering it, and fixed
+
+The first real render (this branch served on its own port, with made-up local guides and a made-up local account,
+because the server tables are not set up) found one bug that no test could see. In the editor, the art icon button was
+1 pixel wide and its "Change" label sat on top of the Title label. The emblem is a `span`; in the reading view it is a
+flex child, so its 88 px box applies, but inside the editor's button it is inline and the box did not apply. One CSS
+line (`.gedit-icon .lobbyguide-emblem { display: block; }`) fixes it. Measured after the fix: the button is 88 by 88
+and the title box starts to its right. Lesson: a component test that never lays out cannot catch a collapsed control,
+so a new screen needs one real render before it is called done.
+
 ## Known gaps (for the owner)
 
 - Every player guide is private until step 3. Nothing a player writes is visible to anyone else yet.
-- The look is a first cut and has not been judged in a real render: the corner radii, the panel colours, and the text
-  sizes in the editor and the toolbar. The design linter still flags some of them. The owner decides.
+- The look is a first cut. It was rendered once with made-up local data and five small screens were sent to the
+  owner, who has not judged it yet: the corner radii, the panel colours, and the text sizes in the editor and the
+  toolbar. The design linter still flags the values that match the Compendium's own stylesheet (7 px and 6 px
+  corners, 12.5 px and 13 px text, the black shadows); none was suppressed. The owner decides.
+- After "Load their version" on a resumed guide, typing and then undoing back to the same text puts the stale draft
+  back on the device, so it is offered again. Found by the last review, not fixed.
+- When a pasted line break is flattened in the middle of a write-up, the caret jumps to the end of the box.
+- The server caps a team member's own (not Team Ascent) guides at 20 as well, and the client does not check the cap
+  before opening the editor for a team account, so the dead end at the cap remains for the two team accounts when
+  they write under their own name.
 - Closing the Compendium outright (X, or a press on the dimmed surround) does not ask. The draft is kept and Resume
   offers it back.
 - Reordering is by arrows, not drag.
@@ -194,7 +212,16 @@ note is announced; and the Resume bar's Discard question is withdrawn when the b
 
 ## Performance
 
-To be filled by the render measurement before the pull request opens.
+Not measured. No number here would be honest. The routine in `docs/performance.md` needs a focused window on the
+production build with DevTools; the pane available to this work renders hidden (the page reports itself as not
+visible), and the machine sat at 100 percent CPU from other sessions while this was finished. The measurement owed
+from step 1 (opening the Guides tab) is still owed too. What can be said from reading the code, and the whole-branch
+review agreed: the guide list is unmounted while the editor is open, so typing re-renders only the editor; the card
+name scan runs on a deferred copy of the text; the device write waits 400 ms after the last keystroke; store
+selectors return primitives or stable arrays; the rail takes one snapshot when its Guides view opens; nothing
+animates. For the owner, two minutes on the production build: open the Compendium's Guides tab, press New guide, type
+a 300-character write-up with two card names, and open the rail's Guides view; no long task over 50 ms is the bar
+(the 2026-10-09 devlog's figure for opening Guides).
 
 ## Not verified here
 

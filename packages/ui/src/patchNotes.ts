@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
+      { category: 'Systems', text: 'The tribe name under a card is a stronger, less washed-out version of its tribe colour, for every tribe.' },
       {
         category: 'Systems',
         text: 'Leaderboard: games played now counts every game, portraits show skins, and rank badges wear their rank frame.',

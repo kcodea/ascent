@@ -33,8 +33,9 @@
   --t-beast: #4ea83b; --t-dragon: #ffffff; --t-mech: #27a9dd; --t-undead: #22b8a8; --t-demon: #b15cf0; --t-neutral: #9a8d79;
   /* Kobold and Dwarf had NO colour at all: `--c` is set from `var(--t-<tribe>)`, so an unlisted tribe
      resolved to nothing and its medallion glyph rendered unfilled (owner report 2026-07-31). Dwarf is
-     the forge yellow the owner asked for; kobold takes a warm ember so the two stay distinct. */
-  --t-dwarf: #f0c33c; --t-kobold: #e8763a;
+     the forge yellow the owner asked for; kobold takes a warm ember so the two stay distinct.
+     Kobold moved from #e8763a to a redder ember on 2026-10-12 (owner: "too orangey, a bit more red"). */
+  --t-dwarf: #f0c33c; --t-kobold: #e8553a;
   /* Set 3's two tribes had no token either (owner report 2026-09-14: their tribe name + colour never painted).
      Owner's picks (same day, via the DEV "Tribe Colours" tuner): Celestial a moonlit periwinkle, Spirit a warm
      lantern peach. Change a hue by editing BOTH this line and `DEFAULTS` in tribeColorConfig.ts. */

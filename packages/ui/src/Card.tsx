@@ -286,7 +286,7 @@ const descTemp = (s: string): string => s.replace(/\(\((.+?)\)\)/g, '<span class
 const descRune = (s: string): string => s.replace(/\[\[(.+?)\]\]/g, '<span class="descrune">$1</span>');
 /** A <<…>> marker — the (Both) label on a Choose One whose branches are all enabled. Coloured by the card's
  *  own TRIBE (owner ask 2026-08-28: "make the (Both) text logic follow the tribe color logic — kobolds should
- *  be that orangey/red color"), which the card root already exposes as `--c`; a Kobold reads #e8763a, a Beast
+ *  be that orangey/red color"), which the card root already exposes as `--c`; a Kobold reads #e8553a, a Beast
  *  green, and so on. Its own marker rather than reusing `descup` because that green means "a modified value of
  *  this card's own rule", which (Both) is not. */
 const descBoth = (s: string): string => s.replace(/<<(.+?)>>/g, '<span class="descboth">$1</span>');

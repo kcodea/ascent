@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Choosing a hero power (Mimic, Void, Power Shifter) now looks and works like every other Discover.',
+        details: [
+          'Each power is a full card: its art, its name and what it does. The hero it belongs to is named under it.',
+          'The title says where the choice came from, such as "From Power Shifter".',
+          'A Peek at board button lets you look at your board and Shop before you choose. You still have to pick one.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Leaderboard: games played now counts every game, portraits show skins, and rank badges wear their rank frame.',
         details: [
           'Games played stopped at 50. It now shows your real total.',

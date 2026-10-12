@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-12',
+    changes: [
+      { category: 'Systems', text: 'Kobold cards: the highlighted card text and the Kobold tribe label are now a redder shade, less orange.' },
+    ],
+  },
+  {
     date: '2026-10-11',
     changes: [
       {

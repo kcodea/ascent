@@ -9,6 +9,9 @@
  *  - WHETHER ANYTHING WAS KEPT. A refused save writes the author's text to this device only when there are unsaved
  *    changes. "kept on this device" is said only when the caller says something was (`kept`); not told, it is not said.
  *    Publishing and bookmarking change nothing when they are refused, and say so.
+ *  - WHETHER IT IS KNOWN. A publish or an unpublish that could not reach the server may still have landed (the answer
+ *    was lost, not the request). Whether the player's text is public is not something to guess at: that sentence never
+ *    says nothing was changed, it says to check again.
  */
 import { GUIDE_LIMITS } from '@game/guides';
 
@@ -41,6 +44,8 @@ const SIGN_IN = 'Sign in to write guides.';
 const NOT_ALLOWED = 'You cannot change this guide. Duplicate it to make your own.';
 const NO_LONGER = 'This guide no longer exists.';
 const NO_SERVER = 'Could not reach the server.';
+/** A publish or unpublish whose answer never came: it may have landed. */
+const MAY_HAVE_CHANGED = `${NO_SERVER} Check again in a moment to see whether it changed.`;
 
 export function guideErrorMessage(code: string, field?: string, about: GuideErrorAbout = {}): string {
   const action = about.action ?? 'save';
@@ -69,7 +74,7 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'not_allowed': return NOT_ALLOWED;
       case 'not_found': return NO_LONGER;
       case 'rate_limited': return 'That is a lot of changes. Try again in a little while.';
-      case 'offline': return `${NO_SERVER} Nothing was changed.`;
+      case 'offline': return MAY_HAVE_CHANGED;
       default: return 'Something went wrong. Nothing was changed.';
     }
   }
@@ -81,7 +86,7 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'unauthenticated': return SIGN_IN;
       case 'not_allowed': return NOT_ALLOWED;
       case 'not_found': return NO_LONGER;
-      case 'offline': return `${NO_SERVER} Nothing was changed.`;
+      case 'offline': return MAY_HAVE_CHANGED;
       default: return 'Something went wrong. Nothing was changed.';
     }
   }

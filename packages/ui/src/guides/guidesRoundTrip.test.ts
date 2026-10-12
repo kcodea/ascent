@@ -11,8 +11,8 @@ import { handleGuideWrite, type RpcCall } from '../../../guides/src/server';
 import { isBlockedText } from '../../../guides/src/wordFilter';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, toGuide, type Guide } from './guides';
-import { GUIDE_COLUMNS, saveGuideRemote, type GuideDraftInput } from './guidesRemote';
-import { builtInImportPayload } from './guideDrafts';
+import { GUIDE_COLUMNS, bookmarkGuideRemote, saveGuideRemote, setPublishedRemote, type GuideDraftInput } from './guidesRemote';
+import { builtInImportPayload, newSaveId } from './guideDrafts';
 import { TRIBE_NAME } from './GuideParts';
 
 /**
@@ -24,6 +24,9 @@ import { TRIBE_NAME } from './GuideParts';
  */
 const root = join(__dirname, '../../../..');
 const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-10-12-guides.sql'), 'utf8');
+/** Step 3 (publishing, bookmarks, a save that can be retried), run after step 1 as the runbook says. It replaces
+ *  `guide_save`, so every test in this file drives the function that is really deployed. */
+const COMMUNITY = readFileSync(join(root, 'supabase/migrations/2026-10-13-guides-community.sql'), 'utf8');
 
 /** The same stand-ins as packages/guides/src/guides.db.test.ts: the API roles, `auth.uid()` and Supabase's default grants. */
 const STUB = `
@@ -40,6 +43,10 @@ const STUB = `
 
 const TEAM = '00000000-0000-0000-0000-00000000000a';
 const PLAYER = '00000000-0000-0000-0000-00000000000b';
+/** A second signed-in player, who reads and bookmarks what PLAYER publishes. */
+const READER = '00000000-0000-0000-0000-00000000000c';
+/** The account the client's writes are made as (the verified token, on the wire). PLAYER unless a test says otherwise. */
+let caller = PLAYER;
 let db: PGlite;
 
 type Row = Record<string, unknown>;
@@ -48,6 +55,9 @@ type Row = Record<string, unknown>;
 const CALLS: Readonly<Record<string, (a: Record<string, unknown>) => [string, unknown[]]>> = {
   guide_save: (a) => ['select public.guide_save($1::uuid, $2::jsonb) as r', [a.p_user, JSON.stringify(a.p_doc)]],
   guide_import_builtins: (a) => ['select public.guide_import_builtins($1::uuid, $2::jsonb) as r', [a.p_user, JSON.stringify(a.p_docs)]],
+  guide_own_row: (a) => ['select public.guide_own_row($1::uuid, $2::uuid) as r', [a.p_user, a.p_id]],
+  guide_set_published: (a) => ['select public.guide_set_published($1::uuid, $2::uuid, $3::boolean, $4::int) as r', [a.p_user, a.p_id, a.p_on, a.p_revision]],
+  guide_bookmark: (a) => ['select public.guide_bookmark($1::uuid, $2::uuid, $3::boolean) as r', [a.p_user, a.p_id, a.p_on]],
 };
 const rpc: RpcCall = async (fn, args) => {
   const make = CALLS[fn];
@@ -82,7 +92,7 @@ vi.mock('../remoteBoards', async (importOriginal) => ({
   supabaseClient: () => ({
     functions: {
       invoke: async (_fn: string, opts: { body: unknown }) => {
-        const res = await handleGuideWrite(PLAYER, false, JSON.parse(JSON.stringify(opts.body)), rpc);
+        const res = await handleGuideWrite(caller, false, JSON.parse(JSON.stringify(opts.body)), rpc);
         const body = JSON.parse(JSON.stringify(res.body)) as Record<string, unknown>;
         return res.status === 200 ? { data: body, error: null } : { data: null, error: { context: { status: res.status, json: async () => body } } };
       },
@@ -94,7 +104,8 @@ beforeAll(async () => {
   db = new PGlite();
   await db.exec(STUB);
   await db.exec(MIGRATION);
-  for (const u of [TEAM, PLAYER]) await db.query('insert into auth.users (id) values ($1)', [u]);
+  await db.exec(COMMUNITY);
+  for (const u of [TEAM, PLAYER, READER]) await db.query('insert into auth.users (id) values ($1)', [u]);
   await db.query('insert into public.guide_team (user_id) values ($1)', [TEAM]);
 }, 60_000);
 afterAll(async () => { await db.close(); });
@@ -196,6 +207,78 @@ describe('guides, end to end: handler -> SQL -> the client reader', () => {
       expect(got, col).not.toBe('');
       expect(new Date(got).getTime(), col).toBe(new Date(rows[0]![col] as string | Date).getTime());
     }
+  });
+});
+
+describe('step 3, end to end: the client -> the handler -> SQL -> the client reader', () => {
+  /** Make the client's next writes as `who`, and put PLAYER back whatever happens. */
+  const as = async <T>(who: string, act: () => Promise<T>): Promise<T> => {
+    caller = who;
+    try { return await act(); } finally { caller = PLAYER; }
+  };
+  const stored = async (id: string): Promise<Row> => (await db.query<Row>('select published, published_at, title, revision, bookmark_count from public.guides where id = $1', [id])).rows[0]!;
+
+  it('a retried save, publish, a bookmark by a second account, unpublish, publish again, and a publish refused for its stored text', async () => {
+    // 1. A save carrying a save id, sent twice (the first answer "was lost"): one row, the same guide both times.
+    const saveId = newSaveId();
+    expect(UUID_RE.test(saveId)).toBe(true);
+    const draft: GuideDraftInput = {
+      official: false, saveId, byline: 'Mike', sets: ['set2'], tribes: ['beast'], pairsWith: [], iconCard: 'b2_sunmane', title: 'Sunmane, the long road',
+      tagline: 'One guide, never two.', body: 'Open on Sunny and stack the rally every turn.', core: ['b2_sunmane', 'b2_solaris'],
+      enablers: [], mentions: [], aliases: {},
+    };
+    const first = await saveGuideRemote(draft);
+    expect(first.ok, JSON.stringify(first)).toBe(true);
+    const again = await saveGuideRemote(draft);
+    expect(again.ok, JSON.stringify(again)).toBe(true);
+    const saved = (first as { ok: true; value: GuideRecord }).value;
+    const replayed = (again as { ok: true; value: GuideRecord }).value;
+    expect(replayed.id).toBe(saved.id);
+    expect([saved.revision, replayed.revision]).toEqual([1, 1]);
+    expect(replayed).toStrictEqual(saved);
+    expect((await db.query('select id from public.guides where last_save_id = $1', [saveId])).rows).toHaveLength(1);
+    expect((await db.query('select id from public.guides where author_id = $1 and title = $2', [PLAYER, draft.title])).rows).toHaveLength(1);
+    const id = saved.id;
+
+    // 2. Publish: what the client reads out of the answer is public, dated, and names its author.
+    const pub = await setPublishedRemote(id, true);
+    expect(pub.ok, JSON.stringify(pub)).toBe(true);
+    const publishedGuide = toGuide((pub as { ok: true; value: GuideRecord }).value);
+    expect(publishedGuide).not.toBeNull();
+    expect(publishedGuide!.published).toBe(true);
+    expect(publishedGuide!.publishedAt).not.toBeNull();
+    expect(publishedGuide!.authorId).toBe(PLAYER);
+    expect(publishedGuide!.rowId).toBe(id);
+    const firstPublishedAt = publishedGuide!.publishedAt!;
+    expect(Number.isNaN(new Date(firstPublishedAt).getTime())).toBe(false);
+    expect((await stored(id)).published).toBe(true);
+
+    // 3. A second account bookmarks it; its author cannot.
+    expect(await as(READER, () => bookmarkGuideRemote(id, true))).toEqual({ ok: true, value: { bookmarked: true, count: 1 } });
+    expect(await bookmarkGuideRemote(id, true)).toEqual({ ok: false, code: 'not_allowed' });
+    expect((await stored(id)).bookmark_count).toBe(1);
+
+    // 4. Unpublish: private again, the first-published date kept. The reader can no longer add a bookmark to it.
+    const unpub = await setPublishedRemote(id, false);
+    expect(unpub.ok, JSON.stringify(unpub)).toBe(true);
+    const privateGuide = toGuide((unpub as { ok: true; value: GuideRecord }).value)!;
+    expect(privateGuide.published).toBe(false);
+    expect(privateGuide.publishedAt).toBe(firstPublishedAt);
+    expect(await as(READER, () => bookmarkGuideRemote(id, true))).toEqual({ ok: false, code: 'not_found' });
+    // Publish again: still the date it was FIRST published.
+    const repub = await setPublishedRemote(id, true);
+    expect(repub.ok, JSON.stringify(repub)).toBe(true);
+    const republished = toGuide((repub as { ok: true; value: GuideRecord }).value)!;
+    expect(republished.published).toBe(true);
+    expect(republished.publishedAt).toBe(firstPublishedAt);
+
+    // 5. The stored title now breaks a rule (a direct update stands in for a word list that changed after the save).
+    //    Unpublishing checks no text; publishing checks the stored text today, and says which part.
+    await db.query('update public.guides set title = $2 where id = $1', [id, 'Team Ascent picks']);
+    const down = await setPublishedRemote(id, false);
+    expect(down.ok, JSON.stringify(down)).toBe(true);
+    expect(await setPublishedRemote(id, true)).toEqual({ ok: false, code: 'reserved_name', field: 'title' });
+    expect(await stored(id)).toMatchObject({ published: false, title: 'Team Ascent picks' });
   });
 });
 

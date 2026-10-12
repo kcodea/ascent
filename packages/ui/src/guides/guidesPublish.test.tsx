@@ -26,11 +26,16 @@ let publishAnswer: (rowId: string, on: boolean) => GuideWriteResult<GuideRecord>
 let deleteAnswer: () => GuideWriteResult<true>;
 /** While set, a publish does not answer until this resolves. */
 let hold: Promise<void> | null = null;
+/** How many times the guides were read again from the server, and what a read of the player's own guides answers
+ *  (`undefined`: could not ask, so the store keeps what it holds). Nothing in this file read the guides before a lost
+ *  publish answer did, so the read answers "reached, nothing new" and leaves the store as each test set it. */
+let reads = 0;
+let mineRead: GuideRecord[] | undefined;
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
-  fetchOfficialGuides: async () => ({ state: 'offline' }),
+  fetchOfficialGuides: async () => { reads++; return { state: 'on', guides: [] }; },
   fetchTeamFlag: async () => undefined,
-  fetchMyGuides: async () => undefined,
+  fetchMyGuides: async () => mineRead,
   fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => undefined,
   fetchCommunityPage: async () => ({ guides: [], more: false }),
@@ -45,7 +50,7 @@ vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => true }));
 
 const { CompendiumGuides } = await import('./CompendiumGuides');
 const { GUIDES } = await import('./guides');
-const { resetGuidesForTests, useGuides } = await import('./guidesStore');
+const { loadGuides, resetGuidesForTests, useGuides } = await import('./guidesStore');
 const { currentIdentity, setIdentity } = await import('../identity');
 const prevIdentity = currentIdentity();
 
@@ -99,11 +104,17 @@ const own = (c: HTMLElement, text: string): HTMLButtonElement | undefined => but
 /** The question the card is asking. */
 const asked = (c: HTMLElement): HTMLElement => card(c).querySelector<HTMLElement>('.bookguide-ask[role="group"]')!;
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   resetGuidesForTests();
   published.length = 0; deleted.length = 0;
   hold = null;
+  // As the game does when an account lands: the store is told who is at the keyboard. A read asked for later (a lost
+  // publish answer) is then a refresh for the same account, not an account change that clears its guides.
+  mineRead = undefined;
+  setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
+  await loadGuides();
+  reads = 0;
   publishAnswer = (_id, on) => ({ ok: true, value: rec({ published: on }) });
   deleteAnswer = () => ({ ok: true, value: true });
 });
@@ -148,7 +159,7 @@ describe('publishing from the card', () => {
   it('a refused unpublish says nothing was changed, never to publish, and the guide stays published', async () => {
     const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
     for (const [code, sentence] of [
-      ['offline', 'Could not reach the server. Nothing was changed.'],
+      ['offline', 'Could not reach the server. Check again in a moment to see whether it changed.'],
       ['not_found', 'This guide no longer exists.'],
       ['server', 'Something went wrong. Nothing was changed.'],
       ['blocked_text', 'Something went wrong. Nothing was changed.'],
@@ -168,6 +179,47 @@ describe('publishing from the card', () => {
     expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('The title uses a reserved name. Edit the guide, then publish it.');
     expect(useGuides.getState().mine[0]!.published).toBe(false);
     expect(badges(card(c))).toContain('Private');
+  });
+  it('a publish whose answer is lost never says nothing was changed, and the guides are read again', async () => {
+    publishAnswer = () => ({ ok: false, code: 'offline' });
+    const c = show();
+    await press(card(c), 'Publish');
+    expect(reads).toBe(0);
+    await press(asked(c), 'Publish');
+    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(reads).toBe(1);
+    // The read could not ask for the player's own guides: the card keeps what it showed.
+    expect(badges(card(c))).toContain('Private');
+  });
+  it('an unpublish whose answer is lost reads the guides again too', async () => {
+    publishAnswer = () => ({ ok: false, code: 'offline' });
+    const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
+    await press(card(c), 'Unpublish');
+    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(reads).toBe(1);
+  });
+  it('the publish did land: once the server is reached the card reads Published', async () => {
+    publishAnswer = () => ({ ok: false, code: 'offline' });
+    mineRead = [rec({ published: true })];
+    const c = show();
+    await press(card(c), 'Publish');
+    await press(asked(c), 'Publish');
+    expect(reads).toBe(1);
+    expect(useGuides.getState().mine[0]!.published).toBe(true);
+    expect(badges(card(c))).toContain('Published');
+    expect(badges(card(c))).not.toContain('Private');
+    expect(own(c, 'Unpublish')).toBeDefined();
+  });
+  it('a publish the server refused asks for no read', async () => {
+    for (const code of ['reserved_name', 'conflict', 'rate_limited', 'not_found', 'server']) {
+      ui?.unmount();
+      publishAnswer = () => ({ ok: false, code, field: 'title' });
+      const c = show();
+      await press(card(c), 'Publish');
+      await press(asked(c), 'Publish');
+      expect(card(c).querySelector('[role="alert"]'), code).not.toBeNull();
+    }
+    expect(reads).toBe(0);
   });
   it('a guide the team has hidden says so and cannot be published', () => {
     const c = show({ mine: [{ ...mineGuide, hidden: true }] });

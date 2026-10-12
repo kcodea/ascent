@@ -215,11 +215,23 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
 4. **Check with two real accounts** (never yet run against the live project):
    - Account A: write a guide, Publish it from its card under My guides. It reads Published.
    - Account B: it is in Community. Bookmark it: it shows under Bookmarked, and in B's lobby rail when its tribe is in
-     the lobby. B's card for it has no Edit button.
+     the lobby. B's card for it has no Edit button. The rail shows a new bookmark the next time its Guides view is
+     opened: it does not change while that view is open, so close it and open it again.
+   - Community and Bookmarked show the guides of the set being shown. Pick the guide's set in the Compendium's set
+     picker if it is not there.
    - Account A: Unpublish. After B reopens the Compendium it is gone from Community and from B's Bookmarked.
      Publish again: it is back in B's Bookmarked without B doing anything.
    - Account A: put "Team Ascent" in the title and Save: it is refused, naming the title.
    - Guest: Community can be read; Bookmark asks to sign in.
+   - If a desktop build lags behind the function: an older client that saves a title the new title rule refuses is
+     told 'That "by" line is reserved. Pick another name.' The save is refused correctly; only the part it names is
+     wrong. It goes away when that client updates.
+5. **Taking a guide down before step 4.** There is no Hide button yet. Until there is, do it in the SQL Editor.
+   Find it: `select id, title, byline, published_at from public.guides where not official and published order by published_at desc limit 50;`
+   Hide it (it leaves Community, Bookmarked and every lobby rail at once; its author still sees it, marked
+   "Hidden by Team Ascent", and cannot publish it again): `update public.guides set hidden = true, hidden_at = now() where id = '<id>';`
+   Undo: `update public.guides set hidden = false, hidden_at = null where id = '<id>';`
+   Delete it for good: `delete from public.guides where id = '<id>';`
 
 ### Note
 

@@ -70,8 +70,9 @@ const forgetEmptyKept = (userId: string | null): void => {
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
  * a deleted one), or the sentence the player reads, which the card shows. A guide that is already gone on the server
- * when it is deleted simply leaves the list. None of this opens the editor or touches the unsaved guide the device
- * keeps, so the rules below are unchanged.
+ * when it is deleted simply leaves the list. A publish or unpublish whose answer never came may still have landed, so
+ * the card is told to check again and the guides are read again: the card shows the truth once the server answers.
+ * None of this opens the editor or touches the unsaved guide the device keeps, so the rules below are unchanged.
  *
  * Which guides show (pill, set, tribe pills, search) is decided by the caller (MinionBook). Who may do what is
  * decided by the server; this only draws the buttons (`canEditGuide`). Writing needs the guides capability to be
@@ -232,7 +233,11 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const onPublish = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
     if (!g.rowId) return null;
     const res = await setPublishedRemote(g.rowId, on);
-    if (!res.ok) return guideErrorMessage(res.code, res.field, { action: on ? 'publish' : 'unpublish' });
+    if (!res.ok) {
+      // The answer was lost, not refused: the server may have done it. Read again, so the card shows what is true.
+      if (res.code === 'offline') void loadGuides();
+      return guideErrorMessage(res.code, res.field, { action: on ? 'publish' : 'unpublish' });
+    }
     const next = toGuide(res.value);
     if (next) guideSaved(next);
     sfx.pulse();

@@ -153,7 +153,8 @@ async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall
     const out = await call(rpc, 'guide_bookmark', { p_user: userId, p_id: o.id, p_on: o.op === 'bookmark' }, log);
     if (!out.ok) return out.res;
     const d = (out.data ?? {}) as Record<string, unknown>;
-    return { status: 200, body: { bookmarked: d.bookmarked === true, count: Number(d.count ?? 0) } };
+    const n = Number(d.count ?? 0);
+    return { status: 200, body: { bookmarked: d.bookmarked === true, count: Number.isFinite(n) ? Math.max(0, n) : 0 } };
   }
 
   return { status: 400, body: { error: 'bad_op' } };

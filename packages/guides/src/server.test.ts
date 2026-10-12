@@ -193,9 +193,67 @@ describe('handleGuideWrite: setPublished', () => {
     expect((await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc)).status).toBe(500);
     expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row']);
   });
+
+  // The publish re-check runs the word rules on the STORED row, so each field it reads is pinned on its own.
+  const refusedStored = async (patch: Record<string, unknown>) => {
+    const f = fakeBy({ guide_own_row: { data: { ...stored, ...patch } }, guide_set_published: { data: { ...stored, published: true } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc);
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row']);
+    return res;
+  };
+  it('a blocked word in the stored body is refused', async () => {
+    expect(await refusedStored({ body: 'this is shit' })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'body' } });
+  });
+  it('a blocked word in the stored tagline is refused', async () => {
+    expect(await refusedStored({ tagline: 'so shit' })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'tagline' } });
+  });
+  it('a blocked word as a stored nickname is refused', async () => {
+    expect(await refusedStored({ aliases: { shit: 'grim' } })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'aliases' } });
+  });
+  it('a blocked word in the stored by line is refused', async () => {
+    expect(await refusedStored({ byline: 'shit' })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'byline' } });
+  });
+  it('a reserved stored by line is refused', async () => {
+    expect(await refusedStored({ byline: 'Team Ascent' })).toEqual({ status: 422, body: { error: 'reserved_name', field: 'byline' } });
+  });
+  it('a reserved stored tagline is refused', async () => {
+    expect(await refusedStored({ tagline: 'The official way to win' })).toEqual({ status: 422, body: { error: 'reserved_name', field: 'tagline' } });
+  });
+  it('a clean stored guide with every field filled publishes at its stored revision', async () => {
+    const full = {
+      ...stored, title: 'Dragon beatdown', tagline: 'Fast and fun', body: 'Play the dragons early and grow them.', byline: 'Mike',
+      aliases: { drake: 'grim' }, tribes: ['beast'], pairs_with: ['imp'], enablers: ['grim'], mentions: ['grim'], forked_from: GID, revision: 7,
+    };
+    const f = fakeBy({ guide_own_row: { data: full }, guide_set_published: { data: { ...full, published: true } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc);
+    expect(res.status).toBe(200);
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row', 'guide_set_published']);
+    expect(f.calls[1]!.args).toEqual({ p_user: UID, p_id: GID, p_on: true, p_revision: 7 });
+  });
+  it('a published that is 1, "true" or null is never treated as publish', async () => {
+    const f = fakeBy({});
+    for (const published of [1, 'true', null]) {
+      expect(await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published }, f.rpc)).toEqual({ status: 400, body: { error: 'bad_published' } });
+    }
+    expect(f.calls).toEqual([]);
+  });
+  it('an answer from guide_set_published that cannot be read is a 500', async () => {
+    const f = fakeBy({ guide_own_row: { data: stored }, guide_set_published: { data: { nope: true } } });
+    expect(await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc)).toEqual({ status: 500, body: { error: 'guide_malformed' } });
+  });
 });
 
 describe('handleGuideWrite: bookmark and unbookmark', () => {
+  it('an odd count in the answer is read as a number, never below 0', async () => {
+    const countFor = async (count: unknown) => {
+      const f = fakeBy({ guide_bookmark: { data: { bookmarked: true, count } } });
+      return (await handleGuideWrite(UID, false, { op: 'bookmark', id: GID }, f.rpc)).body.count;
+    };
+    expect(await countFor(null)).toBe(0);
+    expect(await countFor('7')).toBe(7);
+    expect(await countFor(-3)).toBe(0);
+    expect(await countFor('nope')).toBe(0);
+  });
   it('bookmark and unbookmark call guide_bookmark with on and off and answer the count', async () => {
     const f = fakeBy({ guide_bookmark: { data: { bookmarked: true, count: 3 } } });
     expect(await handleGuideWrite(UID, false, { op: 'bookmark', id: GID }, f.rpc)).toEqual({ status: 200, body: { bookmarked: true, count: 3 } });

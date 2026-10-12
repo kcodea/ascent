@@ -756,7 +756,7 @@ describe('the device slot', () => {
     const c = open(existing());
     await press(c, 'Save');
     expect(saves).toHaveLength(1);
-    expect(alertText(c)).not.toBe('');
+    expect(alertText(c)).toBe('Could not reach the server. Try again.'); // nothing was kept, so nothing says it was
     expect(loadLocalDraft('u-1')).toBeNull();
   });
   it('a resumed draft: change nothing, Cancel leaves it in the slot', async () => {
@@ -847,6 +847,22 @@ describe('the device slot', () => {
     await press(c, 'Load their version');
     expect(loadLocalDraft('u-1')).toBeNull();
   });
+  it('Load their version on a resumed draft that was not changed takes that stale draft out of the slot', async () => {
+    // The author resumed an unsaved edit of a saved guide, pressed Save, and chose the server's version instead.
+    const stale = existing({ title: 'My stale edit' });
+    saveLocalDraft('u-1', stale);
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    byIdAnswer = rec({ title: 'Theirs', revision: 9 });
+    const c = open(stale);
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')).toEqual(stale); // still offered while the question is up
+    await press(c, 'Load their version');
+    expect(title(c).value).toBe('Theirs');
+    expect(loadLocalDraft('u-1')).toBeNull();
+    ui!.unmount();
+    ui = null;
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
   it('a resumed draft leaves the slot when it is saved', async () => {
     saveLocalDraft('u-1', resumed);
     const c = open(resumed);
@@ -896,6 +912,275 @@ describe('the device slot', () => {
     ui!.unmount();
     ui = null;
     expect(loadLocalDraft('u-1')).toBeNull();
+  });
+});
+
+describe('what a refused save says about the device', () => {
+  const title = (c: HTMLElement): HTMLInputElement => c.querySelector<HTMLInputElement>('.gedit-title')!;
+  it('with unsaved changes the draft is written to the device, and the sentence says it is kept there', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open();
+    type(title(c), 'Keep me');
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')!.title).toBe('Keep me');
+    expect(alertText(c)).toBe('Could not reach the server. Your guide is kept on this device.');
+  });
+  it('with nothing changed nothing is written, and the sentence does not say it was', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open(existing());
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')).toBeNull();
+    expect(alertText(c)).toBe('Could not reach the server. Try again.');
+    expect(alertText(c)).not.toContain('kept on this device');
+  });
+  it('a resumed draft that was not changed is already on the device, so the sentence says it is kept', async () => {
+    const resumed = { ...emptyDraft('Mike'), title: 'Resumed', body: 'B', core: ['grim'] };
+    saveLocalDraft('u-1', resumed);
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open(resumed);
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')).toEqual(resumed);
+    expect(alertText(c)).toBe('Could not reach the server. Your guide is kept on this device.');
+  });
+  it('when the device cannot keep anything (storage is refused), the sentence does not say it was kept', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); });
+    try {
+      saveAnswer = () => ({ ok: false, code: 'offline' });
+      const c = open();
+      type(title(c), 'Keep me');
+      await press(c, 'Save');
+      expect(alertText(c)).toBe('Could not reach the server. Try again.');
+      expect(title(c).value).toBe('Keep me'); // the text is still in the editor
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it('a refetch that could not reach the server, with nothing changed, does not say anything was kept', async () => {
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    byIdAnswer = undefined;
+    const c = open(existing());
+    await press(c, 'Save');
+    await press(c, 'Load their version');
+    expect(alertText(c)).toBe('Could not reach the server. Try again.');
+  });
+});
+
+describe('a delete that cannot go through says so in its own words', () => {
+  const guide = (): Record<string, unknown> => ({ ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, authorId: 'u-1' });
+  const tryDelete = async (answer: GuideWriteResult<true>): Promise<HTMLElement> => {
+    ui?.unmount();
+    deleteAnswer = () => answer;
+    useGuides.setState({ mine: [guide() as never], mineOwner: 'u-1' });
+    const c = open(existing());
+    await press(c, 'Delete');
+    await press(c, 'Delete for good');
+    return c;
+  };
+  it('offline: the guide was not deleted, and nothing is said about saving or the device', async () => {
+    const c = await tryDelete({ ok: false, code: 'offline' });
+    expect(alertText(c)).toBe('Could not reach the server. The guide was not deleted.');
+    expect(closed).toBe(0);
+    expect(useGuides.getState().mine).toHaveLength(1);
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+  });
+  it('any other failure: it was not deleted', async () => {
+    for (const code of ['server', 'guide_failed', 'rate_limited', 'unavailable']) {
+      expect(alertText(await tryDelete({ ok: false, code })), code).toBe('Something went wrong deleting the guide. It was not deleted.');
+    }
+    expect(closed).toBe(0);
+  });
+  it('a refusal with a more exact sentence keeps it', async () => {
+    expect(alertText(await tryDelete({ ok: false, code: 'not_allowed' }))).toBe('You cannot change this guide. Duplicate it to make your own.');
+    expect(alertText(await tryDelete({ ok: false, code: 'unauthenticated' }))).toBe('Sign in to write guides.');
+    expect(alertText(await tryDelete({ ok: false, code: 'sign_in_required' }))).toBe('Sign in to write guides.');
+  });
+});
+
+describe('leaving a resumed guide that was never saved', () => {
+  const WHOLE = 'Discard this unsaved guide? It cannot be brought back.';
+  const resumed = { ...emptyDraft('Mike'), title: 'Resumed', body: 'B', core: ['grim'] };
+  const title = (c: HTMLElement): HTMLInputElement => c.querySelector<HTMLInputElement>('.gedit-title')!;
+  it('Cancel with changes asks the Resume bar\'s own question, because Discard removes the whole guide', async () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    type(title(c), 'Resumedx');
+    await press(c, 'Cancel');
+    expect(c.querySelector('.gedit-ask')!.textContent).toContain(WHOLE);
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(c.querySelector('.gedit-ask')!.getAttribute('aria-label')).toBe('Discard this unsaved guide?');
+    await press(c, 'Discard');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('Esc with changes asks the same question', () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    type(title(c), 'Resumedx');
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(c.querySelector('.gedit-ask')!.textContent).toContain(WHOLE);
+    expect(c.textContent).not.toContain('Discard your changes?');
+  });
+  it('a new guide that did not come from the device still asks about its changes', async () => {
+    const c = open();
+    type(title(c), 'Changed');
+    await press(c, 'Cancel');
+    expect(c.textContent).toContain('Discard your changes?');
+    expect(c.textContent).not.toContain(WHOLE);
+  });
+  it('a resumed edit of a guide that IS saved asks about its changes: the guide itself stays on the server', async () => {
+    const stale = existing({ title: 'My unsaved edit' });
+    saveLocalDraft('u-1', stale);
+    const c = open(stale);
+    type(title(c), 'My unsaved edit, more');
+    await press(c, 'Cancel');
+    expect(c.textContent).toContain('Discard your changes?');
+    expect(c.textContent).not.toContain(WHOLE);
+  });
+  it('another guide waiting on the device does not change the question for a new guide', async () => {
+    saveLocalDraft('u-1', { ...emptyDraft('Mike'), title: 'Other unsaved guide', body: 'x', core: ['grim'] });
+    const c = open();
+    type(title(c), 'Changed');
+    await press(c, 'Cancel');
+    expect(c.textContent).toContain('Discard your changes?');
+  });
+});
+
+describe('Esc answers the question that is showing', () => {
+  const esc = (): void => { act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); }); };
+  const title = (c: HTMLElement): HTMLInputElement => c.querySelector<HTMLInputElement>('.gedit-title')!;
+  it('with the delete question up and nothing changed, Esc takes the question away and the editor stays', async () => {
+    const c = open(existing());
+    await press(c, 'Delete');
+    expect(c.querySelector('.gedit-ask')).not.toBeNull();
+    esc();
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(closed).toBe(0);
+    expect(deletes).toEqual([]);
+    esc(); // no question now, nothing changed: this one leaves
+    expect(closed).toBe(1);
+  });
+  it('with the delete question up and unsaved changes, Esc takes the question away and asks nothing else', async () => {
+    const c = open(existing());
+    type(title(c), 'Changed');
+    await press(c, 'Delete');
+    esc();
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(closed).toBe(0);
+    expect(title(c).value).toBe('Changed');
+  });
+  it('with the discard question up, Esc takes it away, keeps the text, and the next Esc asks again', async () => {
+    const c = open();
+    type(title(c), 'Changed');
+    await press(c, 'Cancel');
+    expect(c.textContent).toContain('Discard your changes?');
+    esc();
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(closed).toBe(0);
+    expect(title(c).value).toBe('Changed');
+    esc();
+    expect(c.textContent).toContain('Discard your changes?');
+    expect(closed).toBe(0);
+  });
+  it('with the conflict question up, Esc takes it away: nothing is loaded, overwritten or discarded', async () => {
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    const c = open(existing());
+    type(title(c), 'Mine');
+    await press(c, 'Save');
+    expect(c.querySelector('.gedit-ask')!.textContent).toContain('Someone else saved this guide while you were editing.');
+    esc();
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(closed).toBe(0);
+    expect(fetches).toBe(0);
+    expect(saves).toHaveLength(1);
+    expect(title(c).value).toBe('Mine');
+    expect(loadLocalDraft('u-1')!.title).toBe('Mine');
+  });
+  it('the card picker still closes first, then the question, then the editor', async () => {
+    const c = open(existing());
+    await press(c, 'Delete');
+    click(c.querySelector('.gedit-row[data-row="core"] .gedit-add')!);
+    expect(c.querySelector('.gpick')).not.toBeNull();
+    esc();
+    expect(c.querySelector('.gpick')).toBeNull();
+    expect(c.querySelector('.gedit-ask')).not.toBeNull();
+    esc();
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(closed).toBe(0);
+  });
+  it('a card inspect over a question closes first and leaves the question up', async () => {
+    const c = open(existing());
+    await press(c, 'Delete');
+    act(() => { useGame.setState({ inspect: { name: 'Looked at' } as never }); });
+    esc();
+    expect(useGame.getState().inspect).toBeNull();
+    expect(c.querySelector('.gedit-ask')).not.toBeNull();
+  });
+});
+
+describe('the write-up is one paragraph, and the box says so', () => {
+  const body = (c: HTMLElement): HTMLTextAreaElement => c.querySelector<HTMLTextAreaElement>('.gedit-body')!;
+  it('Enter in the write-up adds no line break, and does nothing else', () => {
+    const c = open();
+    type(body(c), 'One line');
+    const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    act(() => { body(c).dispatchEvent(e); });
+    expect(e.defaultPrevented).toBe(true);
+    expect(body(c).value).toBe('One line');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+    expect(closed).toBe(0);
+    expect(saves).toEqual([]);
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+  });
+  it('Enter is left alone in the title, the tagline and the card search', () => {
+    const c = open();
+    click(c.querySelector('.gedit-row[data-row="enablers"] .gedit-add')!);
+    for (const sel of ['.gedit-title', '.gedit-tagline', '.gedit-byline']) {
+      const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      act(() => { c.querySelector(sel)!.dispatchEvent(e); });
+      expect(e.defaultPrevented, sel).toBe(false);
+    }
+  });
+  it('other keys in the write-up are left alone', () => {
+    const c = open();
+    for (const key of ['a', ' ', 'Backspace', 'ArrowDown']) {
+      const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      act(() => { body(c).dispatchEvent(e); });
+      expect(e.defaultPrevented, key).toBe(false);
+    }
+  });
+  it('a pasted two-line text is stored with one space where the break was', async () => {
+    const c = open();
+    type(body(c), 'First line.\nSecond line.');
+    expect(body(c).value).toBe('First line. Second line.');
+    await press(c, 'Save');
+    expect(saves[0]!.body).toBe('First line. Second line.');
+  });
+  it('blank lines, Windows line ends and spaces around a break all become that one space', () => {
+    const c = open();
+    type(body(c), 'One.  \r\n\r\n   Two.\n\n\nThree.');
+    expect(body(c).value).toBe('One. Two. Three.');
+  });
+  it('spaces that are not around a line break are left as typed', () => {
+    const c = open();
+    type(body(c), 'Two  spaces and a trailing one ');
+    expect(body(c).value).toBe('Two  spaces and a trailing one ');
+  });
+});
+
+describe('where the keyboard is when the editor opens', () => {
+  it('the title box has focus', () => {
+    const c = open();
+    expect(document.activeElement).toBe(c.querySelector('.gedit-title'));
+  });
+  it('it is taken once: a question that takes focus later keeps it', async () => {
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Changed');
+    await press(c, 'Cancel');
+    expect(document.activeElement?.textContent).toBe('Keep editing');
+    type(c.querySelector('.gedit-tagline')!, 'More'); // a re-render does not pull focus back to the title
+    expect(document.activeElement).not.toBe(c.querySelector('.gedit-title'));
   });
 });
 

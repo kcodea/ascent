@@ -68,8 +68,49 @@ afterEach(() => {
   m?.unmount();
   m = null;
   setIdentity(prevIdentity);
-  act(() => { useGame.setState({ showTitle: prevGame.showTitle, playerName: prevGame.playerName, account: prevGame.account }); });
+  act(() => { useGame.setState({ showTitle: prevGame.showTitle, playerName: prevGame.playerName, account: prevGame.account, showBook: prevGame.showBook }); });
   resetGuidesForTests();
+});
+
+describe('the dimmed surround closes the Compendium only for a press that began on it', () => {
+  const fire = (el: Element, type: 'mousedown' | 'click'): void => { act(() => { el.dispatchEvent(new MouseEvent(type, { bubbles: true })); }); };
+  const openBook = async (): Promise<{ surround: Element; inside: Element }> => {
+    act(() => { useGame.setState({ showBook: true }); });
+    m = mount(<MinionBook />);
+    await settle();
+    return { surround: m.container.querySelector('.book-ov')!, inside: m.container.querySelector('.book .book-head')! };
+  };
+  it('a press and a click on the surround itself close it', async () => {
+    const { surround } = await openBook();
+    fire(surround, 'mousedown');
+    fire(surround, 'click');
+    expect(useGame.getState().showBook).toBe(false);
+  });
+  it('a press that began inside the window and ended on the surround (a text selection dragged out) does not', async () => {
+    const { surround, inside } = await openBook();
+    fire(inside, 'mousedown');
+    fire(surround, 'click');
+    expect(useGame.getState().showBook).toBe(true);
+    // The next real press on the surround still closes it.
+    fire(surround, 'mousedown');
+    fire(surround, 'click');
+    expect(useGame.getState().showBook).toBe(false);
+  });
+  it('a click inside the window never closes it, wherever the press began', async () => {
+    const { surround, inside } = await openBook();
+    fire(surround, 'mousedown');
+    fire(inside, 'click');
+    expect(useGame.getState().showBook).toBe(true);
+  });
+  it('dragging a selection out of the guide editor leaves the editor open with its text', async () => {
+    act(() => { requestGuideEdit(ROW); });
+    const { surround } = await openBook();
+    const body = m!.container.querySelector<HTMLTextAreaElement>('.gedit .gedit-body')!;
+    fire(body, 'mousedown');
+    fire(surround, 'click');
+    expect(useGame.getState().showBook).toBe(true);
+    expect(m!.container.querySelector('.gedit')).not.toBeNull();
+  });
 });
 
 describe('the Guides tab in the Compendium', () => {

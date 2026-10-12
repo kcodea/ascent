@@ -30,13 +30,21 @@ import './guideEditor.css';
  *
  * KEYS. The game closes the Compendium on Esc and toggles it on Tab (window listeners in Game.tsx). While this is
  * mounted a CAPTURE listener stops both first: Tab moves focus as usual; Esc closes the card inspect overlay if one is
- * open above the editor, else the card picker if it is open, else asks to leave the editor. While the bug reporter is
- * open the editor stands aside entirely (its own listener owns the keys). Nothing else is touched.
+ * open above the editor, else the card picker if it is open, else takes away the question that is showing (discard,
+ * delete or conflict) and does nothing more, else asks to leave the editor (or leaves, with nothing unsaved). While
+ * the bug reporter is open the editor stands aside entirely (its own listener owns the keys). Nothing else is touched.
+ * The title box takes focus once, when the editor opens.
+ *
+ * THE WRITE-UP IS ONE PARAGRAPH. The server stores a write-up with every line break turned into a space, and readers
+ * see one paragraph. So the box does not pretend otherwise: Enter adds no line break there, and a line break that
+ * arrives another way (a paste) becomes one space as it arrives.
  *
  * THE DEVICE DRAFT. Unsaved changes are written to this device shortly after each change, at once when a save is
  * refused, and when the editor is closed from outside (the Compendium shutting), so closing the Compendium mid-edit
- * loses nothing. The device keeps ONE such guide per account (guideDraftStore.ts), which may be another guide than the
- * one open here, so the editor only ever takes back or clears its own write: the whole rule is `useDeviceDraft` below.
+ * loses nothing. A guide with no unsaved changes writes nothing, so a refusal says "kept on this device" only when the
+ * device really holds the text (guideMessages.ts). The device keeps ONE such guide per account (guideDraftStore.ts),
+ * which may be another guide than the one open here, so the editor only ever takes back or clears its own write: the
+ * whole rule is `useDeviceDraft` below.
  *
  * BUSY. While a save, delete or refetch is on its way every field is inert (one disabled fieldset), so nothing typed
  * can be lost to the answer, and nothing runs once the editor has closed.
@@ -46,6 +54,9 @@ import './guideEditor.css';
  */
 
 const len = (s: string): number => [...s].length;
+
+/** The write-up is one paragraph: each line break, with any spaces around it, becomes one space. */
+const oneParagraph = (s: string): string => s.replace(/[^\S\r\n]*[\r\n]+\s*/g, ' ');
 
 /** A character counter that only appears near the limit. */
 function Count({ value, max }: { value: string; max: number }): JSX.Element | null {
@@ -73,14 +84,17 @@ function previewOf(d: EditorDraft, mentions: readonly string[], aliases: Readonl
 }
 
 interface DeviceDraft {
+  /** This editor was opened from the slot (Resume): the guide it opened with is the one the device was keeping. */
+  resumed: boolean;
+  /** Is exactly this draft in the slot right now? Read only. */
+  holds: (draft: EditorDraft) => boolean;
   /** Unsaved changes go to the slot. Never call this with an unchanged draft. */
   keep: (draft: EditorDraft) => void;
   /** The draft is back to unchanged: take this editor's write back out of the slot. */
   revert: () => void;
-  /** A save, a delete or a confirmed discard ended the guide. `sent`: the answer came after the editor closed. */
+  /** The guide this editor held is finished with: a save, a delete, a confirmed discard, or the author taking the
+   *  server's version instead. `sent`: the answer came after the editor closed. */
   release: (sent?: EditorDraft) => void;
-  /** The author took the server's version instead: this editor's write is dropped. */
-  drop: () => void;
 }
 
 /**
@@ -95,8 +109,8 @@ interface DeviceDraft {
  *   release  clears the slot if it is mine, or if it holds the very draft this editor was opened from (Resume: the
  *            resumed guide is finished, so it leaves the device). Otherwise leaves it alone. With `sent` (the editor
  *            had already closed), also only if the slot still holds exactly what was sent.
- *   drop     clears the slot if it is mine.
- * Nothing else writes to or clears the slot, so an editor that never had unsaved changes never touches it.
+ * Nothing else writes to or clears the slot, so an editor that never had unsaved changes never touches it. Two things
+ * are only ever READ from the notes: `resumed` (the editor opened with the very draft the slot held) and `holds`.
  */
 function useDeviceDraft(userId: string, initial: EditorDraft): DeviceDraft {
   const user = useRef(userId);
@@ -109,6 +123,11 @@ function useDeviceDraft(userId: string, initial: EditorDraft): DeviceDraft {
     const held = (): EditorDraft | null => loadLocalDraft(user.current);
     const mine = (kept: EditorDraft | null): boolean => kept !== null && ownWrite.current !== null && sameDraft(kept, ownWrite.current);
     return {
+      resumed: !!atOpen.current && sameDraft(opened.current, atOpen.current),
+      holds: (draft) => {
+        const kept = held();
+        return kept !== null && sameDraft(kept, draft);
+      },
       keep: (draft) => {
         saveLocalDraft(user.current, draft);
         ownWrite.current = draft;
@@ -124,10 +143,6 @@ function useDeviceDraft(userId: string, initial: EditorDraft): DeviceDraft {
         const from = atOpen.current;
         const resumed = kept !== null && !!from && sameDraft(kept, from) && sameDraft(opened.current, from);
         if ((mine(kept) || resumed) && (!sent || (kept !== null && sameDraft(kept, sent)))) clearLocalDraft(user.current);
-        ownWrite.current = null;
-      },
-      drop: () => {
-        if (mine(held())) clearLocalDraft(user.current);
         ownWrite.current = null;
       },
     };
@@ -195,8 +210,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const isNew = d.rowId === null;
 
   // Latest values for the handlers and cleanups below, which are installed once.
-  const live = useRef({ picker, dirty, busy, d });
-  live.current = { picker, dirty, busy, d };
+  const live = useRef({ picker, dirty, busy, d, ask });
+  live.current = { picker, dirty, busy, d, ask };
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const device = useDeviceDraft(userId, initial);
@@ -204,6 +219,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const closed = useRef(false);
   /** True once a save, a delete or a confirmed discard ended the editor: then nothing more is written to the device. */
   const finished = useRef(false);
+  const titleRef = useRef<HTMLInputElement>(null);
   const safeRef = useRef<HTMLButtonElement>(null);
   const conflictRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLButtonElement>(null);
@@ -238,6 +254,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     focusAfter.current = null;
     to.current?.focus();
   }, [picker]);
+  // The keyboard starts in the title box. Once, on open: a question bar that takes focus later keeps it.
+  useEffect(() => { titleRef.current?.focus(); }, []);
   // A confirm bar takes focus, so it is noticed (and scrolled into view): on its safe button, except the conflict bar,
   // whose buttons both change the author's work, so the bar itself takes it (a stray Enter then does nothing).
   useEffect(() => {
@@ -258,6 +276,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       if (g.inspect) { g.clearInspect(); return; }
       if (live.current.busy) return;
       if (live.current.picker) { closePicker(); return; }
+      if (live.current.ask) { setAsk(null); return; } // a question is showing: Esc answers "no" to it, and nothing else
       if (live.current.dirty) setAsk('discard'); else finish();
     };
     window.addEventListener('keydown', onKey, true);
@@ -320,7 +339,9 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     if (res.code === 'not_found' && cur.rowId) { becomeNew(cur); return; } // deleted elsewhere while being edited
     if (!sameDraft(cur, base)) device.keep(cur); // refused: unsaved changes go to the device at once
     if (res.code === 'conflict') { setAsk('conflict'); return; }
-    setError(guideErrorMessage(res.code, res.field));
+    // "kept on this device" is said only when the device holds this text right now (nothing is written for a guide
+    // with no unsaved changes, and storage can refuse).
+    setError(guideErrorMessage(res.code, res.field, { kept: device.holds(cur) }));
   };
 
   /** The server's current version of the guide being edited, or null with the reason shown. */
@@ -332,7 +353,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     setBusy(false);
     const g = rec ? toGuide(rec) : null;
     if (!g && rec === null) becomeNew(d);
-    else if (!g) { setAsk(null); setError(guideErrorMessage('offline')); }
+    else if (!g) { setAsk(null); setError(guideErrorMessage('offline', undefined, { kept: device.holds(d) })); }
     return g;
   };
   const loadTheirs = async (): Promise<void> => {
@@ -342,7 +363,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     setBase(fresh);
     setD(fresh);
     setAsk(null);
-    device.drop();
+    device.release(); // the author chose the server's version: a device draft of the old text must not be offered again
   };
   const overwrite = async (): Promise<void> => {
     const g = await theirs();
@@ -367,13 +388,16 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       return;
     }
     setBusy(false);
-    if (!gone) { setAsk(null); setError(guideErrorMessage(res.code, res.field)); return; }
+    if (!gone) { setAsk(null); setError(guideErrorMessage(res.code, res.field, { action: 'delete' })); return; }
     device.release();
     guideDeleted(rowId);
     sfx.tick();
     finish();
   };
   const discard = (): void => { device.release(); sfx.tick(); finish(); };
+  // A guide resumed from the device that has no server row exists nowhere else: discarding removes all of it, not just
+  // the latest changes. So the question is the Resume bar's own.
+  const discardsWhole = device.resumed && isNew;
   const cancel = (): void => { if (dirty) setAsk('discard'); else finish(); };
 
   const toggleTribe = (t: Tribe): void => {
@@ -392,7 +416,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
         <div className="bookguide-headtext gedit-headtext">
           <label className="gedit-field">
             <span className="gedit-label">Title <Count value={d.title} max={GUIDE_LIMITS.title} /></span>
-            <input className="gedit-input gedit-title" value={d.title} placeholder="Name the build" onChange={(e) => patch({ title: e.target.value })} />
+            <input className="gedit-input gedit-title" ref={titleRef} value={d.title} placeholder="Name the build" onChange={(e) => patch({ title: e.target.value })} />
           </label>
           <label className="gedit-field">
             <span className="gedit-label">Tagline <Count value={d.tagline} max={GUIDE_LIMITS.tagline} /></span>
@@ -443,7 +467,9 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
         </div>
         <label className="gedit-field">
           <span className="gedit-label">Write-up <Count value={d.body} max={GUIDE_LIMITS.body} /></span>
-          <textarea className="gedit-input gedit-body" rows={6} value={d.body} placeholder="How the build works, what to look for, when to commit. Card names light up for readers." onChange={(e) => patch({ body: e.target.value })} />
+          <textarea className="gedit-input gedit-body" rows={6} value={d.body} placeholder="How the build works, what to look for, when to commit. Card names light up for readers."
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.preventDefault(); }}
+            onChange={(e) => patch({ body: oneParagraph(e.target.value) })} />
         </label>
         {d.body.trim() !== '' && (
           <div className="gedit-preview">
@@ -480,8 +506,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       <footer className="gedit-foot">
         {error && <p className="gedit-error" role="alert">{error}</p>}
         {ask === 'discard' && (
-          <div className="gedit-ask" role="alertdialog" aria-label="Discard your changes?">
-            <span>Discard your changes?</span>
+          <div className="gedit-ask" role="alertdialog" aria-label={discardsWhole ? 'Discard this unsaved guide?' : 'Discard your changes?'}>
+            <span>{discardsWhole ? 'Discard this unsaved guide? It cannot be brought back.' : 'Discard your changes?'}</span>
             <button type="button" className="gbtn gbtn-danger" disabled={busy} onClick={discard}>Discard</button>
             <button type="button" className="gbtn" ref={safeRef} disabled={busy} onClick={() => setAsk(null)}>Keep editing</button>
           </div>

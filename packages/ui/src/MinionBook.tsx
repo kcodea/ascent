@@ -1,4 +1,4 @@
-import { Fragment, memo, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { inRunTribes, type CardDef, type QuestReward, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -308,6 +308,9 @@ export function MinionBook() {
   const run = useGame((s) => s.run);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
+  // The dimmed surround closes the Compendium only for a press that BEGAN on it. A press that began inside the window
+  // and ended on the surround (a text selection dragged out of a text box) still lands its click on the surround.
+  const pressBeganOnSurround = useRef(false);
   // THE SET PICKER (owner ask 2026-09-24: "view any card sets, default to the active set"). The DEFAULT is the set
   // the book has always opened on: from the TITLE the ACTIVE set (what a new run would play; the same question
   // `createRun` asks, which is why `activeSet()` is read here), mid-run the run's own PINNED set (normally the
@@ -620,7 +623,9 @@ export function MinionBook() {
   };
 
   return (
-    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
+    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
+      onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
       <div className="book" onClick={(e) => e.stopPropagation()}>
         {/* The window's painted frame (the Runeforge frame's corners + rails, compendium.css) carries two crests: the
             top one over the title, the foot one under the gallery. Decorative, inert. */}

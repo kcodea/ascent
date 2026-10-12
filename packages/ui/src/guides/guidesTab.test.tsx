@@ -511,10 +511,17 @@ describe('the team-only import', () => {
     importAnswer = () => ({ ok: false, code: 'not_allowed' });
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'Import built-in guides');
-    expect(c.querySelector('[role="alert"]')!.textContent).toBe('You cannot change this guide. Duplicate it to make your own.');
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Something went wrong importing the guides. Nothing was imported.');
     expect(c.textContent).not.toContain('Imported');
     expect(officialCalls).toBe(0); // nothing changed, so nothing is read again
     expect(button(c, 'Import built-in guides')!.disabled).toBe(false);
+  });
+  it('an import that could not reach the server says nothing was imported, not that a guide is kept on the device', async () => {
+    importAnswer = () => ({ ok: false, code: 'offline' });
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    await press(c, 'Import built-in guides');
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Nothing was imported.');
+    expect(officialCalls).toBe(0);
   });
   it('an import that breaks is announced, and the button can be pressed again', async () => {
     importAnswer = () => { throw new Error('boom'); };

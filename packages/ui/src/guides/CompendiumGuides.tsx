@@ -271,7 +271,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     setImporting(true);
     try {
       const res = await importBuiltInsRemote(builtInImportPayload());
-      if (!res.ok) { setNote({ text: guideErrorMessage(res.code, res.field), alert: true }); return; }
+      if (!res.ok) { setNote({ text: guideErrorMessage(res.code, res.field, { action: 'import' }), alert: true }); return; }
       setNote({ text: `Imported ${res.value.inserted} guide${res.value.inserted === 1 ? '' : 's'}.`, alert: false });
       void loadGuides();
     } catch {

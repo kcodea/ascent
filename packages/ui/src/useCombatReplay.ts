@@ -410,6 +410,16 @@ export function computeFrame(
         u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
         u.baseHealth = e.hp;
         u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
+        // A RISE returns the fresh printed copy (R-RISE-01): mirror the sim's per-instance reset so the combat card
+        // text prints the risen body's reset value, not the original's stacks. Combat only: the Shop card keeps
+        // the original's stacks (R-RISE-06). A Rebirth is the full body and keeps them.
+        if (!e.rebirth) {
+          u.summonBonus = 0;
+          u.hpGrantBonus = undefined;
+          u.eotBonus = undefined;
+          u.sellBonus = undefined;
+          u.overflowBonus = undefined;
+        }
         u.alive = true; // a Rise dies FIRST (a `rise` death precedes this) → bring the body back to life…
         gone.delete(e.target); // …and un-remove it if that death landed in an earlier beat
         // Re-slot to the RIGHT of `after` — the token its Deathrattle summoned into its old slot — so the

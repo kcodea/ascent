@@ -493,6 +493,24 @@ export function simulate(
   /** RESILIENT WARD's twin of `wardBroken`: uids whose Resilient layer was stripped this combat, so a Rebirth return
    *  (the FULL body) comes back with the Resilient Ward it carried. */
   const resilientBroken = new Set<string>();
+  /** RISE KEEPS THE BOARD CARD'S STACKS (owner 2026-10-12, R-RISE-06): "rise rises a 'fresh copy' of something, but
+   *  that is a combat only thing. the recruit phase would still have the original copy with all its stacks." The
+   *  ORIGINAL body's per-instance carry-back fields, frozen at the moment of its FIRST Rise (before the reset). Every
+   *  per-instance carry-back in `carryBacksFor` reads a risen body through this snapshot, so the board card keeps
+   *  what the original had when it died (pre-fight stacks + growth it earned before dying), and nothing the risen
+   *  fresh copy accrues or resets flows home. Keyed by combat uid (a Rise keeps the uid). The one deliberate
+   *  exception is Rune of the Second Wind, whose "+2/+2 permanently" is ABOUT the Rise and is added here
+   *  (R-SET3RUNE-08). Declared early so a ctx closure (`grantCopiedEcho`) can read it at any point of the fight. */
+  const riseCarry = new Map<string, {
+    summonBonus: number;
+    hpGrantBonus?: number;
+    spellProgress?: number;
+    buffCount: number;
+    permaGain?: { attack: number; health: number };
+    permaRuby?: { attack: number; health: number };
+    permaLabel?: string;
+    engraved: boolean;
+  }>();
   /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each Ward that BROKE this fight, per side — recorded only
    *  for a side whose mods carry `ancientTrackWardBreaks`, so every other fight's result stays byte-identical. */
   const wardBreakLog: Record<Side, string[]> = { player: [], enemy: [] };
@@ -1570,6 +1588,8 @@ export function simulate(
     },
     grantCopiedEcho: (minion, effects, name) => {
       if (!minion.sourceUid || effects.length === 0) return;
+      // A risen fresh copy's graft is combat-only: the board card keeps the original's (R-RISE-06).
+      if (riseCarry.has(minion.uid)) return;
       (shoutCarry[minion.side].copiedEchoes ??= []).push({ uid: minion.sourceUid, effects, ...(name ? { name } : {}) });
     },
     revelerValueFor: (side) => Math.max(1, (side === 'player' ? playerState : enemyState).revelerX ?? 1),
@@ -2787,11 +2807,6 @@ export function simulate(
 
   // Running death tally per side — drives Avenge (X) (A.4).
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
-  // Bodies that Rose this fight. A risen body's `summonBonus` restarts at 0 (R-RISE-01), and the carry-back must write
-  // that reset home even when the risen body earned nothing afterwards (owner 2026-10-08, R-FLORIDA-01: "rise = reset
-  // its number since its not the same minion per se"). Without this, a 0 was filtered out and the board card kept its
-  // pre-combat count.
-  const risenUids = new Set<string>();
   // The immediate-attack queue, drained by flushImmediateAttacks after each attack's death cascade settles.
   // Two item kinds, processed in FIFO order so a token's summon and its strike stay adjacent:
   //   • `{ summon }` — a DEFERRED attack-on-summon token (Twilight Whelp's 3/3 Whelp, Spear Warden): its whole
@@ -3302,6 +3317,20 @@ export function simulate(
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
       // still work) at base ATTACK with 1 Health, shedding combat buffs + granted keywords.
       minion.dead = false;
+      // R-RISE-06: freeze what the ORIGINAL copy carries home, before anything below resets it. Only the first Rise
+      // records (a Deathtouched Apple's second Rise is already a fresh copy).
+      if (!riseCarry.has(minion.uid)) {
+        riseCarry.set(minion.uid, {
+          summonBonus: minion.summonBonus,
+          hpGrantBonus: minion.hpGrantBonus,
+          spellProgress: minion.spellProgress,
+          buffCount: buffCounts.get(minion.uid) ?? 0,
+          permaGain: minion.permaGain ? { ...minion.permaGain } : undefined,
+          permaRuby: minion.permaRuby ? { ...minion.permaRuby } : undefined,
+          permaLabel: minion.permaLabel,
+          engraved: minion.keywords.includes('EG') || !!minion.auraEngraved,
+        });
+      }
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
       // RUNE OF THE GEM CRYPT (Set 3 design pass): the Ruby stats this body carries (its Shop Rubies + this fight's) are
@@ -3349,8 +3378,7 @@ export function simulate(
       // accrued — Sergey's Echo HP grant, a Chef's tally, an overflow bank, an End-of-Turn escalation — reset
       // with its stats and keywords, exactly as the shop's Rise rebuilds the body from the def.
       minion.hpGrantBonus = undefined;
-      minion.summonBonus = 0;
-      risenUids.add(minion.uid);
+      minion.summonBonus = 0; // combat only: the board card keeps the original's count (R-RISE-06, `riseCarry`)
       minion.eotBonus = undefined;
       minion.sellBonus = undefined;
       minion.overflowBonus = undefined;
@@ -5469,6 +5497,10 @@ export function simulate(
       fireTrigger('runeSecondWind', side);
       ctx.buff(minion, n, n, 'Rune of the Second Wind');
       if (!minion.keywords.includes('EG')) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + n, health: (minion.permaGain?.health ?? 0) + n };
+      // R-RISE-06 x R-SET3RUNE-08: the risen copy's gains stay in combat, but this one is ABOUT the Rise and prints
+      // "permanently", so it is booked onto the original's frozen carry-back and reaches the board card.
+      const snap = riseCarry.get(minion.uid);
+      if (snap) snap.permaGain = { attack: (snap.permaGain?.attack ?? 0) + n, health: (snap.permaGain?.health ?? 0) + n };
     }
     if (m.runeRestless && !minion.dead && minion.health > 0 && minion.effects.some((e) => e.on === 'onDeath')) {
       nextStep();
@@ -6262,53 +6294,69 @@ export function simulate(
     const foe: Side = side === 'player' ? 'enemy' : 'player';
     // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge improved its summon buff
     // this combat keeps the higher bonus for the run.
-    // A body that Rose carries back its RESET count too, 0 included (R-FLORIDA-01; the Second Wind precedent: what the
-    // risen body ends the fight with is what the board card keeps).
-    const summonBonus = board
-      .filter((m) => m.sourceUid !== undefined && (m.summonBonus > 0 || risenUids.has(m.uid)) && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
-      .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.summonBonus }));
+    //
+    // RISE KEEPS THE BOARD CARD'S STACKS (owner 2026-10-12, R-RISE-06): a body that Rose reports through `riseCarry`,
+    // the ORIGINAL copy's fields frozen at its first Rise, never the risen fresh copy's (reset or regrown) values. So
+    // every per-instance channel below gives the board card what the original had when it died: its pre-fight stacks
+    // plus the growth it earned in this fight before dying. This replaces the 2026-10-08 carry-back of the risen
+    // body's reset count (old R-FLORIDA-01). ONE code path for both sides, so `enemyCarry` (lobby snapshots) matches.
+    const view = (m: Minion) => riseCarry.get(m.uid) ?? {
+      summonBonus: m.summonBonus,
+      hpGrantBonus: m.hpGrantBonus,
+      spellProgress: m.spellProgress,
+      buffCount: buffCounts.get(m.uid) ?? 0,
+      permaGain: m.permaGain,
+      permaRuby: m.permaRuby,
+      permaLabel: m.permaLabel,
+      engraved: m.keywords.includes('EG') || !!m.auraEngraved,
+    };
+    const carriers = board.filter((m) => m.sourceUid !== undefined).map((m) => ({ m, v: view(m) }));
+    const summonBonus = carriers
+      .filter(({ m, v }) => v.summonBonus > 0 && !COMBAT_ONLY_SUMMON_BONUS.has(m.cardId))
+      .map(({ m, v }) => ({ sourceUid: m.sourceUid!, bonus: v.summonBonus }));
     // Sergeant: the Deathrattle HP-grant accrual (seeded from the run board + any improvements from Attack
     // gained this combat) carries back so the improvement is permanent — keyed to the originating board card.
-    const hpGrantBonus = board
-      .filter((m) => m.sourceUid !== undefined && (m.hpGrantBonus ?? 0) > 0)
-      .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.hpGrantBonus! }));
+    const hpGrantBonus = carriers
+      .filter(({ v }) => (v.hpGrantBonus ?? 0) > 0)
+      .map(({ m, v }) => ({ sourceUid: m.sourceUid!, bonus: v.hpGrantBonus! }));
     // Archmagus Guel: his on-board spell tally (seeded + this combat's casts) carries back so combat casts count
     // permanently toward his per-instance improvement — keyed to the originating board card.
-    const spellProgress = board
-      .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
-      .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
+    const spellProgress = carriers
+      .filter(({ v }) => (v.spellProgress ?? 0) > 0)
+      .map(({ m, v }) => ({ sourceUid: m.sourceUid!, progress: v.spellProgress! }));
     // Pummel (Han Gover, Goldvein): the LIFETIME damage tally (seeded + this fight's hits) carries back whole per
     // body, so the meter persists shop → combat → shop (carry-over ruling 2026-09-21) and the shop reads
     // `total mod X`. `boards[side]` still holds a body that died this fight, so its hits carry too — the run
-    // card outlives the combat death.
-    const damageMeters = board
-      .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && damageMeterOf(cards[m.cardId]))
-      .map((m) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
+    // card outlives the combat death. NOT read through `riseCarry`: R-PUMMEL-01 makes the tally LIFETIME and says a Rise
+    // return keeps it (the Rise does not reset it in combat either), so the risen body's hits are the same tally.
+    const damageMeters = carriers
+      .filter(({ m }) => (m.damageDealt ?? 0) > 0 && damageMeterOf(cards[m.cardId]))
+      .map(({ m }) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
     // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
-    const ascendCount = board
-      .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
-      .map((m) => ({ sourceUid: m.sourceUid!, count: buffCounts.get(m.uid)! }));
+    const ascendCount = carriers
+      .filter(({ v }) => v.buffCount > 0)
+      .map(({ m, v }) => ({ sourceUid: m.sourceUid!, count: v.buffCount }));
     // Permanent gains carry back to the run board (only real minions — summoned tokens have no sourceUid
     // and are gone after combat). Two flavors, both recorded as `permaGain`: an Engraved minion keeps the
     // stats it gained this fight (native EG, or EG granted at Start of Combat by Taurus), and Flowing Monk's
     // overflow gift sticks to a non-EG recipient. The `engraved` flag is read off the *combat Minion's* live
     // keywords (so a Taurus-granted EG counts), and only steers the run-board inspect label — never gates the
     // carry-back, which the reducer applies regardless.
-    const permaBuffs = board
-      .filter((m) => m.sourceUid !== undefined && m.permaGain && (m.permaGain.attack > 0 || m.permaGain.health > 0))
-      .flatMap((m) => {
+    const permaBuffs = carriers
+      .filter(({ v }) => v.permaGain && (v.permaGain.attack > 0 || v.permaGain.health > 0))
+      .flatMap(({ m, v }) => {
         // Split the permanent gain into its RUBY share and the rest, so each carries its own label. Before this
         // every non-Engraved permaGain was attributed to Flowing Monk, which made a combat Ruby show up on the
         // run board as a Flowing Monk gift (owner report 2026-07-25).
-        const ruby = m.permaRuby ?? { attack: 0, health: 0 };
-        const restA = m.permaGain!.attack - ruby.attack;
-        const restH = m.permaGain!.health - ruby.health;
+        const ruby = v.permaRuby ?? { attack: 0, health: 0 };
+        const restA = v.permaGain!.attack - ruby.attack;
+        const restH = v.permaGain!.health - ruby.health;
         const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[] = [];
         if (ruby.attack > 0 || ruby.health > 0) {
           out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
         }
         if (restA > 0 || restH > 0) {
-          out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') || !!m.auraEngraved, ...(m.permaLabel ? { label: m.permaLabel } : {}) });
+          out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: v.engraved, ...(v.permaLabel ? { label: v.permaLabel } : {}) });
         }
         return out;
       });

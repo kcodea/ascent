@@ -51,8 +51,8 @@ import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToas
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
-import { Card, mdBold, type CardView } from './Card';
-import { heroPowerArt, equipmentBranchArtFor } from './art';
+import { Card, type CardView } from './Card';
+import { equipmentBranchArtFor } from './art';
 import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
@@ -68,6 +68,7 @@ import { DiscoverDialog, EntranceOverlay, OfferSheen } from './discoverEntrance/
 import { OfferBanner } from './discoverEntrance/OfferBanner';
 import { DiscoverPeekToggle } from './discoverEntrance/DiscoverPeekToggle';
 import { chooseOneSourceName } from './discoverEntrance/offerSource';
+import { powerCardView, powerOccasion, powerOfferSource } from './discoverEntrance/powerOffer';
 import { discoverOccasion } from './discoverEntrance/useOfferEntrance';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
@@ -2364,6 +2365,7 @@ export function Recruit() {
     };
   }, [run.lastCombat, run.seed, run.wave, oddsLossCap]);
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
+  const [powerMin, setPowerMin] = useState(false); // the hero-power Discover's Peek (same toggle, same contract)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
   const [forgeMin, setForgeMin] = useState(false);
 
@@ -2791,7 +2793,7 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (run.ancients?.offer?.length ?? 0) > 0));
+    const modalCovering = showLog || (!overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || (run.powerOffer && !powerMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0 || (run.ancients?.offer?.length ?? 0) > 0));
     // The Fight Recap counts too (2026-09-24): without it the hand + hero panels painted OVER its scrim.
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
@@ -2800,9 +2802,11 @@ export function Recruit() {
     // ANCIENTS: the awakening (gate + offer) also marks the body, so the Shop row can step back behind it.
     document.body.classList.toggle('ancoffer', !overlaysHeld && (run.ancients?.offer?.length ?? 0) > 0);
     return () => { document.body.classList.remove('modalup'); document.body.classList.remove('ancoffer'); };
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, powerMin, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold, showLog, run.ancients?.offer]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
+  // The hero-power Discover likewise: Void's second pick and the next turn's Mimicry each open expanded.
+  useEffect(() => { setPowerMin(false); }, [run.powerOffer]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
   useEffect(() => { setQuestMin(false); }, [run.questOffer]);
   useEffect(() => { setForgeMin(false); }, [run.runeforgeOffer]);
@@ -5524,6 +5528,14 @@ export function Recruit() {
     if (!el) return;
     void discoverFx.attach(el).then(() => discoverFx.discoverBurst(window.innerWidth / 2, window.innerHeight / 2));
   }, [run.discover, discoverDeathHold]);
+  // The hero-power Discover wears the same burst. Its offer can open behind the turn-start curtain (Mimicry), so
+  // this waits on `overlaysHeld`: the layer only mounts with the dialog. A Return from Peek does not re-fire it.
+  useEffect(() => {
+    if (!run.powerOffer || overlaysHeld) return;
+    const el = discoverBurstRef.current;
+    if (!el) return;
+    void discoverFx.attach(el).then(() => discoverFx.discoverBurst(window.innerWidth / 2, window.innerHeight / 2));
+  }, [run.powerOffer, overlaysHeld]);
 
   // Karwind flame flash: when a Battlecry triggers Karwind, flame the Dragons it buffed (~0.9s).
   useEffect(() => {
@@ -7977,7 +7989,7 @@ export function Recruit() {
 
       <QuestOverlay overlaysHeld={overlaysHeld} questOffer={run.questOffer} questMin={questMin} setQuestMin={setQuestMin} dispatch={dispatch} />
 
-      <PowerOverlay overlaysHeld={overlaysHeld} powerOffer={run.powerOffer} dispatch={dispatch} />
+      <PowerOverlay overlaysHeld={overlaysHeld} powerOffer={run.powerOffer} occasion={powerOccasion(run)} powerMin={powerMin} setPowerMin={setPowerMin} dispatch={dispatch} burstRef={discoverBurstRef} />
 
       {/* ANCIENTS (proof of concept): the awakening Discover. It waits for every other decision overlay, and for
           the curtain, so it never stacks on one. */}
@@ -9475,48 +9487,36 @@ const QuestOverlay = memo(function QuestOverlay({ overlaysHeld, questOffer, ques
   );
 });
 
-/** The hero-power Discover (Mimic / Void / Power Shifter). */
-const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, dispatch }: {
-  overlaysHeld: boolean; powerOffer: RunState['powerOffer']; dispatch: (a: Action) => void;
+/** The hero-power Discover (Mimic / Void / Power Shifter) + its Peek toggle. */
+const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, occasion, powerMin, setPowerMin, dispatch, burstRef }: {
+  overlaysHeld: boolean; powerOffer: RunState['powerOffer']; occasion: string | null; powerMin: boolean;
+  setPowerMin: React.Dispatch<React.SetStateAction<boolean>>; dispatch: (a: Action) => void; burstRef: React.RefObject<HTMLDivElement>;
 }) {
+  // A replay plays the entrance at the replay's speed (live play has no session: 1).
+  const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
+  // Built once per offer, so the option cards keep their identity across a Peek / Return and unrelated renders.
+  const cards = useMemo(() => (powerOffer?.heroIds ?? []).map(powerCardView), [powerOffer]);
   return (
     <>
-      {/* HERO-POWER DISCOVER (Mimic every turn / Void's turn-4 pair): pick one of two hero powers. Modelled on
-          the Quest Shop overlay — same panel chrome, but the "cards" are power plaques (art + name + rule).
-          Mandatory: no minimize, no skip — the reducer blocks everything else while it is open. */}
+      {/* HERO-POWER DISCOVER (Mimic every turn / Void's turn-4 pair / the Power Shifter spell): it IS the Discover
+          screen (owner ask 2026-10-12) — the same dialog, backdrop, banner, entrance and Peek toggle, with each
+          power drawn as a full spell card (`powerCardView`). The pick is still mandatory: Peek only hides the
+          offer to read the board, and the reducer blocks everything else until a power is chosen. */}
       {!overlaysHeld && powerOffer && (
-        <div className="discover-ov quest-ov power-ov" role="dialog" aria-label="Choose a hero power">
-          <div className="disc-panel quest-ov-panel">
-            <span className="disc-gem disc-gem-top" aria-hidden="true" />
-            <div className="disc-banner"><span className="disp">{powerOffer.slot === 'mimic' ? 'Mimicry' : powerOffer.slot === 'shifter' ? 'Power Shifter' : 'Twin Voids'}</span></div>
-            <div className="disc-sub">
-              {powerOffer.slot === 'mimic'
-                ? 'Choose a hero power to wield this turn'
-                : powerOffer.slot === 'shifter'
-                  ? 'Choose a hero power. It replaces your current one for the rest of the run.'
-                  : powerOffer.slot === 'void1'
-                    ? 'Choose your FIRST hero power. You keep it for the rest of the run.'
-                    : 'Choose your SECOND hero power. You keep it for the rest of the run.'}
-            </div>
-            <div className="disc-cards power-ov-cards">
-              {powerOffer.heroIds.map((hid, i) => {
-                const h = getHero(hid);
-                const art = heroPowerArt(hid);
-                return (
-                  <button key={hid} className="powerpick pressable" onClick={() => { sfx.pulse(); dispatch({ type: 'pickPower', index: i }); }}>
-                    <span className="powerpick-art">
-                      {art ? <img decoding="sync" src={art} alt="" draggable={false} /> : <span className="powerpick-glyph" aria-hidden>✦</span>}
-                    </span>
-                    <span className="powerpick-name disp">{h.power.name}</span>
-                    <span className="powerpick-hero">{h.name}</span>
-                    <span className="powerpick-text" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
-                  </button>
-                );
-              })}
-            </div>
-            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
-          </div>
-        </div>
+        <DiscoverPeekToggle minimized={powerMin} options={powerOffer.heroIds.length} onToggle={() => setPowerMin((m) => !m)} />
+      )}
+      {!overlaysHeld && powerOffer && !powerMin && (
+        <DiscoverDialog
+          ids={powerOffer.heroIds}
+          cards={cards}
+          onPick={(i) => dispatch({ type: 'pickPower', index: i })}
+          occasion={occasion}
+          speed={replaySpeed}
+          burstRef={burstRef}
+          source={powerOfferSource(powerOffer.slot)}
+          label="Discover a hero power"
+          full
+        />
       )}
     </>
   );

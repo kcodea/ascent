@@ -1,0 +1,109 @@
+/* ══ THE RANKED GATE (RankedGate.tsx, owner 2026-10-12) ══════════════════════════════════════════════════════════
+   Two painted doors (`/frames/ranked-gate-left.webp` / `-right.webp`: the owner's gate, cut down its centre seam)
+   grind in from the sides, slam shut, shudder a second later, and grind open again.
+
+   LAYERS. `.rgate` covers the screen above every other screen (z 700; the smoke-and-sparks canvas is 701) and
+   takes every pointer event while it plays. `.rgate-doors` is the pair as ONE body: the slam's recoil and the
+   shudder move it, so both doors shake together and the seam stays shut. It overscans the screen by 16px a side so
+   a shake never shows an edge. `.rgate-door` is one door's TRAVEL (translateX only). `.rgate-face` is its painted
+   face, and carries the grind's vibration, so the travel and the vibration never fight over one transform.
+
+   THE ART is `cover`ed and anchored on the seam side, so the two halves always meet exactly, at any window shape.
+
+   PERF. Every keyframe is `transform` / `opacity` only. The one loop is the grind's vibration, `transform` on a
+   promoted layer, and it runs only while the doors travel (1.5 s). The seam shadow and the flash are static
+   gradients whose opacity changes. Durations are `--rg-*`, set on the root from rankedGateTiming.ts.
+   No per-element `cursor`: nothing here is a button. ══ */
+.rgate { position: fixed; inset: 0; z-index: 700; overflow: hidden; }
+.gatefx-canvas { position: fixed; inset: 0; z-index: 701; pointer-events: none; }
+.rgate-doors { position: absolute; inset: -16px; }
+.rgate-door { position: absolute; top: 0; bottom: 0; width: 50%; will-change: transform; }
+.rgate-door-l { left: 0; transform: translateX(-102%); }
+.rgate-door-r { right: 0; transform: translateX(102%); }
+.rgate-face { position: absolute; inset: -4px 0; background: #2b303d url('/frames/ranked-gate-left.webp') 100% 50% / cover no-repeat; will-change: transform; }
+.rgate-door-r .rgate-face { background-image: url('/frames/ranked-gate-right.webp'); background-position: 0% 50%; }
+/* The shadow a door throws ahead of its leading edge, onto the screen it is closing over. Gone once they meet. */
+.rgate-door::after { content: ''; position: absolute; top: 0; bottom: 0; width: 70px; pointer-events: none; transition: opacity 0.12s linear; }
+.rgate-door-l::after { left: 100%; background: linear-gradient(90deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)); }
+.rgate-door-r::after { right: 100%; background: linear-gradient(270deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)); }
+.rgate:is(.is-shut, .is-shudder) .rgate-door::after { opacity: 0; }
+/* The hot flash on the seam at the slam: a static gradient, only its opacity moves. */
+.rgate-flash { position: absolute; left: 50%; top: 0; bottom: 0; width: 320px; margin-left: -160px; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 214, 140, 0), rgba(255, 226, 170, 0.5) 38%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 226, 170, 0.5) 62%, rgba(255, 214, 140, 0)); }
+
+/* CLOSING: three heavy lurches with a catch between them, then the last one runs away into the slam. */
+.rgate.is-closing .rgate-door-l { animation: rg-close-l var(--rg-close, 1500ms) linear both; }
+.rgate.is-closing .rgate-door-r { animation: rg-close-r var(--rg-close, 1500ms) linear both; }
+@keyframes rg-close-l {
+  0% { transform: translateX(-102%); animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1); }
+  30% { transform: translateX(-70%); animation-timing-function: linear; }
+  36% { transform: translateX(-68.5%); animation-timing-function: cubic-bezier(0.3, 0, 0.7, 1); }
+  62% { transform: translateX(-38%); animation-timing-function: linear; }
+  68% { transform: translateX(-36.5%); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.7); }
+  100% { transform: translateX(0); }
+}
+@keyframes rg-close-r {
+  0% { transform: translateX(102%); animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1); }
+  30% { transform: translateX(70%); animation-timing-function: linear; }
+  36% { transform: translateX(68.5%); animation-timing-function: cubic-bezier(0.3, 0, 0.7, 1); }
+  62% { transform: translateX(38%); animation-timing-function: linear; }
+  68% { transform: translateX(36.5%); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.7); }
+  100% { transform: translateX(0); }
+}
+/* THE GRIND: the faces judder while the doors travel (closing and opening). */
+.rgate:is(.is-closing, .is-opening) .rgate-face { animation: rg-grind 96ms steps(1, end) infinite; }
+@keyframes rg-grind {
+  0% { transform: translateY(0); }
+  25% { transform: translateY(-2px); }
+  50% { transform: translateY(1px); }
+  75% { transform: translateY(-1px); }
+}
+
+/* SHUT: the doors rest closed; the pair recoils from the hit and the seam flashes. */
+.rgate:is(.is-shut, .is-shudder) .rgate-door { transform: translateX(0); }
+.rgate.is-shut .rgate-doors { animation: rg-impact var(--rg-shake, 460ms) linear both; }
+.rgate.is-shut .rgate-flash { animation: rg-flash var(--rg-shake, 460ms) ease-out both; }
+@keyframes rg-impact {
+  0% { transform: translate(0, 0) scale(1.018); }
+  12% { transform: translate(-11px, 7px) scale(1.012); }
+  26% { transform: translate(9px, -6px) scale(1.008); }
+  42% { transform: translate(-6px, 4px) scale(1.004); }
+  60% { transform: translate(4px, -2px) scale(1.002); }
+  80% { transform: translate(-2px, 1px) scale(1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes rg-flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+
+/* SHUDDER: a second later the shut pair rattles, hardest in the middle of it. */
+.rgate.is-shudder .rgate-doors { animation: rg-shudder var(--rg-shudder, 700ms) linear both; }
+@keyframes rg-shudder {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  8% { transform: translate(-3px, 1px) rotate(-0.1deg); }
+  16% { transform: translate(4px, -2px) rotate(0.12deg); }
+  24% { transform: translate(-5px, 2px) rotate(-0.14deg); }
+  32% { transform: translate(6px, -1px) rotate(0.16deg); }
+  40% { transform: translate(-6px, 2px) rotate(-0.16deg); }
+  48% { transform: translate(6px, -2px) rotate(0.16deg); }
+  56% { transform: translate(-5px, 1px) rotate(-0.14deg); }
+  64% { transform: translate(5px, -2px) rotate(0.12deg); }
+  72% { transform: translate(-4px, 1px) rotate(-0.1deg); }
+  80% { transform: translate(3px, -1px) rotate(0.08deg); }
+  90% { transform: translate(-2px, 1px) rotate(-0.04deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* OPENING: they crack apart, catch, then haul open, gathering speed. */
+.rgate.is-opening .rgate-door-l { animation: rg-open-l var(--rg-open, 1500ms) linear both; }
+.rgate.is-opening .rgate-door-r { animation: rg-open-r var(--rg-open, 1500ms) linear both; }
+@keyframes rg-open-l {
+  0% { transform: translateX(0); animation-timing-function: cubic-bezier(0.2, 0, 0.4, 1); }
+  10% { transform: translateX(-2.2%); animation-timing-function: linear; }
+  18% { transform: translateX(-2.2%); animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.75); }
+  100% { transform: translateX(-102%); }
+}
+@keyframes rg-open-r {
+  0% { transform: translateX(0); animation-timing-function: cubic-bezier(0.2, 0, 0.4, 1); }
+  10% { transform: translateX(2.2%); animation-timing-function: linear; }
+  18% { transform: translateX(2.2%); animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.75); }
+  100% { transform: translateX(102%); }
+}

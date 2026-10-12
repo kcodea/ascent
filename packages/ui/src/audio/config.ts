@@ -24,9 +24,10 @@ export const CATEGORY_GAINS: Record<string, number> = {
   reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.45,
   gemapply: 0.35, clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.29, rebornshatter: 0.24, rebornsummon: 0.24,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,
-  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 1.56, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
+  cardEffect: 0.18, cardDeath: 0.18, heroSelect: 1.4, heroPower: 0.5, summon: 0.2, buff: 0.46, turncharge: 0.5, turnexplosion: 0.5,
   // heroSelect 0.5 -> 1.3 (owner 2026-10-09, raised in steps: 0.6, 0.9, then "from .9 to 1.3"); -> 1.56 (owner
-  // 2026-10-11: "bump the hero voicelines by another 20%").
+  // 2026-10-11: "bump the hero voicelines by another 20%"); -> 1.4 (owner 2026-10-12: "reduce the hero voicelines
+  // by 10%": 1.56 x 0.9 = 1.404).
   // The final-countdown clock tick at 5..1 left (owner 2026-10-07); the per-tick build rides on top (sfx TURN_TICK_BUILD).
   turntick: 0.5,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
@@ -43,6 +44,11 @@ export const CATEGORY_GAINS: Record<string, number> = {
   rank: 0.6,
   // The "Good Luck" game-start intro (owner 2026-09-24): the shine sweep + the spark burst, one fader each.
   goodLuckShine: 0.6, goodLuckSpark: 0.45,
+  // The RANKED GATE (owner 2026-10-12): the owner's four recorded cues, one fader each, at the ui fallback level.
+  gateclose: 0.6, gateslam: 0.6, gaterattle: 0.6, gateopen: 0.6,
+  // The cinematic hit on "Yes, let's go." itself (owner 2026-10-12), under the gate's own cues. 0.6 -> 0.72 the
+  // same day (owner: "up the volume of it by about 20%").
+  gateintro: 0.72,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -76,6 +82,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   gamble: 'ui',
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
+  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',
@@ -102,6 +109,11 @@ export const CATEGORY_LABEL: Record<string, string> = {
   rank: 'Rank screen — progress / gate / promotion / medal',
   goodLuckShine: 'Good Luck intro — shine sweep',
   goodLuckSpark: 'Good Luck intro — spark burst',
+  gateclose: 'Ranked gate: grinding shut',
+  gateslam: 'Ranked gate: the slam',
+  gaterattle: 'Ranked gate: the shudder',
+  gateopen: 'Ranked gate: grinding open',
+  gateintro: 'Ranked gate: the hit on Yes',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',
   discoverArrive: 'Discover entrance — settle as a card arrives',
   discoverSparkle: 'Discover entrance — sparkle once the set is in',

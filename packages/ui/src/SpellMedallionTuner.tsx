@@ -1,4 +1,4 @@
-import { GIFT_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC } from './spellMedallion';
+import { GIFT_MEDALLION_SRC, POWER_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC } from './spellMedallion';
 import { SPEC } from './spellMedallionConfig';
 import { TunerPanel } from './TunerPanel';
 
@@ -15,6 +15,9 @@ function SpellMedallionPreview(): JSX.Element {
       </span>
       <span className="smedprev-cell" data-med="gift">
         <img decoding="sync" className="smedprev-img" src={GIFT_MEDALLION_SRC} alt="" aria-hidden="true" />
+      </span>
+      <span className="smedprev-cell" data-med="power">
+        <img decoding="sync" className="smedprev-img" src={POWER_MEDALLION_SRC} alt="" aria-hidden="true" />
       </span>
     </div>
   );

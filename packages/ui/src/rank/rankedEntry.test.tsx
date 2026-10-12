@@ -15,9 +15,18 @@
  *   - an entry left by a closed session is read back whole (same id, same heroes), and a live entry is resumed
  *     by the next Play instead of being re-rolled;
  *   - Practice and Gauntlet hero selects keep a free, one-press Back.
+ *
+ * And the presentation (owner 2026-10-12): "can this actually take place on the play menu screen instead? and have
+ * the background blurred and darkened? ... i want the screen to darken and blur as this window expands out with a
+ * little bit of a bounce". The mode picker stays mounted under a veil; the motion is transform + opacity only.
+ * Then: "can you use the border that the compendium uses? and emulate the title and underline structure here?" and
+ * "make the buttons look like the UI elements" in the Compendium's top right: the painted frame + crests, a title
+ * over the painted divider, and the two answers as Gem plates.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { RANK_RULES, resolveRank } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
 
@@ -47,9 +56,10 @@ vi.mock('../tutorial/tutorialProfile', async (importOriginal) => {
 import { Title } from '../Title';
 import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
+import { sfx } from '../sfx';
 import { enqueuePendingRank, flushPendingRanks } from './rankSubmission';
 import {
-  RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
+  RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
   clearRankedEntry, loadRankedEntry, saveRankedEntry, type RankedEntry,
 } from './rankedEntry';
 
@@ -62,6 +72,9 @@ const button = (label: string): HTMLButtonElement | undefined =>
 const press = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); }); };
 const stored = (): RankedEntry | null => loadRankedEntry(() => true);
 const MID = { divisionIndex: 4, points: 50, demotionReady: false };
+const DIALOG = '[role="dialog"][aria-label="Ranked lobby"]';
+/** Let the "No, go back." exit finish (a real timer in Title; it then unmounts the card). */
+const afterExit = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, RANKED_CONFIRM_EXIT_MS + 60)); }); };
 
 beforeEach(() => {
   vi.mocked(enqueuePendingRank).mockClear();
@@ -78,7 +91,7 @@ describe('the Play card asks before it starts a ranked lobby', () => {
 
   it('shows the confirmation in the owner\'s words, with exactly the two answers, and starts nothing yet', () => {
     openConfirm();
-    const dialog = document.querySelector('[role="dialog"][aria-label="Ranked lobby"]');
+    const dialog = document.querySelector(DIALOG);
     expect(dialog).not.toBeNull();
     expect(RANKED_CONFIRM_TEXT).toBe('This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you like to proceed?');
     expect(dialog!.querySelector('.rankedconfirm-text')!.textContent).toBe(RANKED_CONFIRM_TEXT);
@@ -90,16 +103,139 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(stored()).toBeNull();
   });
 
-  it('"No, go back." closes it and leaves the player on the mode picker, uncommitted', () => {
+  it('"No, go back." plays the short exit, then closes it and leaves the player on the mode picker, uncommitted', async () => {
     openConfirm();
     act(() => button(RANKED_CONFIRM_NO)!.click());
-    expect(document.querySelector('[role="dialog"][aria-label="Ranked lobby"]')).toBeNull();
+    expect(document.querySelector(DIALOG)!.classList.contains('closing'), 'the exit is playing').toBe(true);
+    await afterExit();
+    expect(document.querySelector(DIALOG)).toBeNull();
     const st = useGame.getState();
     expect(st.showTitle).toBe(true);
     expect(st.titleView).toBe('modes');
     expect(st.heroChoices).toBeNull();
     expect(st.rankedEntry).toBeNull();
     expect(queued()).toHaveLength(0);
+  });
+
+  it('opens OVER the mode picker: the picker stays on screen behind a veil, the card above it', () => {
+    openConfirm();
+    const dialog = document.querySelector<HTMLElement>(DIALOG)!;
+    expect(dialog.classList.contains('rankedconfirm-ov')).toBe(true);
+    expect(dialog.classList.contains('modepick'), 'it is not its own opaque page any more').toBe(false);
+    const picker = document.querySelector('.modepick');
+    expect(picker, 'the mode picker is still mounted underneath').not.toBeNull();
+    expect(picker!.contains(dialog)).toBe(false);
+    expect(picker!.querySelector('.modecard[data-mp="play"]')).not.toBeNull();
+    const kids = [...dialog.children].map((c) => c.className);
+    expect(kids[0], 'the veil is painted first, under the card').toBe('rankedconfirm-veil');
+    expect(kids[1]).toContain('rankedconfirm');
+  });
+
+  it('wears the Compendium chrome: its frame and crests, a title over the divider, Gem-plate answers', () => {
+    openConfirm();
+    const win = document.querySelector<HTMLElement>(`${DIALOG} .rankedconfirm`)!;
+    expect(win.querySelectorAll('.rc-crest')).toHaveLength(2);
+    expect(win.querySelector('.rc-crest-foot')).not.toBeNull();
+    const kids = [...win.children].filter((c) => !c.classList.contains('rc-crest')).map((c) => c.className);
+    expect(kids, 'title, then the question, then the answers').toEqual(['rc-title', 'rankedconfirm-text', 'rankedconfirm-actions']);
+    expect(win.querySelector('.rc-title')!.textContent).toBe(RANKED_CONFIRM_TITLE);
+    expect([...win.querySelectorAll('button')].map((b) => b.className)).toEqual(['rc-btn rc-btn-yes', 'rc-btn']);
+    expect(win.querySelector('[title]'), 'no native tooltip').toBeNull();
+
+    // The same painted art and theme tokens the Compendium uses (compendium.css), in this window's own rules.
+    const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
+    const book = readFileSync(join(__dirname, '..', 'compendium.css'), 'utf8');
+    const rule = (sel: string): string => { const at = css.indexOf(`${sel} {`); expect(at, sel).toBeGreaterThan(-1); return css.slice(at, css.indexOf('}', at)); };
+    for (const art of ['/frames/compendium-frame.webp', '/frames/compendium-crest.webp', '/frames/compendium-crest-foot.webp', '/frames/name-divider.webp']) {
+      expect(book, `the Compendium still uses ${art}`).toContain(art);
+    }
+    expect(rule('.rankedconfirm::after')).toContain("border-image: url('/frames/compendium-frame.webp') 270 stretch");
+    expect(rule('.rc-crest')).toContain('/frames/compendium-crest.webp');
+    expect(rule('.rc-crest-foot')).toContain('/frames/compendium-crest-foot.webp');
+    expect(rule('.rc-title::after')).toContain('/frames/name-divider.webp');
+    expect(rule('.rc-title')).toContain('color: var(--ui-title)');
+    // A Gem plate: the book's pill grammar (sheen + plate inside a gold edge, a 7px corner).
+    const pill = rule('.rc-btn');
+    expect(pill).toContain('background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box');
+    expect(pill).toContain('border-radius: 7px');
+    expect(book).toContain('background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box');
+    expect(css).not.toMatch(/\.rc-(btn|title|crest)[^{]*\{[^}]*cursor:\s*pointer/);
+  });
+
+  it('a press on the dimmed picker around the card is "No": it closes and commits nothing', async () => {
+    openConfirm();
+    act(() => document.querySelector<HTMLElement>('.rankedconfirm-veil')!.click());
+    await afterExit();
+    expect(document.querySelector(DIALOG)).toBeNull();
+    expect(useGame.getState().rankedEntry).toBeNull();
+    expect(useGame.getState().heroChoices).toBeNull();
+  });
+
+  it('reopening during the exit cancels it: the card stays', async () => {
+    openConfirm();
+    act(() => button(RANKED_CONFIRM_NO)!.click());
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
+    await afterExit();
+    const dialog = document.querySelector(DIALOG);
+    expect(dialog).not.toBeNull();
+    expect(dialog!.classList.contains('closing')).toBe(false);
+  });
+
+  it('the motion is compositor-only: transform + opacity keyframes, a static blur, reduced motion honoured', () => {
+    const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
+    const block = (name: string): string => {
+      const at = css.indexOf(`@keyframes ${name} {`);
+      expect(at, name).toBeGreaterThan(-1);
+      let depth = 0;
+      for (let i = css.indexOf('{', at); i < css.length; i++) {
+        if (css[i] === '{') depth++;
+        else if (css[i] === '}' && --depth === 0) return css.slice(at, i + 1);
+      }
+      throw new Error(`unterminated @keyframes ${name}`);
+    };
+    for (const name of ['rc-veil', 'rc-veil-out', 'rc-pop', 'rc-out']) {
+      const props = [...block(name).matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
+      expect(props.length, name).toBeGreaterThan(0);
+      expect(props.filter((prop) => prop !== 'opacity' && prop !== 'transform'), name).toEqual([]);
+    }
+    // The bounce: out past full size, a dip under it, then rest at exactly 1.
+    const scales = [...block('rc-pop').matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]));
+    expect(scales[0]).toBeLessThan(1);
+    expect(Math.max(...scales)).toBeGreaterThan(1);
+    expect(scales[scales.length - 1]).toBe(1);
+    const veil = css.slice(css.indexOf('.rankedconfirm-veil {'), css.indexOf('}', css.indexOf('.rankedconfirm-veil {')));
+    expect(veil).toMatch(/backdrop-filter: blur\(\d+px\)/);
+    expect(veil, 'the veil darkens').toMatch(/background: rgba\(/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.rankedconfirm-veil,[^}]*animation: none;/);
+    expect(css).toContain(`rc-out ${RANKED_CONFIRM_EXIT_MS / 1000}s`);
+    expect(css).not.toMatch(/\.rankedconfirm[^{]*\{[^}]*cursor:\s*pointer/);
+  });
+
+  it('"Yes, let\'s go." plays the cinematic hit on the press; "No, go back." does not', () => {
+    const gate = vi.spyOn(sfx, 'gate').mockImplementation(() => {});
+    openConfirm();
+    act(() => button(RANKED_CONFIRM_NO)!.click());
+    expect(gate).not.toHaveBeenCalled();
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
+    act(() => button(RANKED_CONFIRM_YES)!.click());
+    expect(gate.mock.calls.map((c) => c[0])).toEqual(['intro']);
+    gate.mockRestore();
+  });
+
+  it('"Yes, let\'s go." acts on the PRESS, and the release that follows does nothing more', () => {
+    const gate = vi.spyOn(sfx, 'gate').mockImplementation(() => {});
+    openConfirm();
+    const yes = button(RANKED_CONFIRM_YES)!;
+    // A right-button press is not a "Yes".
+    act(() => { yes.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 2 })); });
+    expect(gate).not.toHaveBeenCalled();
+    expect(useGame.getState().rankedEntry).toBeNull();
+    act(() => { yes.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
+    expect(gate.mock.calls.map((c) => c[0]), 'the hit plays as the button goes down').toEqual(['intro']);
+    expect(useGame.getState().rankedEntry, 'and the entry is committed there').not.toBeNull();
+    act(() => { yes.click(); });
+    expect(gate, 'the release (click) is not a second Yes').toHaveBeenCalledTimes(1);
+    gate.mockRestore();
   });
 
   it('"Yes, let\'s go." commits a ranked entry (persisted) and opens hero select on its heroes', () => {

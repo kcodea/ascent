@@ -69,6 +69,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'A guide\'s title cannot use the name Team Ascent, or words like "official".',
         ],
       },
+      { category: 'Systems', text: 'Starting a ranked lobby now closes a great gate: two doors grind shut with a slam, smoke and sparks, shudder, then open on hero select.' },
+      { category: 'Systems', text: 'The ranked lobby confirmation now opens over the Play menu, in the Compendium\'s gold frame: the menu darkens and blurs behind it as the window pops out.' },
       { category: 'Systems', text: 'Lobby guides: with a guide in Detailed view, clicking anywhere outside the guides panel folds it back to Simple.' },
       {
         category: 'Systems',
@@ -81,6 +83,16 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       { category: 'Systems', text: 'The tribe name under a card is a stronger, less washed-out version of its tribe colour, for every tribe.' },
+      {
+        category: 'Systems',
+        text: 'Choosing a hero power (Mimic, Void, Power Shifter) now looks and works like every other Discover.',
+        details: [
+          'Each power is a full card: its art, its name and what it does. The hero it belongs to is named under it in green.',
+          'Power cards wear their own emerald helm medallion.',
+          'The title says where the choice came from, such as "From Power Shifter".',
+          'A Peek at board button lets you look at your board and Shop before you choose. You still have to pick one.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'Leaderboard: games played now counts every game, portraits show skins, and rank badges wear their rank frame.',

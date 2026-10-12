@@ -1,7 +1,9 @@
 /**
- * LOBBY RAIL GUIDES are data (guides.ts). Pins: every card id a guide names resolves to a real card IN THE GUIDE'S
- * SET, every tribe it names belongs to that set, and the visibility rule (own set only, tribes in the lobby only,
- * neutral always).
+ * LOBBY RAIL GUIDES are data (guides.ts, guides.bundled.ts). Guides are edited live now, and the built-in file is
+ * regenerated from them by `npm run guides:pull`, so this file pins only the STRUCTURE: every card id a guide names
+ * resolves to a real card IN THE GUIDE'S SET, every tribe it names belongs to that set, the icon has art, no
+ * placeholder or em dash is left in player text, and the visibility rule (own set only, tribes in the lobby only,
+ * neutral always). It never pins a particular title or card list.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
@@ -26,29 +28,17 @@ describe('lobby rail guides', () => {
     }
   });
 
-  it("every guide's icon card resolves and has art (the Ale line wears Golden Ale)", () => {
+  it("every guide's icon card resolves and has art", () => {
     for (const g of GUIDES) {
       expect(CARD_INDEX[g.iconCard], `${g.id}: unknown icon card "${g.iconCard}"`).toBeDefined();
       expect(artFor(g.iconCard), `${g.id}: no art for "${g.iconCard}"`).toBeTruthy();
     }
-    expect(CARD_INDEX[GUIDES.find((g) => g.id === 'set2-dwarf-ale')!.iconCard]!.name).toBe('Golden Ale');
   });
 
   it('every tribe a guide names is one of its set\'s tribes', () => {
     for (const g of BUNDLED_GUIDE_DATA) {
       for (const t of [...g.tribes, ...(g.pairsWith ?? [])]) expect(SETS[g.set].tribes, `${g.id}: ${t}`).toContain(t);
     }
-  });
-
-  it('names builds without the word "line" (owner 2026-10-09)', () => {
-    for (const g of GUIDES) expect(g.title, g.id).not.toMatch(/line/i);
-    expect(GUIDES.find((g) => g.id === 'set2-dwarf-ale')!.title).toBe('Ale');
-  });
-
-  it('the Dwarves Ale line keeps the owner\'s cards', () => {
-    const ale = GUIDES.find((g) => g.id === 'set2-dwarf-ale')!;
-    expect(ale.core.map((id) => CARD_INDEX[id]!.name)).toEqual(['Edward Keg-hands', 'Tapkeeper']);
-    expect(ale.enablers.map((id) => CARD_INDEX[id]!.name)).toEqual(['Drakko', 'Brunni', 'Blade Thrower']);
   });
 
   it('every alias names a card the guide lists, and every mention is named in the body', () => {
@@ -62,36 +52,9 @@ describe('lobby rail guides', () => {
     }
   });
 
-  it('the owner-written guides keep the owner\'s cards and titles (2026-10-09)', () => {
-    const names = (id: string, k: 'core' | 'enablers'): string[] => GUIDES.find((g) => g.id === id)![k].map((c) => CARD_INDEX[c]!.name);
-    const title = (id: string): string => GUIDES.find((g) => g.id === id)!.title;
-    expect(title('set2-beast-sunmane')).toBe('Sunmane');
-    expect(names('set2-beast-sunmane', 'core')).toEqual(['Sunmane', 'Solaris']);
-    expect(names('set2-beast-sunmane', 'enablers')).toEqual(['Sunmane']);
-    expect(names('set2-beast-oona', 'core')).toEqual(['King Oona', 'Grim', 'Vicious']);
-    expect(names('set2-beast-oona', 'enablers')).toEqual(['Armadiyo', 'Bullseye', 'Beardsley']);
-    expect(title('set2-dragon-breath')).toBe('Dragonflame');
-    expect(names('set2-dragon-breath', 'core')).toEqual(['Captain Flamus', 'Transcendant']);
-    expect(names('set2-dragon-breath', 'enablers')).toEqual(['Flamebeat Drake', 'Chorus Drake']); // RE-PIN 2026-10-10: Fel Conjurer archived
-    expect(title('set2-dragon-shout')).toBe('Shout Dragons');
-    expect(names('set2-dragon-shout', 'core')).toEqual(['Karwind', 'Drakko', 'Voicekeeper']);
-    expect(names('set2-dragon-shout', 'enablers')).toEqual(['Karwind', 'Roarcollector']);
-    const pins: [string, string, string[], string[]][] = [
-      ['set2-kobold-combat', 'Combat Rubies', ['Delvey', 'Crownvein'], ['Kobebes', 'Boulderdash', 'Mineral Master']],
-      ['set2-kobold-mountainbond', 'APM Mountainbond', ['Mountainbond', 'Tapkeeper', 'Edward Keg-hands'], ['Drakko', 'Brunni', 'Crownvein']],
-      ['set2-dwarf-spend', 'APM Spend', ['Billings', 'Drakko', 'Chef Gary Toast'], ['Gangplank', 'Coinfire', 'Kringle']],
-      ['set2-demon-consume', 'Consume', ['Chipper', 'Grevlin & Co.', 'Soul Defiler'], ['Bob Blart', 'Demon Horse', 'Big Huggies']],
-      ['set2-demon-imps', 'Imps', ['Impossible Todd', 'Fel Spikes', 'Sylus'], ['Brood Matron', 'Legion Shepherd']],
-      ['set2-neutral-paragon', 'Paragon Rally', ['Paragon', 'Lieutenant Thane'], ['Standard Bearer', 'Raven', 'Blazer']],
-    ];
-    for (const [id, t, core, enablers] of pins) {
-      expect(title(id), id).toBe(t);
-      expect(names(id, 'core'), id).toEqual(core);
-      expect(names(id, 'enablers'), id).toEqual(enablers);
-    }
-    // Every Set 2 guide is written now: no placeholder left.
+  it('no set 2 guide is a placeholder, and no player text holds an em dash', () => {
     for (const g of BUNDLED_GUIDE_DATA.filter((x) => x.set === 'set2')) expect(g.body, g.id).not.toBe(PLACEHOLDER_BODY);
-    for (const g of GUIDES) expect(g.body, g.id).not.toMatch(/—|--/); // no em dashes in player text
+    for (const g of GUIDES) expect(g.body, g.id).not.toMatch(/\u2014|--/); // no em dashes in player text
   });
 
   it('shows only this set\'s guides, for tribes in the lobby, plus neutral', () => {

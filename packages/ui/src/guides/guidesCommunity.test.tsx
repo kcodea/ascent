@@ -211,6 +211,43 @@ describe('the Community list', () => {
     // A bookmark redraws the list; it asks the server for nothing.
     expect(asked.length).toBe(1);
   });
+  it('the Bookmark button says its state once: one name in both states, and pressed or not carries the state', async () => {
+    const c = show('player');
+    await settle();
+    const off = button(card(c, 'a'), 'Bookmark')!;
+    expect(off.getAttribute('aria-label')).toBe('Bookmark Guide a');
+    expect(off.getAttribute('aria-pressed')).toBe('false');
+    await press(card(c, 'a'), 'Bookmark');
+    const on = button(card(c, 'a'), 'Bookmarked')!;
+    expect(on.getAttribute('aria-label')).toBe('Bookmark Guide a');
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+  });
+  it("another account's bookmarks never light Bookmarked on a card", async () => {
+    // The store still holds u-2's bookmark of guide a (a missed re-read after an account change); u-1 is signed in.
+    const c = show('player', { bookmarked: [asGuide('a')], mineOwner: 'u-2' });
+    await settle();
+    expect(titles(c)).toEqual(['Guide a', 'Guide b']);
+    expect(button(card(c, 'a'), 'Bookmarked')).toBeUndefined();
+    expect(button(card(c, 'a'), 'Bookmark')!.getAttribute('aria-pressed')).toBe('false');
+    expect(button(card(c, 'a'), 'Bookmark')!.className).not.toContain(' on');
+  });
+  it('the order chosen survives the editor: Newest, Duplicate, Cancel, and the list asks for Newest again', async () => {
+    const c = show('player');
+    await settle();
+    await press(c, 'Newest');
+    expect(asked.length).toBe(2);
+    await press(card(c, 'a'), 'Duplicate');
+    const editor = c.querySelector('.gedit');
+    expect(editor).not.toBeNull();
+    expect(c.querySelector('.gcomm-sort')).toBeNull(); // the editor has taken the tab over: the list is gone
+    await press(editor!, 'Cancel');
+    await settle();
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(asked.length).toBe(3);
+    expect(asked[2]).toMatchObject({ sort: 'newest', offset: 0 });
+    expect(button(c, 'Newest')!.getAttribute('aria-pressed')).toBe('true');
+    expect(button(c, 'Most bookmarked')!.getAttribute('aria-pressed')).toBe('false');
+  });
   it('a refused bookmark is a sentence on the card', async () => {
     bookmarkAnswer = () => ({ ok: false, code: 'too_many_bookmarks' });
     const c = show('player');

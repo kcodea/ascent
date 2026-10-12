@@ -178,6 +178,19 @@ describe('fetchCommunityPage', () => {
     await fetchCommunityPage(q({ search: '%%%' }));
     expect(calls[1]!.or.length).toBe(1); // nothing left to search for: no second filter
   });
+  it('a control character in the search text becomes a space, so it never reaches the server', () => {
+    // Built from code points: this file holds no control character and no escape for one.
+    const NUL = String.fromCharCode(0);
+    const ESC = String.fromCharCode(27);
+    const DEL = String.fromCharCode(127);
+    expect(communitySearch('im' + NUL + 'p' + ESC + 's')).toBe('im p s');
+    expect(communitySearch(NUL + 'imp' + DEL)).toBe('imp');
+    expect(communitySearch('a' + DEL + String.fromCharCode(1) + 'b')).toBe('a b');
+    for (let code = 0; code < 32; code++) {
+      const cleaned = communitySearch('x' + String.fromCharCode(code) + 'y');
+      expect(cleaned, String(code)).toBe('x y');
+    }
+  });
   it('search text is cut to the limit, counted in characters', () => {
     expect([...communitySearch('x'.repeat(200))].length).toBe(GUIDE_LIMITS.searchQuery);
   });

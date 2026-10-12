@@ -220,6 +220,18 @@ describe('the pills in the real Compendium', () => {
     expect(sub(c)).toBe('1 guide of yours.');
     expect(c.textContent).not.toContain('Build lines for');
   });
+  it('guides the store still holds for another account are not counted in the subtitle', async () => {
+    const c = await openGuidesTab();
+    // A missed re-read after an account change: the store holds a guide and a bookmark, but they are u-2's.
+    const held = useGuides.getState().mine[0]!;
+    act(() => { useGuides.setState({ mineOwner: 'u-2', bookmarked: [{ ...held, id: 'kept', rowId: 'kept', sets: [live.id], tribes: [], published: true, authorId: 'u-9' }] }); });
+    await click(button(c, 'My guides')!);
+    expect(shownIds(c)).toEqual([]);
+    expect(sub(c)).toBe('0 guides of yours.');
+    await click(button(c, 'Bookmarked')!);
+    expect(shownIds(c)).toEqual([]);
+    expect(sub(c)).toBe(`0 bookmarked guides for ${live.name}.`);
+  });
   it('a search under My guides still counts results, with the words searched for', async () => {
     const c = await openGuidesTab();
     await click(button(c, 'My guides (1)')!);

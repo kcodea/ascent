@@ -14,7 +14,7 @@ import { GuideEditor } from './GuideEditor';
 import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameDraft, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
-import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, setPublishedRemote } from './guidesRemote';
+import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
 import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
@@ -60,7 +60,8 @@ const forgetEmptyKept = (userId: string | null): void => {
  * tribe pills and the search box this tab passes on, and a list handed in under that pill is never drawn. Bookmarked
  * and Community need the server, so their pills cannot be chosen while guides are not `on`. If guides stop being `on`
  * while the Community pill is showing, the Community list is taken away (so the server is not asked), and the tab says
- * guides are offline. Bookmarks the store already holds can still be read then.
+ * guides are offline. Bookmarks the store already holds can still be read then. The order chosen for the Community
+ * list (Most bookmarked, Newest) is kept here, because this tab stays while the editor is open and that list does not.
  *
  * ONE FUNCTION DRAWS A CARD, FOR EVERY LIST (`renderCard`), so who is offered what is decided in one place. Publish,
  * Unpublish and Delete are offered only on the player's own guide (not Team Ascent's, one with a server row, written by
@@ -172,6 +173,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const [discardAsk, setDiscardAsk] = useState(false);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
+  /** The Community list's order. Held here so it is still the player's choice when the editor closes. */
+  const [communitySort, setCommunitySort] = useState<CommunitySort>('bookmarked');
   // Lazy (perf 2026-10-09): the first two guides mount with the tab, the rest as they near the viewport (bookLazy.tsx),
   // so opening Guides builds two guides' portraits instead of every guide's.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -446,7 +449,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
         )}
       </div>
       {tab === 'community' && online ? (
-        <CommunityGuides setId={setId} queryTribes={queryTribes} neutral={queryNeutral} search={search} root={root} renderCard={renderCard} />
+        <CommunityGuides setId={setId} queryTribes={queryTribes} neutral={queryNeutral} search={search} sort={communitySort} onSort={setCommunitySort}
+          root={root} renderCard={renderCard} />
       ) : shown.length === 0 ? (
         <div className="book-empty gtool-empty">{emptyText}</div>
       ) : (

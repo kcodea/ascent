@@ -21,6 +21,9 @@ import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCard
  * Publishing makes a guide public, and deleting cannot be undone, so both ask first, on the card. Unpublish and
  * Bookmark do not.
  *
+ * THE BOOKMARK BUTTON SAYS ITS STATE ONCE. Its name is the same whether or not the guide is bookmarked; that it is
+ * bookmarked is said by `aria-pressed` alone (a name that also changed would be read as "remove the bookmark, pressed").
+ *
  * A QUESTION, BY KEYBOARD. When a question appears, focus goes to its safe answer (Cancel, Keep it). When it is
  * answered, focus goes back to the button it came from: at once for the safe answer, and when the server has answered
  * for the other one (the card's buttons cannot take focus while it waits). The Publish button and the Unpublish button
@@ -137,7 +140,7 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
         <div className="bookguide-actions">
           {canBookmark && (
             <button type="button" className={`gbtn${bookmarked ? ' on' : ''}`} ref={bookmarkRef} aria-pressed={bookmarked} disabled={!writable || busy}
-              aria-label={bookmarked ? `Remove the bookmark on ${guide.title}` : `Bookmark ${guide.title}`}
+              aria-label={`Bookmark ${guide.title}`}
               onClick={() => void perform(() => onBookmark(guide, !bookmarked), 'bookmark')}>{bookmarked ? 'Bookmarked' : 'Bookmark'}</button>
           )}
           {editable && <button type="button" className="gbtn" aria-label={`Edit ${guide.title}`} disabled={busy} onClick={() => onEdit(guide)}>Edit</button>}

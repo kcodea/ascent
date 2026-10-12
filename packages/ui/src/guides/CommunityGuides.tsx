@@ -31,6 +31,9 @@ const unanswered = (key: string): Listed => ({ key, guides: NO_GUIDES, next: 0, 
  * again from the first page; "Show more guides" adds the next page. Pages live here, not in the guides store: they
  * answer one question and are thrown away when it changes.
  *
+ * THE SORT IS THE HOST'S. This list is taken away while the editor is open (Duplicate) and drawn anew when it closes;
+ * the host stays, so it holds the order the player chose and hands it back (`sort`, `onSort`).
+ *
  * ONE QUESTION, ONE REQUEST. The request is made by an effect keyed on the question, so a redraw for any other reason
  * (a bookmark, the host's toolbar) asks nothing. Until a question is answered the list says it is loading: what is
  * held for an older question is never drawn, and never read as "no guides match".
@@ -53,7 +56,7 @@ const unanswered = (key: string): Listed => ({ key, guides: NO_GUIDES, next: 0, 
  * PERFORMANCE: cards mount through `LazyCell` (the first two at once, the rest near the viewport); nothing animates;
  * no scroll listener; no layout is read.
  */
-export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribes, neutral, search, root, renderCard }: {
+export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribes, neutral, search, sort, onSort, root, renderCard }: {
   setId: SetId;
   /** Guides for any of these tribes... */
   queryTribes: readonly Tribe[];
@@ -61,11 +64,14 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
   neutral: boolean;
   /** The Compendium's search box, as typed. */
   search: string;
+  /** The order the player chose, held by the host. */
+  sort: CommunitySort;
+  /** The player chose another order. Must be stable. */
+  onSort: (sort: CommunitySort) => void;
   /** The scroll box the lazy cells watch. */
   root: HTMLDivElement | null;
   renderCard: (g: Guide, eager: boolean) => JSX.Element;
 }): JSX.Element {
-  const [sort, setSort] = useState<CommunitySort>('bookmarked');
   const [text, setText] = useState(() => communitySearch(search));
   useEffect(() => {
     const cleaned = communitySearch(search);
@@ -124,7 +130,7 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
     void load(offset);
   };
 
-  const pick = (s: CommunitySort): void => { if (s !== sort) { sfx.tick(); setSort(s); } };
+  const pick = (s: CommunitySort): void => { if (s !== sort) { sfx.tick(); onSort(s); } };
   const pill = { '--c': 'var(--ui-title)' } as CSSProperties;
   const shown = list.guides;
   return (

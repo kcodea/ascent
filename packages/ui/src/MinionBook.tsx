@@ -12,7 +12,7 @@ import { RuneCard } from './RuneCard';
 import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker';
 import { CompendiumGuides } from './guides/CompendiumGuides';
 import { guidesFor } from './guides/guides';
-import { loadGuides, useGuides } from './guides/guidesStore';
+import { loadGuides, ownsMine, useGuides } from './guides/guidesStore';
 import { artFor, heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
@@ -453,6 +453,11 @@ export function MinionBook() {
   const guideTab = useGuides((s) => s.tab);
   const guideMine = useGuides((s) => s.mine);
   const guideBookmarked = useGuides((s) => s.bookmarked);
+  // The player's own guides and bookmarks are listed (and counted in the subtitle) only while the store holds them for
+  // the account that is signed in: ones it still holds for another account are never handed to the tab.
+  const guideMineOwner = useGuides((s) => s.mineOwner);
+  const guideAccountId = useGame((s) => s.account.userId);
+  const guidesAreMine = ownsMine({ mineOwner: guideMineOwner }, guideAccountId);
   useEffect(() => { if (guidesOn) void loadGuides(); }, [guidesOn]);
 
   // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
@@ -464,14 +469,14 @@ export function MinionBook() {
     // My guides lists every guide the player owns, whatever its set or tribe (a guide that did not carry over is
     // repaired from here); Bookmarked is this set's bookmarks; Team Ascent keeps the set + lobby-tribe rule. The
     // Community list is asked for by the tab itself (it is handed the pills and the search text below), so it gets none.
-    const base = guideTab === 'mine' ? [...guideMine]
-      : guideTab === 'bookmarked' ? guideBookmarked.filter((g) => g.sets.includes(setId))
+    const base = guideTab === 'mine' ? (guidesAreMine ? [...guideMine] : [])
+      : guideTab === 'bookmarked' ? (guidesAreMine ? guideBookmarked.filter((g) => g.sets.includes(setId)) : [])
       : guideTab === 'community' ? []
       : guidesFor(setId, tribes, guideList);
     return base
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
       .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
-  }, [setId, tribes, guideTribes, searchQ, guideList, guideTab, guideMine, guideBookmarked]);
+  }, [setId, tribes, guideTribes, searchQ, guideList, guideTab, guideMine, guideBookmarked, guidesAreMine]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.

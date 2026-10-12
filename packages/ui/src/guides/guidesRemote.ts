@@ -304,12 +304,20 @@ export interface CommunityQuery {
 
 export interface CommunityPage { guides: GuideRecord[]; more: boolean }
 
+/** A control character: anything below a space, and DEL. Told by its number, so this file holds none of them. */
+const isControl = (ch: string): boolean => {
+  const code = ch.codePointAt(0) ?? 0;
+  return code < 32 || code === 127;
+};
+
 /**
  * Search text as it is sent: one clean line, without the characters that mean something to the filter it sits in (a
- * quote, a backslash) or to a LIKE pattern (percent, underscore, star), cut to the limit.
+ * quote, a backslash) or to a LIKE pattern (percent, underscore, star), and without control characters (pasted text
+ * can carry one, and it is never something to search for), cut to the limit.
  */
 export function communitySearch(raw: string): string {
-  const s = cleanText(raw).replace(/["\\%_*]/g, ' ').replace(/\s+/g, ' ').trim();
+  const visible = [...cleanText(raw)].map((ch) => (isControl(ch) ? ' ' : ch)).join('');
+  const s = visible.replace(/["\\%_*]/g, ' ').replace(/\s+/g, ' ').trim();
   return [...s].slice(0, GUIDE_LIMITS.searchQuery).join('').trim();
 }
 

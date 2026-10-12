@@ -10,18 +10,23 @@ import { act } from 'react';
 import { SETS, activeSet, type SetId } from '@game/content';
 import type { GuideRecord } from '@game/guides';
 import { mount, type Mounted } from '../renderedText.mount';
+import type { CommunityQuery } from './guidesRemote';
 
 let mineRows: GuideRecord[] = [];
+/** What the server holds as this player's bookmarks. */
+let bookmarkedRows: GuideRecord[] = [];
+/** Every question the Community list asked the server. */
+const communityAsked: CommunityQuery[] = [];
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
   // The server answers, has no Team Ascent rows yet (so the built-in guides keep showing), and knows this player's guides.
   fetchOfficialGuides: async () => ({ state: 'on', guides: [] }),
   fetchTeamFlag: async () => false,
   fetchMyGuides: async () => mineRows,
-  fetchBookmarkedGuides: async () => undefined,
+  fetchBookmarkedGuides: async () => bookmarkedRows,
   fetchGuideById: async () => undefined,
-  fetchCommunityPage: async () => ({ guides: [], more: false }),
-  communitySearch: (s: string) => s,
+  fetchCommunityPage: async (q: CommunityQuery) => { communityAsked.push(q); return { guides: [], more: false }; },
+  communitySearch: (s: string) => s.trim(),
   saveGuideRemote: async () => ({ ok: false, code: 'offline' }),
   deleteGuideRemote: async () => ({ ok: false, code: 'offline' }),
   setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
@@ -64,6 +69,8 @@ beforeEach(async () => {
   localStorage.clear();
   resetGuidesForTests();
   mineRows = [elsewhere];
+  bookmarkedRows = [];
+  communityAsked.length = 0;
   // A signed-in player, as the game has it once identity has landed: the store has read this account's guides.
   setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
   act(() => { useGame.setState({ showTitle: true, playerName: 'Mike', account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } }); });
@@ -153,5 +160,91 @@ describe('the Guides tab in the Compendium', () => {
     await settle();
     expect(guidesButton(m.container).getAttribute('aria-pressed')).toBe('false');
     expect(m.container.querySelector('.bookguides')).toBeNull();
+  });
+});
+
+describe('the pills in the real Compendium', () => {
+  const openGuidesTab = async (): Promise<HTMLElement> => {
+    act(() => { useGame.setState({ showBook: true }); });
+    m = mount(<MinionBook />);
+    await settle();
+    await click(guidesButton(m.container));
+    return m.container;
+  };
+  const sub = (c: HTMLElement): string => c.querySelector('.book-sub')!.textContent ?? '';
+  /** Type into the Compendium's search box, then wait past the Community list's pause. */
+  const type = async (c: HTMLElement, text: string): Promise<void> => {
+    const box = c.querySelector<HTMLInputElement>('.book-search')!;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    // Two steps: the keystroke is drawn first (the pause starts when the list is handed the new text), then the wait.
+    act(() => {
+      setValue.call(box, text);
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await settle();
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+  };
+  it('Community asks with the set shown, every tribe and Neutral, and the subtitle says what the pill shows', async () => {
+    const c = await openGuidesTab();
+    expect(communityAsked).toEqual([]);
+    await click(button(c, 'Community')!);
+    await settle();
+    expect(communityAsked.length).toBe(1);
+    expect(communityAsked[0]!.setId).toBe(live.id);
+    expect(communityAsked[0]!.tribes).toEqual([...live.tribes]);
+    expect(communityAsked[0]!.neutral).toBe(true);
+    expect(communityAsked[0]!.search).toBe('');
+    expect(communityAsked[0]!.offset).toBe(0);
+    expect(sub(c)).toBe(`Community guides for ${live.name}.`);
+    expect(c.textContent).not.toContain('0 results');
+    expect(c.textContent).toContain('No Community guides match.');
+  });
+  it('under Community the search box and a lit tribe pill go to the server, and the subtitle never reads "0 results"', async () => {
+    const c = await openGuidesTab();
+    await click(button(c, 'Community')!);
+    await settle();
+    await type(c, 'imp');
+    expect(communityAsked.length).toBe(2);
+    expect(communityAsked[1]).toMatchObject({ search: 'imp', offset: 0, neutral: true });
+    expect(sub(c)).toBe(`Community guides for ${live.name}.`);
+    expect(c.textContent).not.toContain('0 results');
+    await click(c.querySelector('.book-runetribes [aria-label="Neutral guides"]')!);
+    await settle();
+    expect(communityAsked.length).toBe(3);
+    expect(communityAsked[2]).toMatchObject({ search: 'imp', tribes: [], neutral: true, offset: 0 });
+  });
+  it("My guides counts the player's own guides in the subtitle, not Team Ascent's build lines", async () => {
+    const c = await openGuidesTab();
+    expect(sub(c)).toContain(`Build lines for ${live.name}.`);
+    await click(button(c, 'My guides (1)')!);
+    expect(sub(c)).toBe('1 guide of yours.');
+    expect(c.textContent).not.toContain('Build lines for');
+  });
+  it('a search under My guides still counts results, with the words searched for', async () => {
+    const c = await openGuidesTab();
+    await click(button(c, 'My guides (1)')!);
+    await type(c, 'elsewhere');
+    expect(sub(c)).toBe('1 result for "elsewhere"');
+    await type(c, 'nothing has this');
+    expect(sub(c)).toBe('0 results for "nothing has this"');
+  });
+  it('Bookmarked with none says how to get one', async () => {
+    const c = await openGuidesTab();
+    await click(button(c, 'Bookmarked')!);
+    expect(c.textContent).toContain('No bookmarks yet.');
+    expect(sub(c)).toBe(`0 bookmarked guides for ${live.name}.`);
+    expect(communityAsked).toEqual([]);
+  });
+  it('Bookmarked lists the bookmarks for the shown set only, and counts them', async () => {
+    const HERE = '44444444-4444-4444-8444-444444444444';
+    const THERE = '55555555-5555-4555-8555-555555555555';
+    const base: GuideRecord = { ...elsewhere, authorId: 'u-9', byline: 'Ann', published: true, publishedAt: '2026-10-13T00:00:00Z', tribes: [] };
+    bookmarkedRows = [{ ...base, id: HERE, title: 'Kept here', sets: [live.id] }, { ...base, id: THERE, title: 'Kept there', sets: [other] }];
+    await act(async () => { await loadGuides(); });
+    expect(useGuides.getState().bookmarked.map((g) => g.rowId)).toEqual([HERE, THERE]);
+    const c = await openGuidesTab();
+    await click(button(c, 'Bookmarked (1)')!);
+    expect(shownIds(c)).toEqual([HERE]);
+    expect(sub(c)).toBe(`1 bookmarked guide for ${live.name}.`);
   });
 });

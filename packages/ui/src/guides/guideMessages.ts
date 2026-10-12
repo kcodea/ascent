@@ -4,7 +4,8 @@
  *
  * A sentence says only what is true for the thing that was refused:
  *  - WHICH ACTION. A save, a delete and the team's import each have their own words. A delete that could not reach
- *    the server says the guide was not deleted; it never speaks of saving.
+ *    the server says the guide was not deleted; it never speaks of saving. Publishing and unpublishing are two
+ *    actions: a refused unpublish never tells the player to publish.
  *  - WHETHER ANYTHING WAS KEPT. A refused save writes the author's text to this device only when there are unsaved
  *    changes. "kept on this device" is said only when the caller says something was (`kept`); not told, it is not said.
  *    Publishing and bookmarking change nothing when they are refused, and say so.
@@ -27,7 +28,7 @@ const PART: Readonly<Record<string, string>> = {
   sets: 'cards',
 };
 
-export type GuideAction = 'save' | 'delete' | 'import' | 'publish' | 'bookmark';
+export type GuideAction = 'save' | 'delete' | 'import' | 'publish' | 'unpublish' | 'bookmark';
 
 export interface GuideErrorAbout {
   /** What was refused. A save when not named. */
@@ -68,6 +69,18 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'not_allowed': return NOT_ALLOWED;
       case 'not_found': return NO_LONGER;
       case 'rate_limited': return 'That is a lot of changes. Try again in a little while.';
+      case 'offline': return `${NO_SERVER} Nothing was changed.`;
+      default: return 'Something went wrong. Nothing was changed.';
+    }
+  }
+  // Taking a guide back to private checks no text, so it is never refused for its words: nothing here asks the
+  // player to edit or to publish.
+  if (action === 'unpublish') {
+    switch (code) {
+      case 'sign_in_required':
+      case 'unauthenticated': return SIGN_IN;
+      case 'not_allowed': return NOT_ALLOWED;
+      case 'not_found': return NO_LONGER;
       case 'offline': return `${NO_SERVER} Nothing was changed.`;
       default: return 'Something went wrong. Nothing was changed.';
     }

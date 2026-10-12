@@ -143,6 +143,26 @@ describe('publishing and bookmarking have their own words', () => {
     expect(guideErrorMessage('reserved_name', 'byline')).toBe('That "by" line is reserved. Pick another name.');
     expect(guideErrorMessage('reserved_name')).toBe('That "by" line is reserved. Pick another name.');
   });
+  it('an unpublish has its own words: nothing was changed, and never "publish it"', () => {
+    const un = (code: string, field?: string): string => guideErrorMessage(code, field, { action: 'unpublish' });
+    expect(un('offline')).toBe('Could not reach the server. Nothing was changed.');
+    expect(un('not_found')).toBe('This guide no longer exists.');
+    expect(un('sign_in_required')).toBe('Sign in to write guides.');
+    expect(un('unauthenticated')).toBe('Sign in to write guides.');
+    expect(un('not_allowed')).toBe('You cannot change this guide. Duplicate it to make your own.');
+    // Codes an unpublish cannot be answered with still read as a plain sentence that asks for nothing.
+    for (const c of ['conflict', 'rate_limited', 'blocked_text', 'reserved_name', 'guide_hidden', 'server', 'unavailable', 'something_new']) {
+      expect(un(c, 'title'), c).toBe('Something went wrong. Nothing was changed.');
+    }
+    for (const c of [...CODES, 'guide_hidden', 'too_many_bookmarks']) for (const field of [undefined, 'title', 'byline']) for (const kept of [true, false]) {
+      const m = guideErrorMessage(c, field, { action: 'unpublish', kept });
+      expect(m, c).not.toMatch(/publish/i);
+      expect(m, c).not.toMatch(/sav(e|es|ed|ing)\b|this device|still here/);
+      expect(m, c).not.toContain(c);
+      expect(m.endsWith('.'), c).toBe(true);
+      expect(m.includes(String.fromCharCode(0x2014)) || m.includes(String.fromCharCode(0x2013)) || m.includes('--'), c).toBe(false);
+    }
+  });
   it('no sentence here has an em dash or a double hyphen', () => {
     const all = ['blocked_text', 'reserved_name', 'guide_hidden', 'conflict', 'offline', 'rate_limited', 'not_found', 'not_allowed', 'too_many_bookmarks', 'sign_in_required', 'x']
       .flatMap((c) => (['publish', 'bookmark'] as const).map((action) => guideErrorMessage(c, 'title', { action })));

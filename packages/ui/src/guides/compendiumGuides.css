@@ -79,7 +79,9 @@
 }
 /* The Resume bar after a second guide was started while one is waiting: the same note, with a warning edge. */
 .gtool-resume-ask { border-color: var(--ui-warn); }
-.gtool-empty { grid-column: 1 / -1; }
+/* Rows of the list box that are not guides take its whole width, like the toolbar: the empty line, and the Community
+   list's sort row, its notes (loading, could not load) and its Show more row. */
+.gtool-empty, .gcomm-sort, .gcomm-note, .gcomm-more { grid-column: 1 / -1; }
 
 .bookguide-by { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; font-size: 13.5px; font-weight: 700; color: var(--ui-muted); }
 .bookguide-badge {

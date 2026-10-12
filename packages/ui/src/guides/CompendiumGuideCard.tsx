@@ -24,8 +24,10 @@ import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCard
  * A QUESTION, BY KEYBOARD. When a question appears, focus goes to its safe answer (Cancel, Keep it). When it is
  * answered, focus goes back to the button it came from: at once for the safe answer, and when the server has answered
  * for the other one (the card's buttons cannot take focus while it waits). The Publish button and the Unpublish button
- * are one button, so after a publish focus is on Unpublish. Focus is never pulled back from somewhere else the player
- * has moved to meanwhile.
+ * are one button, so after a publish focus is on Unpublish. Unpublish and Bookmark ask nothing, but their button is
+ * switched off while the card waits, and a browser takes focus off a button that is switched off: so they too get
+ * focus back when the server has answered. Focus is never pulled back from somewhere else the player has moved to
+ * meanwhile.
  *
  * PERFORMANCE: memoized, with stable callbacks from the host; portraits are the memoized `Card` fed stabilized views.
  * Nothing animates and no layout is read.
@@ -62,10 +64,12 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
   /** The Publish button, which is the Unpublish button once the guide is published. */
   const publishRef = useRef<HTMLButtonElement>(null);
   const deleteRef = useRef<HTMLButtonElement>(null);
+  /** The Bookmark button, which is the Bookmarked button once the guide is bookmarked. */
+  const bookmarkRef = useRef<HTMLButtonElement>(null);
   /** The safe answer of the question being asked (Cancel, Keep it). */
   const safeRef = useRef<HTMLButtonElement>(null);
-  /** The button the last question came from: where focus goes back to once that question is answered. */
-  const opener = useRef<'publish' | 'delete' | null>(null);
+  /** The button the last question or action came from: where focus goes back to once it is answered. */
+  const opener = useRef<'publish' | 'delete' | 'bookmark' | null>(null);
   // Set on mount as well as cleared on unmount: in development React mounts, unmounts and mounts a card again, and a
   // flag that is only ever cleared would leave the card waiting for good.
   const alive = useRef(true);
@@ -81,7 +85,7 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
   useEffect(() => {
     if (asking) { safeRef.current?.focus(); return; }
     if (busy || !opener.current) return;
-    const back = opener.current === 'publish' ? publishRef.current : deleteRef.current;
+    const back = opener.current === 'publish' ? publishRef.current : opener.current === 'delete' ? deleteRef.current : bookmarkRef.current;
     opener.current = null;
     const at = document.activeElement;
     if (!at || at === document.body || cardRef.current?.contains(at)) back?.focus();
@@ -93,9 +97,11 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
     setError(null);
     setAsk(kind);
   };
-  /** Run one action: wait, then show its sentence if it has one. Nothing is set once the card is gone. */
-  const perform = async (action: () => Promise<string | null>): Promise<void> => {
+  /** Run one action: wait, then show its sentence if it has one. Nothing is set once the card is gone. `from`: the
+   *  button that was pressed, when the action asked nothing first (it gets focus back: see the header). */
+  const perform = async (action: () => Promise<string | null>, from?: 'publish' | 'bookmark'): Promise<void> => {
     if (busy) return;
+    if (from) opener.current = from;
     setBusy(true);
     setError(null);
     setAsk(null);
@@ -130,15 +136,15 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
         </div>
         <div className="bookguide-actions">
           {canBookmark && (
-            <button type="button" className={`gbtn${bookmarked ? ' on' : ''}`} aria-pressed={bookmarked} disabled={!writable || busy}
+            <button type="button" className={`gbtn${bookmarked ? ' on' : ''}`} ref={bookmarkRef} aria-pressed={bookmarked} disabled={!writable || busy}
               aria-label={bookmarked ? `Remove the bookmark on ${guide.title}` : `Bookmark ${guide.title}`}
-              onClick={() => void perform(() => onBookmark(guide, !bookmarked))}>{bookmarked ? 'Bookmarked' : 'Bookmark'}</button>
+              onClick={() => void perform(() => onBookmark(guide, !bookmarked), 'bookmark')}>{bookmarked ? 'Bookmarked' : 'Bookmark'}</button>
           )}
           {editable && <button type="button" className="gbtn" aria-label={`Edit ${guide.title}`} disabled={busy} onClick={() => onEdit(guide)}>Edit</button>}
           <button type="button" className="gbtn" aria-label={`Duplicate ${guide.title}`} disabled={!writable || busy} onClick={() => onDuplicate(guide)}>Duplicate</button>
           {/* One button in one place, whichever word it wears: focus stays on it across a publish. */}
           {own && (guide.published
-            ? <button type="button" className="gbtn" ref={publishRef} aria-label={`Unpublish ${guide.title}`} disabled={!writable || busy} onClick={() => void perform(() => onPublish(guide, false))}>Unpublish</button>
+            ? <button type="button" className="gbtn" ref={publishRef} aria-label={`Unpublish ${guide.title}`} disabled={!writable || busy} onClick={() => void perform(() => onPublish(guide, false), 'publish')}>Unpublish</button>
             : <button type="button" className="gbtn" ref={publishRef} aria-label={`Publish ${guide.title}`} disabled={!writable || busy || guide.hidden}
                 aria-description={guide.hidden ? 'Team Ascent has hidden this guide. It cannot be published.' : undefined}
                 onClick={() => question('publish')}>Publish</button>)}

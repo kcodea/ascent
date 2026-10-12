@@ -78,6 +78,15 @@ const show = (patch: Partial<ReturnType<typeof useGuides.getState>> = {}, who: '
   return ui.container;
 };
 const card = (c: HTMLElement, id = ROW): HTMLElement => c.querySelector<HTMLElement>(`.bookguide[data-guide="${id}"]`)!;
+/** A browser takes focus off a button that has just been switched off; this test environment leaves it there (and
+ *  will not blur it). So move focus to the page the way a browser would. */
+const dropFocus = (): void => {
+  const t = document.createElement('button');
+  document.body.appendChild(t);
+  t.focus();
+  t.blur();
+  t.remove();
+};
 const button = (el: Element, text: string): HTMLButtonElement | undefined => [...el.querySelectorAll('button')].find((b) => b.textContent?.trim() === text);
 const press = async (el: Element, text: string): Promise<void> => {
   const b = button(el, text);
@@ -135,6 +144,21 @@ describe('publishing from the card', () => {
     await press(card(c), 'Unpublish');
     expect(published).toEqual([[ROW, false]]);
     expect(badges(card(c))).toContain('Private');
+  });
+  it('a refused unpublish says nothing was changed, never to publish, and the guide stays published', async () => {
+    const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
+    for (const [code, sentence] of [
+      ['offline', 'Could not reach the server. Nothing was changed.'],
+      ['not_found', 'This guide no longer exists.'],
+      ['server', 'Something went wrong. Nothing was changed.'],
+      ['blocked_text', 'Something went wrong. Nothing was changed.'],
+    ] as const) {
+      publishAnswer = () => ({ ok: false, code, field: 'title' });
+      await press(card(c), 'Unpublish');
+      expect(card(c).querySelector('[role="alert"]')!.textContent, code).toBe(sentence);
+      expect(useGuides.getState().mine[0]!.published, code).toBe(true);
+      expect(badges(card(c)), code).toContain('Published');
+    }
   });
   it('a refused publish is a sentence on the card, and the guide stays private', async () => {
     publishAnswer = () => ({ ok: false, code: 'reserved_name', field: 'title' });
@@ -258,6 +282,25 @@ describe('a question on the card, by keyboard', () => {
     await press(asked(c), 'Delete for good');
     expect(document.activeElement).toBe(own(c, 'Delete'));
   });
+  it('Unpublish asks nothing, so its button is switched off while it waits: focus comes back to it when the server has answered', async () => {
+    for (const refused of [false, true]) {
+      ui?.unmount();
+      let answer!: () => void;
+      hold = new Promise<void>((r) => { answer = r; });
+      if (refused) publishAnswer = () => ({ ok: false, code: 'offline' });
+      const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
+      own(c, 'Unpublish')!.focus();
+      await press(card(c), 'Unpublish');
+      expect(own(c, 'Unpublish')!.disabled).toBe(true);
+      dropFocus();
+      expect(document.activeElement).toBe(document.body);
+      await act(async () => { answer(); await new Promise((r) => setTimeout(r, 0)); });
+      const back = own(c, refused ? 'Unpublish' : 'Publish')!;
+      expect(back.disabled, String(refused)).toBe(false);
+      expect(document.activeElement, String(refused)).toBe(back);
+      hold = null;
+    }
+  });
   it('focus is not pulled back to a card the player has already left', async () => {
     let answer!: () => void;
     hold = new Promise<void>((r) => { answer = r; });
@@ -284,6 +327,37 @@ describe('who is offered what', () => {
     const c = show({ capability: 'offline' });
     expect(button(card(c), 'Publish')!.disabled).toBe(true);
     expect(button(card(c), 'Delete')!.disabled).toBe(true);
+  });
+  // Publish, Unpublish and Delete are for the player's OWN guide only. Each case below fails if its part of that
+  // rule is dropped: the author, the server row, the signed-in account.
+  const ownOnly = ['Publish', 'Unpublish', 'Delete'];
+  it("another author's guide shown under My guides offers none of Publish, Unpublish, Delete", () => {
+    for (const isPublished of [false, true]) {
+      ui?.unmount();
+      const c = show({ mine: [{ ...mineGuide, authorId: 'u-9', published: isPublished }] });
+      expect(card(c)).not.toBeNull();
+      for (const t of ownOnly) expect(button(card(c), t), `${t} ${String(isPublished)}`).toBeUndefined();
+      expect(button(card(c), 'Duplicate')).toBeDefined();
+    }
+  });
+  it("the player's guide with no server row offers none of Publish, Unpublish, Delete", () => {
+    for (const isPublished of [false, true]) {
+      ui?.unmount();
+      const c = show({ mine: [{ ...mineGuide, rowId: null, published: isPublished }] });
+      expect(card(c)).not.toBeNull();
+      for (const t of ownOnly) expect(button(card(c), t), `${t} ${String(isPublished)}`).toBeUndefined();
+      expect(button(card(c), 'Duplicate')).toBeDefined();
+    }
+  });
+  it('a guest looking at a list that holds a guide that is not Team Ascent\'s is offered none of Publish, Unpublish, Delete', () => {
+    for (const isPublished of [false, true]) {
+      ui?.unmount();
+      // The strongest case: the store holds the guide for the guest's own id, and the guide names that id as its author.
+      const c = show({ mine: [{ ...mineGuide, authorId: 'g-1', published: isPublished }], mineOwner: 'g-1' }, 'guest');
+      expect(card(c)).not.toBeNull();
+      for (const t of ownOnly) expect(button(card(c), t), `${t} ${String(isPublished)}`).toBeUndefined();
+      expect(button(card(c), 'Duplicate')).toBeDefined();
+    }
   });
   it('the guest line names both things an account is for', async () => {
     const c = show({ mine: [], mineOwner: null, tab: 'team' }, 'guest');

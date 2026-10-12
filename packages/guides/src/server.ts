@@ -5,13 +5,13 @@
  * word filter, reserved by lines); the SQL functions it calls as the service role own the ROW rules (ownership,
  * official = team only, the 20-guide cap, the rate limit, edit conflicts) and are the only writers of the tables.
  *
- * Step 1 ops: `save`, `delete`, `importBuiltIns`. Later steps add `setPublished`, `bookmark`, `report`, `setHidden`.
+ * Ops: `save`, `delete`, `importBuiltIns` (step 1); `setPublished`, `bookmark`, `unbookmark` (step 3). Step 4 adds `report`, `setHidden`.
  *
  * Not exported from index.ts (the client never runs it). Dependency-free. `npm run guides:shared` generates this
  * file VERBATIM into supabase/functions/_shared/guidesServer.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { GUIDE_LIMITS, UUID_RE, parseGuideRecord } from './types';
-import { draftToSqlDoc, validateGuideDraft } from './validate';
+import { GUIDE_LIMITS, UUID_RE, parseGuideRecord, type GuideRecord } from './types';
+import { draftToSqlDoc, validateGuideDraft, type GuideDraft } from './validate';
 import { guideTextProblem } from './wordFilter';
 
 export type RpcCall = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
@@ -22,9 +22,11 @@ export interface HandlerResponse { status: number; body: Record<string, unknown>
 export const GUIDE_ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
   unauthenticated: 401,
   not_allowed: 403,
+  guide_hidden: 403,
   not_found: 404,
   conflict: 409,
   too_many_guides: 422,
+  too_many_bookmarks: 422,
   rate_limited: 429,
 });
 
@@ -70,6 +72,13 @@ export async function handleGuideWrite(userId: string | null, anonymous: boolean
   }
 }
 
+/** A stored guide in the shape the text rules read. */
+const storedAsDraft = (g: GuideRecord): GuideDraft => ({
+  id: g.id, revision: g.revision, slug: null, saveId: null, official: g.official, byline: g.byline, sets: g.sets, tribes: g.tribes,
+  pairsWith: g.pairsWith, iconCard: g.iconCard, title: g.title, tagline: g.tagline, body: g.body, core: g.core, enablers: g.enablers,
+  mentions: g.mentions, aliases: g.aliases, forkedFrom: g.forkedFrom,
+});
+
 /** The ops, for a caller already known to be a signed-in account and a body already known to be an object. */
 async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall, log: Log): Promise<HandlerResponse> {
   if (o.op === 'save') {
@@ -109,6 +118,42 @@ async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall
     if (!out.ok) return out.res;
     const d = (out.data ?? {}) as Record<string, unknown>;
     return { status: 200, body: { inserted: Number(d.inserted ?? 0), skipped: Number(d.skipped ?? 0) } };
+  }
+
+  if (o.op === 'setPublished') {
+    if (typeof o.id !== 'string' || !UUID_RE.test(o.id)) return { status: 400, body: { error: 'bad_id' } };
+    if (typeof o.published !== 'boolean') return { status: 400, body: { error: 'bad_published' } };
+    let revision: number | null = null;
+    if (o.published) {
+      // The word list changes over time and this text was checked when it was saved, not today. Read what is stored
+      // and check it now; the publish then names the revision that was checked, so a save in between is a conflict.
+      const own = await call(rpc, 'guide_own_row', { p_user: userId, p_id: o.id }, log);
+      if (!own.ok) return own.res;
+      const cur = parseGuideRecord(own.data);
+      if (!cur) {
+        log('guide_own_row malformed', own.data);
+        return { status: 500, body: { error: 'guide_malformed' } };
+      }
+      const problem = guideTextProblem(storedAsDraft(cur));
+      if (problem) return { status: 422, body: { error: problem.error, field: problem.field } };
+      revision = cur.revision;
+    }
+    const out = await call(rpc, 'guide_set_published', { p_user: userId, p_id: o.id, p_on: o.published, p_revision: revision }, log);
+    if (!out.ok) return out.res;
+    const guide = parseGuideRecord(out.data);
+    if (!guide) {
+      log('guide_set_published malformed', out.data);
+      return { status: 500, body: { error: 'guide_malformed' } };
+    }
+    return { status: 200, body: { guide } };
+  }
+
+  if (o.op === 'bookmark' || o.op === 'unbookmark') {
+    if (typeof o.id !== 'string' || !UUID_RE.test(o.id)) return { status: 400, body: { error: 'bad_id' } };
+    const out = await call(rpc, 'guide_bookmark', { p_user: userId, p_id: o.id, p_on: o.op === 'bookmark' }, log);
+    if (!out.ok) return out.res;
+    const d = (out.data ?? {}) as Record<string, unknown>;
+    return { status: 200, body: { bookmarked: d.bookmarked === true, count: Number(d.count ?? 0) } };
   }
 
   return { status: 400, body: { error: 'bad_op' } };

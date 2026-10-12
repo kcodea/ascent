@@ -39,8 +39,8 @@ body:has(.dce-preview) .tunerpanel { z-index: 910; }
 }
 
 /* ── THE DISCOVER LOOK (owner pick 2026-09-25): the ornate title banner + the spotlight backdrop ─────────────────
-   Scoped to `.disc-look` (the Discover and the Choose One; the quest shop, Runeforge, scout and power offers keep
-   their own chrome). Every dial is a `--dcl-*` custom property written by `applyDiscoverLook` (💫 tuner, "Look"
+   Scoped to `.disc-look` (the Discover, the hero-power Discover and the Choose One; the quest shop, Runeforge and
+   scout keep their own chrome). Every dial is a `--dcl-*` custom property written by `applyDiscoverLook` (💫 tuner, "Look"
    group); the fallbacks below are the shipped defaults (`DCE_DEFAULTS`), so the two must move together.
    PERF CONTRACT: all STATIC. No blur, no backdrop-filter, nothing animated. The backdrop is two gradients painted
    once when the overlay mounts (the same cost as the flat scrim it replaces: one full-viewport paint), and the
@@ -60,6 +60,16 @@ body:has(.dce-preview) .tunerpanel { z-index: 910; }
       rgba(16, 11, 6, var(--dcl-tint, 0.84)) 0%,
       rgba(16, 11, 6, var(--dcl-tint, 0.84)) 30%,
       rgba(4, 3, 2, var(--dcl-vignette, 0.95)) 100%);
+}
+
+/* THE FULL DISCOVER (the hero-power Discover: `DiscoverDialog`'s `full`). Its options are PLATED cards with the text
+   drawer open, and a plate hangs far below the square frame the row is laid out by. Centred like a plain Discover,
+   the plates would run under the Peek button (viewport-pinned at 67%, the one spot it has for every Discover). So
+   each card reserves its plate's real footprint below it (plate + the kind line on its bottom gem), and the panel is
+   seated by its BOTTOM just above the button's line instead of centred. Static layout: nothing animates. */
+.discover-ov.disc-full { place-items: end center; padding-bottom: calc(33 * var(--vh, 1vh) - 18 * var(--u)); }
+.discover-ov.disc-full .disc-slot .card.plated {
+  margin-bottom: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * 1.04 - var(--ccw));
 }
 
 /* THE ORNATE TITLE BANNER. Absolute, anchored by its BOTTOM where the old flat banner's bottom sat (16u into the

@@ -26,19 +26,25 @@ export interface DiscoverDialogProps {
   /** What opened this Discover, for the banner's "From X" subtitle. Omitted (no subtitle) while the run state
    *  records no Discover source: see `offerSource.ts`. */
   source?: string | null;
+  /** The dialog's accessible name. Default "Discover a card"; the hero-power Discover names itself. */
+  label?: string;
+  /** Draw every option as the FULL plated card (art, name and rules text) whatever the compact-cards setting, as
+   *  the Choose One does. For an offer whose options cannot be told apart by art alone: the hero-power Discover,
+   *  where the text IS the decision. */
+  full?: boolean;
   className?: string;
 }
 
-export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, source, className }: DiscoverDialogProps): JSX.Element {
+export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, source, label, full, className }: DiscoverDialogProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const entrance = useOfferEntrance(rootRef, occasion, { openCue: true, speed });
   return (
     <div
       ref={rootRef}
       // `disc-look`: the spotlight backdrop (a static vignette + soft radial glow behind the cards; see the CSS).
-      className={`discover-ov dce disc-look${className ? ` ${className}` : ''}`}
+      className={`discover-ov dce disc-look${full ? ' disc-full' : ''}${className ? ` ${className}` : ''}`}
       role="dialog"
-      aria-label="Discover a card"
+      aria-label={label ?? 'Discover a card'}
       // ANY press while the entrance plays settles it. A press on a card still in flight lands here (flying cards
       // are pointer-events: none), so it skips without picking; an arrived card still takes its click.
       onPointerDownCapture={(e) => { entrance.onPressCapture(e); }}
@@ -53,7 +59,7 @@ export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, 
           {cards.map((card, i) => (
             <div className="disc-slot" data-pick-sfx key={`${ids[i] ?? card.cardId}-${i}`} style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}>
               {/* The entrance owns the arrival, so the card's own mount-pop is off (it would compound the flight). */}
-              <Card card={card} suppressPop onClick={() => { if (entrance.canPick(i)) onPick(i); }} />
+              <Card card={card} suppressPop forceFull={full} plated={full} onClick={() => { if (entrance.canPick(i)) onPick(i); }} />
               <OfferSheen />
             </div>
           ))}

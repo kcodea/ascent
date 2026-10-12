@@ -53,6 +53,7 @@ export function RankedGate(): JSX.Element | null {
       const cur = live.current;
       live.current = null;
       setPhase(null);
+      gateFx.release(); // the dust still drifting fades out, then the layer frees its WebGL context
       cur?.done();
     };
 
@@ -92,6 +93,7 @@ export function RankedGate(): JSX.Element | null {
       const cur = live.current;
       clearTimers();
       gateFx.clear();
+      gateFx.release();
       if (cur) { shut(); live.current = null; cur.done(); }
     };
   }, []);
@@ -112,10 +114,12 @@ export function RankedGate(): JSX.Element | null {
  *  images and the four cues, and start the FX layer, so the first gate of a session has its art, sound and sparks. */
 export function warmRankedGate(): void {
   if (typeof window === 'undefined') return;
-  for (const src of ['/frames/ranked-gate-left.webp', '/frames/ranked-gate-right.webp']) {
+  // BASE_URL-relative, NOT root-absolute: itch serves the game from a CDN sub-path, where '/frames/...' 404s
+  // (publicAssetPaths.test.ts). The stylesheet's `url('/frames/...')` is rewritten by Vite at build time.
+  for (const door of ['ranked-gate-left.webp', 'ranked-gate-right.webp']) {
     const img = new Image();
     img.decoding = 'async';
-    img.src = src;
+    img.src = `${import.meta.env.BASE_URL}frames/${door}`;
   }
   sfx.warmGate();
   gateFx.warm();

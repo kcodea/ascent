@@ -2,8 +2,9 @@
  * GATE FX — the smoke and sparks of the ranked gate (owner 2026-10-12: "slam shut with smoke and sparks that emit
  * from the impact"). A tiny Pixi layer of its own, the `wipeFx.ts` pattern: the gate covers every screen in the
  * game (z 700), far above the main FX canvas (z 110), so anything that rides ON the doors needs its own canvas.
- * Mounted once, ticking ONLY while a burst is alive (hidden + a stopped ticker otherwise, so it costs nothing
- * between gates).
+ * It exists only around a gate: warmed as the ranked confirmation opens, ticking ONLY while a burst is alive, and
+ * TORN DOWN (`release`, through `destroyPixiApp`: the bounded-context rule) once the gate has ended and its last
+ * particle has faded. A gate plays once per ranked game, so it never holds a WebGL context between them.
  *
  * Two one-shots, both fed the gate's own SCREEN-space seam (measured once by the component, never per frame):
  *  - slam():    the impact. Hot sparks spray sideways off the whole seam and fall, a white-gold flash blooms on
@@ -15,7 +16,7 @@
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { stageHost } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
-import { guardAppRender, watchContextLoss } from '../pixiAppSafety';
+import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -40,9 +41,12 @@ class GateFxController {
   private glowTex: Texture | null = null;
   private sparkTex: Texture | null = null;
   private puffTex: Texture | null = null;
+  /** The gate has ended: tear the layer down as soon as nothing is left alive on it. */
+  private releaseWhenIdle = false;
 
   /** Kick the async Pixi init early (the ranked confirmation calls this as it opens) so the first slam has FX. */
   warm(): void {
+    this.releaseWhenIdle = false;
     if (this.app || this.initing) return;
     this.initing = this.init().catch((e) => {
       console.error('[gateFx] init failed, gate FX disabled:', e);
@@ -88,6 +92,28 @@ class GateFxController {
     this.pending = [];
     for (const fn of queued) fn();
     if (this.particles.length) this.start();
+    else if (this.releaseWhenIdle) this.destroy(); // released while it was still starting up
+  }
+
+  /**
+   * The gate has ended. Whatever is still drifting finishes fading, then the layer is torn down and its WebGL
+   * context freed; the next `warm()` builds a fresh one. Safe to call at any time, any number of times.
+   */
+  release(): void {
+    this.releaseWhenIdle = true;
+    if (this.app && !this.particles.length) this.destroy();
+  }
+
+  private destroy(): void {
+    const app = this.app;
+    this.app = null;
+    this.initing = null;
+    this.layer = null;
+    this.glowTex = this.sparkTex = this.puffTex = null;
+    this.particles.length = 0;
+    this.pending.length = 0;
+    this.releaseWhenIdle = false;
+    if (app) destroyPixiApp(app, { children: true, texture: true });
   }
 
   /** Run `fn` now if the canvas is live, else queue it behind init (a gate pressed before the warm finished). */
@@ -116,6 +142,8 @@ class GateFxController {
     if (!this.particles.length && this.app) {
       this.app.ticker.stop();
       this.app.canvas.style.visibility = 'hidden';
+      // Never tear the app down from inside its own ticker callback: let this frame finish first.
+      if (this.releaseWhenIdle) window.setTimeout(() => { if (this.releaseWhenIdle && this.app && !this.particles.length) this.destroy(); }, 0);
     }
   }
 

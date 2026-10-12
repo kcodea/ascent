@@ -21,7 +21,7 @@ import { mount, type Mounted } from '../renderedText.mount';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 
-const fx = vi.hoisted(() => ({ warm: vi.fn(), slam: vi.fn(), shudder: vi.fn(), clear: vi.fn() }));
+const fx = vi.hoisted(() => ({ warm: vi.fn(), slam: vi.fn(), shudder: vi.fn(), clear: vi.fn(), release: vi.fn() }));
 vi.mock('./gateFx', () => ({ gateFx: fx }));
 const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn() }));
 vi.mock('../sfx', async (importOriginal) => {
@@ -47,7 +47,7 @@ const reducedMotion = (on: boolean): void => {
 
 beforeEach(() => {
   resetRankedGateForTests();
-  for (const f of [fx.warm, fx.slam, fx.shudder, fx.clear, snd.gate, snd.warmGate]) f.mockClear();
+  for (const f of [fx.warm, fx.slam, fx.shudder, fx.clear, fx.release, snd.gate, snd.warmGate]) f.mockClear();
   reducedMotion(false);
 });
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); });
@@ -190,6 +190,8 @@ describe('the gate plays', () => {
     expect(phaseOf()).toBe('opening');
     advance(1);
     expect(document.querySelector('.rgate'), 'the gate unmounts once clear').toBeNull();
+    expect(fx.release, 'the FX layer is let go (its WebGL context is freed once the dust has faded)').toHaveBeenCalledTimes(1);
+    expect(fx.clear, 'but the dust still drifting is not cut off').not.toHaveBeenCalled();
     await act(async () => { await Promise.resolve(); });
     expect(done).toHaveBeenCalledTimes(1);
     expect(onShut).toHaveBeenCalledTimes(1);
@@ -202,6 +204,7 @@ describe('the gate plays', () => {
     ui!.unmount(); ui = null;
     expect(onShut).toHaveBeenCalledTimes(1);
     expect(fx.clear).toHaveBeenCalled();
+    expect(fx.release).toHaveBeenCalled();
     advance(at.endAt);
     expect(snd.gate.mock.calls.map((c) => c[0]), 'no cue fires after the gate is gone').toEqual(['close']);
   });

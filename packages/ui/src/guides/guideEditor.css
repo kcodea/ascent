@@ -25,7 +25,7 @@ fieldset.gedit-fields { display: contents; border: 0; margin: 0; padding: 0; min
 .gbtn:disabled { opacity: 0.4; }
 .gbtn:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
 .gbtn-primary { color: var(--ui-title); }
-.gbtn-danger { color: #ff9a8a; }
+.gbtn-danger { color: var(--ui-warn); }
 
 /* A text box, select or text area. */
 .gedit-input {
@@ -47,7 +47,7 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 .gedit-label { display: flex; align-items: baseline; gap: 10px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-muted); }
 .gedit-hint { font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .gedit-count { margin-left: auto; font-size: 12px; letter-spacing: 0.04em; }
-.gedit-count.over { color: #ff9a8a; }
+.gedit-count.over { color: var(--ui-warn); }
 .gedit-by { font-size: 14px; font-weight: 700; color: var(--ui-muted); }
 
 /* The header: the art icon is a button; the fields sit where the title and tagline read. */
@@ -81,7 +81,7 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 /* The one chevron icon points down; turn it to point at the neighbour the card moves toward. */
 .gedit-earlier svg { transform: rotate(90deg); }
 .gedit-later svg { transform: rotate(-90deg); }
-.gedit-remove { color: #ff9a8a; }
+.gedit-remove { color: var(--ui-warn); }
 .gedit-rowcount { margin-left: 8px; font-weight: 700; letter-spacing: 0.04em; }
 .gedit-row .lobbyguide-unitrow { align-items: flex-end; }
 .gedit-add { align-self: center; }
@@ -91,7 +91,7 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 .gedit-alias-word { flex: 0 1 160px; }
 .gedit-alias-card { flex: 1 1 auto; }
 /* A nickname whose card left the set: colour only, like an over-long counter. */
-.gedit-alias-missing { color: #ff9a8a; }
+.gedit-alias-missing { color: var(--ui-warn); }
 
 /* The picker: a search box over a short list of names. */
 .gpick { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28); }
@@ -109,7 +109,7 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 
 /* The foot: what went wrong, a question when one is being asked, then the buttons. */
 .gedit-foot { display: flex; flex-direction: column; gap: 12px; padding: 16px 26px 22px; border-top: 1px solid var(--ui-divider); }
-.gedit-error { margin: 0; font-size: 15px; font-weight: 700; color: #ffb3a6; }
+.gedit-error { margin: 0; font-size: 15px; font-weight: 700; color: var(--ui-warn); }
 .gedit-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28); font-size: 15px; font-weight: 700; }
 .gedit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .gedit-spacer { flex: 1; }

@@ -12,6 +12,7 @@ import { isBlockedText } from '../../../guides/src/wordFilter';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, toGuide, type Guide } from './guides';
 import { GUIDE_COLUMNS } from './guidesRemote';
+import { builtInImportPayload } from './guideDrafts';
 import { TRIBE_NAME } from './GuideParts';
 
 /**
@@ -93,15 +94,9 @@ const comparable = (g: Guide): Record<string, unknown> =>
 describe('guides, end to end: handler -> SQL -> the client reader', () => {
   it('the eleven built-in guides import through the real handler and read back identical', async () => {
     expect(BUNDLED_GUIDE_DATA).toHaveLength(11);
-    // The payload, built the way the Import button (step 2) builds it.
-    const guides = BUNDLED_GUIDE_DATA.map((d, i) => {
-      expect(GUIDES[i]!.id).toBe(d.id);
-      return {
-        slug: d.id, official: true, sets: [...GUIDES[i]!.sets], tribes: [...d.tribes], pairsWith: [...(d.pairsWith ?? [])], iconCard: d.iconCard,
-        title: d.title, tagline: d.tagline, body: d.body, core: [...d.core], enablers: [...d.enablers], mentions: [...(d.mentions ?? [])],
-        aliases: { ...(d.aliases ?? {}) },
-      };
-    });
+    // The payload, built by the same function the Import button uses.
+    BUNDLED_GUIDE_DATA.forEach((d, i) => expect(GUIDES[i]!.id).toBe(d.id));
+    const guides = builtInImportPayload();
     const logged: unknown[] = [];
     const res = await handleGuideWrite(TEAM, false, { op: 'importBuiltIns', guides }, rpc, (msg, detail) => { logged.push([msg, detail]); });
     expect(logged).toEqual([]);

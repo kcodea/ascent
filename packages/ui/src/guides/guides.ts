@@ -73,7 +73,8 @@ export function poolIdsFor(setId: SetId): ReadonlySet<string> {
   return ids;
 }
 
-const SET_FACTS: readonly SetFacts[] = SET_IDS.map((id) => ({ id, cardIds: poolIdsFor(id), tribes: SETS[id].tribes }));
+/** Every set's card ids and tribe roster, in the shape the carry-over rule (`guideSetsFor`) takes. */
+export const SET_FACTS: readonly SetFacts[] = SET_IDS.map((id) => ({ id, cardIds: poolIdsFor(id), tribes: SETS[id].tribes }));
 
 /** The built-in guides as `Guide`s: each shows in the set it was written for, plus any set all of its cards are in. */
 export const GUIDES: readonly Guide[] = BUNDLED_GUIDE_DATA.map((d, i) => {

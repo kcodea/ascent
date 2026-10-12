@@ -37,11 +37,19 @@ export function guideChips(guide: Guide, tribes: readonly Tribe[]): Tribe[] {
 export const guideAccent = (chips: readonly Tribe[]): CSSProperties =>
   ({ '--gc': tribeInk(chips[0]!), '--gc2': tribeInk(chips[chips.length - 1]!) }) as CSSProperties;
 
-/** The guide's ART icon: its signature card's illustration in a round, tribe-rimmed frame. */
+/**
+ * An id is a card only when it is an OWN key of the card index. `CARD_INDEX` (and the art indexes) are plain objects,
+ * so a guide row whose card id is `constructor` or `__proto__` would otherwise resolve to Object's own members and
+ * throw during render. Every lookup of a guide's card id goes through this.
+ */
+const cardDef = (id: string): CardDef | undefined => (Object.hasOwn(CARD_INDEX, id) ? CARD_INDEX[id] : undefined);
+
+/** The guide's ART icon: its signature card's illustration in a round, tribe-rimmed frame. No art for an id that is
+ *  not a card (the frame stays, empty). */
 export function GuideEmblem({ guide, chips }: { guide: Guide; chips: readonly Tribe[] }): JSX.Element {
   return (
     <span className={`lobbyguide-emblem${chips.length > 1 ? ' duo' : ''}`} aria-hidden="true">
-      <FadeImg className="lobbyguide-art" src={artFor(guide.iconCard)} alt="" />
+      <FadeImg className="lobbyguide-art" src={cardDef(guide.iconCard) ? artFor(guide.iconCard) : undefined} alt="" />
     </span>
   );
 }
@@ -69,10 +77,10 @@ export function useGuideViews(ids: readonly string[], run: RunState | undefined)
   return useMemo(() => {
     const views = new Map<string, CardView>();
     const refs = new Map<string, CardView[]>();
-    const def = (id: string): CardDef | undefined => CARD_INDEX[id];
+    const def = cardDef;
     for (const id of ids) {
       const d = def(id);
-      if (!d) continue;
+      if (!d) continue; // not a card: never reaches relatedCardIds / relatedPickOneIds, which index plain objects
       views.set(id, toView(d, false, run));
       const r = [
         ...relatedCardIds(id).map(def).filter((x): x is CardDef => !!x).map((x) => toView(x, false, run)),
@@ -86,24 +94,40 @@ export function useGuideViews(ids: readonly string[], run: RunState | undefined)
   }, [ids, run]);
 }
 
-/** The write-up paragraph, its card names highlighted and hoverable. */
-export function GuideText({ guide, ids, views, refs }: {
-  guide: Guide; ids: readonly string[]; views: Map<string, CardView>; refs: Map<string, CardView[]>;
+/** The write-up paragraph, its card names highlighted and hoverable. A `missing` card's name stays plain text. */
+export function GuideText({ guide, ids, views, refs, missing }: {
+  guide: Guide; ids: readonly string[]; views: Map<string, CardView>; refs: Map<string, CardView[]>; missing?: ReadonlySet<string>;
 }): JSX.Element {
-  return <p className="lobbyguide-text">{linkCardNames(guide.body, ids, views, refs, guide.aliases)}</p>;
+  const live = missing?.size ? ids.filter((id) => !missing.has(id)) : ids;
+  return <p className="lobbyguide-text">{linkCardNames(guide.body, live, views, refs, guide.aliases)}</p>;
 }
 
-/** A row of board-style portraits: the real compact `Card`, so hover opens the game's own preview chain. */
-export function GuideUnits({ label, ids, views, refs }: {
-  label: string; ids: readonly string[]; views: Map<string, CardView>; refs: Map<string, CardView[]>;
+/**
+ * A row of board-style portraits: the real compact `Card`, so hover opens the game's own preview chain.
+ *
+ * A card in `missing` (no longer in this set), or one with no definition at all, keeps its slot greyed and labelled
+ * "Missing or removed" (owner 2026-10-11), and is inert: no hover preview. The art stays when the card still exists.
+ */
+export function GuideUnits({ label, ids, views, refs, missing }: {
+  label: string; ids: readonly string[]; views: Map<string, CardView>; refs: Map<string, CardView[]>; missing?: ReadonlySet<string>;
 }): JSX.Element {
   return (
     <div className="lobbyguide-units">
       <div className="lobbyguide-unitslabel">{label}</div>
       <div className="lobbyguide-unitrow">
-        {ids.map((id) => {
+        {ids.map((id, i) => {
           const v = views.get(id);
-          return v ? <div className="lobbyguide-unit" key={id}><div className="lobbyguide-unitscale"><Card card={v} forceCompact suppressPop refCards={refs.get(id)} /></div></div> : null;
+          if (!v || missing?.has(id)) {
+            return (
+              <div className="lobbyguide-unit missing" key={`${id}-${i}`} role="img" aria-label={v ? `${v.name}: missing or removed` : 'Missing or removed card'}>
+                {v
+                  ? <div className="lobbyguide-unitscale"><Card card={v} forceCompact suppressPop /></div>
+                  : <div className="lobbyguide-blank" />}
+                <span className="lobbyguide-missing" aria-hidden="true">Missing or removed</span>
+              </div>
+            );
+          }
+          return <div className="lobbyguide-unit" key={`${id}-${i}`}><div className="lobbyguide-unitscale"><Card card={v} forceCompact suppressPop refCards={refs.get(id)} /></div></div>;
         })}
       </div>
     </div>
@@ -118,7 +142,7 @@ function linkCardNames(text: string, ids: readonly string[], views: Map<string, 
   aliases?: Readonly<Record<string, string>>): ReactNode[] {
   const byName = new Map<string, string>();
   for (const id of ids) { const v = views.get(id); if (v) byName.set(v.name.toLowerCase(), id); }
-  for (const [word, id] of Object.entries(aliases ?? {})) if (views.has(id)) byName.set(word.toLowerCase(), id);
+  for (const [word, id] of Object.entries(aliases ?? {})) if (views.has(id) && ids.includes(id)) byName.set(word.toLowerCase(), id);
   if (byName.size === 0) return [text];
   const names = [...byName.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
   const re = new RegExp(`(${names.join('|')})`, 'gi');

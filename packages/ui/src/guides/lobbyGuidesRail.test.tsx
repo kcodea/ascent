@@ -14,11 +14,12 @@ import { createLobbyRun } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
 import { LobbyPanel } from '../LobbyPanel';
 import { useGame } from '../store';
-import { guidesFor } from './guides';
+import { GUIDES, guidesFor } from './guides';
+import { resetGuidesForTests, useGuides } from './guidesStore';
 
 let ui: Mounted | null = null;
 beforeEach(() => { try { localStorage.removeItem('ascent.guidesMode'); } catch { /* ignore */ } });
-afterEach(() => { ui?.unmount(); ui = null; });
+afterEach(() => { resetGuidesForTests(); ui?.unmount(); ui = null; });
 
 const click = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
 
@@ -127,5 +128,27 @@ describe('lobby rail guides view', () => {
     const css = readFileSync(join(__dirname, 'lobbyGuides.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     expect(css).toMatch(/\.app\.staged \.lobbyrailtab \{[^}]*pointer-events: none;/);
     expect(css).not.toMatch(/cursor:/);
+  });
+
+  it('reads the guides store when the Guides view opens, and an open rail never reshuffles (owner 2026-10-11)', () => {
+    const c = mountRail(7777);
+    const run = useGame.getState().run;
+    const builtIn = guidesFor(run.setId, run.tribes).map((g) => g.id);
+    openGuides(c);
+    const shown = (): string[] => [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide')!);
+    expect(shown()).toEqual(builtIn);
+
+    // A refresh lands while the player is reading: one guide renamed and moved to the front.
+    const first = GUIDES.find((g) => g.id === builtIn[builtIn.length - 1])!;
+    const refreshed = [{ ...first, title: 'Renamed on the server', order: -1 }, ...GUIDES.filter((g) => g.id !== first.id)];
+    act(() => { useGuides.setState({ list: refreshed, source: 'server', capability: 'on' }); });
+    expect(shown()).toEqual(builtIn);
+    expect(c.textContent).not.toContain('Renamed on the server');
+
+    // Leaving and reopening the view picks the refresh up.
+    const tab = c.querySelector('.lobbyrailtab')!;
+    click(tab);
+    click(tab);
+    expect(c.textContent).toContain('Renamed on the server');
   });
 });

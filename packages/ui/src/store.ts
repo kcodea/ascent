@@ -109,6 +109,7 @@ import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRe
 import { TUTORIAL_COURSE_ID, practiceRunId, snapshotForRun, tutorialRunId, withEquippedTitle } from '@game/progression';
 import { beginRunProgression, expectRunProgression, flushProgression, installProgression, markRunProgressionUnavailable, mirrorFor, probeProgression, useProgression } from './progression/progressionStore';
 import type { RankSubmissionState, RankSubmitOutcome } from './rank/types';
+import { loadGuides } from './guides/guidesStore';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { recordActionEntry } from './bug-report/actionRing';
@@ -3299,6 +3300,7 @@ function initAccounts(): void {
     if (!id.anonymous) void syncCloudAtTitle(); // CROSS-DEVICE SAVES: a signed-in player's cloud Continue
     void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
     void probeProgression(); // ACCOUNT PROGRESSION: is the feature on? then the mirror + any XP stranded pending
+    void loadGuides(); // GUIDES: the Team Ascent guides from the server (the built-in ones show until it answers)
     void refreshGauntletAccount().then(flushGauntlet); // GAUNTLET: the account's cleared stages + clears queued offline
     void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
     // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
@@ -3313,6 +3315,7 @@ function initAccounts(): void {
     if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
     if (id) void flushPendingRanks(applyRankOutcome); // rated results parked under this account resume here
     if (id) void probeProgression(); // …and progression (same user id across the magic-link upgrade)
+    if (id) void loadGuides(); // ...and the guides (re-read under the new identity)
     if (id && !id.anonymous) void refreshGauntletAccount().then(flushGauntlet); // …and a signed-in Gauntlet's stages
     if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {

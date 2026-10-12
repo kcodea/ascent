@@ -115,6 +115,7 @@
     "wire:plate": "node scripts/build-plate-wire.mjs",
     "beats:audit": "tsx packages/tools/src/beat-audit.ts",
     "progression:shared": "tsx packages/tools/src/progression-shared.ts",
+    "guides:shared": "tsx packages/tools/src/guides-shared.ts",
     "strength": "tsx packages/tools/src/strength/cli.ts"
   },
   "devDependencies": {

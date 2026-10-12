@@ -1,7 +1,8 @@
 import { memo, useMemo, useState } from 'react';
 import type { Tribe } from '@game/core';
+import type { SetId } from '@game/content';
 import type { RunState } from '@game/sim';
-import { type Guide } from './guides';
+import { guideMissingIds, type Guide } from './guides';
 import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
@@ -17,12 +18,14 @@ import { LazyCell, LazyRootProvider } from '../bookLazy';
  * PERFORMANCE. Guides mount lazily (all but the first two wait until near the viewport). Each guide card is memoized and its portraits are the memoized `Card` fed stabilized views. Off-screen
  * cards skip layout + paint (`content-visibility: auto`, compendiumGuides.css). Nothing animates.
  */
-export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes, run }: {
+export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes, run, setId }: {
   guides: readonly Guide[];
   /** The tribes the shown set (or run) has: a crossover chip shows only when its tribe is among them. */
   tribes: readonly Tribe[];
   /** The run to print live values from, only while the Compendium shows that run's own set. */
   run: RunState | undefined;
+  /** The set being shown: a guide's card that is not in it greys out. */
+  setId: SetId;
 }): JSX.Element {
   // Lazy (perf 2026-10-09): the first two guides mount with the tab, the rest as they near the viewport (bookLazy.tsx),
   // so opening Guides builds two guides' portraits instead of every guide's.
@@ -32,19 +35,20 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     <div className="bookguides" ref={setRoot}>
       <LazyRootProvider root={root}>
         {guides.map((g, i) => (
-          <LazyCell key={g.id} eager={i < 2} className="bookguide-slot">{() => <CompendiumGuide guide={g} tribes={tribes} run={run} />}</LazyCell>
+          <LazyCell key={g.id} eager={i < 2} className="bookguide-slot">{() => <CompendiumGuide guide={g} tribes={tribes} run={run} setId={setId} />}</LazyCell>
         ))}
       </LazyRootProvider>
     </div>
   );
 });
 
-const CompendiumGuide = memo(function CompendiumGuide({ guide, tribes, run }: {
-  guide: Guide; tribes: readonly Tribe[]; run: RunState | undefined;
+const CompendiumGuide = memo(function CompendiumGuide({ guide, tribes, run, setId }: {
+  guide: Guide; tribes: readonly Tribe[]; run: RunState | undefined; setId: SetId;
 }): JSX.Element {
   const chips = guideChips(guide, tribes);
   const ids = useMemo(() => guideCardIds(guide), [guide]);
   const { views, refs } = useGuideViews(ids, run);
+  const missing = useMemo(() => guideMissingIds(guide, setId), [guide, setId]);
   return (
     <article className="bookguide" data-guide={guide.id} style={guideAccent(chips)} aria-label={guide.title}>
       <header className="bookguide-head">
@@ -56,11 +60,11 @@ const CompendiumGuide = memo(function CompendiumGuide({ guide, tribes, run }: {
         </div>
       </header>
       <div className="bookguide-body">
-        <GuideText guide={guide} ids={ids} views={views} refs={refs} />
+        <GuideText guide={guide} ids={ids} views={views} refs={refs} missing={missing} />
         {/* Core, then Enablers on its own line below (owner 2026-10-09: "always have core + enablers on different
             lines"). */}
-        <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} />
-        {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} />}
+        <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} missing={missing} />
+        {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} missing={missing} />}
       </div>
     </article>
   );

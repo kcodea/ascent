@@ -222,3 +222,21 @@
 }
 
 /* The in-rail count pill ("11 GUIDES" here, "8 LEFT" on the table) is sized in lobbyRail.css, one rule for both. */
+
+/* -- A CARD THAT LEFT (owner 2026-10-11: "lets grey out the card and say 'missing or removed'") --------------------
+   A guide keeps a card that was archived out of the set or no longer exists. Its slot stays in the row, greyed and
+   labelled, and is inert (no hover preview). STATIC filter on a handful of portraits: nothing here animates. */
+/* Inert for EVERY descendant, not just the slot: some card parts re-enable pointer events (the cost coin sets
+   `pointer-events: auto` at (0,1,0)), and a child's `auto` beats a parent's `none`. This selector is (0,2,0). */
+.lobbyguide-unit.missing, .lobbyguide-unit.missing * { pointer-events: none; }
+.lobbyguide-unit.missing .lobbyguide-unitscale { filter: grayscale(1) brightness(0.5); }
+/* No definition at all: an empty oval where the portrait would sit (the scaled card box, less the frame's overhang). */
+.lobbyguide-blank {
+  position: absolute; left: calc(var(--lgu-w) * 0.1); top: calc(var(--lgu-w) * 0.3); width: var(--lgu-w); height: calc(var(--lgu-w) * 1.05);
+  border-radius: 50%; border: 2px dashed color-mix(in srgb, var(--ui-muted) 60%, transparent); background: rgba(0, 0, 0, 0.35);
+}
+.lobbyguide-missing {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center;
+  font-family: var(--font-ui); font-size: calc(var(--lgu-w) * 0.13); line-height: 1.15; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ui-title); text-shadow: 0 1px 2px #000, 0 0 6px #000;
+}

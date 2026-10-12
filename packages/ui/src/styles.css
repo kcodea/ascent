@@ -8495,7 +8495,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   --rc-s: 0.2;
   position: relative; isolation: isolate; box-sizing: border-box; width: min(660px, 100%);
   display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px;
-  padding: calc(146px * var(--rc-s) + 26px) calc(140px * var(--rc-s) + 34px) calc(146px * var(--rc-s) + 24px);
+  /* +10px top / +20px bottom over the first cut (owner 2026-10-12, after seeing it). */
+  padding: calc(146px * var(--rc-s) + 36px) calc(140px * var(--rc-s) + 34px) calc(146px * var(--rc-s) + 44px);
   color: var(--ui-text);
 }
 .rankedconfirm::before {

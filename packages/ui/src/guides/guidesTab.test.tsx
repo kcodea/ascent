@@ -32,9 +32,14 @@ vi.mock('./guidesRemote', () => ({
   fetchOfficialGuides: async () => { officialCalls++; return { state: 'offline' }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
+  fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => undefined,
+  fetchCommunityPage: async () => ({ guides: [], more: false }),
+  communitySearch: (s: string) => s,
   saveGuideRemote: async () => saveAnswer,
   deleteGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
+  bookmarkGuideRemote: async () => ({ ok: false, code: 'offline' }),
   importBuiltInsRemote: async (g: GuideDraftInput[]): Promise<ImportAnswer> => {
     imports.push(g);
     return importAnswer ? importAnswer() : { ok: true, value: { inserted: g.length, skipped: 0 } };
@@ -88,7 +93,7 @@ const becomeAccount = (userId: string | null, anonymous = false): void => {
 
 /** The server's answer to a save: the guide as a row this player owns. */
 const savedRow = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
-  id: '22222222-2222-4222-8222-222222222222', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'],
+  id: '22222222-2222-4222-8222-222222222222', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, publishedAt: null, hidden: false, sets: ['set2'],
   tribes: [], pairsWith: [], iconCard: 'grim', title: 'Left behind', tagline: '', body: 'half', core: ['grim'], enablers: [], mentions: [], aliases: {},
   forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 1, createdAt: '', updatedAt: '', ...patch,
 });
@@ -190,17 +195,17 @@ describe('starting to write', () => {
     const c = as('guest');
     await press(c, 'New guide');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write your own guides.');
+    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
     await press(c, 'Create account');
     expect(useGame.getState().accountPanelOpen).toBe(true);
     expect(useGame.getState().showBook).toBe(false);
   });
   it('a guest who presses Duplicate is asked to sign in; no editor opens', async () => {
     const c = as('guest');
-    expect(c.textContent).not.toContain('Sign in to write your own guides.');
+    expect(c.textContent).not.toContain('Sign in to write and bookmark guides.');
     await press(card(c, serverList[0]!.id), 'Duplicate');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write your own guides.');
+    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
   });
   it('when guides are not available, New guide and Duplicate are disabled and the tab says why', () => {
     for (const capability of ['unknown', 'off', 'offline', 'no-backend'] as const) {

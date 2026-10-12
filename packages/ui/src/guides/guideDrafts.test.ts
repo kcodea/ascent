@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
-import { GUIDE_LIMITS, validateGuideDraft } from '@game/guides';
+import { GUIDE_LIMITS, UUID_RE, validateGuideDraft } from '@game/guides';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, type Guide } from './guides';
 import {
-  builtInImportPayload, draftFromGuide, draftProblems, duplicateDraft, emptyDraft, mentionsFor, missingIn, sameDraft, toWire,
+  builtInImportPayload, draftFromGuide, draftProblems, duplicateDraft, emptyDraft, mentionsFor, missingIn, newSaveId, sameDraft, toWire,
 } from './guideDrafts';
 
 const REGEX_SPECIAL: ReadonlySet<string> = new Set('.*+?^${}()|[]' + String.fromCharCode(92));
@@ -186,5 +186,60 @@ describe('builtInImportPayload', () => {
       expect(p.official).toBe(true);
       expect(validateGuideDraft(p, { requireSlug: true }), p.slug).toMatchObject({ ok: true });
     }
+  });
+});
+
+describe('newSaveId', () => {
+  it('makes a different uuid each time', () => {
+    const a = newSaveId();
+    const b = newSaveId();
+    expect(UUID_RE.test(a)).toBe(true);
+    expect(UUID_RE.test(b)).toBe(true);
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('newSaveId on a browser that cannot make a uuid by itself', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+  /** The digits of an id, without its dashes. */
+  const hex = (id: string): string => id.replace(/-/g, '');
+
+  it('with no randomUUID it builds a version 4 uuid from getRandomValues', () => {
+    let asked = 0;
+    /** Fills with a known, changing pattern, so the test sees which bits the function sets by itself. */
+    const getRandomValues = (b: Uint8Array): Uint8Array => {
+      asked++;
+      for (let i = 0; i < b.length; i++) b[i] = (0xff - i * 7 - asked) & 0xff;
+      return b;
+    };
+    vi.stubGlobal('crypto', { getRandomValues });
+    const a = newSaveId();
+    const b = newSaveId();
+    expect(asked).toBe(2);
+    for (const id of [a, b]) {
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+      expect(UUID_RE.test(id), id).toBe(true);
+      // Version 4: the 13th digit is 4, and the 17th is one of 8, 9, a, b.
+      expect(hex(id)[12], id).toBe('4');
+      expect(['8', '9', 'a', 'b'], id).toContain(hex(id)[16]);
+      // The server takes it as a save id.
+      expect(validateGuideDraft({ ...toWire(draftFromGuide(sunmane), 'set2'), saveId: id })).toMatchObject({ ok: true, draft: { saveId: id } });
+    }
+    expect(a).not.toBe(b);
+    // Only those two digits are fixed: with every random bit set, the rest stay as they came.
+    vi.stubGlobal('crypto', { getRandomValues: (x: Uint8Array): Uint8Array => x.fill(0xff) });
+    expect(newSaveId()).toBe('ffffffff-ffff-4fff-bfff-ffffffffffff');
+    vi.stubGlobal('crypto', { getRandomValues: (x: Uint8Array): Uint8Array => x.fill(0) });
+    expect(newSaveId()).toBe('00000000-0000-4000-8000-000000000000');
+  });
+  it('randomUUID is used when the browser has it', () => {
+    vi.stubGlobal('crypto', { randomUUID: () => '12345678-1234-4234-8234-123456789abc', getRandomValues: () => { throw new Error('not asked'); } });
+    expect(newSaveId()).toBe('12345678-1234-4234-8234-123456789abc');
+  });
+  it('with no crypto at all it answers nothing, and the save is sent without an id', () => {
+    vi.stubGlobal('crypto', undefined);
+    expect(newSaveId()).toBe('');
+    vi.stubGlobal('crypto', {});
+    expect(newSaveId()).toBe('');
   });
 });

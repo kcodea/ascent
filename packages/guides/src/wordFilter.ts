@@ -68,6 +68,17 @@ export function isReservedByline(text: string): boolean {
   return toks.some((t) => RESERVED_WORDS.has(t));
 }
 
+const TEAM_WORD = squeeze1('team');
+const ASCENT_WORD = squeeze1('ascent');
+
+/** For a title or tagline, which is a sentence: "Team Ascent" as two words side by side, or a staff word on its own.
+ *  Unlike a by line it does not join the words, so "Best Ascent team comps" and "Steam Ascent" are fine. */
+export function isReservedTitle(text: string): boolean {
+  const toks = tokens(text).map(squeeze1);
+  if (toks.some((t) => RESERVED_WORDS.has(t))) return true;
+  return toks.some((t, i) => t === TEAM_WORD && toks[i + 1] === ASCENT_WORD);
+}
+
 /** The first text rule a draft breaks, naming the field (never the word), or null. */
 export function guideTextProblem(d: GuideDraft): { error: 'blocked_text' | 'reserved_name'; field: string } | null {
   if (isBlockedText(d.title)) return { error: 'blocked_text', field: 'title' };
@@ -77,6 +88,9 @@ export function guideTextProblem(d: GuideDraft): { error: 'blocked_text' | 'rese
   if (!d.official) {
     if (isBlockedText(d.byline)) return { error: 'blocked_text', field: 'byline' };
     if (isReservedByline(d.byline)) return { error: 'reserved_name', field: 'byline' };
+    // A player's guide cannot pass itself off as the team's in its title or tagline either.
+    if (isReservedTitle(d.title)) return { error: 'reserved_name', field: 'title' };
+    if (isReservedTitle(d.tagline)) return { error: 'reserved_name', field: 'tagline' };
   }
   return null;
 }

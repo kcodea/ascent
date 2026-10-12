@@ -39,12 +39,14 @@ function maxDamageTip(cap: number): { title: string; rule: string } {
  *  (owner ruling 2026-10-09: "it stays until toggled, but every new game starts on the opponent view"). */
 type RailView = 'opponents' | 'guides';
 const NO_GUIDES: readonly Guide[] = [];
-/** The rail's view of the guides store, for the account signed in right now. The player's own guides are taken only
- *  when the store holds them for THAT account: guides it still holds for another account are never taken. */
-const snapGuides = (): { list: readonly Guide[]; mine: readonly Guide[]; uid: string | null } => {
+/** The rail's view of the guides store, for the account signed in right now. The player's own guides and their
+ *  bookmarks are taken only when the store holds them for THAT account: guides it still holds for another account are
+ *  never taken. */
+const snapGuides = (): { list: readonly Guide[]; mine: readonly Guide[]; bookmarked: readonly Guide[]; uid: string | null } => {
   const s = useGuides.getState();
   const uid = useGame.getState().account.userId;
-  return { list: s.list, mine: ownsMine(s, uid) ? s.mine : NO_GUIDES, uid };
+  const theirs = ownsMine(s, uid);
+  return { list: s.list, mine: theirs ? s.mine : NO_GUIDES, bookmarked: theirs ? s.bookmarked : NO_GUIDES, uid };
 };
 let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents' };
 
@@ -113,20 +115,27 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
-  // one-frame jump on open. The player's own guides are part of the same snapshot.
-  // The snapshot also records WHICH ACCOUNT it was taken for: the player's own guides are private, so they are shown
-  // only while that account is still the signed-in one (an account switch with the view open must not show them),
-  // and they are only ever taken from a store that holds them for that same account (`snapGuides`).
+  // one-frame jump on open. The player's own guides and their bookmarks are part of the same snapshot.
+  // The snapshot also records WHICH ACCOUNT it was taken for: the player's own guides and bookmarks are private, so
+  // they are shown only while that account is still the signed-in one (an account switch with the view open must not
+  // show them), and they are only ever taken from a store that holds them for that same account (`snapGuides`). A
+  // bookmark made while the view is open joins the next snapshot, never the open one.
   const [guideSnap, setGuideSnap] = useState(snapGuides);
   const guides = useMemo(() => guidesFor(setId, runTribes, guideSnap.list), [setId, runTribes, guideSnap.list]);
   const myGuidesAll = useMemo(() => guidesFor(setId, runTribes, guideSnap.mine), [setId, runTribes, guideSnap.mine]);
+  // A bookmark already drawn as a Team Ascent guide or as the player's own is not drawn twice.
+  const bookmarkedAll = useMemo(() => {
+    const drawn = new Set([...guides, ...myGuidesAll].map((g) => g.id));
+    return guidesFor(setId, runTribes, guideSnap.bookmarked).filter((g) => !drawn.has(g.id));
+  }, [setId, runTribes, guideSnap.bookmarked, guides, myGuidesAll]);
   // Who may edit: a boolean and an id, both cheap to subscribe to. The guide LISTS are still only a snapshot.
   // Editing needs the server, so no Edit button unless the guides capability is on.
   const guideTeam = useGuides((s) => s.team);
   const guidesLive = useGuides((s) => s.capability === 'on');
   const guideUserId = useGame((st) => st.account.userId);
   const myGuides = guideUserId === guideSnap.uid ? myGuidesAll : NO_GUIDES;
-  const guideCount = guides.length + myGuides.length;
+  const bookmarkedGuides = guideUserId === guideSnap.uid ? bookmarkedAll : NO_GUIDES;
+  const guideCount = guides.length + myGuides.length + bookmarkedGuides.length;
   const canEditInRail = useCallback((g: Guide) => guidesLive && canEditGuide(g, guideUserId, guideTeam), [guidesLive, guideUserId, guideTeam]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
   const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
@@ -139,8 +148,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useLayoutEffect(() => {
     if (!showGuides) return;
     const next = snapGuides();
-    // Same two arrays and account as last time = the same snapshot object, so nothing re-renders.
-    setGuideSnap((cur) => (cur.list === next.list && cur.mine === next.mine && cur.uid === next.uid ? cur : next));
+    // Same three arrays and account as last time = the same snapshot object, so nothing re-renders.
+    setGuideSnap((cur) => (cur.list === next.list && cur.mine === next.mine && cur.bookmarked === next.bookmarked && cur.uid === next.uid ? cur : next));
   }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);
@@ -346,7 +355,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
 
       {showGuides ? (
         <div className={`lobbyview${swap ? ' lobbyview-in' : ''}`} key="guides">
-          <LobbyGuides guides={guides} mine={myGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
+          <LobbyGuides guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
         </div>
       ) : (
       <div className={`lobbyseats${swap ? ' lobbyview-in' : ''}`} key="seats">

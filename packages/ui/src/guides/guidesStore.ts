@@ -11,7 +11,9 @@
  *   mine        this account's own guides. Empty for a guest.
  *   mineOwner   the user id `mine` and `team` belong to; null when they belong to nobody. Set wherever they are
  *               set, cleared wherever they are cleared.
- *   tab         which pill the Compendium Guides tab shows: Team Ascent, or My guides.
+ *   bookmarked  the published guides this account has bookmarked, newest first. Personal like `mine`: it belongs to
+ *               `mineOwner`, is cleared with it, and is drawn only for that account.
+ *   tab         which pill the Compendium Guides tab shows: Team Ascent, My guides, Bookmarked or Community.
  *   pendingEdit a guide (by row id) the lobby rail asked the Compendium to open in the editor.
  *
  * A failed or empty read never replaces something already showing: one timed-out refresh must not reshuffle the
@@ -21,7 +23,7 @@
  * read for the SAME identity is in flight joins it; one for a DIFFERENT identity queues exactly one re-read, so a
  * sign-in that lands mid-read is never answered with the guest's view.
  *
- * A CHANGE OF ACCOUNT CLEARS `team`, `mine`, `pendingEdit` AND THE `tab` pill AT ONCE, before any read answers and
+ * A CHANGE OF ACCOUNT CLEARS `team`, `mine`, `bookmarked`, `pendingEdit` AND THE `tab` pill AT ONCE, before any read answers and
  * whatever it answers, so signing out or switching account (even offline) never leaves the last account's private
  * guides or Edit buttons in the store. A read also drops the team/mine it fetched if the account changed while it
  * was in flight; the queued re-read fetches the right ones.
@@ -31,19 +33,25 @@
  * Compendium's My guides draw `mine` only while `mineOwner` is the signed-in account's user id, and `guideSaved`
  * keeps a player's guide only when its author is the account at the keyboard (a save can land after its author left).
  *
- * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved` and `guideDeleted` bump a counter; a read that was already in
+ * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved`, `guideBookmarked` and `guideDeleted` bump a counter; a read that was already in
  * flight when one landed applies only `capability` and asks for one fresh read, so a stale answer cannot overwrite it.
  *
  * THE RAIL DOES NOT SUBSCRIBE to `list` or `mine`. It reads them when its Guides view opens (LobbyPanel), so a
  * refresh that lands while the player is reading never moves a card under them. The Compendium does subscribe.
+ *
+ * WHAT COUNTS AS "THE SAME GUIDE". Publishing, hiding and bookmark counts change a row without bumping its revision.
+ * So an unchanged list is one whose guides match on row id, revision, published, hidden AND bookmark count; anything
+ * else replaces the array, and the open Compendium redraws.
+ *
+ * BACK ONLINE. A game that loaded with no connection hears the browser's `online` event and reads again.
  */
 import { create } from 'zustand';
 import { currentIdentity } from '../identity';
 import { GUIDES, toGuide, type Guide } from './guides';
-import { fetchMyGuides, fetchOfficialGuides, fetchTeamFlag } from './guidesRemote';
+import { fetchBookmarkedGuides, fetchMyGuides, fetchOfficialGuides, fetchTeamFlag } from './guidesRemote';
 
 export type GuidesCapability = 'unknown' | 'no-backend' | 'off' | 'offline' | 'on';
-export type GuidesTab = 'team' | 'mine';
+export type GuidesTab = 'team' | 'mine' | 'bookmarked' | 'community';
 
 interface GuidesStore {
   capability: GuidesCapability;
@@ -51,18 +59,22 @@ interface GuidesStore {
   source: 'bundled' | 'server';
   team: boolean;
   mine: readonly Guide[];
+  bookmarked: readonly Guide[];
   mineOwner: string | null;
   tab: GuidesTab;
   pendingEdit: string | null;
 }
 
 const NO_GUIDES: readonly Guide[] = [];
-const INITIAL: GuidesStore = { capability: 'unknown', list: GUIDES, source: 'bundled', team: false, mine: NO_GUIDES, mineOwner: null, tab: 'team', pendingEdit: null };
+const INITIAL: GuidesStore = { capability: 'unknown', list: GUIDES, source: 'bundled', team: false, mine: NO_GUIDES, bookmarked: NO_GUIDES, mineOwner: null, tab: 'team', pendingEdit: null };
 
 export const useGuides = create<GuidesStore>(() => ({ ...INITIAL }));
 
 const sameList = (a: readonly Guide[], b: readonly Guide[]): boolean =>
-  a.length === b.length && a.every((g, i) => g.rowId === b[i]!.rowId && g.revision === b[i]!.revision);
+  a.length === b.length && a.every((g, i) => {
+    const o = b[i]!;
+    return g.rowId === o.rowId && g.revision === o.revision && g.published === o.published && g.hidden === o.hidden && g.bookmarkCount === o.bookmarkCount;
+  });
 
 /** Who a read is for: the account, and whether it is a guest. */
 const identityKey = (): string => {
@@ -70,9 +82,9 @@ const identityKey = (): string => {
   return id ? `${id.userId}:${id.anonymous ? 'guest' : 'account'}` : '';
 };
 
-/** Bumped by every local save or delete, so a read that was in flight across one knows its answer is stale. */
+/** Bumped by every local save, bookmark or delete, so a read that was in flight across one knows its answer is stale. */
 let localChanges = 0;
-/** The identity key the store's `team` and `mine` belong to. */
+/** The identity key the store's `team`, `mine` and `bookmarked` belong to. */
 let ownerKey = '';
 
 async function readGuides(): Promise<void> {
@@ -87,7 +99,10 @@ async function readGuides(): Promise<void> {
   const server = ans.guides.map(toGuide).filter((g): g is Guide => g !== null);
   let team: boolean | undefined;
   let mineRecs: Awaited<ReturnType<typeof fetchMyGuides>>;
-  if (id && !id.anonymous) [team, mineRecs] = await Promise.all([fetchTeamFlag(id.userId), fetchMyGuides(id.userId)]);
+  let bookmarkedRecs: Awaited<ReturnType<typeof fetchBookmarkedGuides>>;
+  if (id && !id.anonymous) {
+    [team, mineRecs, bookmarkedRecs] = await Promise.all([fetchTeamFlag(id.userId), fetchMyGuides(id.userId), fetchBookmarkedGuides(id.userId)]);
+  }
 
   // Apply time: everything below reads the store as it is NOW, after all the awaits.
   if (localChanges !== changesAtStart) {
@@ -110,9 +125,14 @@ async function readGuides(): Promise<void> {
         const guides = mineRecs.map(toGuide).filter((g): g is Guide => g !== null);
         next.mine = sameList(cur.mine, guides) ? cur.mine : guides;
       }
+      if (bookmarkedRecs !== undefined) {
+        const guides = bookmarkedRecs.map(toGuide).filter((g): g is Guide => g !== null);
+        next.bookmarked = sameList(cur.bookmarked, guides) ? cur.bookmarked : guides;
+      }
     } else {
       next.team = false;
       next.mine = NO_GUIDES;
+      next.bookmarked = NO_GUIDES;
       next.mineOwner = null;
     }
   }
@@ -131,8 +151,8 @@ export function loadGuides(): Promise<void> {
     const s = useGuides.getState();
     // The last account's flag, guides, pending edit request and pill all go. Skipped when they already hold their
     // cleared values (the first identity at boot), so boot makes no store write.
-    if (s.team || s.mine.length > 0 || s.mineOwner !== null || s.pendingEdit !== null || s.tab !== 'team') {
-      useGuides.setState({ team: false, mine: NO_GUIDES, mineOwner: null, pendingEdit: null, tab: 'team' });
+    if (s.team || s.mine.length > 0 || s.bookmarked.length > 0 || s.mineOwner !== null || s.pendingEdit !== null || s.tab !== 'team') {
+      useGuides.setState({ team: false, mine: NO_GUIDES, bookmarked: NO_GUIDES, mineOwner: null, pendingEdit: null, tab: 'team' });
     }
   }
   if (loading) {
@@ -192,6 +212,31 @@ export function guideSaved(g: Guide): void {
   else void loadGuides();
 }
 
+/**
+ * Apply a bookmark the server just confirmed, without a re-read: the guide goes first in the list with its new count,
+ * or leaves it.
+ *
+ * A bookmark belongs to the account that PRESSED it, and the caller says who that was (`forUserId`, read before the
+ * request went out). The answer can land after that account left (a slow connection, then a sign-out and another
+ * account signing in), and the guide is someone else's, so unlike `guideSaved` the store cannot tell from the guide.
+ * So it is applied only while that same signed-in account is still at the keyboard; otherwise it is dropped. Nothing is
+ * lost: the server did record it, and the next read for the right account brings it back. It also never joins a list
+ * the store still holds for another account.
+ */
+export function guideBookmarked(g: Guide, on: boolean, count: number, forUserId: string | null): void {
+  const id = currentIdentity();
+  if (!id || id.anonymous || id.userId !== forUserId) return;
+  localChanges++;
+  const s = useGuides.getState();
+  const mineIsTheirs = s.mineOwner === id.userId;
+  const rest = (mineIsTheirs ? s.bookmarked : NO_GUIDES).filter((x) => x.rowId !== g.rowId);
+  useGuides.setState({
+    bookmarked: on ? [{ ...g, bookmarkCount: count }, ...rest] : rest,
+    mine: mineIsTheirs ? s.mine : NO_GUIDES,
+    mineOwner: id.userId,
+  });
+}
+
 /** Does the store hold `userId`'s own guides? False for nobody, and for guides read for any other account. */
 export const ownsMine = (s: { mineOwner: string | null }, userId: string | null): boolean => userId !== null && s.mineOwner === userId;
 
@@ -199,7 +244,7 @@ export const ownsMine = (s: { mineOwner: string | null }, userId: string | null)
 export function guideDeleted(rowId: string): void {
   localChanges++;
   const s = useGuides.getState();
-  useGuides.setState({ list: s.list.filter((g) => g.rowId !== rowId), mine: s.mine.filter((g) => g.rowId !== rowId) });
+  useGuides.setState({ list: s.list.filter((g) => g.rowId !== rowId), mine: s.mine.filter((g) => g.rowId !== rowId), bookmarked: s.bookmarked.filter((g) => g.rowId !== rowId) });
 }
 
 export function resetGuidesForTests(): void {
@@ -209,4 +254,9 @@ export function resetGuidesForTests(): void {
   localChanges = 0;
   ownerKey = '';
   useGuides.setState({ ...INITIAL });
+}
+
+// Back online: a game that loaded with no connection learns it now, without the Guides tab being reopened.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('online', () => { if (useGuides.getState().capability !== 'on') void loadGuides(); });
 }

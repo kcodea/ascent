@@ -1,7 +1,7 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
-import { GUIDE_LIMITS, TEAM_BYLINE } from '@game/guides';
+import { GUIDE_LIMITS, TEAM_BYLINE, cleanText } from '@game/guides';
 import type { RunState } from '@game/sim';
 import { Card, type CardView } from '../Card';
 import { Icon } from '../Icon';
@@ -10,7 +10,7 @@ import { useGame } from '../store';
 import { toGuide, tribeInk, type Guide } from './guides';
 import { GuideCardPicker } from './GuideCardPicker';
 import { GuideEmblem, GuideText, TRIBE_NAME, guideAccent, useGuideViews } from './GuideParts';
-import { draftFromGuide, draftProblems, missingIn, sameDraft, toWire, type EditorDraft } from './guideDrafts';
+import { draftFromGuide, draftProblems, missingIn, newSaveId, sameDraft, toWire, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
 import { deleteGuideRemote, fetchGuideById, saveGuideRemote } from './guidesRemote';
@@ -78,7 +78,7 @@ function previewOf(d: EditorDraft, mentions: readonly string[], aliases: Readonl
     id: 'draft', rowId: d.rowId, sets: [setId], tribes: d.tribes, pairsWith: d.pairsWith.length ? d.pairsWith : undefined,
     iconCard: d.iconCard || d.core[0] || '', title: d.title, tagline: d.tagline, body: d.body, core: d.core, enablers: d.enablers,
     mentions: mentions.length ? mentions : undefined, aliases: Object.keys(aliases).length ? aliases : undefined,
-    byline: d.official ? TEAM_BYLINE : d.byline, official: d.official, published: d.official, hidden: false, authorId: null,
+    byline: d.official ? TEAM_BYLINE : d.byline, official: d.official, published: d.official, hidden: false, bookmarkCount: 0, publishedAt: null, authorId: null,
     revision: d.revision ?? 0, order: 0,
   };
 }
@@ -221,6 +221,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const closed = useRef(false);
   /** True once a save, a delete or a confirmed discard ended the editor: then nothing more is written to the device. */
   const finished = useRef(false);
+  /** The id of the save being attempted, kept while the SAME document is pressed again (it may have landed). */
+  const attempt = useRef<{ key: string; id: string } | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const safeRef = useRef<HTMLButtonElement>(null);
   const conflictRef = useRef<HTMLDivElement>(null);
@@ -315,11 +317,24 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       sfx.tick();
       return;
     }
+    const words = cur.aliases.map((a) => cleanText(a.word).toLowerCase()).filter((w) => w !== '');
+    if (new Set(words).size !== words.length) {
+      setError('Two nicknames use the same word. Change or remove one.');
+      sfx.tick();
+      return;
+    }
     const problems = draftProblems(cur, setId);
     if (problems.length > 0) { setError(problems[0]!.message); sfx.tick(); return; }
     setBusy(true);
     setError(null);
-    const res = await saveGuideRemote(toWire(cur, setId));
+    // One id per document: pressed again with the very same document, the save may already have landed, so the server
+    // is told it is the same save. Any change (a newer revision after a conflict, no row after a delete) is a new id.
+    const doc = toWire(cur, setId);
+    const key = JSON.stringify(doc);
+    if (!attempt.current || attempt.current.key !== key) attempt.current = { key, id: newSaveId() };
+    const saveId = attempt.current.id;
+    const res = await saveGuideRemote(saveId ? { ...doc, saveId } : doc);
+    if (res.ok) attempt.current = null;
     if (closed.current) {
       // The editor is gone (state and onClose are off limits), but the save landed: keep the books straight.
       if (res.ok) {

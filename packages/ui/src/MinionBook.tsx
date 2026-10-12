@@ -12,7 +12,7 @@ import { RuneCard } from './RuneCard';
 import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker';
 import { CompendiumGuides } from './guides/CompendiumGuides';
 import { guidesFor } from './guides/guides';
-import { loadGuides, useGuides } from './guides/guidesStore';
+import { loadGuides, ownsMine, useGuides } from './guides/guidesStore';
 import { artFor, heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
@@ -290,6 +290,15 @@ const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }
   return <LazyCell eager={eager}>{() => <Card card={view} forceFull suppressPop plated refCards={refs} />}</LazyCell>;
 });
 
+/** The Compendium subtitle while the Guides tab is up: what the chosen pill is showing. */
+function guidesSubtitle(tab: 'team' | 'mine' | 'bookmarked' | 'community', n: number, setName: string, searching: boolean): string {
+  if (tab === 'community') return `Community guides for ${setName}.`;
+  if (searching) return `${n} result${n === 1 ? '' : 's'}`;
+  if (tab === 'mine') return `${n} guide${n === 1 ? '' : 's'} of yours.`;
+  if (tab === 'bookmarked') return `${n} bookmarked guide${n === 1 ? '' : 's'} for ${setName}.`;
+  return `${n} guide${n === 1 ? '' : 's'}. Build lines for ${setName}.`;
+}
+
 /** Whether the Compendium's SET PICKER is shown: dev builds only (owner ask 2026-10-11). Read at render time, not
  *  module load, so a test can flip it with `vi.stubEnv('DEV', false)`; in a prod bundle Vite folds it to `false`. */
 function compendiumSetPickerEnabled(): boolean {
@@ -362,6 +371,8 @@ export function MinionBook() {
   const [runeTribes, setRuneTribes] = useState<Set<Tribe>>(() => new Set());
   // GUIDES TAB tribe filter (owner ask 2026-10-09), the Runes tab's pills: no pill lit (or "All") = every guide.
   const [guideTribes, setGuideTribes] = useState<Set<Tribe>>(() => new Set());
+  // The lit pills as a list, for the Guides tab's Community list (it asks the server with them).
+  const guidePills = useMemo(() => [...guideTribes], [guideTribes]);
 
   // Browsing the run's own set → scope to its active tribes (mirrors `stockPool`: neutral is always findable, so
   // it's added below regardless). The title, or any other set picked → that set's WHOLE tribe roster.
@@ -437,9 +448,16 @@ export function MinionBook() {
 
   // The Compendium SUBSCRIBES to the guides store (unlike the rail's snapshot), and refreshes it when the tab opens.
   const guideList = useGuides((s) => s.list);
-  // The pill (Team Ascent / My guides) lives in the guides store, so this list and the tab's toolbar agree.
+  // The pill (Team Ascent / My guides / Bookmarked / Community) lives in the guides store, so this list and the tab's
+  // toolbar agree.
   const guideTab = useGuides((s) => s.tab);
   const guideMine = useGuides((s) => s.mine);
+  const guideBookmarked = useGuides((s) => s.bookmarked);
+  // The player's own guides and bookmarks are listed (and counted in the subtitle) only while the store holds them for
+  // the account that is signed in: ones it still holds for another account are never handed to the tab.
+  const guideMineOwner = useGuides((s) => s.mineOwner);
+  const guideAccountId = useGame((s) => s.account.userId);
+  const guidesAreMine = ownsMine({ mineOwner: guideMineOwner }, guideAccountId);
   useEffect(() => { if (guidesOn) void loadGuides(); }, [guidesOn]);
 
   // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
@@ -449,11 +467,16 @@ export function MinionBook() {
   const guidesToShow = useMemo(() => {
     const m = makeSearchMatcher(searchQ);
     // My guides lists every guide the player owns, whatever its set or tribe (a guide that did not carry over is
-    // repaired from here); Team Ascent keeps the set + lobby-tribe rule.
-    return (guideTab === 'mine' ? [...guideMine] : guidesFor(setId, tribes, guideList))
+    // repaired from here); Bookmarked is this set's bookmarks; Team Ascent keeps the set + lobby-tribe rule. The
+    // Community list is asked for by the tab itself (it is handed the pills and the search text below), so it gets none.
+    const base = guideTab === 'mine' ? (guidesAreMine ? [...guideMine] : [])
+      : guideTab === 'bookmarked' ? (guidesAreMine ? guideBookmarked.filter((g) => g.sets.includes(setId)) : [])
+      : guideTab === 'community' ? []
+      : guidesFor(setId, tribes, guideList);
+    return base
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
       .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
-  }, [setId, tribes, guideTribes, searchQ, guideList, guideTab, guideMine]);
+  }, [setId, tribes, guideTribes, searchQ, guideList, guideTab, guideMine, guideBookmarked, guidesAreMine]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -671,12 +694,16 @@ export function MinionBook() {
                     ? 'Rules & how-to. Search any question.'
                     : glossary
                     ? 'Keywords & abilities. Click one to see its minions.'
+                    : query && guidesOn
+                      // The Guides tab says what its pill shows. The Community list is searched on the server, so it
+                      // has no count here.
+                      ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
                     : query
-                      ? `${(guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
-                          (guidesOn ? guidesToShow.length : cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
+                      ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
+                          (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
                         } for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`
                     : guidesOn
-                      ? `${guidesToShow.length} guide${guidesToShow.length === 1 ? '' : 's'}. Build lines for ${SETS[setId].name}.`
+                      ? guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, false)
                     : cats.has('heroes')
                       ? `${heroesToShow.length} heroes. Every champion and their power.`
                       : cats.has('runes')
@@ -905,7 +932,7 @@ export function MinionBook() {
           {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), the runes (Runes tab), or the
               heroes (Heroes tab). */}
           {guidesOn ? (
-            <CompendiumGuides guides={guidesToShow} tribes={tribes} setTribes={SETS[setId].tribes} run={liveRun} setId={setId} />
+            <CompendiumGuides guides={guidesToShow} tribes={tribes} setTribes={SETS[setId].tribes} run={liveRun} setId={setId} pillTribes={guidePills} search={searchQ} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
               <div className="book-grid is-heroes">

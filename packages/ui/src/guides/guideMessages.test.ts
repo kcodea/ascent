@@ -115,3 +115,59 @@ describe('every sentence, for every action', () => {
     }
   });
 });
+
+describe('publishing and bookmarking have their own words', () => {
+  it('a publish refused for its text says which part, and what to do', () => {
+    expect(guideErrorMessage('blocked_text', 'title', { action: 'publish' })).toBe('The title has a word that is not allowed. Edit the guide, then publish it.');
+    expect(guideErrorMessage('reserved_name', 'title', { action: 'publish' })).toBe('The title uses a reserved name. Edit the guide, then publish it.');
+    expect(guideErrorMessage('reserved_name', 'byline', { action: 'publish' })).toBe('The "by" line uses a reserved name. Edit the guide, then publish it.');
+  });
+  it('the other publish refusals', () => {
+    expect(guideErrorMessage('guide_hidden', undefined, { action: 'publish' })).toBe('Team Ascent has hidden this guide. It cannot be published.');
+    expect(guideErrorMessage('conflict', undefined, { action: 'publish' })).toBe('This guide changed while it was being published. Try again.');
+    // A publish whose answer is lost may have landed: it never says nothing was changed.
+    expect(guideErrorMessage('offline', undefined, { action: 'publish' })).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(guideErrorMessage('rate_limited', undefined, { action: 'publish' })).toBe('That is a lot of changes. Try again in a little while.');
+    expect(guideErrorMessage('not_found', undefined, { action: 'publish' })).toBe('This guide no longer exists.');
+    expect(guideErrorMessage('whatever', undefined, { action: 'publish' })).toBe('Something went wrong. Nothing was changed.');
+  });
+  it('bookmark refusals', () => {
+    expect(guideErrorMessage('too_many_bookmarks', undefined, { action: 'bookmark' })).toBe(`You already have ${GUIDE_LIMITS.bookmarksPerPlayer} bookmarks. Remove one to make room.`);
+    expect(guideErrorMessage('not_found', undefined, { action: 'bookmark' })).toBe('This guide is no longer available.');
+    expect(guideErrorMessage('not_allowed', undefined, { action: 'bookmark' })).toBe('This guide cannot be bookmarked.');
+    expect(guideErrorMessage('sign_in_required', undefined, { action: 'bookmark' })).toBe('Sign in to bookmark guides.');
+    expect(guideErrorMessage('offline', undefined, { action: 'bookmark' })).toBe('Could not reach the server. Nothing was changed.');
+  });
+  it('a save refused for a reserved title names the title, and the by line keeps its old sentence', () => {
+    expect(guideErrorMessage('reserved_name', 'title')).toBe('The title uses a reserved name. Pick another.');
+    expect(guideErrorMessage('reserved_name', 'tagline')).toBe('The tagline uses a reserved name. Pick another.');
+    expect(guideErrorMessage('reserved_name', 'byline')).toBe('That "by" line is reserved. Pick another name.');
+    expect(guideErrorMessage('reserved_name')).toBe('That "by" line is reserved. Pick another name.');
+  });
+  it('an unpublish has its own words: nothing was changed, and never "publish it"', () => {
+    const un = (code: string, field?: string): string => guideErrorMessage(code, field, { action: 'unpublish' });
+    // An unpublish whose answer is lost may have landed too.
+    expect(un('offline')).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(un('not_found')).toBe('This guide no longer exists.');
+    expect(un('sign_in_required')).toBe('Sign in to write guides.');
+    expect(un('unauthenticated')).toBe('Sign in to write guides.');
+    expect(un('not_allowed')).toBe('You cannot change this guide. Duplicate it to make your own.');
+    // Codes an unpublish cannot be answered with still read as a plain sentence that asks for nothing.
+    for (const c of ['conflict', 'rate_limited', 'blocked_text', 'reserved_name', 'guide_hidden', 'server', 'unavailable', 'something_new']) {
+      expect(un(c, 'title'), c).toBe('Something went wrong. Nothing was changed.');
+    }
+    for (const c of [...CODES, 'guide_hidden', 'too_many_bookmarks']) for (const field of [undefined, 'title', 'byline']) for (const kept of [true, false]) {
+      const m = guideErrorMessage(c, field, { action: 'unpublish', kept });
+      expect(m, c).not.toMatch(/publish/i);
+      expect(m, c).not.toMatch(/sav(e|es|ed|ing)\b|this device|still here/);
+      expect(m, c).not.toContain(c);
+      expect(m.endsWith('.'), c).toBe(true);
+      expect(m.includes(String.fromCharCode(0x2014)) || m.includes(String.fromCharCode(0x2013)) || m.includes('--'), c).toBe(false);
+    }
+  });
+  it('no sentence here has an em dash or a double hyphen', () => {
+    const all = ['blocked_text', 'reserved_name', 'guide_hidden', 'conflict', 'offline', 'rate_limited', 'not_found', 'not_allowed', 'too_many_bookmarks', 'sign_in_required', 'x']
+      .flatMap((c) => (['publish', 'bookmark'] as const).map((action) => guideErrorMessage(c, 'title', { action })));
+    for (const m of all) expect(m.includes(String.fromCharCode(0x2014)) || m.includes('--'), m).toBe(false);
+  });
+});

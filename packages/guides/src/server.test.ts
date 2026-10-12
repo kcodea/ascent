@@ -138,3 +138,150 @@ describe('handleGuideWrite: importBuiltIns', () => {
     expect(f.calls).toEqual([]);
   });
 });
+
+/** A fake RPC that answers per function name and records every call. */
+function fakeBy(answers: Record<string, { data?: unknown; error?: { message: string } | null }>): { rpc: RpcCall; calls: Array<{ fn: string; args: Record<string, unknown> }> } {
+  const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+  const rpc: RpcCall = async (fn, args) => {
+    calls.push({ fn, args });
+    const a = answers[fn] ?? { data: null, error: { message: `unexpected ${fn}` } };
+    return { data: a.data ?? null, error: a.error ?? null };
+  };
+  return { rpc, calls };
+}
+const stored = { ...row, author_id: UID, official: false, published: false, tagline: '', aliases: {}, revision: 4 };
+
+describe('handleGuideWrite: setPublished', () => {
+  it('publishing reads the stored guide, checks its text, then publishes at the revision it checked', async () => {
+    const f = fakeBy({ guide_own_row: { data: stored }, guide_set_published: { data: { ...stored, published: true, published_at: '2026-10-13T00:00:00Z' } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc);
+    expect(res.status).toBe(200);
+    expect((res.body.guide as { published: boolean; publishedAt: string }).published).toBe(true);
+    expect((res.body.guide as { publishedAt: string }).publishedAt).toBe('2026-10-13T00:00:00Z');
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row', 'guide_set_published']);
+    expect(f.calls[1]!.args).toEqual({ p_user: UID, p_id: GID, p_on: true, p_revision: 4 });
+  });
+  it('a stored guide that now breaks the word rules is refused with its field, and nothing is published', async () => {
+    const f = fakeBy({ guide_own_row: { data: { ...stored, title: 'Team Ascent Dragons' } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc);
+    expect(res).toEqual({ status: 422, body: { error: 'reserved_name', field: 'title' } });
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row']);
+  });
+  it('unpublishing never reads or checks the text', async () => {
+    const f = fakeBy({ guide_set_published: { data: { ...stored, published: false } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: false }, f.rpc);
+    expect(res.status).toBe(200);
+    expect(f.calls).toEqual([{ fn: 'guide_set_published', args: { p_user: UID, p_id: GID, p_on: false, p_revision: null } }]);
+  });
+  it('passes the row rules through: not allowed, hidden, conflict, rate limited, not found', async () => {
+    const cases: Array<[string, number]> = [['not_allowed', 403], ['guide_hidden', 403], ['conflict', 409], ['rate_limited', 429], ['not_found', 404]];
+    for (const [code, status] of cases) {
+      const f = fakeBy({ guide_own_row: { data: stored }, guide_set_published: { error: { message: `ERROR: ${code}` } } });
+      expect(await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc)).toEqual({ status, body: { error: code } });
+    }
+    const g = fakeBy({ guide_own_row: { error: { message: 'not_allowed' } } });
+    expect(await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, g.rpc)).toEqual({ status: 403, body: { error: 'not_allowed' } });
+  });
+  it('refuses a bad id or a published that is not a boolean, before the database', async () => {
+    const f = fakeBy({});
+    expect((await handleGuideWrite(UID, false, { op: 'setPublished', id: 'x', published: true }, f.rpc)).body).toEqual({ error: 'bad_id' });
+    expect((await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: 'yes' }, f.rpc)).body).toEqual({ error: 'bad_published' });
+    expect(f.calls).toEqual([]);
+  });
+  it('a stored row it cannot read is a 500, not a publish', async () => {
+    const f = fakeBy({ guide_own_row: { data: { nope: true } } });
+    expect((await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc)).status).toBe(500);
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row']);
+  });
+
+  // The publish re-check runs the word rules on the STORED row, so each field it reads is pinned on its own.
+  const refusedStored = async (patch: Record<string, unknown>) => {
+    const f = fakeBy({ guide_own_row: { data: { ...stored, ...patch } }, guide_set_published: { data: { ...stored, published: true } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc);
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row']);
+    return res;
+  };
+  it('a blocked word in the stored body is refused', async () => {
+    expect(await refusedStored({ body: 'this is shit' })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'body' } });
+  });
+  it('a blocked word in the stored tagline is refused', async () => {
+    expect(await refusedStored({ tagline: 'so shit' })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'tagline' } });
+  });
+  it('a blocked word as a stored nickname is refused', async () => {
+    expect(await refusedStored({ aliases: { shit: 'grim' } })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'aliases' } });
+  });
+  it('a blocked word in the stored by line is refused', async () => {
+    expect(await refusedStored({ byline: 'shit' })).toEqual({ status: 422, body: { error: 'blocked_text', field: 'byline' } });
+  });
+  it('a reserved stored by line is refused', async () => {
+    expect(await refusedStored({ byline: 'Team Ascent' })).toEqual({ status: 422, body: { error: 'reserved_name', field: 'byline' } });
+  });
+  it('a reserved stored tagline is refused', async () => {
+    expect(await refusedStored({ tagline: 'The official way to win' })).toEqual({ status: 422, body: { error: 'reserved_name', field: 'tagline' } });
+  });
+  it('a clean stored guide with every field filled publishes at its stored revision', async () => {
+    const full = {
+      ...stored, title: 'Dragon beatdown', tagline: 'Fast and fun', body: 'Play the dragons early and grow them.', byline: 'Mike',
+      aliases: { drake: 'grim' }, tribes: ['beast'], pairs_with: ['imp'], enablers: ['grim'], mentions: ['grim'], forked_from: GID, revision: 7,
+    };
+    const f = fakeBy({ guide_own_row: { data: full }, guide_set_published: { data: { ...full, published: true } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc);
+    expect(res.status).toBe(200);
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_own_row', 'guide_set_published']);
+    expect(f.calls[1]!.args).toEqual({ p_user: UID, p_id: GID, p_on: true, p_revision: 7 });
+  });
+  it('a published that is 1, "true" or null is never treated as publish', async () => {
+    const f = fakeBy({});
+    for (const published of [1, 'true', null]) {
+      expect(await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published }, f.rpc)).toEqual({ status: 400, body: { error: 'bad_published' } });
+    }
+    expect(f.calls).toEqual([]);
+  });
+  it('an answer from guide_set_published that cannot be read is a 500', async () => {
+    const f = fakeBy({ guide_own_row: { data: stored }, guide_set_published: { data: { nope: true } } });
+    expect(await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: true }, f.rpc)).toEqual({ status: 500, body: { error: 'guide_malformed' } });
+  });
+});
+
+describe('handleGuideWrite: bookmark and unbookmark', () => {
+  it('an odd count in the answer is read as a number, never below 0', async () => {
+    const countFor = async (count: unknown) => {
+      const f = fakeBy({ guide_bookmark: { data: { bookmarked: true, count } } });
+      return (await handleGuideWrite(UID, false, { op: 'bookmark', id: GID }, f.rpc)).body.count;
+    };
+    expect(await countFor(null)).toBe(0);
+    expect(await countFor('7')).toBe(7);
+    expect(await countFor(-3)).toBe(0);
+    expect(await countFor('nope')).toBe(0);
+  });
+  it('bookmark and unbookmark call guide_bookmark with on and off and answer the count', async () => {
+    const f = fakeBy({ guide_bookmark: { data: { bookmarked: true, count: 3 } } });
+    expect(await handleGuideWrite(UID, false, { op: 'bookmark', id: GID }, f.rpc)).toEqual({ status: 200, body: { bookmarked: true, count: 3 } });
+    const g = fakeBy({ guide_bookmark: { data: { bookmarked: false, count: 2 } } });
+    expect(await handleGuideWrite(UID, false, { op: 'unbookmark', id: GID }, g.rpc)).toEqual({ status: 200, body: { bookmarked: false, count: 2 } });
+    expect(f.calls[0]!.args).toEqual({ p_user: UID, p_id: GID, p_on: true });
+    expect(g.calls[0]!.args).toEqual({ p_user: UID, p_id: GID, p_on: false });
+  });
+  it('the cap is a 422 the client can name', async () => {
+    const f = fakeBy({ guide_bookmark: { error: { message: 'too_many_bookmarks' } } });
+    expect(await handleGuideWrite(UID, false, { op: 'bookmark', id: GID }, f.rpc)).toEqual({ status: 422, body: { error: 'too_many_bookmarks' } });
+  });
+  it('a guest cannot bookmark, and a bad id never reaches the database', async () => {
+    const f = fakeBy({});
+    expect((await handleGuideWrite(UID, true, { op: 'bookmark', id: GID }, f.rpc)).body).toEqual({ error: 'sign_in_required' });
+    expect((await handleGuideWrite(UID, false, { op: 'bookmark', id: 'x' }, f.rpc)).body).toEqual({ error: 'bad_id' });
+    expect(f.calls).toEqual([]);
+  });
+});
+
+describe('handleGuideWrite: save carries the save id', () => {
+  it('a save id reaches guide_save as save_id; a bad one is refused before the database', async () => {
+    const SAVE = '22222222-2222-4222-8222-222222222222';
+    const f = fake();
+    await handleGuideWrite(UID, false, { op: 'save', guide: { ...good, saveId: SAVE } }, f.rpc);
+    expect((f.calls[0]!.args.p_doc as { save_id: string }).save_id).toBe(SAVE);
+    const g = fake();
+    expect((await handleGuideWrite(UID, false, { op: 'save', guide: { ...good, saveId: 'x' } }, g.rpc)).body).toEqual({ error: 'bad_guide', field: 'saveId' });
+    expect(g.calls).toEqual([]);
+  });
+});

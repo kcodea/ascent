@@ -7,18 +7,20 @@ import { accountsAvailable } from '../GuestSignIn';
 import { LazyCell, LazyRootProvider } from '../bookLazy';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
-import { canEditGuide, guideMissingIds, type Guide } from './guides';
+import { CommunityGuides } from './CommunityGuides';
+import { CompendiumGuideCard } from './CompendiumGuideCard';
+import { canEditGuide, toGuide, type Guide } from './guides';
 import { GuideEditor } from './GuideEditor';
-import { GuideEmblem, GuideText, GuideTribes, GuideUnits, guideAccent, guideCardIds, guideChips, useGuideViews } from './GuideParts';
 import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameDraft, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
-import { importBuiltInsRemote } from './guidesRemote';
-import { loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
+import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
+import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
 
 const NO_GUIDES: readonly Guide[] = [];
+const NO_TRIBES: readonly Tribe[] = [];
 
 /** A kept guide has something in it once it has a title, a tagline, a write-up, a card or a nickname row. The "by"
  *  line is filled in for the author, so it does not count; nor do tribes, "pairs with" or the art icon on their own. */
@@ -49,9 +51,29 @@ const forgetEmptyKept = (userId: string | null): void => {
  * same guides from the rail but in an expanded/full view"). The SAME guide pieces as the lobby rail (`GuideParts`),
  * laid out for a big screen: every guide is open, two cards across on a wide window and one on a narrow one, each with
  * its art icon, title, tribe line + tagline, the full write-up (card names hoverable) and bigger Core / Enablers
- * portraits. Since 2026-10-12 it is also where guides are WRITTEN: a toolbar (the Team Ascent / My guides pills, New
- * guide), Duplicate on every guide, Edit on the ones this account may change, and the editor, which takes over the tab
- * while it is open.
+ * portraits. Since 2026-10-12 it is also where guides are WRITTEN: a toolbar (the pills, New guide), Duplicate on every
+ * guide, Edit on the ones this account may change, and the editor, which takes over the tab while it is open. The card
+ * itself lives in `CompendiumGuideCard.tsx`.
+ *
+ * FOUR PILLS: Team Ascent, My guides, Bookmarked, Community. The first three draw the list this tab is handed. The
+ * Community list is its own component (`CommunityGuides.tsx`): it asks the server itself, one page at a time, with the
+ * tribe pills and the search box this tab passes on, and a list handed in under that pill is never drawn. Bookmarked
+ * and Community need the server, so their pills cannot be chosen while guides are not `on`. If guides stop being `on`
+ * while the Community pill is showing, the Community list is taken away (so the server is not asked), and the tab says
+ * guides are offline. Bookmarks the store already holds can still be read then. The order chosen for the Community
+ * list (Most bookmarked, Newest) is kept here, because this tab stays while the editor is open and that list does not.
+ *
+ * ONE FUNCTION DRAWS A CARD, FOR EVERY LIST (`renderCard`), so who is offered what is decided in one place. Publish,
+ * Unpublish and Delete are offered only on the player's own guide (not Team Ascent's, one with a server row, written by
+ * the signed-in account), and only under My guides. Edit is not offered under Bookmarked or Community. Bookmark is
+ * offered on someone else's published guide, under every pill.
+ *
+ * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
+ * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
+ * a deleted one), or the sentence the player reads, which the card shows. A guide that is already gone on the server
+ * when it is deleted simply leaves the list. A publish or unpublish whose answer never came may still have landed, so
+ * the card is told to check again and the guides are read again: the card shows the truth once the server answers.
+ * None of this opens the editor or touches the unsaved guide the device keeps, so the rules below are unchanged.
  *
  * Which guides show (pill, set, tribe pills, search) is decided by the caller (MinionBook). Who may do what is
  * decided by the server; this only draws the buttons (`canEditGuide`). Writing needs the guides capability to be
@@ -70,8 +92,9 @@ const forgetEmptyKept = (userId: string | null): void => {
  *    again.
  *  - One open editor is never swapped for another: an editor only opens when none is open.
  *
- * WHOSE GUIDES. The My guides list and its count are drawn only while the store holds them for the account that is
- * signed in (`ownsMine`): guides it still holds for another account are never drawn, whatever list this is handed.
+ * WHOSE GUIDES. The My guides and Bookmarked lists and their counts are drawn only while the store holds them for the
+ * account that is signed in (`ownsMine`): guides it still holds for another account are never drawn, whatever list
+ * this is handed.
  *
  * THE CAP IS SAID BEFORE THE GUIDE IS WRITTEN. A player who already owns the most guides allowed is told so when they
  * press New guide or Duplicate, instead of after writing one that cannot be saved. Edit and Resume are never stopped
@@ -80,14 +103,17 @@ const forgetEmptyKept = (userId: string | null): void => {
  * AN ASK MUST BE SEEN. The toolbar scrolls away with the list, and a guide's buttons can be pressed far below it. So
  * when a press is answered with a question or a note in the toolbar (sign in first; resume or discard first; the cap),
  * the tab scrolls to its top and the question's main button (or the note itself) takes keyboard focus, on every such
- * press.
+ * press. A card's own question (publish, delete) and its refusal are drawn on that card, under the button that was
+ * pressed, and take focus there.
  *
  * PERFORMANCE. Guides mount lazily (all but the first two wait until near the viewport). Each guide card is memoized
  * and takes stable callbacks; its portraits are the memoized `Card` fed stabilized views. Off-screen cards skip
  * layout + paint (`content-visibility: auto`, compendiumGuides.css). Nothing animates, nothing here runs per frame,
- * and no layout is read.
+ * and no layout is read. This tab is redrawn on every search keystroke (the search text is a prop), but the cards are
+ * not: nothing a card is handed depends on the search text, so each one is skipped. A bookmark redraws only the card
+ * it changes.
  */
-export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes, setTribes, run, setId }: {
+export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes, setTribes, run, setId, pillTribes = NO_TRIBES, search = '' }: {
   guides: readonly Guide[];
   /** The tribes the shown set (or run) has: a crossover chip shows only when its tribe is among them. */
   tribes: readonly Tribe[];
@@ -97,6 +123,10 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   run: RunState | undefined;
   /** The set being shown: a guide's card that is not in it greys out. */
   setId: SetId;
+  /** The Compendium's lit tribe pills (may hold 'neutral'); none lit = empty. Only the Community list asks with it. */
+  pillTribes?: readonly Tribe[];
+  /** The Compendium's search box, as typed. Only the Community list asks with it; the other lists arrive filtered. */
+  search?: string;
 }): JSX.Element {
   // Only `on` allows writing, and only a read that ANSWERED no is offline (not yet known is neither). Selected as two
   // yes/no values, so the tab is redrawn only when what it draws changes.
@@ -109,6 +139,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const tab = useGuides((s) => s.tab);
   const mineHeld = useGuides((s) => s.mine.length);
   const mineOwner = useGuides((s) => s.mineOwner);
+  const bookmarkedHeld = useGuides((s) => s.bookmarked);
   const pending = useGuides((s) => s.pendingEdit);
   const userId = useGame((s) => s.account.userId);
   const anonymous = useGame((s) => s.account.anonymous);
@@ -118,7 +149,16 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The store holds THIS account's own guides (not nobody's, and not ones still held for another account). */
   const mineIsMine = ownsMine({ mineOwner }, userId);
   const mineCount = mineIsMine ? mineHeld : 0;
-  const shown = tab === 'mine' && !mineIsMine ? NO_GUIDES : guides;
+  /** The bookmarks, only while the store holds them for THIS account. */
+  const bookmarkedMine = mineIsMine ? bookmarkedHeld : NO_GUIDES;
+  const bookmarkedIds = useMemo(() => new Set(bookmarkedMine.map((g) => g.rowId)), [bookmarkedMine]);
+  const bookmarkedHere = useMemo(() => bookmarkedMine.filter((g) => g.sets.includes(setId)).length, [bookmarkedMine, setId]);
+  /** The list this tab is handed, when it may be drawn: never under Community (that list is the server's answer), and
+   *  a personal list only for its owner. */
+  const shown = tab === 'community' || ((tab === 'mine' || tab === 'bookmarked') && !mineIsMine) ? NO_GUIDES : guides;
+  /** What the Community list asks for: the lit pills, or (none lit) every tribe this list is for, and Neutral. */
+  const queryTribes = useMemo(() => (pillTribes.length ? pillTribes.filter((t) => t !== 'neutral') : tribes), [pillTribes, tribes]);
+  const queryNeutral = pillTribes.length ? pillTribes.includes('neutral') : true;
   const byline = playerName.trim() || 'Player';
   /** Who is at the keyboard: an open editor, and the Resume bar, belong to exactly one of these. */
   const who = `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
@@ -133,6 +173,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const [discardAsk, setDiscardAsk] = useState(false);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
+  /** The Community list's order. Held here so it is still the player's choice when the editor closes. */
+  const [communitySort, setCommunitySort] = useState<CommunitySort>('bookmarked');
   // Lazy (perf 2026-10-09): the first two guides mount with the tab, the rest as they near the viewport (bookLazy.tsx),
   // so opening Guides builds two guides' portraits instead of every guide's.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -190,6 +232,51 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   }, [online, signedIn, waiting, userId, raise, openEditor]);
   const onEdit = useCallback((g: Guide): void => begin(() => draftFromGuide(g), false), [begin]);
   const onDuplicate = useCallback((g: Guide): void => begin(() => duplicateDraft(g, byline), true), [begin, byline]);
+  /** Publish or unpublish one of the player's guides. The answered guide replaces the one in My guides. */
+  const onPublish = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
+    if (!g.rowId) return null;
+    const res = await setPublishedRemote(g.rowId, on);
+    if (!res.ok) {
+      // The answer was lost, not refused: the server may have done it. Read again, so the card shows what is true.
+      if (res.code === 'offline') void loadGuides();
+      return guideErrorMessage(res.code, res.field, { action: on ? 'publish' : 'unpublish' });
+    }
+    const next = toGuide(res.value);
+    if (next) guideSaved(next);
+    sfx.pulse();
+    return null;
+  }, []);
+  /** Delete one of the player's guides. One that is already gone on the server simply leaves the list. */
+  const onDelete = useCallback(async (g: Guide): Promise<string | null> => {
+    if (!g.rowId) return null;
+    const res = await deleteGuideRemote(g.rowId);
+    if (!res.ok && res.code !== 'not_found') return guideErrorMessage(res.code, res.field, { action: 'delete' });
+    guideDeleted(g.rowId);
+    sfx.tick();
+    return null;
+  }, []);
+  /** Bookmark a guide, or remove the bookmark. A guest is asked to sign in instead. */
+  const onBookmark = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
+    if (!online || !g.rowId) return null;
+    if (!signedIn) { raise('signin'); return null; }
+    const pressedBy = userId; // who pressed: the answer may land after the account has changed
+    const res = await bookmarkGuideRemote(g.rowId, on);
+    if (!res.ok) return guideErrorMessage(res.code, res.field, { action: 'bookmark' });
+    guideBookmarked(g, res.value.bookmarked, res.value.count, pressedBy);
+    sfx.tick();
+    return null;
+  }, [online, signedIn, userId, raise]);
+  /** Draw one guide's card, whichever list it is in: who is offered what is decided here (see the header). */
+  const renderCard = useCallback((g: Guide): JSX.Element => {
+    const own = !g.official && g.rowId !== null && signedIn && g.authorId === userId;
+    return (
+      <CompendiumGuideCard guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
+        editable={online && tab !== 'community' && tab !== 'bookmarked' && canEditGuide(g, userId, team)} own={own && tab === 'mine'}
+        canBookmark={!g.official && g.published && !g.hidden && g.rowId !== null && !own}
+        bookmarked={g.rowId !== null && bookmarkedIds.has(g.rowId)}
+        onEdit={onEdit} onDuplicate={onDuplicate} onPublish={onPublish} onDelete={onDelete} onBookmark={onBookmark} />
+    );
+  }, [tribes, run, setId, tab, online, signedIn, userId, team, bookmarkedIds, onEdit, onDuplicate, onPublish, onDelete, onBookmark]);
 
   // The account. When the tab opens, a kept guide with nothing in it is forgotten. When the account changes, an open
   // editor is closed (it was drawn for the last account only, and has already kept its unsaved text on the device
@@ -305,14 +392,24 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   }
 
   const canSignIn = accountsAvailable(userId);
+  const pillStyle = { '--c': 'var(--ui-title)' } as CSSProperties;
+  const emptyText = tab === 'mine' && mineCount === 0 ? 'You have not written a guide yet. Press New guide, or Duplicate on any guide to start from it.'
+    : tab === 'bookmarked' && !signedIn ? 'Sign in to bookmark guides. Your bookmarks also show in the lobby rail.'
+    : tab === 'bookmarked' && bookmarkedMine.length === 0 ? 'No bookmarks yet. Press Bookmark on a Community guide to keep it here and in your lobby rail.'
+    : tab === 'community' ? 'Guides are offline.'
+    : 'No guides match these filters.';
   return (
     <div className="bookguides" key="list" ref={attachRoot}>
       <div className="gtool" role="group" aria-label="Guides" aria-busy={unknown ? true : undefined}>
         <div className="gtool-pills" role="group" aria-label="Which guides to show">
-          <button type="button" className={`book-runetribe${tab === 'team' ? ' on' : ''}`} style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+          <button type="button" className={`book-runetribe${tab === 'team' ? ' on' : ''}`} style={pillStyle}
             aria-pressed={tab === 'team'} onClick={() => setGuidesTab('team')}>Team Ascent</button>
-          <button type="button" className={`book-runetribe${tab === 'mine' ? ' on' : ''}`} style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+          <button type="button" className={`book-runetribe${tab === 'mine' ? ' on' : ''}`} style={pillStyle}
             aria-pressed={tab === 'mine'} onClick={() => setGuidesTab('mine')}>{mineCount > 0 ? `My guides (${mineCount})` : 'My guides'}</button>
+          <button type="button" className={`book-runetribe${tab === 'bookmarked' ? ' on' : ''}`} style={pillStyle}
+            aria-pressed={tab === 'bookmarked'} disabled={!online} onClick={() => setGuidesTab('bookmarked')}>{bookmarkedHere > 0 ? `Bookmarked (${bookmarkedHere})` : 'Bookmarked'}</button>
+          <button type="button" className={`book-runetribe${tab === 'community' ? ' on' : ''}`} style={pillStyle}
+            aria-pressed={tab === 'community'} disabled={!online} onClick={() => setGuidesTab('community')}>Community</button>
         </div>
         <div className="gtool-actions">
           {team && online && source === 'bundled' && (
@@ -321,14 +418,14 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
           )}
           <button type="button" className="gbtn gbtn-primary" disabled={!online} onClick={() => begin(() => emptyDraft(byline), true)}>New guide</button>
         </div>
-        {offline && <p className="gtool-note" role="status">Guides are offline. You can read the built-in guides; writing your own needs a connection.</p>}
+        {offline && <p className="gtool-note" role="status">Guides are offline. You can read the built-in guides; writing, bookmarks and the Community list need a connection.</p>}
         {/* One note. Keyed by its role, so an error that replaces a status (or the other way round) is a NEW element
             and a screen reader announces it. */}
         {note && <p key={note.alert ? 'alert' : 'status'} className="gtool-note" role={note.alert ? 'alert' : 'status'}>{note.text}</p>}
         {capAsked && <p className="gtool-note gtool-cap" role="status" tabIndex={-1} ref={capRef}>{guideErrorMessage('too_many_guides')}</p>}
         {signInAsked && (
           <p className="gtool-note gtool-signin" role="status" tabIndex={-1} ref={signInRef}>
-            <span>{canSignIn ? 'Sign in to write your own guides. It is free and takes a minute.' : 'Sign in to write your own guides. Accounts cannot be reached right now.'}</span>
+            <span>{canSignIn ? 'Sign in to write and bookmark guides. It is free and takes a minute.' : 'Sign in to write and bookmark guides. Accounts cannot be reached right now.'}</span>
             {canSignIn && <button type="button" className="gbtn gbtn-primary" ref={createRef} onClick={createAccount}>Create account</button>}
           </p>
         )}
@@ -351,72 +448,18 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
           </p>
         )}
       </div>
-      {shown.length === 0 ? (
-        <div className="book-empty gtool-empty">
-          {tab === 'mine' && mineCount === 0 ? 'You have not written a guide yet. Press New guide, or Duplicate on any guide to start from it.' : 'No guides match these filters.'}
-        </div>
+      {tab === 'community' && online ? (
+        <CommunityGuides setId={setId} queryTribes={queryTribes} neutral={queryNeutral} search={search} sort={communitySort} onSort={setCommunitySort}
+          root={root} renderCard={renderCard} />
+      ) : shown.length === 0 ? (
+        <div className="book-empty gtool-empty">{emptyText}</div>
       ) : (
         <LazyRootProvider root={root}>
           {shown.map((g, i) => (
-            <LazyCell key={g.id} eager={i < 2} className="bookguide-slot">
-              {() => (
-                <CompendiumGuide guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
-                  editable={online && canEditGuide(g, userId, team)} onEdit={onEdit} onDuplicate={onDuplicate} />
-              )}
-            </LazyCell>
+            <LazyCell key={g.id} eager={i < 2} className="bookguide-slot">{() => renderCard(g)}</LazyCell>
           ))}
         </LazyRootProvider>
       )}
     </div>
-  );
-});
-
-const CompendiumGuide = memo(function CompendiumGuide({ guide, tribes, run, setId, mineTab, writable, editable, onEdit, onDuplicate }: {
-  guide: Guide; tribes: readonly Tribe[]; run: RunState | undefined; setId: SetId;
-  /** Under My guides, a guide wears its state (Private, Hidden, Not in this set). */
-  mineTab: boolean;
-  /** Guides can be written right now (the capability is on). */
-  writable: boolean;
-  /** This account may edit this guide. */
-  editable: boolean;
-  onEdit: (g: Guide) => void; onDuplicate: (g: Guide) => void;
-}): JSX.Element {
-  const chips = guideChips(guide, tribes);
-  const ids = useMemo(() => guideCardIds(guide), [guide]);
-  const { views, refs } = useGuideViews(ids, run);
-  const missing = useMemo(() => guideMissingIds(guide, setId), [guide, setId]);
-  const badges: string[] = [];
-  if (mineTab) {
-    if (guide.hidden) badges.push('Hidden by Team Ascent');
-    else if (!guide.published) badges.push('Private');
-    if (!guide.sets.includes(setId)) badges.push('Not in this set');
-  }
-  return (
-    <article className="bookguide" data-guide={guide.id} style={guideAccent(chips)} aria-label={guide.title}>
-      <header className="bookguide-head">
-        <GuideEmblem guide={guide} chips={chips} />
-        <div className="bookguide-headtext">
-          <h3 className="bookguide-title">{guide.title}</h3>
-          <div className="bookguide-tribes"><GuideTribes chips={chips} /></div>
-          <div className="bookguide-tagline">{guide.tagline}</div>
-          <div className="bookguide-by">
-            <span>by {guide.byline}</span>
-            {guide.forkedTitle && <span className="bookguide-fork">Based on {guide.forkedTitle}{guide.forkedByline ? ` by ${guide.forkedByline}` : ''}</span>}
-            {badges.map((b) => <span className="bookguide-badge" key={b}>{b}</span>)}
-          </div>
-        </div>
-        <div className="bookguide-actions">
-          {editable && <button type="button" className="gbtn" aria-label={`Edit ${guide.title}`} onClick={() => onEdit(guide)}>Edit</button>}
-          <button type="button" className="gbtn" aria-label={`Duplicate ${guide.title}`} disabled={!writable} onClick={() => onDuplicate(guide)}>Duplicate</button>
-        </div>
-      </header>
-      <div className="bookguide-body">
-        <GuideText guide={guide} ids={ids} views={views} refs={refs} missing={missing} />
-        {/* Core, then Enablers on its own line below (owner 2026-10-09: "always have core + enablers on different
-            lines"). */}
-        <GuideUnits label="Core" ids={guide.core} views={views} refs={refs} missing={missing} />
-        {guide.enablers.length > 0 && <GuideUnits label="Enablers" ids={guide.enablers} views={views} refs={refs} missing={missing} />}
-      </div>
-    </article>
   );
 });

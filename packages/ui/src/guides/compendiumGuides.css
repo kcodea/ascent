@@ -79,11 +79,23 @@
 }
 /* The Resume bar after a second guide was started while one is waiting: the same note, with a warning edge. */
 .gtool-resume-ask { border-color: var(--ui-warn); }
-.gtool-empty { grid-column: 1 / -1; }
+/* Rows of the list box that are not guides take its whole width, like the toolbar: the empty line, and the Community
+   list's sort row, its notes (loading, could not load) and its Show more row. */
+.gtool-empty, .gcomm-sort, .gcomm-note, .gcomm-more { grid-column: 1 / -1; }
+/* The sort pills and Show more line up with the toolbar's pills above them (the toolbar's own 2px side inset). */
+.gcomm-sort, .gcomm-more { padding: 0 2px; }
 
 .bookguide-by { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; font-size: 13.5px; font-weight: 700; color: var(--ui-muted); }
 .bookguide-badge {
   padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
   font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-title);
 }
-.bookguide-actions { margin-left: auto; align-self: flex-start; display: flex; gap: 7px; flex: none; }
+/* A card's buttons: two across, so a player's own guide (Edit, Duplicate, Publish, Delete) is two rows of two beside
+   the title instead of one row of four that squeezes it. Two buttons sit side by side as before; a lone button spans
+   both columns, which leaves it exactly its own width. */
+.bookguide-actions { margin-left: auto; align-self: flex-start; display: grid; grid-template-columns: repeat(2, auto); gap: 7px; flex: none; }
+.bookguide-actions > :only-child { grid-column: 1 / -1; }
+/* A question or a refusal on one guide's card: the toolbar note's look, inside the card's own side padding (the 26px
+   of `.bookguide-head` and `.bookguide-body`). `flex: none` because the card is a column: the toolbar note's own
+   `flex: 1 1 100%` would stretch it down a card that is taller than its text. */
+.bookguide-ask { flex: none; margin: 20px 26px 0; }

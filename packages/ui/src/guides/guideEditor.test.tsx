@@ -29,6 +29,7 @@ vi.mock('./guidesRemote', () => ({
   fetchOfficialGuides: async () => ({ state: 'offline' }),
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
+  fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => { fetches++; return byIdAnswer; },
   saveGuideRemote: async (g: GuideDraftInput) => { saves.push(g); if (gate) await gate; return saveAnswer(g); },
   deleteGuideRemote: async (rowId: string) => { deletes.push(rowId); if (deleteGate) await deleteGate; return deleteAnswer(); },
@@ -46,7 +47,7 @@ const prevIdentity = currentIdentity();
 
 const ROW = '11111111-1111-4111-8111-111111111111';
 const rec = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
-  id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'], tribes: [],
+  id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, publishedAt: null, hidden: false, sets: ['set2'], tribes: [],
   pairsWith: [], iconCard: 'grim', title: 'Saved', tagline: '', body: 'B', core: ['grim'], enablers: [], mentions: [], aliases: {},
   forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 2, createdAt: '', updatedAt: '', ...patch,
 });
@@ -539,6 +540,78 @@ describe('a save that cannot go through', () => {
     expect(saves).toHaveLength(2);
     expect(saves[1]).toMatchObject({ id: ROW, revision: 9, title: 'Mine' });
     expect(closed).toBe(1);
+  });
+});
+
+describe('a save that is pressed again', () => {
+  it('sends the same save id when nothing changed since the refused press, so the server can tell it is the same save', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Keep me');
+    await press(c, 'Save');
+    await press(c, 'Save');
+    expect(saves.length).toBe(2);
+    expect(saves[0]!.saveId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    expect(saves[1]!.saveId).toBe(saves[0]!.saveId);
+  });
+  it('sends a new save id once the guide was changed between the two presses', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Keep me');
+    await press(c, 'Save');
+    type(c.querySelector('.gedit-title')!, 'Keep me too');
+    await press(c, 'Save');
+    expect(saves.length).toBe(2);
+    expect(saves[1]!.saveId).not.toBe(saves[0]!.saveId);
+    expect(saves[1]!.title).toBe('Keep me too');
+  });
+  it('a refusal that names a problem, then a fix, is a new save', async () => {
+    saveAnswer = () => ({ ok: false, code: 'blocked_text', field: 'title' });
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'First');
+    await press(c, 'Save');
+    type(c.querySelector('.gedit-title')!, 'Second');
+    await press(c, 'Save');
+    expect(saves[1]!.saveId).not.toBe(saves[0]!.saveId);
+  });
+  it('Overwrite with mine after a conflict is a new save: it sends the newer revision under a new save id', async () => {
+    let n = 0;
+    saveAnswer = (g) => (n++ === 0 ? { ok: false, code: 'conflict' } : { ok: true, value: rec({ title: g.title }) });
+    byIdAnswer = rec({ title: 'Theirs', revision: 9 });
+    const c = open(draftFromGuide({ ...GUIDES[0]!, rowId: ROW, revision: 5, official: false, authorId: 'u-1' }));
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    await press(c, 'Overwrite with mine');
+    expect(saves).toHaveLength(2);
+    expect(saves[0]!.revision).toBe(5);
+    expect(saves[1]!.revision).toBe(9);
+    expect(saves[1]!.saveId).toMatch(/^[0-9a-f]{8}-/i);
+    expect(saves[1]!.saveId).not.toBe(saves[0]!.saveId);
+  });
+  it('a retry after the guide became a new guide (its row was deleted) is a new save under a new save id', async () => {
+    let n = 0;
+    saveAnswer = (g) => (n++ === 0 ? { ok: false, code: 'not_found' } : { ok: true, value: rec({ title: g.title }) });
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    await press(c, 'Save');
+    expect(saves).toHaveLength(2);
+    expect('id' in saves[1]!).toBe(false);
+    expect(saves[1]!.saveId).not.toBe(saves[0]!.saveId);
+  });
+});
+
+describe('two nicknames with the same word', () => {
+  it('blocks the save and says so, whatever the capitals or spaces', async () => {
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], aliases: [{ word: 'Oona', card: 'grim' }, { word: ' oona ', card: 'grim' }] });
+    await press(c, 'Save');
+    expect(alertText(c)).toBe('Two nicknames use the same word. Change or remove one.');
+    expect(saves).toEqual([]);
+  });
+  it('two different words for one card are fine', async () => {
+    const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], aliases: [{ word: 'Oona', card: 'grim' }, { word: 'King', card: 'grim' }] });
+    await press(c, 'Save');
+    expect(saves.length).toBe(1);
   });
 });
 

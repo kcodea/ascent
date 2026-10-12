@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_ID_RE, parseGuideRecord } from './types';
+import { CARD_ID_RE, GUIDE_LIMITS, parseGuideRecord } from './types';
 
 const row = {
   id: '11111111-1111-4111-8111-111111111111', slug: 'set2-beast-sunmane', author_id: null, byline: 'Team Ascent',
@@ -26,5 +26,19 @@ describe('parseGuideRecord', () => {
   it('the card id pattern takes underscores and hyphens (gemheart-shard is a real id)', () => {
     for (const id of ['b2_sunmane', 'grim', 'gemheart-shard']) expect(CARD_ID_RE.test(id), id).toBe(true);
     for (const id of ['', 'Has Space', 'UPPER', 'a'.repeat(49)]) expect(CARD_ID_RE.test(id), id).toBe(false);
+  });
+});
+
+describe('step 3 additions', () => {
+  it('reads published_at, and null when it was never published', () => {
+    const base = { id: 'a', title: 'T', body: 'B' };
+    expect(parseGuideRecord({ ...base, published_at: '2026-10-13T10:00:00Z' })!.publishedAt).toBe('2026-10-13T10:00:00Z');
+    expect(parseGuideRecord(base)!.publishedAt).toBeNull();
+    expect(parseGuideRecord({ ...base, published_at: 7 })!.publishedAt).toBeNull();
+  });
+  it("carries the owner's limits for bookmarks and the Community list", () => {
+    expect(GUIDE_LIMITS.bookmarksPerPlayer).toBe(200);
+    expect(GUIDE_LIMITS.communityPage).toBe(20);
+    expect(GUIDE_LIMITS.searchQuery).toBe(40);
   });
 });

@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
-      { category: 'Systems', text: 'The ranked lobby confirmation now opens over the Play menu: the menu darkens and blurs behind it as the window pops out.' },
+      { category: 'Systems', text: 'The ranked lobby confirmation now opens over the Play menu, in the Compendium\'s gold frame: the menu darkens and blurs behind it as the window pops out.' },
       {
         category: 'Systems',
         text: 'Guides: write your own. Sign in, open the Compendium, and press New guide, or Duplicate on any guide to start from it.',

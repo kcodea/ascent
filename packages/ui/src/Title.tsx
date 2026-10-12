@@ -12,7 +12,7 @@ import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/Portra
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
-import { RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES } from './rank/rankedEntry';
+import { RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { Crest, IconChest, IconHelm } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
@@ -479,12 +479,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {rankedConfirm && (
         <div className={`rankedconfirm-ov${rankedConfirm === 'closing' ? ' closing' : ''}`} role="dialog" aria-modal="true" aria-label="Ranked lobby">
           <div className="rankedconfirm-veil" onClick={closeRankedConfirm} aria-hidden="true" />
-          <div className="tutprompt-card rankedconfirm">
-            <p className="tutprompt-sub rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
+          {/* THE WINDOW wears the Compendium's chrome (owner 2026-10-12: "use the border that the compendium uses ...
+              emulate the title and underline structure ... make the buttons look like the UI elements" in its top
+              right): the painted 9-slice frame + its two crests, the title over the painted name divider, and the
+              answers as Gem plates. Its own classes in styles.css, since compendium.css loads with the book. */}
+          <div className="rankedconfirm">
+            <span className="rc-crest" aria-hidden="true" />
+            <span className="rc-crest rc-crest-foot" aria-hidden="true" />
+            <div className="rc-title">{RANKED_CONFIRM_TITLE}</div>
+            <p className="rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
             {savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
             <div className="rankedconfirm-actions">
-              <button className="endplay pressable" disabled={rankedConfirm === 'closing'} onClick={() => { sfx.pulse(); setRankedConfirm(null); startLobby(); }}>{RANKED_CONFIRM_YES}</button>
-              <button className="rankedconfirm-no pressable" onClick={() => { sfx.pulse(); closeRankedConfirm(); }}>{RANKED_CONFIRM_NO}</button>
+              <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onClick={() => { sfx.pulse(); setRankedConfirm(null); startLobby(); }}>{RANKED_CONFIRM_YES}</button>
+              <button className="rc-btn" onClick={() => { sfx.pulse(); closeRankedConfirm(); }}>{RANKED_CONFIRM_NO}</button>
             </div>
           </div>
         </div>

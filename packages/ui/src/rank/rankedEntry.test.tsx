@@ -19,6 +19,9 @@
  * And the presentation (owner 2026-10-12): "can this actually take place on the play menu screen instead? and have
  * the background blurred and darkened? ... i want the screen to darken and blur as this window expands out with a
  * little bit of a bounce". The mode picker stays mounted under a veil; the motion is transform + opacity only.
+ * Then: "can you use the border that the compendium uses? and emulate the title and underline structure here?" and
+ * "make the buttons look like the UI elements" in the Compendium's top right: the painted frame + crests, a title
+ * over the painted divider, and the two answers as Gem plates.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -55,7 +58,7 @@ import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
 import { enqueuePendingRank, flushPendingRanks } from './rankSubmission';
 import {
-  RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
+  RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
   clearRankedEntry, loadRankedEntry, saveRankedEntry, type RankedEntry,
 } from './rankedEntry';
 
@@ -125,6 +128,37 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     const kids = [...dialog.children].map((c) => c.className);
     expect(kids[0], 'the veil is painted first, under the card').toBe('rankedconfirm-veil');
     expect(kids[1]).toContain('rankedconfirm');
+  });
+
+  it('wears the Compendium chrome: its frame and crests, a title over the divider, Gem-plate answers', () => {
+    openConfirm();
+    const win = document.querySelector<HTMLElement>(`${DIALOG} .rankedconfirm`)!;
+    expect(win.querySelectorAll('.rc-crest')).toHaveLength(2);
+    expect(win.querySelector('.rc-crest-foot')).not.toBeNull();
+    const kids = [...win.children].filter((c) => !c.classList.contains('rc-crest')).map((c) => c.className);
+    expect(kids, 'title, then the question, then the answers').toEqual(['rc-title', 'rankedconfirm-text', 'rankedconfirm-actions']);
+    expect(win.querySelector('.rc-title')!.textContent).toBe(RANKED_CONFIRM_TITLE);
+    expect([...win.querySelectorAll('button')].map((b) => b.className)).toEqual(['rc-btn rc-btn-yes', 'rc-btn']);
+    expect(win.querySelector('[title]'), 'no native tooltip').toBeNull();
+
+    // The same painted art and theme tokens the Compendium uses (compendium.css), in this window's own rules.
+    const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
+    const book = readFileSync(join(__dirname, '..', 'compendium.css'), 'utf8');
+    const rule = (sel: string): string => { const at = css.indexOf(`${sel} {`); expect(at, sel).toBeGreaterThan(-1); return css.slice(at, css.indexOf('}', at)); };
+    for (const art of ['/frames/compendium-frame.webp', '/frames/compendium-crest.webp', '/frames/compendium-crest-foot.webp', '/frames/name-divider.webp']) {
+      expect(book, `the Compendium still uses ${art}`).toContain(art);
+    }
+    expect(rule('.rankedconfirm::after')).toContain("border-image: url('/frames/compendium-frame.webp') 270 stretch");
+    expect(rule('.rc-crest')).toContain('/frames/compendium-crest.webp');
+    expect(rule('.rc-crest-foot')).toContain('/frames/compendium-crest-foot.webp');
+    expect(rule('.rc-title::after')).toContain('/frames/name-divider.webp');
+    expect(rule('.rc-title')).toContain('color: var(--ui-title)');
+    // A Gem plate: the book's pill grammar (sheen + plate inside a gold edge, a 7px corner).
+    const pill = rule('.rc-btn');
+    expect(pill).toContain('background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box');
+    expect(pill).toContain('border-radius: 7px');
+    expect(book).toContain('background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box');
+    expect(css).not.toMatch(/\.rc-(btn|title|crest)[^{]*\{[^}]*cursor:\s*pointer/);
   });
 
   it('a press on the dimmed picker around the card is "No": it closes and commits nothing', async () => {

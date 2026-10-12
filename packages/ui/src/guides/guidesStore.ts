@@ -19,6 +19,14 @@
  * read for the SAME identity is in flight joins it; one for a DIFFERENT identity queues exactly one re-read, so a
  * sign-in that lands mid-read is never answered with the guest's view.
  *
+ * A CHANGE OF ACCOUNT CLEARS `team` AND `mine` AT ONCE, before any read answers and whatever it answers, so signing out
+ * or switching account (even offline) never leaves the last account's private guides or Edit buttons in the store. A
+ * read also drops the team/mine it fetched if the account changed while it was in flight; the queued re-read fetches
+ * the right ones.
+ *
+ * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved` and `guideDeleted` bump a counter; a read that was already in
+ * flight when one landed applies only `capability` and asks for one fresh read, so a stale answer cannot overwrite it.
+ *
  * THE RAIL DOES NOT SUBSCRIBE to `list` or `mine`. It reads them when its Guides view opens (LobbyPanel), so a
  * refresh that lands while the player is reading never moves a card under them. The Compendium does subscribe.
  */
@@ -54,30 +62,48 @@ const identityKey = (): string => {
   return id ? `${id.userId}:${id.anonymous ? 'guest' : 'account'}` : '';
 };
 
+/** Bumped by every local save or delete, so a read that was in flight across one knows its answer is stale. */
+let localChanges = 0;
+/** The identity key the store's `team` and `mine` belong to. */
+let ownerKey = '';
+
 async function readGuides(): Promise<void> {
+  const key = identityKey();
   const id = currentIdentity();
+  const changesAtStart = localChanges;
   const ans = await fetchOfficialGuides();
   if (ans.state !== 'on') {
     useGuides.setState({ capability: ans.state });
     return;
   }
-  const next: Partial<GuidesStore> = { capability: 'on' };
   const server = ans.guides.map(toGuide).filter((g): g is Guide => g !== null);
+  let team: boolean | undefined;
+  let mineRecs: Awaited<ReturnType<typeof fetchMyGuides>>;
+  if (id && !id.anonymous) [team, mineRecs] = await Promise.all([fetchTeamFlag(id.userId), fetchMyGuides(id.userId)]);
+
+  // Apply time: everything below reads the store as it is NOW, after all the awaits.
+  if (localChanges !== changesAtStart) {
+    useGuides.setState({ capability: 'on' });
+    again = true;
+    return;
+  }
   const cur = useGuides.getState();
+  const next: Partial<GuidesStore> = { capability: 'on' };
   if (server.length > 0) {
     next.source = 'server';
     next.list = cur.source === 'server' && sameList(cur.list, server) ? cur.list : server;
   }
-  if (id && !id.anonymous) {
-    const [team, mine] = await Promise.all([fetchTeamFlag(id.userId), fetchMyGuides(id.userId)]);
-    if (team !== undefined) next.team = team;
-    if (mine !== undefined) {
-      const guides = mine.map(toGuide).filter((g): g is Guide => g !== null);
-      next.mine = sameList(cur.mine, guides) ? cur.mine : guides;
+  if (identityKey() === key) {
+    if (id && !id.anonymous) {
+      if (team !== undefined) next.team = team;
+      if (mineRecs !== undefined) {
+        const guides = mineRecs.map(toGuide).filter((g): g is Guide => g !== null);
+        next.mine = sameList(cur.mine, guides) ? cur.mine : guides;
+      }
+    } else {
+      next.team = false;
+      next.mine = NO_GUIDES;
     }
-  } else {
-    next.team = false;
-    next.mine = NO_GUIDES;
   }
   useGuides.setState(next);
 }
@@ -89,6 +115,11 @@ let again = false;
 /** Read the guides this account can see. Safe to call often. Never throws. */
 export function loadGuides(): Promise<void> {
   const key = identityKey();
+  if (key !== ownerKey) {
+    ownerKey = key;
+    const s = useGuides.getState();
+    if (s.team || s.mine.length > 0) useGuides.setState({ team: false, mine: NO_GUIDES });
+  }
   if (loading) {
     if (key !== loadingFor) again = true;
     return loading;
@@ -124,6 +155,7 @@ const upsert = (arr: readonly Guide[], g: Guide): Guide[] =>
 
 /** Apply a guide the server just saved, without a re-read. */
 export function guideSaved(g: Guide): void {
+  localChanges++;
   const s = useGuides.getState();
   if (!g.official) {
     useGuides.setState({ mine: upsert(s.mine, g) });
@@ -136,6 +168,7 @@ export function guideSaved(g: Guide): void {
 
 /** Apply a delete the server just confirmed. */
 export function guideDeleted(rowId: string): void {
+  localChanges++;
   const s = useGuides.getState();
   useGuides.setState({ list: s.list.filter((g) => g.rowId !== rowId), mine: s.mine.filter((g) => g.rowId !== rowId) });
 }
@@ -144,5 +177,7 @@ export function resetGuidesForTests(): void {
   loading = null;
   loadingFor = '';
   again = false;
+  localChanges = 0;
+  ownerKey = '';
   useGuides.setState({ ...INITIAL });
 }

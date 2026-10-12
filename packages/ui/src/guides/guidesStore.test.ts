@@ -6,11 +6,16 @@ let answer: () => Promise<OfficialGuidesAnswer>;
 let calls = 0;
 let teamAnswer: boolean | undefined = false;
 let mineAnswer: GuideRecord[] | undefined = [];
+let mineHold: Promise<GuideRecord[] | undefined> | null = null; // when set, the NEXT guides-of-mine ask waits on it
 const asked: string[] = [];
 vi.mock('./guidesRemote', () => ({
   fetchOfficialGuides: () => { calls++; return answer(); },
   fetchTeamFlag: async (userId: string) => { asked.push(`team:${userId}`); return teamAnswer; },
-  fetchMyGuides: async (userId: string) => { asked.push(`mine:${userId}`); return mineAnswer; },
+  fetchMyGuides: async (userId: string) => {
+    asked.push(`mine:${userId}`);
+    if (mineHold) { const h = mineHold; mineHold = null; return h; }
+    return mineAnswer;
+  },
 }));
 let identity: { userId: string; anonymous: boolean } | null = null;
 vi.mock('../identity', () => ({ currentIdentity: () => identity }));
@@ -27,7 +32,7 @@ const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
 beforeEach(() => {
   resetGuidesForTests();
   calls = 0;
-  identity = null; teamAnswer = false; mineAnswer = []; asked.length = 0;
+  identity = null; teamAnswer = false; mineAnswer = []; mineHold = null; asked.length = 0;
   answer = async () => ({ state: 'on', guides: [rec('a'), rec('b', { sortOrder: 1 })] });
 });
 
@@ -128,6 +133,51 @@ describe('who I am: team flag and my guides', () => {
     await loadGuides();
     expect(useGuides.getState()).toMatchObject({ team: false, mine: [] });
   });
+  it('signing out while the server cannot be reached still drops the flag and the guides', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    teamAnswer = true;
+    mineAnswer = [mineRec('m1')];
+    await loadGuides();
+    expect(useGuides.getState().team).toBe(true);
+    answer = async () => ({ state: 'offline' });
+    identity = { userId: 'g-2', anonymous: true };
+    await loadGuides();
+    expect(useGuides.getState()).toMatchObject({ capability: 'offline', team: false, mine: [] });
+  });
+  it('switching to another account clears the first account\'s guides before the new read answers', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    teamAnswer = true;
+    mineAnswer = [mineRec('m1')];
+    await loadGuides();
+    expect(useGuides.getState().mine).toHaveLength(1);
+    let release: (a: OfficialGuidesAnswer) => void = () => {};
+    answer = () => new Promise<OfficialGuidesAnswer>((r) => { release = r; });
+    identity = { userId: 'u-2', anonymous: false };
+    teamAnswer = false;
+    mineAnswer = [];
+    const p = loadGuides();
+    expect(useGuides.getState().mine).toEqual([]);
+    expect(useGuides.getState().team).toBe(false);
+    release({ state: 'on', guides: [rec('a')] });
+    await p;
+    expect(useGuides.getState()).toMatchObject({ team: false, mine: [] });
+  });
+  it('a read that lands after the account changed does not apply the old account\'s guides', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    teamAnswer = true;
+    let releaseMine: (g: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { releaseMine = r; });
+    const seen: number[] = [];
+    useGuides.subscribe((s) => { seen.push(s.mine.length + (s.team ? 100 : 0)); });
+    const p = loadGuides();
+    identity = { userId: 'g-2', anonymous: true };
+    void loadGuides(); // a different identity: queues one re-read
+    releaseMine([mineRec('m1')]);
+    await p;
+    await vi.waitFor(() => expect(calls).toBe(2));
+    expect(useGuides.getState()).toMatchObject({ team: false, mine: [] });
+    expect(seen.every((n) => n === 0)).toBe(true); // the old account's flag and guide never reached the store
+  });
   it('a call for the SAME identity while a read is in flight joins it; a call for a DIFFERENT identity queues exactly one re-read', async () => {
     let release: (a: OfficialGuidesAnswer) => void = () => {};
     answer = () => new Promise<OfficialGuidesAnswer>((r) => { release = r; });
@@ -160,6 +210,22 @@ describe('after a save or a delete, without a re-read', () => {
     const list = useGuides.getState().list;
     guideSaved({ ...list[0]!, title: 'A, edited', revision: 2 });
     expect(useGuides.getState().list.map((x) => x.title)).toEqual(['A, edited', list[1]!.title]);
+  });
+  it('a read that was already in flight does not undo a save that landed meanwhile', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    let releaseMine: (g: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { releaseMine = r; });
+    mineAnswer = [rec('r9', { official: false, published: false, authorId: 'u-1', byline: 'Mike' })]; // what the re-read finds
+    const p = loadGuides();
+    guideSaved(g({ id: 'r9', rowId: 'r9', official: false, title: 'Saved meanwhile' }));
+    let sawEmpty = false;
+    useGuides.subscribe((s) => { if (s.mine.length === 0) sawEmpty = true; });
+    releaseMine([]); // the stale read answers with no guides
+    await p;
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['r9']);
+    await vi.waitFor(() => expect(asked.filter((a) => a === 'mine:u-1')).toHaveLength(2));
+    await vi.waitFor(() => expect(useGuides.getState().mine.map((x) => x.id)).toEqual(['r9']));
+    expect(sawEmpty).toBe(false);
   });
   it('a deleted guide leaves both lists', async () => {
     await loadGuides();

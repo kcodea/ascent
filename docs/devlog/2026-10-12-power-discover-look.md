@@ -28,8 +28,8 @@ scrim, and three bespoke `.powerpick` plaques. It could not be minimized.
 - The HERO POWER medallion (owner follow-up, same day: "replace the spell medallion with Emerald Crystal Knight
   Helmet.png", "make the text green where the hero names are"): `apps/web/public/medallions/power.webp`, the
   owner's art trimmed to its alpha box and fitted to the 320px canvas the other three use. It has its own group in
-  the 💠 Spell Medallions tuner (`spellMedallionConfig.ts`, kind `power`); the shipped seat (size 0.9, dy -3, a
-  green glow) is a first pass by eye, NOT owner-tuned. Shop Spells, Rubies and Gifts keep their medallions.
+  the 💠 Spell Medallions tuner (`spellMedallionConfig.ts`, kind `power`); the size (0.72) is the owner's (he asked for
+  "about 20%" off the first pass of 0.9); the offset (dy -3) and green glow are a first pass by eye. Shop Spells, Rubies and Gifts keep their medallions.
 - `DiscoverDialog` gained `label` (accessible name) and `full` (every option `forceFull` + `plated`, as the Choose
   One does). A power cannot be told apart by art alone, so the text must show whatever the compact-cards setting.
 - Peek state is `powerMin` in `Recruit`, reset per offer; `body.modalup` now reads `run.powerOffer && !powerMin`.

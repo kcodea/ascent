@@ -4491,7 +4491,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 }
 /* HERO POWER (the emerald helm, owner art 2026-10-12): the medallion a hero power wears when it is drawn as a card. */
 .spellmed[data-med='power'], .smedprev-cell[data-med='power'] {
-  --m-size: var(--smed-power-size, 0.9); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, -3px);
+  --m-size: var(--smed-power-size, 0.72); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, -3px);
   --m-sx: var(--smed-power-shadow-x, 0px); --m-sy: var(--smed-power-shadow-y, 4.5px); --m-sblur: var(--smed-power-shadow-blur, 6.5px);
   --m-scolor: var(--smed-power-shadow-color, rgba(0, 0, 0, 1));
   --m-gsize: var(--smed-power-glow-size, 6px); --m-gcolor: var(--smed-power-glow-color, rgba(53, 242, 154, 0.6));

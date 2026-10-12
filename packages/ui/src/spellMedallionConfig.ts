@@ -39,8 +39,9 @@ const DEFAULTS = {
   ...seat('spell', { size: 0.94, dx: 4, dy: 0, glowColor: '#4df3ff', glowSize: 2, glowStrength: 0 }),
   ...seat('ruby', { size: 0.84, dx: 3, dy: -3, glowColor: '#ff3b4a', glowSize: 3, glowStrength: 1 }),
   ...seat('gift', { size: 0.74, dx: 4, dy: -3, glowColor: '#c45bff', glowSize: 9, glowStrength: 0.68 }),
-  // The HERO POWER medallion (the emerald helm, owner art 2026-10-12): first-pass seat, not yet owner-tuned.
-  ...seat('power', { size: 0.9, dx: 0, dy: -3, glowColor: '#35f29a', glowSize: 6, glowStrength: 0.6 }),
+  // The HERO POWER medallion (the emerald helm, owner art 2026-10-12). Size is the owner's ("reduce the size of the
+  // icon by about 20%": 0.9 -> 0.72); the offset and glow are a first pass by eye.
+  ...seat('power', { size: 0.72, dx: 0, dy: -3, glowColor: '#35f29a', glowSize: 6, glowStrength: 0.6 }),
 } as SpellMedallionConfig;
 
 const COLOR_KEYS: ReadonlySet<string> = new Set(KINDS.flatMap((k) => [`${k}ShadowColor`, `${k}GlowColor`]));

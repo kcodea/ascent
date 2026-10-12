@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuideRecord } from '@game/guides';
+import type { Guide } from './guides';
 import type { OfficialGuidesAnswer } from './guidesRemote';
 
 let answer: () => Promise<OfficialGuidesAnswer>;
@@ -115,6 +116,14 @@ describe('who I am: team flag and my guides', () => {
     expect(asked.sort()).toEqual(['bookmarked:u-1', 'mine:u-1', 'team:u-1']);
     expect(useGuides.getState().team).toBe(true);
     expect(useGuides.getState().mine.map((g) => g.id)).toEqual(['m1', 'm2']);
+  });
+  it('an unchanged, answered re-read keeps the same array of my guides', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    mineAnswer = [mineRec('m1')];
+    await loadGuides();
+    const before = useGuides.getState().mine;
+    await loadGuides();
+    expect(useGuides.getState().mine).toBe(before);
   });
   it('an unanswerable read leaves what was known: a team member does not lose the flag on a blip', async () => {
     identity = { userId: 'u-1', anonymous: false };
@@ -423,18 +432,22 @@ describe('bookmarks', () => {
   it("a read that was in flight for the old account never fills the new account's bookmarks", async () => {
     identity = { userId: 'u-1', anonymous: false };
     bookmarkedAnswer = [other('bm1')];
-    let release: (v: GuideRecord[] | undefined) => void = () => {};
-    mineHold = new Promise((r) => { release = r; });
+    let releaseOld: (v: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { releaseOld = r; });
     const old = loadGuides(); // asks for u-1's bookmarks (answered at once with bm1), waits on u-1's guides
-    await Promise.resolve();
+    while (!asked.includes('mine:u-1')) await Promise.resolve(); // all three asks are out
     identity = { userId: 'u-2', anonymous: false };
-    bookmarkedAnswer = [];
+    bookmarkedAnswer = [other('bm2')];
+    let releaseNew: (v: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { releaseNew = r; }); // u-2's read will wait here, so nothing can repair the store yet
     void loadGuides(); // the account changed: clears, queues one re-read
-    release([]);
-    await old; // the old read applies now, and must drop what it fetched for u-1
+    releaseOld([]);
+    await old; // the old read has applied, and the re-read for u-2 is now waiting on its guides
     expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(useGuides.getState().mineOwner).not.toBe('u-1');
+    releaseNew([]);
     await new Promise((r) => setTimeout(r, 0));
-    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(useGuides.getState().bookmarked.map((g) => g.rowId)).toEqual(['bm2']);
     expect(useGuides.getState().mineOwner).toBe('u-2');
   });
   it('signing out empties them at once', async () => {
@@ -446,33 +459,86 @@ describe('bookmarks', () => {
     expect(useGuides.getState().bookmarked).toEqual([]);
     expect(useGuides.getState().mineOwner).toBeNull();
   });
-  it("a bookmark confirmed after the account changed never joins the old account's list", async () => {
+  const bm = (id: string): Guide => ({ ...GUIDES[0]!, id, rowId: id, official: false, authorId: 'u-9' });
+
+  it('a bookmark confirmed after the account that pressed it left is dropped, not filed under the next account', async () => {
     identity = { userId: 'u-1', anonymous: false };
     bookmarkedAnswer = [other('bm1')];
     await loadGuides();
-    identity = { userId: 'u-2', anonymous: false }; // switched, loadGuides not yet called
-    guideBookmarked({ ...GUIDES[0]!, id: 'bm7', rowId: 'bm7', official: false, authorId: 'u-9' }, true, 1);
-    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm7']);
+    identity = { userId: 'u-2', anonymous: false }; // u-1 pressed Bookmark; u-2 is at the keyboard when the answer lands
+    bookmarkedAnswer = [other('bm2')];
+    await loadGuides();
+    const before = useGuides.getState();
+    guideBookmarked(bm('bm7'), true, 1, 'u-1');
+    const after = useGuides.getState();
+    expect(after.bookmarked).toBe(before.bookmarked);
+    expect(after.bookmarked.map((x) => x.rowId)).toEqual(['bm2']);
+    expect(after.mineOwner).toBe('u-2');
+  });
+  it('the same when the account that pressed has become a guest, or nobody', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    identity = { userId: 'g-1', anonymous: true };
+    guideBookmarked(bm('bm7'), true, 1, 'u-1');
+    guideBookmarked(bm('bm7'), true, 1, 'g-1');
+    identity = null;
+    guideBookmarked(bm('bm7'), true, 1, 'u-1');
+    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm1']);
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+  });
+  it('a null account does nothing', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    const before = useGuides.getState().bookmarked;
+    guideBookmarked(bm('bm7'), true, 1, null);
+    expect(useGuides.getState().bookmarked).toBe(before);
+  });
+  it('a refused bookmark does not throw away a read in flight', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    let release: (v: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { release = r; });
+    const p = loadGuides();
+    while (!asked.includes('mine:u-1')) await Promise.resolve();
+    guideBookmarked(bm('bm7'), true, 1, 'u-2'); // not the account at the keyboard: nothing happens, no stale mark
+    release([]);
+    await p;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls).toBe(1); // no second read was asked for
+    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm1']);
+  });
+  it("filing a bookmark drops another account's private guides the store still holds", async () => {
+    identity = { userId: 'u-2', anonymous: false };
+    mineAnswer = [rec('m2', { official: false, authorId: 'u-2', byline: 'Two' })];
+    await loadGuides();
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['m2']);
     expect(useGuides.getState().mineOwner).toBe('u-2');
+    identity = { userId: 'u-1', anonymous: false }; // switched, loadGuides not yet called
+    guideBookmarked(bm('bm7'), true, 1, 'u-1');
+    expect(useGuides.getState().mine).toEqual([]);
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm7']);
   });
   it('guideBookmarked puts the guide first with its new count, and takes it out again', async () => {
     identity = { userId: 'u-1', anonymous: false };
     bookmarkedAnswer = [other('bm1')];
     await loadGuides();
     const g = { ...useGuides.getState().bookmarked[0]!, id: 'bm2', rowId: 'bm2', title: 'Second' };
-    guideBookmarked(g, true, 7);
+    guideBookmarked(g, true, 7, 'u-1');
     expect(useGuides.getState().bookmarked.map((x) => [x.rowId, x.bookmarkCount])).toEqual([['bm2', 7], ['bm1', 0]]);
-    guideBookmarked(g, true, 8); // again: still once, count refreshed
+    guideBookmarked(g, true, 8, 'u-1'); // again: still once, count refreshed
     expect(useGuides.getState().bookmarked.map((x) => [x.rowId, x.bookmarkCount])).toEqual([['bm2', 8], ['bm1', 0]]);
-    guideBookmarked(g, false, 7);
+    guideBookmarked(g, false, 7, 'u-1');
     expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm1']);
   });
   it('guideBookmarked does nothing for a guest or for nobody', () => {
-    const g = { ...GUIDES[0]!, id: 'bm9', rowId: 'bm9', official: false, authorId: 'u-9' };
+    const g = bm('bm9');
     identity = null;
-    guideBookmarked(g, true, 1);
+    guideBookmarked(g, true, 1, 'u-1');
     identity = { userId: 'g-1', anonymous: true };
-    guideBookmarked(g, true, 1);
+    guideBookmarked(g, true, 1, 'g-1');
     expect(useGuides.getState().bookmarked).toEqual([]);
   });
   it('a bookmark made while a read was in flight is not undone by that read', async () => {
@@ -482,7 +548,7 @@ describe('bookmarks', () => {
     mineHold = new Promise((r) => { release = r; });
     const p = loadGuides();
     await Promise.resolve();
-    guideBookmarked({ ...GUIDES[0]!, id: 'bm5', rowId: 'bm5', official: false, authorId: 'u-9' }, true, 1);
+    guideBookmarked({ ...GUIDES[0]!, id: 'bm5', rowId: 'bm5', official: false, authorId: 'u-9' }, true, 1, 'u-1');
     bookmarkedAnswer = [other('bm5')];
     release([]);
     await p;

@@ -23,7 +23,7 @@
  * read for the SAME identity is in flight joins it; one for a DIFFERENT identity queues exactly one re-read, so a
  * sign-in that lands mid-read is never answered with the guest's view.
  *
- * A CHANGE OF ACCOUNT CLEARS `team`, `mine`, `pendingEdit` AND THE `tab` pill AT ONCE, before any read answers and
+ * A CHANGE OF ACCOUNT CLEARS `team`, `mine`, `bookmarked`, `pendingEdit` AND THE `tab` pill AT ONCE, before any read answers and
  * whatever it answers, so signing out or switching account (even offline) never leaves the last account's private
  * guides or Edit buttons in the store. A read also drops the team/mine it fetched if the account changed while it
  * was in flight; the queued re-read fetches the right ones.
@@ -33,7 +33,7 @@
  * Compendium's My guides draw `mine` only while `mineOwner` is the signed-in account's user id, and `guideSaved`
  * keeps a player's guide only when its author is the account at the keyboard (a save can land after its author left).
  *
- * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved` and `guideDeleted` bump a counter; a read that was already in
+ * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved`, `guideBookmarked` and `guideDeleted` bump a counter; a read that was already in
  * flight when one landed applies only `capability` and asks for one fresh read, so a stale answer cannot overwrite it.
  *
  * THE RAIL DOES NOT SUBSCRIBE to `list` or `mine`. It reads them when its Guides view opens (LobbyPanel), so a
@@ -82,9 +82,9 @@ const identityKey = (): string => {
   return id ? `${id.userId}:${id.anonymous ? 'guest' : 'account'}` : '';
 };
 
-/** Bumped by every local save or delete, so a read that was in flight across one knows its answer is stale. */
+/** Bumped by every local save, bookmark or delete, so a read that was in flight across one knows its answer is stale. */
 let localChanges = 0;
-/** The identity key the store's `team` and `mine` belong to. */
+/** The identity key the store's `team`, `mine` and `bookmarked` belong to. */
 let ownerKey = '';
 
 async function readGuides(): Promise<void> {
@@ -214,12 +214,18 @@ export function guideSaved(g: Guide): void {
 
 /**
  * Apply a bookmark the server just confirmed, without a re-read: the guide goes first in the list with its new count,
- * or leaves it. Like a saved guide, it is kept only for the account at the keyboard, and never joins a list the store
- * still holds for another account.
+ * or leaves it.
+ *
+ * A bookmark belongs to the account that PRESSED it, and the caller says who that was (`forUserId`, read before the
+ * request went out). The answer can land after that account left (a slow connection, then a sign-out and another
+ * account signing in), and the guide is someone else's, so unlike `guideSaved` the store cannot tell from the guide.
+ * So it is applied only while that same signed-in account is still at the keyboard; otherwise it is dropped. Nothing is
+ * lost: the server did record it, and the next read for the right account brings it back. It also never joins a list
+ * the store still holds for another account.
  */
-export function guideBookmarked(g: Guide, on: boolean, count: number): void {
+export function guideBookmarked(g: Guide, on: boolean, count: number, forUserId: string | null): void {
   const id = currentIdentity();
-  if (!id || id.anonymous) return;
+  if (!id || id.anonymous || id.userId !== forUserId) return;
   localChanges++;
   const s = useGuides.getState();
   const mineIsTheirs = s.mineOwner === id.userId;

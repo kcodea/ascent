@@ -31,6 +31,8 @@ const BOB = '00000000-0000-0000-0000-00000000000c';
 const CARL = '00000000-0000-0000-0000-00000000000d';
 /** Owns the 201 guides of the bookmark-cap test, so no real author's 20-guide cap is touched. */
 const FILL = '00000000-0000-0000-0000-0000000000f0';
+/** A second Team Ascent account. */
+const TEAM2 = '00000000-0000-0000-0000-00000000000e';
 const SAVE1 = '22222222-2222-4222-8222-222222222221';
 const SAVE2 = '22222222-2222-4222-8222-222222222222';
 let db: PGlite;
@@ -80,13 +82,14 @@ beforeAll(async () => {
   await db.exec(STEP1);
   await db.exec(STEP3);
   await db.exec(STEP3); // re-runs cleanly
-  for (const u of [TEAM, ALICE, BOB, CARL, FILL]) await db.query('insert into auth.users (id) values ($1)', [u]);
-  await db.query('insert into public.guide_team (user_id) values ($1)', [TEAM]);
+  for (const u of [TEAM, TEAM2, ALICE, BOB, CARL, FILL]) await db.query('insert into auth.users (id) values ($1)', [u]);
+  for (const u of [TEAM, TEAM2]) await db.query('insert into public.guide_team (user_id) values ($1)', [u]);
 }, 60_000);
 afterAll(async () => { await db.close(); });
 // The 30-an-hour log is per account and this file saves often: start every test with it empty. The tests that pin
 // the limit fill it themselves.
-beforeEach(async () => { await db.exec('delete from public.guide_writes'); });
+// Player guides too (their bookmarks go with them): each account has a 20-guide cap, and no test relies on another's guide.
+beforeEach(async () => { await db.exec('delete from public.guide_writes; delete from public.guides where not official'); });
 
 describe('a repeated save is applied once', () => {
   it('the same save id creates one guide and answers it again', async () => {
@@ -110,9 +113,37 @@ describe('a repeated save is applied once', () => {
     expect(await err(save(ALICE, doc({ id: g.id, revision: 1, title: 'Stale 3', save_id: '22222222-2222-4222-8222-222222222223' })))).toContain('conflict');
   });
   it("another account sending the same save id gets its own guide, never the first account's", async () => {
-    const mine = await save(BOB, doc({ title: 'Bobs', byline: 'Bob', save_id: SAVE1 }));
+    const sid = '22222222-2222-4222-8222-22222222222b';
+    const first = await save(ALICE, doc({ title: 'Alices shared id', save_id: sid }));
+    const mine = await save(BOB, doc({ title: 'Bobs', byline: 'Bob', save_id: sid }));
+    expect(mine.id).not.toBe(first.id);
     expect(mine.author_id).toBe(BOB);
     expect(mine.title).toBe('Bobs');
+  });
+  it('a save id is a replay only for the guide the request names', async () => {
+    const sid = '22222222-2222-4222-8222-22222222222c';
+    const g1 = await save(ALICE, doc({ title: 'Replay G1', save_id: sid }));
+    const g2 = await save(ALICE, doc({ title: 'Replay G2' }));
+    const out = await save(ALICE, doc({ id: g2.id, revision: 1, title: 'Replay G2 edited', save_id: sid }));
+    expect(out.id).toBe(g2.id);
+    expect(out.id).not.toBe(g1.id);
+    expect(out.title).toBe('Replay G2 edited');
+    expect(out.revision).toBe(2);
+  });
+  it('a replay is never refused for the 30 an hour, but a new save is', async () => {
+    const sid = '22222222-2222-4222-8222-22222222222d';
+    const a = await save(CARL, doc({ title: 'Carl replay', byline: 'Carl', save_id: sid }));
+    await db.query('insert into public.guide_writes (user_id) select $1 from generate_series(1, 30)', [CARL]);
+    const again = await save(CARL, doc({ title: 'Carl replay', byline: 'Carl', save_id: sid }));
+    expect(again.id).toBe(a.id);
+    expect(await err(save(CARL, doc({ title: 'Carl new', byline: 'Carl', save_id: '22222222-2222-4222-8222-22222222222e' })))).toContain('rate_limited');
+  });
+  it('two team accounts sending the same save id each get their own official guide', async () => {
+    const sid = '22222222-2222-4222-8222-22222222222f';
+    const a = await save(TEAM, doc({ official: true, title: 'Team shared id A', save_id: sid }));
+    const b = await save(TEAM2, doc({ official: true, title: 'Team shared id B', save_id: sid }));
+    expect(b.id).not.toBe(a.id);
+    expect(b.title).toBe('Team shared id B');
   });
   it('a replay does not count toward the 30 saves an hour', async () => {
     await db.query('delete from public.guide_writes where user_id = $1', [CARL]);
@@ -138,6 +169,12 @@ describe('guide_own_row', () => {
   it('refuses a Team Ascent guide, even to the team', async () => {
     const o = await save(TEAM, doc({ official: true, title: 'Official one' }));
     expect(await err(own(TEAM, o.id))).toContain('not_allowed');
+  });
+  it("answers the author's own HIDDEN guide, and publishing it is then refused", async () => {
+    const g = await save(ALICE, doc({ title: 'Own hidden' }));
+    await db.query('update public.guides set hidden = true where id = $1', [g.id]);
+    expect((await own(ALICE, g.id)).title).toBe('Own hidden');
+    expect(await err(publish(ALICE, g.id, true, 1))).toContain('guide_hidden');
   });
 });
 
@@ -196,6 +233,7 @@ describe('guide_set_published', () => {
     expect(await err(publish(CARL, g.id, true, 1))).toContain('rate_limited');
     await db.query('delete from public.guide_writes where user_id = $1', [CARL]);
     await publish(CARL, g.id, true, 1);
+    expect(await count('select count(*) as n from public.guide_writes where user_id = $1', [CARL])).toBe(1);
     await db.query("insert into public.guide_writes (user_id) select $1 from generate_series(1, 40)", [CARL]);
     expect((await publish(CARL, g.id, false, null)).published).toBe(false);
   });
@@ -237,6 +275,20 @@ describe('guide_bookmark', () => {
     await bookmark(CARL, some, false);
     expect((await bookmark(CARL, last, true)).bookmarked).toBe(true);
   });
+  it('removing a bookmark answers no count for a private guide the caller never bookmarked', async () => {
+    const priv = await save(ALICE, doc({ title: 'Bm private count' }));
+    await db.query('update public.guides set bookmark_count = 7 where id = $1', [priv.id]);
+    expect(await bookmark(BOB, priv.id, false)).toEqual({ bookmarked: false, count: 0 });
+  });
+  it('removing a bookmark of a guide that has since gone private works and answers count 0', async () => {
+    const g = await published(ALICE, 'Bm went private');
+    await bookmark(BOB, g.id, true);
+    await bookmark(TEAM2, g.id, true);
+    await publish(ALICE, g.id, false, null);
+    expect(await bookmark(BOB, g.id, false)).toEqual({ bookmarked: false, count: 0 });
+    expect(await count('select count(*) as n from public.guide_bookmarks where user_id = $1 and guide_id = $2', [BOB, g.id])).toBe(0);
+    expect(await count('select bookmark_count as n from public.guides where id = $1', [g.id])).toBe(1);
+  });
   it('the count survives the ways a bookmark can go: the guide deleted, the account deleted', async () => {
     const g = await published(ALICE, 'Bm E');
     const tmp = '00000000-0000-0000-0000-0000000000f1';
@@ -270,6 +322,11 @@ describe('the locks', () => {
       expect(await asRole(role, BOB, `select public.guide_bookmark('${BOB}'::uuid, '${String(g.id)}'::uuid, true)`)).toMatch(/permission denied/);
       expect(await asRole(role, BOB, `select public.guide_own_row('${ALICE}'::uuid, '${String(g.id)}'::uuid)`)).toMatch(/permission denied/);
       expect(await asRole(role, BOB, `insert into public.guide_bookmarks (user_id, guide_id) values ('${BOB}', '${String(g.id)}')`)).toMatch(/permission denied|row-level security/);
+    }
+  });
+  it('guide_save, which this file replaces, is still closed to the client roles', async () => {
+    for (const role of ['anon', 'authenticated'] as const) {
+      expect(await asRole(role, BOB, `select public.guide_save('${BOB}'::uuid, '{}'::jsonb)`)).toMatch(/permission denied/);
     }
   });
   it('every new function refuses a missing caller', async () => {

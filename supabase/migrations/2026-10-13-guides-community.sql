@@ -4,6 +4,7 @@
 --
 -- Paste into the Supabase SQL Editor and Run, AFTER supabase/migrations/2026-10-12-guides.sql. Idempotent: safe to
 -- re-run. The same block is appended to schema.sql; keep the two identical.
+-- Do not re-run 2026-10-12-guides.sql alone after this file: it puts the old guide_save back and a retried save is no longer recognised. If you did, run this file again.
 -- Spec: docs/superpowers/specs/2026-10-11-community-guides-design.md. Devlog: docs/devlog/2026-10-13-guides-community.md.
 --
 -- WHAT
@@ -15,7 +16,8 @@
 --    hidden, and when the row is not at the revision whose text was checked. It counts toward the 30 an hour.
 --  - `guide_bookmark`: a player bookmarks a published guide that is not theirs and not Team Ascent's (200 at most),
 --    or removes a bookmark. A trigger keeps `guides.bookmark_count` true, whichever way a bookmark goes.
---  - Two indexes: the Community list's order, and bookmarks by guide (for the cascade when a guide is deleted).
+--  - Three indexes: the Community list's order (most bookmarked, and newest), and bookmarks by guide (for the cascade
+--    when a guide is deleted).
 --
 -- A client from before this file never sends a save id or calls these functions. A client from after it, talking to
 -- a database from before it: saves still work (the old `guide_save` ignores the id), and publishing and bookmarking
@@ -25,7 +27,8 @@ begin;
 
 alter table public.guides add column if not exists last_save_id uuid;
 create index if not exists guides_last_save on public.guides (last_save_id) where last_save_id is not null;
-create index if not exists guides_community on public.guides (bookmark_count desc, published_at desc, id) where published and not hidden and not official;
+create index if not exists guides_community on public.guides (bookmark_count desc, published_at desc nulls last, id) where published and not hidden and not official;
+create index if not exists guides_community_new on public.guides (published_at desc nulls last, id) where published and not hidden and not official;
 create index if not exists guide_bookmarks_guide on public.guide_bookmarks (guide_id);
 
 create or replace function public.guide_save(p_user uuid, p_doc jsonb) returns jsonb
@@ -48,7 +51,7 @@ begin
   -- step 3: this account already made this very save (the client is pressing Save again after a timeout): answer
   -- the row it wrote. Before the rate limit, so a replay is never counted or refused.
   if v_save is not null then
-    select * into v_row from public.guides where last_save_id = v_save and updated_by = p_user;
+    select * into v_row from public.guides where last_save_id = v_save and updated_by = p_user and (v_id is null or id = v_id); -- step 3
     if found then return to_jsonb(v_row); end if;
   end if;
   v_team := exists (select 1 from public.guide_team where user_id = p_user);
@@ -182,7 +185,7 @@ begin
   else
     delete from public.guide_bookmarks where user_id = p_user and guide_id = p_id;
   end if;
-  return jsonb_build_object('bookmarked', v_on, 'count', coalesce((select bookmark_count from public.guides where id = p_id), 0));
+  return jsonb_build_object('bookmarked', v_on, 'count', coalesce((select bookmark_count from public.guides where id = p_id and published and not hidden), 0));
 end $$;
 
 -- The count follows every way a bookmark can come or go: this function, a deleted guide, a deleted account.
@@ -203,7 +206,7 @@ create trigger guide_bookmarks_count after insert or delete on public.guide_book
 revoke all on function public.guide_own_row(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.guide_set_published(uuid, uuid, boolean, int) from public, anon, authenticated;
 revoke all on function public.guide_bookmark(uuid, uuid, boolean) from public, anon, authenticated;
-revoke all on function public.guide_bookmark_counted() from public, anon, authenticated;
+revoke all on function public.guide_bookmark_counted() from public, anon, authenticated, service_role;
 revoke all on function public.guide_save(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.guide_own_row(uuid, uuid) to service_role;
 grant execute on function public.guide_set_published(uuid, uuid, boolean, int) to service_role;

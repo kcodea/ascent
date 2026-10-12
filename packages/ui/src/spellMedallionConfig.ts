@@ -39,9 +39,13 @@ const DEFAULTS = {
   ...seat('spell', { size: 0.94, dx: 4, dy: 0, glowColor: '#4df3ff', glowSize: 2, glowStrength: 0 }),
   ...seat('ruby', { size: 0.84, dx: 3, dy: -3, glowColor: '#ff3b4a', glowSize: 3, glowStrength: 1 }),
   ...seat('gift', { size: 0.74, dx: 4, dy: -3, glowColor: '#c45bff', glowSize: 9, glowStrength: 0.68 }),
-  // The HERO POWER medallion (the emerald helm, owner art 2026-10-12). Size is the owner's ("reduce the size of the
-  // icon by about 20%": 0.9 -> 0.72); the offset and glow are a first pass by eye.
-  ...seat('power', { size: 0.72, dx: 0, dy: -3, glowColor: '#35f29a', glowSize: 6, glowStrength: 0.6 }),
+  // The HERO POWER medallion (the emerald helm, owner art 2026-10-12), owner-directed the same day: size ("reduce
+  // ... by about 20%": 0.9 -> 0.72), seat ("nudge it down like 6 pixels": dy -3 -> 3), glow ("reduce that by about
+  // 40%", then "reduce the glow by another 20%": strength 0.6 -> 0.36 -> 0.29) and a heavier drop shadow (below).
+  ...seat('power', { size: 0.72, dx: 0, dy: 3, glowColor: '#35f29a', glowSize: 6, glowStrength: 0.29 }),
+  // "Increase the dropshadow intensity": the shared seat is already fully opaque black, so the only way up is a
+  // tighter, deeper shadow (blur 6.5 -> 4, drop 4.5 -> 6). The other three medallions keep the shared seat.
+  powerShadowY: 6, powerShadowBlur: 4,
 } as SpellMedallionConfig;
 
 const COLOR_KEYS: ReadonlySet<string> = new Set(KINDS.flatMap((k) => [`${k}ShadowColor`, `${k}GlowColor`]));

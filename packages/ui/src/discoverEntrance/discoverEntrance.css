@@ -68,8 +68,11 @@ body:has(.dce-preview) .tunerpanel { z-index: 910; }
    each card reserves its plate's real footprint below it (plate + the kind line on its bottom gem), and the panel is
    seated by its BOTTOM just above the button's line instead of centred. Static layout: nothing animates. */
 .discover-ov.disc-full { place-items: end center; padding-bottom: calc(33 * var(--vh, 1vh) - 18 * var(--u)); }
+/* The enlarged plate also rises further above its card (`--plate-k`, see `.disc-cards`): give the row that extra
+   lift back as top margin, so the plate's crown keeps its clearance under the banner's "From X" line. */
+.discover-ov.disc-full .disc-cards { margin-top: calc(24 * var(--u) - var(--plate-top, -37px) * (var(--plate-k, 1) - 1)); }
 .discover-ov.disc-full .disc-slot .card.plated {
-  margin-bottom: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * 1.04 - var(--ccw));
+  margin-bottom: calc(var(--plate-top, -37px) * var(--plate-k, 1) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * 1.04 - var(--ccw));
 }
 
 /* THE ORNATE TITLE BANNER. Absolute, anchored by its BOTTOM where the old flat banner's bottom sat (16u into the

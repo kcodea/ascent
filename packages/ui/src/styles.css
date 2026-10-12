@@ -3026,6 +3026,12 @@ body.modalup .app { z-index: auto; }
   /* `--ccw` is what a compact card actually sizes off (`.card.compact` reads it, not --cw), so redeclaring
      only --ch/--cw left the cards at their inherited size — the bump measured as a no-op until this line. */
   --ccw: calc(var(--cw) * 0.85);
+  /* A PLATED option (Choose One, the hero-power Discover) carries one length that does NOT scale with the card:
+     the plate's lift, `--plate-top`, is plain px tuned at the standard card size. On these 1.3x cards it left the
+     stone plate ~11px low against the frame, text and dark backbox (owner report 2026-10-12: the darkening did
+     not meet the plate's gold trim). `--plate-k` scales that lift by the SAME bump as `--ch` above, so a plated
+     option is the hand card, uniformly larger. The two 1.3s must move together. */
+  --plate-k: 1.3;
 }
 /* Quest overlay: reuses the Discover chrome (blur backdrop, floating transparent panel, gold banner, fixed
    toggle). A subtitle under the banner + a little breathing room for the taller art-forward QuestCards. */
@@ -4491,10 +4497,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 }
 /* HERO POWER (the emerald helm, owner art 2026-10-12): the medallion a hero power wears when it is drawn as a card. */
 .spellmed[data-med='power'], .smedprev-cell[data-med='power'] {
-  --m-size: var(--smed-power-size, 0.72); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, -3px);
-  --m-sx: var(--smed-power-shadow-x, 0px); --m-sy: var(--smed-power-shadow-y, 4.5px); --m-sblur: var(--smed-power-shadow-blur, 6.5px);
+  --m-size: var(--smed-power-size, 0.72); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, 3px);
+  --m-sx: var(--smed-power-shadow-x, 0px); --m-sy: var(--smed-power-shadow-y, 6px); --m-sblur: var(--smed-power-shadow-blur, 4px);
   --m-scolor: var(--smed-power-shadow-color, rgba(0, 0, 0, 1));
-  --m-gsize: var(--smed-power-glow-size, 6px); --m-gcolor: var(--smed-power-glow-color, rgba(53, 242, 154, 0.6));
+  --m-gsize: var(--smed-power-glow-size, 6px); --m-gcolor: var(--smed-power-glow-color, rgba(53, 242, 154, 0.29));
 }
 .card .ctype.spell.spellmed .spellmed-img {
   position: absolute; left: 50%; top: 50%;
@@ -4644,7 +4650,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   position: absolute;
   z-index: 0;                       /* behind every sibling; tree order already puts it first */
   left: 50%;
-  top: var(--plate-top, -37px);
+  /* `--plate-top` is px at the standard card size; `--plate-k` (1 everywhere but an enlarged offer row, see
+     `.disc-cards`) keeps the lift in proportion when the card itself is drawn bigger. */
+  top: calc(var(--plate-top, -37px) * var(--plate-k, 1));
   width: calc(var(--ccw) * var(--plate-scale, 1.5));
   /* Shipped art is 800x1244 → height = width x 1.5550. Locked, never stretched. */
   height: calc(var(--ccw) * var(--plate-scale, 1.5) * 1.5550);
@@ -4663,7 +4671,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   position: absolute;
   z-index: 2;
   left: 50%;
-  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * var(--plate-tribe-yf, 1.015));
+  top: calc(var(--plate-top, -37px) * var(--plate-k, 1) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * var(--plate-tribe-yf, 1.015));
   transform: translate(calc(-50% + var(--ccw) * var(--plate-tribe-xf, 0)), -50%);
   pointer-events: none;
   user-select: none;
@@ -4690,7 +4698,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    same `--plate-*` geometry the tribe label uses, so it moves with any plate retune. */
 .card.plated .stepcounter {
   bottom: auto;
-  top: calc(var(--plate-top, -37px) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * 1.085);
+  top: calc(var(--plate-top, -37px) * var(--plate-k, 1) + var(--ccw) * var(--plate-scale, 1.5) * 1.5550 * 1.085);
 }
 /* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
    by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter

@@ -17,10 +17,12 @@ let openMemo: { run: string; id: string | null } = { run: '', id: null };
  * a time. The expansion animates `grid-template-rows` (0fr -> 1fr) as a one-shot transition, so nothing is measured.
  * A guide's body mounts the first time it opens and stays mounted, so collapsing can animate too.
  */
-export const LobbyGuides = memo(function LobbyGuides({ guides, mine, canEdit, tribes, runKey, mode, onMode }: {
+export const LobbyGuides = memo(function LobbyGuides({ guides, mine, bookmarked, canEdit, tribes, runKey, mode, onMode }: {
   guides: readonly Guide[];
   /** The player's own guides for this game (set + lobby tribes), shown after Team Ascent's. */
   mine: readonly Guide[];
+  /** The guides this player bookmarked, for this game, shown last. Never editable from here. */
+  bookmarked: readonly Guide[];
   /** May this account edit this guide? Draws the Edit button on an open card. */
   canEdit: (g: Guide) => boolean;
   tribes: readonly Tribe[]; runKey: string;
@@ -68,7 +70,7 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, mine, canEdit, tr
     const ro = new ResizeObserver(fit);
     ro.observe(list);
     return () => ro.disconnect();
-  }, [guides.length, mine.length]);
+  }, [guides.length, mine.length, bookmarked.length]);
   // A mode switch reflows the open card (the rail widens / narrows): re-centre it once the widen has played.
   const firstMode = useRef(true);
   useEffect(() => {
@@ -77,7 +79,7 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, mine, canEdit, tr
     const t = window.setTimeout(() => centreGuide(listRef.current, open), 300);
     return () => window.clearTimeout(t);
   }, [mode]);
-  if (guides.length === 0 && mine.length === 0) return <div className="lobbyguides"><div className="lobbyguides-empty">No guides for this game yet.</div></div>;
+  if (guides.length === 0 && mine.length === 0 && bookmarked.length === 0) return <div className="lobbyguides"><div className="lobbyguides-empty">No guides for this game yet.</div></div>;
   return (
     <div className="lobbyguides" ref={listRef}>
       <div className="lobbyguide-unitrow lobbyguides-probe" ref={probeRef} aria-hidden="true"><div className="lobbyguide-unit"><div className="lobbyguide-unitscale" /></div></div>
@@ -91,6 +93,12 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, mine, canEdit, tr
       {mine.length > 0 && <div className="lobbyguides-sec" role="presentation">Your guides</div>}
       {mine.map((g) => (
         <GuideRow key={g.id} guide={g} tribes={tribes} open={open === g.id} full={mode === 'full'} onMode={onMode} editable={canEdit(g)}
+          onToggle={() => { userOpened.current = open !== g.id; setOpen((o) => (o === g.id ? null : g.id)); }} />
+      ))}
+      {/* The guides this player bookmarked (step 3): the same rows, last, under one quiet label. Read-only here. */}
+      {bookmarked.length > 0 && <div className="lobbyguides-sec" role="presentation">Bookmarked</div>}
+      {bookmarked.map((g) => (
+        <GuideRow key={g.id} guide={g} tribes={tribes} open={open === g.id} full={mode === 'full'} onMode={onMode} editable={false}
           onToggle={() => { userOpened.current = open !== g.id; setOpen((o) => (o === g.id ? null : g.id)); }} />
       ))}
     </div>

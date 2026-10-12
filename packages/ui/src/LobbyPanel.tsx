@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   boardIntel, getHero, lastRoundDamage, playerOpponent, roundLossCap, seatResults, snapshotBoard,
@@ -17,8 +17,8 @@ import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { LobbyGuides } from './guides/LobbyGuides';
-import { guidesFor, type GuidesMode } from './guides/guides';
-import { useGuides } from './guides/guidesStore';
+import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
+import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
@@ -38,6 +38,14 @@ function maxDamageTip(cap: number): { title: string; rule: string } {
 /** Which face the rail shows. Kept per run for the session, so a remount keeps it; a new game starts on Opponents
  *  (owner ruling 2026-10-09: "it stays until toggled, but every new game starts on the opponent view"). */
 type RailView = 'opponents' | 'guides';
+const NO_GUIDES: readonly Guide[] = [];
+/** The rail's view of the guides store, for the account signed in right now. The player's own guides are taken only
+ *  when the store holds them for THAT account: guides it still holds for another account are never taken. */
+const snapGuides = (): { list: readonly Guide[]; mine: readonly Guide[]; uid: string | null } => {
+  const s = useGuides.getState();
+  const uid = useGame.getState().account.userId;
+  return { list: s.list, mine: ownsMine(s, uid) ? s.mine : NO_GUIDES, uid };
+};
 let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents' };
 
 /** The Guides view's display mode (owner ask 2026-10-09): SIMPLE keeps the rail at its normal width and shows only the
@@ -105,9 +113,21 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
-  // one-frame jump on open.
-  const [guideList, setGuideList] = useState(() => useGuides.getState().list);
-  const guides = useMemo(() => guidesFor(setId, runTribes, guideList), [setId, runTribes, guideList]);
+  // one-frame jump on open. The player's own guides are part of the same snapshot.
+  // The snapshot also records WHICH ACCOUNT it was taken for: the player's own guides are private, so they are shown
+  // only while that account is still the signed-in one (an account switch with the view open must not show them),
+  // and they are only ever taken from a store that holds them for that same account (`snapGuides`).
+  const [guideSnap, setGuideSnap] = useState(snapGuides);
+  const guides = useMemo(() => guidesFor(setId, runTribes, guideSnap.list), [setId, runTribes, guideSnap.list]);
+  const myGuidesAll = useMemo(() => guidesFor(setId, runTribes, guideSnap.mine), [setId, runTribes, guideSnap.mine]);
+  // Who may edit: a boolean and an id, both cheap to subscribe to. The guide LISTS are still only a snapshot.
+  // Editing needs the server, so no Edit button unless the guides capability is on.
+  const guideTeam = useGuides((s) => s.team);
+  const guidesLive = useGuides((s) => s.capability === 'on');
+  const guideUserId = useGame((st) => st.account.userId);
+  const myGuides = guideUserId === guideSnap.uid ? myGuidesAll : NO_GUIDES;
+  const guideCount = guides.length + myGuides.length;
+  const canEditInRail = useCallback((g: Guide) => guidesLive && canEditGuide(g, guideUserId, guideTeam), [guidesLive, guideUserId, guideTeam]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
   const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
   // The swap animation, set only by a toggle (never on mount): the rail widens into the FULL Guides view and narrows
@@ -116,7 +136,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useEffect(() => { if (railViewMemo.run !== runKey) { setView('opponents'); setSwap(null); } }, [runKey]);
   useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
   const showGuides = guidesOn && view === 'guides';
-  useLayoutEffect(() => { if (showGuides) setGuideList(useGuides.getState().list); }, [showGuides]);
+  useLayoutEffect(() => {
+    if (!showGuides) return;
+    const next = snapGuides();
+    // Same two arrays and account as last time = the same snapshot object, so nothing re-renders.
+    setGuideSnap((cur) => (cur.list === next.list && cur.mine === next.mine && cur.uid === next.uid ? cur : next));
+  }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);
     setPinned(null);
@@ -299,12 +324,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
     <div className={`lobbyrail${railMods}`} style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guides.length} guide${guides.length === 1 ? '' : 's'}` : `${living.length} left`}</span>
+        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : `${living.length} left`}</span>
       </div>
 
       {showGuides ? (
         <div className={`lobbyview${swap ? ' lobbyview-in' : ''}`} key="guides">
-          <LobbyGuides guides={guides} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
+          <LobbyGuides guides={guides} mine={myGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
         </div>
       ) : (
       <div className={`lobbyseats${swap ? ' lobbyview-in' : ''}`} key="seats">

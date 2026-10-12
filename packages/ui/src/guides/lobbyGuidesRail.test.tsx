@@ -18,10 +18,17 @@ import { GUIDES, guidesFor } from './guides';
 import { resetGuidesForTests, useGuides } from './guidesStore';
 
 let ui: Mounted | null = null;
+const prevAccount = useGame.getState().account;
 beforeEach(() => { try { localStorage.removeItem('ascent.guidesMode'); } catch { /* ignore */ } });
-afterEach(() => { resetGuidesForTests(); ui?.unmount(); ui = null; });
+afterEach(() => {
+  act(() => { resetGuidesForTests(); });
+  act(() => { useGame.setState({ account: prevAccount, showBook: false }); });
+  ui?.unmount(); ui = null;
+});
 
 const click = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
+/** Account u-1 is signed in (the store holds `mine` for the account named in its `mineOwner`). */
+const signInU1 = (): void => { act(() => { useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } }); }); };
 
 /** Flip to Guides (the view is remembered per run for the session, so a re-used seed may already be there). */
 const openGuides = (c: HTMLElement): void => {
@@ -150,5 +157,197 @@ describe('lobby rail guides view', () => {
     click(tab);
     click(tab);
     expect(c.textContent).toContain('Renamed on the server');
+  });
+
+  it('the player\'s own guides for this game follow Team Ascent\'s, under a "Your guides" label', () => {
+    const c = mountRail(8181);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'My private build', sets: [run.setId ?? 'set1'], tribes: [run.tribes[0]!] };
+    const elsewhere = { ...own, id: 'own-2', rowId: 'own-2', title: 'For another set', sets: [] };
+    // Set before the Guides view opens: opening it is when the rail takes its snapshot.
+    signInU1();
+    act(() => { useGuides.setState({ mine: [own, elsewhere], mineOwner: 'u-1' }); });
+    openGuides(c);
+    const labels = [...c.querySelectorAll('.lobbyguides-sec')].map((n) => n.textContent);
+    expect(labels).toEqual(['Your guides']);
+    const ids = [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide'));
+    expect(ids[ids.length - 1]).toBe('own-1');
+    expect(ids).not.toContain('own-2');
+    expect(ids.slice(0, -1)).toEqual(guidesFor(run.setId, run.tribes).map((g) => g.id));
+  });
+
+  it('with no guides of their own there is no "Your guides" label', () => {
+    const c = mountRail(8282);
+    openGuides(c);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+  });
+
+  it('an open guide the player may edit has an Edit button that opens the Compendium on it; one they may not edit has none', () => {
+    const c = mountRail(8383);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null }, showBook: false });
+      useGuides.setState({ mine: [own], mineOwner: 'u-1', capability: 'on' });
+    });
+    openGuides(c);
+    const head = (id: string): Element => c.querySelector(`.lobbyguide[data-guide="${id}"] .lobbyguide-head`)!;
+    const official = guidesFor(run.setId, run.tribes)[0]!;
+    click(head(official.id));
+    expect(c.querySelector(`.lobbyguide[data-guide="${official.id}"] .lobbyguide-editbtn`)).toBeNull();
+    click(head('own-1'));
+    const edit = c.querySelector(`.lobbyguide[data-guide="own-1"] .lobbyguide-editbtn`)!;
+    expect(edit.textContent).toBe('Edit');
+    click(edit);
+    expect(useGuides.getState().pendingEdit).toBe('own-1');
+    expect(useGame.getState().showBook).toBe(true);
+    act(() => { useGame.setState({ showBook: false }); });
+  });
+
+  it('without the guides server there is no Edit button, even on a guide the player owns', () => {
+    const c = mountRail(8585);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } });
+      useGuides.setState({ mine: [own], mineOwner: 'u-1', capability: 'off' });
+    });
+    openGuides(c);
+    click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-head')!);
+    expect(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-modebtn')).not.toBeNull();
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+  });
+
+  it('the rail takes its own guides as a snapshot too: a save that lands while it is open does not add a card', () => {
+    const c = mountRail(8484);
+    const run = useGame.getState().run;
+    signInU1();
+    openGuides(c);
+    const before = c.querySelectorAll('.lobbyguide').length;
+    act(() => { useGuides.setState({ mine: [{ ...GUIDES[0]!, id: 'late', rowId: 'late', official: false, authorId: 'u-1', sets: [run.setId ?? 'set1'], tribes: [] }], mineOwner: 'u-1' }); });
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(before);
+    const tab = c.querySelector('.lobbyrailtab')!;
+    click(tab);
+    click(tab);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(before + 1);
+  });
+
+  it('the header counts every card shown: Team Ascent\'s guides plus the player\'s own', () => {
+    const c = mountRail(8686);
+    const run = useGame.getState().run;
+    const team = guidesFor(run.setId, run.tribes).length;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    signInU1();
+    act(() => { useGuides.setState({ mine: [own], mineOwner: 'u-1' }); });
+    openGuides(c);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(team + 1);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${team + 1} guides`);
+  });
+
+  it('the header says "1 guide" for a single card', () => {
+    const c = mountRail(8787);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    // A set with no Team Ascent guides: only the player's own card shows.
+    signInU1();
+    act(() => { useGuides.setState({ list: [], mine: [own], mineOwner: 'u-1' }); });
+    openGuides(c);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(1);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe('1 guide');
+  });
+
+  it('the previous account\'s own guides leave the open rail when the account changes; Team Ascent\'s stay', () => {
+    const c = mountRail(8888);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Private build', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } });
+      useGuides.setState({ mine: [own], mineOwner: 'u-1' });
+    });
+    openGuides(c);
+    const team = guidesFor(run.setId, run.tribes).map((g) => g.id);
+    const shown = (): (string | null)[] => [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide'));
+    expect(shown()).toEqual([...team, 'own-1']);
+    expect(c.querySelector('.lobbyguides-sec')).not.toBeNull();
+
+    // Another account signs in while the Guides view stays open.
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null } }); });
+    expect(shown()).toEqual(team);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+    expect(c.textContent).not.toContain('Private build');
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${team.length} guides`);
+
+    // ...or a guest (no account id at all).
+    act(() => { useGame.setState({ account: { userId: null, email: null, anonymous: true, discriminator: null } }); });
+    expect(shown()).toEqual(team);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+  });
+
+  it('guides the store still holds for another account are never drawn: not for nobody, not for a second account, only for their owner', () => {
+    // The store was never told the account changed (a missed re-read): it still holds account u-1's private guides.
+    const run = createLobbyRun(8890, 'warden');
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Private build', sets: [run.setId ?? 'set1'], tribes: [] };
+    const team = guidesFor(run.setId, run.tribes).map((g) => g.id);
+    const openAs = (account: { userId: string | null; email: string | null; anonymous: boolean; discriminator: null }): HTMLElement => {
+      ui?.unmount();
+      act(() => { useGame.setState({ run, combatStaged: false, account }); });
+      act(() => { useGuides.setState({ mine: [own], mineOwner: 'u-1' }); });
+      ui = mount(<LobbyPanel lobby={run.lobby!} />);
+      openGuides(ui.container);
+      return ui.container;
+    };
+    const shown = (c: HTMLElement): (string | null)[] => [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide'));
+    for (const account of [
+      { userId: null, email: null, anonymous: true, discriminator: null },                 // signed out
+      { userId: 'g-9', email: null, anonymous: true, discriminator: null },                // a guest session
+      { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null },   // another account
+    ]) {
+      const c = openAs(account);
+      expect(shown(c), String(account.userId)).toEqual(team);
+      expect(c.querySelector('.lobbyguides-sec'), String(account.userId)).toBeNull();
+      expect(c.textContent, String(account.userId)).not.toContain('Private build');
+      expect(c.querySelector('.lobbyalive')!.textContent, String(account.userId)).toBe(`${team.length} guides`);
+      // Closing and reopening the view takes a new snapshot: still none.
+      const tab = c.querySelector('.lobbyrailtab')!;
+      click(tab);
+      click(tab);
+      expect(shown(c), String(account.userId)).toEqual(team);
+    }
+    const c = openAs({ userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null });
+    expect(shown(c)).toEqual([...team, 'own-1']);
+    expect(c.querySelector('.lobbyguides-sec')!.textContent).toBe('Your guides');
+  });
+
+  it('guides held for nobody (no owner recorded) are not drawn, even with nobody signed in', () => {
+    const c = mountRail(8891);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Private build', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => { useGame.setState({ account: { userId: null, email: null, anonymous: true, discriminator: null } }); });
+    act(() => { useGuides.setState({ mine: [own], mineOwner: null }); });
+    openGuides(c);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+    expect(c.textContent).not.toContain('Private build');
+  });
+
+  it('Edit sets the Compendium request before it opens the Compendium, which reads it once on mount', () => {
+    const c = mountRail(8989);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null }, showBook: false });
+      useGuides.setState({ mine: [own], mineOwner: 'u-1', capability: 'on' });
+    });
+    openGuides(c);
+    click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-head')!);
+    let pendingWhenOpened: string | null | undefined;
+    const unsubscribe = useGame.subscribe((st, prev) => {
+      if (st.showBook && !prev.showBook && pendingWhenOpened === undefined) pendingWhenOpened = useGuides.getState().pendingEdit;
+    });
+    try {
+      click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-editbtn')!);
+    } finally {
+      unsubscribe();
+    }
+    expect(pendingWhenOpened).toBe('own-1');
   });
 });

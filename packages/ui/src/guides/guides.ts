@@ -73,7 +73,8 @@ export function poolIdsFor(setId: SetId): ReadonlySet<string> {
   return ids;
 }
 
-const SET_FACTS: readonly SetFacts[] = SET_IDS.map((id) => ({ id, cardIds: poolIdsFor(id), tribes: SETS[id].tribes }));
+/** Every set's card ids and tribe roster, in the shape the carry-over rule (`guideSetsFor`) takes. */
+export const SET_FACTS: readonly SetFacts[] = SET_IDS.map((id) => ({ id, cardIds: poolIdsFor(id), tribes: SETS[id].tribes }));
 
 /** The built-in guides as `Guide`s: each shows in the set it was written for, plus any set all of its cards are in. */
 export const GUIDES: readonly Guide[] = BUNDLED_GUIDE_DATA.map((d, i) => {
@@ -163,4 +164,14 @@ export function guideMissingIds(guide: Guide, setId: SetId | undefined): Readonl
   const pool = poolIdsFor(setId ?? 'set1');
   const out = [...guide.core, ...guide.enablers, ...(guide.mentions ?? [])].filter((id) => !pool.has(id));
   return out.length ? new Set(out) : NO_MISSING;
+}
+
+/**
+ * May this account EDIT (and delete) this guide? Only decides which buttons are drawn: the server is what refuses a
+ * write. A Team Ascent guide: the team, once it has a server row (a built-in copy cannot be edited until the import
+ * has run). A player guide: its author, and nobody else (the team hides or deletes; it does not rewrite).
+ */
+export function canEditGuide(g: Guide, userId: string | null, team: boolean): boolean {
+  if (g.rowId === null) return false;
+  return g.official ? team : userId !== null && g.authorId === userId;
 }

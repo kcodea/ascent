@@ -68,7 +68,7 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, mine, canEdit, tr
     const ro = new ResizeObserver(fit);
     ro.observe(list);
     return () => ro.disconnect();
-  }, [guides.length + mine.length]);
+  }, [guides.length, mine.length]);
   // A mode switch reflows the open card (the rail widens / narrows): re-centre it once the widen has played.
   const firstMode = useRef(true);
   useEffect(() => {

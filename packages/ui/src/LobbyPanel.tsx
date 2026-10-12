@@ -38,6 +38,7 @@ function maxDamageTip(cap: number): { title: string; rule: string } {
 /** Which face the rail shows. Kept per run for the session, so a remount keeps it; a new game starts on Opponents
  *  (owner ruling 2026-10-09: "it stays until toggled, but every new game starts on the opponent view"). */
 type RailView = 'opponents' | 'guides';
+const NO_GUIDES: readonly Guide[] = [];
 let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents' };
 
 /** The Guides view's display mode (owner ask 2026-10-09): SIMPLE keeps the rail at its normal width and shows only the
@@ -106,14 +107,18 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
   // one-frame jump on open. The player's own guides are part of the same snapshot.
-  const [guideSnap, setGuideSnap] = useState(() => ({ list: useGuides.getState().list, mine: useGuides.getState().mine }));
+  // The snapshot also records WHICH ACCOUNT it was taken for: the player's own guides are private, so they are shown
+  // only while that account is still the signed-in one (an account switch with the view open must not show them).
+  const [guideSnap, setGuideSnap] = useState(() => ({ list: useGuides.getState().list, mine: useGuides.getState().mine, uid: useGame.getState().account.userId }));
   const guides = useMemo(() => guidesFor(setId, runTribes, guideSnap.list), [setId, runTribes, guideSnap.list]);
-  const myGuides = useMemo(() => guidesFor(setId, runTribes, guideSnap.mine), [setId, runTribes, guideSnap.mine]);
+  const myGuidesAll = useMemo(() => guidesFor(setId, runTribes, guideSnap.mine), [setId, runTribes, guideSnap.mine]);
   // Who may edit: a boolean and an id, both cheap to subscribe to. The guide LISTS are still only a snapshot.
   // Editing needs the server, so no Edit button unless the guides capability is on.
   const guideTeam = useGuides((s) => s.team);
   const guidesLive = useGuides((s) => s.capability === 'on');
   const guideUserId = useGame((st) => st.account.userId);
+  const myGuides = guideUserId === guideSnap.uid ? myGuidesAll : NO_GUIDES;
+  const guideCount = guides.length + myGuides.length;
   const canEditInRail = useCallback((g: Guide) => guidesLive && canEditGuide(g, guideUserId, guideTeam), [guidesLive, guideUserId, guideTeam]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
   const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
@@ -126,8 +131,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useLayoutEffect(() => {
     if (!showGuides) return;
     const s = useGuides.getState();
-    // Same two arrays as last time = the same snapshot object, so nothing re-renders.
-    setGuideSnap((cur) => (cur.list === s.list && cur.mine === s.mine ? cur : { list: s.list, mine: s.mine }));
+    const uid = useGame.getState().account.userId;
+    // Same two arrays and account as last time = the same snapshot object, so nothing re-renders.
+    setGuideSnap((cur) => (cur.list === s.list && cur.mine === s.mine && cur.uid === uid ? cur : { list: s.list, mine: s.mine, uid }));
   }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);
@@ -311,7 +317,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
     <div className={`lobbyrail${railMods}`} style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guides.length} guide${guides.length === 1 ? '' : 's'}` : `${living.length} left`}</span>
+        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : `${living.length} left`}</span>
       </div>
 
       {showGuides ? (

@@ -227,4 +227,75 @@ describe('lobby rail guides view', () => {
     click(tab);
     expect(c.querySelectorAll('.lobbyguide').length).toBe(before + 1);
   });
+
+  it('the header counts every card shown: Team Ascent\'s guides plus the player\'s own', () => {
+    const c = mountRail(8686);
+    const run = useGame.getState().run;
+    const team = guidesFor(run.setId, run.tribes).length;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => { useGuides.setState({ mine: [own] }); });
+    openGuides(c);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(team + 1);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${team + 1} guides`);
+  });
+
+  it('the header says "1 guide" for a single card', () => {
+    const c = mountRail(8787);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    // A set with no Team Ascent guides: only the player's own card shows.
+    act(() => { useGuides.setState({ list: [], mine: [own] }); });
+    openGuides(c);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(1);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe('1 guide');
+  });
+
+  it('the previous account\'s own guides leave the open rail when the account changes; Team Ascent\'s stay', () => {
+    const c = mountRail(8888);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Private build', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } });
+      useGuides.setState({ mine: [own] });
+    });
+    openGuides(c);
+    const team = guidesFor(run.setId, run.tribes).map((g) => g.id);
+    const shown = (): (string | null)[] => [...c.querySelectorAll('.lobbyguide')].map((g) => g.getAttribute('data-guide'));
+    expect(shown()).toEqual([...team, 'own-1']);
+    expect(c.querySelector('.lobbyguides-sec')).not.toBeNull();
+
+    // Another account signs in while the Guides view stays open.
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null } }); });
+    expect(shown()).toEqual(team);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+    expect(c.textContent).not.toContain('Private build');
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${team.length} guides`);
+
+    // ...or a guest (no account id at all).
+    act(() => { useGame.setState({ account: { userId: null, email: null, anonymous: true, discriminator: null } }); });
+    expect(shown()).toEqual(team);
+    expect(c.querySelector('.lobbyguides-sec')).toBeNull();
+  });
+
+  it('Edit sets the Compendium request before it opens the Compendium, which reads it once on mount', () => {
+    const c = mountRail(8989);
+    const run = useGame.getState().run;
+    const own = { ...GUIDES[0]!, id: 'own-1', rowId: 'own-1', official: false, published: false, authorId: 'u-1', title: 'Mine', sets: [run.setId ?? 'set1'], tribes: [] };
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null }, showBook: false });
+      useGuides.setState({ mine: [own], capability: 'on' });
+    });
+    openGuides(c);
+    click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-head')!);
+    let pendingWhenOpened: string | null | undefined;
+    const unsubscribe = useGame.subscribe((st, prev) => {
+      if (st.showBook && !prev.showBook && pendingWhenOpened === undefined) pendingWhenOpened = useGuides.getState().pendingEdit;
+    });
+    try {
+      click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-editbtn')!);
+    } finally {
+      unsubscribe();
+    }
+    expect(pendingWhenOpened).toBe('own-1');
+  });
 });

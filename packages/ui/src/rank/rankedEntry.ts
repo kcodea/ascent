@@ -36,6 +36,8 @@ export const RANKED_ENTRY_PLACEMENT = DEFAULT_LOBBY_RULES.seatCount;
 export const RANKED_CONFIRM_TEXT = 'This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you like to proceed?';
 export const RANKED_CONFIRM_YES = "Yes, let's go.";
 export const RANKED_CONFIRM_NO = 'No, go back.';
+/** How long "No, go back." plays the card's exit before it unmounts. Mirrors `rc-out` in styles.css. */
+export const RANKED_CONFIRM_EXIT_MS = 160;
 
 function isRankedEntry(x: unknown): x is RankedEntry {
   if (!x || typeof x !== 'object') return false;

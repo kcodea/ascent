@@ -8484,6 +8484,34 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    answers as equal-height buttons side by side: Yes in the orange primary, No as a plain outlined button. No
    per-element `cursor`: the global button rule paints the game cursor. */
 .rankedconfirm { max-width: 640px; gap: 20px; }
+/* IT OPENS OVER THE MODE PICKER (owner 2026-10-12): the picker stays on screen behind a veil that darkens and
+   blurs it, and the card expands out of the centre with a small bounce. One layer above `.modepick` (z 400).
+   PERF: every keyframe is `transform` / `opacity` only. The veil's `backdrop-filter` is STATIC; what animates is
+   the veil's opacity, so the blur is painted once and faded by the compositor (never animate the blur radius).
+   One-shot, not a loop. "No, go back." plays the short reverse (`.closing`, RANKED_CONFIRM_EXIT_MS in
+   rank/rankedEntry.ts mirrors `rc-out`'s 160ms). */
+.rankedconfirm-ov { position: fixed; inset: 0; z-index: 401; display: grid; place-items: center; padding: 24px; }
+.rankedconfirm-veil {
+  position: absolute; inset: 0; background: rgba(3, 7, 16, 0.6);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  animation: rc-veil 0.26s ease-out both;
+}
+.rankedconfirm-ov .rankedconfirm { position: relative; transform-origin: 50% 50%; animation: rc-pop 0.44s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rankedconfirm-ov.closing .rankedconfirm-veil { animation: rc-veil-out 0.16s ease-in both; }
+.rankedconfirm-ov.closing .rankedconfirm { animation: rc-out 0.16s ease-in both; }
+@keyframes rc-veil { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rc-veil-out { from { opacity: 1; } to { opacity: 0; } }
+/* Out past full size, a small dip under it, then settle: the bounce. */
+@keyframes rc-pop {
+  0% { opacity: 0; transform: scale(0.55); }
+  55% { opacity: 1; transform: scale(1.06); }
+  78% { transform: scale(0.985); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes rc-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+@media (prefers-reduced-motion: reduce) {
+  .rankedconfirm-veil, .rankedconfirm-ov .rankedconfirm, .rankedconfirm-ov.closing .rankedconfirm-veil, .rankedconfirm-ov.closing .rankedconfirm { animation: none; }
+}
 .rankedconfirm-text { font-size: 23px; line-height: 1.45; color: #f6efe2; }
 .rankedconfirm-save { font-size: 16px; line-height: 1.45; color: #f0c98a; margin: 0; }
 .rankedconfirm-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; justify-content: center; margin-top: 8px; }

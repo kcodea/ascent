@@ -15,9 +15,15 @@
  *   - an entry left by a closed session is read back whole (same id, same heroes), and a live entry is resumed
  *     by the next Play instead of being re-rolled;
  *   - Practice and Gauntlet hero selects keep a free, one-press Back.
+ *
+ * And the presentation (owner 2026-10-12): "can this actually take place on the play menu screen instead? and have
+ * the background blurred and darkened? ... i want the screen to darken and blur as this window expands out with a
+ * little bit of a bounce". The mode picker stays mounted under a veil; the motion is transform + opacity only.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { RANK_RULES, resolveRank } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
 
@@ -49,7 +55,7 @@ import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
 import { enqueuePendingRank, flushPendingRanks } from './rankSubmission';
 import {
-  RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
+  RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
   clearRankedEntry, loadRankedEntry, saveRankedEntry, type RankedEntry,
 } from './rankedEntry';
 
@@ -62,6 +68,9 @@ const button = (label: string): HTMLButtonElement | undefined =>
 const press = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); }); };
 const stored = (): RankedEntry | null => loadRankedEntry(() => true);
 const MID = { divisionIndex: 4, points: 50, demotionReady: false };
+const DIALOG = '[role="dialog"][aria-label="Ranked lobby"]';
+/** Let the "No, go back." exit finish (a real timer in Title; it then unmounts the card). */
+const afterExit = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, RANKED_CONFIRM_EXIT_MS + 60)); }); };
 
 beforeEach(() => {
   vi.mocked(enqueuePendingRank).mockClear();
@@ -78,7 +87,7 @@ describe('the Play card asks before it starts a ranked lobby', () => {
 
   it('shows the confirmation in the owner\'s words, with exactly the two answers, and starts nothing yet', () => {
     openConfirm();
-    const dialog = document.querySelector('[role="dialog"][aria-label="Ranked lobby"]');
+    const dialog = document.querySelector(DIALOG);
     expect(dialog).not.toBeNull();
     expect(RANKED_CONFIRM_TEXT).toBe('This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you like to proceed?');
     expect(dialog!.querySelector('.rankedconfirm-text')!.textContent).toBe(RANKED_CONFIRM_TEXT);
@@ -90,16 +99,81 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(stored()).toBeNull();
   });
 
-  it('"No, go back." closes it and leaves the player on the mode picker, uncommitted', () => {
+  it('"No, go back." plays the short exit, then closes it and leaves the player on the mode picker, uncommitted', async () => {
     openConfirm();
     act(() => button(RANKED_CONFIRM_NO)!.click());
-    expect(document.querySelector('[role="dialog"][aria-label="Ranked lobby"]')).toBeNull();
+    expect(document.querySelector(DIALOG)!.classList.contains('closing'), 'the exit is playing').toBe(true);
+    await afterExit();
+    expect(document.querySelector(DIALOG)).toBeNull();
     const st = useGame.getState();
     expect(st.showTitle).toBe(true);
     expect(st.titleView).toBe('modes');
     expect(st.heroChoices).toBeNull();
     expect(st.rankedEntry).toBeNull();
     expect(queued()).toHaveLength(0);
+  });
+
+  it('opens OVER the mode picker: the picker stays on screen behind a veil, the card above it', () => {
+    openConfirm();
+    const dialog = document.querySelector<HTMLElement>(DIALOG)!;
+    expect(dialog.classList.contains('rankedconfirm-ov')).toBe(true);
+    expect(dialog.classList.contains('modepick'), 'it is not its own opaque page any more').toBe(false);
+    const picker = document.querySelector('.modepick');
+    expect(picker, 'the mode picker is still mounted underneath').not.toBeNull();
+    expect(picker!.contains(dialog)).toBe(false);
+    expect(picker!.querySelector('.modecard[data-mp="play"]')).not.toBeNull();
+    const kids = [...dialog.children].map((c) => c.className);
+    expect(kids[0], 'the veil is painted first, under the card').toBe('rankedconfirm-veil');
+    expect(kids[1]).toContain('rankedconfirm');
+  });
+
+  it('a press on the dimmed picker around the card is "No": it closes and commits nothing', async () => {
+    openConfirm();
+    act(() => document.querySelector<HTMLElement>('.rankedconfirm-veil')!.click());
+    await afterExit();
+    expect(document.querySelector(DIALOG)).toBeNull();
+    expect(useGame.getState().rankedEntry).toBeNull();
+    expect(useGame.getState().heroChoices).toBeNull();
+  });
+
+  it('reopening during the exit cancels it: the card stays', async () => {
+    openConfirm();
+    act(() => button(RANKED_CONFIRM_NO)!.click());
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
+    await afterExit();
+    const dialog = document.querySelector(DIALOG);
+    expect(dialog).not.toBeNull();
+    expect(dialog!.classList.contains('closing')).toBe(false);
+  });
+
+  it('the motion is compositor-only: transform + opacity keyframes, a static blur, reduced motion honoured', () => {
+    const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
+    const block = (name: string): string => {
+      const at = css.indexOf(`@keyframes ${name} {`);
+      expect(at, name).toBeGreaterThan(-1);
+      let depth = 0;
+      for (let i = css.indexOf('{', at); i < css.length; i++) {
+        if (css[i] === '{') depth++;
+        else if (css[i] === '}' && --depth === 0) return css.slice(at, i + 1);
+      }
+      throw new Error(`unterminated @keyframes ${name}`);
+    };
+    for (const name of ['rc-veil', 'rc-veil-out', 'rc-pop', 'rc-out']) {
+      const props = [...block(name).matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
+      expect(props.length, name).toBeGreaterThan(0);
+      expect(props.filter((prop) => prop !== 'opacity' && prop !== 'transform'), name).toEqual([]);
+    }
+    // The bounce: out past full size, a dip under it, then rest at exactly 1.
+    const scales = [...block('rc-pop').matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]));
+    expect(scales[0]).toBeLessThan(1);
+    expect(Math.max(...scales)).toBeGreaterThan(1);
+    expect(scales[scales.length - 1]).toBe(1);
+    const veil = css.slice(css.indexOf('.rankedconfirm-veil {'), css.indexOf('}', css.indexOf('.rankedconfirm-veil {')));
+    expect(veil).toMatch(/backdrop-filter: blur\(\d+px\)/);
+    expect(veil, 'the veil darkens').toMatch(/background: rgba\(/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.rankedconfirm-veil,[^}]*animation: none;/);
+    expect(css).toContain(`rc-out ${RANKED_CONFIRM_EXIT_MS / 1000}s`);
+    expect(css).not.toMatch(/\.rankedconfirm[^{]*\{[^}]*cursor:\s*pointer/);
   });
 
   it('"Yes, let\'s go." commits a ranked entry (persisted) and opens hero select on its heroes', () => {

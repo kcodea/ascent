@@ -182,10 +182,15 @@ Rulings made during the build, in plain terms:
   passes (older than this step).
 - Community search does not look in the write-up.
 - There is no Report yet (step 4).
-- The look of the new buttons, pills, the sort row and the Show more row is a first cut and has NOT been rendered yet
-  at the time of writing. The widths were reasoned from the stylesheet. Expected to look slightly off: the sort row sits
-  a grid gap below the toolbar and reads detached from it; the Show more button sits at the left edge, not centred;
-  "Bookmarked" is a longer word than "Bookmark", so the button grows by a few pixels when pressed.
+- The look of the new buttons, pills, the sort row and the Show more row is a first cut. It was rendered once, from
+  this branch, with a made-up local account and guides and a faked answer for the Community request (the live tables
+  are not set up), and five screens were sent to the owner, who has not judged it yet. Each new control's box was
+  measured in the page and none collapses or overlaps: the four pills sit in one row; a My guides card shows its
+  buttons in two rows of two with the title keeping about 250 px; the Publish question sits inside the card with focus
+  on Cancel; the rail shows "Your guides" and "Bookmarked". Still plain: a pressed "Bookmarked" button looks like
+  "Bookmark" apart from its word (there is no pressed style for these buttons); the Show more button sits at the left
+  edge, not centred; the sort row sits a grid gap below the toolbar.
+- The render found one thing, fixed by one layout line: the sort row started 2 px left of the pill row above it.
 - Removing a bookmark under Bookmarked removes the card, so a keyboard player's focus falls to the page. So does focus
   after a successful Delete.
 - Opening the editor from a Community card (Duplicate) and closing it asks the Community list again from the first
@@ -220,15 +225,23 @@ Rulings made during the build, in plain terms:
 
 ## Performance
 
-To be filled by the render measurement before the pull request opens.
+Not measured. No number here would be honest. The routine in `docs/performance.md` needs a focused window on the
+production build with DevTools; the pane available to this work renders hidden, and the machine was busy with the test
+suite and other sessions while this was finished. The measurements owed from steps 1 and 2 are still owed too. What
+can be said from reading the code, and the whole-branch review agreed: the rail still takes one snapshot when its
+Guides view opens and subscribes to no list; the Community list asks once per change of question, waits 300 ms on the
+search box, and mounts its cards through the lazy cells (two at once, the rest near the viewport); store selectors
+return primitives or stable arrays; nothing animates. For the owner, two minutes on the production build: open the
+Compendium's Guides tab, switch to Community with a full page and press Show more, type in the search box, and open
+the rail's Guides view with own and bookmarked guides; no long task over 50 ms is the bar.
 
 ## Not verified here
 
 Nothing in this step was run against the live Supabase project. The migration is run, and `guide-write` is
 redeployed, by the owner; neither is done by this work. The two-account check in the runbook (`supabase/README.md`,
 "Publishing and bookmarks (step 3)", item 4) has never been run. The advisory lock holding the caps under two
-parallel calls rests on reasoning, not a test (the test database has one connection). Nothing has been rendered yet:
-how the new screens look, and how focus behaves in a real browser, are unchecked. What was exercised: the SQL against
+parallel calls rests on reasoning, not a test (the test database has one connection). The new screens were rendered once with
+made-up local data (see Known gaps); how focus behaves in a real browser was seen only for the Publish question. What was exercised: the SQL against
 an in-process database (the real functions, with the step 1 file run first), the handler against a fake database, the
 seam against a fake client, and the screens against jsdom. One walk joins the layers: the client's own write functions
 against the real handler against the real SQL in that in-process database (`guidesRoundTrip.test.ts`). The takedown

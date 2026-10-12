@@ -4489,6 +4489,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   --m-scolor: var(--smed-gift-shadow-color, rgba(0, 0, 0, 1));
   --m-gsize: var(--smed-gift-glow-size, 9px); --m-gcolor: var(--smed-gift-glow-color, rgba(196, 91, 255, 0.68));
 }
+/* HERO POWER (the emerald helm, owner art 2026-10-12): the medallion a hero power wears when it is drawn as a card. */
+.spellmed[data-med='power'], .smedprev-cell[data-med='power'] {
+  --m-size: var(--smed-power-size, 0.9); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, -3px);
+  --m-sx: var(--smed-power-shadow-x, 0px); --m-sy: var(--smed-power-shadow-y, 4.5px); --m-sblur: var(--smed-power-shadow-blur, 6.5px);
+  --m-scolor: var(--smed-power-shadow-color, rgba(0, 0, 0, 1));
+  --m-gsize: var(--smed-power-glow-size, 6px); --m-gcolor: var(--smed-power-glow-color, rgba(53, 242, 154, 0.6));
+}
 .card .ctype.spell.spellmed .spellmed-img {
   position: absolute; left: 50%; top: 50%;
   width: calc(var(--ccw) * 0.36); height: calc(var(--ccw) * 0.36);
@@ -4673,6 +4680,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .card.plated .plate-tribe.spellkind[data-kind='spell'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='spell'] { color: #7cc4ff; }
 .card.plated .plate-tribe.spellkind[data-kind='ruby'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='ruby'] { color: #ff6b6b; }
 .card.plated .plate-tribe.spellkind[data-kind='gift'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='gift'] { color: #d08cff; }
+/* A hero power's line (the hero's name) is green, after its emerald-helm medallion (owner ask 2026-10-12). */
+.card.plated .plate-tribe.spellkind[data-kind='power'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='power'] { color: #5fe6a2; }
 /* STEP COUNTER on a PLATED card (the hover / full preview): the plate reaches far below the card box, so the
    compact rule's `bottom: -44px` lands right on the NAME line (owner report 2026-09-14 — Aspect's "2/3" over
    "Aspect"; every tribe did it, Guel included). Ride the plate instead: pinned just under its bottom gem, on the

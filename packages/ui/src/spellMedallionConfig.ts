@@ -11,13 +11,14 @@ function hexToRgba(hex: string, alpha: number): string {
 
 /**
  * DEV tuner for the 💠 SPELL / RUBY / GIFT MEDALLIONS — the crystal art that replaced the purple "✦ Spell" /
- * "◆ Ruby" type pill (owner 2026-10-09). EVERY control is per-medallion (owner call 2026-10-09): each of the three
+ * "◆ Ruby" type pill (owner 2026-10-09) — plus the HERO POWER medallion (the emerald helm a hero power wears when
+ * it is drawn as a card, owner art 2026-10-12). EVERY control is per-medallion (owner call 2026-10-09): each
  * has its own size + placement, drop shadow and coloured glow. Layered on TOP of the pill's seat
  * (`.ctype.spell.spellmed` in styles.css, itself moved by the 🏷️ Card Pills tuner's spell nudge). Offsets are
  * card-relative (× --ccw / --ccw-ref) so the medallion holds on every screen. One global setting; ships via
  * DEFAULTS. Fallbacks in styles.css MUST mirror DEFAULTS.
  */
-const KINDS = ['spell', 'ruby', 'gift'] as const;
+const KINDS = ['spell', 'ruby', 'gift', 'power'] as const;
 type Kind = (typeof KINDS)[number];
 
 type NumField = 'Size' | 'Dx' | 'Dy' | 'ShadowX' | 'ShadowY' | 'ShadowBlur' | 'ShadowStrength' | 'GlowSize' | 'GlowStrength';
@@ -38,6 +39,8 @@ const DEFAULTS = {
   ...seat('spell', { size: 0.94, dx: 4, dy: 0, glowColor: '#4df3ff', glowSize: 2, glowStrength: 0 }),
   ...seat('ruby', { size: 0.84, dx: 3, dy: -3, glowColor: '#ff3b4a', glowSize: 3, glowStrength: 1 }),
   ...seat('gift', { size: 0.74, dx: 4, dy: -3, glowColor: '#c45bff', glowSize: 9, glowStrength: 0.68 }),
+  // The HERO POWER medallion (the emerald helm, owner art 2026-10-12): first-pass seat, not yet owner-tuned.
+  ...seat('power', { size: 0.9, dx: 0, dy: -3, glowColor: '#35f29a', glowSize: 6, glowStrength: 0.6 }),
 } as SpellMedallionConfig;
 
 const COLOR_KEYS: ReadonlySet<string> = new Set(KINDS.flatMap((k) => [`${k}ShadowColor`, `${k}GlowColor`]));
@@ -122,12 +125,13 @@ const controls: TunerControl<K>[] = [
   ...controlsFor('spell', 'Shop Spell'),
   ...controlsFor('ruby', 'Ruby'),
   ...controlsFor('gift', 'Gift'),
+  ...controlsFor('power', 'Hero Power'),
 ];
 
 export const SPEC: TunerSpec<SpellMedallionConfig> = {
   id: 'spellmedallion',            // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Spell Medallions',
-  note: 'dev · live · Shop Spell / Ruby / Gift',
+  note: 'dev · live · Shop Spell / Ruby / Gift / Hero Power',
   read: getSpellMedallionConfig,
   write: (key, value) => setSpellMedallionValue(key, value),
   writeColor: (key, value) => setSpellMedallionValue(key, value),

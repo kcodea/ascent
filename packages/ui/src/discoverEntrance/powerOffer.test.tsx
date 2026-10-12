@@ -23,7 +23,7 @@ describe('a hero power as a Discover card', () => {
       const v = powerCardView(id);
       expect(v.name).toBe(h.power.name);
       expect(v.text).toBe(h.power.text);
-      expect(v.kindLabel).toBe(h.name);
+      expect(v.heroPowerOf).toBe(h.name);
       expect(v.spell).toBe(true);
       // No tier plaque, no cost coin: a power has neither.
       expect(v.tier).toBeUndefined();
@@ -37,7 +37,7 @@ describe('a hero power as a Discover card', () => {
 
   it('the three powers of the owner\'s report resolve to their own hero, not the default one', () => {
     expect(HEROES.map((id) => powerCardView(id).name)).toEqual(['Copy Machine', 'Undying', 'Empowering Vines']);
-    expect(HEROES.map((id) => powerCardView(id).kindLabel)).toEqual(['Xerox', 'Lord of the Risen', 'Rayse']);
+    expect(HEROES.map((id) => powerCardView(id).heroPowerOf)).toEqual(['Xerox', 'Lord of the Risen', 'Rayse']);
   });
 });
 
@@ -94,9 +94,15 @@ describe('the dialog', () => {
       expect(card.classList.contains('showtext')).toBe(true);
       expect(card.classList.contains('spellcard')).toBe(true);
       expect(card.textContent).toContain(h.power.name);
-      // The kind line names the hero, never "Shop Spell".
-      expect(card.querySelector('.spellkind')?.textContent).toBe(h.name);
+      // The kind line names the hero, never "Shop Spell", and is its own kind (`power`: the green line).
+      const kind = card.querySelector('.spellkind')!;
+      expect(kind.textContent).toBe(h.name);
+      expect(kind.getAttribute('data-kind')).toBe('power');
       expect(card.textContent).not.toContain('Shop Spell');
+      // ...under the hero-power medallion (the emerald helm), not the Shop Spell star.
+      const medallion = card.querySelector('.ctype.spell.spellmed')!;
+      expect(medallion.getAttribute('data-med')).toBe('power');
+      expect(medallion.querySelector('img')?.getAttribute('src')).toContain('medallions/power.webp');
     });
 
     // Settle the entrance, then a click picks that power.

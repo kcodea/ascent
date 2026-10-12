@@ -10,14 +10,14 @@ import type { CardView } from '../Card';
 type PowerOffer = NonNullable<RunState['powerOffer']>;
 
 /** A hero power as a spell card: the power's own art, name and rules text in the spell frame, with the hero it
- *  belongs to on the kind line. No tier, cost or stats: a power has none. The id is namespaced so it can never
+ *  belongs to on the kind line (green, under the emerald-helm medallion). No tier, cost or stats: a power has none. The id is namespaced so it can never
  *  resolve to a real card (no skin, no card art, no def). */
 export function powerCardView(heroId: string): CardView {
   const h = getHero(heroId);
   return {
     name: h.power.name, cardId: `heropower:${heroId}`, artUrl: heroPowerArt(heroId),
     tribe: 'neutral', attack: 0, health: 0, keywords: [],
-    text: h.power.text, spell: true, kindLabel: h.name,
+    text: h.power.text, spell: true, heroPowerOf: h.name,
   };
 }
 

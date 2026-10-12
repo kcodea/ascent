@@ -86,7 +86,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
 // without this, any non-identity default baked into that file would silently never apply to players.
 import './cardPillsConfig';
-import { GIFT_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC } from './spellMedallion';
+import { GIFT_MEDALLION_SRC, POWER_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC } from './spellMedallion';
 import { artFor, artVariantKey } from './art';
 import { useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
@@ -357,10 +357,10 @@ export interface CardView {
   tier?: number;
   /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
   spell?: boolean;
-  /** A spell-like card's KIND line, printed in place of "Shop Spell" / "Gift" / "Ruby". The one caller is the
-   *  hero-power Discover, whose options are powers drawn as spell cards: the line names the hero the power
-   *  belongs to (see `discoverEntrance/powerOffer.ts`). Wording only; the colour and medallion stay the spell's. */
-  kindLabel?: string;
+  /** A HERO POWER drawn as a spell-like card: the name of the hero it belongs to. The one caller is the hero-power
+   *  Discover (see `discoverEntrance/powerOffer.ts`). It is its own KIND, beside Shop Spell / Ruby / Gift: the card
+   *  wears the hero-power medallion (the emerald helm) and its kind line prints this name, in green. */
+  heroPowerOf?: string;
   /** A **Ruby** (set 2): a spell-LIKE token — plays from hand by dragging onto a minion (same targeted-aim as
    *  a spell) to buff it, but it is NOT a Shop Spell. Renders with a stat footer (it carries Attack/Health). */
   ruby?: boolean;
@@ -844,9 +844,9 @@ export const Card = memo(function Card({
   // Gift (a rune/hero hand-out, never in the shop) is neither. Every other spell — token spells like Ruby Blast
   // and the Triple Reward included — reads Shop Spell. Gift is read off the DEF, like `universalTribe`, so no
   // CardView builder has to remember to carry it.
-  const spellKindAttr = card.ruby ? 'ruby' : CARD_INDEX[card.cardId]?.gift ? 'gift' : 'spell';
-  // `kindLabel` rewords the line only (a hero power names its hero); the colour and medallion follow the kind.
-  const spellKind = card.kindLabel ?? (spellKindAttr === 'ruby' ? 'Ruby' : spellKindAttr === 'gift' ? 'Gift' : 'Shop Spell');
+  // A HERO POWER card (the hero-power Discover) is a fourth kind: its line names the hero it belongs to.
+  const spellKindAttr = card.heroPowerOf ? 'power' : card.ruby ? 'ruby' : CARD_INDEX[card.cardId]?.gift ? 'gift' : 'spell';
+  const spellKind = spellKindAttr === 'power' ? card.heroPowerOf! : spellKindAttr === 'ruby' ? 'Ruby' : spellKindAttr === 'gift' ? 'Gift' : 'Shop Spell';
   const useSpellFrame = spellLike && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   // The FRAME and the hand PLATE obey the same rule as the art (art pop-in fix 2026-09-29): until decoded they are
@@ -1221,7 +1221,7 @@ export const Card = memo(function Card({
         {card.golden && <span className="goldcrown" aria-hidden="true"><FadeImg className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
         {spellLike ? (
           <span className="ctype spell spellmed" data-med={spellKindAttr} role="img" aria-label={spellKind}>
-            <FadeImg className="spellmed-img" src={spellKindAttr === 'ruby' ? RUBY_MEDALLION_SRC : spellKindAttr === 'gift' ? GIFT_MEDALLION_SRC : SPELL_MEDALLION_SRC} alt="" aria-hidden="true" draggable={false} />
+            <FadeImg className="spellmed-img" src={spellKindAttr === 'power' ? POWER_MEDALLION_SRC : spellKindAttr === 'ruby' ? RUBY_MEDALLION_SRC : spellKindAttr === 'gift' ? GIFT_MEDALLION_SRC : SPELL_MEDALLION_SRC} alt="" aria-hidden="true" draggable={false} />
           </span>
         ) : (
           <>

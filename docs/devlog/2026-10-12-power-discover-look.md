@@ -22,8 +22,14 @@ scrim, and three bespoke `.powerpick` plaques. It could not be minimized.
   - `powerOfferSource(slot)` names the banner source: "Mimicry", "Power Shifter", "Twin Voids · first pick" /
     "· second pick" (Void's two picks need telling apart now that the instruction line is gone).
   - `powerOccasion(run)` is the entrance key: a new offer flies in; Peek / Return and re-renders do not replay it.
-- `CardView.kindLabel` (new, `Card.tsx`): rewords a spell-like card's kind line. A power card prints its HERO's
-  name where a spell prints "Shop Spell". Colour and medallion still follow the kind. Added to `cardViewEqual`.
+- `CardView.heroPowerOf` (new, `Card.tsx`): the hero a power card belongs to. It makes the card a fourth spell-like
+  KIND (`power`, beside Shop Spell / Ruby / Gift): the kind line prints the hero's name, in green (`#5fe6a2`), under
+  its own medallion. Added to `cardViewEqual`.
+- The HERO POWER medallion (owner follow-up, same day: "replace the spell medallion with Emerald Crystal Knight
+  Helmet.png", "make the text green where the hero names are"): `apps/web/public/medallions/power.webp`, the
+  owner's art trimmed to its alpha box and fitted to the 320px canvas the other three use. It has its own group in
+  the 💠 Spell Medallions tuner (`spellMedallionConfig.ts`, kind `power`); the shipped seat (size 0.9, dy -3, a
+  green glow) is a first pass by eye, NOT owner-tuned. Shop Spells, Rubies and Gifts keep their medallions.
 - `DiscoverDialog` gained `label` (accessible name) and `full` (every option `forceFull` + `plated`, as the Choose
   One does). A power cannot be told apart by art alone, so the text must show whatever the compact-cards setting.
 - Peek state is `powerMin` in `Recruit`, reset per offer; `body.modalup` now reads `run.powerOffer && !powerMin`.

@@ -34,8 +34,12 @@ vi.mock('./guidesRemote', () => ({
   fetchMyGuides: async () => undefined,
   fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => undefined,
+  fetchCommunityPage: async () => ({ guides: [], more: false }),
+  communitySearch: (s: string) => s,
   saveGuideRemote: async () => saveAnswer,
   deleteGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
+  bookmarkGuideRemote: async () => ({ ok: false, code: 'offline' }),
   importBuiltInsRemote: async (g: GuideDraftInput[]): Promise<ImportAnswer> => {
     imports.push(g);
     return importAnswer ? importAnswer() : { ok: true, value: { inserted: g.length, skipped: 0 } };
@@ -191,17 +195,17 @@ describe('starting to write', () => {
     const c = as('guest');
     await press(c, 'New guide');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write your own guides.');
+    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
     await press(c, 'Create account');
     expect(useGame.getState().accountPanelOpen).toBe(true);
     expect(useGame.getState().showBook).toBe(false);
   });
   it('a guest who presses Duplicate is asked to sign in; no editor opens', async () => {
     const c = as('guest');
-    expect(c.textContent).not.toContain('Sign in to write your own guides.');
+    expect(c.textContent).not.toContain('Sign in to write and bookmark guides.');
     await press(card(c, serverList[0]!.id), 'Duplicate');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write your own guides.');
+    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
   });
   it('when guides are not available, New guide and Duplicate are disabled and the tab says why', () => {
     for (const capability of ['unknown', 'off', 'offline', 'no-backend'] as const) {

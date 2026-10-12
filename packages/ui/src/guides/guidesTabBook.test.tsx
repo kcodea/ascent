@@ -20,8 +20,12 @@ vi.mock('./guidesRemote', () => ({
   fetchMyGuides: async () => mineRows,
   fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => undefined,
+  fetchCommunityPage: async () => ({ guides: [], more: false }),
+  communitySearch: (s: string) => s,
   saveGuideRemote: async () => ({ ok: false, code: 'offline' }),
   deleteGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
+  bookmarkGuideRemote: async () => ({ ok: false, code: 'offline' }),
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
 }));
 

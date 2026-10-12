@@ -4616,14 +4616,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on
    *  EVERY friendly `tribe` minion (× golden). Owner ruling 2026-08-03: it hits ALL your Kobolds — it used to
    *  pick ONE at random, which is why it read as "not working" on a wide board (a single silent +2/+2
-   *  somewhere in a line of seven). No RNG at all now, so it also stops consuming the run cursor. */
+   *  somewhere in a line of seven). No RNG at all now, so it also stops consuming the run cursor.
+   *  `excludeSelf` (Assembler, owner 2026-10-11: "all OTHER friendly Kobolds") leaves the caster out. */
   endOfTurnPlayRuby: (ctx, self, params) => {
     const state = ctx.state;
     const bonus = rubyStatBonus(state);
     const ra = 1 + bonus.attack;
     const rh = 1 + bonus.health;
     const tribe = str(params.tribe);
-    const targets = state.board.filter((m) => !tribe || isTribe(m, tribe as Tribe)); // All-types counts as every tribe
+    const inTribe = (m: BoardCard): boolean => !tribe || isTribe(m, tribe as Tribe); // All-types counts as every tribe
+    const targets = params.excludeSelf === true ? othersOnBoard(state, self, inTribe) : state.board.filter(inTribe);
     for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
       for (const target of targets) {
         addBuff(target, 'Ruby', ra, rh);

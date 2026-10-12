@@ -453,7 +453,7 @@ describe('Gemline Martyr — back to a plain End-of-Turn Veinstorm (owner rework
   });
 
   // Re-pin 2026-10-10 (Kobold balance batch): Gemling now CASTS Veinstorm 3 times at End of Turn instead of handing
-  // one over; the full cast is covered in koboldBalance1010.test.ts.
+  // one over; the full cast is covered in koboldBalance1010.test.ts. Re-pin 2026-10-11 (Kobold nerf batch): 2 casts.
   it('an End of Turn casts Veinstorm (nothing lands in hand)', () => {
     const s: RunState = {
       ...createRun(4), phase: 'recruit', hand: [],
@@ -461,7 +461,7 @@ describe('Gemline Martyr — back to a plain End-of-Turn Veinstorm (owner rework
     } as RunState;
     applyEndOfTurn(s);
     expect(s.hand.map((c) => c.cardId), 'no Veinstorm in hand').toEqual([]);
-    expect(s.veinstormRubies, 'three casts banked three Shop Rubies').toEqual({ atk: 3, hp: 3 });
+    expect(s.veinstormRubies, 'two casts banked two Shop Rubies').toEqual({ atk: 2, hp: 2 });
   });
 });
 

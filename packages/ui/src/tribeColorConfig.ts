@@ -22,7 +22,7 @@ const DEFAULTS: TribeColorConfig = {
   spirit: '#f8cd90',
   // The eight that already had a hue, unchanged.
   beast: '#4ea83b', dragon: '#ffffff', mech: '#27a9dd', undead: '#22b8a8', demon: '#b15cf0', neutral: '#9a8d79',
-  dwarf: '#f0c33c', kobold: '#e8763a',
+  dwarf: '#f0c33c', kobold: '#e8553a',
 };
 export { DEFAULTS as TRIBE_COLOR_DEFAULTS };
 

@@ -1,0 +1,112 @@
+/* -- THE GUIDE EDITOR (2026-10-12) ---------------------------------------------------------------------------------
+   The Compendium's guide card (compendiumGuides.css `.bookguide`) with its parts made editable. Buttons and inputs are
+   built from the Compendium's own theme tokens (compendium.css's grammar) so the editor reads as part of the book.
+   A FIRST CUT: nobody has judged this rendered yet. Implemented as written; the owner tunes it.
+
+   PERFORMANCE. Nothing animates. No looping effect, no blurred shadow on a large surface.
+   CURSOR. No `cursor` anywhere here: the game's global rule paints the gauntlet on every button. */
+
+/* The editor takes the whole grid row (the list is hidden while it is open). */
+.gedit { grid-column: 1 / -1; content-visibility: visible; }
+
+/* A plain game button in the Compendium's plate. */
+.gbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px;
+  border: 2px solid transparent; border-radius: 7px;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  font-family: var(--font-ui); font-weight: 800; font-size: 13.5px; letter-spacing: 0.01em;
+}
+.gbtn:hover:not(:disabled) { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.gbtn:active:not(:disabled) { transform: translateY(1px); }
+.gbtn:disabled { opacity: 0.4; }
+.gbtn:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+.gbtn-primary { color: var(--ui-title); }
+.gbtn-danger { color: #ff9a8a; }
+
+/* A text box, select or text area. */
+.gedit-input {
+  width: 100%; min-width: 0; box-sizing: border-box; height: 36px; padding: 0 12px;
+  border: 1px solid var(--ui-chip-edge); border-radius: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 92%, #000), var(--ui-chip-bg));
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: var(--ui-text); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15px;
+}
+.gedit-input:focus { outline: none; border-color: var(--ui-edge-main); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--ui-ring); }
+.gedit-input::placeholder { color: color-mix(in srgb, var(--ui-muted) 70%, transparent); }
+textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line-height: 1.55; resize: vertical; }
+.gedit-title { height: 44px; font-family: var(--font-ui); font-weight: 800; font-size: 24px; color: var(--ui-title); }
+
+.gedit-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.gedit-field-inline { flex-direction: row; align-items: center; gap: 10px; }
+.gedit-field-inline .gedit-input { width: auto; flex: 0 1 240px; }
+.gedit-label { display: flex; align-items: baseline; gap: 10px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-muted); }
+.gedit-hint { font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.gedit-count { margin-left: auto; font-size: 12px; letter-spacing: 0.04em; }
+.gedit-count.over { color: #ff9a8a; }
+.gedit-by { font-size: 14px; font-weight: 700; color: var(--ui-muted); }
+
+/* The header: the art icon is a button; the fields sit where the title and tagline read. */
+.gedit-head { align-items: flex-start; }
+.gedit-headtext { flex: 1; gap: 12px; }
+.gedit-icon { position: relative; flex: none; padding: 0; border: 0; background: none; border-radius: 12px; }
+.gedit-icon:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 3px; }
+.gedit-iconhint {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 0; border-radius: 0 0 12px 12px; text-align: center;
+  background: rgba(0, 0, 0, 0.72); color: var(--ui-title);
+  font-family: var(--font-ui); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.gedit-iconpick { padding: 0 26px 4px; }
+.gedit-who, .gedit-tribes { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.gedit-tribes .gedit-field-inline { margin-left: 12px; }
+
+.gedit-preview { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; border: 1px dashed var(--ui-divider); }
+
+/* An editable portrait: the card, with three small buttons under it. */
+.gedit-unit { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gedit-unitbtns { display: flex; gap: 4px; }
+.gedit-mini {
+  width: 26px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ui-chip-edge); border-radius: 6px; background: var(--ui-chip-bg); color: var(--ui-text);
+  font-family: var(--font-ui); font-weight: 800; font-size: 13px; line-height: 1;
+}
+.gedit-mini:hover:not(:disabled) { color: #fff; border-color: var(--ui-edge-main); }
+.gedit-mini:disabled { opacity: 0.3; }
+.gedit-mini:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 1px; }
+.gedit-mini svg { width: 12px; height: 12px; }
+/* The one chevron icon points down; turn it to point at the neighbour the card moves toward. */
+.gedit-earlier svg { transform: rotate(90deg); }
+.gedit-later svg { transform: rotate(-90deg); }
+.gedit-remove { color: #ff9a8a; }
+.gedit-rowcount { margin-left: 8px; font-weight: 700; letter-spacing: 0.04em; }
+.gedit-row .lobbyguide-unitrow { align-items: flex-end; }
+.gedit-add { align-self: center; }
+
+.gedit-aliases { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.gedit-alias { display: flex; align-items: center; gap: 8px; width: min(100%, 520px); }
+.gedit-alias-word { flex: 0 1 160px; }
+.gedit-alias-card { flex: 1 1 auto; }
+/* A nickname whose card left the set: colour only, like an over-long counter. */
+.gedit-alias-missing { color: #ff9a8a; }
+
+/* The picker: a search box over a short list of names. */
+.gpick { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28); }
+.gpick-find { max-width: 320px; }
+.gpick-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.gpick-row {
+  display: inline-flex; align-items: baseline; gap: 8px; height: 30px; padding: 0 10px;
+  border: 1px solid var(--ui-chip-edge); border-radius: 6px; background: var(--ui-chip-bg); color: var(--ui-text);
+  font-family: var(--font-ui); font-weight: 700; font-size: 13.5px;
+}
+.gpick-row:hover { color: #fff; border-color: var(--ui-edge-main); }
+.gpick-row:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 1px; }
+.gpick-kind { font-size: 11.5px; font-weight: 700; color: var(--ui-muted); }
+.gpick-none { font-size: 14px; font-weight: 600; color: var(--ui-muted); }
+
+/* The foot: what went wrong, a question when one is being asked, then the buttons. */
+.gedit-foot { display: flex; flex-direction: column; gap: 12px; padding: 16px 26px 22px; border-top: 1px solid var(--ui-divider); }
+.gedit-error { margin: 0; font-size: 15px; font-weight: 700; color: #ffb3a6; }
+.gedit-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28); font-size: 15px; font-weight: 700; }
+.gedit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.gedit-spacer { flex: 1; }

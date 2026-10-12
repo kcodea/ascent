@@ -63,9 +63,8 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 .gedit-iconpick { padding: 0 26px 4px; }
 .gedit-who, .gedit-tribes { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .gedit-tribes .gedit-field-inline { margin-left: 12px; }
-.gedit-tribes .book-runetribe.off-roster { border-style: dashed; }
 
-.gedit-preview { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; border: 1px dashed var(--ui-divider); }
+.gedit-preview { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 7px; border: 1px dashed var(--ui-divider); }
 
 /* An editable portrait: the card, with three small buttons under it. */
 .gedit-unit { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -95,7 +94,7 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 .gedit-alias-missing { color: var(--ui-warn); }
 
 /* The picker: a search box over a short list of names. */
-.gpick { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28); }
+.gpick { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 7px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); }
 .gpick-find { max-width: 320px; }
 .gpick-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .gpick-row {
@@ -111,6 +110,6 @@ textarea.gedit-input { height: auto; min-height: 132px; padding: 10px 12px; line
 /* The foot: what went wrong, a question when one is being asked, then the buttons. */
 .gedit-foot { display: flex; flex-direction: column; gap: 12px; padding: 16px 26px 22px; border-top: 1px solid var(--ui-divider); }
 .gedit-error { margin: 0; font-size: 15px; font-weight: 700; color: var(--ui-warn); }
-.gedit-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28); font-size: 15px; font-weight: 700; }
+.gedit-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 7px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); font-size: 15px; font-weight: 700; }
 .gedit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .gedit-spacer { flex: 1; }

@@ -196,7 +196,9 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   userId: string;
   /** A team member creating a NEW guide may make it a Team Ascent guide. */
   canBeOfficial: boolean;
-  onClose: () => void;
+  /** The editor is done. `savedNew`: it closed because a NEW guide of the player's own was just saved (so the host
+   *  can show where it went). False for every other close: an edit, a Team Ascent guide, Cancel, a discard, a delete. */
+  onClose: (savedNew: boolean) => void;
 }): JSX.Element {
   // `base` is what "unchanged" means. It only moves when the author loads someone else's newer version.
   const [base, setBase] = useState(initial);
@@ -227,12 +229,12 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const enablersAddRef = useRef<HTMLButtonElement>(null);
   const focusAfter = useRef<'icon' | 'core' | 'enablers' | null>(null);
 
-  /** Close the editor, once. */
-  const finish = useCallback((): void => {
+  /** Close the editor, once. `savedNew`: see `onClose`. */
+  const finish = useCallback((savedNew = false): void => {
     finished.current = true;
     if (closed.current) return;
     closed.current = true;
-    onCloseRef.current();
+    onCloseRef.current(savedNew);
   }, []);
   /** The guide is gone from the server: keep the text, as a new guide the next Save creates. */
   const becomeNew = useCallback((cur: EditorDraft): void => {
@@ -333,7 +335,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       const g = toGuide(res.value);
       if (g) guideSaved(g);
       sfx.pulse();
-      finish();
+      finish(g !== null && !g.official && cur.rowId === null);
       return;
     }
     if (res.code === 'not_found' && cur.rowId) { becomeNew(cur); return; } // deleted elsewhere while being edited
@@ -450,10 +452,11 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
             <button type="button" key={t} className={`book-runetribe${d.tribes.includes(t) ? ' on' : ''}`} style={{ '--c': tribeInk(t) } as CSSProperties}
               aria-pressed={d.tribes.includes(t)} onClick={() => toggleTribe(t)}>{TRIBE_NAME[t] ?? t}</button>
           ))}
-          {/* A tribe the guide holds that this set does not have (a guide from another set): drawn so it can be un-picked. */}
+          {/* A tribe the guide holds that this set does not have (a guide from another set): drawn so it can be
+              un-picked, and it says so in its text (like the "pairs with" choice below). */}
           {d.tribes.filter((t) => !tribes.includes(t)).map((t) => (
             <button type="button" key={t} className="book-runetribe on off-roster" style={{ '--c': tribeInk(t) } as CSSProperties}
-              aria-pressed aria-description="Not in this set. Press to remove." onClick={() => toggleTribe(t)}>{TRIBE_NAME[t] ?? t}</button>
+              aria-pressed aria-description="Not in this set. Press to remove." onClick={() => toggleTribe(t)}>{TRIBE_NAME[t] ?? t} (not in this set)</button>
           ))}
           <label className="gedit-field gedit-field-inline">
             <span className="gedit-label">Pairs with</span>

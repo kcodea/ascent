@@ -5,6 +5,8 @@
  * conflict offers Load their version / Overwrite with mine; Cancel and Esc ask before discarding changes; Tab and Esc
  * never reach the game's own handlers (which would close the Compendium); the draft is kept on the device.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
@@ -53,8 +55,10 @@ const archived = Object.values(CARD_INDEX).find((c) => !inSet2.has(c.id) && !c.s
 
 let ui: Mounted | null = null;
 let closed = 0;
+/** What each close reported: true when a NEW guide of the player's own was just saved. */
+const closedWith: boolean[] = [];
 const open = (initial = { ...emptyDraft('Mike'), title: 'My guide', body: 'Play it.', core: ['grim'] }, canBeOfficial = false): HTMLElement => {
-  ui = mount(<GuideEditor initial={initial} setId="set2" tribes={SETS.set2.tribes} run={undefined} userId="u-1" canBeOfficial={canBeOfficial} onClose={() => { closed++; }} />);
+  ui = mount(<GuideEditor initial={initial} setId="set2" tribes={SETS.set2.tribes} run={undefined} userId="u-1" canBeOfficial={canBeOfficial} onClose={(savedNew) => { closed++; closedWith.push(savedNew); }} />);
   return ui.container;
 };
 const type = (el: Element, value: string): void => {
@@ -83,6 +87,7 @@ beforeEach(() => {
   saves.length = 0;
   deletes.length = 0;
   closed = 0;
+  closedWith.length = 0;
   byIdAnswer = rec();
   gate = null;
   deleteGate = null;
@@ -124,13 +129,15 @@ describe('editing the fields', () => {
     expect(SETS.set2.tribes).not.toContain('undead');
     const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'], tribes: ['undead'] });
     const pills = (): HTMLButtonElement[] => [...c.querySelectorAll<HTMLButtonElement>('.gedit-tribes .book-runetribe')];
-    const undead = (): HTMLButtonElement | undefined => pills().find((p) => p.textContent === 'Undead');
+    const undead = (): HTMLButtonElement | undefined => pills().find((p) => p.textContent === 'Undead (not in this set)');
+    expect(pills().some((p) => p.textContent === 'Undead')).toBe(false); // never the bare name: the text itself says it
     expect(pills().indexOf(undead()!)).toBe(SETS.set2.tribes.length); // after the set's own tribes
     expect(undead()!.getAttribute('aria-pressed')).toBe('true');
     expect(undead()!.classList.contains('on')).toBe(true);
     expect(undead()!.classList.contains('off-roster')).toBe(true);
     expect(undead()!.getAttribute('aria-description')).toBe('Not in this set. Press to remove.');
     expect(c.querySelectorAll('.gedit-tribes .off-roster')).toHaveLength(1); // the set's own pills are not marked
+    for (const p of pills().filter((x) => !x.classList.contains('off-roster'))) expect(p.textContent).not.toContain('not in this set');
     click(undead()!);
     expect(undead()).toBeUndefined();
     expect(pills()).toHaveLength(SETS.set2.tribes.length);
@@ -150,7 +157,7 @@ describe('editing the fields', () => {
     await press(c, 'Save');
     expect(saves).toHaveLength(0);
     expect(alertText(c)).toContain('tribes that are in this set');
-    click([...c.querySelectorAll<HTMLButtonElement>('.gedit-tribes .book-runetribe')].find((p) => p.textContent === 'Undead')!);
+    click([...c.querySelectorAll<HTMLButtonElement>('.gedit-tribes .book-runetribe')].find((p) => p.textContent === 'Undead (not in this set)')!);
     const sel = c.querySelector<HTMLSelectElement>('.gedit-pairs')!;
     act(() => { sel.value = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); });
     await press(c, 'Save');
@@ -1181,6 +1188,70 @@ describe('where the keyboard is when the editor opens', () => {
     expect(document.activeElement?.textContent).toBe('Keep editing');
     type(c.querySelector('.gedit-tagline')!, 'More'); // a re-render does not pull focus back to the title
     expect(document.activeElement).not.toBe(c.querySelector('.gedit-title'));
+  });
+});
+
+describe('what the editor reports when it closes', () => {
+  it('a NEW guide of the player\'s own that was saved: yes', async () => {
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Brand new');
+    await press(c, 'Save');
+    expect(closedWith).toEqual([true]);
+  });
+  it('a guide that became new because it was deleted elsewhere, then saved: yes', async () => {
+    let n = 0;
+    saveAnswer = (g) => (n++ === 0 ? { ok: false, code: 'not_found' } : { ok: true, value: rec({ title: g.title }) });
+    const c = open(existing());
+    await press(c, 'Save');
+    await press(c, 'Save');
+    expect(closedWith).toEqual([true]);
+  });
+  it('an edit of a guide the player already had: no', async () => {
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Edited');
+    await press(c, 'Save');
+    expect(closedWith).toEqual([false]);
+  });
+  it('a new Team Ascent guide: no (it does not go to My guides)', async () => {
+    saveAnswer = (g) => ({ ok: true, value: rec({ official: true, byline: 'Team Ascent', title: g.title, authorId: null }) });
+    const c = open(undefined, true);
+    await press(c, 'Team Ascent guide');
+    await press(c, 'Save');
+    expect(closedWith).toEqual([false]);
+  });
+  it('Cancel, a confirmed discard and a delete: no', async () => {
+    await press(open(), 'Cancel');
+    ui!.unmount();
+    let c = open();
+    type(c.querySelector('.gedit-title')!, 'Changed');
+    await press(c, 'Cancel');
+    await press(c, 'Discard');
+    ui!.unmount();
+    c = open(existing());
+    await press(c, 'Delete');
+    await press(c, 'Delete for good');
+    expect(closedWith).toEqual([false, false, false]);
+  });
+});
+
+describe('the look values the stylesheets must not drift back to', () => {
+  const css = (name: string): string => readFileSync(join(__dirname, name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  it('the panels use the Compendium\'s chip background and its 7px corner; the badge its 12.5px text', () => {
+    const both = css('guideEditor.css') + css('compendiumGuides.css');
+    expect(both).not.toContain('rgba(0, 0, 0, 0.28)');
+    expect(both).not.toMatch(/border-radius:\s*8px/);
+    for (const rule of [/\.gpick \{[^}]*\}/, /\.gedit-ask \{[^}]*\}/, /\.gtool-note \{[^}]*\}/]) {
+      const body = both.match(rule)?.[0] ?? '';
+      expect(body, String(rule)).toContain('border-radius: 7px');
+      expect(body, String(rule)).toContain('background: var(--ui-chip-bg)');
+    }
+    expect(both.match(/\.gedit-preview \{[^}]*\}/)![0]).toContain('border-radius: 7px');
+    expect(both.match(/\.bookguide-badge \{[^}]*\}/)![0]).toContain('font-size: 12.5px');
+  });
+  it('the dashed off-roster rule, which could not be seen, is gone; and no stylesheet sets a cursor', () => {
+    const both = css('guideEditor.css') + css('compendiumGuides.css');
+    expect(both).not.toContain('off-roster');
+    expect(both).not.toMatch(/cursor\s*:/);
   });
 });
 

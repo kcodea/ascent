@@ -45,7 +45,9 @@ export const GuideCardPicker = memo(function GuideCardPicker({ setId, label, exc
         placeholder="Search cards"
         aria-label={`${label}. Search this set's cards. Enter picks the top match.`}
         onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && found[0]) { e.preventDefault(); onPick(found[0].id); } }}
+        // Enter picks the top match of what was TYPED. With nothing typed the list is only the first names in the
+        // alphabet, so Enter picks nothing.
+        onKeyDown={(e) => { if (e.key === 'Enter' && query.trim() !== '' && found[0]) { e.preventDefault(); onPick(found[0].id); } }}
       />
       <div className="gpick-list">
         {found.map((c) => (

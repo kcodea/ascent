@@ -62,7 +62,8 @@ const forgetEmptyKept = (userId: string | null): void => {
  *  - One unsaved guide at a time. While one is waiting for this account (the Resume bar), New guide, Edit, Duplicate
  *    and the rail's edit request open nothing: a second editor would overwrite the first. The bar asks instead.
  *  - Resume reads the device again when pressed and hands the editor the kept guide exactly as it was read (the editor
- *    compares it with the device). If the guide is no longer there (a save landed late), nothing opens.
+ *    compares it with the device). If the device now holds a different guide than the bar was showing, that one opens.
+ *    If it holds none (a save landed late), nothing opens.
  *  - A kept guide with nothing in it is not offered, and is forgotten when the tab opens.
  *  - An editor, and the Resume bar, belong to the account they were made for. When the account changes the editor is
  *    closed at once (it keeps its unsaved text on the device under the account that typed it), and the bar is read
@@ -101,6 +102,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   // yes/no values, so the tab is redrawn only when what it draws changes.
   const online = useGuides((s) => s.capability === 'on');
   const offline = useGuides((s) => s.capability === 'off' || s.capability === 'offline' || s.capability === 'no-backend');
+  /** The first read has not answered yet: whether guides can be written is not known. */
+  const unknown = useGuides((s) => s.capability === 'unknown');
   const source = useGuides((s) => s.source);
   const team = useGuides((s) => s.team);
   const tab = useGuides((s) => s.tab);
@@ -120,8 +123,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** Who is at the keyboard: an open editor, and the Resume bar, belong to exactly one of these. */
   const who = `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
 
-  /** The open editor: its guide, who opened it, and how many guides that player owned then. */
-  const [editing, setEditing] = useState<{ draft: EditorDraft; key: number; who: string; mine: number } | null>(null);
+  /** The open editor: its guide, and who opened it. */
+  const [editing, setEditing] = useState<{ draft: EditorDraft; key: number; who: string } | null>(null);
   /** The unsaved guide waiting on this device: the very object read from it, and the account it was read for. */
   const [kept, setKept] = useState<Kept | null>(() => keptAs(who, userId));
   /** A press was answered with a question in the toolbar. A new object on every such press (see the effect below). */
@@ -154,19 +157,16 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const resumeAsked = ask?.kind === 'resume';
   /** The cap note shows only while it is still true (a delete, here or elsewhere, makes room). */
   const capAsked = ask?.kind === 'cap' && !team && mineCount >= GUIDE_LIMITS.guidesPerPlayer;
-  const editingRef = useRef(editing);
-  editingRef.current = editing;
 
   const opens = useRef(0);
   /** Open the editor. Does nothing while one is open: an open editor is never swapped for another. */
   const openEditor = useCallback((draft: EditorDraft): void => {
     opens.current += 1;
     const key = opens.current;
-    const mine = useGuides.getState().mine.length;
     setNote(null);
     setAsk(null);
     setDiscardAsk(false);
-    setEditing((cur) => cur ?? { draft, key, who, mine });
+    setEditing((cur) => cur ?? { draft, key, who });
   }, [who]);
   /** Answer a press with a question in the toolbar. Every press makes a new ask, so every press brings it into view. */
   const raise = useCallback((kind: 'signin' | 'resume' | 'cap'): void => {
@@ -229,6 +229,11 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     (ask.kind === 'signin' ? createRef.current ?? signInRef.current : ask.kind === 'cap' ? capRef.current : resumeRef.current)?.focus();
   }, [ask]);
 
+  // The Resume bar's discard question does not outlive the bar: when the bar hides (the connection drops, the guide
+  // is gone) the question is withdrawn, so a bar that comes back shows Resume and Discard, not a half-asked question.
+  const barShown = waiting && signedIn && online;
+  useEffect(() => { if (!barShown) setDiscardAsk(false); }, [barShown]);
+
   // The Resume bar's discard question takes focus on its safe answer; Keep it hands focus back to Discard.
   useEffect(() => {
     if (discardAsk) keepRef.current?.focus();
@@ -236,22 +241,23 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     backToDiscard.current = false;
   }, [discardAsk]);
 
-  const closeEditor = useCallback((): void => {
-    const was = editingRef.current;
+  /** The editor closed. `savedNew`: it says a NEW guide of the player's own was just saved (a new guide, or a copy):
+   *  show it where it now lives. The editor's word, never the list growing, which a re-read can also cause. */
+  const closeEditor = useCallback((savedNew: boolean): void => {
     setEditing(null);
     setKept(keptAs(who, userId));
-    // A guide the player did not own before was saved (a new guide, or a copy): show it where it now lives.
-    if (was && was.who === who && useGuides.getState().mine.length > was.mine) {
+    if (savedNew) {
       setGuidesTab('mine');
       setNote({ text: 'Saved to My guides.', alert: false });
     }
   }, [who, userId]);
 
-  /** Resume: the device is read again, so a guide that was saved or cleared since the bar was drawn is not opened. */
+  /** Resume: the device is read again, and what it holds NOW is what opens (the guide the bar was showing, or a
+   *  different one written since). If it holds none (the guide was saved or cleared meanwhile), nothing opens. */
   const resumeKept = (): void => {
     if (!resume) return;
-    const now = userId ? loadLocalDraft(userId) : null;
-    if (now && sameDraft(now, resume)) { sfx.pulse(); openEditor(now); return; }
+    const now = keptFor(userId);
+    if (now) { sfx.pulse(); openEditor(now); return; }
     setKept(keptAs(who, userId));
     setAsk(null);
     setDiscardAsk(false);
@@ -301,7 +307,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const canSignIn = accountsAvailable(userId);
   return (
     <div className="bookguides" key="list" ref={attachRoot}>
-      <div className="gtool" role="group" aria-label="Guides">
+      <div className="gtool" role="group" aria-label="Guides" aria-busy={unknown ? true : undefined}>
         <div className="gtool-pills" role="group" aria-label="Which guides to show">
           <button type="button" className={`book-runetribe${tab === 'team' ? ' on' : ''}`} style={{ '--c': 'var(--ui-title)' } as CSSProperties}
             aria-pressed={tab === 'team'} onClick={() => setGuidesTab('team')}>Team Ascent</button>
@@ -316,7 +322,9 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
           <button type="button" className="gbtn gbtn-primary" disabled={!online} onClick={() => begin(() => emptyDraft(byline), true)}>New guide</button>
         </div>
         {offline && <p className="gtool-note" role="status">Guides are offline. You can read the built-in guides; writing your own needs a connection.</p>}
-        {note && <p className="gtool-note" role={note.alert ? 'alert' : 'status'}>{note.text}</p>}
+        {/* One note. Keyed by its role, so an error that replaces a status (or the other way round) is a NEW element
+            and a screen reader announces it. */}
+        {note && <p key={note.alert ? 'alert' : 'status'} className="gtool-note" role={note.alert ? 'alert' : 'status'}>{note.text}</p>}
         {capAsked && <p className="gtool-note gtool-cap" role="status" tabIndex={-1} ref={capRef}>{guideErrorMessage('too_many_guides')}</p>}
         {signInAsked && (
           <p className="gtool-note gtool-signin" role="status" tabIndex={-1} ref={signInRef}>
@@ -324,7 +332,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
             {canSignIn && <button type="button" className="gbtn gbtn-primary" ref={createRef} onClick={createAccount}>Create account</button>}
           </p>
         )}
-        {resume && signedIn && online && (
+        {resume && barShown && (
           <p className={`gtool-note gtool-resume${resumeAsked ? ' gtool-resume-ask' : ''}`} role="status">
             {discardAsk ? (
               <>

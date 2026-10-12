@@ -267,6 +267,21 @@ describe('the kept draft', () => {
     expect(loadLocalDraft('u-1')).toBeNull();
     expect(c.querySelector('.gtool-resume')).toBeNull();
   });
+  it('the Discard question does not outlive the bar: a bar that hides and comes back shows Resume and Discard again', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    await press(c, 'Discard');
+    expect(c.textContent).toContain('Discard this unsaved guide? It cannot be brought back.');
+    act(() => { useGuides.setState({ capability: 'offline' }); }); // the connection drops: the bar hides
+    expect(c.querySelector('.gtool-resume')).toBeNull();
+    act(() => { useGuides.setState({ capability: 'on' }); });      // ...and comes back
+    expect(c.querySelector('.gtool-resume')).not.toBeNull();
+    expect(c.textContent).not.toContain('Discard this unsaved guide?');
+    expect(button(c, 'Discard for good')).toBeUndefined();
+    expect(button(c, 'Resume')).toBeDefined();
+    expect(button(c, 'Discard')).toBeDefined();
+    expect(loadLocalDraft('u-1')).toEqual(kept);
+  });
   it('Resume reads the device again: a guide that was saved or cleared meanwhile is not opened, and the bar goes', async () => {
     saveLocalDraft('u-1', kept);
     const c = as('player');
@@ -278,6 +293,29 @@ describe('the kept draft', () => {
     expect(c.textContent).toContain('That guide was already saved.');
     await press(c, 'New guide'); // and nothing is waiting any more
     expect(c.querySelector('.gedit')).not.toBeNull();
+  });
+  it('Resume opens the guide the device holds NOW, when that is a different one than the bar was showing', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    expect(c.textContent).toContain('You have an unsaved guide: Left behind');
+    const newer = { ...kept, title: 'Written since', body: 'more of it' };
+    saveLocalDraft('u-1', newer); // behind the tab's back, as another window of the game does
+    await press(c, 'Resume');
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Written since');
+    expect(c.textContent).not.toContain('That guide was already saved.');
+    // It was handed over as it was read: closing it unchanged leaves it on the device, and the bar now names it.
+    await press(c, 'Cancel');
+    expect(loadLocalDraft('u-1')).toEqual(newer);
+    expect(c.textContent).toContain('You have an unsaved guide: Written since');
+    expect(c.textContent).not.toContain('That guide was already saved.');
+  });
+  it('Resume, when the device now holds only an empty guide, opens nothing and drops the bar', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    saveLocalDraft('u-1', emptyDraft('Mike'));
+    await press(c, 'Resume');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(c.querySelector('.gtool-resume')).toBeNull();
   });
   it('a kept guide with nothing in it is not offered, is forgotten, and does not stop a new guide', async () => {
     // Only the "by" line (filled in for the author), tribes and an art icon: no title, tagline, write-up, card or nickname.
@@ -538,6 +576,57 @@ describe('the team-only import', () => {
   });
 });
 
+describe('what a screen reader is told', () => {
+  it('the toolbar is marked busy while it is not yet known whether guides can be written, and not after', () => {
+    let c = as('player', { capability: 'unknown' });
+    expect(c.querySelector('.gtool')!.getAttribute('aria-busy')).toBe('true');
+    for (const capability of ['on', 'off', 'offline', 'no-backend'] as const) {
+      ui!.unmount();
+      c = as('player', { capability });
+      expect(c.querySelector('.gtool')!.hasAttribute('aria-busy'), capability).toBe(false);
+    }
+  });
+  it('the mark goes the moment the answer arrives, without remounting the toolbar', () => {
+    const c = as('player', { capability: 'unknown' });
+    const bar = c.querySelector('.gtool')!;
+    act(() => { useGuides.setState({ capability: 'on' }); });
+    expect(c.querySelector('.gtool')).toBe(bar);
+    expect(bar.hasAttribute('aria-busy')).toBe(false);
+  });
+  /** The toolbar note that says exactly `text` (the offline line and the Resume bar are notes too). */
+  const said = (c: HTMLElement, text: string): Element | undefined => [...c.querySelectorAll('.gtool-note')].find((n) => n.textContent === text);
+  it('an error that replaces a status is a new element, so it is announced', async () => {
+    saveAnswer = { ok: true, value: savedRow({ title: 'A copy' }) };
+    const c = as('team', { source: 'bundled', list: GUIDES, mine: [] });
+    await press(card(c, GUIDES[0]!.id), 'Duplicate');
+    await press(c, 'Save');
+    const status = said(c, 'Saved to My guides.')!;
+    expect(status.getAttribute('role')).toBe('status');
+    importAnswer = () => ({ ok: false, code: 'offline' });
+    await press(c, 'Import built-in guides');
+    const alert = said(c, 'Could not reach the server. Nothing was imported.')!;
+    expect(alert.getAttribute('role')).toBe('alert');
+    expect(alert).not.toBe(status);
+    expect(said(c, 'Saved to My guides.')).toBeUndefined(); // it replaced the status: still one note
+  });
+  it('a status that replaces an error is a new element too; the same kind twice keeps the element', async () => {
+    importAnswer = () => ({ ok: false, code: 'offline' });
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    await press(c, 'Import built-in guides');
+    const first = said(c, 'Could not reach the server. Nothing was imported.')!;
+    expect(first.getAttribute('role')).toBe('alert');
+    importAnswer = () => ({ ok: false, code: 'not_allowed' });
+    await press(c, 'Import built-in guides');
+    expect(said(c, 'Something went wrong importing the guides. Nothing was imported.')).toBe(first); // another error: the same alert, new words
+    importAnswer = null;
+    await press(c, 'Import built-in guides');
+    const status = said(c, 'Imported 11 guides.')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status).not.toBe(first);
+    expect(c.querySelector('.gtool-note[role="alert"]')).toBeNull();
+  });
+});
+
 describe('the rail\'s edit request', () => {
   it('opens the editor on that guide and is used up', () => {
     act(() => { requestGuideEdit(ROW); });
@@ -763,6 +852,27 @@ describe('a newly saved guide is shown', () => {
     expect(useGuides.getState().mine).toHaveLength(1);
     expect(useGuides.getState().tab).toBe('team');
     expect(c.textContent).not.toContain('Saved to My guides.');
+  });
+  it('a background re-read that finds one more guide while the editor is open is not a save: Cancel says nothing', async () => {
+    const c = as('player');
+    await press(c, 'New guide');
+    // The list is read again while the editor is open and finds a guide written on another device.
+    act(() => { useGuides.setState({ mine: [mineGuide, { ...mineGuide, id: 'other-device', rowId: 'other-device', title: 'From my phone' }] }); });
+    await press(c, 'Cancel');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(useGuides.getState().tab).toBe('team');
+    expect(c.textContent).not.toContain('Saved to My guides.');
+  });
+  it('a new guide saved while the list shrank for another reason is still shown where it went', async () => {
+    saveAnswer = { ok: true, value: savedRow({ title: 'A copy' }) };
+    const c = as('player');
+    await press(card(c, serverList[0]!.id), 'Duplicate');
+    act(() => { useGuides.setState({ mine: [] }); }); // the guide the player had was deleted on another device
+    await press(c, 'Save');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(useGuides.getState().mine.map((g) => g.title)).toEqual(['A copy']); // one guide before, one now
+    expect(useGuides.getState().tab).toBe('mine');
+    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === 'Saved to My guides.')).toBe(true);
   });
   it('a team member saving a Team Ascent guide stays on Team Ascent', async () => {
     saveAnswer = { ok: true, value: savedRow({ id: serverList[1]!.rowId, official: true, authorId: null, byline: 'Team Ascent', published: true, title: serverList[1]!.title, revision: 2 }) };

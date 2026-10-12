@@ -48,6 +48,21 @@ describe('the guide card picker', () => {
     act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
     expect(onPick.mock.calls.map((c) => c[0])).toEqual(['grim', 'grim']);
   });
+  it('Enter on an empty search picks nothing; once something is typed it picks the top match', () => {
+    const onPick = vi.fn();
+    ui = mount(<GuideCardPicker setId="set2" label="Add a Core card" onPick={onPick} />);
+    const input = ui.container.querySelector('input')!;
+    const enter = (): void => { act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); }); };
+    expect(rows(ui.container).length).toBe(12); // a list is showing, but nothing was asked for
+    enter();
+    expect(onPick).not.toHaveBeenCalled();
+    type(input, '   ');
+    enter();
+    expect(onPick).not.toHaveBeenCalled();
+    type(input, grim.name);
+    enter();
+    expect(onPick.mock.calls.map((c) => c[0])).toEqual(['grim']);
+  });
   it('carries no native tooltip and labels its search box', () => {
     ui = mount(<GuideCardPicker setId="set2" label="Add a Core card" onPick={() => {}} />);
     expect(ui.container.querySelector('[title]')).toBeNull();

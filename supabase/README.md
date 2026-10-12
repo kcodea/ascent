@@ -228,8 +228,11 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
      wrong. It goes away when that client updates.
 5. **Taking a guide down before step 4.** There is no Hide button yet. Until there is, do it in the SQL Editor.
    Find it: `select id, title, byline, published_at from public.guides where not official and published order by published_at desc limit 50;`
-   Hide it (it leaves Community, Bookmarked and every lobby rail at once; its author still sees it, marked
-   "Hidden by Team Ascent", and cannot publish it again): `update public.guides set hidden = true, hidden_at = now() where id = '<id>';`
+   Hide it (on the server it leaves Community, Bookmarked and every lobby rail at once; a game that is already open
+   drops it the next time it opens the Compendium's Guides tab or is restarted; its author still sees it, marked
+   "Hidden by Team Ascent", and cannot publish that guide again): `update public.guides set hidden = true, hidden_at = now() where id = '<id>';`
+   A hide stops that guide, not its author: they can still Duplicate it and publish the copy, which is a new guide. Run
+   the Find query again afterwards. Blocking an account is step 4's work.
    Undo: `update public.guides set hidden = false, hidden_at = null where id = '<id>';`
    Delete it for good: `delete from public.guides where id = '<id>';`
 

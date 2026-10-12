@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
-import { guideTextProblem, isBlockedText, isReservedByline } from './wordFilter';
+import { guideTextProblem, isBlockedText, isReservedByline, isReservedTitle } from './wordFilter';
 import { validateGuideDraft } from './validate';
 
 const draft = (patch: Record<string, unknown>) => {
@@ -41,6 +41,7 @@ it('the word list is not part of the package\'s public entry', async () => {
   const keys = Object.keys(entry);
   expect(keys).not.toContain('isBlockedText');
   expect(keys).not.toContain('isReservedByline');
+  expect(keys).not.toContain('isReservedTitle');
   expect(keys).not.toContain('guideTextProblem');
 });
 
@@ -75,24 +76,38 @@ describe('guideTextProblem', () => {
 
 describe("a player's guide cannot wear the team's name in its title or tagline", () => {
   const player = { official: false, byline: 'Mike' };
-  it('refuses a reserved phrase or word in the title, naming the field', () => {
-    for (const title of ['Team Ascent Dragons', 'Official Dragon guide', 'ASCENT  TEAM picks', 'T3am Ascent']) {
+  it('refuses the team name or a staff word in the title, naming the field', () => {
+    for (const title of ['Team Ascent Dragons', 'team ascent', 'T3am Ascent', 'TEAM   ASCENT picks', 'Teaam Ascent', 'Official Dragon guide', 'The admin build', 'A Moderator special', 'Developer picks']) {
       expect(guideTextProblem(draft({ ...player, title })), title).toEqual({ error: 'reserved_name', field: 'title' });
     }
   });
   it('refuses the same in the tagline', () => {
     expect(guideTextProblem(draft({ ...player, tagline: 'The official way to win' }))).toEqual({ error: 'reserved_name', field: 'tagline' });
   });
-  it('lets ordinary titles through, including words that only contain a reserved one', () => {
-    for (const title of ['Dragon ascent', 'Officially fun', 'Administer the beatdown', 'Team up with Imps']) {
+  it('lets ordinary titles through, including the game name and words that only contain a reserved one', () => {
+    for (const title of ['Best Ascent team comps', 'Ascent team comp for set 2', 'Steam Ascent', 'Dragon ascent', 'Officially fun', 'Unofficial Dragon guide', 'Administer the beatdown', 'Team up with Imps', 'My team, my Ascent', 'Ascent Team picks']) {
       expect(guideTextProblem(draft({ ...player, title })), title).toBeNull();
+    }
+  });
+  it('keeps the strict rule on the by line', () => {
+    for (const byline of ['Ascent Team', 'Team Ascent']) {
+      expect(guideTextProblem(draft({ ...player, byline })), byline).toEqual({ error: 'reserved_name', field: 'byline' });
     }
   });
   it('does not apply to a Team Ascent guide', () => {
     expect(guideTextProblem(draft({ official: true, byline: 'Team Ascent', title: 'Team Ascent Dragons' }))).toBeNull();
   });
-  it('checks blocked words before reserved names, field by field in the old order', () => {
-    // The byline rule still reports under byline.
-    expect(guideTextProblem(draft({ ...player, byline: 'Team Ascent' }))).toEqual({ error: 'reserved_name', field: 'byline' });
+  it('checks blocked words before reserved names', () => {
+    expect(guideTextProblem(draft({ ...player, title: 'shit build', byline: 'Team Ascent' }))).toEqual({ error: 'blocked_text', field: 'title' });
+    expect(guideTextProblem(draft({ ...player, body: 'this is shit', title: 'Team Ascent Dragons' }))).toEqual({ error: 'blocked_text', field: 'body' });
+  });
+});
+
+describe('isReservedTitle', () => {
+  it('is true for Team Ascent as two adjacent words (however folded or stretched) and for a staff word', () => {
+    for (const s of ['T3am  Ascent picks', 'Teaam Ascent', 'the Admin build']) expect(isReservedTitle(s), s).toBe(true);
+  });
+  it('is false for the game name beside other words, reversed order, and words that only contain a reserved one', () => {
+    for (const s of ['Best Ascent team comps', 'Ascent Team picks', 'Administer Steam Ascent']) expect(isReservedTitle(s), s).toBe(false);
   });
 });

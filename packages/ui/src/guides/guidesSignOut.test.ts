@@ -32,7 +32,7 @@ const { currentIdentity, setIdentity } = await import('../identity');
 const { loadGuides, resetGuidesForTests, useGuides } = await import('./guidesStore');
 
 const mineRow: GuideRecord = {
-  id: '66666666-6666-4666-8666-666666666666', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'],
+  id: '66666666-6666-4666-8666-666666666666', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, publishedAt: null, hidden: false, sets: ['set2'],
   tribes: [], pairsWith: [], iconCard: 'grim', title: 'Private build', tagline: '', body: 'Words.', core: ['grim'], enablers: [], mentions: [], aliases: {},
   forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 1, createdAt: '', updatedAt: '',
 };

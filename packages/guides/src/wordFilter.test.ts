@@ -72,3 +72,27 @@ describe('guideTextProblem', () => {
     expect(guideTextProblem(draft({}))).toBeNull();
   });
 });
+
+describe("a player's guide cannot wear the team's name in its title or tagline", () => {
+  const player = { official: false, byline: 'Mike' };
+  it('refuses a reserved phrase or word in the title, naming the field', () => {
+    for (const title of ['Team Ascent Dragons', 'Official Dragon guide', 'ASCENT  TEAM picks', 'T3am Ascent']) {
+      expect(guideTextProblem(draft({ ...player, title })), title).toEqual({ error: 'reserved_name', field: 'title' });
+    }
+  });
+  it('refuses the same in the tagline', () => {
+    expect(guideTextProblem(draft({ ...player, tagline: 'The official way to win' }))).toEqual({ error: 'reserved_name', field: 'tagline' });
+  });
+  it('lets ordinary titles through, including words that only contain a reserved one', () => {
+    for (const title of ['Dragon ascent', 'Officially fun', 'Administer the beatdown', 'Team up with Imps']) {
+      expect(guideTextProblem(draft({ ...player, title })), title).toBeNull();
+    }
+  });
+  it('does not apply to a Team Ascent guide', () => {
+    expect(guideTextProblem(draft({ official: true, byline: 'Team Ascent', title: 'Team Ascent Dragons' }))).toBeNull();
+  });
+  it('checks blocked words before reserved names, field by field in the old order', () => {
+    // The byline rule still reports under byline.
+    expect(guideTextProblem(draft({ ...player, byline: 'Team Ascent' }))).toEqual({ error: 'reserved_name', field: 'byline' });
+  });
+});

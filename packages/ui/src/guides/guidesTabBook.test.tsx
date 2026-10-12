@@ -37,7 +37,7 @@ const other = (Object.keys(SETS) as SetId[]).find((id) => id !== live.id)!;
 const foreignTribe = SETS[other].tribes.find((t) => !live.tribes.includes(t));
 /** A guide this player wrote in ANOTHER set: it does not show in the set the Compendium opens on. */
 const elsewhere: GuideRecord = {
-  id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: [other],
+  id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, publishedAt: null, hidden: false, sets: [other],
   tribes: foreignTribe ? [foreignTribe] : [], pairsWith: [], iconCard: 'grim', title: 'Written elsewhere', tagline: 'From another set', body: 'Words.',
   core: ['grim'], enablers: [], mentions: [], aliases: {}, forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0,
   revision: 3, createdAt: '', updatedAt: '',

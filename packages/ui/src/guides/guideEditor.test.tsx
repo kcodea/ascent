@@ -46,7 +46,7 @@ const prevIdentity = currentIdentity();
 
 const ROW = '11111111-1111-4111-8111-111111111111';
 const rec = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
-  id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'], tribes: [],
+  id: ROW, slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, publishedAt: null, hidden: false, sets: ['set2'], tribes: [],
   pairsWith: [], iconCard: 'grim', title: 'Saved', tagline: '', body: 'B', core: ['grim'], enablers: [], mentions: [], aliases: {},
   forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 2, createdAt: '', updatedAt: '', ...patch,
 });

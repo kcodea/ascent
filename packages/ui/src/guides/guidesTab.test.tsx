@@ -88,7 +88,7 @@ const becomeAccount = (userId: string | null, anonymous = false): void => {
 
 /** The server's answer to a save: the guide as a row this player owns. */
 const savedRow = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
-  id: '22222222-2222-4222-8222-222222222222', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, hidden: false, sets: ['set2'],
+  id: '22222222-2222-4222-8222-222222222222', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: false, publishedAt: null, hidden: false, sets: ['set2'],
   tribes: [], pairsWith: [], iconCard: 'grim', title: 'Left behind', tagline: '', body: 'half', core: ['grim'], enablers: [], mentions: [], aliases: {},
   forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 1, createdAt: '', updatedAt: '', ...patch,
 });

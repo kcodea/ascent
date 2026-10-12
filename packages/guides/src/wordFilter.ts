@@ -77,6 +77,9 @@ export function guideTextProblem(d: GuideDraft): { error: 'blocked_text' | 'rese
   if (!d.official) {
     if (isBlockedText(d.byline)) return { error: 'blocked_text', field: 'byline' };
     if (isReservedByline(d.byline)) return { error: 'reserved_name', field: 'byline' };
+    // A player's guide cannot pass itself off as the team's in its title or tagline either.
+    if (isReservedByline(d.title)) return { error: 'reserved_name', field: 'title' };
+    if (isReservedByline(d.tagline)) return { error: 'reserved_name', field: 'tagline' };
   }
   return null;
 }

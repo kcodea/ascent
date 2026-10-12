@@ -26,7 +26,7 @@ const { GUIDES } = await import('./guides');
 const { guideDeleted, guideSaved, loadGuides, requestGuideEdit, resetGuidesForTests, setGuidesTab, takePendingEdit, useGuides } = await import('./guidesStore');
 
 const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
-  id, slug: null, authorId: null, byline: 'Team Ascent', official: true, published: true, hidden: false, sets: ['set2'], tribes: ['beast'],
+  id, slug: null, authorId: null, byline: 'Team Ascent', official: true, published: true, publishedAt: null, hidden: false, sets: ['set2'], tribes: ['beast'],
   pairsWith: [], iconCard: 'b2_sunmane', title: `Guide ${id}`, tagline: '', body: 'B', core: ['b2_sunmane'], enablers: [], mentions: [], aliases: {},
   forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0, revision: 1, createdAt: '', updatedAt: '', ...patch,
 });

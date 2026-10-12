@@ -12,6 +12,12 @@
 /** Every number here is the owner's (spec section 1). The SQL repeats `guidesPerPlayer` and `savesPerHour`. */
 export const GUIDE_LIMITS = Object.freeze({
   guidesPerPlayer: 20,
+  /** Bookmarks one account may hold. The SQL repeats it. */
+  bookmarksPerPlayer: 200,
+  /** Guides per page of the Community list. */
+  communityPage: 20,
+  /** Community search text, in characters, after cleaning. */
+  searchQuery: 40,
   title: 40,
   tagline: 80,
   body: 1200,
@@ -51,6 +57,8 @@ export interface GuideRecord {
   byline: string;
   official: boolean;
   published: boolean;
+  /** When it was first published. Null for a guide that never was. Orders "Newest". */
+  publishedAt: string | null;
   hidden: boolean;
   sets: string[];
   tribes: string[];
@@ -97,6 +105,7 @@ export function parseGuideRecord(v: unknown): GuideRecord | null {
     byline: str(o.byline),
     official: o.official === true,
     published: o.published === true,
+    publishedAt: strOrNull(o.published_at),
     hidden: o.hidden === true,
     sets: strs(o.sets),
     tribes: strs(o.tribes),

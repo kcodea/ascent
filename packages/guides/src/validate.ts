@@ -14,6 +14,9 @@ export interface GuideDraft {
   revision: number | null;
   /** Import only. */
   slug: string | null;
+  /** Made by the client for one press of Save and sent again if that press is retried, so a save that landed is not
+   *  applied twice. Null from a client that does not send one. */
+  saveId: string | null;
   official: boolean;
   byline: string;
   sets: string[];
@@ -82,6 +85,11 @@ export function validateGuideDraft(v: unknown, opts: { requireSlug?: boolean } =
     if (typeof o.slug !== 'string' || !SLUG_RE.test(o.slug)) return fail('slug');
     slug = o.slug;
   }
+  let saveId: string | null = null;
+  if (o.saveId !== undefined && o.saveId !== null) {
+    if (typeof o.saveId !== 'string' || !UUID_RE.test(o.saveId)) return fail('saveId');
+    saveId = o.saveId;
+  }
 
   const title = cleanText(o.title);
   if (len(title) < 1 || len(title) > GUIDE_LIMITS.title) return fail('title');
@@ -129,7 +137,7 @@ export function validateGuideDraft(v: unknown, opts: { requireSlug?: boolean } =
     forkedFrom = o.forkedFrom;
   }
 
-  return { ok: true, draft: { id, revision, slug, official, byline, sets, tribes, pairsWith, iconCard: o.iconCard, title, tagline, body, core, enablers, mentions, aliases, forkedFrom } };
+  return { ok: true, draft: { id, revision, slug, saveId, official, byline, sets, tribes, pairsWith, iconCard: o.iconCard, title, tagline, body, core, enablers, mentions, aliases, forkedFrom } };
 }
 
 /** The jsonb document `guide_save` and `guide_import_builtins` read (snake_case keys). */
@@ -138,6 +146,7 @@ export function draftToSqlDoc(d: GuideDraft): Record<string, unknown> {
     id: d.id,
     revision: d.revision,
     slug: d.slug,
+    save_id: d.saveId,
     official: d.official,
     byline: d.byline,
     sets: d.sets,

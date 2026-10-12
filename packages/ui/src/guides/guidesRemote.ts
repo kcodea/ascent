@@ -18,7 +18,7 @@ import { fetchAllRows } from '../supabaseRows';
 
 const READ_TIMEOUT_MS = 4_000;
 
-export const GUIDE_COLUMNS = 'id, slug, author_id, byline, official, published, hidden, sets, tribes, pairs_with, icon_card, title, tagline, body, core, enablers, mentions, aliases, forked_from, forked_title, forked_byline, bookmark_count, sort_order, revision, created_at, updated_at';
+export const GUIDE_COLUMNS = 'id, slug, author_id, byline, official, published, published_at, hidden, sets, tribes, pairs_with, icon_card, title, tagline, body, core, enablers, mentions, aliases, forked_from, forked_title, forked_byline, bookmark_count, sort_order, revision, created_at, updated_at';
 
 /** `on` = asked, here they are. `off` = asked, and the tables are not there. `offline` = could not ask. */
 export type OfficialGuidesAnswer = { state: 'on'; guides: GuideRecord[] } | { state: 'off' | 'offline' | 'no-backend' };
@@ -125,6 +125,7 @@ export const GUIDE_ANSWER_ROW_KEYS: Readonly<Record<keyof GuideRecord, string>> 
   byline: 'byline',
   official: 'official',
   published: 'published',
+  publishedAt: 'published_at',
   hidden: 'hidden',
   sets: 'sets',
   tribes: 'tribes',

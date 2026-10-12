@@ -5,7 +5,7 @@ import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, guideMissingIds, guidesFor, toGuide, type Guide } from './guides';
 
 const rec = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
-  id: '11111111-1111-4111-8111-111111111111', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: true, hidden: false,
+  id: '11111111-1111-4111-8111-111111111111', slug: null, authorId: 'u-1', byline: 'Mike', official: false, published: true, publishedAt: null, hidden: false,
   sets: ['set2'], tribes: ['beast'], pairsWith: [], iconCard: 'b2_sunmane', title: 'T', tagline: '', body: 'B', core: ['b2_sunmane'],
   enablers: [], mentions: [], aliases: {}, forkedFrom: null, forkedTitle: null, forkedByline: null, bookmarkCount: 0, sortOrder: 0,
   revision: 3, createdAt: '', updatedAt: '', ...patch,

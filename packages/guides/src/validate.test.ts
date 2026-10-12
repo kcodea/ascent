@@ -112,3 +112,25 @@ describe('draftToSqlDoc', () => {
     expect(draftToSqlDoc(r.draft)).toMatchObject({ icon_card: 'b2_sunmane', pairs_with: ['dwarf'], forked_from: '11111111-1111-4111-8111-111111111111', official: false });
   });
 });
+
+describe('saveId (a retried save is told apart from a new one)', () => {
+  const SAVE = '22222222-2222-4222-8222-222222222222';
+  it('is optional and null when absent', () => {
+    const v = validateGuideDraft(good);
+    expect(v.ok && v.draft.saveId).toBeNull();
+  });
+  it('accepts a uuid and puts it in the SQL document as save_id', () => {
+    const v = validateGuideDraft({ ...good, saveId: SAVE });
+    expect(v.ok && v.draft.saveId).toBe(SAVE);
+    expect(v.ok && draftToSqlDoc(v.draft).save_id).toBe(SAVE);
+  });
+  it('refuses anything that is not a uuid, naming the field', () => {
+    for (const bad of ['nope', 7, {}, '']) {
+      expect(validateGuideDraft({ ...good, saveId: bad })).toEqual({ ok: false, error: 'bad_guide', field: 'saveId' });
+    }
+  });
+  it('a document with no save id carries save_id null', () => {
+    const v = validateGuideDraft(good);
+    expect(v.ok && draftToSqlDoc(v.draft).save_id).toBeNull();
+  });
+});

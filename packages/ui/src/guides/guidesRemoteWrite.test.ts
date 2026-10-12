@@ -44,7 +44,7 @@ const row = { id: '11111111-1111-4111-8111-111111111111', title: 'T', body: 'B',
  *  way cannot hide behind its default. (The icon is not the first Core card, on purpose.) */
 const fullRow = {
   id: '11111111-1111-4111-8111-111111111111', slug: 'set2-full-row', author_id: '22222222-2222-4222-8222-222222222222', byline: 'Mike',
-  official: true, published: true, hidden: true, sets: ['set2'], tribes: ['beast'], pairs_with: ['dwarf'], icon_card: 'b2_sunmane',
+  official: true, published: true, published_at: '2026-10-12T09:00:00.000Z', hidden: true, sets: ['set2'], tribes: ['beast'], pairs_with: ['dwarf'], icon_card: 'b2_sunmane',
   title: 'Full', tagline: 'Every field', body: 'Words.', core: ['grim', 'b2_sunmane'], enablers: ['sylus'], mentions: ['b2_solaris'],
   aliases: { sunny: 'b2_sunmane' }, forked_from: '33333333-3333-4333-8333-333333333333', forked_title: 'The source', forked_byline: 'Team Ascent',
   bookmark_count: 4, sort_order: 7, revision: 3, created_at: '2026-10-12T10:00:00.000Z', updated_at: '2026-10-12T11:00:00.000Z',

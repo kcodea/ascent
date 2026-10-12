@@ -238,13 +238,13 @@ describe('what ships', () => {
       expect(existsSync(pub('frames', door)), door).toBe(true);
       expect(css).toContain(`url('/frames/${door}')`);
     }
-    for (const cue of ['gateclose', 'gateslam', 'gaterattle', 'gateopen']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen']) {
       expect(existsSync(ui$('audio', `${cue}.mp3`)), cue).toBe(true);
     }
   });
 
   it('each cue has its own fader, on the ui bus, with a name', () => {
-    for (const cue of ['gateclose', 'gateslam', 'gaterattle', 'gateopen']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen']) {
       expect(familyOf(cue), cue).toBe(cue);
       expect(CATEGORY_GAINS[cue], cue).toBeGreaterThan(0);
       expect(CATEGORY_BUS[cue], cue).toBe('ui');

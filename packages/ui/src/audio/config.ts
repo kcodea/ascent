@@ -46,6 +46,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   goodLuckShine: 0.6, goodLuckSpark: 0.45,
   // The RANKED GATE (owner 2026-10-12): the owner's four recorded cues, one fader each, at the ui fallback level.
   gateclose: 0.6, gateslam: 0.6, gaterattle: 0.6, gateopen: 0.6,
+  // The cinematic hit on "Yes, let's go." itself (owner 2026-10-12), under the gate's own cues. 0.6 -> 0.72 the
+  // same day (owner: "up the volume of it by about 20%").
+  gateintro: 0.72,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -79,7 +82,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   gamble: 'ui',
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
-  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui',
+  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',
@@ -110,6 +113,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   gateslam: 'Ranked gate: the slam',
   gaterattle: 'Ranked gate: the shudder',
   gateopen: 'Ranked gate: grinding open',
+  gateintro: 'Ranked gate: the hit on Yes',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',
   discoverArrive: 'Discover entrance — settle as a card arrives',
   discoverSparkle: 'Discover entrance — sparkle once the set is in',

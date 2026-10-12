@@ -8,10 +8,17 @@
  *
  * Two one-shots, both fed the gate's own SCREEN-space seam (measured once by the component, never per frame):
  *  - slam():    the impact. Hot sparks spray sideways off the whole seam and fall, a white-gold flash blooms on
- *               it, and stone dust rolls outward and up from the seam and along the floor.
+ *               it, stone dust rolls outward and up from the seam and along the floor, and BLUE EMBERS lift off the
+ *               seam and the floor and float upward like sparks off a fire (owner 2026-10-12).
  *  - shudder(): the rattle. Dust shakes loose from the top of the doors and a few sparks spit from the seam.
  * Sparks are additive streaks turned along their travel; dust is a soft normal-blended puff that grows as it
- * fades. Worst case is ~260 pooled-texture sprites for under two seconds: a one-shot, not a loop.
+ * fades; an ember is a small additive glow that rises, sways and flickers out.
+ *
+ * `FX_AMOUNT` is the one dial on how MUCH there is of all of it (owner 2026-10-12: "amp up the overall effects by
+ * about 20% ... not including the motion of the gates itself"): every particle count is multiplied by it, and the
+ * seam flash is that much bigger. The doors' own motion (travel, recoil, shudder) lives in rankedGate.css and is
+ * untouched by it. Worst case is ~380 pooled-texture sprites, the longest-lived (embers) for under three seconds:
+ * a one-shot, not a loop.
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { stageHost } from '../stage';
@@ -23,6 +30,11 @@ export interface GateSeam { x: number; top: number; bottom: number }
 
 const SPARK_TINTS = [0xffffff, 0xfff2c0, 0xffd27a, 0xffa84a, 0xff7a2e] as const;
 const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
+const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
+/** How much of everything there is: 1 = the first cut, 1.2 = the owner's "+20%" (2026-10-12). Particles only. */
+const FX_AMOUNT = 1.2;
+/** A particle count at the current amount. */
+const amount = (count: number): number => Math.round(count * FX_AMOUNT);
 const pick = <T,>(a: readonly T[]): T => a[(Math.random() * a.length) | 0]!;
 
 interface Particle {
@@ -215,14 +227,41 @@ class GateFxController {
     });
   }
 
-  /** THE SLAM: sparks off the whole seam, a flash on it, dust rolling out from the seam and along the floor. */
+  /** One ember: it lifts off with a small sideways kick, then floats up, swaying wider and flickering as it dies. */
+  private ember(x: number, y: number, k: number, delay = 0): void {
+    const rise = (70 + Math.random() * 190) * k; // px/s upward
+    let vx = (Math.random() - 0.5) * 170 * k; // the kick off the impact; the air takes it back
+    let bx = x; // the path it sways around
+    const swayAmp = (8 + Math.random() * 24) * k;
+    const swayHz = 0.0038 + Math.random() * 0.0062; // rad/ms
+    const swayPhase = Math.random() * Math.PI * 2;
+    const flickHz = 0.012 + Math.random() * 0.02;
+    const flickPhase = Math.random() * Math.PI * 2;
+    const life = 1300 + Math.random() * 1700;
+    const size = 0.16 + Math.random() * 0.3;
+    this.spawn(this.glowTex!, x, y, pick(EMBER_TINTS), delay + life, true, (p, dt) => {
+      if (p.age < delay) return;
+      const s = dt / 1000;
+      const age = p.age - delay;
+      const t = age / life;
+      vx *= 1 - 1.8 * s;
+      bx += vx * s;
+      p.sp.y -= rise * (1 - t * 0.35) * s; // it slows a little as it cools
+      p.sp.x = bx + Math.sin(age * swayHz + swayPhase) * swayAmp * t;
+      p.sp.alpha = Math.min(1, t * 8) * Math.pow(1 - t, 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase));
+      p.sp.scale.set(size * k * (1 - t * 0.55));
+    });
+  }
+
+  /** THE SLAM: sparks off the whole seam, a flash on it, dust rolling out from the seam and along the floor, and
+   *  blue embers floating up off both. */
   slam(seam: GateSeam): void {
     this.run(() => {
       const h = Math.max(1, seam.bottom - seam.top);
       const k = Math.max(0.5, h / 1080); // tuned at a 1080-tall gate
       const mid = seam.top + h / 2;
       // Sparks: every stretch of the seam throws some, the middle (the emblem) the most.
-      for (let i = 0; i < 170; i++) {
+      for (let i = 0, n = amount(170); i < n; i++) {
         const centred = Math.random() < 0.45;
         const y = centred ? mid + (Math.random() + Math.random() - 1) * h * 0.18 : seam.top + Math.random() * h;
         this.spark(seam.x + (Math.random() - 0.5) * 6 * k, y, k, 260, 1250, Math.random() * 60);
@@ -235,22 +274,30 @@ class GateFxController {
         this.spawn(this.glowTex!, seam.x, y, tint, 260 + Math.random() * 120, true, (p) => {
           const t = p.age / p.life;
           p.sp.alpha = (1 - t) * 0.9;
-          p.sp.scale.set((5 + t * 4) * k * big, (9 + t * 3) * k * big);
+          p.sp.scale.set((5 + t * 4) * k * big * FX_AMOUNT, (9 + t * 3) * k * big * FX_AMOUNT);
         });
       }
       // Dust off the seam: thrown sideways, both ways, the whole height.
-      for (let i = 0; i < 38; i++) {
+      for (let i = 0, n = amount(38); i < n; i++) {
         const side = i % 2 ? -1 : 1;
         const y = seam.top + Math.random() * h;
         this.puff(seam.x + side * Math.random() * 14 * k, y, k, side * (60 + Math.random() * 330), -20 - Math.random() * 70,
           1.6 + Math.random() * 2.6, 0.2 + Math.random() * 0.2, 1000 + Math.random() * 900, Math.random() * 90);
       }
       // Dust off the floor: the doors' feet kick it out along the bottom edge.
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0, n = amount(26); i < n; i++) {
         const side = i % 2 ? -1 : 1;
         const x = seam.x + side * Math.random() * 260 * k;
         this.puff(x, seam.bottom - Math.random() * 30 * k, k, side * (40 + Math.random() * 260), -60 - Math.random() * 150,
           2 + Math.random() * 3, 0.22 + Math.random() * 0.2, 1100 + Math.random() * 900, Math.random() * 120);
+      }
+      // Blue embers: most lift off the seam (more from its lower half), the rest off the floor either side of it.
+      // They leave over the first half second, so the seam keeps giving them up after the hit.
+      for (let i = 0, n = amount(70); i < n; i++) {
+        const offSeam = Math.random() < 0.6;
+        const x = offSeam ? seam.x + (Math.random() - 0.5) * 26 * k : seam.x + (Math.random() - 0.5) * 840 * k;
+        const y = offSeam ? seam.top + h * (1 - Math.random() * Math.random()) : seam.bottom - Math.random() * 24 * k;
+        this.ember(x, y, k, Math.random() * 480);
       }
     });
   }
@@ -260,12 +307,12 @@ class GateFxController {
     this.run(() => {
       const h = Math.max(1, seam.bottom - seam.top);
       const k = Math.max(0.5, h / 1080);
-      for (let i = 0; i < 22; i++) {
+      for (let i = 0, n = amount(22); i < n; i++) {
         const x = seam.x + (Math.random() - 0.5) * 900 * k;
         this.puff(x, seam.top + Math.random() * 20 * k, k, (Math.random() - 0.5) * 60, 90 + Math.random() * 150,
           1.1 + Math.random() * 1.6, 0.16 + Math.random() * 0.14, 800 + Math.random() * 600, Math.random() * ms * 0.7);
       }
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0, n = amount(30); i < n; i++) {
         this.spark(seam.x, seam.top + Math.random() * h, k, 140, 520, Math.random() * ms * 0.8);
       }
     });

@@ -45,6 +45,41 @@ Fitted to the owner's four clips, whose loud parts were measured before any timi
   the first gate of a session has its art, sound and sparks.
 - **Reduced motion:** no gate. The swap happens at once.
 
+## Then: a hit on the press
+
+**Owner ask, same day:** "can we add this sound when the player clicks 'yes continue'?" (a 7.2 s cinematic hit:
+the impact is at the very start, then a long tail).
+
+`audio/gateintro.mp3`, its own fader (`gateintro`, ui bus, 0.6), played as `sfx.gate('intro')` from the Title's
+`confirmRanked`, on the press itself. It is NOT one of the gate's timed cues: it plays on every "Yes", including
+when reduced motion skips the gate. Its tail runs under the grind and the slam. Warmed with the other cues when the
+confirmation opens.
+
+**Then, after hearing it:** "there seems to be a slight delay before i hear the sound. is it possible to have it
+play any sooner? and can we up the volume of it by about 20%". Two delays were found and removed:
+
+- The button acted on `click`, which only fires when the mouse button comes back UP (typically 80 to 150 ms after
+  it goes down). "Yes, let's go." now acts on pointer DOWN (left button), keeping `onClick` for the keyboard; the
+  `open` guard makes the release a no-op.
+- The file opens on 49 ms of dead silence before the hit (measured in 10 ms windows). `sfx.gate('intro')` now
+  starts 45 ms in (`GATE_INTRO_SLICE`), with no re-encode.
+
+Volume: the `gateintro` fader 0.6 -> 0.72.
+
+## Then: blue embers, and 20% more of everything
+
+**Owner asks, after seeing it:** "can we add some blue particles that float upward like sparks from a fire when
+the doors close shut? and can we amp up the overall effects by about 20%", then: "not including the motion of the
+gates itself".
+
+- **Blue embers** (`gateFx.ember`): at the slam, 84 small additive blue glows lift off the seam (more from its
+  lower half) and off the floor either side of it, over the first half second. Each gets a small sideways kick,
+  then floats up at 70 to 260 px/s, swaying wider and flickering as it fades over 1.3 to 3 s. The last of them are
+  still rising as the doors open.
+- **+20%:** one dial, `FX_AMOUNT = 1.2` in gateFx.ts. Every particle count is multiplied by it (slam sparks
+  170 -> 204, seam dust 38 -> 46, floor dust 26 -> 31, shudder dust 22 -> 26, shudder sparks 30 -> 36) and the seam
+  flash is 20% bigger. The doors' travel, recoil and shudder (rankedGate.css) are unchanged, as asked.
+
 ## Judgement calls to confirm with the owner
 
 - **Length: 4.7 s**, every time a ranked lobby starts, and it cannot be skipped. That is longer than the "about 3

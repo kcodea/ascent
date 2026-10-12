@@ -7,6 +7,9 @@ import { applyEndOfTurn, endOfTurnTicksOf, eotTickCount, projectEndOfTurnSteps }
 /**
  * THE OWNER'S KOBOLD / RUBY BALANCE BATCH (2026-10-10) — each change through the real reducer / End-of-Turn /
  * `simulate` paths. The cards are shared, so Set 2 and Set 3 get the same numbers.
+ *
+ * The 2026-10-11 nerf batch moved five of these numbers (Ruby Mender, Cave Cutter, Crownvein, Portsmith, Gemling);
+ * the pins below carry today's values, and `koboldBalance1011.test.ts` is the suite for that batch.
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -113,16 +116,16 @@ describe('Storm Chaser in combat: "Split (real time)" (owner ruling 2026-10-10)'
   });
 });
 
-describe('Gemling: "End of Turn: Cast Veinstorm 3 times" (Gilded 6), one beat per cast', () => {
-  it('ticks: 3 plain, 6 gilded', () => {
+describe('Gemling: "End of Turn: Cast Veinstorm 2 times" (Gilded 4), one beat per cast', () => {
+  it('ticks: 2 plain, 4 gilded', () => {
     const eff = CARD_INDEX['k_gemline']!.effects[0]!;
     const s = run();
-    expect(eotTickCount(s, eff)).toBe(3);
-    expect(eotTickCount(s, eff, true)).toBe(6);
-    expect(endOfTurnTicksOf(s, body('g', 'k_gemline'))).toBe(3);
-    expect(endOfTurnTicksOf(s, body('g', 'k_gemline', { golden: true }))).toBe(6);
+    expect(eotTickCount(s, eff)).toBe(2);
+    expect(eotTickCount(s, eff, true)).toBe(4);
+    expect(endOfTurnTicksOf(s, body('g', 'k_gemline'))).toBe(2);
+    expect(endOfTurnTicksOf(s, body('g', 'k_gemline', { golden: true }))).toBe(4);
   });
-  it.each([[false, 3], [true, 6]] as const)('golden=%s casts Veinstorm %i times at End of Turn, one projected step per cast', (golden, casts) => {
+  it.each([[false, 2], [true, 4]] as const)('golden=%s casts Veinstorm %i times at End of Turn, one projected step per cast', (golden, casts) => {
     const s = run({ board: [body('g', 'k_gemline', { golden })], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
     const { steps } = projectEndOfTurnSteps(s);
     expect(steps.length).toBe(casts);
@@ -134,16 +137,16 @@ describe('Gemling: "End of Turn: Cast Veinstorm 3 times" (Gilded 6), one beat pe
 });
 
 describe('Ruby stat-gain numbers', () => {
-  it('Ruby Mender: Shout +2 Health (Gilded +4)', () => {
-    for (const [golden, h] of [[false, 2], [true, 4]] as const) {
+  it('Ruby Mender: Shout +1 Health (Gilded +2)', () => {
+    for (const [golden, h] of [[false, 1], [true, 2]] as const) {
       const s = act(run({ hand: [body('m', 'k_deepvein', { golden })] }), { type: 'play', uid: 'm' });
       expect(s.rubyBonus).toEqual({ attack: 0, health: h });
     }
   });
-  it('Cave Cutter: +2/+2 branch, and 4 RANDOM Rubies branch', () => {
+  it('Cave Cutter: +2/+1 branch, and 4 RANDOM Rubies branch', () => {
     let s = act(run({ hand: [body('c', 'k_veinbreaker')] }), { type: 'play', uid: 'c' });
     s = act(s, { type: 'chooseOne', index: 0 });
-    expect(s.rubyBonus).toEqual({ attack: 2, health: 2 });
+    expect(s.rubyBonus).toEqual({ attack: 2, health: 1 });
     s = act(run({ hand: [body('c', 'k_veinbreaker')] }), { type: 'play', uid: 'c' });
     s = act(s, { type: 'chooseOne', index: 1 });
     expect(rubiesInHand(s)).toHaveLength(4);
@@ -152,7 +155,7 @@ describe('Ruby stat-gain numbers', () => {
   it('Cave Cutter: Rune of the Unbroken Vein still grants BOTH halves', () => {
     const s = act(run({ runeUnbrokenVein: true, hand: [body('c', 'k_veinbreaker')] } as Partial<RunState>), { type: 'play', uid: 'c' });
     const done = s.chooseOne ? act(s, { type: 'chooseOne', index: 0 }) : s;
-    expect(done.rubyBonus).toEqual({ attack: 2, health: 2 });
+    expect(done.rubyBonus).toEqual({ attack: 2, health: 1 });
     expect(rubiesInHand(done)).toHaveLength(4);
   });
 });
@@ -189,17 +192,17 @@ describe('random-Ruby grants', () => {
 });
 
 describe('Crownvein, Scrapper, Portsmith, Kobe, Cavern Fiend', () => {
-  it('Crownvein Rally params are +2/+3', () => {
-    expect(CARD_INDEX['k_crownvein']!.effects[0]!.params).toMatchObject({ attack: 2, health: 3 });
+  it('Crownvein Rally params are +1/+2', () => {
+    expect(CARD_INDEX['k_crownvein']!.effects[0]!.params).toMatchObject({ attack: 1, health: 2 });
   });
   it('Scrapper Echo is +1/+1', () => {
     expect(CARD_INDEX['k_faultline']!.effects[0]!.params).toMatchObject({ attack: 1, health: 1 });
   });
-  it('Portsmith Avenge (3): +2/+2 and 2 Kobolds, keeps Ward', () => {
+  it('Portsmith Avenge (3): +1/+1 and 2 Kobolds, keeps Ward', () => {
     const d = CARD_INDEX['k_portsmith']!;
     expect(d.keywords).toContain('DS');
     expect(d.effects.map((e) => [e.on, e.do, e.params])).toEqual([
-      ['avenge', 'avengeRubyStatGain', { count: 3, attack: 2, health: 2 }],
+      ['avenge', 'avengeRubyStatGain', { count: 3, attack: 1, health: 1 }],
       ['avenge', 'avengeGrantRandomTribeMinion', { count: 3, tribe: 'kobold', grant: 2 }],
     ]);
   });

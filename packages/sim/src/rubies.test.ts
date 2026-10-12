@@ -72,12 +72,12 @@ describe('Ruby engine (set 2)', () => {
     let s: RunState = { ...createRun(1), board: [], hand: [] };
     mintRubies(s, 1); // a Ruby already in hand at base 1/1
     s.hand.push({ uid: 'dv', cardId: 'k_deepvein', tribe: 'kobold', attack: 2, health: 3, keywords: [], golden: false });
-    s = reduce(s, { type: 'play', uid: 'dv' }); // Shout: your Rubies gain +0/+2 (re-pin 2026-10-10: was +0/+1)
-    expect(s.rubyBonus).toMatchObject({ attack: 0, health: 2 });
+    s = reduce(s, { type: 'play', uid: 'dv' }); // Shout: your Rubies gain +0/+1 (re-pin 2026-10-11: back to +1 after a day at +2)
+    expect(s.rubyBonus).toMatchObject({ attack: 0, health: 1 });
     const handRuby = s.hand.find((c) => c.cardId === RUBY_ID)!;
-    expect([handRuby.attack, handRuby.health]).toEqual([1, 3]); // the ALREADY-HELD Ruby grew
+    expect([handRuby.attack, handRuby.health]).toEqual([1, 2]); // the ALREADY-HELD Ruby grew
     mintRubies(s, 1);
-    expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 3)).toBe(true); // future too
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 2)).toBe(true); // future too
   });
 
   it('cardsBoughtThisTurn increments on buy (Frenzied Excavator scaler plumbing)', () => {

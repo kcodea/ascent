@@ -137,7 +137,8 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(rubyCount(s), 'the on-sell payout minted 1 Ruby').toBe(1);
   });
 
-  // Re-pin 2026-10-10 (Kobold balance batch): Gemling CASTS Veinstorm 3 times at End of Turn (was: gets one).
+  // Re-pin 2026-10-10 (Kobold balance batch): Gemling CASTS Veinstorm at End of Turn (was: gets one).
+  // Re-pin 2026-10-11 (Kobold nerf batch): 2 casts, down from 3.
   it('Gemling: END of Turn casts Veinstorm, and no longer touches Ruby strength', () => {
     const s = recruit({ board: [recruitBody('k_gemline', 'gm')], hand: [], shop: [] });
     const before = s.rubyBonus ?? { attack: 0, health: 0 };
@@ -145,7 +146,7 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(s.hand.length, 'the Start-of-Turn shape is gone').toBe(0);
     applyEndOfTurn(s);
     expect(s.hand.some((c) => c.cardId === 'veinstorm'), 'nothing lands in hand').toBe(false);
-    expect(s.veinstormRubies, 'three Veinstorm casts').toEqual({ atk: 3, hp: 3 });
+    expect(s.veinstormRubies, 'two Veinstorm casts').toEqual({ atk: 2, hp: 2 });
     expect(s.rubyBonus ?? { attack: 0, health: 0 }, 'the Ruby-improvement half was dropped').toEqual(before);
   });
 

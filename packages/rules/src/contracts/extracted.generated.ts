@@ -16325,6 +16325,58 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     }
   },
   {
+    "contentId": "k_assembler",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "medium",
+      "unparsed": [
+        "endOfTurnPlayRuby.excludeSelf",
+        "endOfTurnPlayRuby.tribe"
+      ]
+    },
+    "setIds": [
+      "set2"
+    ],
+    "tier": 4,
+    "tribes": [
+      "kobold"
+    ],
+    "tags": [
+      "tier:4"
+    ],
+    "triggers": [
+      {
+        "event": "endOfTurn",
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "endOfTurnPlayRuby",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 2
+          }
+        }
+      }
+    ],
+    "gildedDelta": {
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
     "contentId": "k_beggy",
     "contentType": "minion",
     "revision": 1,
@@ -16565,8 +16617,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 3
+            "attack": 1,
+            "health": 2
           }
         }
       }
@@ -16660,7 +16712,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 0,
-            "health": 2
+            "health": 1
           }
         }
       }
@@ -16720,53 +16772,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
       "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
-    },
-    "textContract": {
-      "source": "index"
-    }
-  },
-  {
-    "contentId": "k_frenzied",
-    "contentType": "minion",
-    "revision": 1,
-    "reviewStatus": "extracted",
-    "extraction": {
-      "extractor": "contracts-extract@1",
-      "confidence": "high"
-    },
-    "setIds": [
-      "set2"
-    ],
-    "tier": 4,
-    "tribes": [
-      "kobold"
-    ],
-    "tags": [
-      "tier:4"
-    ],
-    "triggers": [
-      {
-        "event": "onPlay",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "battlecryPlayRubiesAll",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "rubies": 1
-          }
-        }
-      }
-    ],
-    "gildedDelta": {
-      "kind": "reshape",
-      "basis": "derived:golden-text",
-      "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -16855,7 +16860,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "times": 3
+            "times": 2
           }
         },
         "refs": [
@@ -17217,8 +17222,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 1,
+            "health": 1
           }
         }
       },
@@ -17430,10 +17435,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 2,
-            "health": 2
+            "health": 1
           }
         },
-        "note": "Choose One branch 1: \"Give your Rubies +2/+2.\""
+        "note": "Choose One branch 1: \"Give your Rubies +2/+1.\""
       },
       {
         "kind": "getRandomRubies",

@@ -26,6 +26,7 @@ import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPo
 import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
+import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -1666,6 +1667,31 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
     ]);
     if (!result || result.error || !result.data) return null;
     return (result.data as Array<{ entry: T }>).map((r) => r.entry).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * THE PROFILE'S TOTALS (owner report 2026-10-12: "is this page broken and only showing 50 games max?"): one light
+ * column (`hero_id`) of EVERY `run_history` row of this account, newest first, paged to the end (`fetchAllRows`,
+ * R-NET-01), folded into the games played + the most-played hero the leaderboard prints. It replaced counting
+ * `fetchRunHistory()`'s newest 50 entries, which capped `games_played` at 50. Null on any failure, so the caller
+ * skips the profile write rather than writing a short count over a real one.
+ */
+export async function fetchCareerTotals(): Promise<{ runs: number; favoriteHero: string | undefined } | null> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return null;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const res = await Promise.race([
+      fetchAllRows<{ hero_id: string | null }>((from, to) => c.from('run_history').select('hero_id').eq('user_id', userId)
+        .order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to)),
+      timeout,
+    ]);
+    if (!res || res.error || !res.data) return null;
+    return careerTotalsOf(res.data.map((r) => r.hero_id));
   } catch {
     return null;
   }

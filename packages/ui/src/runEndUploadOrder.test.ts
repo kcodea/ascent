@@ -36,6 +36,7 @@ vi.mock('./remoteBoards', async (importOriginal) => {
     uploadRunHistory: vi.fn(async () => { calls.push('history'); }),
     uploadPlayerProfile: vi.fn(async () => {}),
     fetchRunHistory: vi.fn(async () => null),
+    fetchCareerTotals: vi.fn(async () => null),
     recordFightResult: vi.fn(async () => {}),
     recordLobbyFights: vi.fn(async () => { calls.push('fights'); }),
     fetchLobbyStrength: vi.fn(() => { calls.push('strength'); return new Promise<LobbyStrength | null>((r) => { resolveStrength = r; }); }),
@@ -54,7 +55,7 @@ vi.mock('./rank/rankSubmission', async (importOriginal) => {
 });
 
 import { useGame } from './store';
-import { fetchLobbyStrength, uploadRunHistory, uploadRunTelemetry } from './remoteBoards';
+import { fetchCareerTotals, fetchLobbyStrength, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry } from './remoteBoards';
 import { enqueuePendingRank } from './rank/rankSubmission';
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -140,5 +141,31 @@ describe('the run-end uploads: the history insert goes first and never waits on 
     expect(vi.mocked(uploadRunTelemetry)).toHaveBeenCalledTimes(1);
     const meta = vi.mocked(uploadRunTelemetry).mock.calls[0]![1] as { replay: { v2: { result: Record<string, unknown> } } };
     expect(meta.replay.v2.result).not.toHaveProperty('lobbyStrength');
+  });
+});
+
+describe('the profile write counts EVERY game (owner 2026-10-12: "is this page broken and only showing 50 games max?")', () => {
+  beforeEach(() => {
+    vi.mocked(uploadPlayerProfile).mockClear();
+    vi.mocked(fetchCareerTotals).mockReset();
+    localStorage.clear();
+    useGame.setState({ playerName: 'Kev', run: finishingLobbyRun(8), showTitle: false, replaying: false, replayActions: [], capturedBoards: [], lastReplay: null });
+  });
+  afterEach(() => { resolveStrength(null); });
+
+  it('games_played is the full run_history total (137), never the newest-50 window, with the most-played hero', async () => {
+    vi.mocked(fetchCareerTotals).mockResolvedValue({ runs: 137, favoriteHero: 'sable' });
+    useGame.getState().dispatch({ type: 'resolveCombat' });
+    await sleep(30);
+    expect(vi.mocked(fetchCareerTotals)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(uploadPlayerProfile)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(uploadPlayerProfile).mock.calls[0]![0]).toMatchObject({ author: 'Kev', gamesPlayed: 137, favoriteHero: 'sable' });
+  });
+
+  it('a failed totals read skips the profile write (never a short count over a real one)', async () => {
+    vi.mocked(fetchCareerTotals).mockResolvedValue(null);
+    useGame.getState().dispatch({ type: 'resolveCombat' });
+    await sleep(30);
+    expect(vi.mocked(uploadPlayerProfile)).not.toHaveBeenCalled();
   });
 });

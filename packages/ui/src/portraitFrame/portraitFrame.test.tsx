@@ -212,7 +212,8 @@ describe('every hero-portrait surface goes through the shared renderer', () => {
   });
 
   it('Rankings passes your own row as self', () => {
-    expect(read('Rankings.tsx')).toMatch(/<LbHeroFrame heroId=\{r\.favoriteHero\} side=\{mine \? 'self' : 'opp'\} \/>/);
+    // Since 2026-10-12 the row also passes the skinned portrait (`art`), and NO frame id: the portrait keeps its own outline.
+    expect(read('Rankings.tsx')).toMatch(/<LbHeroFrame heroId=\{r\.favoriteHero\} side=\{mine \? 'self' : 'opp'\} art=\{[^\n]*\} \/>/);
   });
 });
 

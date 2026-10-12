@@ -5,7 +5,9 @@
  *  - `fetchOfficialGuides`: the Team Ascent guides, read directly under row level security. It doubles as the
  *    CAPABILITY PROBE: a missing table (the migration not run yet) is a definite `off`.
  *
- * Writes (the `guide-write` Edge Function) arrive with the editor.
+ *  - `saveGuideRemote` / `deleteGuideRemote` / `importBuiltInsRemote`: the writes, through the `guide-write` Edge
+ *    Function. They answer with a result carrying the server's own refusal code, never throw.
+ *  - `fetchTeamFlag` / `fetchMyGuides` / `fetchGuideById`: the three small reads the editor needs.
  *
  * Never throws; every read is time-boxed.
  */
@@ -39,5 +41,144 @@ export async function fetchOfficialGuides(): Promise<OfficialGuidesAnswer> {
     return { state: 'on', guides };
   } catch {
     return { state: 'offline' };
+  }
+}
+
+// -- Writes (the `guide-write` Edge Function) ---------------------------------------------------------------------
+
+const WRITE_TIMEOUT_MS = 15_000;
+
+/**
+ * A write's answer. On a refusal, `code` is the server's own stable code (with the `field` it named, if any), or
+ * one of three made here: `offline` (could not reach it), `unavailable` (the function is not deployed yet), `server`
+ * (it answered with something this client cannot use). Writes are interactive, never queued: a failure is shown.
+ */
+export type GuideWriteResult<T> = { ok: true; value: T } | { ok: false; code: string; field?: string };
+type GuideWriteFailure = { ok: false; code: string; field?: string };
+
+/** What the client sends for one guide: the camelCase document the server validates (`validateGuideDraft`). */
+export interface GuideDraftInput {
+  /** The row being updated; absent for a new guide. */
+  id?: string;
+  /** The revision the editor loaded. Required with `id`. */
+  revision?: number;
+  /** Built-in import only. */
+  slug?: string;
+  official: boolean;
+  byline: string;
+  sets: string[];
+  tribes: string[];
+  pairsWith: string[];
+  iconCard: string;
+  title: string;
+  tagline: string;
+  body: string;
+  core: string[];
+  enablers: string[];
+  mentions: string[];
+  aliases: Record<string, string>;
+  forkedFrom?: string | null;
+}
+
+/** Turn a functions-js error into a failure: the server's code when it sent one, else a transport code. */
+async function failureOf(err: unknown): Promise<GuideWriteFailure> {
+  const e = err as { context?: { status?: number; json?: () => Promise<unknown> } };
+  const status = e.context?.status;
+  let code = '';
+  let field: string | undefined;
+  try {
+    const parsed = e.context?.json ? await e.context.json() : null;
+    const o = (parsed ?? {}) as { error?: unknown; field?: unknown };
+    if (typeof o.error === 'string') code = o.error;
+    if (typeof o.field === 'string') field = o.field;
+  } catch { /* no readable body */ }
+  if (code) return field ? { ok: false, code, field } : { ok: false, code };
+  if (status === 404) return { ok: false, code: 'unavailable' };
+  return { ok: false, code: status ? 'server' : 'offline' };
+}
+
+async function invokeGuideWrite(body: Record<string, unknown>): Promise<GuideWriteResult<Record<string, unknown>>> {
+  const c = supabaseClient();
+  if (!c) return { ok: false, code: 'offline' };
+  try {
+    const call = Promise.resolve(c.functions.invoke('guide-write', { body })) as Promise<{ data: unknown; error: unknown }>;
+    const raced = await Promise.race([call, timeout(WRITE_TIMEOUT_MS, { timedOut: true } as const)]);
+    if ('timedOut' in raced) return { ok: false, code: 'offline' };
+    if (raced.error) return await failureOf(raced.error);
+    if (!raced.data || typeof raced.data !== 'object') return { ok: false, code: 'server' };
+    return { ok: true, value: raced.data as Record<string, unknown> };
+  } catch {
+    return { ok: false, code: 'offline' };
+  }
+}
+
+/** Create a guide (no `id`) or update one (`id` + the `revision` it was loaded at). */
+export async function saveGuideRemote(guide: GuideDraftInput): Promise<GuideWriteResult<GuideRecord>> {
+  const res = await invokeGuideWrite({ op: 'save', guide });
+  if (!res.ok) return res;
+  const rec = parseGuideRecord(res.value.guide);
+  return rec ? { ok: true, value: rec } : { ok: false, code: 'server' };
+}
+
+export async function deleteGuideRemote(rowId: string): Promise<GuideWriteResult<true>> {
+  const res = await invokeGuideWrite({ op: 'delete', id: rowId });
+  return res.ok ? { ok: true, value: true } : res;
+}
+
+/** Team only: add the built-in guides as Team Ascent guides. Never overwrites one that is already there. */
+export async function importBuiltInsRemote(guides: GuideDraftInput[]): Promise<GuideWriteResult<{ inserted: number; skipped: number }>> {
+  const res = await invokeGuideWrite({ op: 'importBuiltIns', guides });
+  if (!res.ok) return res;
+  return { ok: true, value: { inserted: Number(res.value.inserted ?? 0), skipped: Number(res.value.skipped ?? 0) } };
+}
+
+// -- The three small reads ----------------------------------------------------------------------------------------
+
+/** Is this account on the guides team? `undefined` = could not ask (never treat that as "no" for an account that
+ *  was already known to be on it). Row level security lets an account read only its own row. */
+export async function fetchTeamFlag(userId: string): Promise<boolean | undefined> {
+  const c = supabaseClient();
+  if (!c || !userId) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('guide_team').select('user_id').eq('user_id', userId).maybeSingle()),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return res.data !== null;
+  } catch {
+    return undefined;
+  }
+}
+
+/** This account's own guides (never Team Ascent ones), oldest first. `undefined` = could not ask. */
+export async function fetchMyGuides(userId: string): Promise<GuideRecord[] | undefined> {
+  const c = supabaseClient();
+  if (!c || !userId) return undefined;
+  try {
+    const res = await Promise.race([
+      fetchAllRows((from, to) => c.from('guides').select(GUIDE_COLUMNS).eq('author_id', userId).eq('official', false).order('created_at', { ascending: true }).order('id', { ascending: true }).range(from, to)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return ((res.data as unknown[] | null) ?? []).map(parseGuideRecord).filter((g): g is GuideRecord => g !== null);
+  } catch {
+    return undefined;
+  }
+}
+
+/** One guide by row id, as this account may read it. `null` = it is gone (or not readable); `undefined` = could not ask. */
+export async function fetchGuideById(rowId: string): Promise<GuideRecord | null | undefined> {
+  const c = supabaseClient();
+  if (!c || !rowId) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('guides').select(GUIDE_COLUMNS).eq('id', rowId).maybeSingle()),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return res.data === null ? null : (parseGuideRecord(res.data) ?? undefined);
+  } catch {
+    return undefined;
   }
 }

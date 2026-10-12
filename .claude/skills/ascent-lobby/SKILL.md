@@ -40,12 +40,20 @@ behaviour from a legacy symbol.**
 - Armor absorbs before Resolve. A seat at zero total is eliminated and takes a placement.
 - Placement drives Rating. A lobby never reaches phase `victory` — `advanceCombat` ends every lobby at
   `gameover`, so a lobby win is placement 1, not a victory phase.
-- **Quitting a rated game costs nothing — the abandon penalty is SWITCHED OFF** (owner 2026-10-02, R-RANK-05):
-  `ABANDON_PENALTY_ENABLED = false` in `ui/src/rank/ratedRun.ts` makes `rankedAbandonOf` answer null, so
-  `store.settleAbandonedRun` (title Clear, `pickHero` / `newRun` / `startTutorial` over the save, `adoptCloudRun`
-  replacing a different run) queues nothing, and the rank queue drops any item tagged `kind: 'abandon'`. The rule
-  (settle at the lowest open place, `abandonPlacementOf` = seats still alive) is kept; flip the constant to restore
-  it. A new door that overwrites or clears the save slot must still call `settleAbandonedRun(savedRun)` first.
+- **Quitting a rated game costs Rating** (R-RANK-05; off 2026-10-02 to 2026-10-11, ON again):
+  `ABANDON_PENALTY_ENABLED = true` in `ui/src/rank/ratedRun.ts`. `store.settleAbandonedRun` (title Clear, `pickHero` /
+  `newRun` / `startTutorial` over the save, `adoptCloudRun` replacing a different run) settles an unfinished rated
+  save at the lowest open place (`abandonPlacementOf` = seats still alive) through the rank queue, tagged
+  `kind: 'abandon'`. Save & Quit + Continue is not an abandon. A new door that overwrites or clears the save slot
+  must call `settleAbandonedRun(savedRun)` first.
+- **The ranked entry** (owner 2026-10-11, R-RANK-06; `ui/src/rank/rankedEntry.ts`): the Play card opens a
+  confirmation, and only its "Yes" calls `startLobby`, which commits `rankedEntry` (ranked run id + seed + hero
+  offer, in the store and in `ascent.rankedentry`). `pickHero` spends it (the run takes the entry's `runId`);
+  `abandonRankedEntry` (hero select's two-press Back, Settings' Abandon match) settles it as an 8th via
+  `settleAbandonedEntry`; a closed game boots straight back into the same hero offer (`BOOT_ENTRY`), and a live
+  entry is RESUMED by `startLobby`, never re-rolled. A new door that opens the ranked hero select must go through
+  `startLobby`, and a new door OUT of it must choose: `abandonRankedEntry` (costs an 8th) or `openTitle` (keeps
+  the entry owed).
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
 - **The shared pool is WHOLE RUNS** (R-LOBBY-08, 2026-09-29): fetched as a uniform random sample of eligible runs

@@ -415,18 +415,25 @@ describe('lobby rail guides view', () => {
   });
 
   it("bookmarked guides for this game follow the player's own, under a 'Bookmarked' label, and are counted", () => {
-    const c = mountRail(9191);
-    const run = useGame.getState().run;
+    // Every lobby of the live set holds all of that set's tribes today, so no seed leaves one out. Take one out by
+    // hand, as a set with more tribes than a lobby would: the "not for a tribe outside the lobby" case below must run.
+    const run = createLobbyRun(9191, 'warden');
+    run.tribes = run.tribes.slice(0, -1);
+    act(() => { useGame.setState({ run, combatStaged: false }); });
+    ui = mount(<LobbyPanel lobby={run.lobby!} />);
+    const c = ui.container;
     signInU1();
     const set: SetId = run.setId ?? 'set1';
     const team = guidesFor(run.setId, run.tribes).length;
     const outside = SETS[set].tribes.find((t) => !run.tribes.includes(t));
+    // Fail loudly rather than skip the case: without a tribe outside the lobby it would pass without being tried.
+    expect(outside, 'no tribe of the set is outside this lobby').toBeDefined();
     act(() => {
       useGuides.setState({
         mineOwner: 'u-1',
         bookmarked: [
           bm('bm-in', run.tribes[0]!, { sets: [set] }), bm('bm-neutral', null, { sets: [set] }),
-          bm('bm-otherset', run.tribes[0]!, { sets: [] }), ...(outside ? [bm('bm-outside', outside, { sets: [set] })] : []),
+          bm('bm-otherset', run.tribes[0]!, { sets: [] }), bm('bm-outside', outside!, { sets: [set] }),
         ],
       });
     });
@@ -470,6 +477,51 @@ describe('lobby rail guides view', () => {
     act(() => { useGame.setState({ account: { userId: 'u-2', email: 'k@example.test', anonymous: false, discriminator: null } }); });
     expect(c.querySelector('.lobbyguide[data-guide="bm-1"]')).toBeNull();
     expect([...c.querySelectorAll('.lobbyguides-sec')].map((e) => e.textContent)).not.toContain('Bookmarked');
+  });
+
+  it('the header says "1 guide" when the only card shown is a bookmark', () => {
+    const c = mountRail(9595);
+    const run = useGame.getState().run;
+    signInU1();
+    // No Team Ascent guide for this lobby and none of the player's own: the one card is the bookmark.
+    act(() => { useGuides.setState({ list: [], mine: [], mineOwner: 'u-1', bookmarked: [bm('bm-only', null, { sets: [run.setId ?? 'set1'] })] }); });
+    openGuides(c);
+    expect([...c.querySelectorAll('.lobbyguide')].map((e) => e.getAttribute('data-guide'))).toEqual(['bm-only']);
+    expect([...c.querySelectorAll('.lobbyguides-sec')].map((e) => e.textContent)).toEqual(['Bookmarked']);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe('1 guide');
+  });
+
+  it('when the account changes with the Guides view open, the header count drops by the bookmarked rows', () => {
+    const c = mountRail(9696);
+    const run = useGame.getState().run;
+    const set: SetId = run.setId ?? 'set1';
+    const team = guidesFor(run.setId, run.tribes).length;
+    signInU1();
+    act(() => { useGuides.setState({ mineOwner: 'u-1', bookmarked: [bm('bm-1', run.tribes[0]!, { sets: [set] }), bm('bm-2', null, { sets: [set] })] }); });
+    openGuides(c);
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(team + 2);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${team + 2} guides`);
+    // Another account signs in while the view stays open: the two bookmarked rows go, and the count with them.
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'k@example.test', anonymous: false, discriminator: null } }); });
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(team);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${team} guides`);
+  });
+
+  it("a bookmark whose id is a Team Ascent guide's id is drawn once, and counted once", () => {
+    const c = mountRail(9797);
+    const run = useGame.getState().run;
+    const set: SetId = run.setId ?? 'set1';
+    const teamGuides = guidesFor(run.setId, run.tribes);
+    expect(teamGuides.length).toBeGreaterThan(0);
+    const twin = teamGuides[0]!;
+    signInU1();
+    // Same id as a Team Ascent guide on the rail, and for this game's set and a lobby tribe: it would be drawn if it were not already.
+    act(() => { useGuides.setState({ mineOwner: 'u-1', bookmarked: [bm(twin.id, run.tribes[0]!, { sets: [set] }), bm('bm-1', run.tribes[0]!, { sets: [set] })] }); });
+    openGuides(c);
+    expect(c.querySelectorAll(`.lobbyguide[data-guide="${twin.id}"]`).length).toBe(1);
+    expect(c.querySelector('.lobbyguide[data-guide="bm-1"]')).not.toBeNull();
+    expect(c.querySelectorAll('.lobbyguide').length).toBe(teamGuides.length + 1);
+    expect(c.querySelector('.lobbyalive')!.textContent).toBe(`${teamGuides.length + 1} guides`);
   });
 
   it('a bookmark made while the rail is open does not add a card under the reader', () => {

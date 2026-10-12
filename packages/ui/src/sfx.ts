@@ -1495,6 +1495,18 @@ export const sfx = {
     tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.06 * vol, slideTo: 2400, category: 'eqSheen' });
   },
   /**
+   * THE RANKED GATE (owner 2026-10-12: "two gates slide in with a grinding motion and sound and slam shut ... they
+   * shudder and open again"). The owner's four recorded cues (`audio/gate*.mp3`), each on its own fader of the same
+   * name. `delay` (ms) schedules on the audio clock. No synth stand-in: a late beep over a gate reads worse than
+   * silence, and the sequence is visual-driven either way (the audio-never-blocks rule).
+   */
+  gate: (cue: 'close' | 'slam' | 'rattle' | 'open', delay = 0): void => {
+    playSample(`gate${cue}`, `gate${cue}`, Math.max(0, delay) / 1000);
+  },
+  /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
+   *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */
+  warmGate: (): void => { for (const cue of ['close', 'slam', 'rattle', 'open']) loadSample(`gate${cue}`); },
+  /**
    * THE "GOOD LUCK" INTRO — the shine sweeping the words left to right (owner ask 2026-09-24: "it needs a sound
    * effect"). The Equipment art-sheen clip: the same light-across-gold sweep, already in the owner's mix.
    * `vol` is the Good Luck tuner's dial on top of the category gain; `delay` (ms) schedules on the AUDIO clock
@@ -1876,6 +1888,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   runeArrival: () => sfx.runeSelectImplosion(),
   goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
+  gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

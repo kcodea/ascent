@@ -85,6 +85,7 @@ import { cancelAnnouncer, setAnnouncerAudioContextProvider, setAnnouncerPackProv
 import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
+import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
 import { OwnSkins } from './skins/skins';
@@ -569,6 +570,10 @@ export function Game() {
       <WipePreview />
       <HeroLaunchCurtain />
       <Title onSettings={openSettings} />
+      {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens
+          them on hero select. Mounted here, after the Title and the picker, because it must outlive the Title:
+          the swap happens behind the shut doors. Renders nothing between gates. */}
+      <RankedGate />
       <Leaderboard />
       <Rankings />
       <RecentGames />

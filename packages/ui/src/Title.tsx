@@ -14,6 +14,8 @@ import { useGame, tempHandle } from './store';
 import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
 import { RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
+import { warmRankedGate } from './rankedGate/RankedGate';
+import { requestRankedGate } from './rankedGate/rankedGateController';
 import { Crest, IconChest, IconHelm } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
@@ -141,6 +143,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const openRankedConfirm = (): void => {
     if (rankedCloseTimer.current != null) { window.clearTimeout(rankedCloseTimer.current); rankedCloseTimer.current = null; }
     setRankedConfirm('open');
+    warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
+  };
+  // "Yes, let's go." (owner 2026-10-12): the window leaves, the ranked gate slams shut over the mode picker, and
+  // `startLobby` (the entry + hero select) runs BEHIND the shut doors, so they open on hero select. With no gate
+  // (reduced motion, a test) `requestRankedGate` runs it at once.
+  const confirmRanked = (): void => {
+    if (rankedConfirm !== 'open') return;
+    closeRankedConfirm();
+    void requestRankedGate(startLobby);
   };
   // "No, go back." (or a press on the dimmed picker around the card): play the exit, then unmount.
   const closeRankedConfirm = (): void => {
@@ -490,7 +501,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <p className="rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
             {savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
             <div className="rankedconfirm-actions">
-              <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onClick={() => { sfx.pulse(); setRankedConfirm(null); startLobby(); }}>{RANKED_CONFIRM_YES}</button>
+              <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onClick={() => { sfx.pulse(); confirmRanked(); }}>{RANKED_CONFIRM_YES}</button>
               <button className="rc-btn" onClick={() => { sfx.pulse(); closeRankedConfirm(); }}>{RANKED_CONFIRM_NO}</button>
             </div>
           </div>

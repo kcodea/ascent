@@ -27,5 +27,10 @@ The rule itself (what Yes and No do, what leaving costs) is unchanged, so R-RANK
 `packages/ui/src/rank/rankedEntry.test.tsx` (14 tests): the picker stays mounted under the dialog, the veil is
 painted under the card, the veil press and No both close after the exit, reopening mid-exit keeps the card, and a
 CSS tripwire that the four keyframes touch only `transform` / `opacity`, that the bounce overshoots and rests at 1,
-and that reduced motion is honoured. Not looked at in a real render by Claude (no dev-server slot was free): the
-timings and the blur strength are first guesses for the owner to tune by eye.
+and that reduced motion is honoured.
+
+Looked at in a real render of this branch's production build (served statically, 1600x900): the picker stays visible
+behind the card, darkened and blurred; the card sits centred with both buttons; "No, go back." closes it and leaves
+the picker, with no entry stored. That is the SETTLED state only. The motion itself (the fade and the bounce) was
+not watched: the preview pane does not run animation frames reliably, so the timings, the blur strength and the
+bounce size are first guesses for the owner to tune by eye.

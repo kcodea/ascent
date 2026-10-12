@@ -150,6 +150,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // (reduced motion, a test) `requestRankedGate` runs it at once.
   const confirmRanked = (): void => {
     if (rankedConfirm !== 'open') return;
+    // The cinematic hit on the press itself (owner 2026-10-12: "add this sound when the player clicks yes"). Played
+    // HERE, not by the gate, so it sounds on every "Yes", including when reduced motion skips the gate.
+    sfx.gate('intro');
     closeRankedConfirm();
     void requestRankedGate(startLobby);
   };

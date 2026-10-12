@@ -45,6 +45,16 @@ Fitted to the owner's four clips, whose loud parts were measured before any timi
   the first gate of a session has its art, sound and sparks.
 - **Reduced motion:** no gate. The swap happens at once.
 
+## Then: a hit on the press
+
+**Owner ask, same day:** "can we add this sound when the player clicks 'yes continue'?" (a 7.2 s cinematic hit:
+the impact is at the very start, then a long tail).
+
+`audio/gateintro.mp3`, its own fader (`gateintro`, ui bus, 0.6), played as `sfx.gate('intro')` from the Title's
+`confirmRanked`, on the press itself. It is NOT one of the gate's timed cues: it plays on every "Yes", including
+when reduced motion skips the gate. Its tail runs under the grind and the slam. Warmed with the other cues when the
+confirmation opens.
+
 ## Judgement calls to confirm with the owner
 
 - **Length: 4.7 s**, every time a ranked lobby starts, and it cannot be skipped. That is longer than the "about 3

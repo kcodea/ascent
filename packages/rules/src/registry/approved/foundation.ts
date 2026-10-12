@@ -5247,4 +5247,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'game on hero select and reopen it: hero select comes back with the same three heroes and nothing was settled.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/rankedEntry.test.tsx'], lastVerifiedAt: '2026-10-11' },
   },
+  // ── A plated card is laid out the same at every size (owner 2026-10-12) ──────────────────────────────────
+  {
+    id: 'R-PLATE-01',
+    title: 'A full (plated) card has one layout at every size: an enlarged offer option is the hand card, uniformly bigger',
+    statement:
+      'Wherever a card is drawn in full on its stone plate (in hand, in a hover preview, as a Choose One option, as '
+      + 'a hero power in the hero-power Discover), every part of it keeps the same place relative to every other '
+      + 'part: the plate and its gold trim, the frame and art, the dark panel behind the text, the name, the rules '
+      + 'text, the medallion and the line on the plate\x27s bottom gem. A screen that draws the card larger scales '
+      + 'ALL of them together. No part may be positioned by a fixed length that the card\x27s size does not scale.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-12 (the hero-power Discover\x27s power cards)', quote: 'the cardplate darkening overlay is too high, it needs to be lower to matchup with the gold trim.' },
+      { kind: 'owner-chat', ref: 'Same message, 2026-10-12', quote: 'the layout of the text on the card is too low. it should exactly match the layout for existing spell cards.' },
+      { kind: 'fix-pr', ref: 'fix/power-card-layout: packages/ui/src/styles.css (`--plate-k` on `.disc-cards`, applied to the plate, its bottom-gem label and the plated step counter); packages/ui/src/discoverEntrance/discoverEntrance.css (the full Discover row reserves the scaled footprint)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-12 for the offer row (the Choose One and the hero-power Discover). Before the fix the '
+      + 'plate\x27s lift (`--plate-top`, plain px tuned at the standard card size) did not scale with the 1.3x offer '
+      + 'cards, so the plate sat about 11px low against everything else on the card: measured at 1920x1080, the plate '
+      + 'top was -0.206 card widths on a power card against -0.268 on a hand spell and on a hover preview; every '
+      + 'other part already matched. It is -0.268 on all three now. PARTIAL beyond the offer row: `--plate-top` is '
+      + 'still plain px, so a window larger than 1920x1080 (where the standard card itself grows) drifts the same '
+      + 'way on hand cards; not measured, not fixed here. The owner\x27s second quote says the text read "too low"; '
+      + 'the measurement found the text identical to a hand spell and only the plate off, so the plate is what moved.',
+    example:
+      'Cast Power Shifter with a Power Shifter still in hand: on a power card and on the hand card, the dark text '
+      + 'panel meets the plate\x27s gold trim at the same place and the name sits the same distance under the frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/discoverEntrance/offerPlateScale.test.ts'], lastVerifiedAt: '2026-10-12' },
+  },
 ];

@@ -93,6 +93,62 @@ describe('lobby rail guides view', () => {
     expect(c.querySelector('.lobbyguides-group')).toBeNull();
   });
 
+  // Owner 2026-10-12: "when in the detailed view, clicking outside of the guide area should automatically collapse
+  // back to the simple view".
+  const press = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); }); };
+  const openDetailed = (seed: number): HTMLElement => {
+    const c = mountRail(seed);
+    openGuides(c);
+    click(c.querySelector('.lobbyguide-head')!);
+    click(c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!);
+    expect(c.querySelector('.lobbyrail')!.classList.contains('guides-full')).toBe(true);
+    return c;
+  };
+
+  it('Detailed folds back to Simple on a press outside the rail; the open card stays open', () => {
+    const c = openDetailed(60601);
+    const outside = document.createElement('div');
+    document.body.appendChild(outside);
+    try {
+      press(outside);
+      expect(c.querySelector('.lobbyrail')!.classList.contains('guides-simple')).toBe(true);
+      expect(c.querySelector('.lobbyrail')!.classList.contains('guides-full')).toBe(false);
+      expect(c.querySelector('.lobbyguide.open')).not.toBeNull();
+      expect(c.querySelector('.lobbyguide.open .lobbyguide-text')).toBeNull();
+      expect(c.querySelector('.lobbyguide.open .lobbyguide-modebtn')!.textContent).toBe('Detailed');
+      expect(localStorage.getItem('ascent.guidesMode')).toBe('simple');
+      // It is still the Guides view: only the mode changed.
+      expect(c.querySelector('.lobbyround')!.textContent).toBe('Guides');
+    } finally { outside.remove(); }
+  });
+
+  it('a press inside the rail, on its view tab or on its header keeps Detailed', () => {
+    const c = openDetailed(60602);
+    press(c.querySelector('.lobbyguide.open .lobbyguide-text')!);
+    press(c.querySelector('.lobbyguide-head')!);
+    press(c.querySelector('.lobbyrailtab')!);
+    press(c.querySelector('.lobbyrailhead')!);
+    expect(c.querySelector('.lobbyrail')!.classList.contains('guides-full')).toBe(true);
+    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
+  });
+
+  it('a press outside changes nothing while the rail shows Opponents: the Detailed choice is kept for next time', () => {
+    const c = openDetailed(60603);
+    click(c.querySelector('.lobbyrailtab')!); // back to Opponents
+    expect(c.querySelector('.lobbyseat')).not.toBeNull();
+    press(document.body);
+    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
+    click(c.querySelector('.lobbyrailtab')!); // Guides again
+    expect(c.querySelector('.lobbyrail')!.classList.contains('guides-full')).toBe(true);
+  });
+
+  it('stops listening when the rail goes away', () => {
+    openDetailed(60604);
+    ui!.unmount(); ui = null;
+    act(() => { document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
+  });
+
   it('the write-up highlights mentioned cards and aliases (Eyes of Aresmar, Staff of Guel, "Oona")', () => {
     const run = createLobbyRun(5150, 'warden');
     run.tribes = ['beast', 'dragon', 'kobold', 'dwarf', 'demon'];

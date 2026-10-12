@@ -66,6 +66,20 @@ play any sooner? and can we up the volume of it by about 20%". Two delays were f
 
 Volume: the `gateintro` fader 0.6 -> 0.72.
 
+## Then: blue embers, and 20% more of everything
+
+**Owner asks, after seeing it:** "can we add some blue particles that float upward like sparks from a fire when
+the doors close shut? and can we amp up the overall effects by about 20%", then: "not including the motion of the
+gates itself".
+
+- **Blue embers** (`gateFx.ember`): at the slam, 84 small additive blue glows lift off the seam (more from its
+  lower half) and off the floor either side of it, over the first half second. Each gets a small sideways kick,
+  then floats up at 70 to 260 px/s, swaying wider and flickering as it fades over 1.3 to 3 s. The last of them are
+  still rising as the doors open.
+- **+20%:** one dial, `FX_AMOUNT = 1.2` in gateFx.ts. Every particle count is multiplied by it (slam sparks
+  170 -> 204, seam dust 38 -> 46, floor dust 26 -> 31, shudder dust 22 -> 26, shudder sparks 30 -> 36) and the seam
+  flash is 20% bigger. The doors' travel, recoil and shudder (rankedGate.css) are unchanged, as asked.
+
 ## Judgement calls to confirm with the owner
 
 - **Length: 4.7 s**, every time a ranked lobby starts, and it cannot be skipped. That is longer than the "about 3

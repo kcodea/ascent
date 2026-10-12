@@ -11,6 +11,14 @@ export const GUIDE_LIMITS = Object.freeze({
   guidesPerPlayer: 20,
   /** Bookmarks one account may hold. The SQL repeats it. */
   bookmarksPerPlayer: 200,
+  /** A report's note, in characters, after cleaning. */
+  reportNote: 300,
+  /** Reports one account may send in a day. The SQL repeats it. */
+  reportsPerDay: 10,
+  /** Bookmarks added or removed by one account in an hour. The SQL repeats it. */
+  bookmarkChangesPerHour: 120,
+  /** Guides one carry-over request may tag. The SQL repeats it. */
+  retagBatch: 200,
   /** Guides per page of the Community list. */
   communityPage: 20,
   /** Community search text, in characters, after cleaning. */
@@ -35,6 +43,10 @@ export const GUIDE_LIMITS = Object.freeze({
 
 /** The "by" line every official guide wears. Reserved: a player's guide can never use it. */
 export const TEAM_BYLINE = 'Team Ascent';
+
+/** Why a player reports a guide. The SQL's check constraint repeats these four. */
+export const REPORT_REASONS = ['offensive', 'spam', 'impersonation', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
 
 export const CARD_ID_RE = /^[a-z0-9_-]{1,48}$/;
 /** Never a card id and never a nickname, although they fit the shapes: the client indexes cards in plain objects,

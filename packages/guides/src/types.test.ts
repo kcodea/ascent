@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_ID_RE, GUIDE_LIMITS, parseGuideRecord } from './types';
+import { CARD_ID_RE, GUIDE_LIMITS, REPORT_REASONS, parseGuideRecord } from './types';
 
 const row = {
   id: '11111111-1111-4111-8111-111111111111', slug: 'set2-beast-sunmane', author_id: null, byline: 'Team Ascent',
@@ -40,5 +40,15 @@ describe('step 3 additions', () => {
     expect(GUIDE_LIMITS.bookmarksPerPlayer).toBe(200);
     expect(GUIDE_LIMITS.communityPage).toBe(20);
     expect(GUIDE_LIMITS.searchQuery).toBe(40);
+  });
+});
+
+describe('step 4 additions', () => {
+  it("carries the owner's report limits and the four reasons", () => {
+    expect(GUIDE_LIMITS.reportNote).toBe(300);
+    expect(GUIDE_LIMITS.reportsPerDay).toBe(10);
+    expect(GUIDE_LIMITS.bookmarkChangesPerHour).toBe(120);
+    expect(GUIDE_LIMITS.retagBatch).toBe(200);
+    expect([...REPORT_REASONS]).toEqual(['offensive', 'spam', 'impersonation', 'other']);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { cleanText, draftToSqlDoc, validateGuideDraft } from './validate';
+import { cleanText, draftToSqlDoc, validateGuideDraft, validateReport } from './validate';
+import { GUIDE_LIMITS, REPORT_REASONS } from './types';
 
 const good = {
   byline: 'Mike', sets: ['set2'], tribes: ['beast'], pairsWith: [], iconCard: 'b2_sunmane', title: 'My Sunmane',
@@ -132,5 +133,31 @@ describe('saveId (a retried save is told apart from a new one)', () => {
   it('a document with no save id carries save_id null', () => {
     const v = validateGuideDraft(good);
     expect(v.ok && draftToSqlDoc(v.draft).save_id).toBeNull();
+  });
+});
+
+describe('validateReport', () => {
+  it('accepts each reason, with or without a note', () => {
+    for (const reason of REPORT_REASONS) {
+      expect(validateReport({ reason })).toEqual({ ok: true, reason, note: '' });
+      expect(validateReport({ reason, note: '  It copies  my guide. ' })).toEqual({ ok: true, reason, note: 'It copies my guide.' });
+    }
+  });
+  it('refuses an unknown or missing reason, naming the field', () => {
+    for (const reason of ['rude', '', 7, null, undefined, ['spam']]) {
+      expect(validateReport({ reason })).toEqual({ ok: false, error: 'bad_report', field: 'reason' });
+    }
+  });
+  it('a note is limited to 300 characters after cleaning, counted in characters', () => {
+    expect(validateReport({ reason: 'spam', note: 'x'.repeat(GUIDE_LIMITS.reportNote) }).ok).toBe(true);
+    expect(validateReport({ reason: 'spam', note: 'x'.repeat(GUIDE_LIMITS.reportNote + 1) })).toEqual({ ok: false, error: 'bad_report', field: 'note' });
+    expect(validateReport({ reason: 'spam', note: 7 })).toEqual({ ok: false, error: 'bad_report', field: 'note' });
+  });
+  it('a note of only spaces or invisible characters is an empty note, not a refusal', () => {
+    const invisible = String.fromCharCode(0x200b, 0x200d, 0x2060) + '   ';
+    expect(validateReport({ reason: 'other', note: invisible })).toEqual({ ok: true, reason: 'other', note: '' });
+  });
+  it('refuses anything that is not an object', () => {
+    for (const v of [null, 'spam', 7, []]) expect(validateReport(v)).toEqual({ ok: false, error: 'bad_report', field: 'report' });
   });
 });

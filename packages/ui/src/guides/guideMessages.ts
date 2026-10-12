@@ -31,7 +31,7 @@ const PART: Readonly<Record<string, string>> = {
   sets: 'cards',
 };
 
-export type GuideAction = 'save' | 'delete' | 'import' | 'publish' | 'unpublish' | 'bookmark';
+export type GuideAction = 'save' | 'delete' | 'import' | 'publish' | 'unpublish' | 'bookmark' | 'report' | 'moderate';
 
 export interface GuideErrorAbout {
   /** What was refused. A save when not named. */
@@ -65,7 +65,9 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
   const part = field ? PART[field] : undefined;
   if (action === 'publish') {
     switch (code) {
-      case 'blocked_text': return `The ${part ?? 'guide'} has a word that is not allowed. Edit the guide, then publish it.`;
+      case 'blocked_text':
+        if (field === 'forked') return 'The guide this one is based on has a name that is not allowed, so this copy cannot be published. Write it as a new guide instead.';
+        return `The ${part ?? 'guide'} has a word that is not allowed. Edit the guide, then publish it.`;
       case 'reserved_name': return `The ${part ?? 'guide'} uses a reserved name. Edit the guide, then publish it.`;
       case 'guide_hidden': return 'Team Ascent has hidden this guide. It cannot be published.';
       case 'conflict': return 'This guide changed while it was being published. Try again.';
@@ -93,12 +95,37 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
   if (action === 'bookmark') {
     switch (code) {
       case 'too_many_bookmarks': return `You already have ${GUIDE_LIMITS.bookmarksPerPlayer} bookmarks. Remove one to make room.`;
+      case 'rate_limited': return 'That is a lot of bookmarks. Try again in a little while.';
       case 'sign_in_required':
       case 'unauthenticated': return 'Sign in to bookmark guides.';
       case 'not_allowed': return 'This guide cannot be bookmarked.';
       case 'not_found': return 'This guide is no longer available.';
       case 'offline': return `${NO_SERVER} Nothing was changed.`;
       default: return 'Something went wrong. Nothing was changed.';
+    }
+  }
+  if (action === 'report') {
+    switch (code) {
+      case 'already_reported': return 'You already reported this guide.';
+      case 'report_limit': return 'That is a lot of reports. Try again tomorrow.';
+      case 'sign_in_required':
+      case 'unauthenticated': return 'Sign in to report guides.';
+      case 'not_allowed': return 'This guide cannot be reported.';
+      case 'not_found': return 'This guide is no longer available.';
+      case 'bad_report': return 'Check the report.';
+      // The report may have landed before the answer was lost: a second try then says "already reported".
+      case 'offline': return `${NO_SERVER} Try again in a moment; if it says you already reported this guide, it went through.`;
+      default: return 'Something went wrong. The report was not sent.';
+    }
+  }
+  if (action === 'moderate') {
+    switch (code) {
+      case 'not_allowed': return 'Only Team Ascent can do that.';
+      case 'not_found': return NO_LONGER;
+      case 'sign_in_required':
+      case 'unauthenticated': return SIGN_IN;
+      // Hide, unhide, dismiss and carry-over may have landed before the answer was lost.
+      default: return code === 'offline' ? `${NO_SERVER} Check again in a moment to see whether it changed.` : 'Something went wrong. Check again in a moment to see whether it changed.';
     }
   }
   const kept = about.kept === true;

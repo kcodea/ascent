@@ -171,3 +171,28 @@ describe('publishing and bookmarking have their own words', () => {
     for (const m of all) expect(m.includes(String.fromCharCode(0x2014)) || m.includes('--'), m).toBe(false);
   });
 });
+
+describe('reporting and the team actions have their own words', () => {
+  it('report refusals', () => {
+    expect(guideErrorMessage('already_reported', undefined, { action: 'report' })).toBe('You already reported this guide.');
+    expect(guideErrorMessage('report_limit', undefined, { action: 'report' })).toBe('That is a lot of reports. Try again tomorrow.');
+    expect(guideErrorMessage('not_found', undefined, { action: 'report' })).toBe('This guide is no longer available.');
+    expect(guideErrorMessage('not_allowed', undefined, { action: 'report' })).toBe('This guide cannot be reported.');
+    expect(guideErrorMessage('sign_in_required', undefined, { action: 'report' })).toBe('Sign in to report guides.');
+    expect(guideErrorMessage('bad_report', 'note', { action: 'report' })).toBe('Check the report.');
+    expect(guideErrorMessage('offline', undefined, { action: 'report' })).toBe('Could not reach the server. Try again in a moment; if it says you already reported this guide, it went through.');
+    expect(guideErrorMessage('x', undefined, { action: 'report' })).toBe('Something went wrong. The report was not sent.');
+  });
+  it('team action refusals never claim something changed or did not', () => {
+    expect(guideErrorMessage('not_allowed', undefined, { action: 'moderate' })).toBe('Only Team Ascent can do that.');
+    expect(guideErrorMessage('not_found', undefined, { action: 'moderate' })).toBe('This guide no longer exists.');
+    expect(guideErrorMessage('offline', undefined, { action: 'moderate' })).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(guideErrorMessage('x', undefined, { action: 'moderate' })).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+  });
+  it('a publish refused for its "Based on" line says the player cannot fix it', () => {
+    expect(guideErrorMessage('blocked_text', 'forked', { action: 'publish' })).toBe('The guide this one is based on has a name that is not allowed, so this copy cannot be published. Write it as a new guide instead.');
+  });
+  it('too many bookmark changes has its own sentence', () => {
+    expect(guideErrorMessage('rate_limited', undefined, { action: 'bookmark' })).toBe('That is a lot of bookmarks. Try again in a little while.');
+  });
+});

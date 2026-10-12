@@ -11,7 +11,10 @@ import { handleGuideWrite, type RpcCall } from '../../../guides/src/server';
 import { isBlockedText } from '../../../guides/src/wordFilter';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, toGuide, type Guide } from './guides';
-import { GUIDE_COLUMNS, bookmarkGuideRemote, saveGuideRemote, setPublishedRemote, type GuideDraftInput } from './guidesRemote';
+import {
+  GUIDE_COLUMNS, bookmarkGuideRemote, dismissReportsRemote, reportGuideRemote, retagSetRemote, saveGuideRemote, setHiddenRemote, setPublishedRemote,
+  type GuideDraftInput,
+} from './guidesRemote';
 import { builtInImportPayload, newSaveId } from './guideDrafts';
 import { TRIBE_NAME } from './GuideParts';
 
@@ -27,6 +30,8 @@ const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-10-12-guides
 /** Step 3 (publishing, bookmarks, a save that can be retried), run after step 1 as the runbook says. It replaces
  *  `guide_save`, so every test in this file drives the function that is really deployed. */
 const COMMUNITY = readFileSync(join(root, 'supabase/migrations/2026-10-13-guides-community.sql'), 'utf8');
+/** Step 4 (reports, hiding, carry-over), run after step 3. */
+const MODERATION = readFileSync(join(root, 'supabase/migrations/2026-10-14-guides-moderation.sql'), 'utf8');
 
 /** The same stand-ins as packages/guides/src/guides.db.test.ts: the API roles, `auth.uid()` and Supabase's default grants. */
 const STUB = `
@@ -58,6 +63,10 @@ const CALLS: Readonly<Record<string, (a: Record<string, unknown>) => [string, un
   guide_own_row: (a) => ['select public.guide_own_row($1::uuid, $2::uuid) as r', [a.p_user, a.p_id]],
   guide_set_published: (a) => ['select public.guide_set_published($1::uuid, $2::uuid, $3::boolean, $4::int) as r', [a.p_user, a.p_id, a.p_on, a.p_revision]],
   guide_bookmark: (a) => ['select public.guide_bookmark($1::uuid, $2::uuid, $3::boolean) as r', [a.p_user, a.p_id, a.p_on]],
+  guide_report: (a) => ['select public.guide_report($1::uuid, $2::uuid, $3::text, $4::text) as r', [a.p_user, a.p_id, a.p_reason, a.p_note]],
+  guide_set_hidden: (a) => ['select public.guide_set_hidden($1::uuid, $2::uuid, $3::boolean) as r', [a.p_user, a.p_id, a.p_on]],
+  guide_dismiss_reports: (a) => ['select public.guide_dismiss_reports($1::uuid, $2::uuid) as r', [a.p_user, a.p_id]],
+  guide_retag_set: (a) => ['select public.guide_retag_set($1::uuid, $2::text, $3::uuid[]) as r', [a.p_user, a.p_set, a.p_ids]],
 };
 const rpc: RpcCall = async (fn, args) => {
   const make = CALLS[fn];
@@ -105,6 +114,7 @@ beforeAll(async () => {
   await db.exec(STUB);
   await db.exec(MIGRATION);
   await db.exec(COMMUNITY);
+  await db.exec(MODERATION);
   for (const u of [TEAM, PLAYER, READER]) await db.query('insert into auth.users (id) values ($1)', [u]);
   await db.query('insert into public.guide_team (user_id) values ($1)', [TEAM]);
 }, 60_000);
@@ -279,6 +289,78 @@ describe('step 3, end to end: the client -> the handler -> SQL -> the client rea
     expect(down.ok, JSON.stringify(down)).toBe(true);
     expect(await setPublishedRemote(id, true)).toEqual({ ok: false, code: 'reserved_name', field: 'title' });
     expect(await stored(id)).toMatchObject({ published: false, title: 'Team Ascent picks' });
+  });
+});
+
+describe('step 4, end to end: report, hide, unhide and carry over, as three accounts', () => {
+  const as = async <T>(who: string, act: () => Promise<T>): Promise<T> => {
+    caller = who;
+    try { return await act(); } finally { caller = PLAYER; }
+  };
+  const ok = <T>(res: { ok: boolean }, label: string): T => {
+    expect(res.ok, `${label}: ${JSON.stringify(res)}`).toBe(true);
+    return (res as unknown as { value: T }).value;
+  };
+  const stored = async (id: string): Promise<Row> =>
+    (await db.query<Row>('select published, hidden, hidden_by, sets, revision, bookmark_count from public.guides where id = $1', [id])).rows[0]!;
+  const reports = async (id: string): Promise<Row[]> =>
+    (await db.query<Row>('select reporter_id, reason, note, status, resolved_by from public.guide_reports where guide_id = $1 order by created_at, id', [id])).rows;
+
+  it('a reader reports, only the team hides, unhides and carries over, and every answer is read the way the server meant it', async () => {
+    // 1. PLAYER saves and publishes a guide. READER reports it; a second report is refused; the author cannot report their own.
+    const draft: GuideDraftInput = {
+      official: false, saveId: newSaveId(), byline: 'Mike', sets: ['set2'], tribes: ['beast'], pairsWith: [], iconCard: 'b2_sunmane', title: 'Sunmane, reported',
+      tagline: 'A guide to report.', body: 'Open on Sunny and stack the rally every turn.', core: ['b2_sunmane', 'b2_solaris'], enablers: [], mentions: [], aliases: {},
+    };
+    const saved = ok<GuideRecord>(await saveGuideRemote(draft), 'save');
+    const id = saved.id;
+    ok<GuideRecord>(await setPublishedRemote(id, true), 'publish');
+
+    expect(await as(READER, () => reportGuideRemote(id, 'spam', 'looks like an advert'))).toEqual({ ok: true, value: true });
+    expect(await as(READER, () => reportGuideRemote(id, 'offensive', ''))).toEqual({ ok: false, code: 'already_reported' });
+    expect(await reportGuideRemote(id, 'spam', '')).toEqual({ ok: false, code: 'not_allowed' });
+    expect(await reports(id)).toMatchObject([{ reporter_id: READER, reason: 'spam', note: 'looks like an advert', status: 'open' }]);
+
+    // 2. READER is not on the team: none of the three team actions is allowed, and the guide is still public.
+    expect(await as(READER, () => setHiddenRemote(id, true))).toEqual({ ok: false, code: 'not_allowed' });
+    expect(await as(READER, () => dismissReportsRemote(id))).toEqual({ ok: false, code: 'not_allowed' });
+    expect(await as(READER, () => retagSetRemote('set3', [id]))).toEqual({ ok: false, code: 'not_allowed' });
+    expect(await stored(id)).toMatchObject({ published: true, hidden: false, sets: ['set2'], revision: 1 });
+    expect((await reports(id))[0]!.status).toBe('open');
+
+    // 3. TEAM hides it. What the client reads out of the answer is hidden and still published; its author cannot publish it
+    //    again; the open report is now actioned, by the team account.
+    const hiddenRec = ok<GuideRecord>(await as(TEAM, () => setHiddenRemote(id, true)), 'hide');
+    const hiddenGuide = toGuide(hiddenRec);
+    expect(hiddenGuide).not.toBeNull();
+    expect(hiddenGuide!.hidden).toBe(true);
+    expect(hiddenGuide!.published).toBe(true);
+    expect(hiddenGuide!.rowId).toBe(id);
+    expect(hiddenGuide!.authorId).toBe(PLAYER);
+    expect(await reports(id)).toMatchObject([{ status: 'actioned', resolved_by: TEAM }]);
+    expect(await stored(id)).toMatchObject({ hidden: true, hidden_by: TEAM, published: true });
+    // A reader can no longer read it; the team still can.
+    expect(await readAs('authenticated', READER, `select id from public.guides where id = '${id}'`)).toHaveLength(0);
+    expect(await readAs('authenticated', TEAM, `select id from public.guides where id = '${id}'`)).toHaveLength(1);
+    // Hiding leaves it published, so asking to publish it again is "already so": the answer is the hidden guide, not a
+    // refusal. The refusal is for a hidden guide the author took back to private and now tries to put public again.
+    expect(toGuide(ok<GuideRecord>(await setPublishedRemote(id, true), 'publish while hidden'))).toMatchObject({ hidden: true, published: true });
+    ok<GuideRecord>(await setPublishedRemote(id, false), 'unpublish while hidden');
+    expect(await setPublishedRemote(id, true)).toEqual({ ok: false, code: 'guide_hidden' });
+    expect(await stored(id)).toMatchObject({ hidden: true, published: false });
+
+    // 4. TEAM unhides it (it is still private); its author publishes it again. READER bookmarks it. TEAM carries it to
+    //    set3: once changed, the second time nothing to change.
+    const shown = ok<GuideRecord>(await as(TEAM, () => setHiddenRemote(id, false)), 'unhide');
+    expect(toGuide(shown)).toMatchObject({ hidden: false, published: false });
+    expect(toGuide(ok<GuideRecord>(await setPublishedRemote(id, true), 'publish after unhide'))).toMatchObject({ hidden: false, published: true });
+    expect(await as(READER, () => bookmarkGuideRemote(id, true))).toEqual({ ok: true, value: { bookmarked: true, count: 1 } });
+    expect(await as(TEAM, () => retagSetRemote('set3', [id]))).toEqual({ ok: true, value: 1 });
+    expect(await as(TEAM, () => retagSetRemote('set3', [id]))).toEqual({ ok: true, value: 0 });
+    const after = await stored(id);
+    expect(after.sets).toEqual(['set2', 'set3']);
+    expect(after.revision).toBe(1);
+    expect(after.bookmark_count).toBe(1);
   });
 });
 

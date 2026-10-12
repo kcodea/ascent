@@ -154,6 +154,23 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     setModeState(m);
     try { localStorage.setItem(GUIDES_MODE_KEY, m); } catch { /* storage unavailable: the choice lasts this session */ }
   };
+  // DETAILED folds back to SIMPLE on a press anywhere outside the rail (owner 2026-10-12: "clicking outside of the
+  // guide area should automatically collapse back to the simple view"). The rail, its view tab and its header are
+  // "inside". Listening only while Detailed is showing, so the Opponents view and Simple cost nothing and a press
+  // elsewhere never rewrites the saved choice behind the player's back. Capture phase + `pointerdown`: it also folds
+  // when a drag starts on the board, and nothing can swallow the press first. The press itself is left alone.
+  useEffect(() => {
+    if (!showGuides || mode !== 'full') return;
+    const onDown = (e: Event): void => {
+      const t = e.target;
+      if (t instanceof Element && t.closest('.lobbyrail, .lobbyrailtab, .lobbyrailhead')) return;
+      setSwap('narrow');
+      setModeState('simple');
+      try { localStorage.setItem(GUIDES_MODE_KEY, 'simple'); } catch { /* storage unavailable: the choice lasts this session */ }
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [showGuides, mode]);
   const railMods = `${showGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     if (staged) return;

@@ -17,6 +17,7 @@ let deleteAnswer: () => GuideWriteResult<true>;
 let byIdAnswer: GuideRecord | null | undefined;
 let gate: Promise<void> | null = null;
 let deleteGate: Promise<void> | null = null;
+let fetches = 0;
 /** Hold the next save/delete at the server until the returned function is called. */
 const hold = (): (() => void) => { let r!: () => void; gate = new Promise<void>((res) => { r = res; }); return r; };
 const saves: GuideDraftInput[] = [];
@@ -26,7 +27,7 @@ vi.mock('./guidesRemote', () => ({
   fetchOfficialGuides: async () => ({ state: 'offline' }),
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
-  fetchGuideById: async () => byIdAnswer,
+  fetchGuideById: async () => { fetches++; return byIdAnswer; },
   saveGuideRemote: async (g: GuideDraftInput) => { saves.push(g); if (gate) await gate; return saveAnswer(g); },
   deleteGuideRemote: async (rowId: string) => { deletes.push(rowId); if (deleteGate) await deleteGate; return deleteAnswer(); },
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
@@ -78,6 +79,7 @@ beforeEach(() => {
   byIdAnswer = rec();
   gate = null;
   deleteGate = null;
+  fetches = 0;
   saveAnswer = (g) => ({ ok: true, value: rec({ title: g.title, body: g.body, core: g.core }) });
   deleteAnswer = () => ({ ok: true, value: true });
 });
@@ -422,14 +424,38 @@ describe('a save that cannot go through', () => {
     await press(c, 'Save');
     expect(loadLocalDraft('u-1')!.title).toBe('Keep me');
   });
-  it('a change that is undone clears the device copy', async () => {
-    vi.useFakeTimers();
-    const c = open();
-    type(c.querySelector('.gedit-title')!, 'Different');
-    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
-    expect(loadLocalDraft('u-1')!.title).toBe('Different');
-    type(c.querySelector('.gedit-title')!, 'My guide');
-    expect(loadLocalDraft('u-1')).toBeNull();
+  it('a resumed draft survives type, pause, undo', async () => {
+    const resumed = { ...emptyDraft('Mike'), title: 'Resumed', body: 'B', core: ['grim'] };
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    type(c.querySelector('.gedit-title')!, 'Resumedx');
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
+    expect(loadLocalDraft('u-1')!.title).toBe('Resumedx');
+    type(c.querySelector('.gedit-title')!, 'Resumed');
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(loadLocalDraft('u-1')).toEqual(resumed);
+  });
+  it('the conflict prompt takes focus itself, not a button, so a stray Enter does nothing', async () => {
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    const active = document.activeElement as HTMLElement;
+    expect(active.getAttribute('role')).toBe('alertdialog');
+    expect(active.tagName).not.toBe('BUTTON');
+    act(() => { active.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); });
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Mine');
+    expect(saves).toHaveLength(1);
+    expect(fetches).toBe(0);
+  });
+  it('a save answered not found also drops the dead guide from the list', async () => {
+    useGuides.setState({ mine: [{ ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, authorId: 'u-1' }] });
+    saveAnswer = () => ({ ok: false, code: 'not_found' });
+    const c = open(existing());
+    await press(c, 'Save');
+    expect(useGuides.getState().mine).toEqual([]);
   });
   it('a conflict offers Load their version, which replaces the text with the server\'s', async () => {
     saveAnswer = () => ({ ok: false, code: 'conflict' });

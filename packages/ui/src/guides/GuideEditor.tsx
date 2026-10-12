@@ -34,9 +34,8 @@ import './guideEditor.css';
  * open the editor stands aside entirely (its own listener owns the keys). Nothing else is touched.
  *
  * THE DEVICE DRAFT. A changed draft is written to this device shortly after each change, at once when a save is
- * refused, and when the editor is closed from outside (the Compendium shutting) with changes unsaved. It is cleared by
- * a save, a delete, a confirmed discard, or a change being undone, so closing the Compendium mid-edit loses nothing
- * (guideDraftStore.ts).
+ * refused, and when the editor is closed from outside (the Compendium shutting) with changes unsaved. It is cleared ONLY
+ * by a save, a delete or a confirmed discard, so closing the Compendium mid-edit loses nothing (guideDraftStore.ts).
  *
  * BUSY. While a save, delete or refetch is on its way every field is inert (one disabled fieldset), so nothing typed
  * can be lost to the answer, and nothing runs once the editor has closed.
@@ -143,9 +142,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const closed = useRef(false);
   /** True once a save, a delete or a confirmed discard ended the editor: then the device draft stays cleared. */
   const finished = useRef(false);
-  /** True while this editor has put a draft on the device that a later undo or save must clear. */
-  const wrote = useRef(false);
   const safeRef = useRef<HTMLButtonElement>(null);
+  const conflictRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLButtonElement>(null);
   const coreAddRef = useRef<HTMLButtonElement>(null);
   const enablersAddRef = useRef<HTMLButtonElement>(null);
@@ -160,7 +158,6 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   }, []);
   const keep = useCallback((draft: EditorDraft): void => {
     saveLocalDraft(userRef.current, draft);
-    wrote.current = true;
   }, []);
   /** A save or delete that lands after the editor closed: drop the kept draft only if it is still the one that was sent. */
   const clearIfMine = useCallback((sent: EditorDraft): void => {
@@ -170,8 +167,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   /** The guide is gone from the server: keep the text, as a new guide the next Save creates. */
   const becomeNew = useCallback((cur: EditorDraft): void => {
     const fresh = { ...cur, rowId: null, revision: null };
+    if (cur.rowId) guideDeleted(cur.rowId); // the dead guide leaves the list too
     saveLocalDraft(userRef.current, fresh);
-    wrote.current = true;
     setD(fresh);
     setAsk(null);
     setError('This guide was deleted. Press Save again to keep your text as a new guide.');
@@ -187,8 +184,12 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     focusAfter.current = null;
     to.current?.focus();
   }, [picker]);
-  // A confirm bar takes focus on its safe button, so it is noticed (and scrolled into view).
-  useEffect(() => { if (ask) safeRef.current?.focus(); }, [ask]);
+  // A confirm bar takes focus, so it is noticed (and scrolled into view): on its safe button, except the conflict bar,
+  // whose buttons both change the author's work, so the bar itself takes it (a stray Enter then does nothing).
+  useEffect(() => {
+    if (ask === 'conflict') conflictRef.current?.focus();
+    else if (ask) safeRef.current?.focus();
+  }, [ask]);
 
   // Keys: see the header. The handler reads the latest state through a ref so it is installed once.
   useEffect(() => {
@@ -214,12 +215,20 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     };
   }, [closePicker, finish]);
 
-  // The device draft: written shortly after a change, so a burst of typing is one write. A change undone clears it.
+  // The device draft: written shortly after a change, so a burst of typing is one write. Only a save, a delete or a
+  // confirmed discard clears it (a resumed draft exists nowhere else, so undoing a change must not).
+  const wasDirty = useRef(false);
   useEffect(() => {
     if (!dirty) {
-      if (wrote.current) { wrote.current = false; clearLocalDraft(); }
+      // Back to the unchanged state after the pause wrote an in-between copy: put the device copy back in line with what
+      // the author sees. Never clear it here.
+      if (wasDirty.current && !closed.current && !finished.current) {
+        const kept = loadLocalDraft(userRef.current);
+        if (kept && !sameDraft(kept, d)) keep(d);
+      }
       return;
     }
+    wasDirty.current = true;
     const t = window.setTimeout(() => { if (!closed.current && !finished.current) keep(d); }, 400);
     return () => window.clearTimeout(t);
   }, [d, dirty, keep]);
@@ -258,7 +267,6 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     setBusy(false);
     if (res.ok) {
       clearLocalDraft();
-      wrote.current = false;
       const g = toGuide(res.value);
       if (g) guideSaved(g);
       sfx.pulse();
@@ -317,12 +325,11 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     setBusy(false);
     if (!gone) { setAsk(null); setError(guideErrorMessage(res.code, res.field)); return; }
     clearLocalDraft();
-    wrote.current = false;
     guideDeleted(rowId);
     sfx.tick();
     finish();
   };
-  const discard = (): void => { clearLocalDraft(); wrote.current = false; sfx.tick(); finish(); };
+  const discard = (): void => { clearLocalDraft(); sfx.tick(); finish(); };
   const cancel = (): void => { if (dirty) setAsk('discard'); else finish(); };
 
   const toggleTribe = (t: Tribe): void => {
@@ -436,9 +443,9 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
           </div>
         )}
         {ask === 'conflict' && (
-          <div className="gedit-ask" role="alertdialog" aria-label="Someone else saved this guide">
+          <div className="gedit-ask" role="alertdialog" aria-label="Someone else saved this guide" tabIndex={-1} ref={conflictRef}>
             <span>{guideErrorMessage('conflict')}</span>
-            <button type="button" className="gbtn" ref={safeRef} disabled={busy} onClick={() => void loadTheirs()}>Load their version</button>
+            <button type="button" className="gbtn" disabled={busy} onClick={() => void loadTheirs()}>Load their version</button>
             <button type="button" className="gbtn gbtn-danger" disabled={busy} onClick={() => void overwrite()}>Overwrite with mine</button>
           </div>
         )}

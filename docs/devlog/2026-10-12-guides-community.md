@@ -14,8 +14,9 @@ the publishing step. Moderation (Report, hide, the team's tools) is step 4.
 ## What shipped
 
 - **The shared rules** (`packages/guides`): a guide record carries `publishedAt`, the moment it first went public. A
-  draft can carry a save id, which the server writes into the row as `save_id`. A player's guide title and tagline are
-  checked against the reserved names (see the decisions below). New limits: 200 bookmarks per account
+  draft can carry a save id, which the server writes into the row's `last_save_id` (`save_id` is only the key it
+  travels under in the document handed to the SQL). A player's guide title and tagline are checked against the
+  reserved names (see the decisions below). New limits: 200 bookmarks per account
   (`bookmarksPerPlayer`), 20 guides per page of the Community list (`communityPage`), 40 characters of search text
   (`searchQuery`). The Deno copies under `supabase/functions/_shared/` are regenerated, not hand-edited.
 - **The SQL** (`supabase/migrations/2026-10-13-guides-community.sql`, the same block appended to `schema.sql`):
@@ -30,9 +31,11 @@ the publishing step. Moderation (Report, hide, the team's tools) is step 4.
   - `guide_bookmark`: bookmark a published guide that is not yours and not Team Ascent's, or remove a bookmark. 200 at
     most. Removing answers a count only for a public guide, so a removal leaks the count of nothing else.
   - A trigger keeps `guides.bookmark_count` true however a bookmark comes or goes (this function, a deleted guide, a
-    deleted account). The trigger function is revoked from every role.
+    deleted account). The trigger function is revoked from every role, `service_role` included: only the trigger
+    runs it.
   - Indexes: the last save id, Community by most bookmarked, Community by newest (both with empty dates last and
-    matching the client's order), and bookmarks by guide. Every new function is closed to the public, `anon` and
+    matching the client's order), and bookmarks by guide. The functions a caller runs (`guide_save`,
+    `guide_own_row`, `guide_set_published`, `guide_bookmark`) are closed to the public, `anon` and
     `authenticated`, and open to `service_role` only.
   - The migration's header warns that running the step 1 file alone afterwards puts the old `guide_save` back.
 - **The function** (`guide-write`): three new ops, `setPublished`, `bookmark` and `unbookmark`. Publishing reads the
@@ -41,8 +44,8 @@ the publishing step. Moderation (Report, hide, the team's tools) is step 4.
   checked. A malformed answer from the database reads as `guide_malformed` and a bookmark count is never below 0.
 - **The seam** (`guidesRemote.ts`): two writes (`setPublishedRemote`, `bookmarkGuideRemote`) and two reads
   (`fetchBookmarkedGuides`, `fetchCommunityPage`). The Community read asks the server for one page plus one row, to
-  learn whether there is another page. Search text is cleaned (quotes, backslashes, percent, underscore and star
-  become spaces) and cut to 40 characters, so it can only ever be a search. A bookmark whose guide is no longer
+  learn whether there is another page. Search text is cleaned (quotes, backslashes, percent, underscore, star and
+  control characters become spaces) and cut to 40 characters, so it can only ever be a search. A bookmark whose guide is no longer
   readable (private or hidden) is dropped from the read.
 - **The store** (`guidesStore.ts`): four pills (Team Ascent, My guides, Bookmarked, Community) and a `bookmarked`
   list that belongs to the signed-in account and is cleared with `mine`. "The same guide" now compares the row id,
@@ -140,6 +143,31 @@ Rulings made during the build, in plain terms:
 - Three cases of the "own guide only" rule (another author's guide, a guide with no server row, a guest) were not
   pinned. They are, each shown to fail when its check is removed.
 
+## Found by the whole-branch review and fixed before the pull request
+
+- Nothing said how to take a guide down between this step and step 4: no card offers the team a Hide, and Report is
+  step 4. The runbook now gives the SQL to find a guide, hide it, undo that, and delete it.
+- A publish or unpublish whose answer was lost said "Nothing was changed", although the server may have done it. The
+  card now says "Could not reach the server. Check again in a moment to see whether it changed." and the guides are
+  read again, so the card shows what is true as soon as the server answers.
+- No test joined the client, the function's handler and the SQL for any step 3 operation: the one end-to-end test ran
+  only the step 1 file. It now runs both files and walks a retried save, a publish, a second account's bookmark, an
+  unpublish, a second publish and a publish refused for its stored title, through the client's own functions. The
+  two sides agreed at every step.
+- The pressed Bookmark button told a screen reader its state twice (a name that changed, and "pressed"). It now keeps
+  one name, "Bookmark" and the guide's title, and "pressed" alone says it is bookmarked.
+- Nothing pinned that another account's bookmarks never light "Bookmarked" on a card. A test does now. The code was
+  right.
+- The Compendium subtitle counted My guides and Bookmarked from whatever the store held, even when it held them for
+  another account (the guides themselves were not drawn). It now counts them only for the signed-in account.
+- Opening and closing the editor from Community put the sort back on Most bookmarked. The sort is now kept.
+- A control character pasted into the search box reached the server, and the list read as "could not load". Control
+  characters now become spaces.
+- Two test gaps parked by the task reviews are closed: the save id's fallback paths, and the rail's bookmarked rows
+  (the count for a single bookmark, the count after an account change, a bookmark with a Team Ascent guide's id).
+  Closing them showed that the rail test's "not for a tribe outside the lobby" case had never run: every lobby of the
+  live set holds all of its tribes. That test now takes a tribe out of the lobby by hand, and fails if there is none.
+
 ## Known gaps (for the owner)
 
 - A Community card's bookmark count does not move after pressing Bookmark until the list is read again. The store has
@@ -152,8 +180,7 @@ Rulings made during the build, in plain terms:
 - The title rule is a rough one. "TeamAscent" (one word) and plurals such as "Developers" pass a title, and "my team
   ascent run" is refused. The "by" line still catches "TeamAscent". A look-alike letter from another alphabet still
   passes (older than this step).
-- Community search does not look in the write-up. A NUL character typed into the search box is not stripped, and the
-  request then fails and reads as "could not load".
+- Community search does not look in the write-up.
 - There is no Report yet (step 4).
 - The look of the new buttons, pills, the sort row and the Show more row is a first cut and has NOT been rendered yet
   at the time of writing. The widths were reasoned from the stylesheet. Expected to look slightly off: the sort row sits
@@ -162,7 +189,7 @@ Rulings made during the build, in plain terms:
 - Removing a bookmark under Bookmarked removes the card, so a keyboard player's focus falls to the page. So does focus
   after a successful Delete.
 - Opening the editor from a Community card (Duplicate) and closing it asks the Community list again from the first
-  page, with the sort back on Most bookmarked and the scroll at the top. Switching pills and back does the same.
+  page, with the scroll at the top. Switching pills and back does the same. The sort is kept in both cases.
 - A guide that is public stays public while it is edited. Each save is word-checked, and the change shows in
   Community at once.
 - A retried new-guide save that arrives after a later save of that same guide makes a second guide, because a row
@@ -173,8 +200,20 @@ Rulings made during the build, in plain terms:
 - A page of Community that cannot be read at all reads as empty when more may exist.
 - The advisory lock that holds the 20-guide, 200-bookmark and 30-an-hour limits under two parallel calls from one
   account rests on reasoning: the test database has one connection, so no test can race two calls.
-- Several small test gaps were parked by the task reviews (for example the fallback path of the save id generator, and
-  the rail's count after an account change). None hides a known defect.
+- A few small test gaps parked by the task reviews remain (for example the title rule's tests are thin). None hides a
+  known defect.
+- A save that timed out, was then edited, and is pressed again still makes a second guide. For a guide that already
+  existed it reads "Someone else saved this guide while you were editing." instead. A changed guide is a new save by
+  design; only an unchanged one is recognised as a retry. Nothing is lost: Overwrite works, and the extra guide can be
+  deleted from its card.
+- Bookmark and unbookmark are not rate limited. The 200 cap bounds how many are held, not how often they are toggled.
+  The count stays true.
+- The "Based on" line is not re-checked at publish. It is a snapshot of text that passed the rules of its day.
+- A publish, unpublish or bookmark whose answer is lost shows a sentence, and the true state shows only after the next
+  read of the guides. A publish or unpublish asks for that read at once. A bookmark does not, and its sentence still
+  says nothing was changed.
+- Removing a bookmark at the instant its guide is deleted can fail once. A second press works.
+- Until step 4 the only way to take a published guide down is the SQL in the runbook.
 
 ## Performance
 
@@ -188,7 +227,9 @@ redeployed, by the owner; neither is done by this work. The two-account check in
 parallel calls rests on reasoning, not a test (the test database has one connection). Nothing has been rendered yet:
 how the new screens look, and how focus behaves in a real browser, are unchecked. What was exercised: the SQL against
 an in-process database (the real functions, with the step 1 file run first), the handler against a fake database, the
-seam against a fake client, and the screens against jsdom.
+seam against a fake client, and the screens against jsdom. One walk joins the layers: the client's own write functions
+against the real handler against the real SQL in that in-process database (`guidesRoundTrip.test.ts`). The takedown
+SQL in the runbook was checked against the table's column names by reading, not run.
 
 ## Carried to the next steps
 
@@ -219,3 +260,9 @@ Step 4 (moderation):
 - Whether an author may edit a guide the team has hidden. Today's SQL allows it and the spec says the author may edit
   or delete it; the Edit button is drawn today. (Publish is off for a hidden guide.)
 - A hidden player guide that is already bookmarked leaves the bookmarker's list silently; its bookmark count stays.
+- A Hide and a Delete for the team on any guide's card. Until then, the SQL in the runbook.
+- A rate limit on bookmark toggles.
+- Re-checking the "Based on" snapshot at publish.
+- The server comparing content on a replayed save id, instead of trusting the id alone. Today the same id with a
+  different document answers the old row and writes nothing; the client never sends that, and the safety is one
+  comparison in the editor.

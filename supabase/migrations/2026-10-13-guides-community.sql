@@ -5,7 +5,7 @@
 -- Paste into the Supabase SQL Editor and Run, AFTER supabase/migrations/2026-10-12-guides.sql. Idempotent: safe to
 -- re-run. The same block is appended to schema.sql; keep the two identical.
 -- Do not re-run 2026-10-12-guides.sql alone after this file: it puts the old guide_save back and a retried save is no longer recognised. If you did, run this file again.
--- Spec: docs/superpowers/specs/2026-10-11-community-guides-design.md. Devlog: docs/devlog/2026-10-13-guides-community.md.
+-- Spec: docs/superpowers/specs/2026-10-11-community-guides-design.md. Devlog: docs/devlog/2026-10-12-guides-community.md.
 --
 -- WHAT
 --  - `guides.last_save_id`: the id the client made for the press of Save that last wrote the row. `guide_save` given
@@ -16,8 +16,8 @@
 --    hidden, and when the row is not at the revision whose text was checked. It counts toward the 30 an hour.
 --  - `guide_bookmark`: a player bookmarks a published guide that is not theirs and not Team Ascent's (200 at most),
 --    or removes a bookmark. A trigger keeps `guides.bookmark_count` true, whichever way a bookmark goes.
---  - Three indexes: the Community list's order (most bookmarked, and newest), and bookmarks by guide (for the cascade
---    when a guide is deleted).
+--  - Four indexes: the last save id, the Community list by most bookmarked, the Community list by newest, and
+--    bookmarks by guide (for the cascade when a guide is deleted).
 --
 -- A client from before this file never sends a save id or calls these functions. A client from after it, talking to
 -- a database from before it: saves still work (the old `guide_save` ignores the id), and publishing and bookmarking

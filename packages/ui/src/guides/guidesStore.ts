@@ -9,6 +9,8 @@
  *   source      which of the two `list` currently is.
  *   team        this account is on the guides team (may edit Team Ascent guides). False for a guest.
  *   mine        this account's own guides. Empty for a guest.
+ *   mineOwner   the user id `mine` and `team` belong to; null when they belong to nobody. Set wherever they are
+ *               set, cleared wherever they are cleared.
  *   tab         which pill the Compendium Guides tab shows: Team Ascent, or My guides.
  *   pendingEdit a guide (by row id) the lobby rail asked the Compendium to open in the editor.
  *
@@ -23,6 +25,11 @@
  * whatever it answers, so signing out or switching account (even offline) never leaves the last account's private
  * guides or Edit buttons in the store. A read also drops the team/mine it fetched if the account changed while it
  * was in flight; the queued re-read fetches the right ones.
+ *
+ * `mine` IS ONLY EVER SHOWN TO ITS OWNER. The clearing above depends on `loadGuides` being called when the account
+ * changes. So that a missed call can never show one account's private guides to another, the rail's snapshot and the
+ * Compendium's My guides draw `mine` only while `mineOwner` is the signed-in account's user id, and `guideSaved`
+ * keeps a player's guide only when its author is the account at the keyboard (a save can land after its author left).
  *
  * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved` and `guideDeleted` bump a counter; a read that was already in
  * flight when one landed applies only `capability` and asks for one fresh read, so a stale answer cannot overwrite it.
@@ -44,12 +51,13 @@ interface GuidesStore {
   source: 'bundled' | 'server';
   team: boolean;
   mine: readonly Guide[];
+  mineOwner: string | null;
   tab: GuidesTab;
   pendingEdit: string | null;
 }
 
 const NO_GUIDES: readonly Guide[] = [];
-const INITIAL: GuidesStore = { capability: 'unknown', list: GUIDES, source: 'bundled', team: false, mine: NO_GUIDES, tab: 'team', pendingEdit: null };
+const INITIAL: GuidesStore = { capability: 'unknown', list: GUIDES, source: 'bundled', team: false, mine: NO_GUIDES, mineOwner: null, tab: 'team', pendingEdit: null };
 
 export const useGuides = create<GuidesStore>(() => ({ ...INITIAL }));
 
@@ -95,6 +103,8 @@ async function readGuides(): Promise<void> {
   }
   if (identityKey() === key) {
     if (id && !id.anonymous) {
+      // What the store holds now is this account's or empty (an account change cleared it before this read began).
+      next.mineOwner = id.userId;
       if (team !== undefined) next.team = team;
       if (mineRecs !== undefined) {
         const guides = mineRecs.map(toGuide).filter((g): g is Guide => g !== null);
@@ -103,6 +113,7 @@ async function readGuides(): Promise<void> {
     } else {
       next.team = false;
       next.mine = NO_GUIDES;
+      next.mineOwner = null;
     }
   }
   useGuides.setState(next);
@@ -120,8 +131,8 @@ export function loadGuides(): Promise<void> {
     const s = useGuides.getState();
     // The last account's flag, guides, pending edit request and pill all go. Skipped when they already hold their
     // cleared values (the first identity at boot), so boot makes no store write.
-    if (s.team || s.mine.length > 0 || s.pendingEdit !== null || s.tab !== 'team') {
-      useGuides.setState({ team: false, mine: NO_GUIDES, pendingEdit: null, tab: 'team' });
+    if (s.team || s.mine.length > 0 || s.mineOwner !== null || s.pendingEdit !== null || s.tab !== 'team') {
+      useGuides.setState({ team: false, mine: NO_GUIDES, mineOwner: null, pendingEdit: null, tab: 'team' });
     }
   }
   if (loading) {
@@ -157,18 +168,32 @@ export function takePendingEdit(): string | null {
 const upsert = (arr: readonly Guide[], g: Guide): Guide[] =>
   (arr.some((x) => x.rowId === g.rowId) ? arr.map((x) => (x.rowId === g.rowId ? g : x)) : [...arr, g]);
 
-/** Apply a guide the server just saved, without a re-read. */
+/**
+ * Apply a guide the server just saved, without a re-read.
+ *
+ * A player's guide is private to its author, and a save can land after the author has left (Save on a slow connection,
+ * then a sign-out or another account signing in). So a player's guide is kept only when its author is the account at
+ * the keyboard right now: never for another account, a guest, or nobody. It also never joins guides the store still
+ * holds for a different account.
+ */
 export function guideSaved(g: Guide): void {
-  localChanges++;
-  const s = useGuides.getState();
   if (!g.official) {
-    useGuides.setState({ mine: upsert(s.mine, g) });
+    const id = currentIdentity();
+    if (!id || id.anonymous || g.authorId !== id.userId) return;
+    localChanges++;
+    const s = useGuides.getState();
+    useGuides.setState({ mine: upsert(s.mineOwner === id.userId ? s.mine : NO_GUIDES, g), mineOwner: id.userId });
     return;
   }
+  localChanges++;
+  const s = useGuides.getState();
   // A Team Ascent guide saved while the built-in copies are showing: the server now has one, so re-read.
   if (s.source === 'server') useGuides.setState({ list: upsert(s.list, g) });
   else void loadGuides();
 }
+
+/** Does the store hold `userId`'s own guides? False for nobody, and for guides read for any other account. */
+export const ownsMine = (s: { mineOwner: string | null }, userId: string | null): boolean => userId !== null && s.mineOwner === userId;
 
 /** Apply a delete the server just confirmed. */
 export function guideDeleted(rowId: string): void {

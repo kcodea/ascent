@@ -18,7 +18,7 @@ import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
-import { useGuides } from './guides/guidesStore';
+import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
@@ -39,6 +39,13 @@ function maxDamageTip(cap: number): { title: string; rule: string } {
  *  (owner ruling 2026-10-09: "it stays until toggled, but every new game starts on the opponent view"). */
 type RailView = 'opponents' | 'guides';
 const NO_GUIDES: readonly Guide[] = [];
+/** The rail's view of the guides store, for the account signed in right now. The player's own guides are taken only
+ *  when the store holds them for THAT account: guides it still holds for another account are never taken. */
+const snapGuides = (): { list: readonly Guide[]; mine: readonly Guide[]; uid: string | null } => {
+  const s = useGuides.getState();
+  const uid = useGame.getState().account.userId;
+  return { list: s.list, mine: ownsMine(s, uid) ? s.mine : NO_GUIDES, uid };
+};
 let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents' };
 
 /** The Guides view's display mode (owner ask 2026-10-09): SIMPLE keeps the rail at its normal width and shows only the
@@ -108,8 +115,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
   // one-frame jump on open. The player's own guides are part of the same snapshot.
   // The snapshot also records WHICH ACCOUNT it was taken for: the player's own guides are private, so they are shown
-  // only while that account is still the signed-in one (an account switch with the view open must not show them).
-  const [guideSnap, setGuideSnap] = useState(() => ({ list: useGuides.getState().list, mine: useGuides.getState().mine, uid: useGame.getState().account.userId }));
+  // only while that account is still the signed-in one (an account switch with the view open must not show them),
+  // and they are only ever taken from a store that holds them for that same account (`snapGuides`).
+  const [guideSnap, setGuideSnap] = useState(snapGuides);
   const guides = useMemo(() => guidesFor(setId, runTribes, guideSnap.list), [setId, runTribes, guideSnap.list]);
   const myGuidesAll = useMemo(() => guidesFor(setId, runTribes, guideSnap.mine), [setId, runTribes, guideSnap.mine]);
   // Who may edit: a boolean and an id, both cheap to subscribe to. The guide LISTS are still only a snapshot.
@@ -130,10 +138,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const showGuides = guidesOn && view === 'guides';
   useLayoutEffect(() => {
     if (!showGuides) return;
-    const s = useGuides.getState();
-    const uid = useGame.getState().account.userId;
+    const next = snapGuides();
     // Same two arrays and account as last time = the same snapshot object, so nothing re-renders.
-    setGuideSnap((cur) => (cur.list === s.list && cur.mine === s.mine && cur.uid === uid ? cur : { list: s.list, mine: s.mine, uid }));
+    setGuideSnap((cur) => (cur.list === next.list && cur.mine === next.mine && cur.uid === next.uid ? cur : next));
   }, [showGuides]);
   const toggleView = (): void => {
     setHovered(null);

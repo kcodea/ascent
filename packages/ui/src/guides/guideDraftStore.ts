@@ -1,11 +1,16 @@
 /**
- * GUIDES: the one in-progress guide kept on this device. A per-viewer convenience only (it lives in this browser's
- * storage, which can be empty or can throw): closing the Compendium mid-edit, a crash or a refused save does not
- * lose the author's text, and the Guides tab offers it back. The saved guide itself always lives on the server.
+ * GUIDES: the in-progress guide kept on this device, ONE PER ACCOUNT. A per-viewer convenience only (it lives in this
+ * browser's storage, which can be empty or can throw): closing the Compendium mid-edit, a crash or a refused save does
+ * not lose the author's text, and the Guides tab offers it back. The saved guide itself always lives on the server.
+ *
+ * Each account has a slot of its own (`ascent.guideDraft:<userId>`), so a second account writing a guide on the same
+ * device can never overwrite or clear the first account's waiting guide. "One unsaved guide at a time" holds per
+ * account. With no account there is no slot.
  */
 import type { EditorDraft } from './guideDrafts';
 
 const KEY = 'ascent.guideDraft';
+const keyFor = (userId: string): string => `${KEY}:${userId}`;
 
 const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
 
@@ -22,14 +27,17 @@ function asDraft(v: unknown): EditorDraft | null {
   return text && lists && aliases && ids ? (v as EditorDraft) : null;
 }
 
+/** Keep `draft` as `userId`'s one unsaved guide. */
 export function saveLocalDraft(userId: string, draft: EditorDraft): void {
-  try { localStorage.setItem(KEY, JSON.stringify({ userId, draft })); } catch { /* storage unavailable: nothing to keep */ }
+  if (!userId) return;
+  try { localStorage.setItem(keyFor(userId), JSON.stringify({ userId, draft })); } catch { /* storage unavailable: nothing to keep */ }
 }
 
-/** The kept draft, only for the account that wrote it. */
+/** `userId`'s kept draft. Only ever the one that account wrote. */
 export function loadLocalDraft(userId: string): EditorDraft | null {
+  if (!userId) return null;
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(keyFor(userId));
     if (!raw) return null;
     const o = JSON.parse(raw) as { userId?: unknown; draft?: unknown };
     return o && o.userId === userId ? asDraft(o.draft) : null;
@@ -38,6 +46,8 @@ export function loadLocalDraft(userId: string): EditorDraft | null {
   }
 }
 
-export function clearLocalDraft(): void {
-  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+/** Forget `userId`'s kept draft. No other account's is touched. */
+export function clearLocalDraft(userId: string): void {
+  if (!userId) return;
+  try { localStorage.removeItem(keyFor(userId)); } catch { /* ignore */ }
 }

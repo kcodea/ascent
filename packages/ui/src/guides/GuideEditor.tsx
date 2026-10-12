@@ -35,8 +35,8 @@ import './guideEditor.css';
  *
  * THE DEVICE DRAFT. Unsaved changes are written to this device shortly after each change, at once when a save is
  * refused, and when the editor is closed from outside (the Compendium shutting), so closing the Compendium mid-edit
- * loses nothing. The device keeps ONE such guide, which may be another guide than the one open here, so the editor only
- * ever takes back or clears its own write: the whole rule is `useDeviceDraft` below.
+ * loses nothing. The device keeps ONE such guide per account (guideDraftStore.ts), which may be another guide than the
+ * one open here, so the editor only ever takes back or clears its own write: the whole rule is `useDeviceDraft` below.
  *
  * BUSY. While a save, delete or refetch is on its way every field is inert (one disabled fieldset), so nothing typed
  * can be lost to the answer, and nothing runs once the editor has closed.
@@ -84,8 +84,9 @@ interface DeviceDraft {
 }
 
 /**
- * THE DEVICE SLOT. The device keeps ONE in-progress guide (guideDraftStore.ts), and it may be another guide than the
- * one open here. So this editor only ever undoes or clears ITS OWN write, from two notes:
+ * THE DEVICE SLOT. The device keeps ONE in-progress guide for each account (guideDraftStore.ts; the slot here is
+ * always the one of the account this editor was opened for), and it may be another guide than the one open here. So
+ * this editor only ever undoes or clears ITS OWN write, from two notes:
  *   `atOpen`    what the slot held when the editor opened (a draft, or null). Read once.
  *   `ownWrite`  the last draft this editor wrote to the slot (null until it writes).
  * "The slot is mine" = it still holds exactly `ownWrite`.
@@ -115,18 +116,18 @@ function useDeviceDraft(userId: string, initial: EditorDraft): DeviceDraft {
       revert: () => {
         if (ownWrite.current === null || !mine(held())) return; // no write of mine in the slot: nothing to take back
         if (atOpen.current) saveLocalDraft(user.current, atOpen.current);
-        else clearLocalDraft();
+        else clearLocalDraft(user.current);
         ownWrite.current = null;
       },
       release: (sent) => {
         const kept = held();
         const from = atOpen.current;
         const resumed = kept !== null && !!from && sameDraft(kept, from) && sameDraft(opened.current, from);
-        if ((mine(kept) || resumed) && (!sent || (kept !== null && sameDraft(kept, sent)))) clearLocalDraft();
+        if ((mine(kept) || resumed) && (!sent || (kept !== null && sameDraft(kept, sent)))) clearLocalDraft(user.current);
         ownWrite.current = null;
       },
       drop: () => {
-        if (mine(held())) clearLocalDraft();
+        if (mine(held())) clearLocalDraft(user.current);
         ownWrite.current = null;
       },
     };

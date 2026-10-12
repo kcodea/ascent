@@ -14,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { SETS } from '@game/content';
-import type { GuideRecord } from '@game/guides';
+import { GUIDE_LIMITS, type GuideRecord } from '@game/guides';
 import { mount, type Mounted } from '../renderedText.mount';
 import { useGame } from '../store';
 import type { GuideDraftInput, GuideWriteResult } from './guidesRemote';
@@ -48,6 +48,8 @@ type Guide = (typeof GUIDES)[number];
 const { emptyDraft } = await import('./guideDrafts');
 const { clearLocalDraft, loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
 const { requestGuideEdit, resetGuidesForTests, useGuides } = await import('./guidesStore');
+const { currentIdentity, setIdentity } = await import('../identity');
+const prevIdentity = currentIdentity();
 
 const ROW = '11111111-1111-4111-8111-111111111111';
 const serverList = GUIDES.map((g, i) => ({ ...g, rowId: `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`, revision: 1 }));
@@ -58,8 +60,9 @@ const prev = useGame.getState();
 const as = (who: 'guest' | 'player' | 'team', patch: Partial<ReturnType<typeof useGuides.getState>> = {}, guides?: readonly Guide[]): HTMLElement => {
   act(() => {
     useGame.setState({ account: { userId: who === 'guest' ? 'g-1' : 'u-1', email: who === 'guest' ? null : 'm@example.test', anonymous: who === 'guest', discriminator: null }, playerName: 'Mike' });
-    useGuides.setState({ capability: 'on', source: 'server', list: serverList, team: who === 'team', mine: who === 'guest' ? [] : [mineGuide], ...patch });
+    useGuides.setState({ capability: 'on', source: 'server', list: serverList, team: who === 'team', mine: who === 'guest' ? [] : [mineGuide], mineOwner: who === 'guest' ? null : 'u-1', ...patch });
   });
+  setIdentity({ userId: who === 'guest' ? 'g-1' : 'u-1', displayName: 'Mike', anonymous: who === 'guest', email: who === 'guest' ? null : 'm@example.test' });
   const s = useGuides.getState();
   const shown = guides ?? (s.tab === 'mine' ? s.mine : guidesFor('set2', SETS.set2.tribes, s.list));
   ui = mount(<CompendiumGuides guides={shown} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
@@ -95,7 +98,7 @@ const kept = { ...emptyDraft('Mike'), title: 'Left behind', body: 'half', core: 
 const RESUME_FIRST = 'Resume or discard your unsaved guide first.';
 
 beforeEach(() => { localStorage.clear(); resetGuidesForTests(); imports.length = 0; officialCalls = 0; saveAnswer = OFFLINE; importAnswer = null; accounts = true; });
-afterEach(() => { ui?.unmount(); ui = null; act(() => { useGame.setState({ account: prev.account, playerName: prev.playerName, showBook: prev.showBook, accountPanelOpen: prev.accountPanelOpen }); }); });
+afterEach(() => { ui?.unmount(); ui = null; setIdentity(prevIdentity); act(() => { useGame.setState({ account: prev.account, playerName: prev.playerName, showBook: prev.showBook, accountPanelOpen: prev.accountPanelOpen }); }); });
 
 describe('canEditGuide', () => {
   it('a Team Ascent guide: the team only, and only once it has a server row', () => {
@@ -268,7 +271,7 @@ describe('the kept draft', () => {
     saveLocalDraft('u-1', kept);
     const c = as('player');
     expect(button(c, 'Resume')).toBeDefined();
-    clearLocalDraft(); // behind the tab's back, as a save landing late does
+    clearLocalDraft('u-1'); // behind the tab's back, as a save landing late does
     await press(c, 'Resume');
     expect(c.querySelector('.gedit')).toBeNull();
     expect(c.querySelector('.gtool-resume')).toBeNull();
@@ -314,6 +317,113 @@ describe('the kept draft', () => {
     expect(loadLocalDraft('u-1')).toBeNull();
     expect(c.textContent).not.toContain('You have an unsaved guide');
     expect(useGuides.getState().mine.map((g) => g.title)).toEqual(['Left behind']);
+  });
+});
+
+/** `n` guides this player owns. */
+const manyGuides = (n: number): Guide[] => Array.from({ length: n }, (_, i) => ({ ...mineGuide, id: `own-${i}`, rowId: `own-${i}`, title: `Mine ${i}` }));
+const CAP_SENTENCE = 'You already have 20 guides. Delete one to make room.';
+
+describe('the 20-guide cap is said before the guide is written', () => {
+  const cap = GUIDE_LIMITS.guidesPerPlayer;
+  it('the sentence carries the number from the shared limits', () => {
+    expect(cap).toBe(20);
+    expect(CAP_SENTENCE).toBe(`You already have ${cap} guides. Delete one to make room.`);
+  });
+  it('at the cap, New guide opens no editor and says why', async () => {
+    const c = as('player', { mine: manyGuides(cap) });
+    expect(c.querySelector('.gtool-cap')).toBeNull(); // nothing is said until the player asks
+    await press(c, 'New guide');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(c.querySelector('.gtool-cap')!.textContent).toBe(CAP_SENTENCE);
+  });
+  it('at the cap, Duplicate opens no editor and says why', async () => {
+    const c = as('player', { mine: manyGuides(cap) });
+    await press(card(c, serverList[0]!.id), 'Duplicate');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(c.querySelector('.gtool-cap')!.textContent).toBe(CAP_SENTENCE);
+  });
+  it('over the cap (a guide was made elsewhere) is stopped the same way', async () => {
+    const c = as('player', { mine: manyGuides(cap + 1) });
+    await press(c, 'New guide');
+    expect(c.querySelector('.gedit')).toBeNull();
+    expect(c.querySelector('.gtool-cap')).not.toBeNull();
+  });
+  it('at one under the cap, New guide and Duplicate both open the editor', async () => {
+    let c = as('player', { mine: manyGuides(cap - 1) });
+    await press(c, 'New guide');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+    expect(c.textContent).not.toContain(CAP_SENTENCE);
+    ui!.unmount();
+    c = as('player', { mine: manyGuides(cap - 1) });
+    await press(card(c, serverList[0]!.id), 'Duplicate');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+  });
+  it('a team account is not stopped', async () => {
+    let c = as('team', { mine: manyGuides(cap) });
+    await press(c, 'New guide');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+    ui!.unmount();
+    c = as('team', { mine: manyGuides(cap) });
+    await press(card(c, serverList[0]!.id), 'Duplicate');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+  });
+  it('Edit is never stopped by the cap, so a guide can be opened and deleted to make room', async () => {
+    const mine = manyGuides(cap);
+    const c = as('player', { mine, tab: 'mine' });
+    await press(card(c, mine[0]!.id), 'Edit');
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Mine 0');
+  });
+  it('Resume is never stopped by the cap', async () => {
+    saveLocalDraft('u-1', kept);
+    const c = as('player', { mine: manyGuides(cap) });
+    await press(c, 'Resume');
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Left behind');
+  });
+  it('the note goes once there is room again', async () => {
+    const c = as('player', { mine: manyGuides(cap) });
+    await press(c, 'New guide');
+    expect(c.querySelector('.gtool-cap')).not.toBeNull();
+    act(() => { useGuides.setState({ mine: manyGuides(cap - 1) }); }); // one was deleted (here, or on another device and re-read)
+    expect(c.querySelector('.gtool-cap')).toBeNull();
+    await press(c, 'New guide');
+    expect(c.querySelector('.gedit')).not.toBeNull();
+  });
+});
+
+describe('guides the store still holds for another account', () => {
+  // The store was never told the account changed (a missed re-read): it still holds account u-1's private guides,
+  // and the Compendium is handed them as the My guides list.
+  const openAs = (userId: string | null, anonymous: boolean): HTMLElement => {
+    ui?.unmount();
+    act(() => {
+      useGame.setState({ account: { userId, email: anonymous || !userId ? null : 'x@example.test', anonymous, discriminator: null }, playerName: 'Mike' });
+      useGuides.setState({ capability: 'on', source: 'server', list: serverList, team: false, mine: [mineGuide], mineOwner: 'u-1', tab: 'mine' });
+    });
+    ui = mount(<CompendiumGuides guides={[mineGuide]} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+    return ui.container;
+  };
+  it('My guides draws none of them and counts none, for a second account, a guest and nobody', () => {
+    for (const [userId, anonymous] of [['u-2', false], ['g-9', true], [null, true]] as const) {
+      const c = openAs(userId, anonymous);
+      expect(c.querySelector('.bookguide'), String(userId)).toBeNull();
+      expect(c.textContent, String(userId)).not.toContain('My Sunmane');
+      expect(button(c, 'My guides'), String(userId)).toBeDefined();
+      expect(button(c, 'My guides (1)'), String(userId)).toBeUndefined();
+      expect(c.textContent, String(userId)).toContain('You have not written a guide yet.');
+    }
+  });
+  it('their owner sees them', () => {
+    const c = openAs('u-1', false);
+    expect(card(c, ROW).textContent).toContain('My Sunmane');
+    expect(button(c, 'My guides (1)')).toBeDefined();
+  });
+  it('they do not count toward the cap of the account that is signed in', async () => {
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null }, playerName: 'Mike' }); });
+    act(() => { useGuides.setState({ capability: 'on', source: 'server', list: serverList, team: false, mine: manyGuides(GUIDE_LIMITS.guidesPerPlayer), mineOwner: 'u-1' }); });
+    ui = mount(<CompendiumGuides guides={guidesFor('set2', SETS.set2.tribes, serverList)} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+    await press(ui.container, 'New guide');
+    expect(ui.container.querySelector('.gedit')).not.toBeNull();
   });
 });
 
@@ -505,6 +615,25 @@ describe('the account changes while the editor is open', () => {
     expect(button(c, 'Resume')).toBeUndefined();
     expect(loadLocalDraft('u-1')).toEqual(kept);
   });
+  it('a second account writing a guide of its own leaves the first account\'s waiting guide on the device, untouched', async () => {
+    // The first account left an unsaved guide. The second has nothing waiting, so New guide opens for it.
+    saveLocalDraft('u-1', kept);
+    const c = as('player');
+    becomeAccount('u-2');
+    expect(c.textContent).not.toContain('You have an unsaved guide');
+    await press(c, 'New guide');
+    type(c.querySelector('.gedit-title')!, 'Typed by two');
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)); }); // past the pause after which a change is written
+    expect(loadLocalDraft('u-2')?.title).toBe('Typed by two');
+    expect(loadLocalDraft('u-1')).toEqual(kept);
+    // The second account discards its guide: the first account's is still there, and offered to it alone.
+    await press(c, 'Cancel');
+    await press(c, 'Discard');
+    expect(loadLocalDraft('u-2')).toBeNull();
+    expect(loadLocalDraft('u-1')).toEqual(kept);
+    becomeAccount('u-1');
+    expect(c.textContent).toContain('You have an unsaved guide: Left behind');
+  });
   it('a kept guide of the account that signs in is offered, with no editor open', () => {
     saveLocalDraft('u-2', { ...kept, title: 'Two left this' });
     const c = as('player');
@@ -575,6 +704,18 @@ describe('an ask is brought into view', () => {
     expect(c.textContent).toContain(RESUME_FIRST);
     expect(document.activeElement).toBe(button(c, 'Resume'));
     expect(loadLocalDraft('u-1')).toEqual(kept);
+  });
+  it('at the 20-guide cap, New guide scrolls to the top and the note that says why takes focus, each time it is pressed', async () => {
+    const c = as('player', { mine: manyGuides(GUIDE_LIMITS.guidesPerPlayer) });
+    await press(c, 'New guide');
+    expect(scrolls).toEqual([{ el: c.querySelector('.bookguides'), top: 0 }]);
+    const note = c.querySelector<HTMLElement>('.gtool-cap')!;
+    expect(note.textContent).toBe(CAP_SENTENCE);
+    expect(document.activeElement).toBe(note);
+    away();
+    await press(card(c, serverList[5]!.id), 'Duplicate');
+    expect(scrolls).toHaveLength(2);
+    expect(document.activeElement).toBe(c.querySelector('.gtool-cap'));
   });
   it('opening the editor does not scroll or ask', async () => {
     const c = as('player');

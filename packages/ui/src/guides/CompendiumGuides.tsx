@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
+import { GUIDE_LIMITS } from '@game/guides';
 import type { RunState } from '@game/sim';
 import { accountsAvailable } from '../GuestSignIn';
 import { LazyCell, LazyRootProvider } from '../bookLazy';
@@ -13,9 +14,11 @@ import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameD
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
 import { importBuiltInsRemote } from './guidesRemote';
-import { loadGuides, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
+import { loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
+
+const NO_GUIDES: readonly Guide[] = [];
 
 /** A kept guide has something in it once it has a title, a tagline, a write-up, a card or a nickname row. The "by"
  *  line is filled in for the author, so it does not count; nor do tribes, "pairs with" or the art icon on their own. */
@@ -38,7 +41,7 @@ const keptAs = (who: string, userId: string | null): Kept | null => {
 /** Forget a kept guide of `userId` that has nothing in it, so it never stands in the way of a new one. */
 const forgetEmptyKept = (userId: string | null): void => {
   const d = userId ? loadLocalDraft(userId) : null;
-  if (d && !hasContent(d)) clearLocalDraft();
+  if (userId && d && !hasContent(d)) clearLocalDraft(userId);
 };
 
 /**
@@ -54,8 +57,8 @@ const forgetEmptyKept = (userId: string | null): void => {
  * decided by the server; this only draws the buttons (`canEditGuide`). Writing needs the guides capability to be
  * `on` and a signed-in account: a guest is asked to sign in, an offline game says so.
  *
- * WHAT THE EDITOR NEEDS FROM ITS HOST. The device keeps ONE unsaved guide (guideDraftStore.ts), and the editor only
- * ever undoes or clears its own write to it. So:
+ * WHAT THE EDITOR NEEDS FROM ITS HOST. The device keeps ONE unsaved guide per account (guideDraftStore.ts), and the
+ * editor only ever undoes or clears its own write to it. So:
  *  - One unsaved guide at a time. While one is waiting for this account (the Resume bar), New guide, Edit, Duplicate
  *    and the rail's edit request open nothing: a second editor would overwrite the first. The bar asks instead.
  *  - Resume reads the device again when pressed and hands the editor the kept guide exactly as it was read (the editor
@@ -66,9 +69,17 @@ const forgetEmptyKept = (userId: string | null): void => {
  *    again.
  *  - One open editor is never swapped for another: an editor only opens when none is open.
  *
+ * WHOSE GUIDES. The My guides list and its count are drawn only while the store holds them for the account that is
+ * signed in (`ownsMine`): guides it still holds for another account are never drawn, whatever list this is handed.
+ *
+ * THE CAP IS SAID BEFORE THE GUIDE IS WRITTEN. A player who already owns the most guides allowed is told so when they
+ * press New guide or Duplicate, instead of after writing one that cannot be saved. Edit and Resume are never stopped
+ * (Edit is how a guide is deleted to make room), and neither is a team account.
+ *
  * AN ASK MUST BE SEEN. The toolbar scrolls away with the list, and a guide's buttons can be pressed far below it. So
- * when a press is answered with a question in the toolbar (sign in first; resume or discard first), the tab scrolls to
- * its top and the question's main button takes keyboard focus, on every such press.
+ * when a press is answered with a question or a note in the toolbar (sign in first; resume or discard first; the cap),
+ * the tab scrolls to its top and the question's main button (or the note itself) takes keyboard focus, on every such
+ * press.
  *
  * PERFORMANCE. Guides mount lazily (all but the first two wait until near the viewport). Each guide card is memoized
  * and takes stable callbacks; its portraits are the memoized `Card` fed stabilized views. Off-screen cards skip
@@ -93,13 +104,18 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const source = useGuides((s) => s.source);
   const team = useGuides((s) => s.team);
   const tab = useGuides((s) => s.tab);
-  const mineCount = useGuides((s) => s.mine.length);
+  const mineHeld = useGuides((s) => s.mine.length);
+  const mineOwner = useGuides((s) => s.mineOwner);
   const pending = useGuides((s) => s.pendingEdit);
   const userId = useGame((s) => s.account.userId);
   const anonymous = useGame((s) => s.account.anonymous);
   const playerName = useGame((s) => s.playerName);
 
   const signedIn = !anonymous && !!userId;
+  /** The store holds THIS account's own guides (not nobody's, and not ones still held for another account). */
+  const mineIsMine = ownsMine({ mineOwner }, userId);
+  const mineCount = mineIsMine ? mineHeld : 0;
+  const shown = tab === 'mine' && !mineIsMine ? NO_GUIDES : guides;
   const byline = playerName.trim() || 'Player';
   /** Who is at the keyboard: an open editor, and the Resume bar, belong to exactly one of these. */
   const who = `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
@@ -109,7 +125,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The unsaved guide waiting on this device: the very object read from it, and the account it was read for. */
   const [kept, setKept] = useState<Kept | null>(() => keptAs(who, userId));
   /** A press was answered with a question in the toolbar. A new object on every such press (see the effect below). */
-  const [ask, setAsk] = useState<{ kind: 'signin' | 'resume' } | null>(null);
+  const [ask, setAsk] = useState<{ kind: 'signin' | 'resume' | 'cap' } | null>(null);
   /** The Resume bar is asking whether to delete the waiting guide. */
   const [discardAsk, setDiscardAsk] = useState(false);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
@@ -121,6 +137,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const attachRoot = useCallback((el: HTMLDivElement | null): void => { rootEl.current = el; setRoot(el); }, []);
   const createRef = useRef<HTMLButtonElement>(null);
   const signInRef = useRef<HTMLParagraphElement>(null);
+  const capRef = useRef<HTMLParagraphElement>(null);
   const resumeRef = useRef<HTMLButtonElement>(null);
   const discardRef = useRef<HTMLButtonElement>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
@@ -135,6 +152,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const waiting = resume !== null;
   const signInAsked = ask?.kind === 'signin' && !signedIn;
   const resumeAsked = ask?.kind === 'resume';
+  /** The cap note shows only while it is still true (a delete, here or elsewhere, makes room). */
+  const capAsked = ask?.kind === 'cap' && !team && mineCount >= GUIDE_LIMITS.guidesPerPlayer;
   const editingRef = useRef(editing);
   editingRef.current = editing;
 
@@ -150,21 +169,27 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     setEditing((cur) => cur ?? { draft, key, who, mine });
   }, [who]);
   /** Answer a press with a question in the toolbar. Every press makes a new ask, so every press brings it into view. */
-  const raise = useCallback((kind: 'signin' | 'resume'): void => {
+  const raise = useCallback((kind: 'signin' | 'resume' | 'cap'): void => {
     sfx.tick();
     if (kind === 'resume') setDiscardAsk(false); // the bar shows Resume and Discard again
     setAsk({ kind });
   }, []);
-  /** Writing needs a signed-in account (a guest is asked to sign in instead), and no unsaved guide already waiting. */
-  const begin = useCallback((make: () => EditorDraft): void => {
+  /**
+   * Writing needs a signed-in account (a guest is asked to sign in instead), and no unsaved guide already waiting.
+   * `adds`: this would be one more guide of the player's own (New guide, Duplicate; not Edit). At the cap that is
+   * said here, before anything is written. The count is read when the button is pressed.
+   */
+  const begin = useCallback((make: () => EditorDraft, adds: boolean): void => {
     if (!online) return;
     if (!signedIn) { raise('signin'); return; }
     if (waiting) { raise('resume'); return; }
+    const s = useGuides.getState();
+    if (adds && !s.team && ownsMine(s, userId) && s.mine.length >= GUIDE_LIMITS.guidesPerPlayer) { raise('cap'); return; }
     sfx.pulse();
     openEditor(make());
-  }, [online, signedIn, waiting, raise, openEditor]);
-  const onEdit = useCallback((g: Guide): void => begin(() => draftFromGuide(g)), [begin]);
-  const onDuplicate = useCallback((g: Guide): void => begin(() => duplicateDraft(g, byline)), [begin, byline]);
+  }, [online, signedIn, waiting, userId, raise, openEditor]);
+  const onEdit = useCallback((g: Guide): void => begin(() => draftFromGuide(g), false), [begin]);
+  const onDuplicate = useCallback((g: Guide): void => begin(() => duplicateDraft(g, byline), true), [begin, byline]);
 
   // The account. When the tab opens, a kept guide with nothing in it is forgotten. When the account changes, an open
   // editor is closed (it was drawn for the last account only, and has already kept its unsaved text on the device
@@ -195,12 +220,13 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   }, [pending, editorOpen, online, signedIn, userId, waiting, raise, openEditor]);
 
   // An ask must be seen (see the header): to the top, and focus on the ask's main button. For a guest that is Create
-  // account, or the sign-in line itself when accounts cannot be reached. Runs once per press: `ask` is new each time.
+  // account, or the sign-in line itself when accounts cannot be reached; the cap note has no button, so the note
+  // itself. Runs once per press: `ask` is new each time.
   useEffect(() => {
     if (!ask) return;
     const el = rootEl.current;
     if (el && typeof el.scrollTo === 'function') el.scrollTo({ top: 0 });
-    (ask.kind === 'signin' ? createRef.current ?? signInRef.current : resumeRef.current)?.focus();
+    (ask.kind === 'signin' ? createRef.current ?? signInRef.current : ask.kind === 'cap' ? capRef.current : resumeRef.current)?.focus();
   }, [ask]);
 
   // The Resume bar's discard question takes focus on its safe answer; Keep it hands focus back to Discard.
@@ -234,7 +260,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** Discard for good: the waiting guide leaves the device (only if the device still holds that very guide). */
   const discardKept = (): void => {
     const now = userId ? loadLocalDraft(userId) : null;
-    if (resume && now && sameDraft(now, resume)) clearLocalDraft();
+    if (userId && resume && now && sameDraft(now, resume)) clearLocalDraft(userId);
     sfx.tick();
     setKept(keptAs(who, userId));
     setAsk(null);
@@ -287,10 +313,11 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
             <button type="button" className="gbtn" disabled={importing} aria-description="Team only. Adds the built-in guides to the server as Team Ascent guides so they can be edited. Safe to press twice."
               onClick={() => void runImport()}>Import built-in guides</button>
           )}
-          <button type="button" className="gbtn gbtn-primary" disabled={!online} onClick={() => begin(() => emptyDraft(byline))}>New guide</button>
+          <button type="button" className="gbtn gbtn-primary" disabled={!online} onClick={() => begin(() => emptyDraft(byline), true)}>New guide</button>
         </div>
         {offline && <p className="gtool-note" role="status">Guides are offline. You can read the built-in guides; writing your own needs a connection.</p>}
         {note && <p className="gtool-note" role={note.alert ? 'alert' : 'status'}>{note.text}</p>}
+        {capAsked && <p className="gtool-note gtool-cap" role="status" tabIndex={-1} ref={capRef}>{guideErrorMessage('too_many_guides')}</p>}
         {signInAsked && (
           <p className="gtool-note gtool-signin" role="status" tabIndex={-1} ref={signInRef}>
             <span>{canSignIn ? 'Sign in to write your own guides. It is free and takes a minute.' : 'Sign in to write your own guides. Accounts cannot be reached right now.'}</span>
@@ -316,13 +343,13 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
           </p>
         )}
       </div>
-      {guides.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="book-empty gtool-empty">
           {tab === 'mine' && mineCount === 0 ? 'You have not written a guide yet. Press New guide, or Duplicate on any guide to start from it.' : 'No guides match these filters.'}
         </div>
       ) : (
         <LazyRootProvider root={root}>
-          {guides.map((g, i) => (
+          {shown.map((g, i) => (
             <LazyCell key={g.id} eager={i < 2} className="bookguide-slot">
               {() => (
                 <CompendiumGuide guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}

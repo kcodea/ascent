@@ -39,6 +39,8 @@ const { loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
 const { useGame } = await import('../store');
 const { GUIDES } = await import('./guides');
 const { resetGuidesForTests, useGuides } = await import('./guidesStore');
+const { currentIdentity, setIdentity } = await import('../identity');
+const prevIdentity = currentIdentity();
 
 const ROW = '11111111-1111-4111-8111-111111111111';
 const rec = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
@@ -75,6 +77,9 @@ const pause = async (): Promise<void> => { await act(async () => { await new Pro
 beforeEach(() => {
   localStorage.clear();
   resetGuidesForTests();
+  // The account at the keyboard is the one the editor is opened for (`userId="u-1"`): the guides store keeps a saved
+  // player guide only for its author.
+  setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
   saves.length = 0;
   deletes.length = 0;
   closed = 0;
@@ -89,6 +94,7 @@ afterEach(() => {
   ui?.unmount();
   ui = null;
   vi.useRealTimers();
+  setIdentity(prevIdentity);
   useGame.setState({ inspect: null, bugReportOpen: false });
 });
 const existing = (patch: Record<string, unknown> = {}) => draftFromGuide({ ...GUIDES[0]!, rowId: ROW, revision: 5, official: false, authorId: 'u-1', ...patch });
@@ -332,6 +338,25 @@ describe('a save that cannot go through', () => {
     expect(useGuides.getState().mine.map((g) => g.title)).toEqual(['Sent then closed']);
     expect(loadLocalDraft('u-1')).toBeNull();
     expect(closed).toBe(0);
+  });
+  it('a save that lands after its author signed out, or after another account signed in, is not added to that list', async () => {
+    for (const next of [null, { userId: 'u-2', displayName: 'Other', anonymous: false, email: 'x@example.test' }]) {
+      setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
+      resetGuidesForTests();
+      localStorage.clear();
+      const release = hold();
+      const c = open();
+      type(c.querySelector('.gedit-title')!, 'Sent then left');
+      await press(c, 'Save');
+      ui!.unmount();
+      ui = null;
+      setIdentity(next); // the author is gone before the answer arrives
+      await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+      expect(useGuides.getState().mine, String(next?.userId)).toEqual([]);
+      expect(useGuides.getState().mineOwner, String(next?.userId)).toBeNull();
+      // The guide did reach the server, so the author's own device slot no longer offers it as unsaved.
+      expect(loadLocalDraft('u-1'), String(next?.userId)).toBeNull();
+    }
   });
   it('a save that lands after the editor has gone leaves a different kept draft alone', async () => {
     const release = hold();

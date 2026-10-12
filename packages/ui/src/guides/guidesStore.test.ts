@@ -196,7 +196,43 @@ describe('who I am: team flag and my guides', () => {
     // Pinned as text: mounting the whole game store to observe a sign-out is far heavier than the one line it guards.
     const src = readFileSync(join(__dirname, '..', 'store.ts'), 'utf8');
     expect(src).not.toContain('if (id) void loadGuides()');
-    expect(src.match(/void loadGuides\(\)/g)).toHaveLength(2);
+    // Three call sites: identity landing at boot, every identity change, and `signOutAccount` itself (a sign-out whose
+    // request fails fires no identity change; guidesSignOut.test.ts drives that one for real).
+    expect(src.match(/void loadGuides\(\)/g)).toHaveLength(3);
+    const signOut = src.slice(src.indexOf('signOutAccount: async () => {'), src.indexOf('playerAvatar: loadPlayerAvatar()'));
+    expect(signOut).toContain('void loadGuides();');
+  });
+  it('remembers whose guides it holds: the account they were read for, and nobody once they are cleared', async () => {
+    expect(useGuides.getState().mineOwner).toBeNull();
+    identity = { userId: 'u-1', anonymous: false };
+    mineAnswer = [mineRec('m1')];
+    await loadGuides();
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+    // A guest, and no session at all, own nothing.
+    identity = { userId: 'g-2', anonymous: true };
+    await loadGuides();
+    expect(useGuides.getState()).toMatchObject({ mine: [], mineOwner: null });
+    identity = { userId: 'u-2', anonymous: false };
+    mineAnswer = [mineRec('m2', { authorId: 'u-2' })];
+    await loadGuides();
+    expect(useGuides.getState().mineOwner).toBe('u-2');
+    identity = null;
+    void loadGuides(); // cleared at once, before the read answers
+    expect(useGuides.getState()).toMatchObject({ mine: [], mineOwner: null });
+  });
+  it('the owner is cleared with the guides when the account changes, before the new read answers', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    mineAnswer = [mineRec('m1')];
+    await loadGuides();
+    let release: (a: OfficialGuidesAnswer) => void = () => {};
+    answer = () => new Promise<OfficialGuidesAnswer>((r) => { release = r; });
+    identity = { userId: 'u-2', anonymous: false };
+    mineAnswer = [];
+    const p = loadGuides();
+    expect(useGuides.getState()).toMatchObject({ mine: [], mineOwner: null });
+    release({ state: 'on', guides: [rec('a')] });
+    await p;
+    expect(useGuides.getState()).toMatchObject({ mine: [], mineOwner: 'u-2' });
   });
   it('a change of account drops a pending edit request and returns to the Team Ascent pill', async () => {
     identity = { userId: 'u-1', anonymous: false };
@@ -228,12 +264,61 @@ describe('who I am: team flag and my guides', () => {
 
 describe('after a save or a delete, without a re-read', () => {
   const g = (patch: Partial<import('./guides').Guide>): import('./guides').Guide => ({ ...GUIDES[0]!, ...patch });
+  /** A player's own guide, as a save by account `author` answers it. */
+  const own = (rowId: string, author: string, patch: Partial<import('./guides').Guide> = {}): import('./guides').Guide =>
+    g({ id: rowId, rowId, official: false, published: false, authorId: author, byline: 'Mike', ...patch });
 
   it('a saved player guide is added to mine, or replaces the same row', () => {
-    guideSaved(g({ id: 'r1', rowId: 'r1', official: false, title: 'First', revision: 1 }));
-    guideSaved(g({ id: 'r2', rowId: 'r2', official: false, title: 'Second', revision: 1 }));
-    guideSaved(g({ id: 'r1', rowId: 'r1', official: false, title: 'First, edited', revision: 2 }));
+    identity = { userId: 'u-1', anonymous: false };
+    guideSaved(own('r1', 'u-1', { title: 'First', revision: 1 }));
+    guideSaved(own('r2', 'u-1', { title: 'Second', revision: 1 }));
+    guideSaved(own('r1', 'u-1', { title: 'First, edited', revision: 2 }));
     expect(useGuides.getState().mine.map((x) => x.title)).toEqual(['First, edited', 'Second']);
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+  });
+  it('a save that lands after ANOTHER account took over is not added to that account\'s guides', async () => {
+    // Account A pressed Save on a slow connection and signed out; account B is signed in when the answer arrives.
+    identity = { userId: 'u-2', anonymous: false };
+    mineAnswer = [rec('b1', { official: false, published: false, authorId: 'u-2', byline: 'Other' })];
+    await loadGuides();
+    const before = useGuides.getState().mine;
+    guideSaved(own('r1', 'u-1', { title: 'Private to the first account' }));
+    expect(useGuides.getState().mine).toBe(before);
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['b1']);
+    expect(useGuides.getState().mineOwner).toBe('u-2');
+  });
+  it('a save that lands with nobody signed in, or with a guest at the keyboard, is not kept', () => {
+    identity = null;
+    guideSaved(own('r1', 'u-1'));
+    expect(useGuides.getState()).toMatchObject({ mine: [], mineOwner: null });
+    identity = { userId: 'g-1', anonymous: true };
+    guideSaved(own('r1', 'u-1'));
+    guideSaved(own('r2', 'g-1')); // even one that names the guest: a guest holds no guides
+    expect(useGuides.getState()).toMatchObject({ mine: [], mineOwner: null });
+  });
+  it('a guide with no author on it is not taken for the current account\'s', () => {
+    identity = { userId: 'u-1', anonymous: false };
+    guideSaved(g({ id: 'r1', rowId: 'r1', official: false, authorId: null }));
+    expect(useGuides.getState().mine).toEqual([]);
+  });
+  it('a save by the current account never joins guides the store still holds for another account', () => {
+    // The guides of the account before were not cleared (a missed re-read): they are dropped, not added to.
+    useGuides.setState({ mine: [own('a1', 'u-1')], mineOwner: 'u-1' });
+    identity = { userId: 'u-2', anonymous: false };
+    guideSaved(own('b1', 'u-2'));
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['b1']);
+    expect(useGuides.getState().mineOwner).toBe('u-2');
+  });
+  it('a save that is not kept does not make a read in flight throw its answer away', async () => {
+    identity = { userId: 'u-2', anonymous: false };
+    let releaseMine: (g: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { releaseMine = r; });
+    const p = loadGuides();
+    guideSaved(own('r1', 'u-1')); // the first account's late save: ignored
+    releaseMine([rec('b1', { official: false, published: false, authorId: 'u-2', byline: 'Other' })]);
+    await p;
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['b1']);
+    expect(asked.filter((a) => a === 'mine:u-2')).toHaveLength(1); // no second read was needed
   });
   it('a saved Team Ascent guide replaces the same row in the server list, keeping its place', async () => {
     await loadGuides(); // server list: a, b
@@ -247,7 +332,7 @@ describe('after a save or a delete, without a re-read', () => {
     mineHold = new Promise((r) => { releaseMine = r; });
     mineAnswer = [rec('r9', { official: false, published: false, authorId: 'u-1', byline: 'Mike' })]; // what the re-read finds
     const p = loadGuides();
-    guideSaved(g({ id: 'r9', rowId: 'r9', official: false, title: 'Saved meanwhile' }));
+    guideSaved(own('r9', 'u-1', { title: 'Saved meanwhile' }));
     let sawEmpty = false;
     useGuides.subscribe((s) => { if (s.mine.length === 0) sawEmpty = true; });
     releaseMine([]); // the stale read answers with no guides
@@ -260,7 +345,9 @@ describe('after a save or a delete, without a re-read', () => {
   it('a deleted guide leaves both lists', async () => {
     await loadGuides();
     const first = useGuides.getState().list[0]!;
-    guideSaved(g({ id: 'r1', rowId: 'r1', official: false }));
+    identity = { userId: 'u-1', anonymous: false };
+    guideSaved(own('r1', 'u-1'));
+    expect(useGuides.getState().mine).toHaveLength(1);
     guideDeleted('r1');
     guideDeleted(first.rowId!);
     expect(useGuides.getState().mine).toEqual([]);

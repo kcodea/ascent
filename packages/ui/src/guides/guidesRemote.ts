@@ -6,7 +6,8 @@
  *    CAPABILITY PROBE: a missing table (the migration not run yet) is a definite `off`.
  *
  *  - `saveGuideRemote` / `deleteGuideRemote` / `importBuiltInsRemote`: the writes, through the `guide-write` Edge
- *    Function. They answer with a result carrying the server's own refusal code, never throw.
+ *    Function. They answer with a result carrying the server's own refusal code, never throw. Only a save's answer
+ *    carries a guide; it is read with `parseGuideAnswer`, never with the row reader directly.
  *  - `fetchTeamFlag` / `fetchMyGuides` / `fetchGuideById`: the three small reads the editor needs.
  *
  * Never throws; every read is time-boxed.
@@ -112,11 +113,60 @@ async function invokeGuideWrite(body: Record<string, unknown>): Promise<GuideWri
   }
 }
 
+/**
+ * Every `GuideRecord` field, and the `guides` row key `parseGuideRecord` reads it from. Typed over the whole record,
+ * so a field added to `GuideRecord` does not compile until it is listed here; `guidesRemoteWrite.test.ts` checks the
+ * row keys against what `parseGuideRecord` really reads.
+ */
+export const GUIDE_ANSWER_ROW_KEYS: Readonly<Record<keyof GuideRecord, string>> = Object.freeze({
+  id: 'id',
+  slug: 'slug',
+  authorId: 'author_id',
+  byline: 'byline',
+  official: 'official',
+  published: 'published',
+  hidden: 'hidden',
+  sets: 'sets',
+  tribes: 'tribes',
+  pairsWith: 'pairs_with',
+  iconCard: 'icon_card',
+  title: 'title',
+  tagline: 'tagline',
+  body: 'body',
+  core: 'core',
+  enablers: 'enablers',
+  mentions: 'mentions',
+  aliases: 'aliases',
+  forkedFrom: 'forked_from',
+  forkedTitle: 'forked_title',
+  forkedByline: 'forked_byline',
+  bookmarkCount: 'bookmark_count',
+  sortOrder: 'sort_order',
+  revision: 'revision',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+});
+
+/**
+ * Read a guide out of a `guide-write` ANSWER. The function answers a guide it has already read into a `GuideRecord`
+ * (camelCase keys: packages/guides/src/server.ts), while `parseGuideRecord` reads a table ROW (snake_case keys). So
+ * the answer's keys are put back under the row's names and the result goes through `parseGuideRecord`: the same
+ * checks run on both paths. A key that is already a row key is taken as it is, so an answer in either shape reads
+ * the same and the client never depends on which version of the function is deployed.
+ */
+export function parseGuideAnswer(v: unknown): GuideRecord | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const row: Record<string, unknown> = {};
+  for (const [key, rowKey] of Object.entries(GUIDE_ANSWER_ROW_KEYS)) row[rowKey] = o[key] !== undefined ? o[key] : o[rowKey];
+  return parseGuideRecord(row);
+}
+
 /** Create a guide (no `id`) or update one (`id` + the `revision` it was loaded at). */
 export async function saveGuideRemote(guide: GuideDraftInput): Promise<GuideWriteResult<GuideRecord>> {
   const res = await invokeGuideWrite({ op: 'save', guide });
   if (!res.ok) return res;
-  const rec = parseGuideRecord(res.value.guide);
+  const rec = parseGuideAnswer(res.value.guide);
   return rec ? { ok: true, value: rec } : { ok: false, code: 'server' };
 }
 

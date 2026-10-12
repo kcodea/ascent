@@ -69,6 +69,8 @@ const press = async (c: HTMLElement, text: string): Promise<void> => {
   await act(async () => { b.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 0)); });
 };
 const alertText = (c: HTMLElement): string => c.querySelector('[role="alert"]')?.textContent ?? '';
+/** Wait past the 400 ms pause after which a changed draft is written to the device. */
+const pause = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 450)); }); };
 
 beforeEach(() => {
   localStorage.clear();
@@ -424,19 +426,6 @@ describe('a save that cannot go through', () => {
     await press(c, 'Save');
     expect(loadLocalDraft('u-1')!.title).toBe('Keep me');
   });
-  it('a resumed draft survives type, pause, undo', async () => {
-    const resumed = { ...emptyDraft('Mike'), title: 'Resumed', body: 'B', core: ['grim'] };
-    saveLocalDraft('u-1', resumed);
-    const c = open(resumed);
-    type(c.querySelector('.gedit-title')!, 'Resumedx');
-    await act(async () => { await new Promise((r) => setTimeout(r, 450)); });
-    expect(loadLocalDraft('u-1')!.title).toBe('Resumedx');
-    type(c.querySelector('.gedit-title')!, 'Resumed');
-    await press(c, 'Cancel');
-    expect(closed).toBe(1);
-    expect(c.textContent).not.toContain('Discard your changes?');
-    expect(loadLocalDraft('u-1')).toEqual(resumed);
-  });
   it('the conflict prompt takes focus itself, not a button, so a stray Enter does nothing', async () => {
     saveAnswer = () => ({ ok: false, code: 'conflict' });
     const c = open(existing());
@@ -496,8 +485,8 @@ describe('leaving the editor', () => {
     expect(c.textContent).toContain('Discard your changes?');
     await press(c, 'Keep editing');
     expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Changed');
-    saveLocalDraft('u-1', { ...emptyDraft('Mike'), title: 'Kept on the device' });
-    expect(loadLocalDraft('u-1')).not.toBeNull();
+    await pause();
+    expect(loadLocalDraft('u-1')!.title).toBe('Changed');
     await press(c, 'Cancel');
     await press(c, 'Discard');
     expect(closed).toBe(1);
@@ -551,8 +540,8 @@ describe('leaving the editor', () => {
     useGuides.setState({ mine: [{ ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, authorId: 'u-1' }] });
     const c = open(draftFromGuide({ ...GUIDES[0]!, rowId: ROW, revision: 5, official: false, authorId: 'u-1' }));
     type(c.querySelector('.gedit-title')!, 'Changed');
-    saveLocalDraft('u-1', { ...emptyDraft('Mike'), title: 'Kept on the device' });
-    expect(loadLocalDraft('u-1')).not.toBeNull();
+    await pause();
+    expect(loadLocalDraft('u-1')!.title).toBe('Changed');
     await press(c, 'Delete');
     await press(c, 'Delete for good');
     expect(deletes).toEqual([ROW]);
@@ -654,6 +643,194 @@ describe('the draft kept on the device', () => {
     expect(loadLocalDraft('u-1')!.title).toBe('In progress');
     vi.useRealTimers();
     await press(c, 'Save');
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+});
+
+describe('the device slot', () => {
+  // The device keeps ONE in-progress guide, which may be another guide than the one open in the editor. The editor only
+  // ever undoes or clears ITS OWN write to it.
+  const X = { ...emptyDraft('Mike'), title: 'Other unsaved guide', body: 'x', core: ['grim'] };
+  const resumed = { ...emptyDraft('Mike'), title: 'Resumed', body: 'B', core: ['grim'] };
+  const title = (c: HTMLElement): HTMLInputElement => c.querySelector<HTMLInputElement>('.gedit-title')!;
+
+  it('a new guide: type, pause, undo, Cancel leaves the slot empty', async () => {
+    const c = open();
+    type(title(c), 'My guidex');
+    await pause();
+    expect(loadLocalDraft('u-1')!.title).toBe('My guidex');
+    type(title(c), 'My guide');
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a saved guide: type, pause, undo, Cancel leaves the slot empty', async () => {
+    const saved = existing();
+    const c = open(saved);
+    type(title(c), `${saved.title}x`);
+    await pause();
+    expect(loadLocalDraft('u-1')!.title).toBe(`${saved.title}x`);
+    type(title(c), saved.title);
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a saved guide: a refused save, then undo, Cancel leaves the slot empty', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const saved = existing();
+    const c = open(saved);
+    type(title(c), `${saved.title}x`);
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')!.title).toBe(`${saved.title}x`);
+    type(title(c), saved.title);
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a saved guide opened unchanged whose save is refused writes nothing to the slot', async () => {
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open(existing());
+    await press(c, 'Save');
+    expect(saves).toHaveLength(1);
+    expect(alertText(c)).not.toBe('');
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a resumed draft: change nothing, Cancel leaves it in the slot', async () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toEqual(resumed);
+  });
+  it('a resumed draft: type, pause, undo, Cancel puts it back in the slot', async () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    type(title(c), 'Resumedx');
+    await pause();
+    expect(loadLocalDraft('u-1')!.title).toBe('Resumedx');
+    type(title(c), 'Resumed');
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(loadLocalDraft('u-1')).toEqual(resumed);
+  });
+  it('a resumed draft: type, pause, then an unprompted close keeps the typed draft in the slot', async () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    type(title(c), 'Resumedx');
+    await pause();
+    ui!.unmount();
+    ui = null;
+    expect(loadLocalDraft('u-1')).toEqual({ ...resumed, title: 'Resumedx' });
+  });
+  it('another guide in the slot survives a quick type-and-undo in a saved guide', async () => {
+    saveLocalDraft('u-1', X);
+    const saved = existing();
+    const c = open(saved);
+    type(title(c), `${saved.title}x`);
+    type(title(c), saved.title);
+    await press(c, 'Cancel');
+    expect(closed).toBe(1);
+    expect(c.textContent).not.toContain('Discard your changes?');
+    expect(loadLocalDraft('u-1')).toEqual(X);
+  });
+  it('another guide in the slot, overwritten after the pause, is put back when the change is undone', async () => {
+    saveLocalDraft('u-1', X);
+    const saved = existing();
+    const c = open(saved);
+    type(title(c), `${saved.title}x`);
+    await pause();
+    expect(loadLocalDraft('u-1')!.title).toBe(`${saved.title}x`); // one slot, by design
+    type(title(c), saved.title);
+    expect(loadLocalDraft('u-1')).toEqual(X);
+  });
+  it('another guide in the slot survives deleting an unchanged saved guide', async () => {
+    saveLocalDraft('u-1', X);
+    useGuides.setState({ mine: [{ ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, authorId: 'u-1' }] });
+    const c = open(existing());
+    await press(c, 'Delete');
+    await press(c, 'Delete for good');
+    expect(deletes).toEqual([ROW]);
+    expect(useGuides.getState().mine).toEqual([]);
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toEqual(X);
+  });
+  it('another guide in the slot survives an unchanged saved guide being opened and closed, saved, or reloaded from the server', async () => {
+    saveLocalDraft('u-1', X);
+    open(existing());
+    ui!.unmount();
+    expect(loadLocalDraft('u-1')).toEqual(X);
+    let c = open(existing());
+    await press(c, 'Save');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toEqual(X);
+    ui!.unmount();
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    byIdAnswer = rec({ title: 'Theirs', revision: 9 });
+    c = open(existing());
+    await press(c, 'Save');
+    await press(c, 'Load their version');
+    expect(title(c).value).toBe('Theirs');
+    expect(loadLocalDraft('u-1')).toEqual(X);
+  });
+  it('Load their version drops the editor\'s own write from the slot', async () => {
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    byIdAnswer = rec({ title: 'Theirs', revision: 9 });
+    const c = open(existing());
+    type(title(c), 'Mine');
+    await press(c, 'Save');
+    expect(loadLocalDraft('u-1')!.title).toBe('Mine');
+    await press(c, 'Load their version');
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a resumed draft leaves the slot when it is saved', async () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    await press(c, 'Save');
+    expect(saves).toHaveLength(1);
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a resumed draft leaves the slot when a change to it is discarded', async () => {
+    saveLocalDraft('u-1', resumed);
+    const c = open(resumed);
+    type(title(c), 'Resumedx');
+    await press(c, 'Cancel');
+    await press(c, 'Discard');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+    ui!.unmount();
+    ui = null;
+    expect(loadLocalDraft('u-1')).toBeNull();
+  });
+  it('a save that lands after the editor closed takes a resumed draft out of the slot, and leaves another guide there alone', async () => {
+    let release = hold();
+    saveLocalDraft('u-1', resumed);
+    let c = open(resumed);
+    await press(c, 'Save');
+    ui!.unmount();
+    expect(loadLocalDraft('u-1')).toEqual(resumed);
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(loadLocalDraft('u-1')).toBeNull();
+    release = hold();
+    saveLocalDraft('u-1', X);
+    c = open(existing());
+    await press(c, 'Save');
+    ui!.unmount();
+    ui = null;
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(saves).toHaveLength(2);
+    expect(loadLocalDraft('u-1')).toEqual(X);
+    expect(closed).toBe(0);
+  });
+  it('a new guide: type, Save leaves the slot empty', async () => {
+    const c = open();
+    type(title(c), 'Brand new');
+    await press(c, 'Save');
+    expect(closed).toBe(1);
+    expect(loadLocalDraft('u-1')).toBeNull();
+    ui!.unmount();
+    ui = null;
     expect(loadLocalDraft('u-1')).toBeNull();
   });
 });

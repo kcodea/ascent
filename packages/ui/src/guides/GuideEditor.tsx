@@ -33,9 +33,10 @@ import './guideEditor.css';
  * open above the editor, else the card picker if it is open, else asks to leave the editor. While the bug reporter is
  * open the editor stands aside entirely (its own listener owns the keys). Nothing else is touched.
  *
- * THE DEVICE DRAFT. A changed draft is written to this device shortly after each change, at once when a save is
- * refused, and when the editor is closed from outside (the Compendium shutting) with changes unsaved. It is cleared ONLY
- * by a save, a delete or a confirmed discard, so closing the Compendium mid-edit loses nothing (guideDraftStore.ts).
+ * THE DEVICE DRAFT. Unsaved changes are written to this device shortly after each change, at once when a save is
+ * refused, and when the editor is closed from outside (the Compendium shutting), so closing the Compendium mid-edit
+ * loses nothing. The device keeps ONE such guide, which may be another guide than the one open here, so the editor only
+ * ever takes back or clears its own write: the whole rule is `useDeviceDraft` below.
  *
  * BUSY. While a save, delete or refetch is on its way every field is inert (one disabled fieldset), so nothing typed
  * can be lost to the answer, and nothing runs once the editor has closed.
@@ -69,6 +70,67 @@ function previewOf(d: EditorDraft, mentions: readonly string[], aliases: Readonl
     byline: d.official ? TEAM_BYLINE : d.byline, official: d.official, published: d.official, hidden: false, authorId: null,
     revision: d.revision ?? 0, order: 0,
   };
+}
+
+interface DeviceDraft {
+  /** Unsaved changes go to the slot. Never call this with an unchanged draft. */
+  keep: (draft: EditorDraft) => void;
+  /** The draft is back to unchanged: take this editor's write back out of the slot. */
+  revert: () => void;
+  /** A save, a delete or a confirmed discard ended the guide. `sent`: the answer came after the editor closed. */
+  release: (sent?: EditorDraft) => void;
+  /** The author took the server's version instead: this editor's write is dropped. */
+  drop: () => void;
+}
+
+/**
+ * THE DEVICE SLOT. The device keeps ONE in-progress guide (guideDraftStore.ts), and it may be another guide than the
+ * one open here. So this editor only ever undoes or clears ITS OWN write, from two notes:
+ *   `atOpen`    what the slot held when the editor opened (a draft, or null). Read once.
+ *   `ownWrite`  the last draft this editor wrote to the slot (null until it writes).
+ * "The slot is mine" = it still holds exactly `ownWrite`.
+ *   keep     writes the draft and notes it as `ownWrite`.
+ *   revert   if the slot is mine, puts back what it held at open (that draft, or empty). Otherwise touches nothing.
+ *   release  clears the slot if it is mine, or if it holds the very draft this editor was opened from (Resume: the
+ *            resumed guide is finished, so it leaves the device). Otherwise leaves it alone. With `sent` (the editor
+ *            had already closed), also only if the slot still holds exactly what was sent.
+ *   drop     clears the slot if it is mine.
+ * Nothing else writes to or clears the slot, so an editor that never had unsaved changes never touches it.
+ */
+function useDeviceDraft(userId: string, initial: EditorDraft): DeviceDraft {
+  const user = useRef(userId);
+  user.current = userId;
+  const opened = useRef(initial);
+  const atOpen = useRef<EditorDraft | null | undefined>(undefined);
+  if (atOpen.current === undefined) atOpen.current = loadLocalDraft(userId);
+  const ownWrite = useRef<EditorDraft | null>(null);
+  return useMemo<DeviceDraft>(() => {
+    const held = (): EditorDraft | null => loadLocalDraft(user.current);
+    const mine = (kept: EditorDraft | null): boolean => kept !== null && ownWrite.current !== null && sameDraft(kept, ownWrite.current);
+    return {
+      keep: (draft) => {
+        saveLocalDraft(user.current, draft);
+        ownWrite.current = draft;
+      },
+      revert: () => {
+        if (ownWrite.current === null || !mine(held())) return; // no write of mine in the slot: nothing to take back
+        if (atOpen.current) saveLocalDraft(user.current, atOpen.current);
+        else clearLocalDraft();
+        ownWrite.current = null;
+      },
+      release: (sent) => {
+        const kept = held();
+        const from = atOpen.current;
+        const resumed = kept !== null && !!from && sameDraft(kept, from) && sameDraft(opened.current, from);
+        if ((mine(kept) || resumed) && (!sent || (kept !== null && sameDraft(kept, sent)))) clearLocalDraft();
+        ownWrite.current = null;
+      },
+      drop: () => {
+        if (mine(held())) clearLocalDraft();
+        ownWrite.current = null;
+      },
+    };
+  }, []);
 }
 
 /** One editable portrait row (Core or Enablers): each card with move and remove buttons, and Add. */
@@ -136,11 +198,10 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   live.current = { picker, dirty, busy, d };
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const userRef = useRef(userId);
-  userRef.current = userId;
+  const device = useDeviceDraft(userId, initial);
   /** True once the editor is gone or has called onClose: nothing may run after it. */
   const closed = useRef(false);
-  /** True once a save, a delete or a confirmed discard ended the editor: then the device draft stays cleared. */
+  /** True once a save, a delete or a confirmed discard ended the editor: then nothing more is written to the device. */
   const finished = useRef(false);
   const safeRef = useRef<HTMLButtonElement>(null);
   const conflictRef = useRef<HTMLDivElement>(null);
@@ -156,23 +217,15 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     closed.current = true;
     onCloseRef.current();
   }, []);
-  const keep = useCallback((draft: EditorDraft): void => {
-    saveLocalDraft(userRef.current, draft);
-  }, []);
-  /** A save or delete that lands after the editor closed: drop the kept draft only if it is still the one that was sent. */
-  const clearIfMine = useCallback((sent: EditorDraft): void => {
-    const kept = loadLocalDraft(userRef.current);
-    if (kept && sameDraft(kept, sent)) clearLocalDraft();
-  }, []);
   /** The guide is gone from the server: keep the text, as a new guide the next Save creates. */
   const becomeNew = useCallback((cur: EditorDraft): void => {
     const fresh = { ...cur, rowId: null, revision: null };
     if (cur.rowId) guideDeleted(cur.rowId); // the dead guide leaves the list too
-    saveLocalDraft(userRef.current, fresh);
+    device.keep(fresh);
     setD(fresh);
     setAsk(null);
     setError('This guide was deleted. Press Save again to keep your text as a new guide.');
-  }, []);
+  }, [device]);
   /** Close the card picker and hand focus back to the button that opened it. */
   const closePicker = useCallback((): void => {
     focusAfter.current = live.current.picker;
@@ -210,28 +263,18 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     return () => {
       window.removeEventListener('keydown', onKey, true);
       // Closed from outside with changes unsaved: keep them on the device, now, not 400 ms from now.
-      if (!finished.current && live.current.dirty) saveLocalDraft(userRef.current, live.current.d);
+      if (!finished.current && live.current.dirty) device.keep(live.current.d);
       closed.current = true;
     };
-  }, [closePicker, finish]);
+  }, [closePicker, finish, device]);
 
-  // The device draft: written shortly after a change, so a burst of typing is one write. Only a save, a delete or a
-  // confirmed discard clears it (a resumed draft exists nowhere else, so undoing a change must not).
-  const wasDirty = useRef(false);
+  // The device draft (useDeviceDraft): unsaved changes are written shortly after a change, so a burst of typing is one
+  // write; back at the unchanged state, the editor takes its own write back out.
   useEffect(() => {
-    if (!dirty) {
-      // Back to the unchanged state after the pause wrote an in-between copy: put the device copy back in line with what
-      // the author sees. Never clear it here.
-      if (wasDirty.current && !closed.current && !finished.current) {
-        const kept = loadLocalDraft(userRef.current);
-        if (kept && !sameDraft(kept, d)) keep(d);
-      }
-      return;
-    }
-    wasDirty.current = true;
-    const t = window.setTimeout(() => { if (!closed.current && !finished.current) keep(d); }, 400);
+    if (!dirty) { device.revert(); return; }
+    const t = window.setTimeout(() => { if (!closed.current && !finished.current) device.keep(d); }, 400);
     return () => window.clearTimeout(t);
-  }, [d, dirty, keep]);
+  }, [d, dirty, device]);
 
   // Derived from a deferred copy, so typing never waits on the name scan.
   const shown = useDeferredValue(d);
@@ -260,13 +303,13 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       if (res.ok) {
         const g = toGuide(res.value);
         if (g) guideSaved(g);
-        clearIfMine(cur);
+        device.release(cur);
       }
       return;
     }
     setBusy(false);
     if (res.ok) {
-      clearLocalDraft();
+      device.release();
       const g = toGuide(res.value);
       if (g) guideSaved(g);
       sfx.pulse();
@@ -274,7 +317,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       return;
     }
     if (res.code === 'not_found' && cur.rowId) { becomeNew(cur); return; } // deleted elsewhere while being edited
-    keep(cur);
+    if (!sameDraft(cur, base)) device.keep(cur); // refused: unsaved changes go to the device at once
     if (res.code === 'conflict') { setAsk('conflict'); return; }
     setError(guideErrorMessage(res.code, res.field));
   };
@@ -298,7 +341,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     setBase(fresh);
     setD(fresh);
     setAsk(null);
-    clearLocalDraft();
+    device.drop();
   };
   const overwrite = async (): Promise<void> => {
     const g = await theirs();
@@ -319,17 +362,17 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     const gone = res.ok || res.code === 'not_found';
     if (closed.current) {
       // The editor is gone (state and onClose are off limits), but the delete landed: keep the books straight.
-      if (gone) { guideDeleted(rowId); clearIfMine(sent); }
+      if (gone) { guideDeleted(rowId); device.release(sent); }
       return;
     }
     setBusy(false);
     if (!gone) { setAsk(null); setError(guideErrorMessage(res.code, res.field)); return; }
-    clearLocalDraft();
+    device.release();
     guideDeleted(rowId);
     sfx.tick();
     finish();
   };
-  const discard = (): void => { clearLocalDraft(); sfx.tick(); finish(); };
+  const discard = (): void => { device.release(); sfx.tick(); finish(); };
   const cancel = (): void => { if (dirty) setAsk('discard'); else finish(); };
 
   const toggleTribe = (t: Tribe): void => {

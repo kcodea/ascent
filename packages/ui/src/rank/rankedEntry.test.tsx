@@ -56,6 +56,7 @@ vi.mock('../tutorial/tutorialProfile', async (importOriginal) => {
 import { Title } from '../Title';
 import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
+import { sfx } from '../sfx';
 import { enqueuePendingRank, flushPendingRanks } from './rankSubmission';
 import {
   RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
@@ -208,6 +209,33 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.rankedconfirm-veil,[^}]*animation: none;/);
     expect(css).toContain(`rc-out ${RANKED_CONFIRM_EXIT_MS / 1000}s`);
     expect(css).not.toMatch(/\.rankedconfirm[^{]*\{[^}]*cursor:\s*pointer/);
+  });
+
+  it('"Yes, let\'s go." plays the cinematic hit on the press; "No, go back." does not', () => {
+    const gate = vi.spyOn(sfx, 'gate').mockImplementation(() => {});
+    openConfirm();
+    act(() => button(RANKED_CONFIRM_NO)!.click());
+    expect(gate).not.toHaveBeenCalled();
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
+    act(() => button(RANKED_CONFIRM_YES)!.click());
+    expect(gate.mock.calls.map((c) => c[0])).toEqual(['intro']);
+    gate.mockRestore();
+  });
+
+  it('"Yes, let\'s go." acts on the PRESS, and the release that follows does nothing more', () => {
+    const gate = vi.spyOn(sfx, 'gate').mockImplementation(() => {});
+    openConfirm();
+    const yes = button(RANKED_CONFIRM_YES)!;
+    // A right-button press is not a "Yes".
+    act(() => { yes.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 2 })); });
+    expect(gate).not.toHaveBeenCalled();
+    expect(useGame.getState().rankedEntry).toBeNull();
+    act(() => { yes.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
+    expect(gate.mock.calls.map((c) => c[0]), 'the hit plays as the button goes down').toEqual(['intro']);
+    expect(useGame.getState().rankedEntry, 'and the entry is committed there').not.toBeNull();
+    act(() => { yes.click(); });
+    expect(gate, 'the release (click) is not a second Yes').toHaveBeenCalledTimes(1);
+    gate.mockRestore();
   });
 
   it('"Yes, let\'s go." commits a ranked entry (persisted) and opens hero select on its heroes', () => {

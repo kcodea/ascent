@@ -7,6 +7,7 @@
  *    the server says the guide was not deleted; it never speaks of saving.
  *  - WHETHER ANYTHING WAS KEPT. A refused save writes the author's text to this device only when there are unsaved
  *    changes. "kept on this device" is said only when the caller says something was (`kept`); not told, it is not said.
+ *    Publishing and bookmarking change nothing when they are refused, and say so.
  */
 import { GUIDE_LIMITS } from '@game/guides';
 
@@ -26,7 +27,7 @@ const PART: Readonly<Record<string, string>> = {
   sets: 'cards',
 };
 
-export type GuideAction = 'save' | 'delete' | 'import';
+export type GuideAction = 'save' | 'delete' | 'import' | 'publish' | 'bookmark';
 
 export interface GuideErrorAbout {
   /** What was refused. A save when not named. */
@@ -55,13 +56,40 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       default: return 'Something went wrong deleting the guide. It was not deleted.';
     }
   }
-  const kept = about.kept === true;
   const part = field ? PART[field] : undefined;
+  if (action === 'publish') {
+    switch (code) {
+      case 'blocked_text': return `The ${part ?? 'guide'} has a word that is not allowed. Edit the guide, then publish it.`;
+      case 'reserved_name': return `The ${part ?? 'guide'} uses a reserved name. Edit the guide, then publish it.`;
+      case 'guide_hidden': return 'Team Ascent has hidden this guide. It cannot be published.';
+      case 'conflict': return 'This guide changed while it was being published. Try again.';
+      case 'sign_in_required':
+      case 'unauthenticated': return SIGN_IN;
+      case 'not_allowed': return NOT_ALLOWED;
+      case 'not_found': return NO_LONGER;
+      case 'rate_limited': return 'That is a lot of changes. Try again in a little while.';
+      case 'offline': return `${NO_SERVER} Nothing was changed.`;
+      default: return 'Something went wrong. Nothing was changed.';
+    }
+  }
+  if (action === 'bookmark') {
+    switch (code) {
+      case 'too_many_bookmarks': return `You already have ${GUIDE_LIMITS.bookmarksPerPlayer} bookmarks. Remove one to make room.`;
+      case 'sign_in_required':
+      case 'unauthenticated': return 'Sign in to bookmark guides.';
+      case 'not_allowed': return 'This guide cannot be bookmarked.';
+      case 'not_found': return 'This guide is no longer available.';
+      case 'offline': return `${NO_SERVER} Nothing was changed.`;
+      default: return 'Something went wrong. Nothing was changed.';
+    }
+  }
+  const kept = about.kept === true;
   switch (code) {
     case 'blocked_text':
       if (part === 'nicknames') return 'The nicknames have a word that is not allowed.';
       return `The ${part ?? 'guide'} has a word that is not allowed.`;
-    case 'reserved_name': return 'That "by" line is reserved. Pick another name.';
+    case 'reserved_name':
+      return part === 'title' || part === 'tagline' ? `The ${part} uses a reserved name. Pick another.` : 'That "by" line is reserved. Pick another name.';
     case 'bad_guide': return `Check the ${part ?? 'guide'}.`;
     case 'sign_in_required':
     case 'unauthenticated': return SIGN_IN;

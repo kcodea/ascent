@@ -9,10 +9,14 @@
  *    Function. They answer with a result carrying the server's own refusal code, never throw. Only a save's answer
  *    carries a guide; it is read with `parseGuideAnswer`, never with the row reader directly.
  *  - `fetchTeamFlag` / `fetchMyGuides` / `fetchGuideById`: the three small reads the editor needs.
+ *  - `setPublishedRemote` / `bookmarkGuideRemote`: step 3's writes, through the same function.
+ *  - `fetchBookmarkedGuides`: this account's bookmarks, with their guides, under row level security.
+ *  - `fetchCommunityPage`: one page of published player guides. Paged on the server; its search text is cleaned and
+ *    quoted so it can only ever be a search.
  *
  * Never throws; every read is time-boxed.
  */
-import { parseGuideRecord, type GuideRecord } from '@game/guides';
+import { GUIDE_LIMITS, SET_ID_RE, TRIBE_RE, cleanText, parseGuideRecord, type GuideRecord } from '@game/guides';
 import { supabaseClient } from '../remoteBoards';
 import { fetchAllRows } from '../supabaseRows';
 
@@ -65,6 +69,8 @@ export interface GuideDraftInput {
   revision?: number;
   /** Built-in import only. */
   slug?: string;
+  /** One id per press of Save, sent again when that press is retried (see guideDrafts.ts `newSaveId`). */
+  saveId?: string;
   official: boolean;
   byline: string;
   sets: string[];
@@ -183,6 +189,23 @@ export async function importBuiltInsRemote(guides: GuideDraftInput[]): Promise<G
   return { ok: true, value: { inserted: Number(res.value.inserted ?? 0), skipped: Number(res.value.skipped ?? 0) } };
 }
 
+/** Make one of the author's guides public, or private again. The server re-checks the stored text before publishing. */
+export async function setPublishedRemote(rowId: string, published: boolean): Promise<GuideWriteResult<GuideRecord>> {
+  const res = await invokeGuideWrite({ op: 'setPublished', id: rowId, published });
+  if (!res.ok) return res;
+  const rec = parseGuideAnswer(res.value.guide);
+  return rec ? { ok: true, value: rec } : { ok: false, code: 'server' };
+}
+
+/** Bookmark a published guide, or remove the bookmark. Answers the guide's bookmark count after the change. */
+export async function bookmarkGuideRemote(rowId: string, on: boolean): Promise<GuideWriteResult<{ bookmarked: boolean; count: number }>> {
+  const res = await invokeGuideWrite({ op: on ? 'bookmark' : 'unbookmark', id: rowId });
+  if (!res.ok) return res;
+  if (typeof res.value.bookmarked !== 'boolean') return { ok: false, code: 'server' };
+  const n = Number(res.value.count ?? 0);
+  return { ok: true, value: { bookmarked: res.value.bookmarked, count: Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0 } };
+}
+
 // -- The three small reads ----------------------------------------------------------------------------------------
 
 /** Is this account on the guides team? `undefined` = could not ask (never treat that as "no" for an account that
@@ -229,6 +252,90 @@ export async function fetchGuideById(rowId: string): Promise<GuideRecord | null 
     ]);
     if (!res || res.error) return undefined;
     return res.data === null ? null : (parseGuideRecord(res.data) ?? undefined);
+  } catch {
+    return undefined;
+  }
+}
+
+// -- Step 3 reads -------------------------------------------------------------------------------------------------
+
+/**
+ * The guides this account has bookmarked, newest bookmark first. `undefined` = could not ask.
+ *
+ * A bookmark row outlives its guide being readable (the author unpublished it, or the team hid it): row level
+ * security then answers no guide for it, and it is dropped here. It comes back by itself if the guide does.
+ */
+export async function fetchBookmarkedGuides(userId: string): Promise<GuideRecord[] | undefined> {
+  const c = supabaseClient();
+  if (!c || !userId) return undefined;
+  try {
+    const res = await Promise.race([
+      fetchAllRows((from, to) => c.from('guide_bookmarks').select(`created_at, guide:guides(${GUIDE_COLUMNS})`).eq('user_id', userId)
+        .order('created_at', { ascending: false }).order('guide_id', { ascending: true }).range(from, to)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    const out: GuideRecord[] = [];
+    for (const r of ((res.data as unknown[] | null) ?? [])) {
+      const embedded = (r as { guide?: unknown } | null)?.guide;
+      const g = parseGuideRecord(Array.isArray(embedded) ? embedded[0] : embedded);
+      if (g && !g.official && g.published && !g.hidden && g.authorId !== userId) out.push(g);
+    }
+    return out;
+  } catch {
+    return undefined;
+  }
+}
+
+export type CommunitySort = 'bookmarked' | 'newest';
+
+export interface CommunityQuery {
+  setId: string;
+  /** Guides for any of these tribes... */
+  tribes: readonly string[];
+  /** ...and, when true, guides for no tribe (Neutral). */
+  neutral: boolean;
+  /** As typed. Cleaned here. */
+  search: string;
+  sort: CommunitySort;
+  /** How many guides the list already holds. */
+  offset: number;
+}
+
+export interface CommunityPage { guides: GuideRecord[]; more: boolean }
+
+/**
+ * Search text as it is sent: one clean line, without the characters that mean something to the filter it sits in (a
+ * quote, a backslash) or to a LIKE pattern (percent, underscore, star), cut to the limit.
+ */
+export function communitySearch(raw: string): string {
+  const s = cleanText(raw).replace(/["\\%_*]/g, ' ').replace(/\s+/g, ' ').trim();
+  return [...s].slice(0, GUIDE_LIMITS.searchQuery).join('').trim();
+}
+
+/** One page of published player guides for a set. `undefined` = could not ask. */
+export async function fetchCommunityPage(q: CommunityQuery): Promise<CommunityPage | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  const tribes = q.tribes.filter((t) => TRIBE_RE.test(t));
+  const tribeRule = [...(tribes.length ? [`tribes.ov.{${tribes.join(',')}}`] : []), ...(q.neutral ? ['tribes.eq.{}'] : [])];
+  if (tribeRule.length === 0 || !SET_ID_RE.test(q.setId)) return { guides: [], more: false };
+  const page = GUIDE_LIMITS.communityPage;
+  const from = Math.max(0, Math.trunc(q.offset) || 0);
+  try {
+    // rows: one page plus one row (GUIDE_LIMITS.communityPage + 1), bounded by the explicit .range below
+    let query = c.from('guides').select(GUIDE_COLUMNS).eq('official', false).eq('published', true).eq('hidden', false)
+      .contains('sets', [q.setId]).or(tribeRule.join(','));
+    const text = communitySearch(q.search);
+    if (text) query = query.or(['title', 'tagline', 'byline'].map((col) => `${col}.ilike."%${text}%"`).join(','));
+    if (q.sort === 'bookmarked') query = query.order('bookmark_count', { ascending: false });
+    query = query.order('published_at', { ascending: false, nullsFirst: false }).order('id', { ascending: true });
+    // One row more than a page, to learn whether there is another page. An explicit bound (R-NET-01).
+    const res = await Promise.race([Promise.resolve(query.range(from, from + page)), timeout(READ_TIMEOUT_MS, null)]);
+    if (!res || res.error) return undefined;
+    const raw = (res.data as unknown[] | null) ?? [];
+    const guides = raw.slice(0, page).map(parseGuideRecord).filter((g): g is GuideRecord => g !== null);
+    return { guides, more: raw.length > page };
   } catch {
     return undefined;
   }

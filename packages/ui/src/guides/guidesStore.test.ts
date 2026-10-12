@@ -8,6 +8,7 @@ let answer: () => Promise<OfficialGuidesAnswer>;
 let calls = 0;
 let teamAnswer: boolean | undefined = false;
 let mineAnswer: GuideRecord[] | undefined = [];
+let bookmarkedAnswer: GuideRecord[] | undefined = [];
 let mineHold: Promise<GuideRecord[] | undefined> | null = null; // when set, the NEXT guides-of-mine ask waits on it
 const asked: string[] = [];
 vi.mock('./guidesRemote', () => ({
@@ -18,12 +19,13 @@ vi.mock('./guidesRemote', () => ({
     if (mineHold) { const h = mineHold; mineHold = null; return h; }
     return mineAnswer;
   },
+  fetchBookmarkedGuides: async (userId: string) => { asked.push(`bookmarked:${userId}`); return bookmarkedAnswer; },
 }));
 let identity: { userId: string; anonymous: boolean } | null = null;
 vi.mock('../identity', () => ({ currentIdentity: () => identity }));
 
 const { GUIDES } = await import('./guides');
-const { guideDeleted, guideSaved, loadGuides, requestGuideEdit, resetGuidesForTests, setGuidesTab, takePendingEdit, useGuides } = await import('./guidesStore');
+const { guideBookmarked, guideDeleted, guideSaved, loadGuides, requestGuideEdit, resetGuidesForTests, setGuidesTab, takePendingEdit, useGuides } = await import('./guidesStore');
 
 const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
   id, slug: null, authorId: null, byline: 'Team Ascent', official: true, published: true, publishedAt: null, hidden: false, sets: ['set2'], tribes: ['beast'],
@@ -34,7 +36,7 @@ const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
 beforeEach(() => {
   resetGuidesForTests();
   calls = 0;
-  identity = null; teamAnswer = false; mineAnswer = []; mineHold = null; asked.length = 0;
+  identity = null; teamAnswer = false; mineAnswer = []; bookmarkedAnswer = []; mineHold = null; asked.length = 0;
   answer = async () => ({ state: 'on', guides: [rec('a'), rec('b', { sortOrder: 1 })] });
 });
 
@@ -110,7 +112,7 @@ describe('who I am: team flag and my guides', () => {
     teamAnswer = true;
     mineAnswer = [mineRec('m1'), mineRec('m2')];
     await loadGuides();
-    expect(asked.sort()).toEqual(['mine:u-1', 'team:u-1']);
+    expect(asked.sort()).toEqual(['bookmarked:u-1', 'mine:u-1', 'team:u-1']);
     expect(useGuides.getState().team).toBe(true);
     expect(useGuides.getState().mine.map((g) => g.id)).toEqual(['m1', 'm2']);
   });
@@ -366,5 +368,165 @@ describe('the Compendium pill and the rail\'s edit request', () => {
     expect(useGuides.getState().pendingEdit).toBe('r1');
     expect(takePendingEdit()).toBe('r1');
     expect(takePendingEdit()).toBeNull();
+  });
+});
+
+describe('bookmarks', () => {
+  const other = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord =>
+    rec(id, { official: false, authorId: 'u-9', byline: 'Ann', published: true, publishedAt: '2026-10-13T00:00:00Z', ...patch });
+
+  it("loads this account's bookmarks with its own guides", async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1'), other('bm2')];
+    await loadGuides();
+    expect(useGuides.getState().bookmarked.map((g) => g.rowId)).toEqual(['bm1', 'bm2']);
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+    expect(asked).toContain('bookmarked:u-1');
+  });
+  it('a guest and nobody have none, and are never asked for', async () => {
+    identity = { userId: 'g-1', anonymous: true };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(asked.some((a) => a.startsWith('bookmarked:'))).toBe(false);
+  });
+  it('a read that could not ask keeps the bookmarks already showing', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    const before = useGuides.getState().bookmarked;
+    bookmarkedAnswer = undefined;
+    await loadGuides();
+    expect(useGuides.getState().bookmarked).toBe(before);
+  });
+  it('an unchanged re-read keeps the same array', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    const before = useGuides.getState().bookmarked;
+    await loadGuides();
+    expect(useGuides.getState().bookmarked).toBe(before);
+  });
+  it('an account change clears them at once, before any read answers, and the pill goes back to Team Ascent', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    setGuidesTab('bookmarked');
+    identity = { userId: 'u-2', anonymous: false };
+    bookmarkedAnswer = [];
+    const p = loadGuides();
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(useGuides.getState().tab).toBe('team');
+    await p;
+    expect(useGuides.getState().bookmarked).toEqual([]);
+  });
+  it("a read that was in flight for the old account never fills the new account's bookmarks", async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    let release: (v: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { release = r; });
+    const old = loadGuides(); // asks for u-1's bookmarks (answered at once with bm1), waits on u-1's guides
+    await Promise.resolve();
+    identity = { userId: 'u-2', anonymous: false };
+    bookmarkedAnswer = [];
+    void loadGuides(); // the account changed: clears, queues one re-read
+    release([]);
+    await old; // the old read applies now, and must drop what it fetched for u-1
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(useGuides.getState().mineOwner).toBe('u-2');
+  });
+  it('signing out empties them at once', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    identity = null;
+    void loadGuides();
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(useGuides.getState().mineOwner).toBeNull();
+  });
+  it("a bookmark confirmed after the account changed never joins the old account's list", async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    identity = { userId: 'u-2', anonymous: false }; // switched, loadGuides not yet called
+    guideBookmarked({ ...GUIDES[0]!, id: 'bm7', rowId: 'bm7', official: false, authorId: 'u-9' }, true, 1);
+    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm7']);
+    expect(useGuides.getState().mineOwner).toBe('u-2');
+  });
+  it('guideBookmarked puts the guide first with its new count, and takes it out again', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    const g = { ...useGuides.getState().bookmarked[0]!, id: 'bm2', rowId: 'bm2', title: 'Second' };
+    guideBookmarked(g, true, 7);
+    expect(useGuides.getState().bookmarked.map((x) => [x.rowId, x.bookmarkCount])).toEqual([['bm2', 7], ['bm1', 0]]);
+    guideBookmarked(g, true, 8); // again: still once, count refreshed
+    expect(useGuides.getState().bookmarked.map((x) => [x.rowId, x.bookmarkCount])).toEqual([['bm2', 8], ['bm1', 0]]);
+    guideBookmarked(g, false, 7);
+    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm1']);
+  });
+  it('guideBookmarked does nothing for a guest or for nobody', () => {
+    const g = { ...GUIDES[0]!, id: 'bm9', rowId: 'bm9', official: false, authorId: 'u-9' };
+    identity = null;
+    guideBookmarked(g, true, 1);
+    identity = { userId: 'g-1', anonymous: true };
+    guideBookmarked(g, true, 1);
+    expect(useGuides.getState().bookmarked).toEqual([]);
+  });
+  it('a bookmark made while a read was in flight is not undone by that read', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [];
+    let release: (v: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { release = r; });
+    const p = loadGuides();
+    await Promise.resolve();
+    guideBookmarked({ ...GUIDES[0]!, id: 'bm5', rowId: 'bm5', official: false, authorId: 'u-9' }, true, 1);
+    bookmarkedAnswer = [other('bm5')];
+    release([]);
+    await p;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm5']);
+  });
+  it('a deleted guide leaves the bookmarks too', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    bookmarkedAnswer = [other('bm1')];
+    await loadGuides();
+    guideDeleted('bm1');
+    expect(useGuides.getState().bookmarked).toEqual([]);
+  });
+});
+
+describe('a server change that does not bump the revision still reaches an open session', () => {
+  it('a guide published elsewhere replaces the copy in My guides', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    mineAnswer = [rec('m1', { official: false, authorId: 'u-1', byline: 'Mike', published: false })];
+    await loadGuides();
+    expect(useGuides.getState().mine[0]!.published).toBe(false);
+    mineAnswer = [rec('m1', { official: false, authorId: 'u-1', byline: 'Mike', published: true, publishedAt: '2026-10-13T00:00:00Z' })];
+    await loadGuides();
+    expect(useGuides.getState().mine[0]!.published).toBe(true);
+    expect(useGuides.getState().mine[0]!.publishedAt).toBe('2026-10-13T00:00:00Z');
+  });
+  it('a changed bookmark count, or a guide the team hid, replaces the list', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    mineAnswer = [rec('m1', { official: false, authorId: 'u-1', byline: 'Mike', published: true })];
+    await loadGuides();
+    mineAnswer = [rec('m1', { official: false, authorId: 'u-1', byline: 'Mike', published: true, bookmarkCount: 3 })];
+    await loadGuides();
+    expect(useGuides.getState().mine[0]!.bookmarkCount).toBe(3);
+    mineAnswer = [rec('m1', { official: false, authorId: 'u-1', byline: 'Mike', published: true, bookmarkCount: 3, hidden: true })];
+    await loadGuides();
+    expect(useGuides.getState().mine[0]!.hidden).toBe(true);
+  });
+});
+
+describe('the four pills', () => {
+  it('each can be chosen', () => {
+    for (const tab of ['mine', 'bookmarked', 'community', 'team'] as const) {
+      setGuidesTab(tab);
+      expect(useGuides.getState().tab).toBe(tab);
+    }
   });
 });

@@ -78,7 +78,7 @@ function previewOf(d: EditorDraft, mentions: readonly string[], aliases: Readonl
     id: 'draft', rowId: d.rowId, sets: [setId], tribes: d.tribes, pairsWith: d.pairsWith.length ? d.pairsWith : undefined,
     iconCard: d.iconCard || d.core[0] || '', title: d.title, tagline: d.tagline, body: d.body, core: d.core, enablers: d.enablers,
     mentions: mentions.length ? mentions : undefined, aliases: Object.keys(aliases).length ? aliases : undefined,
-    byline: d.official ? TEAM_BYLINE : d.byline, official: d.official, published: d.official, hidden: false, authorId: null,
+    byline: d.official ? TEAM_BYLINE : d.byline, official: d.official, published: d.official, hidden: false, bookmarkCount: 0, publishedAt: null, authorId: null,
     revision: d.revision ?? 0, order: 0,
   };
 }

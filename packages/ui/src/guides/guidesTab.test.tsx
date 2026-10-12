@@ -32,6 +32,7 @@ vi.mock('./guidesRemote', () => ({
   fetchOfficialGuides: async () => { officialCalls++; return { state: 'offline' }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
+  fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => undefined,
   saveGuideRemote: async () => saveAnswer,
   deleteGuideRemote: async () => ({ ok: false, code: 'offline' }),

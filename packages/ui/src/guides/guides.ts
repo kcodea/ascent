@@ -44,6 +44,10 @@ export interface Guide {
   official: boolean;
   published: boolean;
   hidden: boolean;
+  /** How many accounts have bookmarked it (0 for a built-in copy). Ranks the Community list. */
+  bookmarkCount: number;
+  /** When it was first published; null when it never was. */
+  publishedAt: string | null;
   authorId: string | null;
   /** The row's revision (0 for a built-in copy). A save sends back the one it loaded. */
   revision: number;
@@ -88,6 +92,8 @@ export const GUIDES: readonly Guide[] = BUNDLED_GUIDE_DATA.map((d, i) => {
     official: true,
     published: true,
     hidden: false,
+    bookmarkCount: 0,
+    publishedAt: null,
     authorId: null,
     revision: 0,
     order: i,
@@ -122,6 +128,8 @@ export function toGuide(r: GuideRecord): Guide | null {
     official: r.official,
     published: r.published,
     hidden: r.hidden,
+    bookmarkCount: r.bookmarkCount,
+    publishedAt: r.publishedAt,
     authorId: r.authorId,
     revision: r.revision,
     order: r.sortOrder,

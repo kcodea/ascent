@@ -29,6 +29,7 @@ vi.mock('./guidesRemote', () => ({
   fetchOfficialGuides: async () => ({ state: 'offline' }),
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
+  fetchBookmarkedGuides: async () => undefined,
   fetchGuideById: async () => { fetches++; return byIdAnswer; },
   saveGuideRemote: async (g: GuideDraftInput) => { saves.push(g); if (gate) await gate; return saveAnswer(g); },
   deleteGuideRemote: async (rowId: string) => { deletes.push(rowId); if (deleteGate) await deleteGate; return deleteAnswer(); },

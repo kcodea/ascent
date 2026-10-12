@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
+      { category: 'Systems', text: 'The ranked lobby confirmation now opens over the Play menu, in the Compendium\'s gold frame: the menu darkens and blurs behind it as the window pops out.' },
       { category: 'Systems', text: 'Lobby guides: with a guide in Detailed view, clicking anywhere outside the guides panel folds it back to Simple.' },
       {
         category: 'Systems',

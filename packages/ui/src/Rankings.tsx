@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
+import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
-import { useSocial } from './socialCache';
+import { peekSocial, putSocial, useSocial } from './socialCache';
 import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { TitleBadge } from './titles/TitleBadge';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
 import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
+import { fetchHeroSkinLoadouts } from './progression/progressionRemote';
+import { heroPortrait, opponentSkins, useLiveLoadout } from './skins/skins';
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
@@ -52,9 +55,24 @@ export function sortRankAware(rows: PlayerRow[]): PlayerRow[] {
     .map((x) => x.r);
 }
 
-/** The Leaderboard's cache key + loader (shared with the title's idle prefetch). */
+/** A ladder row plus the player's equipped hero skins (`cosmetic_loadouts`), read after the rows land. */
+export type RankedRow = PlayerRow & { skins?: RunCosmeticSnapshot };
+
+/** The Leaderboard's cache key + loader (shared with the title's idle prefetch). The rows are published as soon as
+ *  they land (keeping the skins the cached rows already had, so a refresh never flashes default art), then the
+ *  equipped hero skins for those ten players follow in ONE read. */
 export const RANKINGS_KEY = 'rankings';
-export const loadRankings = async (): Promise<PlayerRow[]> => sortRankAware(await fetchTopPlayers(RANKED_ROWS));
+export const loadRankings = async (): Promise<RankedRow[]> => {
+  const rows: RankedRow[] = sortRankAware(await fetchTopPlayers(RANKED_ROWS));
+  if (rows.length === 0) return rows;
+  const prev = new Map((peekSocial<RankedRow[]>(RANKINGS_KEY)?.data ?? []).map((r) => [r.userId, r.skins] as const));
+  putSocial(RANKINGS_KEY, rows.map((r) => (prev.get(r.userId) ? { ...r, skins: prev.get(r.userId) } : r)));
+  const skins = await fetchHeroSkinLoadouts(rows.map((r) => r.userId));
+  return rows.map((r) => {
+    const s = skins.get(r.userId);
+    return s ? { ...r, skins: s } : r;
+  });
+};
 
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
@@ -63,7 +81,9 @@ export function Rankings() {
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
   // Cached across opens (socialCache.ts): a revisit paints the last ladder at once and refreshes behind it.
-  const rows = useSocial<PlayerRow[]>(show ? RANKINGS_KEY : null, loadRankings) ?? null;
+  const rows = useSocial<RankedRow[]>(show ? RANKINGS_KEY : null, loadRankings) ?? null;
+  // YOUR row wears your live loadout (always current, never filtered); everyone else's through "Show opponent skins".
+  const myLoadout = useLiveLoadout();
   const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // userId with no watchable v2 run
   const mineRef = useRef<HTMLDivElement | null>(null);
@@ -156,7 +176,9 @@ export function Rankings() {
                 >
                   <span className="lb-c-rank"><LbMedallion rank={i + 1} /></span>
                   <span className="lb-c-player">
-                    <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} />
+                    {/* The portrait: the player's equipped skin for that hero (owner 2026-10-12), in its normal outline.
+                        The rank ring goes on the RANK column's crest instead (RankCrest). */}
+                    <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} art={heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : opponentSkins(showOppCosmetics, r.skins))} />
                     <span className="lb-who">
                       <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>

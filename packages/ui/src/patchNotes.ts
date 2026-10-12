@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Leaderboard: games played now counts every game, portraits show skins, and rank badges wear their rank frame.',
+        details: [
+          'Games played stopped at 50. It now shows your real total.',
+          'Each portrait shows the player\'s equipped skin for that hero.',
+          'Rank badges now wear the frame of their rank, from Bronze to Ascendant. This shows everywhere the badge appears.',
+        ],
+      },
       { category: 'Systems', text: 'Rise no longer wipes a minion\'s earned stacks. The risen copy fights fresh in combat, but your Shop card keeps everything it earned.' },
       { category: 'Systems', text: 'Kobold cards: the highlighted card text and the Kobold tribe label are now a redder shade, less orange.' },
     ],

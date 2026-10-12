@@ -11,7 +11,7 @@ import { TitleBadge } from './titles/TitleBadge';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
-import { compareRankDesc, medalKey, rankPositionOf, type RankPosition } from './rank/types';
+import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
 import { fetchHeroSkinLoadouts } from './progression/progressionRemote';
 import { heroPortrait, opponentSkins, useLiveLoadout } from './skins/skins';
 
@@ -57,18 +57,6 @@ export function sortRankAware(rows: PlayerRow[]): PlayerRow[] {
 
 /** A ladder row plus the player's equipped hero skins (`cosmetic_loadouts`), read after the rows land. */
 export type RankedRow = PlayerRow & { skins?: RunCosmeticSnapshot };
-
-/**
- * THE RANK FRAME (owner 2026-10-12: "use the proper ranked portrait for every rank ... the corresponding frame should
- * be the frame outline"): each ranked row's portrait wears the painted ring of its medal (`frame_bronze` ...
- * `frame_ascendant`, the Ranked Rewards masters already wired for the portrait-frame tuner), and the table's #1 wears
- * the Rank #1 ring instead. A row with no medal rank (a legacy / unranked row) keeps the default look. The rank ring
- * wins over a player's cosmetic portrait frame on THIS page only: the page is about rank.
- */
-export function rankFrameIdOf(rank: RankPosition | null, index: number): string | undefined {
-  if (!rank) return undefined;
-  return index === 0 ? 'rank1' : medalKey(rank.divisionIndex);
-}
 
 /** The Leaderboard's cache key + loader (shared with the title's idle prefetch). The rows are published as soon as
  *  they land (keeping the skins the cached rows already had, so a refresh never flashes default art), then the
@@ -188,13 +176,9 @@ export function Rankings() {
                 >
                   <span className="lb-c-rank"><LbMedallion rank={i + 1} /></span>
                   <span className="lb-c-player">
-                    {/* The portrait: the player's equipped skin for that hero (owner 2026-10-12), in their rank's ring. */}
-                    <LbHeroFrame
-                      heroId={r.favoriteHero}
-                      side={mine ? 'self' : 'opp'}
-                      art={heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : opponentSkins(showOppCosmetics, r.skins))}
-                      frameId={rankFrameIdOf(rowRank, i)}
-                    />
+                    {/* The portrait: the player's equipped skin for that hero (owner 2026-10-12), in its normal outline.
+                        The rank ring goes on the RANK column's crest instead (RankCrest). */}
+                    <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} art={heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : opponentSkins(showOppCosmetics, r.skins))} />
                     <span className="lb-who">
                       <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>

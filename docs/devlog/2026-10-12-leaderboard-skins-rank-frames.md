@@ -30,19 +30,28 @@ shown players in ONE paged request (`fetchHeroSkinLoadouts` in `progressionRemot
 the rows are published (a cached revisit keeps the skins it had, so a refresh never flashes default art). Your own row
 uses your live loadout; everyone else's goes through "Show opponent skins". `LbHeroFrame` takes an optional `art`.
 
-## 3. Rank frames
+## 3. Rank frames (on the RANK badge, not the portrait)
+
+Owner correction (2026-10-12): "the RANK badge portrait frame should change based on rank, not the player's
+portrait. Rank 1 frame also only applies > ascendant rank."
 
 The Ranked Rewards ring masters (`C:\Game Assets\Ascent Art\Ranked Rewards\Frames`) were already wired as 768 px WebP
-by the portrait-frames tuner (#1821: `art/frames/frame_{bronze,silver,gold,platinum,diamond,ascendant,rank1}.webp`,
-with measured holes in `FRAME_ART`). No new art. `rankFrameIdOf(rank, index)` (`Rankings.tsx`) picks the medal's ring
-(`medalKey(divisionIndex)`), and the table's first row wears `rank1`; it is passed as `frameId` to the existing
-`PortraitFrame` renderer. A row without a medal rank keeps the default look.
+by the portrait-frame tuner (#1821: `art/frames/frame_{bronze,silver,gold,platinum,diamond,ascendant,rank1}.webp`,
+with measured holes in `FRAME_ART`). No new art. `RankCrest` (`rank/RankBar.tsx`, the ONE rank badge component) now
+resolves its medal's ring (`crestFrameOf` → `resolveImageFrame('bronze' ... 'ascendant')`) and paints it with the
+shared `PortraitFrame` renderer, which swaps out the generic gold `.portring` ring (`pf-on`). The hero portrait keeps
+its normal outline.
+
+Because `RankCrest` is shared, the tier ring shows on every surface that draws the rank badge: the Leaderboard's Rank
+column, the Career page's Seasonal Ranked card (`RankBar size="big"`), the post-game rank screen (`RankScreen`, both
+crests of a transition), and the title screen's mini crest.
+
+**Rank #1 ring: not wired.** The ladder is Bronze to Ascendant, three divisions each (`RANK_MEDALS`), and Ascendant III
+is the uncapped top division (`rankTopDivision()`). There is no tier above Ascendant, so `frame_rank1` stays unused
+until one exists.
 
 ## Judgement calls (owner can reverse)
 
-- **Rank #1 = the Leaderboard's first row** (only when that row has a medal rank). The code has no other notion of
-  "Rank 1".
-- **The rank ring wins over a player's cosmetic portrait frame on this page.** Elsewhere their cosmetic frame still
-  shows.
-- **Only the Leaderboard changed.** No other surface shows a rank-tier ring today: the Career header, lobby seats and
-  the Hall wear the cosmetic frame (or the default ring).
+- The tier ring applies to every rank badge surface, because they all share `RankCrest`.
+- Leaderboard skins: your own row uses your live loadout. Other rows use the stored loadout, through "Show opponent
+  skins".

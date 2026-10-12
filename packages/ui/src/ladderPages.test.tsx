@@ -55,7 +55,7 @@ vi.mock('./progression/progressionRemote', async (importOriginal) => ({
   fetchHeroSkinLoadouts: (ids: readonly string[]) => fetchHeroSkinLoadouts(ids),
 }));
 
-import { Rankings, rankFrameIdOf } from './Rankings';
+import { Rankings } from './Rankings';
 import { Leaderboard } from './Leaderboard';
 import { RecentGames } from './RecentGames';
 import { useGame } from './store';
@@ -341,26 +341,19 @@ describe('Rankings — the MMR column', () => {
   });
 });
 
-describe('Rankings — skins and rank frames on the portrait (owner 2026-10-12)', () => {
+describe('Rankings — portrait skins and the rank crest ring (owner 2026-10-12)', () => {
   const rankAt = (divisionIndex: number) => ({ seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex, points: 10, demotionReady: false }, highest: { divisionIndex, points: 10, demotionReady: false } });
   const portraitSrc = (): string[] => [...ui.container.querySelectorAll('.lb-trow-btn .heroimg')].map((n) => n.getAttribute('src') ?? '');
   const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.lb-trow-btn .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
 
-  it('rankFrameIdOf: the medal ring by division, Rank #1 for the top row, nothing for an unranked row', () => {
-    expect(rankFrameIdOf({ divisionIndex: 9, points: 0 }, 0)).toBe('rank1');
-    expect(rankFrameIdOf({ divisionIndex: 0, points: 0 }, 1)).toBe('bronze');
-    expect(rankFrameIdOf({ divisionIndex: 4, points: 0 }, 1)).toBe('silver');
-    expect(rankFrameIdOf({ divisionIndex: 6, points: 0 }, 2)).toBe('gold');
-    expect(rankFrameIdOf({ divisionIndex: 9, points: 0 }, 3)).toBe('platinum');
-    expect(rankFrameIdOf(null, 0)).toBeUndefined();
-  });
-
-  it('each ranked row wears its rank ring (#1 the Rank #1 ring); an unranked row keeps the default look', async () => {
-    fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rank: rankAt(9) }, { ...PLAYERS[1]!, rank: rankAt(6) }, PLAYERS[2]!]);
+  it('each ranked row’s RANK crest wears its medal ring; the hero portrait keeps its own outline; no Rank #1 ring on #1', async () => {
+    fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rank: rankAt(9) }, { ...PLAYERS[1]!, rank: rankAt(6) }, { ...PLAYERS[2]!, rank: rankAt(15) }]);
     useGame.setState({ showRankings: true });
     ui = mount(<Rankings />);
     await flush();
-    expect(frames()).toEqual(['rank1', 'gold', null]);
+    const crests = [...ui.container.querySelectorAll('.lb-trow-btn .rankcrest')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
+    expect(crests).toEqual(['ascendant', 'platinum', 'gold']); // rank-sorted: Ascendant, Platinum, Gold
+    expect(frames()).toEqual([null, null, null]);
   });
 
   it('the portrait is the player’s equipped skin for that hero, read once for the shown players, through the opponent switch', async () => {

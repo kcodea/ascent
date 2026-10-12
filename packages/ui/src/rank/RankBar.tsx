@@ -4,6 +4,18 @@ import { Icon } from '../Icon';
 import { FadeImg } from '../FadeImg';
 import { barFraction, pointsText, rankLabel, standingGateText } from './rankFormat';
 import { divisionNumeralOf, isPromotionReady, medalOf, type RankPosition } from './types';
+import { PortraitFrame, pfClass } from '../portraitFrame/PortraitFrame';
+import { resolveImageFrame } from '../portraitFrame/portraitFrameConfig';
+
+/**
+ * THE TIER RING (owner 2026-10-12: "the RANK badge portrait frame should change based on rank, not the player's
+ * portrait"): every crest wears its medal's painted ring from the Ranked Rewards masters (`art/frames/frame_bronze`
+ * ... `frame_ascendant`, wired with measured holes for the portrait-frame tuner) in place of the generic gold
+ * portrait ring, through the one frame renderer (`PortraitFrame`). The Rank #1 ring (`frame_rank1`) is for a tier
+ * ABOVE Ascendant ("Rank 1 frame also only applies > ascendant rank"); the ladder has no such tier today (Ascendant
+ * III is the uncapped top division), so it is not used here. Resolved once per medal and cached by the resolver.
+ */
+export const crestFrameOf = (divisionIndex: number) => resolveImageFrame(medalOf(divisionIndex).toLowerCase());
 
 /**
  * THE SHARED RANK PRESENTATION (blueprint §8: one component so the end screen, the Title's Play card, the
@@ -36,15 +48,17 @@ export function RankCrest({ divisionIndex, size = 'row', className = '', style, 
 }): JSX.Element {
   const medal = medalOf(divisionIndex);
   const art = rankArt(medal);
+  const frame = crestFrameOf(divisionIndex);
   // `.portring` is the game's gold hero-portrait ring (hero-select/heroportrait.png, painted by CSS as the
   // ring's ::after) with the crest disc seated in its hole — the same composition the Career hero portrait
   // wears (owner ask 2026-09-20). The disc keeps the in-run `.hero > .f > img.heroimg` markup.
   return (
-    <div className={`rankcrest portring rankcrest-${size} rankcrest-${medal.toLowerCase()} ${className}`.trim()} style={style} ref={crestRef} aria-hidden="true">
+    <div className={`rankcrest portring rankcrest-${size} rankcrest-${medal.toLowerCase()}${pfClass(frame)} ${className}`.trim()} style={frame ? { ...frame.hostStyle, ...style } : style} ref={crestRef} aria-hidden="true">
       <div className="hero">
         <div className="f">
           {art ? <FadeImg className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="crown" />}
         </div>
+        <PortraitFrame frame={frame} />
       </div>
       {!hideDivision && <span className="rankcrest-plate">{divisionNumeralOf(divisionIndex)}</span>}
     </div>

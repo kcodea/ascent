@@ -31,9 +31,11 @@ let hold: Promise<void> | null = null;
  *  publish answer did, so the read answers "reached, nothing new" and leaves the store as each test set it. */
 let reads = 0;
 let mineRead: GuideRecord[] | undefined;
+/** While true, a read cannot reach the server either (the connection is really gone). */
+let readsFail = false;
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
-  fetchOfficialGuides: async () => { reads++; return { state: 'on', guides: [] }; },
+  fetchOfficialGuides: async () => { reads++; return readsFail ? { state: 'offline' } : { state: 'on', guides: [] }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => mineRead,
   fetchBookmarkedGuides: async () => undefined,
@@ -111,7 +113,7 @@ beforeEach(async () => {
   hold = null;
   // As the game does when an account lands: the store is told who is at the keyboard. A read asked for later (a lost
   // publish answer) is then a refresh for the same account, not an account change that clears its guides.
-  mineRead = undefined;
+  mineRead = undefined; readsFail = false;
   setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
   await loadGuides();
   reads = 0;
@@ -209,6 +211,21 @@ describe('publishing from the card', () => {
     expect(badges(card(c))).toContain('Published');
     expect(badges(card(c))).not.toContain('Private');
     expect(own(c, 'Unpublish')).toBeDefined();
+  });
+  it('the connection is really gone: the read fails too, the sentence stays on the card, and the tab says guides are offline', async () => {
+    publishAnswer = () => ({ ok: false, code: 'offline' });
+    const c = show();
+    await press(card(c), 'Publish');
+    readsFail = true;
+    await press(asked(c), 'Publish');
+    expect(reads).toBe(1);
+    expect(useGuides.getState().capability).toBe('offline');
+    // Nothing the player had is taken away: the guide is still listed, as it was.
+    expect(useGuides.getState().mine.map((g) => g.rowId)).toEqual([ROW]);
+    expect(badges(card(c))).toContain('Private');
+    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(c.textContent).toContain('Guides are offline.');
+    expect(own(c, 'Publish')!.disabled).toBe(true);
   });
   it('a publish the server refused asks for no read', async () => {
     for (const code of ['reserved_name', 'conflict', 'rate_limited', 'not_found', 'server']) {

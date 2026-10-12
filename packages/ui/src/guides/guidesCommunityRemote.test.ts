@@ -96,7 +96,7 @@ describe('fetchBookmarkedGuides', () => {
     expect(c.table).toBe('guide_bookmarks');
     expect(c.columns).toBe(`created_at, guide:guides(${GUIDE_COLUMNS})`);
     expect(c.eq).toEqual([['user_id', 'u-1']]);
-    expect(c.order.map((o) => o[0])).toEqual(['created_at', 'guide_id']);
+    expect(c.order).toEqual([['created_at', { ascending: false }], ['guide_id', { ascending: true }]]);
     expect(c.range).not.toBeNull();
   });
   it('drops a bookmark whose guide can no longer be read, went private, was hidden, is official or is their own', async () => {
@@ -132,12 +132,12 @@ describe('fetchCommunityPage', () => {
     expect(c.eq).toEqual([['official', false], ['published', true], ['hidden', false]]);
     expect(c.contains).toEqual([['sets', ['set2']]]);
     expect(c.or).toEqual(['tribes.ov.{beast,dragon},tribes.eq.{}']);
-    expect(c.order.map((o) => o[0])).toEqual(['bookmark_count', 'published_at', 'id']);
+    expect(c.order).toEqual([['bookmark_count', { ascending: false }], ['published_at', { ascending: false, nullsFirst: false }], ['id', { ascending: true }]]);
     expect(c.range).toEqual([0, page]);
   });
   it('Newest orders by first-published time only; the next page starts where the last one ended', async () => {
     await fetchCommunityPage(q({ sort: 'newest', offset: 20 }));
-    expect(calls[0]!.order.map((o) => o[0])).toEqual(['published_at', 'id']);
+    expect(calls[0]!.order).toEqual([['published_at', { ascending: false, nullsFirst: false }], ['id', { ascending: true }]]);
     expect(calls[0]!.range).toEqual([20, 20 + GUIDE_LIMITS.communityPage]);
   });
   it('a short page says there is no more', async () => {

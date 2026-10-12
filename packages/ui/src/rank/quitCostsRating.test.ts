@@ -32,6 +32,7 @@ vi.mock('../remoteBoards', async (importOriginal) => {
     uploadRunHistory: vi.fn(async () => {}),
     uploadPlayerProfile: vi.fn(async () => {}),
     fetchRunHistory: vi.fn(async () => null),
+    fetchCareerTotals: vi.fn(async () => null),
     recordFightResult: vi.fn(async () => {}),
     recordLobbyFights: vi.fn(async () => {}),
     fetchLobbyStrength: vi.fn(async () => null),

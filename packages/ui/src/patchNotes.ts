@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-12',
     changes: [
+      { category: 'Systems', text: 'The tribe name under a card is a stronger, less washed-out version of its tribe colour, for every tribe.' },
       { category: 'Systems', text: 'Rise no longer wipes a minion\'s earned stacks. The risen copy fights fresh in combat, but your Shop card keeps everything it earned.' },
       { category: 'Systems', text: 'Kobold cards: the highlighted card text and the Kobold tribe label are now a redder shade, less orange.' },
     ],

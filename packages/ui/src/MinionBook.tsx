@@ -350,7 +350,7 @@ export function MinionBook() {
   // THE GUIDES VIEW (owner 2026-10-09): a header toggle beside Glossary ("move the guides button to the top next to
   // glossary"), exclusive with Rules / Glossary and with the left-rail tabs. Unlike those two codex panels it keeps the
   // tier bar (its chart space carries the guides' tribe pills, its end the set picker) and the search box.
-  const [guidesOn, setGuidesOn] = useState(false);
+  const [guidesOn, setGuidesOn] = useState(() => useGuides.getState().pendingEdit !== null);
   const codex = glossary || rules; // a text panel is up: the card-gallery controls (search, Gilded, zoom) step aside
   const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
@@ -434,6 +434,9 @@ export function MinionBook() {
 
   // The Compendium SUBSCRIBES to the guides store (unlike the rail's snapshot), and refreshes it when the tab opens.
   const guideList = useGuides((s) => s.list);
+  // The pill (Team Ascent / My guides) lives in the guides store, so this list and the tab's toolbar agree.
+  const guideTab = useGuides((s) => s.tab);
+  const guideMine = useGuides((s) => s.mine);
   useEffect(() => { if (guidesOn) void loadGuides(); }, [guidesOn]);
 
   // The build GUIDES for the Guides tab (owner ask 2026-10-09: "the same guides from the rail but in an expanded/full
@@ -442,10 +445,12 @@ export function MinionBook() {
   // search box (title, tagline, write-up).
   const guidesToShow = useMemo(() => {
     const m = makeSearchMatcher(searchQ);
-    return guidesFor(setId, tribes, guideList)
+    // My guides lists every guide the player owns, whatever its set or tribe (a guide that did not carry over is
+    // repaired from here); Team Ascent keeps the set + lobby-tribe rule.
+    return (guideTab === 'mine' ? [...guideMine] : guidesFor(setId, tribes, guideList))
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
       .filter((g) => m(g.title) || m(g.tagline) || m(g.body));
-  }, [setId, tribes, guideTribes, searchQ, guideList]);
+  }, [setId, tribes, guideTribes, searchQ, guideList, guideTab, guideMine]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -895,7 +900,7 @@ export function MinionBook() {
           {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), the runes (Runes tab), or the
               heroes (Heroes tab). */}
           {guidesOn ? (
-            <CompendiumGuides guides={guidesToShow} tribes={tribes} run={liveRun} setId={setId} />
+            <CompendiumGuides guides={guidesToShow} tribes={tribes} setTribes={SETS[setId].tribes} run={liveRun} setId={setId} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
               <div className="book-grid is-heroes">

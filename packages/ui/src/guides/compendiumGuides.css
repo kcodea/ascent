@@ -63,3 +63,27 @@
 /* Portraits: left-aligned, evenly spaced, bigger than the rail's (its Detailed view is 0.6 of a board minion). */
 .bookguide .lobbyguide-unitrow { gap: 14px 18px; justify-content: flex-start; }
 .bookguide .lobbyguide-unit { --lgu-s: 0.7; }
+
+/* -- WRITING GUIDES (2026-10-12): the toolbar over the list, and a guide card's by line and buttons -------------------
+   Buttons are `.gbtn` (guideEditor.css). A FIRST CUT, owner-judged. Nothing animates; no `cursor` here. */
+.gtool {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  padding: 0 2px 2px;
+}
+.gtool-pills, .gtool-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.gtool-actions { margin-left: auto; }
+.gtool-note {
+  flex: 1 1 100%; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: rgba(0, 0, 0, 0.28);
+  font-size: 15px; font-weight: 700; color: var(--ui-text);
+}
+/* The Resume bar after a second guide was started while one is waiting: the same note, with a warning edge. */
+.gtool-resume-ask { border-color: var(--ui-warn); }
+.gtool-empty { grid-column: 1 / -1; }
+
+.bookguide-by { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; font-size: 13.5px; font-weight: 700; color: var(--ui-muted); }
+.bookguide-badge {
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg);
+  font-family: var(--font-ui); font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-title);
+}
+.bookguide-actions { margin-left: auto; align-self: flex-start; display: flex; gap: 7px; flex: none; }

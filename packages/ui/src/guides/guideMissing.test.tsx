@@ -29,7 +29,7 @@ const guide: Guide = {
 };
 
 const render = (): HTMLElement => {
-  ui = mount(<CompendiumGuides guides={[guide]} tribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+  ui = mount(<CompendiumGuides guides={[guide]} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
   return ui.container;
 };
 
@@ -67,7 +67,7 @@ describe('missing or removed cards in a guide', () => {
       body: `Lead with ${presentNick}, then ${missingNick}.`,
       aliases: { [presentNick]: present.id, [missingNick]: archived.id },
     };
-    ui = mount(<CompendiumGuides guides={[aliased]} tribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+    ui = mount(<CompendiumGuides guides={[aliased]} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
     const c = ui.container;
     const links = [...c.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent);
     expect(links).toEqual([presentNick]);
@@ -77,7 +77,7 @@ describe('missing or removed cards in a guide', () => {
     // CARD_INDEX is a plain object, so these two resolve to Object's own members unless the lookup asks for an OWN key.
     const hostile: Guide = { ...guide, id: 'test-proto', body: `Play ${present.name}.`, iconCard: 'constructor', core: [present.id, 'constructor'], enablers: ['__proto__'] };
     expect(() => {
-      ui = mount(<CompendiumGuides guides={[hostile]} tribes={SETS.set2.tribes} run={undefined} setId="set2" />);
+      ui = mount(<CompendiumGuides guides={[hostile]} tribes={SETS.set2.tribes} setTribes={SETS.set2.tribes} run={undefined} setId="set2" />);
     }).not.toThrow();
     const c = ui!.container;
     const units = [...c.querySelectorAll('.lobbyguide-unit')];

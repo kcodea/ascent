@@ -165,3 +165,13 @@ export function guideMissingIds(guide: Guide, setId: SetId | undefined): Readonl
   const out = [...guide.core, ...guide.enablers, ...(guide.mentions ?? [])].filter((id) => !pool.has(id));
   return out.length ? new Set(out) : NO_MISSING;
 }
+
+/**
+ * May this account EDIT (and delete) this guide? Only decides which buttons are drawn: the server is what refuses a
+ * write. A Team Ascent guide: the team, once it has a server row (a built-in copy cannot be edited until the import
+ * has run). A player guide: its author, and nobody else (the team hides or deletes; it does not rewrite).
+ */
+export function canEditGuide(g: Guide, userId: string | null, team: boolean): boolean {
+  if (g.rowId === null) return false;
+  return g.official ? team : userId !== null && g.authorId === userId;
+}

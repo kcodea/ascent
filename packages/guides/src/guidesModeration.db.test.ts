@@ -31,6 +31,8 @@ const TEAM = '00000000-0000-0000-0000-00000000000a';
 const ALICE = '00000000-0000-0000-0000-00000000000b';
 const BOB = '00000000-0000-0000-0000-00000000000c';
 const CARL = '00000000-0000-0000-0000-00000000000d';
+const TEAM2 = '00000000-0000-0000-0000-00000000000e';
+const MISSING = '99999999-9999-4999-8999-999999999999';
 let db: PGlite;
 
 type Row = Record<string, unknown>;
@@ -42,7 +44,7 @@ const one = async (text: string, args: unknown[]): Promise<Row> => (await db.que
 const save = (user: string, d: Record<string, unknown>): Promise<Row> => one('select public.guide_save($1::uuid, $2::jsonb) as r', [user, JSON.stringify(d)]);
 const publish = (user: string, id: unknown): Promise<Row> => one('select public.guide_set_published($1::uuid, $2::uuid, true, 1) as r', [user, id]);
 const bookmark = (user: string, id: unknown, on: boolean): Promise<Row> => one('select public.guide_bookmark($1::uuid, $2::uuid, $3::boolean) as r', [user, id, on]);
-const report = (user: string, id: unknown, reason = 'spam', note = ''): Promise<Row> =>
+const report = (user: string, id: unknown, reason = 'spam', note: string | null = ''): Promise<Row> =>
   one('select public.guide_report($1::uuid, $2::uuid, $3::text, $4::text) as r', [user, id, reason, note]);
 const hide = (user: string, id: unknown, on: boolean): Promise<Row> => one('select public.guide_set_hidden($1::uuid, $2::uuid, $3::boolean) as r', [user, id, on]);
 const dismiss = (user: string, id: unknown): Promise<Row> => one('select public.guide_dismiss_reports($1::uuid, $2::uuid) as r', [user, id]);
@@ -78,8 +80,8 @@ beforeAll(async () => {
   await db.exec(STEP3);
   await db.exec(STEP4);
   await db.exec(STEP4); // re-runs cleanly
-  for (const u of [TEAM, ALICE, BOB, CARL]) await db.query('insert into auth.users (id) values ($1)', [u]);
-  await db.query('insert into public.guide_team (user_id) values ($1)', [TEAM]);
+  for (const u of [TEAM, TEAM2, ALICE, BOB, CARL]) await db.query('insert into auth.users (id) values ($1)', [u]);
+  for (const u of [TEAM, TEAM2]) await db.query('insert into public.guide_team (user_id) values ($1)', [u]);
 }, 60_000);
 afterAll(async () => { await db.close(); });
 // Every test starts with no player guides (so no bookmarks or reports either) and empty logs.
@@ -124,6 +126,26 @@ describe('guide_report', () => {
     await db.query("update public.guide_reports set created_at = now() - interval '2 days' where reporter_id = $1 and guide_id = $2", [BOB, ids[0]]);
     expect(await report(BOB, ids[10])).toEqual({ reported: true });
   });
+  it('the daily cap is per account: another account can still report', async () => {
+    await db.query(`insert into public.guides (author_id, byline, published, published_at, sets, icon_card, title, body, core)
+                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Cap ' || n, 'B', '{grim}' from generate_series(1, 11) as n`, [ALICE]);
+    const ids = (await db.query<{ id: string }>("select id from public.guides where title like 'Cap %' order by title")).rows.map((r) => r.id);
+    for (let i = 0; i < 10; i++) await report(BOB, ids[i]);
+    expect(await err(report(BOB, ids[10]))).toContain('report_limit');
+    expect(await report(CARL, ids[10])).toEqual({ reported: true });
+  });
+  it('a note of 300 characters is kept, 301 is refused, and no note is stored as empty', async () => {
+    const a = await published(ALICE, 'Rep G');
+    const b = await published(ALICE, 'Rep H');
+    const c = await published(ALICE, 'Rep I');
+    expect(await report(BOB, a.id, 'other', 'x'.repeat(300))).toEqual({ reported: true });
+    expect(await err(report(BOB, b.id, 'other', 'x'.repeat(301)))).toContain('bad_report');
+    expect(await count('select count(*) as n from public.guide_reports where guide_id = $1', [b.id])).toBe(0);
+    expect(await report(BOB, c.id, 'other', null)).toEqual({ reported: true });
+    const rows = (await db.query<Row>('select note from public.guide_reports where guide_id = $1', [c.id])).rows;
+    expect(rows).toEqual([{ note: '' }]);
+    expect(await count('select char_length(note) as n from public.guide_reports where guide_id = $1', [a.id])).toBe(300);
+  });
   it('a deleted guide takes its reports with it; a deleted reporter takes theirs', async () => {
     const g = await published(ALICE, 'Rep F');
     const tmp = '00000000-0000-0000-0000-0000000000f1';
@@ -140,8 +162,10 @@ describe('guide_report', () => {
 describe('guide_set_hidden', () => {
   it('the team hides a guide: only its author and the team still read it, and its open reports are actioned', async () => {
     const g = await published(ALICE, 'Hid A');
+    const other = await published(ALICE, 'Hid A other');
     await report(BOB, g.id);
     await report(CARL, g.id, 'offensive');
+    await report(BOB, other.id);
     const h = await hide(TEAM, g.id, true);
     expect(h.hidden).toBe(true);
     expect(h.hidden_by).toBe(TEAM);
@@ -153,6 +177,8 @@ describe('guide_set_hidden', () => {
     expect(await titlesSeenBy('authenticated', TEAM)).toContain('Hid A');
     const st = (await db.query<Row>('select status, resolved_by from public.guide_reports where guide_id = $1 order by reason', [g.id])).rows;
     expect(st).toEqual([{ status: 'actioned', resolved_by: TEAM }, { status: 'actioned', resolved_by: TEAM }]);
+    // Another guide's report is not this guide's business.
+    expect(await count("select count(*) as n from public.guide_reports where guide_id = $1 and status = 'open'", [other.id])).toBe(1);
   });
   it('unhiding makes it public again and clears who hid it; reports stay actioned', async () => {
     const g = await published(ALICE, 'Hid B');
@@ -164,6 +190,8 @@ describe('guide_set_hidden', () => {
     expect(u.hidden_at).toBeNull();
     expect(await titlesSeenBy('authenticated', BOB)).toContain('Hid B');
     expect(await count("select count(*) as n from public.guide_reports where guide_id = $1 and status = 'actioned'", [g.id])).toBe(1);
+    // One report per guide per account, ever: the earlier reporter cannot report it again.
+    expect(await err(report(BOB, g.id))).toContain('already_reported');
   });
   it('only the team; never a Team Ascent guide; a missing guide is not_found', async () => {
     const g = await published(ALICE, 'Hid C');
@@ -173,7 +201,40 @@ describe('guide_set_hidden', () => {
     const o = await save(TEAM, doc({ official: true, title: 'Official hid' }));
     expect(await err(hide(TEAM, o.id, true))).toContain('not_allowed');
     await db.query('delete from public.guides where id = $1', [o.id]);
-    expect(await err(hide(TEAM, '99999999-9999-4999-8999-999999999999', true))).toContain('not_found');
+    expect(await err(hide(TEAM, MISSING, true))).toContain('not_found');
+    // The team check comes first: a stranger learns nothing about which ids exist.
+    expect(await err(hide(BOB, MISSING, true))).toContain('not_allowed');
+  });
+  it('hiding a hidden guide keeps who hid it first and when, still actions open reports, and answers the guide', async () => {
+    const g = await published(ALICE, 'Hid E');
+    const first = await hide(TEAM, g.id, true);
+    await db.query("insert into public.guide_reports (guide_id, reporter_id, reason) values ($1, $2, 'spam')", [g.id, BOB]);
+    const again = await hide(TEAM2, g.id, true);
+    expect(again.hidden).toBe(true);
+    expect(again.id).toBe(g.id);
+    expect(again.hidden_by).toBe(TEAM);
+    expect(again.hidden_at).toEqual(first.hidden_at);
+    const st = (await db.query<Row>('select status, resolved_by from public.guide_reports where guide_id = $1', [g.id])).rows;
+    expect(st).toEqual([{ status: 'actioned', resolved_by: TEAM2 }]);
+    // After an unhide, the next hide is a fresh one by whoever does it.
+    await hide(TEAM, g.id, false);
+    expect((await hide(TEAM2, g.id, true)).hidden_by).toBe(TEAM2);
+  });
+  it('a missing direction never means unhide', async () => {
+    const g = await published(ALICE, 'Hid F');
+    await hide(TEAM, g.id, true);
+    expect(await err(one('select public.guide_set_hidden($1::uuid, $2::uuid, null) as r', [TEAM, g.id]))).toContain('not_allowed');
+    expect(await err(one('select public.guide_set_hidden($1::uuid, $2::uuid, null) as r', [BOB, g.id]))).toContain('not_allowed');
+    expect((await db.query<Row>('select hidden from public.guides where id = $1', [g.id])).rows[0]!.hidden).toBe(true);
+  });
+  it('a hide does not re-mark a report that was already dismissed', async () => {
+    const g = await published(ALICE, 'Hid G');
+    await report(BOB, g.id);
+    await dismiss(TEAM, g.id);
+    await report(CARL, g.id);
+    await hide(TEAM2, g.id, true);
+    const st = (await db.query<Row>('select reporter_id, status, resolved_by from public.guide_reports where guide_id = $1 order by reporter_id', [g.id])).rows;
+    expect(st).toEqual([{ reporter_id: BOB, status: 'dismissed', resolved_by: TEAM }, { reporter_id: CARL, status: 'actioned', resolved_by: TEAM2 }]);
   });
   it('a hidden guide keeps its bookmarks and their count, and cannot be published by its author', async () => {
     const g = await published(ALICE, 'Hid D');
@@ -188,9 +249,13 @@ describe('guide_set_hidden', () => {
 describe('guide_dismiss_reports', () => {
   it('the team dismisses every open report of a guide; the guide stays public', async () => {
     const g = await published(ALICE, 'Dis A');
+    const other = await published(ALICE, 'Dis A other');
     await report(BOB, g.id);
     await report(CARL, g.id);
+    await report(BOB, other.id);
     expect(await dismiss(TEAM, g.id)).toEqual({ dismissed: 2 });
+    expect(await count("select count(*) as n from public.guide_reports where guide_id = $1 and status = 'dismissed' and resolved_by = $2 and resolved_at is not null", [g.id, TEAM])).toBe(2);
+    expect(await count("select count(*) as n from public.guide_reports where guide_id = $1 and status = 'open'", [other.id])).toBe(1); // another guide's report is untouched
     expect(await dismiss(TEAM, g.id)).toEqual({ dismissed: 0 });
     expect(await count("select count(*) as n from public.guide_reports where guide_id = $1 and status = 'dismissed'", [g.id])).toBe(2);
     expect(await titlesSeenBy('authenticated', BOB)).toContain('Dis A');
@@ -232,6 +297,8 @@ describe('guide_retag_set', () => {
     expect(await err(retag(ALICE, 'set3', [a.id]))).toContain('not_allowed');
     expect(await err(retag(TEAM, "set3'); drop table guides; --", [a.id]))).toContain('bad_set');
     expect(await err(retag(TEAM, 'setx', [a.id]))).toContain('bad_set');
+    expect(await err(retag(TEAM, 'xset3', [a.id]))).toContain('bad_set'); // the start of the pattern is anchored too
+    expect(await err(retag(TEAM, 'set3x', [a.id]))).toContain('bad_set');
     expect(await err(retag(TEAM, 'set3', []))).toContain('bad_ids');
     const many = Array.from({ length: 201 }, () => a.id);
     expect(await err(retag(TEAM, 'set3', many))).toContain('bad_ids');
@@ -239,7 +306,14 @@ describe('guide_retag_set', () => {
   });
   it('an id that names no guide is skipped, not an error', async () => {
     const a = await save(ALICE, doc({ title: 'Tag F' }));
-    expect(await retag(TEAM, 'set3', [a.id, '99999999-9999-4999-8999-999999999999'])).toEqual({ tagged: 1 });
+    expect(await retag(TEAM, 'set3', [a.id, MISSING])).toEqual({ tagged: 1 });
+  });
+  it('a guide whose sets hold a NULL element is still tagged, once', async () => {
+    const a = await save(ALICE, doc({ title: 'Tag G' }));
+    await db.query("update public.guides set sets = array['set2', null]::text[] where id = $1", [a.id]);
+    expect(await retag(TEAM, 'set3', [a.id])).toEqual({ tagged: 1 });
+    expect((await db.query<Row>('select sets from public.guides where id = $1', [a.id])).rows[0]!.sets).toEqual(['set2', null, 'set3']);
+    expect(await retag(TEAM, 'set3', [a.id])).toEqual({ tagged: 0 });
   });
 });
 
@@ -254,14 +328,61 @@ describe('a limit on bookmark changes', () => {
     await db.query('insert into public.guide_bookmark_log (user_id) select $1 from generate_series(1, 118)', [BOB]);
     expect(await err(bookmark(BOB, g.id, true))).toContain('rate_limited');
     expect(await err(bookmark(BOB, g.id, false))).toContain('rate_limited');
+    // The limit is per account: nobody else is held up by it.
+    expect((await bookmark(CARL, g.id, true)).bookmarked).toBe(true);
     await db.query("update public.guide_bookmark_log set at = now() - interval '2 hours' where user_id = $1", [BOB]);
     expect((await bookmark(BOB, g.id, true)).bookmarked).toBe(true);
   });
-  it('the step 3 rules still hold: not your own, 200 at most, the count follows', async () => {
+  it('the 120th change in an hour is accepted and the 121st is refused', async () => {
+    const g = await published(ALICE, 'Lim C');
+    await db.query('insert into public.guide_bookmark_log (user_id) select $1 from generate_series(1, 119)', [BOB]);
+    expect((await bookmark(BOB, g.id, true)).bookmarked).toBe(true);
+    expect(await err(bookmark(BOB, g.id, false))).toContain('rate_limited');
+  });
+  it('a missing direction is refused and removes nothing', async () => {
+    const g = await published(ALICE, 'Lim D');
+    await bookmark(BOB, g.id, true);
+    expect(await err(one('select public.guide_bookmark($1::uuid, $2::uuid, null) as r', [BOB, g.id]))).toContain('not_allowed');
+    expect(await count('select count(*) as n from public.guide_bookmarks where user_id = $1', [BOB])).toBe(1);
+  });
+  it('the step 3 rules still hold: not your own, the count follows', async () => {
     const g = await published(ALICE, 'Lim B');
     expect(await err(bookmark(ALICE, g.id, true))).toContain('not_allowed');
     expect(await bookmark(BOB, g.id, true)).toEqual({ bookmarked: true, count: 1 });
     expect(await bookmark(BOB, g.id, false)).toEqual({ bookmarked: false, count: 0 });
+  });
+  it('a guide you could not read is not_found, a Team Ascent guide is not_allowed', async () => {
+    const priv = await save(ALICE, doc({ title: 'Lim Private' }));
+    const hid = await published(ALICE, 'Lim Hidden');
+    await hide(TEAM, hid.id, true);
+    const o = await save(TEAM, doc({ official: true, title: 'Official bm' }));
+    expect(await err(bookmark(BOB, priv.id, true))).toContain('not_found');
+    expect(await err(bookmark(BOB, hid.id, true))).toContain('not_found');
+    expect(await err(bookmark(BOB, MISSING, true))).toContain('not_found');
+    expect(await err(bookmark(BOB, o.id, true))).toContain('not_allowed');
+    expect(await err(bookmark(TEAM, o.id, true))).toContain('not_allowed');
+    expect(await err(bookmark(ALICE, hid.id, true))).toContain('not_allowed'); // the author still sees it, and may not bookmark it
+    expect(await count('select count(*) as n from public.guide_bookmarks')).toBe(0);
+    expect(await count('select count(*) as n from public.guide_bookmark_log')).toBe(0); // refusals are not counted
+    await db.query('delete from public.guides where id = $1', [o.id]);
+  });
+  it('200 bookmarks at most', async () => {
+    await db.query(`insert into public.guides (author_id, byline, published, published_at, sets, icon_card, title, body, core)
+                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Bm ' || n, 'B', '{grim}' from generate_series(1, 201) as n`, [ALICE]);
+    const ids = (await db.query<{ id: string }>("select id from public.guides where title like 'Bm %' order by title")).rows.map((r) => r.id);
+    await db.query('insert into public.guide_bookmarks (user_id, guide_id) select $1, unnest($2::uuid[])', [BOB, ids.slice(0, 200)]);
+    expect(await err(bookmark(BOB, ids[200]!, true))).toContain('too_many_bookmarks');
+    expect(await bookmark(BOB, ids[0]!, true)).toMatchObject({ bookmarked: true }); // already one of the 200: nothing to add
+    expect(await bookmark(BOB, ids[0]!, false)).toMatchObject({ bookmarked: false });
+    expect((await bookmark(BOB, ids[200]!, true)).bookmarked).toBe(true); // a place is free again
+  });
+  it('removing a bookmark of a hidden guide answers a count of 0, while the real count goes down by one', async () => {
+    const g = await published(ALICE, 'Lim E');
+    await bookmark(BOB, g.id, true);
+    await bookmark(CARL, g.id, true);
+    await hide(TEAM, g.id, true);
+    expect(await bookmark(BOB, g.id, false)).toEqual({ bookmarked: false, count: 0 });
+    expect(await count('select bookmark_count as n from public.guides where id = $1', [g.id])).toBe(1);
   });
 });
 

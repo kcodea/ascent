@@ -7489,8 +7489,8 @@ notify pgrst, 'reload schema';
 --
 -- Paste into the Supabase SQL Editor and Run, AFTER 2026-10-12-guides.sql and 2026-10-13-guides-community.sql.
 -- Idempotent: safe to re-run. The same block is appended to schema.sql; keep the two identical.
--- Do not re-run an EARLIER guides file alone after this one: 2026-10-13 would put the old guide_bookmark back (no
--- limit on changes). If you did, run this file again.
+-- Do not re-run an EARLIER guides file alone after this one. If you re-ran 2026-10-12, run 2026-10-13 and then this
+-- file; if you re-ran 2026-10-13, run this file (it would otherwise leave the old guide_bookmark, with no limit).
 -- Spec: docs/superpowers/specs/2026-10-11-community-guides-design.md. Devlog: docs/devlog/2026-10-14-guides-moderation.md.
 --
 -- WHAT
@@ -7515,7 +7515,10 @@ alter table public.guide_bookmark_log enable row level security; -- no policy: t
 revoke all on public.guide_bookmark_log from anon, authenticated;
 
 create index if not exists guide_reports_open on public.guide_reports (guide_id) where status = 'open';
-create index if not exists guides_hidden on public.guides (hidden_at desc) where hidden;
+create index if not exists guide_reports_reporter on public.guide_reports (reporter_id, created_at desc);
+-- The team's hidden list is read newest first, then by id (guidesRemote.fetchHiddenGuides).
+drop index if exists public.guides_hidden;
+create index if not exists guides_hidden_list on public.guides (hidden_at desc nulls last, id) where hidden;
 
 create or replace function public.guide_bookmark(p_user uuid, p_id uuid, p_on boolean) returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -7526,6 +7529,7 @@ declare
   v_changed boolean := false; -- step 4
 begin
   if p_user is null then raise exception 'unauthenticated'; end if;
+  if p_on is null then raise exception 'not_allowed'; end if; -- step 4: a missing direction is not "remove"
   perform pg_advisory_xact_lock(hashtextextended('guides:' || p_user::text, 0)); -- step 4: both paths, for the limit
   -- step 4: at most 120 changes an hour. Checked before anything is read, so it cannot be used to probe.
   select count(*) into v_count from public.guide_bookmark_log where user_id = p_user and at > now() - interval '1 hour';
@@ -7585,13 +7589,15 @@ declare
 begin
   if p_user is null then raise exception 'unauthenticated'; end if;
   if not exists (select 1 from public.guide_team where user_id = p_user) then raise exception 'not_allowed'; end if;
+  if p_on is null then raise exception 'not_allowed'; end if; -- a missing direction must not mean "unhide"
   select * into v_row from public.guides where id = p_id for update;
   if not found then raise exception 'not_found'; end if;
   if v_row.official then raise exception 'not_allowed'; end if; -- a Team Ascent guide is edited or deleted, not hidden
   update public.guides
      set hidden = v_on,
-         hidden_by = case when v_on then p_user end,
-         hidden_at = case when v_on then now() end
+         -- hiding a guide that is already hidden keeps who hid it first, and when
+         hidden_by = case when v_on then (case when v_row.hidden then coalesce(v_row.hidden_by, p_user) else p_user end) end,
+         hidden_at = case when v_on then (case when v_row.hidden then coalesce(v_row.hidden_at, now()) else now() end) end
    where id = p_id
   returning * into v_row;
   if v_on then
@@ -7625,7 +7631,7 @@ begin
   if p_ids is null or coalesce(cardinality(p_ids), 0) < 1 or cardinality(p_ids) > 200 then raise exception 'bad_ids'; end if;
   -- Adds only. The text and the revision are not touched, so an author who is editing is not disturbed.
   update public.guides set sets = array_append(sets, p_set)
-   where id = any(p_ids) and not (p_set = any(sets));
+   where id = any(p_ids) and not (sets @> array[p_set]); -- null-safe: a NULL element in sets must not hide a row
   get diagnostics v_n = row_count;
   return jsonb_build_object('tagged', v_n);
 end $$;

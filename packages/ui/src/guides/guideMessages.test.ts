@@ -28,6 +28,11 @@ describe('guideErrorMessage', () => {
   it('tells the author their text is safe when the server could not be reached', () => {
     expect(guideErrorMessage('offline')).toContain('kept on this device');
   });
+  it('a refusal the player can do something about says what', () => {
+    expect(guideErrorMessage('not_allowed')).toBe('You cannot change this guide. Duplicate it to make your own.');
+    expect(guideErrorMessage('not_found')).toBe('This guide no longer exists. Your text is kept on this device.');
+    expect(guideErrorMessage('conflict')).toBe('Someone else saved this guide while you were editing.');
+  });
   it('an unknown code or field still reads as a sentence', () => {
     expect(guideErrorMessage('something_new')).toBe(guideErrorMessage('server'));
     expect(guideErrorMessage('bad_guide', 'something_new')).toBe('Check the guide.');

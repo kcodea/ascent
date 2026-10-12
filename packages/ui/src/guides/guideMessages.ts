@@ -30,8 +30,8 @@ export function guideErrorMessage(code: string, field?: string): string {
     case 'bad_guide': return `Check the ${part ?? 'guide'}.`;
     case 'sign_in_required':
     case 'unauthenticated': return 'Sign in to write guides.';
-    case 'not_allowed': return 'You cannot change this guide.';
-    case 'not_found': return 'This guide no longer exists.';
+    case 'not_allowed': return 'You cannot change this guide. Duplicate it to make your own.';
+    case 'not_found': return 'This guide no longer exists. Your text is kept on this device.';
     case 'conflict': return 'Someone else saved this guide while you were editing.';
     case 'too_many_guides': return `You already have ${GUIDE_LIMITS.guidesPerPlayer} guides. Delete one to make room.`;
     case 'rate_limited': return 'That is a lot of saves. Try again in a little while.';

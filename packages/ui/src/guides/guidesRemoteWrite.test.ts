@@ -93,6 +93,10 @@ describe('saveGuideRemote', () => {
     await vi.advanceTimersByTimeAsync(15_000);
     expect(await p).toEqual({ ok: false, code: 'offline' });
   });
+  it('the real network-failure shape (an error with no HTTP status) is offline', async () => {
+    invokeImpl = () => ({ data: null, error: { name: 'FunctionsFetchError', message: 'Failed to send a request to the Edge Function', context: new TypeError('fetch failed') } });
+    expect(await saveGuideRemote(draft)).toEqual({ ok: false, code: 'offline' });
+  });
   it('an answer with no usable guide in it is server, not a crash', async () => {
     invokeImpl = () => ({ data: { guide: { nothing: true } }, error: null });
     expect(await saveGuideRemote(draft)).toEqual({ ok: false, code: 'server' });

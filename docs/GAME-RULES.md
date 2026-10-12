@@ -1535,6 +1535,25 @@ hear **wherever it happens**:
 risen body in the payload. Pinned in `set3Undead.test.ts` for both phases and for the enemy case, and in
 `shopRiseWatchers.test.ts` for every shop destroy path.
 
+### A combat Rise is a fresh copy, for that fight only (owner ruling 2026-10-12, R-RISE-06)
+
+*"rise rises a 'fresh copy' of something, but that is a combat only thing. the recruit phase would still have the
+original copy with all its stacks."*
+
+- **In combat** the risen body is the printed card (R-RISE-01): its per-instance stacks (an Improve count such as
+  Kennelmaster's or Flo Rida's, Sergey's Echo grant, an End-of-Turn or sell accrual, its Avenge progress) restart, and
+  its combat card text prints the reset value.
+- **Back in the Shop** the board card is still the original copy. It keeps what the original body had when it died:
+  its pre-fight stacks plus anything it earned in that fight before dying. What the risen copy earns or resets after
+  the Rise never reaches the board card, on every per-instance carry-back (Improve counts, Sergey's grant, spell
+  tallies, Tara's ascend tally, permanent and Engraved stat gains, a copied Echo).
+- **Two exceptions:** Rune of the Second Wind's +2/+2 "permanently" is about the Rise itself and still reaches the
+  board card (R-SET3RUNE-08); and a Pummel tally is lifetime and kept through a Rise (R-PUMMEL-01), so the risen
+  body's hits still count toward it.
+- **Rebirth is not a fresh copy** (it returns the full body with every counter), so it carries back as before.
+- **Enforced** by `riseCarry` in `simulate.ts` (the original's carry-back values, frozen at its first Rise and read by
+  `carryBacksFor` for both sides) and pinned in `riseKeepsBoardStacks1012.test.ts`.
+
 ### "Attacks immediately" cuts the line (owner rule 2026-09-26, R-ORD-05)
 
 *"a "attacks immediately" mechanic cuts the line. this doesn't interrupt a flurry attack, but it does interrupt

@@ -686,23 +686,55 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'earned step at read time, and a triple keeps the two highest improvements among the copies (the universal summonBonus rule). '
       + 'Gilding an EXISTING copy in place (Indy, Golden Touch, a Shop gild) never doubles growth already earned: the base '
       + 'doubles and only future growth runs at the golden rate (Flo Rida and Beardsley join GOLD_SCALED_ACCRUAL_CARDS). '
-      + 'A Flo Rida or Beardsley that Rises comes back with its count at 0, since it is not the same minion: growth earned '
-      + 'before the Rise is lost, growth after it counts from 0, and the board card keeps what the risen body ends the fight '
-      + 'with, 0 included (the old count is not restored at settle).',
+      + 'A Flo Rida or Beardsley that Rises in combat comes back with its count at 0, since it is not the same minion, and '
+      + 'its growth after the Rise counts from 0 for the rest of THAT fight. The risen copy is combat only: the board card '
+      + 'keeps the count of the original copy (its pre-fight count plus what it earned before it died), never the reset '
+      + 'or regrown count of the risen body (R-RISE-06, which supersedes the 2026-10-08 "board card keeps what the risen body ends with").',
     domain: 'persistence',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ask 2026-10-08 (Flo Rida text)', quote: 'flo rida should add the word permanently to its text so it does not reset per round' },
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-08 (PR #1984, in-place gild of Flo Rida / Beardsley)', quote: 'yes fix' },
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-08 (PR #1984, Flo Rida / Beardsley and Rise)', quote: 'rise = reset its number since its not the same minion per se' },
-      { kind: 'code', ref: 'packages/content/src/cards/set2/beasts.ts b2_florida; packages/sim/src/recruit.ts onSummonTribeBuffFlat (shop half); packages/core/src/effects/factories.ts onSummonTribeBuffFlat (combat half); packages/core/src/combat/simulate.ts carryBacksFor summonBonus; packages/sim/src/reducer.ts settleCombat playerSummonBonus; packages/sim/src/recruit.ts GOLD_SCALED_ACCRUAL_CARDS + gildMinion; packages/core/src/combat/simulate.ts risenUids' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/beasts.ts b2_florida; packages/sim/src/recruit.ts onSummonTribeBuffFlat (shop half); packages/core/src/effects/factories.ts onSummonTribeBuffFlat (combat half); packages/core/src/combat/simulate.ts carryBacksFor summonBonus; packages/sim/src/reducer.ts settleCombat playerSummonBonus; packages/sim/src/recruit.ts GOLD_SCALED_ACCRUAL_CARDS + gildMinion; packages/core/src/combat/simulate.ts riseCarry (R-RISE-06)' },
     ],
     currentBehaviour:
       'Conforms from 2026-10-08. The engine already persisted the improve (per-instance summonBonus, carried back from '
       + 'combat); the printed text gained the word "permanently". Two fixes landed with it: an in-place gild used to double '
       + 'earned growth, and a risen body that saw no Beast afterwards carried back nothing, so the board card kept its '
-      + 'pre-combat count (the carry-back now includes every risen body, for every summonBonus card).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/floRidaPermanent1008.test.ts', 'packages/ui/src/floRidaPermanentText.test.ts'], lastVerifiedAt: '2026-10-08' },
+      + 'pre-combat count (the carry-back now includes every risen body, for every summonBonus card). AMENDED 2026-10-12 '
+      + '(R-RISE-06): that carry-back of the reset count of the risen body wiped earned stacks off the Shop card (owner '
+      + 'report: a Kennelmaster lost all its stacks); a risen body now reports the values of the original copy, frozen at the Rise.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/floRidaPermanent1008.test.ts', 'packages/ui/src/floRidaPermanentText.test.ts'], lastVerifiedAt: '2026-10-12' },
+  },
+  {
+    id: 'R-RISE-06',
+    title: 'A combat Rise is a combat-only fresh copy: the Shop card keeps the stacks of the original copy',
+    statement:
+      'A minion that Rises in combat returns as a fresh copy at its printed values (R-RISE-01): its per-instance stacks '
+      + '(an Improve count, the Sergey Echo grant, an End-of-Turn or sell accrual, its Avenge progress) restart for the rest '
+      + 'of that fight, and its combat card text prints the reset value. That fresh copy is COMBAT ONLY. Back in the Shop '
+      + 'the board card is still the original copy with all its stacks: it keeps what the original body had when it died '
+      + '(its pre-fight stacks plus anything that body earned in that fight before dying). Nothing the risen copy earns '
+      + 'or resets after the Rise reaches the board card, on every per-instance carry-back: the summon Improve count '
+      + '(Kennelmaster, Flo Rida, Beardsley, Pack Leader...), the Sergey grant, a spell tally (Guel, Spirit Pup), '
+      + 'the Tara ascend tally, permanent and Engraved stat gains, and a copied Echo (Gravetwin). Two exceptions: the '
+      + '"+2/+2 permanently" of Rune of the Second Wind is about the Rise itself, so it still reaches the board card (R-SET3RUNE-08); '
+      + 'and a Pummel tally is LIFETIME and kept through a Rise by R-PUMMEL-01, so the hits of the risen body still count. '
+      + 'The same single carry-back path serves the enemy seat, so lobby snapshots match. A Rebirth is NOT a fresh copy (it '
+      + 'returns the full body with every counter) and is unchanged; a Shop-phase Rise is out of scope here.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-12 (gilded Kennelmaster with a granted Rise)', quote: 'my kennelmaster just lost all of its stacks of the attack buff and i have no idea why' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-12 (Rise and per-instance stacks)', quote: "a minion rising in combat would rise with the reset values, yes, but then back in shop phase it's still the original copy w/ the stack values from before. basically think of it like... rise rises a 'fresh copy' of something, but that is a combat only thing. the recruit phase would still have the original copy with all its stacks." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts riseCarry (snapshot at the Rise) + carryBacksFor view() + runeRiseRunes (Second Wind) + grantCopiedEcho; packages/ui/src/useCombatReplay.ts computeFrame reborn reset' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-12. Before, the Rise reset the fields of the body and carryBacksFor reported the values of '
+      + 'the risen body (0 included for summonBonus), so the Shop card lost its stacks; the combat replay also kept '
+      + 'printing the summonBonus of the original on the risen body.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/riseKeepsBoardStacks1012.test.ts', 'packages/sim/src/floRidaPermanent1008.test.ts', 'packages/ui/src/riseKeepsBoardStacksText.test.ts'], lastVerifiedAt: '2026-10-12' },
   },
   {
     id: 'R-MATCH-LENGTH-01',

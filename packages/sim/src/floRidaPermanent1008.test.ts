@@ -9,7 +9,7 @@ import { applyEndOfTurn, gildMinion } from './recruit';
  *
  * The improve rides the per-instance `summonBonus`. It is PERMANENT for the run: a Shop / End-of-Turn summon writes
  * the board card directly, and a combat summon is carried back to the board card at settle (`playerSummonBonus`,
- * the same channel Kennelmaster / Mama Bear / Pack Leader use). Nothing resets it between rounds. R-FLORIDA-01.
+ * the same channel Kennelmaster / Mama Bear / Pack Leader use). Nothing resets it between rounds. R-FLORIDA-01 (+ R-RISE-06 for Rise).
  */
 const bc = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -135,35 +135,38 @@ describe('Gilding Flo Rida / Beardsley in place keeps earned growth at face valu
 });
 
 // Owner 2026-10-08, on Rise: "rise = reset its number since its not the same minion per se". A Flo Rida / Beardsley that
-// Rises comes back with its improve count at 0 (R-RISE-01), and the board card keeps what the risen body ends the fight
-// with, 0 included: the old count is NOT restored at settle (the Second Wind precedent, risen-body results carry back).
-describe('Rise resets the improve count, and the reset carries back to the board card (owner 2026-10-08)', () => {
+// Rises comes back with its improve count at 0 (R-RISE-01) IN COMBAT. SUPERSEDED for the carry-back by the owner ruling
+// 2026-10-12 (R-RISE-06): "rise rises a 'fresh copy' of something, but that is a combat only thing. the recruit phase
+// would still have the original copy with all its stacks." The board card keeps what the ORIGINAL had when it died;
+// the risen copy's reset and regrowth stay in combat.
+describe('Rise resets the improve count in combat only; the board card keeps the original copy stacks (owner 2026-10-12)', () => {
   const fight = (player: BoardMinion[], enemy: BoardMinion[], seed: number) =>
     simulate(player, enemy, makeRng(seed), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 6 }));
 
   for (const id of ['b2_florida', 'b2_beardsley']) {
-    it(`${id}: a risen body that sees no Beast afterwards carries back 0, not its pre-combat count`, () => {
+    it(`${id}: a risen body that sees no Beast afterwards leaves the board card at its pre-combat count`, () => {
       const r = fight([bm(id, 'flo', 7, 1, { keywords: ['R'], summonBonus: 4 })], [bm('sandbag', 'e', 3, 90000)], 1);
       const uid = r.initial.player[0]!.uid;
       expect(r.events.filter((e) => e.type === 'death' && e.target === uid).length, 'died, rose, died').toBe(2);
-      expect(r.playerSummonBonus).toEqual([{ sourceUid: 'flo', bonus: 0 }]);
+      expect(r.playerSummonBonus).toEqual([{ sourceUid: 'flo', bonus: 4 }]);
     });
   }
 
-  it('growth earned BEFORE the Rise is lost; growth earned AFTER it counts from 0', () => {
+  it('growth earned BEFORE the Rise is kept; growth the risen copy earns AFTER it is combat only', () => {
     const enemy = [bm('sandbag', 'e1', 1, 1, { keywords: ['T'] }), bm('sandbag', 'e2', 5, 90000)];
     const player = () => [bm('b2_florida', 'flo', 7, 1, { keywords: ['R'], summonBonus: 4 }), bm('pack', 'p', 1, 1)];
-    // Seed 5: Pack Leader's Pups arrive first (+25, +30: the count 4 -> 6), then Flo dies and Rises -> 0.
+    // Seed 5: Pack Leader's Pups arrive first (+25, +30: the count 4 -> 6), then Flo dies and Rises: the board keeps 6.
     const before = fight(player(), enemy, 5);
     expect(before.events.filter((e) => e.type === 'buff' && e.source === before.initial.player[0]!.uid).map((e) => (e as { attack: number }).attack)).toEqual([25, 30]);
-    expect(before.playerSummonBonus).toEqual([{ sourceUid: 'flo', bonus: 0 }]);
-    // Seed 7: Flo Rises first, then the Pups arrive: the risen body grants +5 then +10 and ends at 2.
+    expect(before.playerSummonBonus).toEqual([{ sourceUid: 'flo', bonus: 6 }]);
+    // Seed 7: Flo Rises first, then the Pups arrive: the risen copy fights FRESH (grants +5 then +10, its count 0 -> 2),
+    // but that growth is the fresh copy's, so the board card keeps the original's 4.
     const after = fight(player(), enemy, 7);
     expect(after.events.filter((e) => e.type === 'buff' && e.source === after.initial.player[0]!.uid).map((e) => (e as { attack: number }).attack)).toEqual([5, 10]);
-    expect(after.playerSummonBonus).toEqual([{ sourceUid: 'flo', bonus: 2 }]);
+    expect(after.playerSummonBonus).toEqual([{ sourceUid: 'flo', bonus: 4 }]);
   });
 
-  it('through the real reducer, the board card ends at the reset count after a fight where Flo Rose', () => {
+  it('through the real reducer, the board card keeps its count after a fight where Flo Rose', () => {
     let checked = 0;
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       let s = recruit(seed, { board: [bc('flo', 'b2_florida', { attack: 7, health: 1, keywords: ['R'], summonBonus: 4 })] });
@@ -171,7 +174,7 @@ describe('Rise resets the improve count, and the reset carries back to the board
       const uid = s.lastCombat?.initial.player.find((m) => m.cardId === 'b2_florida')?.uid;
       const rose = (s.lastCombat?.events ?? []).filter((e) => e.type === 'death' && e.target === uid).length >= 1;
       if (!rose) continue;
-      expect(flo(s).summonBonus, `seed ${seed}`).toBe(0);
+      expect(flo(s).summonBonus, `seed ${seed}`).toBeGreaterThanOrEqual(4);
       checked++;
     }
     expect(checked).toBeGreaterThan(0);

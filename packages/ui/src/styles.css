@@ -4500,7 +4500,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   --m-size: var(--smed-power-size, 0.72); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, 3px);
   --m-sx: var(--smed-power-shadow-x, 0px); --m-sy: var(--smed-power-shadow-y, 6px); --m-sblur: var(--smed-power-shadow-blur, 4px);
   --m-scolor: var(--smed-power-shadow-color, rgba(0, 0, 0, 1));
-  --m-gsize: var(--smed-power-glow-size, 6px); --m-gcolor: var(--smed-power-glow-color, rgba(53, 242, 154, 0.36));
+  --m-gsize: var(--smed-power-glow-size, 6px); --m-gcolor: var(--smed-power-glow-color, rgba(53, 242, 154, 0.29));
 }
 .card .ctype.spell.spellmed .spellmed-img {
   position: absolute; left: 50%; top: 50%;

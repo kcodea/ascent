@@ -77,7 +77,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Choosing a hero power (Mimic, Void, Power Shifter) now looks and works like every other Discover.',
         details: [
           'Each power is a full card: its art, its name and what it does. The hero it belongs to is named under it in green.',
-          'Power cards wear their own emerald helm medallion.',
+          'Power cards wear their own emerald helm medallion and a five-star plaque, like the Power Shifter spell.',
           'Fixed: on power cards and Choose One cards, the stone plate sat slightly low, so the dark text panel did not meet its gold trim.',
           'The title says where the choice came from, such as "From Power Shifter".',
           'A Peek at board button lets you look at your board and Shop before you choose. You still have to pick one.',

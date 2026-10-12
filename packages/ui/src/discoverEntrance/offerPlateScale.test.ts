@@ -68,10 +68,10 @@ describe('the medallion CSS fallbacks mirror the tuner defaults', () => {
     }
   });
 
-  it('the hero-power helm: seated 6px lower, a 40% quieter glow, a tighter and deeper shadow', () => {
+  it('the hero-power helm: seated 6px lower, a quieter glow (0.6, then -40%, then -20%), a tighter and deeper shadow', () => {
     expect(SPELL_MEDALLION_DEFAULTS.powerDy).toBe(3);
-    expect(SPELL_MEDALLION_DEFAULTS.powerGlowStrength).toBe(0.36);
-    expect(styles).toContain('var(--smed-power-glow-color, rgba(53, 242, 154, 0.36))');
+    expect(SPELL_MEDALLION_DEFAULTS.powerGlowStrength).toBe(0.29);
+    expect(styles).toContain('var(--smed-power-glow-color, rgba(53, 242, 154, 0.29))');
     expect(SPELL_MEDALLION_DEFAULTS.powerShadowBlur).toBeLessThan(SPELL_MEDALLION_DEFAULTS.spellShadowBlur);
     expect(SPELL_MEDALLION_DEFAULTS.powerShadowY).toBeGreaterThan(SPELL_MEDALLION_DEFAULTS.spellShadowY);
   });

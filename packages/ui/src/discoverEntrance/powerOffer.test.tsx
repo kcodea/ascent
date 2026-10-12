@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import { CARD_INDEX } from '@game/content';
 import { getHero } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
 import { DiscoverDialog } from './DiscoverDialog';
@@ -25,8 +26,9 @@ describe('a hero power as a Discover card', () => {
       expect(v.text).toBe(h.power.text);
       expect(v.heroPowerOf).toBe(h.name);
       expect(v.spell).toBe(true);
-      // No tier plaque, no cost coin: a power has neither.
-      expect(v.tier).toBeUndefined();
+      // The five-star plaque, as on the Power Shifter spell (owner ask 2026-10-12). No cost coin: a power has none.
+      expect(v.tier).toBe(5);
+      expect(v.tier).toBe(CARD_INDEX.powershifter!.tier);
       expect(v.cost).toBeUndefined();
     }
   });
@@ -99,6 +101,8 @@ describe('the dialog', () => {
       expect(kind.textContent).toBe(h.name);
       expect(kind.getAttribute('data-kind')).toBe('power');
       expect(card.textContent).not.toContain('Shop Spell');
+      // The five-star tier plaque sits up top, as on the Power Shifter spell.
+      expect(card.querySelector('.tierbadge.tierstars')?.getAttribute('data-tier')).toBe('5');
       // ...under the hero-power medallion (the emerald helm), not the Shop Spell star.
       const medallion = card.querySelector('.ctype.spell.spellmed')!;
       expect(medallion.getAttribute('data-med')).toBe('power');

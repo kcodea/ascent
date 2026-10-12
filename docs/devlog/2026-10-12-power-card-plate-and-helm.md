@@ -42,9 +42,16 @@ cards drift the same way. Not measured. Recorded as PARTIAL in rule `R-PLATE-01`
 `spellMedallionConfig.ts`, kind `power` (CSS fallbacks moved with it):
 
 - Seat: `dy -3 → 3` (6px lower at the reference card width).
-- Glow: strength `0.6 → 0.36` (40% less).
+- Glow: strength `0.6 → 0.36` (40% less), then `→ 0.29` ("reduce the glow by another 20%", same session).
 - Drop shadow: it was already fully opaque black, so "more intense" is a tighter, deeper shadow: blur `6.5 → 4`,
   drop `4.5 → 6`. This reading of "intensity" is Claude's, not the owner's; it is two dials in the 💠 tuner.
+
+## 5: the five-star plaque (asked mid-work)
+
+"can we add the same tier badge with 5 stars up top? just like how it is in the power shifter spell?" Every power
+card now carries `tier: 5` (`POWER_CARD_TIER`), so it wears the same star plaque as the Power Shifter spell, at the
+same seat. It is a look, not a rule: a power has no tier. It applies to Mimic's and Void's offers too, since they
+share the card; that reach is Claude's reading, flagged to the owner.
 
 ## Verified
 

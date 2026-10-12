@@ -16,6 +16,7 @@ let saveAnswer: (g: GuideDraftInput) => GuideWriteResult<GuideRecord>;
 let deleteAnswer: () => GuideWriteResult<true>;
 let byIdAnswer: GuideRecord | null | undefined;
 let gate: Promise<void> | null = null;
+let deleteGate: Promise<void> | null = null;
 /** Hold the next save/delete at the server until the returned function is called. */
 const hold = (): (() => void) => { let r!: () => void; gate = new Promise<void>((res) => { r = res; }); return r; };
 const saves: GuideDraftInput[] = [];
@@ -27,7 +28,7 @@ vi.mock('./guidesRemote', () => ({
   fetchMyGuides: async () => undefined,
   fetchGuideById: async () => byIdAnswer,
   saveGuideRemote: async (g: GuideDraftInput) => { saves.push(g); if (gate) await gate; return saveAnswer(g); },
-  deleteGuideRemote: async (rowId: string) => { deletes.push(rowId); return deleteAnswer(); },
+  deleteGuideRemote: async (rowId: string) => { deletes.push(rowId); if (deleteGate) await deleteGate; return deleteAnswer(); },
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
 }));
 
@@ -76,6 +77,7 @@ beforeEach(() => {
   closed = 0;
   byIdAnswer = rec();
   gate = null;
+  deleteGate = null;
   saveAnswer = (g) => ({ ok: true, value: rec({ title: g.title, body: g.body, core: g.core }) });
   deleteAnswer = () => ({ ok: true, value: true });
 });
@@ -146,6 +148,16 @@ describe('editing the fields', () => {
     click(c.querySelector('.gedit-row[data-row="enablers"] .gedit-add')!);
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
     expect(document.activeElement).toBe(c.querySelector('.gedit-row[data-row="enablers"] .gedit-add'));
+  });
+  it('a card that is in a row twice (a malformed kept draft) still renders both, without a duplicate-key warning', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const c = open({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim', 'grim'] });
+      expect(c.querySelectorAll('.gedit-row[data-row="core"] .gedit-unit')).toHaveLength(2);
+      expect(spy.mock.calls.filter((a) => String(a[0]).includes('same key'))).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
   });
   it('the Add button is disabled at the limit', () => {
     const six = poolFor('set2').buyable.slice(0, 6).map((x) => x.id);
@@ -264,16 +276,103 @@ describe('a save that cannot go through', () => {
     expect(c.querySelector<HTMLButtonElement>('.gedit-add')!.matches(':disabled')).toBe(false);
     expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Keep me');
   });
-  it('a save that finishes after the editor has gone changes nothing and closes nothing', async () => {
+  it('a save that lands after the editor has gone still reaches the list and clears the kept draft, and closes nothing', async () => {
     const release = hold();
     const c = open();
+    type(c.querySelector('.gedit-title')!, 'Sent then closed');
     await press(c, 'Save');
     expect(saves).toHaveLength(1);
     ui!.unmount();
     ui = null;
+    expect(loadLocalDraft('u-1')!.title).toBe('Sent then closed');
     await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(useGuides.getState().mine.map((g) => g.title)).toEqual(['Sent then closed']);
+    expect(loadLocalDraft('u-1')).toBeNull();
     expect(closed).toBe(0);
+  });
+  it('a save that lands after the editor has gone leaves a different kept draft alone', async () => {
+    const release = hold();
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Sent then closed');
+    await press(c, 'Save');
+    ui!.unmount();
+    ui = null;
+    saveLocalDraft('u-1', { ...emptyDraft('Mike'), title: 'Another editor wrote this' });
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(useGuides.getState().mine.map((g) => g.title)).toEqual(['Sent then closed']);
+    expect(loadLocalDraft('u-1')!.title).toBe('Another editor wrote this');
+  });
+  it('a refused save that lands after the editor has gone leaves the kept draft and the list as they were', async () => {
+    const release = hold();
+    saveAnswer = () => ({ ok: false, code: 'offline' });
+    const c = open();
+    type(c.querySelector('.gedit-title')!, 'Sent then closed');
+    await press(c, 'Save');
+    ui!.unmount();
+    ui = null;
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(loadLocalDraft('u-1')!.title).toBe('Sent then closed');
     expect(useGuides.getState().mine).toEqual([]);
+    expect(closed).toBe(0);
+  });
+  it('a delete that lands after the editor has gone still removes the guide from the list and clears the kept draft', async () => {
+    useGuides.setState({ mine: [{ ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, authorId: 'u-1' }] });
+    let release!: () => void;
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Changed');
+    deleteGate = new Promise<void>((res) => { release = res; });
+    await press(c, 'Delete');
+    await press(c, 'Delete for good');
+    ui!.unmount();
+    ui = null;
+    expect(loadLocalDraft('u-1')!.title).toBe('Changed');
+    await act(async () => { release(); await new Promise((r) => setTimeout(r, 0)); });
+    expect(useGuides.getState().mine).toEqual([]);
+    expect(loadLocalDraft('u-1')).toBeNull();
+    expect(closed).toBe(0);
+  });
+  it('Load their version for a guide that is gone turns the text into a new guide', async () => {
+    let n = 0;
+    saveAnswer = (g) => (n++ === 0 ? { ok: false, code: 'conflict' } : { ok: true, value: rec({ title: g.title }) });
+    byIdAnswer = null;
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    await press(c, 'Load their version');
+    expect(alertText(c)).toBe('This guide was deleted. Press Save again to keep your text as a new guide.');
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Mine');
+    await press(c, 'Save');
+    expect(saves).toHaveLength(2);
+    expect('id' in saves[1]!).toBe(false);
+    expect('revision' in saves[1]!).toBe(false);
+    expect(saves[1]).toMatchObject({ title: 'Mine' });
+  });
+  it('Overwrite with mine for a guide that is gone turns the text into a new guide', async () => {
+    let n = 0;
+    saveAnswer = (g) => (n++ === 0 ? { ok: false, code: 'conflict' } : { ok: true, value: rec({ title: g.title }) });
+    byIdAnswer = null;
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    await press(c, 'Overwrite with mine');
+    expect(alertText(c)).toBe('This guide was deleted. Press Save again to keep your text as a new guide.');
+    expect(c.querySelector('.gedit-ask')).toBeNull();
+    expect(c.querySelector<HTMLInputElement>('.gedit-title')!.value).toBe('Mine');
+    expect(saves).toHaveLength(1);
+    await press(c, 'Save');
+    expect(saves).toHaveLength(2);
+    expect('id' in saves[1]!).toBe(false);
+    expect('revision' in saves[1]!).toBe(false);
+  });
+  it('a refetch that could not reach the server keeps the offline sentence', async () => {
+    saveAnswer = () => ({ ok: false, code: 'conflict' });
+    byIdAnswer = undefined;
+    const c = open(existing());
+    type(c.querySelector('.gedit-title')!, 'Mine');
+    await press(c, 'Save');
+    await press(c, 'Load their version');
+    expect(alertText(c)).toMatch(/kept on this device/);
   });
   it('the editor closes once, however many times it is asked to', () => {
     const c = open();

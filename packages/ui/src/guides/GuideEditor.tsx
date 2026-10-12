@@ -11,7 +11,7 @@ import { toGuide, tribeInk, type Guide } from './guides';
 import { GuideCardPicker } from './GuideCardPicker';
 import { GuideEmblem, GuideText, TRIBE_NAME, guideAccent, useGuideViews } from './GuideParts';
 import { draftFromGuide, draftProblems, missingIn, sameDraft, toWire, type EditorDraft } from './guideDrafts';
-import { clearLocalDraft, saveLocalDraft } from './guideDraftStore';
+import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
 import { deleteGuideRemote, fetchGuideById, saveGuideRemote } from './guidesRemote';
 import { guideDeleted, guideSaved } from './guidesStore';
@@ -83,11 +83,12 @@ function EditRow({ row, label, ids, max, views, missing, adding, setId, addRef, 
       <div className="lobbyguide-unitslabel">{label} <span className="gedit-rowcount">{ids.length}/{max}</span></div>
       <div className="lobbyguide-unitrow">
         {ids.map((id, i) => {
+          const once = ids.indexOf(id) === ids.lastIndexOf(id);
           const v = views.get(id);
           const gone = !v || missing.has(id);
           const name = v?.name ?? 'this card';
           return (
-            <div className="gedit-unit" data-card={id} key={id}>
+            <div className="gedit-unit" data-card={id} key={once ? id : `${id}-${i}`}>
               <div className={`lobbyguide-unit${gone ? ' missing' : ''}`} role={gone ? 'img' : undefined} aria-label={gone ? (v ? `${v.name}: missing or removed` : 'Missing or removed card') : undefined}>
                 {v ? <div className="lobbyguide-unitscale"><Card card={v} forceCompact suppressPop /></div> : <div className="lobbyguide-blank" />}
                 {gone && <span className="lobbyguide-missing" aria-hidden="true">Missing or removed</span>}
@@ -161,6 +162,20 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     saveLocalDraft(userRef.current, draft);
     wrote.current = true;
   }, []);
+  /** A save or delete that lands after the editor closed: drop the kept draft only if it is still the one that was sent. */
+  const clearIfMine = useCallback((sent: EditorDraft): void => {
+    const kept = loadLocalDraft(userRef.current);
+    if (kept && sameDraft(kept, sent)) clearLocalDraft();
+  }, []);
+  /** The guide is gone from the server: keep the text, as a new guide the next Save creates. */
+  const becomeNew = useCallback((cur: EditorDraft): void => {
+    const fresh = { ...cur, rowId: null, revision: null };
+    saveLocalDraft(userRef.current, fresh);
+    wrote.current = true;
+    setD(fresh);
+    setAsk(null);
+    setError('This guide was deleted. Press Save again to keep your text as a new guide.');
+  }, []);
   /** Close the card picker and hand focus back to the button that opened it. */
   const closePicker = useCallback((): void => {
     focusAfter.current = live.current.picker;
@@ -231,7 +246,15 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     setBusy(true);
     setError(null);
     const res = await saveGuideRemote(toWire(cur, setId));
-    if (closed.current) return;
+    if (closed.current) {
+      // The editor is gone (state and onClose are off limits), but the save landed: keep the books straight.
+      if (res.ok) {
+        const g = toGuide(res.value);
+        if (g) guideSaved(g);
+        clearIfMine(cur);
+      }
+      return;
+    }
     setBusy(false);
     if (res.ok) {
       clearLocalDraft();
@@ -242,14 +265,7 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
       finish();
       return;
     }
-    if (res.code === 'not_found' && cur.rowId) {
-      // Deleted elsewhere while it was being edited: keep the text, as a new guide.
-      const fresh = { ...cur, rowId: null, revision: null };
-      keep(fresh);
-      setD(fresh);
-      setError('This guide was deleted. Press Save again to keep your text as a new guide.');
-      return;
-    }
+    if (res.code === 'not_found' && cur.rowId) { becomeNew(cur); return; } // deleted elsewhere while being edited
     keep(cur);
     if (res.code === 'conflict') { setAsk('conflict'); return; }
     setError(guideErrorMessage(res.code, res.field));
@@ -263,7 +279,8 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     if (closed.current) return null;
     setBusy(false);
     const g = rec ? toGuide(rec) : null;
-    if (!g) { setAsk(null); setError(guideErrorMessage(rec === null ? 'not_found' : 'offline')); }
+    if (!g && rec === null) becomeNew(d);
+    else if (!g) { setAsk(null); setError(guideErrorMessage('offline')); }
     return g;
   };
   const loadTheirs = async (): Promise<void> => {
@@ -286,15 +303,22 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
   const remove = async (): Promise<void> => {
     if (!d.rowId) return;
     setBusy(true);
-    const res = await deleteGuideRemote(d.rowId);
-    if (closed.current) return;
-    setBusy(false);
+    const rowId = d.rowId;
+    const sent = d;
+    const res = await deleteGuideRemote(rowId);
     // A guide the server no longer has is as good as deleted: finish the same way (its sentence would say the text is
     // kept on this device, which is not true after a delete).
-    if (!res.ok && res.code !== 'not_found') { setAsk(null); setError(guideErrorMessage(res.code, res.field)); return; }
+    const gone = res.ok || res.code === 'not_found';
+    if (closed.current) {
+      // The editor is gone (state and onClose are off limits), but the delete landed: keep the books straight.
+      if (gone) { guideDeleted(rowId); clearIfMine(sent); }
+      return;
+    }
+    setBusy(false);
+    if (!gone) { setAsk(null); setError(guideErrorMessage(res.code, res.field)); return; }
     clearLocalDraft();
     wrote.current = false;
-    guideDeleted(d.rowId);
+    guideDeleted(rowId);
     sfx.tick();
     finish();
   };

@@ -3315,7 +3315,7 @@ function initAccounts(): void {
     if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
     if (id) void flushPendingRanks(applyRankOutcome); // rated results parked under this account resume here
     if (id) void probeProgression(); // …and progression (same user id across the magic-link upgrade)
-    if (id) void loadGuides(); // ...and the guides (re-read under the new identity)
+    void loadGuides(); // ...and the guides: re-read under the new identity, or cleared when there is none
     if (id && !id.anonymous) void refreshGauntletAccount().then(flushGauntlet); // …and a signed-in Gauntlet's stages
     if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuideRecord } from '@game/guides';
 import type { OfficialGuidesAnswer } from './guidesRemote';
@@ -177,6 +179,34 @@ describe('who I am: team flag and my guides', () => {
     await vi.waitFor(() => expect(calls).toBe(2));
     expect(useGuides.getState()).toMatchObject({ team: false, mine: [] });
     expect(seen.every((n) => n === 0)).toBe(true); // the old account's flag and guide never reached the store
+  });
+  it('signing out to NO session clears the flag and the guides', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    teamAnswer = true;
+    mineAnswer = [mineRec('m1')];
+    await loadGuides();
+    expect(useGuides.getState().team).toBe(true);
+    const askedBefore = asked.length;
+    identity = null;
+    await loadGuides();
+    expect(useGuides.getState()).toMatchObject({ team: false, mine: [] });
+    expect(asked.length).toBe(askedBefore);
+  });
+  it('the game store re-reads guides on EVERY identity change, including to none', () => {
+    // Pinned as text: mounting the whole game store to observe a sign-out is far heavier than the one line it guards.
+    const src = readFileSync(join(__dirname, '..', 'store.ts'), 'utf8');
+    expect(src).not.toContain('if (id) void loadGuides()');
+    expect(src.match(/void loadGuides\(\)/g)).toHaveLength(2);
+  });
+  it('a change of account drops a pending edit request and returns to the Team Ascent pill', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    await loadGuides();
+    setGuidesTab('mine');
+    requestGuideEdit('r1');
+    identity = { userId: 'u-2', anonymous: false };
+    void loadGuides();
+    expect(useGuides.getState().pendingEdit).toBeNull();
+    expect(useGuides.getState().tab).toBe('team');
   });
   it('a call for the SAME identity while a read is in flight joins it; a call for a DIFFERENT identity queues exactly one re-read', async () => {
     let release: (a: OfficialGuidesAnswer) => void = () => {};

@@ -19,10 +19,10 @@
  * read for the SAME identity is in flight joins it; one for a DIFFERENT identity queues exactly one re-read, so a
  * sign-in that lands mid-read is never answered with the guest's view.
  *
- * A CHANGE OF ACCOUNT CLEARS `team` AND `mine` AT ONCE, before any read answers and whatever it answers, so signing out
- * or switching account (even offline) never leaves the last account's private guides or Edit buttons in the store. A
- * read also drops the team/mine it fetched if the account changed while it was in flight; the queued re-read fetches
- * the right ones.
+ * A CHANGE OF ACCOUNT CLEARS `team`, `mine`, `pendingEdit` AND THE `tab` pill AT ONCE, before any read answers and
+ * whatever it answers, so signing out or switching account (even offline) never leaves the last account's private
+ * guides or Edit buttons in the store. A read also drops the team/mine it fetched if the account changed while it
+ * was in flight; the queued re-read fetches the right ones.
  *
  * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved` and `guideDeleted` bump a counter; a read that was already in
  * flight when one landed applies only `capability` and asks for one fresh read, so a stale answer cannot overwrite it.
@@ -118,7 +118,11 @@ export function loadGuides(): Promise<void> {
   if (key !== ownerKey) {
     ownerKey = key;
     const s = useGuides.getState();
-    if (s.team || s.mine.length > 0) useGuides.setState({ team: false, mine: NO_GUIDES });
+    // The last account's flag, guides, pending edit request and pill all go. Skipped when they already hold their
+    // cleared values (the first identity at boot), so boot makes no store write.
+    if (s.team || s.mine.length > 0 || s.pendingEdit !== null || s.tab !== 'team') {
+      useGuides.setState({ team: false, mine: NO_GUIDES, pendingEdit: null, tab: 'team' });
+    }
   }
   if (loading) {
     if (key !== loadingFor) again = true;

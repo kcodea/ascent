@@ -88,6 +88,9 @@ export function RankedGate(): JSX.Element | null {
       const at = rankedGateOpenTimeline(t);
       setPhase('shatter');
       sfx.gate('shatter');
+      // The cinematic hit (`intro`): first played on the press of "Yes, let's go." (2026-10-12), moved here the
+      // next day (owner: "move the 'ding' tone to when the crystal explodes, not upon clicking 'yes continue'").
+      sfx.gate('intro');
       sfx.gate('rattle');
       gateFx.stopAmbient();
       const c = crystal();
@@ -173,6 +176,10 @@ export function RankedGate(): JSX.Element | null {
           >
             <span className="rgate-crystal-glow" aria-hidden="true" />
             <span className="rgate-crystal-body"><img decoding="sync" src={CRYSTAL_SRC} alt="" draggable={false} /></span>
+            {/* Its light while it waits: a brightened copy that fades in and out, and the occasional glint. The
+                crystal itself never moves (owner 2026-10-13). */}
+            <span className="rgate-crystal-lit" aria-hidden="true" />
+            <span className="rgate-crystal-glint" aria-hidden="true"><span className="rgate-crystal-twinkle" /></span>
             <span className="rgate-crystal-burst" aria-hidden="true" />
           </button>
         )}

@@ -154,9 +154,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const confirmRanked = (): void => {
     if (rankedConfirm !== 'open') return;
     sfx.pulse();
-    // The cinematic hit on the press itself (owner 2026-10-12: "add this sound when the player clicks yes"). Played
-    // HERE, not by the gate, so it sounds on every "Yes", including when reduced motion skips the gate.
-    sfx.gate('intro');
+    // (The cinematic hit that played here from 2026-10-12 moved to the crystal's shatter on 2026-10-13: see
+    // RankedGate.tsx.)
     closeRankedConfirm();
     void requestRankedGate(startLobby);
   };

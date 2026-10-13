@@ -15,12 +15,16 @@
    THE CRYSTAL sits on the emblem's centre diamond at ANY window shape: `.rgate-doors` is a size container, so
    `--rg-u` (one art pixel, in screen px) is the same `cover` scale the doors' images get, and the crystal's place
    and size are art pixels times it (`--rg-cry-*`, from RANKED_GATE_ART). The button centres itself with a static
-   translate; everything that MOVES is on its three children (the glow behind, the body, the burst in front), so
-   no animation fights that translate. It is a real `<button>`: the global rule paints the game cursor on it.
+   translate; everything that MOVES is on its children, so no animation fights that translate. While it waits the
+   crystal itself does NOT move (owner 2026-10-13: "i dont want the crystal to physically move while its pulsing.
+   leave that to the lighting"): the pulse is the glow behind it and a brightened copy of it (`-lit`) fading in
+   and out, and every few seconds a GLINT runs over it (a band of light masked to the crystal's own shape, and a
+   small star that flares on a facet). It is a real `<button>`: the global rule paints the game cursor on it.
 
-   PERF. Every keyframe is `transform` / `opacity` only. Two loops, both compositor-only: the grind's vibration
-   (only while the doors travel, 1.5 s) and the armed crystal's pulse (its body's scale and its glow's opacity,
-   until it is pressed). The seam shadow, the flash and the crystal's glow are static gradients whose opacity
+   PERF. Every keyframe is `transform` / `opacity` only. The loops are all compositor-only: the grind's vibration
+   (only while the doors travel, 1.5 s) and, while the crystal waits, its light (the glow's and the lit copy's
+   opacity) and its glint (a band's and a star's transform + opacity). The lit copy's brightness is a STATIC
+   filter; only its opacity is animated. The seam shadow, the flash and the crystal's glow are static gradients whose opacity
    changes. Durations and the crystal's place are `--rg-*`, set on the root from rankedGateTiming.ts.
    No per-element `cursor` anywhere. ══ */
 .rgate { position: fixed; inset: 0; z-index: 700; overflow: hidden; }
@@ -94,11 +98,25 @@
 .rgate.is-armed .rgate-crystal { pointer-events: auto; }
 /* The keyboard's focus ring, in the theme's own ring colour (the same token the Compendium's controls use). */
 .rgate-crystal:focus-visible .rgate-crystal-body { outline: 3px solid var(--ui-edge-hi); outline-offset: 6px; border-radius: 50%; }
-.rgate-crystal-glow, .rgate-crystal-body, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
+.rgate-crystal-glow, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-glint, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
 /* The light behind it: a static blue bloom, wider than the crystal. Only its opacity and scale move. */
 .rgate-crystal-glow { inset: -45%; opacity: 0; background: radial-gradient(closest-side, rgba(150, 215, 255, 0.85), rgba(64, 150, 255, 0.5) 38%, rgba(40, 110, 255, 0.18) 62%, rgba(40, 110, 255, 0)); }
 .rgate-crystal-body { opacity: 0; }
 .rgate-crystal-body img { display: block; width: 100%; height: 100%; }
+/* The crystal lit from within: a brighter copy of itself over the body. The brightness never changes (a static
+   filter, rasterised once); the copy fades in and out. */
+.rgate-crystal-lit { opacity: 0; background: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; filter: brightness(1.55) saturate(1.15); }
+/* The glint: a box masked to the crystal's own shape, with a slanted band of light that crosses it now and then
+   and a four-point star that flares on its upper facet as the band passes. */
+.rgate-crystal-glint { opacity: 0; overflow: hidden;
+  -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
+.rgate-crystal-glint::before { content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 34%; transform: translateX(-160%) skewX(-22deg);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(235, 248, 255, 0.55) 35%, rgba(255, 255, 255, 0.95) 50%, rgba(235, 248, 255, 0.55) 65%, rgba(255, 255, 255, 0)); }
+.rgate-crystal-twinkle { position: absolute; left: 41%; top: 27%; width: 26%; aspect-ratio: 1; opacity: 0; pointer-events: none; will-change: transform, opacity;
+  background:
+    radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 30%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0)) 50% 50% / 100% 6% no-repeat,
+    linear-gradient(0deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0)) 50% 50% / 6% 100% no-repeat; }
 /* The white-blue burst in front of it, at the moment it pushes out of the diamond and again as it shatters. */
 .rgate-crystal-burst { inset: -30%; opacity: 0; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.98), rgba(190, 230, 255, 0.75) 30%, rgba(90, 170, 255, 0.25) 60%, rgba(90, 170, 255, 0)); }
 
@@ -126,23 +144,37 @@
   100% { opacity: 0; transform: scale(1.7); }
 }
 
-/* ARMED: whole, and steadily pulsing until it is pressed. */
-.rgate.is-armed .rgate-crystal-body { opacity: 1; animation: rg-cry-pulse 1.7s ease-in-out infinite; }
+/* ARMED: whole, STILL, and steadily pulsing with light until it is pressed. The body has no animation here. */
+.rgate.is-armed .rgate-crystal-body { opacity: 1; }
 .rgate.is-armed .rgate-crystal-glow { animation: rg-cry-glow-pulse 1.7s ease-in-out infinite; }
-@keyframes rg-cry-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.07); }
-}
+.rgate.is-armed .rgate-crystal-lit { animation: rg-cry-lit-pulse 1.7s ease-in-out infinite; }
 @keyframes rg-cry-glow-pulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.94); }
-  50% { opacity: 1; transform: scale(1.12); }
+  0%, 100% { opacity: 0.45; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.14); }
+}
+@keyframes rg-cry-lit-pulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 0.8; }
+}
+/* THE GLINT: once every 3.8 s the band crosses (about half a second), and the star flares as it passes. */
+.rgate.is-armed .rgate-crystal-glint { opacity: 1; }
+.rgate.is-armed .rgate-crystal-glint::before { animation: rg-cry-glint 3.8s linear infinite; }
+.rgate.is-armed .rgate-crystal-twinkle { animation: rg-cry-twinkle 3.8s linear infinite; }
+@keyframes rg-cry-glint {
+  0%, 62% { transform: translateX(-160%) skewX(-22deg); animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  76%, 100% { transform: translateX(460%) skewX(-22deg); }
+}
+@keyframes rg-cry-twinkle {
+  0%, 66% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  71% { opacity: 1; transform: scale(1) rotate(20deg); }
+  80%, 100% { opacity: 0; transform: scale(0.3) rotate(45deg); }
 }
 
 /* SHATTER: the body is gone in a blink (the shards are the FX layer's), the light lets go. */
 .rgate.is-shatter .rgate-crystal-body { animation: rg-cry-break 130ms ease-out both; }
 .rgate.is-shatter .rgate-crystal-glow { animation: rg-cry-glow-out var(--rg-shatter, 420ms) ease-out both; }
 .rgate.is-shatter .rgate-crystal-burst { animation: rg-cry-shatter var(--rg-shatter, 420ms) ease-out both; }
-@keyframes rg-cry-break { 0% { opacity: 1; transform: scale(1.04); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes rg-cry-break { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
 @keyframes rg-cry-glow-out { 0% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.9); } }
 @keyframes rg-cry-shatter { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2.4); } }
 

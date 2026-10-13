@@ -434,8 +434,9 @@ interface ClipSlice { offset: number; duration: number; }
 /** The ranked gate's cues (`sfx.gate`). Each plays on the fader `gate<cue>`. */
 export type GateCue = 'intro' | 'close' | 'slam' | 'rattle' | 'open' | 'form' | 'shatter';
 /** The clip behind each gate cue. All but one are the owner's own recordings (`shatter` is his crystal-shatter
- *  clip, 2026-10-13). `form` (the crystal forming) has none yet, so it borrows the gem-apply chime already in the
- *  game as a STAND-IN. Swap the clip name here when a recorded one arrives. */
+ *  clip, 2026-10-13; `intro` is the cinematic hit he first put on the press of "Yes, let's go." and then moved to
+ *  the crystal's shatter, where it plays with `shatter`). `form` (the crystal forming) has none yet, so it borrows
+ *  the gem-apply chime already in the game as a STAND-IN. Swap the clip name here when a recorded one arrives. */
 const GATE_CLIP: Record<GateCue, string> = {
   intro: 'gateintro', close: 'gateclose', slam: 'gateslam', rattle: 'gaterattle', open: 'gateopen',
   form: 'gemapply', shatter: 'gateshatter',
@@ -1512,8 +1513,7 @@ export const sfx = {
   },
   /**
    * THE RANKED GATE (owner 2026-10-12: "two gates slide in with a grinding motion and sound and slam shut ... they
-   * shudder and open again"). The owner's four recorded cues, plus `intro`, the cinematic hit he picked for the
-   * press of "Yes, let's go." itself (`audio/gate*.mp3`), each on its own fader of the same
+   * shudder and open again"). The owner's recorded cues (`audio/gate*.mp3`), each on its own fader of the same
    * name. `delay` (ms) schedules on the audio clock. No synth stand-in: a late beep over a gate reads worse than
    * silence, and the sequence is visual-driven either way (the audio-never-blocks rule).
    */

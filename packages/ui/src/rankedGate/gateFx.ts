@@ -270,7 +270,8 @@ class GateFxController {
   }
 
   /** One ember: it lifts off with a small sideways kick, then floats up, swaying wider and flickering as it dies. */
-  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number } = {}): void {
+  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number } = {}): void {
+    const drag = o.drag ?? 1; // how hard the air takes the throw back: lower = it carries further
     const rise = (70 + Math.random() * 190) * k * (o.rise ?? 1); // px/s upward
     // The kick off the impact (a random sideways one, or the shatter's own throw); the air takes it back.
     let vx = o.throwX !== undefined ? o.throwX * k : (Math.random() - 0.5) * 170 * k * (o.kick ?? 1);
@@ -288,8 +289,8 @@ class GateFxController {
       const s = dt / 1000;
       const age = p.age - delay;
       const t = age / life;
-      vx *= 1 - 1.8 * s;
-      vy *= 1 - 2.4 * s;
+      vx *= 1 - 1.8 * drag * s;
+      vy *= 1 - 2.4 * drag * s;
       bx += vx * s;
       p.sp.y += (vy - rise * (1 - t * 0.35)) * s; // it slows a little as it cools
       p.sp.x = bx + Math.sin(age * swayHz + swayPhase) * swayAmp * t;
@@ -413,20 +414,21 @@ class GateFxController {
     this.run(() => {
       this.ambientAt = null;
       const k = c.size / CRYSTAL_REF_SIZE;
-      // Shards: every direction, the upper ones thrown a little harder, all of them spinning and falling.
+      // Shards: every direction, the upper ones thrown a little harder, all of them spinning and falling. Fast and
+      // far (owner 2026-10-13: "fly outward faster and further"): the quickest cross half the screen.
       for (let i = 0, n = amount(56); i < n; i++) {
         const ang = Math.random() * Math.PI * 2;
-        const speed = (260 + Math.random() * 900) * k;
+        const speed = (560 + Math.random() * 1700) * k;
         let vx = Math.cos(ang) * speed;
-        let vy = Math.sin(ang) * speed - 180 * k;
-        const spin = (Math.random() - 0.5) * 22; // rad/s
-        const life = 520 + Math.random() * 700;
+        let vy = Math.sin(ang) * speed - 220 * k;
+        const spin = (Math.random() - 0.5) * 26; // rad/s
+        const life = 750 + Math.random() * 850;
         const sx = (0.5 + Math.random() * 1.1) * k, sy = (0.6 + Math.random() * 1.2) * k;
         const r0 = Math.random() * c.size * 0.22;
         const sp = this.spawn(this.shardTex!, c.x + Math.cos(ang) * r0, c.y + Math.sin(ang) * r0, pick(EMBER_TINTS), life, true, (p, dt) => {
           const s = dt / 1000;
-          vx *= 1 - 0.9 * s;
-          vy = vy * (1 - 0.5 * s) + 1700 * k * s;
+          vx *= 1 - 0.5 * s;
+          vy = vy * (1 - 0.35 * s) + 1500 * k * s;
           p.sp.x += vx * s;
           p.sp.y += vy * s;
           p.sp.rotation += spin * s;
@@ -447,9 +449,9 @@ class GateFxController {
       // The burst of embers: thrown out in a ring, then they do what embers do and float up.
       for (let i = 0, n = amount(120); i < n; i++) {
         const ang = Math.random() * Math.PI * 2;
-        const out = 200 + Math.random() * 520;
-        this.ember(c.x + Math.cos(ang) * c.size * 0.15, c.y + Math.sin(ang) * c.size * 0.2, k, Math.random() * 90,
-          { throwX: Math.cos(ang) * out, throwY: Math.sin(ang) * out, rise: 0.8 + Math.random() * 0.5 });
+        const out = 520 + Math.random() * 1300;
+        this.ember(c.x + Math.cos(ang) * c.size * 0.15, c.y + Math.sin(ang) * c.size * 0.2, k, Math.random() * 70,
+          { throwX: Math.cos(ang) * out, throwY: Math.sin(ang) * out, rise: 0.8 + Math.random() * 0.5, drag: 0.55 });
       }
     });
   }

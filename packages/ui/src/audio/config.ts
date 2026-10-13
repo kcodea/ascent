@@ -46,8 +46,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   goodLuckShine: 0.6, goodLuckSpark: 0.45,
   // The RANKED GATE (owner 2026-10-12): the owner's four recorded cues, one fader each, at the ui fallback level.
   gateclose: 0.6, gateslam: 0.6, gaterattle: 0.6, gateopen: 0.6,
-  // The cinematic hit on "Yes, let's go." itself (owner 2026-10-12), under the gate's own cues. 0.6 -> 0.72 the
-  // same day (owner: "up the volume of it by about 20%").
+  // The cinematic hit: on "Yes, let's go." at first (owner 2026-10-12), on the crystal's shatter since 2026-10-13.
+  // 0.6 -> 0.72 on 2026-10-12 (owner: "up the volume of it by about 20%").
   gateintro: 0.72,
   // The gate's CRYSTAL (owner 2026-10-13): forming on the centre diamond, and shattering under the press. The
   // shatter is the owner's recording; forming has none yet and plays a clip already in the game as a STAND-IN
@@ -117,7 +117,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   gateslam: 'Ranked gate: the slam',
   gaterattle: 'Ranked gate: the shudder',
   gateopen: 'Ranked gate: grinding open',
-  gateintro: 'Ranked gate: the hit on Yes',
+  gateintro: 'Ranked gate: the hit as the crystal shatters',
   gateform: 'Ranked gate: the crystal forming (stand-in clip)',
   gateshatter: 'Ranked gate: the crystal shattering',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',

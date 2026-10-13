@@ -232,6 +232,8 @@ describe('the gate plays', () => {
     expect(el).not.toBeNull();
     expect(el.getAttribute('aria-disabled')).toBe('true');
     expect(el.querySelector('img')!.getAttribute('src')).toContain('frames/ranked-gate-crystal.webp');
+    expect(el.querySelector('.rgate-crystal-lit'), 'the brightened copy that carries the pulse').not.toBeNull();
+    expect(el.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
     // A press while it is still forming does nothing.
     pressCrystal();
     expect(phaseOf()).toBe('forming');
@@ -264,7 +266,7 @@ describe('the gate plays', () => {
     advance(close.armedAt + 2_345);
     pressCrystal();
     expect(phaseOf()).toBe('shatter');
-    expect(cues()).toEqual(['close', 'slam', 'form', 'shatter', 'rattle']);
+    expect(cues(), 'the shatter, the cinematic hit and the rattle all land on the press').toEqual(['close', 'slam', 'form', 'shatter', 'intro', 'rattle']);
     expect(fx.stopAmbient).toHaveBeenCalledTimes(1);
     expect(fx.shatter).toHaveBeenCalledTimes(1);
     expect(fx.shatter.mock.calls[0]![0]).toEqual(CRYSTAL);
@@ -289,7 +291,7 @@ describe('the gate plays', () => {
     await act(async () => { await Promise.resolve(); });
     expect(done).toHaveBeenCalledTimes(1);
     expect(onShut).toHaveBeenCalledTimes(1);
-    expect(cues()).toEqual(['close', 'slam', 'form', 'shatter', 'rattle', 'open']);
+    expect(cues()).toEqual(['close', 'slam', 'form', 'shatter', 'intro', 'rattle', 'open']);
   });
 
   it('the keyboard opens it too (Enter / Space on the focused crystal arrive as a click)', () => {
@@ -372,9 +374,24 @@ describe('what ships', () => {
     expect(rule).toContain('width: calc(var(--rg-cry-size, 236) * var(--rg-u))');
     expect(rule).toContain('pointer-events: none');
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal \{ pointer-events: auto; \}/);
-    // It pulses only while armed, forever, on its body and its glow.
-    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-body \{[^}]*rg-cry-pulse [\d.]+s ease-in-out infinite/);
-    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glow \{[^}]*rg-cry-glow-pulse [\d.]+s ease-in-out infinite/);
+  });
+
+  it('while it waits the crystal does not move: the pulse is its light, and a glint crosses it now and then', () => {
+    // Owner 2026-10-13: "i dont want the crystal to physically move while its pulsing. leave that to the lighting".
+    const armedBody = /\.rgate\.is-armed \.rgate-crystal-body \{([^}]*)\}/.exec(noComments)![1]!;
+    expect(armedBody).not.toMatch(/animation|transform/);
+    expect(armedBody).toContain('opacity: 1');
+    // The light: the glow behind it and a brightened copy of it, both forever, both on the same beat.
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glow \{[^}]*rg-cry-glow-pulse 1\.7s ease-in-out infinite/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-lit \{[^}]*rg-cry-lit-pulse 1\.7s ease-in-out infinite/);
+    const lit = /@keyframes rg-cry-lit-pulse \{([\s\S]*?)\n\}/.exec(css)![1]!;
+    expect(lit, 'the lit copy only fades: it never scales').not.toMatch(/transform/);
+    expect(noComments, 'its brightness is a static filter, not an animated one').toMatch(/\.rgate-crystal-lit \{[^}]*filter: brightness\(/);
+    // The glint: masked to the crystal's own shape, on a slow cycle that is mostly rest.
+    expect(noComments).toMatch(/\.rgate-crystal-glint \{[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glint::before \{[^}]*rg-cry-glint 3\.8s linear infinite/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-twinkle \{[^}]*rg-cry-twinkle 3\.8s linear infinite/);
+    expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 62% \{/);
   });
 
   it('the motion is compositor-only, in stage units, with no bare cursor', () => {
@@ -387,8 +404,9 @@ describe('what ships', () => {
       throw new Error(`unterminated @keyframes ${m[1]}`);
     });
     expect(blocks.map((b) => b[0]).sort()).toEqual([
-      'rg-close-l', 'rg-close-r', 'rg-cry-break', 'rg-cry-burst', 'rg-cry-form', 'rg-cry-glow-in', 'rg-cry-glow-out', 'rg-cry-glow-pulse',
-      'rg-cry-pulse', 'rg-cry-shatter', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l', 'rg-open-r', 'rg-shudder',
+      'rg-close-l', 'rg-close-r', 'rg-cry-break', 'rg-cry-burst', 'rg-cry-form', 'rg-cry-glint', 'rg-cry-glow-in', 'rg-cry-glow-out',
+      'rg-cry-glow-pulse', 'rg-cry-lit-pulse', 'rg-cry-shatter', 'rg-cry-twinkle', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l', 'rg-open-r',
+      'rg-shudder',
     ]);
     for (const [name, body] of blocks) {
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]).filter((p) => p !== 'animation-timing-function');

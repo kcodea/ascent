@@ -40,11 +40,30 @@ between them (`rankedGateTiming.ts`):
   ultrawide included.
 - **Blue embers x3** at the slam (70 -> 210 before `FX_AMOUNT`, so 84 -> 252), and three new effects in
   `gateFx.ts`: `gather` (forming), `ambient` (a dozen embers a second off the waiting crystal) and `shatter`
-  (56 shards, a flash, 144 embers thrown in a ring that then float up).
+  (67 shards, a flash, 144 embers thrown in a ring that then float up).
 - **Sound:** `gateshatter.mp3` is the owner's recording, played on the press and started 24 ms in (the file opens
   on 26 ms of silence). The crystal FORMING has no recording: the `gateform` fader plays the existing gem-apply
   chime as a stand-in (`GATE_CLIP` in sfx.ts).
 - Reduced motion still skips the gate, so there is no crystal to press: the swap happens at once.
+
+## Then, after seeing it
+
+**Owner:** "have the particles of the crystal explosion fly outward faster and further. i dont want the crystal to
+physically move while its pulsing. leave that to the lighting. is it possible to apply an occasional glint to the
+crystal?" and "move the 'ding' tone to when the crystal explodes, not upon clicking 'yes continue'".
+
+- **Faster and further:** shard speed 260-1160 -> 560-2260 px/s with about half the air drag and a longer life;
+  the ring of embers is thrown at 520-1820 px/s (was 200-720) with 0.55x the drag before they float up. The
+  quickest now cross half a 1080p screen.
+- **The crystal is still while it waits.** The body's scale pulse is gone (`rg-cry-pulse` deleted; the armed body
+  has no animation at all). The pulse is light only: the glow behind it, and `.rgate-crystal-lit`, a brightened
+  copy of the crystal (a STATIC `brightness` filter) whose opacity breathes on the same 1.7 s beat.
+- **The glint:** every 3.8 s a slanted band of light crosses the crystal in about half a second, masked to the
+  crystal's own shape (`mask: url(crystal)`), and a small four-point star flares on its upper facet as the band
+  passes. Transform + opacity only.
+- **The "ding":** read as the cinematic hit added on 2026-10-12 for the press of "Yes, let's go." (`gateintro`).
+  It no longer plays there; it plays with the shatter clip on the press of the crystal. The Yes button now makes
+  only the ordinary menu click, then the doors' grind.
 
 ## Judgement calls to confirm with the owner
 

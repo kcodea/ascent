@@ -4,8 +4,10 @@
  * (official guides are readable by everyone). Run it before a release, then run `npm test` and commit the file.
  *
  * It refuses to write, and says why, when the server answers no guides (a project with no import yet), when the answer
- * is short (the server's own total differs from the rows it sent), when a row cannot be read, or when a Team Ascent
- * guide is in no set. A mistake therefore cannot empty the fallback or drop a guide from it unheard.
+ * is short (the server's own total differs from the rows it sent), when a row cannot be read, when a Team Ascent
+ * guide is in no set, or when there are more Team Ascent guides than one press of the Import button can add
+ * (`GUIDE_LIMITS.importBatch`: the file is also what that button sends). A mistake therefore cannot empty the
+ * fallback, drop a guide from it unheard, or write a file the team could not import.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

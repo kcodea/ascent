@@ -7517,7 +7517,6 @@ revoke all on public.guide_bookmark_log from anon, authenticated;
 create index if not exists guide_reports_open on public.guide_reports (guide_id) where status = 'open';
 create index if not exists guide_reports_reporter on public.guide_reports (reporter_id, created_at desc);
 -- The team's hidden list is read newest first, then by id (guidesRemote.fetchHiddenGuides).
-drop index if exists public.guides_hidden;
 create index if not exists guides_hidden_list on public.guides (hidden_at desc nulls last, id) where hidden;
 
 create or replace function public.guide_bookmark(p_user uuid, p_id uuid, p_on boolean) returns jsonb

@@ -201,8 +201,9 @@ async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall
   if (o.op === 'retagSets') {
     if (typeof o.set !== 'string' || !SET_ID_RE.test(o.set)) return { status: 400, body: { error: 'bad_set' } };
     const ids = o.ids;
+    // An id is the same id in capitals, so "no id twice" is told without regard to case.
     if (!Array.isArray(ids) || ids.length < 1 || ids.length > GUIDE_LIMITS.retagBatch
-      || ids.some((x) => typeof x !== 'string' || !UUID_RE.test(x)) || new Set(ids).size !== ids.length) {
+      || ids.some((x) => typeof x !== 'string' || !UUID_RE.test(x)) || new Set(ids.map((x: string) => x.toLowerCase())).size !== ids.length) {
       return { status: 400, body: { error: 'bad_ids' } };
     }
     const out = await call(rpc, 'guide_retag_set', { p_user: userId, p_set: o.set, p_ids: ids }, log);

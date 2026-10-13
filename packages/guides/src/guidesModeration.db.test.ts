@@ -2,12 +2,19 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { GUIDE_LIMITS } from './types';
 
 /**
  * STEP 4's SQL, EXECUTED. PGlite runs the three earlier-to-later migrations (this step's twice: it must re-run
  * cleanly), then drives the functions as the Edge Function does and reads the tables as the REST API does. Pins: who
  * may report what and how often; that only the team hides, unhides, dismisses and carries over; what a hide does to
  * who can read the guide and to its reports; that a carry-over only ever adds a set; the limit on bookmark changes.
+ *
+ * THE NUMBERS ARE `GUIDE_LIMITS`'s. Every edge here (reports a day, a note's length, ids in a carry-over batch,
+ * bookmark changes an hour, bookmarks held) is exercised on BOTH sides with the shared constant, never a retyped
+ * number: the last one allowed is accepted and the next is refused. So a limit changed in types.ts and not in the SQL
+ * (or the other way round) fails here. One test also reads the numbers out of the migration text, so the failure
+ * names the limit that drifted.
  */
 const root = join(__dirname, '../../..');
 const sql = (name: string): string => readFileSync(join(root, 'supabase/migrations', name), 'utf8');
@@ -33,6 +40,7 @@ const BOB = '00000000-0000-0000-0000-00000000000c';
 const CARL = '00000000-0000-0000-0000-00000000000d';
 const TEAM2 = '00000000-0000-0000-0000-00000000000e';
 const MISSING = '99999999-9999-4999-8999-999999999999';
+const { reportsPerDay: REPORTS, reportNote: NOTE, retagBatch: BATCH, bookmarkChangesPerHour: CHANGES, bookmarksPerPlayer: BOOKMARKS } = GUIDE_LIMITS;
 let db: PGlite;
 
 type Row = Record<string, unknown>;
@@ -117,34 +125,37 @@ describe('guide_report', () => {
     const g = await published(ALICE, 'Rep E');
     expect(await err(report(BOB, g.id, 'rude'))).toContain('bad_report');
   });
-  it('ten reports a day, then report_limit; an old report does not count', async () => {
+  it('the daily number of reports, then report_limit; an old report does not count', async () => {
     await db.query(`insert into public.guides (author_id, byline, published, published_at, sets, icon_card, title, body, core)
-                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Many ' || n, 'B', '{grim}' from generate_series(1, 12) as n`, [ALICE]);
+                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Many ' || n, 'B', '{grim}' from generate_series(1, $2::int) as n`, [ALICE, REPORTS + 2]);
     const ids = (await db.query<{ id: string }>("select id from public.guides where title like 'Many %' order by title")).rows.map((r) => r.id);
-    for (let i = 0; i < 10; i++) await report(BOB, ids[i]);
-    expect(await err(report(BOB, ids[10]))).toContain('report_limit');
+    expect(ids.length).toBe(REPORTS + 2);
+    // Every one up to the limit is accepted (a lower number in the SQL fails here)...
+    for (let i = 0; i < REPORTS; i++) expect(await report(BOB, ids[i]), String(i)).toEqual({ reported: true });
+    // ...and the next is refused (a higher number in the SQL fails here).
+    expect(await err(report(BOB, ids[REPORTS]))).toContain('report_limit');
     await db.query("update public.guide_reports set created_at = now() - interval '2 days' where reporter_id = $1 and guide_id = $2", [BOB, ids[0]]);
-    expect(await report(BOB, ids[10])).toEqual({ reported: true });
+    expect(await report(BOB, ids[REPORTS])).toEqual({ reported: true });
   });
   it('the daily cap is per account: another account can still report', async () => {
     await db.query(`insert into public.guides (author_id, byline, published, published_at, sets, icon_card, title, body, core)
-                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Cap ' || n, 'B', '{grim}' from generate_series(1, 11) as n`, [ALICE]);
+                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Cap ' || n, 'B', '{grim}' from generate_series(1, $2::int) as n`, [ALICE, REPORTS + 1]);
     const ids = (await db.query<{ id: string }>("select id from public.guides where title like 'Cap %' order by title")).rows.map((r) => r.id);
-    for (let i = 0; i < 10; i++) await report(BOB, ids[i]);
-    expect(await err(report(BOB, ids[10]))).toContain('report_limit');
-    expect(await report(CARL, ids[10])).toEqual({ reported: true });
+    for (let i = 0; i < REPORTS; i++) await report(BOB, ids[i]);
+    expect(await err(report(BOB, ids[REPORTS]))).toContain('report_limit');
+    expect(await report(CARL, ids[REPORTS])).toEqual({ reported: true });
   });
-  it('a note of 300 characters is kept, 301 is refused, and no note is stored as empty', async () => {
+  it('a note as long as the limit is kept, one character more is refused, and no note is stored as empty', async () => {
     const a = await published(ALICE, 'Rep G');
     const b = await published(ALICE, 'Rep H');
     const c = await published(ALICE, 'Rep I');
-    expect(await report(BOB, a.id, 'other', 'x'.repeat(300))).toEqual({ reported: true });
-    expect(await err(report(BOB, b.id, 'other', 'x'.repeat(301)))).toContain('bad_report');
+    expect(await report(BOB, a.id, 'other', 'x'.repeat(NOTE))).toEqual({ reported: true });
+    expect(await err(report(BOB, b.id, 'other', 'x'.repeat(NOTE + 1)))).toContain('bad_report');
     expect(await count('select count(*) as n from public.guide_reports where guide_id = $1', [b.id])).toBe(0);
     expect(await report(BOB, c.id, 'other', null)).toEqual({ reported: true });
     const rows = (await db.query<Row>('select note from public.guide_reports where guide_id = $1', [c.id])).rows;
     expect(rows).toEqual([{ note: '' }]);
-    expect(await count('select char_length(note) as n from public.guide_reports where guide_id = $1', [a.id])).toBe(300);
+    expect(await count('select char_length(note) as n from public.guide_reports where guide_id = $1', [a.id])).toBe(NOTE);
   });
   it('a deleted guide takes its reports with it; a deleted reporter takes theirs', async () => {
     const g = await published(ALICE, 'Rep F');
@@ -300,9 +311,17 @@ describe('guide_retag_set', () => {
     expect(await err(retag(TEAM, 'xset3', [a.id]))).toContain('bad_set'); // the start of the pattern is anchored too
     expect(await err(retag(TEAM, 'set3x', [a.id]))).toContain('bad_set');
     expect(await err(retag(TEAM, 'set3', []))).toContain('bad_ids');
-    const many = Array.from({ length: 201 }, () => a.id);
+    const many = Array.from({ length: BATCH + 1 }, () => a.id);
     expect(await err(retag(TEAM, 'set3', many))).toContain('bad_ids');
     expect(await count('select count(*) as n from public.guides')).toBeGreaterThan(0);
+  });
+  it('a batch of exactly the limit is taken, and one id more is refused', async () => {
+    const a = await save(ALICE, doc({ title: 'Tag Edge' }));
+    // The SQL counts the ids it is handed (the handler is what refuses a repeated id), so one guide named again and
+    // again is a batch of that size.
+    expect(await err(retag(TEAM, 'set3', Array.from({ length: BATCH + 1 }, () => a.id)))).toContain('bad_ids');
+    expect((await db.query<Row>('select sets from public.guides where id = $1', [a.id])).rows[0]!.sets).toEqual(['set2']);
+    expect(await retag(TEAM, 'set3', Array.from({ length: BATCH }, () => a.id))).toEqual({ tagged: 1 });
   });
   it('an id that names no guide is skipped, not an error', async () => {
     const a = await save(ALICE, doc({ title: 'Tag F' }));
@@ -318,14 +337,14 @@ describe('guide_retag_set', () => {
 });
 
 describe('a limit on bookmark changes', () => {
-  it('120 changes an hour, then rate_limited; a call that changes nothing is not counted', async () => {
+  it('the hourly number of changes, then rate_limited; a call that changes nothing is not counted', async () => {
     const g = await published(ALICE, 'Lim A');
     await bookmark(BOB, g.id, true);
     await bookmark(BOB, g.id, true); // already bookmarked: nothing changes
     await bookmark(BOB, g.id, false);
     await bookmark(BOB, g.id, false); // already removed
     expect(await count('select count(*) as n from public.guide_bookmark_log where user_id = $1', [BOB])).toBe(2);
-    await db.query('insert into public.guide_bookmark_log (user_id) select $1 from generate_series(1, 118)', [BOB]);
+    await db.query('insert into public.guide_bookmark_log (user_id) select $1 from generate_series(1, $2::int)', [BOB, CHANGES - 2]);
     expect(await err(bookmark(BOB, g.id, true))).toContain('rate_limited');
     expect(await err(bookmark(BOB, g.id, false))).toContain('rate_limited');
     // The limit is per account: nobody else is held up by it.
@@ -333,9 +352,9 @@ describe('a limit on bookmark changes', () => {
     await db.query("update public.guide_bookmark_log set at = now() - interval '2 hours' where user_id = $1", [BOB]);
     expect((await bookmark(BOB, g.id, true)).bookmarked).toBe(true);
   });
-  it('the 120th change in an hour is accepted and the 121st is refused', async () => {
+  it('the last change the hourly limit allows is accepted and the next is refused', async () => {
     const g = await published(ALICE, 'Lim C');
-    await db.query('insert into public.guide_bookmark_log (user_id) select $1 from generate_series(1, 119)', [BOB]);
+    await db.query('insert into public.guide_bookmark_log (user_id) select $1 from generate_series(1, $2::int)', [BOB, CHANGES - 1]);
     expect((await bookmark(BOB, g.id, true)).bookmarked).toBe(true);
     expect(await err(bookmark(BOB, g.id, false))).toContain('rate_limited');
   });
@@ -366,15 +385,18 @@ describe('a limit on bookmark changes', () => {
     expect(await count('select count(*) as n from public.guide_bookmark_log')).toBe(0); // refusals are not counted
     await db.query('delete from public.guides where id = $1', [o.id]);
   });
-  it('200 bookmarks at most', async () => {
+  it('no more bookmarks than the limit: the last place is taken, the next is refused', async () => {
     await db.query(`insert into public.guides (author_id, byline, published, published_at, sets, icon_card, title, body, core)
-                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Bm ' || n, 'B', '{grim}' from generate_series(1, 201) as n`, [ALICE]);
+                    select $1, 'Alice', true, now(), '{set2}', 'grim', 'Bm ' || n, 'B', '{grim}' from generate_series(1, $2::int) as n`, [ALICE, BOOKMARKS + 1]);
     const ids = (await db.query<{ id: string }>("select id from public.guides where title like 'Bm %' order by title")).rows.map((r) => r.id);
-    await db.query('insert into public.guide_bookmarks (user_id, guide_id) select $1, unnest($2::uuid[])', [BOB, ids.slice(0, 200)]);
-    expect(await err(bookmark(BOB, ids[200]!, true))).toContain('too_many_bookmarks');
-    expect(await bookmark(BOB, ids[0]!, true)).toMatchObject({ bookmarked: true }); // already one of the 200: nothing to add
+    expect(ids.length).toBe(BOOKMARKS + 1);
+    await db.query('insert into public.guide_bookmarks (user_id, guide_id) select $1, unnest($2::uuid[])', [BOB, ids.slice(0, BOOKMARKS - 1)]);
+    expect((await bookmark(BOB, ids[BOOKMARKS - 1]!, true)).bookmarked).toBe(true); // the last place the limit allows
+    expect(await count('select count(*) as n from public.guide_bookmarks where user_id = $1', [BOB])).toBe(BOOKMARKS);
+    expect(await err(bookmark(BOB, ids[BOOKMARKS]!, true))).toContain('too_many_bookmarks');
+    expect(await bookmark(BOB, ids[0]!, true)).toMatchObject({ bookmarked: true }); // already one of them: nothing to add
     expect(await bookmark(BOB, ids[0]!, false)).toMatchObject({ bookmarked: false });
-    expect((await bookmark(BOB, ids[200]!, true)).bookmarked).toBe(true); // a place is free again
+    expect((await bookmark(BOB, ids[BOOKMARKS]!, true)).bookmarked).toBe(true); // a place is free again
   });
   it('removing a bookmark of a hidden guide answers a count of 0, while the real count goes down by one', async () => {
     const g = await published(ALICE, 'Lim E');
@@ -383,6 +405,22 @@ describe('a limit on bookmark changes', () => {
     await hide(TEAM, g.id, true);
     expect(await bookmark(BOB, g.id, false)).toEqual({ bookmarked: false, count: 0 });
     expect(await count('select bookmark_count as n from public.guides where id = $1', [g.id])).toBe(1);
+  });
+});
+
+describe('the numbers in the SQL are the shared limits', () => {
+  /** The one number in this step's SQL that sits where `pattern`'s first group is. */
+  const sqlNumber = (pattern: RegExp): number => {
+    const found = [...STEP4.matchAll(new RegExp(pattern.source, 'g'))];
+    expect(found.length, String(pattern)).toBe(1);
+    return Number(found[0]![1]);
+  };
+  it('reports a day, a note, a carry-over batch, bookmark changes an hour and bookmarks held are each GUIDE_LIMITS', () => {
+    expect(sqlNumber(/if v_count >= ([0-9]+) then raise exception 'report_limit'/)).toBe(GUIDE_LIMITS.reportsPerDay);
+    expect(sqlNumber(/coalesce[(]p_note, ''[)][)] > ([0-9]+) then raise exception 'bad_report'/)).toBe(GUIDE_LIMITS.reportNote);
+    expect(sqlNumber(/cardinality[(]p_ids[)] > ([0-9]+) then raise exception 'bad_ids'/)).toBe(GUIDE_LIMITS.retagBatch);
+    expect(sqlNumber(/if v_count >= ([0-9]+) then raise exception 'rate_limited'/)).toBe(GUIDE_LIMITS.bookmarkChangesPerHour);
+    expect(sqlNumber(/if v_count >= ([0-9]+) then raise exception 'too_many_bookmarks'/)).toBe(GUIDE_LIMITS.bookmarksPerPlayer);
   });
 });
 

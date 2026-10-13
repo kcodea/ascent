@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contentRangeTotal, pullProblems, recordsToBundled, renderBundledGuides, type BundledSourceGuide } from './bundledSource';
-import type { GuideRecord } from './types';
+import { GUIDE_LIMITS, type GuideRecord } from './types';
 
 const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
   id, slug: null, authorId: null, byline: 'Team Ascent', official: true, published: true, publishedAt: null, hidden: false, sets: ['set2'], tribes: ['beast'],
@@ -92,6 +92,19 @@ describe('pullProblems', () => {
     const a = rec('a', { sets: [] });
     expect(pullProblems([row(a), { id: 'x' }], [a])).toHaveLength(2);
   });
+  it('stops a file the Import button could not send: more guides than one import takes', () => {
+    const many = (n: number): GuideRecord[] => Array.from({ length: n }, (_, i) => rec(`g${i}`));
+    const limit = GUIDE_LIMITS.importBatch;
+    // As many as one import takes is fine...
+    const full = many(limit);
+    expect(pullProblems(full.map(row), full)).toEqual([]);
+    // ...one more is not, and the sentence says how many there are and what the limit is.
+    const over = many(limit + 1);
+    expect(pullProblems(over.map(row), over)).toEqual([`${limit + 1} Team Ascent guides are more than the ${limit} one press of Import built-in guides can add`]);
+    // What counts is what the file would hold: a player's guide is not in it.
+    const padded = [...full, rec('p', { official: false, authorId: 'u-1' })];
+    expect(pullProblems(padded.map(row), padded)).toEqual([]);
+  });
 });
 
 describe('contentRangeTotal', () => {
@@ -105,5 +118,8 @@ describe('contentRangeTotal', () => {
   });
   it('is null when the header is missing, has no total, or is not a range', () => {
     for (const bad of [null, undefined, '', '0-10/*', '0-10', 'garbage', '0-10/x', '/11', '0-10/11/12', '-1/5']) expect(contentRangeTotal(bad), String(bad)).toBeNull();
+  });
+  it('is null when anything stands before the range or after the total', () => {
+    for (const bad of ['x0-10/11', 'items 0-10/11', 'x*/0', '0-10/11x', '0-10/11 items']) expect(contentRangeTotal(bad), bad).toBeNull();
   });
 });

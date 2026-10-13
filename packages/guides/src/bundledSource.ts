@@ -7,7 +7,7 @@
  * its tests use it. The output is plain ASCII (anything else is written as an escape), so the file never depends on
  * how an editor saves it.
  */
-import type { GuideRecord } from './types';
+import { GUIDE_LIMITS, type GuideRecord } from './types';
 
 export interface BundledSourceGuide {
   id: string;
@@ -96,6 +96,9 @@ const HEADER = [
  * What is wrong with the server's answer, as sentences naming the guides (ids are not private). Empty when the answer
  * can be written. `rows` is the raw answer and `records` what `parseGuideRecord` made of it. The script writes nothing
  * unless this is empty, so a guide can never go missing from the fallback without anyone hearing of it.
+ *
+ * The file is also what the team's Import button sends, in ONE request of at most `GUIDE_LIMITS.importBatch` guides.
+ * A file with more would make that button fail on a project with no guides yet, so it is not written either.
  */
 export function pullProblems(rows: readonly unknown[], records: readonly GuideRecord[]): string[] {
   const problems: string[] = [];
@@ -108,6 +111,10 @@ export function pullProblems(rows: readonly unknown[], records: readonly GuideRe
   }
   const noSet = records.filter((r) => r.official && r.sets.length === 0).map((r) => r.slug ?? r.id);
   if (noSet.length > 0) problems.push(`${noSet.length} Team Ascent guides are in no set, so they could not be shown: ${noSet.join(', ')}`);
+  const written = recordsToBundled(records).length;
+  if (written > GUIDE_LIMITS.importBatch) {
+    problems.push(`${written} Team Ascent guides are more than the ${GUIDE_LIMITS.importBatch} one press of Import built-in guides can add`);
+  }
   return problems;
 }
 

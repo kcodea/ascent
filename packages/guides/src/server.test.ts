@@ -173,6 +173,15 @@ describe('handleGuideWrite: setPublished', () => {
     expect(res.status).toBe(200);
     expect(f.calls).toEqual([{ fn: 'guide_set_published', args: { p_user: UID, p_id: GID, p_on: false, p_revision: null } }]);
   });
+  it('unpublishing is allowed while the stored "Based on" line breaks the word rules: a public card must never be stuck public', async () => {
+    const blocked = { ...stored, forked_from: GID, forked_title: 'this is shit', forked_byline: 'shit' };
+    // The stored row is there to be read: were the check ever made on an unpublish too, it would refuse this one.
+    const f = fakeBy({ guide_own_row: { data: { ...blocked, published: true } }, guide_set_published: { data: { ...blocked, published: false } } });
+    const res = await handleGuideWrite(UID, false, { op: 'setPublished', id: GID, published: false }, f.rpc);
+    expect(res.body.error).toBeUndefined();
+    expect(res.status).toBe(200);
+    expect(f.calls.map((c) => c.fn)).toEqual(['guide_set_published']);
+  });
   it('passes the row rules through: not allowed, hidden, conflict, rate limited, not found', async () => {
     const cases: Array<[string, number]> = [['not_allowed', 403], ['guide_hidden', 403], ['conflict', 409], ['rate_limited', 429], ['not_found', 404]];
     for (const [code, status] of cases) {
@@ -324,6 +333,16 @@ describe('GUIDE_ERROR_STATUS: the lookup cannot match the wrong word', () => {
   it('no refusal word is contained in another one', () => {
     for (const a of keys) for (const b of keys) if (a !== b) expect(b.includes(a), `${a} is inside ${b}`).toBe(false);
   });
+  it('a message that only names one of the SQL functions or tables is no refusal word: it is a 500', async () => {
+    // The lookup is "the message contains the word". If a function or a table were ever named so that it holds a
+    // refusal word (guide_report_limit_check), a permission error about it would be read as that refusal.
+    for (const name of ['guide_report', 'guide_reports', 'guide_set_hidden', 'guide_dismiss_reports', 'guide_retag_set', 'guide_bookmark', 'guide_bookmark_log', 'guide_reports_guide_id_fkey']) {
+      for (const message of [`permission denied for function ${name}`, `insert or update on table "${name}" violates foreign key constraint "${name}"`]) {
+        const f = fakeBy({ guide_report: { error: { message } } });
+        expect(await handleGuideWrite(UID, false, { op: 'report', id: GID, reason: 'spam' }, f.rpc), message).toEqual({ status: 500, body: { error: 'guide_failed' } });
+      }
+    }
+  });
   it('a message that is exactly a refusal word, bare or wrapped, answers that word and its own status', async () => {
     for (const key of keys) {
       for (const message of [key, `ERROR: ${key}`, `${key} (P0001)`]) {
@@ -341,6 +360,47 @@ describe('handleGuideWrite: the team operations', () => {
     expect(res.status).toBe(200);
     expect((res.body.guide as { hidden: boolean }).hidden).toBe(true);
     expect(f.calls).toEqual([{ fn: 'guide_set_hidden', args: { p_user: UID, p_id: GID, p_on: true } }]);
+  });
+  it('a row from guide_set_hidden that cannot be read is a 500 after the one call, never a guide', async () => {
+    for (const data of [{ id: 'x' }, null, 'nope']) {
+      const f = fakeBy({ guide_set_hidden: { data } });
+      expect(await handleGuideWrite(UID, false, { op: 'setHidden', id: GID, hidden: true }, f.rpc), JSON.stringify(data)).toEqual({ status: 500, body: { error: 'guide_malformed' } });
+      expect(f.calls.map((c) => c.fn)).toEqual(['guide_set_hidden']);
+    }
+  });
+  it('a count the database answers oddly is read as a number, never below 0 and never not a number', async () => {
+    const cases: Array<[unknown, number]> = [[-4, 0], ['abc', 0], [null, 0], [undefined, 0], [Number.POSITIVE_INFINITY, 0], [Number.NaN, 0], ['3', 3], [7, 7]];
+    for (const [answer, read] of cases) {
+      const f = fakeBy({ guide_dismiss_reports: { data: { dismissed: answer } }, guide_retag_set: { data: { tagged: answer } } });
+      expect(await handleGuideWrite(UID, false, { op: 'resolveReport', id: GID }, f.rpc), String(answer)).toEqual({ status: 200, body: { dismissed: read } });
+      expect(await handleGuideWrite(UID, false, { op: 'retagSets', set: 'set3', ids: [GID] }, f.rpc), String(answer)).toEqual({ status: 200, body: { tagged: read } });
+    }
+    // No answer at all reads the same way.
+    const none = fakeBy({ guide_dismiss_reports: { data: null }, guide_retag_set: { data: null } });
+    expect((await handleGuideWrite(UID, false, { op: 'resolveReport', id: GID }, none.rpc)).body).toEqual({ dismissed: 0 });
+    expect((await handleGuideWrite(UID, false, { op: 'retagSets', set: 'set3', ids: [GID] }, none.rpc)).body).toEqual({ tagged: 0 });
+  });
+  it('the caller is the verified one, whatever the body says', async () => {
+    const f = fakeBy({ guide_set_hidden: { data: { ...stored, hidden: true } }, guide_dismiss_reports: { data: { dismissed: 0 } }, guide_retag_set: { data: { tagged: 0 } }, guide_report: { data: { reported: true } } });
+    const lie = { p_user: 'someone-else', userId: 'someone-else', user: 'someone-else' };
+    await handleGuideWrite(UID, false, { op: 'setHidden', id: GID, hidden: true, ...lie }, f.rpc);
+    await handleGuideWrite(UID, false, { op: 'resolveReport', id: GID, ...lie }, f.rpc);
+    await handleGuideWrite(UID, false, { op: 'retagSets', set: 'set3', ids: [GID], ...lie }, f.rpc);
+    await handleGuideWrite(UID, false, { op: 'report', id: GID, reason: 'spam', ...lie }, f.rpc);
+    expect(f.calls.length).toBe(4);
+    for (const c of f.calls) {
+      expect(c.args.p_user, c.fn).toBe(UID);
+      expect(JSON.stringify(c.args), c.fn).not.toContain('someone-else');
+    }
+  });
+  it('retagSets refuses the same id written in two cases: it is one guide named twice', async () => {
+    const lower = 'abcdefab-1111-4111-8111-11111111abcd';
+    const f = fakeBy({ guide_retag_set: { data: { tagged: 1 } } });
+    expect((await handleGuideWrite(UID, false, { op: 'retagSets', set: 'set3', ids: [lower, lower.toUpperCase()] }, f.rpc)).body).toEqual({ error: 'bad_ids' });
+    expect(f.calls).toEqual([]);
+    // One id in capitals is still an id, and is sent as it was written.
+    expect((await handleGuideWrite(UID, false, { op: 'retagSets', set: 'set3', ids: [lower.toUpperCase(), GID] }, f.rpc)).body).toEqual({ tagged: 1 });
+    expect(f.calls).toEqual([{ fn: 'guide_retag_set', args: { p_user: UID, p_set: 'set3', p_ids: [lower.toUpperCase(), GID] } }]);
   });
   it('a hidden that is not a boolean, or a bad id, never reaches the database', async () => {
     const f = fakeBy({});

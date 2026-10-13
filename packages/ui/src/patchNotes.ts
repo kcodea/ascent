@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-13',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Kobolds are toned down again: Veinstorm is back to the Shop only, Gemling casts it once, and Drunk Daniel gives half as much.',
+        details: [
+          'Veinstorm: casts on the Shop only. It no longer casts a Ruby on your own minions.',
+          'That goes for everything that casts it: Storm Chaser and Gemling gem the Shop, not your board.',
+          'Gemling: End of Turn now casts Veinstorm once and gets a Ruby Transfer (was: cast Veinstorm 2 times). Gilded: twice, and 2 Ruby Transfers.',
+          'Party Crasher: the Rubies from its Avenge are now permanent.',
+          'Drunk Daniel: End of Turn now gives your Shop spells +1/+1 (was +2/+2). Gilded: +2/+2.',
+        ],
+      },
       { category: 'Systems', text: 'The ranked gate now waits for you. Once it slams shut, a blue crystal forms at its centre: press it to shatter it and open the gate.' },
     ],
   },

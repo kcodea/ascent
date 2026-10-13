@@ -230,7 +230,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'endOfTurn' family · 31 cards",
     "statement": "All 31 'endOfTurn' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "35 effect factories across 31 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "36 effect factories across 31 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Stonehorn Archivist · Roundabout · Combinator · Crypt Scribe · Skybound Ascendant · Shrieker · Soul Defiler · Bob Blart · Hydraskus · Striker · … and 19 more",
     "example": "Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn. its printed numbers double when the card is gilded.",
     "contentIds": [

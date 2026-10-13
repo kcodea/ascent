@@ -6,7 +6,7 @@ import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { SET_FACTS, toGuide, type Guide } from './guides';
 import { batches, groupReports, planCarryOver, type CarryPlan, type ReportGroup } from './guideReports';
-import { guideErrorMessage } from './guideMessages';
+import { guideErrorMessage, isKnownRefusal } from './guideMessages';
 import { rereadGuides } from './guidesStore';
 import {
   dismissReportsRemote, fetchGuideTags, fetchHiddenGuides, fetchOpenReports, retagSetRemote,
@@ -70,9 +70,12 @@ type Carry =
  * changed. That is the only evidence the writes happened, and it can be smaller than what was sent (a guide deleted,
  * or given the set elsewhere, since the check). If the server changed none, the line says no guide needed it.
  *
- * WHEN A RUN ENDS, THE GUIDES ARE READ AGAIN (`rereadGuides`), once, if at least one batch landed, whether the run
- * finished or stopped. A carry-over changes guides' sets without changing their revision, and this session's lists
- * would otherwise go on showing them in their old sets only. The read is asked for only by the account that started
+ * WHEN A RUN ENDS, THE GUIDES ARE READ AGAIN (`rereadGuides`), once, if anything landed OR MAY HAVE: at least one
+ * batch was answered, or the run stopped on an answer that is not a refusal the server is known to give (the answer
+ * was lost, could not be read, or the call threw), which may follow a batch that was written. That holds for the very
+ * first batch too, when the line still says 0. A carry-over changes guides' sets without changing their revision, and
+ * this session's lists would otherwise go on showing them in their old sets only. A run stopped by a known refusal
+ * before any batch landed wrote nothing, and reads nothing. The read is asked for only by the account that started
  * the run (after the same check every answer gets), and what it puts in the guides store is guides, never reports.
  *
  * ONE THING AT A TIME. While a check or a run is going, Check and the set picker are switched off, and a second press
@@ -133,9 +136,10 @@ const CarryOver = memo(function CarryOver({ setId }: { setId: SetId }): JSX.Elem
     /** Ids sent in batches that landed, and the guides the server says those batches changed. */
     let done = 0;
     let tagged = 0;
-    /** The run is over for the account that started it: if anything landed, this session's guides are read again. */
-    const over = (next: Carry): void => {
-      if (done > 0) void rereadGuides();
+    /** The run is over for the account that started it. If anything landed, or the answer it stopped on leaves that
+     *  open (`mayHaveLanded`), this session's guides are read again. */
+    const over = (next: Carry, mayHaveLanded = false): void => {
+      if (done > 0 || mayHaveLanded) void rereadGuides();
       end(next);
     };
     backToCheck.current = true;
@@ -146,7 +150,10 @@ const CarryOver = memo(function CarryOver({ setId }: { setId: SetId }): JSX.Elem
         try { res = await retagSetRemote(set, part); } catch { res = { ok: false, code: 'server' }; }
         // Gone, or another account is at the keyboard: the run ends here, and the next batch is never sent.
         if (mine !== asks.current || asker() !== who) return;
-        if (!res.ok) { over({ step: 'stopped', set, done, total, said: guideErrorMessage(res.code, res.field, { action: 'moderate' }) }); return; }
+        if (!res.ok) {
+          over({ step: 'stopped', set, done, total, said: guideErrorMessage(res.code, res.field, { action: 'moderate' }) }, !isKnownRefusal('moderate', res.code));
+          return;
+        }
         done += part.length;
         tagged += res.value;
         setCarry({ step: 'running', set, done, total });
@@ -210,8 +217,9 @@ const CarryOver = memo(function CarryOver({ setId }: { setId: SetId }): JSX.Elem
  * THE TEAM'S PILL: open reports, hidden guides, and Carry guides over.
  *
  * TEAM ONLY, TWICE OVER. The host draws this panel only while the guides store holds the team flag for the account
- * that is signed in, and what it reads is answered only for a team account (row level security on `guide_reports`,
- * and the read rule on `guides` for hidden ones).
+ * that is signed in, and the reports it reads are answered only for a team account (row level security on
+ * `guide_reports`). The hidden guides and the tags are answered as the asking account may read them: all of them for
+ * the team (the read rule on `guides`), which is the only account this panel is ever drawn for.
  *
  * REPORTS ARE PRIVATE, AND LIVE ONLY HERE. They say which guides were reported and what other players wrote about
  * them. Nothing read here goes into the guides store, onto the device, or into anything outside this component: it is
@@ -239,8 +247,11 @@ const CarryOver = memo(function CarryOver({ setId }: { setId: SetId }): JSX.Elem
  * read again, so the same reports are never dismissed twice. "Read again" means the NEWEST read has landed: if a
  * card asked the lists again meanwhile (a hide bumps `refreshKey`), the read the dismiss made is overtaken and
  * answers nothing, so the dismiss waits for the one that overtook it. A refusal is a sentence in the group it is
- * about. A dismiss whose answer was lost, or came and could not be read, may have landed: it says to check, and reads
- * again.
+ * about. A dismiss answered with anything that is not a refusal the server is known to give (the answer was lost,
+ * could not be read, or the call threw) may have landed: it says to check, and reads again.
+ *
+ * NOTES. A group draws its five newest notes. When a guide has more, a line under them says how many more there are
+ * ("and 3 more notes."), so no note is left out unheard.
  *
  * THE CARDS ARE THE HOST'S (`renderCard`), so a card here has the same buttons, the same rules and the same key as
  * anywhere else in the tab. A hidden guide's card carries Unhide and Delete for the team: this is the only place a
@@ -344,9 +355,9 @@ export const ReportsPanel = memo(function ReportsPanel({ setId, refreshKey, rend
       if (stale()) return;
       if (res.ok) sfx.tick();
       else setSaid({ id, text: guideErrorMessage(res.code, res.field, { action: 'moderate' }) });
-      // Dismissed, or the answer was lost or could not be read (it may have landed): read the lists again, and keep
-      // the buttons off until they have been.
-      if (res.ok || res.code === 'offline' || res.code === 'server') await readAgain();
+      // Dismissed, or the answer is no refusal the server is known to give (it may have landed): read the lists
+      // again, and keep the buttons off until they have been.
+      if (res.ok || !isKnownRefusal('moderate', res.code)) await readAgain();
       if (stale()) return;
       setBusy(null);
       setSettled((n) => n + 1);
@@ -400,6 +411,8 @@ export const ReportsPanel = memo(function ReportsPanel({ setId, refreshKey, rend
           <p className="gtool-note greports-sum">
             <span>{summaryOf(group)}</span>
             {group.notes.map((n, k) => <span className="greports-quote" key={k}>{`"${n}"`}</span>)}
+            {/* A line of its own, like a note (it wears the note's class for that), and not in quotes: nobody wrote it. */}
+            {group.moreNotes > 0 && <span className="greports-quote greports-more">{`and ${plural(group.moreNotes, 'more note', 'more notes')}.`}</span>}
             <button type="button" className="gbtn" data-dismiss={group.guide.id} aria-label={`Dismiss reports of ${group.guide.title}`}
               disabled={busy !== null} onClick={() => void dismiss(group.guide.id, i)}>Dismiss reports</button>
           </p>

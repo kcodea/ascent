@@ -13,7 +13,7 @@ import { canEditGuide, toGuide, type Guide } from './guides';
 import { GuideEditor } from './GuideEditor';
 import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameDraft, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
-import { guideErrorMessage } from './guideMessages';
+import { guideErrorMessage, isKnownRefusal } from './guideMessages';
 import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, reportGuideRemote, setHiddenRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
 import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, rereadGuides, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
 import { ReportsPanel } from './ReportsPanel';
@@ -39,6 +39,14 @@ interface Kept { who: string; draft: EditorDraft }
 const keptAs = (who: string, userId: string | null): Kept | null => {
   const draft = keptFor(userId);
   return draft ? { who, draft } : null;
+};
+
+/** Who is at the keyboard, as one word: an account, or a guest, or nobody. */
+const whoOf = (userId: string | null, anonymous: boolean): string => `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
+/** Who is at the keyboard RIGHT NOW. Read after an answer has come: the account may have changed while it was on its way. */
+const whoNow = (): string => {
+  const a = useGame.getState().account;
+  return whoOf(a.userId, a.anonymous);
 };
 
 /** Forget a kept guide of `userId` that has nothing in it, so it never stands in the way of a new one. */
@@ -89,23 +97,37 @@ const forgetEmptyKept = (userId: string | null): void => {
  * anew (its key is the account), which also drops any question, sentence or half-written report it held. A report
  * that was refused keeps what was typed (the card holds it), so trying again is one press.
  *
+ * ONLY A KNOWN REFUSAL IS TOLD AS "NOT DONE" (the one rule; `KNOWN_REFUSALS` in guideMessages.ts lists, per action,
+ * the codes the server answers when it refuses and writes nothing). Every other answer to a write made here may follow
+ * a write that LANDED: the answer never came, it came and could not be read, the server failed after writing, or it
+ * is a code this build does not know. For each of those the card is told to check again, never that nothing changed,
+ * and the lists are read again so the screen shows what is true once the server answers. That holds for a publish,
+ * an unpublish, a delete, a bookmark, a hide, an unhide and the team's import alike (`isKnownRefusal` decides, here
+ * and in the sentences, so the two cannot drift). A report is the one write with nothing to read again.
+ *
  * THE TEAM HIDES, UNHIDES AND DELETES ANY PLAYER'S GUIDE FROM ITS CARD. After a hide or an unhide the guides are read
  * again and the Community list is asked again (`refreshKey`), because a hidden guide leaves Community and the lists
- * this account holds. The team's Reports panel reads its lists again on the same signal. A hide whose answer never
- * came, or came and could not be read, may still have landed, so the card is told to check again and the same reads
- * are made: it is never told as a failure. A delete is the same, for the author as for the team: an answer that was
- * lost, or came and could not be read, says to check again and reads again, and a delete that worked asks the
- * Community list again too. The read made after any of these is `rereadGuides`, so it never settles for a read that
- * began before the action. The read is for whoever is signed in when it is made, and the refresh is this tab's own
- * state, so neither can put one account's answer in front of another.
+ * this account holds. The team's Reports panel reads its lists again on the same signal. A hide that may have landed
+ * (see above) makes the same reads: it is never told as a failure. A delete is the same, for the author as for the
+ * team, and a delete that worked asks the Community list again too. The read made after any of these is
+ * `rereadGuides`, so it never settles for a read that began before the action. The read is for whoever is signed in
+ * when it is made, and the refresh is this tab's own state, so neither can put one account's answer in front of
+ * another.
  *
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
  * a deleted one), or the sentence the player reads, which the card shows. A guide that is already gone on the server
- * when it is deleted simply leaves the list. A publish, unpublish or delete whose answer never came may still have
- * landed, so the card is told to check again and the guides are read again (`rereadGuides`, so a read that began
- * before the press is never the last word): the card shows the truth once the server answers.
+ * when it is deleted simply leaves the list. A publish, unpublish or delete that may have landed (see above) reads the
+ * guides again (`rereadGuides`, so a read that began before the press is never the last word): the card shows the
+ * truth once the server answers.
  * None of this opens the editor or touches the unsaved guide the device keeps, so the rules below are unchanged.
+ *
+ * THE TEAM'S IMPORT follows the same rule, and what it answers is said in the toolbar only to the account that pressed
+ * it: this tab outlives an account change (a card does not), so an answer that lands after one is said to nobody.
+ *
+ * A BOOKMARK THAT MAY HAVE LANDED reads the guides again too, and files nothing itself: whose bookmark it is, is then
+ * the server's word, read for whoever is signed in when the read is made. It does not ask the Community list again
+ * (a bookmark never does: that list would go back to its first page under the player).
  *
  * Which guides show (pill, set, tribe pills, search) is decided by the caller (MinionBook). Who may do what is
  * decided by the server; this only draws the buttons (`canEditGuide`). Writing needs the guides capability to be
@@ -198,7 +220,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const queryNeutral = pillTribes.length ? pillTribes.includes('neutral') : true;
   const byline = playerName.trim() || 'Player';
   /** Who is at the keyboard: an open editor, and the Resume bar, belong to exactly one of these. */
-  const who = `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
+  const who = whoOf(userId, anonymous);
 
   /** The open editor: its guide, and who opened it. */
   const [editing, setEditing] = useState<{ draft: EditorDraft; key: number; who: string } | null>(null);
@@ -280,11 +302,12 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const onPublish = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
     if (!g.rowId) return null;
     const res = await setPublishedRemote(g.rowId, on);
+    const action = on ? 'publish' : 'unpublish';
     if (!res.ok) {
-      // The answer was lost, not refused: the server may have done it. Read again, so the card shows what is true.
+      // Not a refusal the server is known to answer: it may have done it. Read again, so the card shows what is true.
       // `rereadGuides`: a read already on its way began before the publish and must not be the last word.
-      if (res.code === 'offline') void rereadGuides();
-      return guideErrorMessage(res.code, res.field, { action: on ? 'publish' : 'unpublish' });
+      if (!isKnownRefusal(action, res.code)) void rereadGuides();
+      return guideErrorMessage(res.code, res.field, { action });
     }
     const next = toGuide(res.value);
     if (next) guideSaved(next);
@@ -297,10 +320,9 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     if (!g.rowId) return null;
     const res = await deleteGuideRemote(g.rowId);
     if (!res.ok && res.code !== 'not_found') {
-      // The answer was lost (`offline`), or it came and could not be read (`server`): either way the delete may have
-      // landed. Read again, and ask the Community list again (the team deletes from there), so the lists show what is
-      // true.
-      if (res.code === 'offline' || res.code === 'server') { void rereadGuides(); refresh(); }
+      // Not a refusal the server is known to answer: the delete may have landed. Read again, and ask the Community
+      // list again (the team deletes from there), so the lists show what is true.
+      if (!isKnownRefusal('delete', res.code)) { void rereadGuides(); refresh(); }
       return guideErrorMessage(res.code, res.field, { action: 'delete' });
     }
     guideDeleted(g.rowId);
@@ -314,7 +336,12 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     if (!signedIn) { raise('signin'); return null; }
     const pressedBy = userId; // who pressed: the answer may land after the account has changed
     const res = await bookmarkGuideRemote(g.rowId, on);
-    if (!res.ok) return guideErrorMessage(res.code, res.field, { action: 'bookmark' });
+    if (!res.ok) {
+      // Not a refusal the server is known to answer: the bookmark may have been added or removed. Nothing is filed on
+      // a guess; the guides are read again, for whoever is signed in when the read is made.
+      if (!isKnownRefusal('bookmark', res.code)) void rereadGuides();
+      return guideErrorMessage(res.code, res.field, { action: 'bookmark' });
+    }
     guideBookmarked(g, res.value.bookmarked, res.value.count, pressedBy);
     sfx.tick();
     return null;
@@ -337,9 +364,9 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     if (!online || !g.rowId) return guideErrorMessage('offline', undefined, { action: 'moderate' });
     const res = await setHiddenRemote(g.rowId, hidden);
     if (!res.ok) {
-      // The answer was lost (`offline`), or it came and could not be read (`server`): either way the hide may have
-      // landed. Read again, so the lists show what is true.
-      if (res.code === 'offline' || res.code === 'server') { void rereadGuides(); refresh(); }
+      // Not a refusal the server is known to answer: the hide may have landed. Read again, so the lists show what is
+      // true.
+      if (!isKnownRefusal('moderate', res.code)) { void rereadGuides(); refresh(); }
       return guideErrorMessage(res.code, res.field, { action: 'moderate' });
     }
     void rereadGuides();
@@ -447,14 +474,26 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   };
 
   const runImport = async (): Promise<void> => {
+    /** Who pressed. The answer may land after the account has changed: it is then said to nobody (the reads below
+     *  are safe either way, they are made for whoever is signed in). */
+    const pressedBy = who;
+    const say = (text: string, alert: boolean): void => { if (whoNow() === pressedBy) setNote({ text, alert }); };
     setImporting(true);
     try {
       const res = await importBuiltInsRemote(builtInImportPayload());
-      if (!res.ok) { setNote({ text: guideErrorMessage(res.code, res.field, { action: 'import' }), alert: true }); return; }
-      setNote({ text: `Imported ${res.value.inserted} guide${res.value.inserted === 1 ? '' : 's'}.`, alert: false });
+      if (!res.ok) {
+        // Not a refusal the server is known to answer: the import may have landed. Read again, so the list (and
+        // whether the import is still offered) shows what is true.
+        if (!isKnownRefusal('import', res.code)) void rereadGuides();
+        say(guideErrorMessage(res.code, res.field, { action: 'import' }), true);
+        return;
+      }
+      say(`Imported ${res.value.inserted} guide${res.value.inserted === 1 ? '' : 's'}.`, false);
       void loadGuides();
     } catch {
-      setNote({ text: 'The import did not finish. Try again.', alert: true });
+      // A throw says nothing about whether the import landed: the same words as an answer that could not be read.
+      void rereadGuides();
+      say(guideErrorMessage('server', undefined, { action: 'import' }), true);
     } finally {
       setImporting(false);
     }

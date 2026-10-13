@@ -49,8 +49,9 @@
  *
  * WHAT COUNTS AS "THE SAME GUIDE". Publishing, hiding, bookmark counts and the team's carry-over to a new set change a
  * row without bumping its revision. So an unchanged list is one whose guides match on row id, revision, published,
- * hidden, bookmark count AND sets; anything else replaces the array, and the open Compendium redraws. Those four are
- * every server change that skips the revision: any other field changes only through a save, which bumps it.
+ * hidden, bookmark count AND sets; anything else replaces the array, and the open Compendium redraws. These four
+ * changes (publishing, hiding, a bookmark count, a carry-over) are every server change that skips the revision: any
+ * other field changes only through a save, which bumps it.
  *
  * BACK ONLINE. A game that loaded with no connection hears the browser's `online` event and reads again.
  */

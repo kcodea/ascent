@@ -167,13 +167,15 @@ describe('publishing from the card', () => {
     expect(published).toEqual([[ROW, false]]);
     expect(badges(card(c))).toContain('Private');
   });
-  it('a refused unpublish says nothing was changed, never to publish, and the guide stays published', async () => {
+  it('an unpublish that did not work never says to publish, says nothing was changed for no answer at all, and the guide stays published until the server says otherwise', async () => {
     const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
     for (const [code, sentence] of [
       ['offline', 'Could not reach the server. Check again in a moment to see whether it changed.'],
       ['not_found', 'This guide no longer exists.'],
-      ['server', 'Something went wrong. Nothing was changed.'],
-      ['blocked_text', 'Something went wrong. Nothing was changed.'],
+      ['not_allowed', 'You cannot change this guide. Duplicate it to make your own.'],
+      ['server', 'Something went wrong. Check again in a moment to see whether it changed.'],
+      ['guide_malformed', 'Something went wrong. Check again in a moment to see whether it changed.'],
+      ['blocked_text', 'Something went wrong. Check again in a moment to see whether it changed.'],
     ] as const) {
       publishAnswer = () => ({ ok: false, code, field: 'title' });
       await press(card(c), 'Unpublish');
@@ -254,8 +256,58 @@ describe('publishing from the card', () => {
     expect(c.textContent).toContain('Guides are offline.');
     expect(own(c, 'Publish')!.disabled).toBe(true);
   });
+  it('a publish answered with anything that is not a known refusal may have landed: it says to check again and the guides are read again', async () => {
+    // `guide_malformed`: the publish was made and the guide it answered could not be read. `guide_failed`: the
+    // function's call to the database failed or lost its answer. `server`: an answer this build cannot use.
+    for (const code of ['guide_malformed', 'guide_failed', 'server', 'unavailable', 'something_new']) {
+      ui?.unmount();
+      reads = 0;
+      publishAnswer = () => ({ ok: false, code, field: 'title' });
+      const c = show();
+      await press(card(c), 'Publish');
+      await press(asked(c), 'Publish');
+      expect(card(c).querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+      expect(reads, code).toBe(1);
+      expect(badges(card(c)), code).toContain('Private'); // the read could not ask for the player's own guides
+    }
+  });
+  it('an unpublish answered with anything that is not a known refusal reads the guides again too', async () => {
+    for (const code of ['guide_malformed', 'guide_failed', 'server', 'something_new', 'conflict']) {
+      ui?.unmount();
+      reads = 0;
+      publishAnswer = () => ({ ok: false, code });
+      const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
+      await press(card(c), 'Unpublish');
+      expect(card(c).querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+      expect(reads, code).toBe(1);
+    }
+  });
+  it('the publish did land though its answer could not be read: the read that follows shows the card as Published', async () => {
+    publishAnswer = () => ({ ok: false, code: 'guide_malformed' });
+    mineRead = [rec({ published: true })];
+    const c = show();
+    await press(card(c), 'Publish');
+    await press(asked(c), 'Publish');
+    expect(reads).toBe(1);
+    expect(useGuides.getState().mine[0]!.published).toBe(true);
+    expect(badges(card(c))).toContain('Published');
+    expect(badges(card(c))).not.toContain('Private');
+    expect(own(c, 'Unpublish')).toBeDefined();
+    // The sentence is still there to be read: nothing in it is untrue.
+    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+  });
+  it('an unpublish the server refused asks for no read', async () => {
+    for (const code of ['not_found', 'not_allowed', 'sign_in_required', 'unauthenticated']) {
+      ui?.unmount();
+      publishAnswer = () => ({ ok: false, code });
+      const c = show({ mine: [{ ...mineGuide, published: true, publishedAt: '2026-10-13T00:00:00Z' }] });
+      await press(card(c), 'Unpublish');
+      expect(card(c).querySelector('[role="alert"]'), code).not.toBeNull();
+    }
+    expect(reads).toBe(0);
+  });
   it('a publish the server refused asks for no read', async () => {
-    for (const code of ['reserved_name', 'conflict', 'rate_limited', 'not_found', 'server']) {
+    for (const code of ['reserved_name', 'blocked_text', 'guide_hidden', 'conflict', 'rate_limited', 'not_found', 'not_allowed', 'sign_in_required', 'unauthenticated']) {
       ui?.unmount();
       publishAnswer = () => ({ ok: false, code, field: 'title' });
       const c = show();
@@ -342,13 +394,43 @@ describe('deleting from the card', () => {
     expect(reads).toBe(1);
   });
   it('a delete the server refused keeps the guide and reads nothing again', async () => {
-    deleteAnswer = () => ({ ok: false, code: 'not_allowed' });
+    for (const [code, sentence] of [
+      ['not_allowed', 'You cannot change this guide. Duplicate it to make your own.'],
+      ['sign_in_required', 'Sign in to write guides.'],
+      ['unauthenticated', 'Sign in to write guides.'],
+    ] as const) {
+      ui?.unmount();
+      deleteAnswer = () => ({ ok: false, code });
+      const c = show();
+      await press(card(c), 'Delete');
+      await press(card(c), 'Delete for good');
+      expect(card(c).querySelector('[role="alert"]')!.textContent, code).toBe(sentence);
+      expect(useGuides.getState().mine.length, code).toBe(1);
+    }
+    expect(reads).toBe(0);
+  });
+  it('a delete answered with anything that is not a known refusal may have landed: it says to check, keeps the guide and reads the guides again', async () => {
+    for (const code of ['guide_malformed', 'guide_failed', 'unavailable', 'something_new', 'rate_limited']) {
+      ui?.unmount();
+      reads = 0;
+      deleteAnswer = () => ({ ok: false, code });
+      const c = show();
+      await press(card(c), 'Delete');
+      await press(card(c), 'Delete for good');
+      expect(card(c).querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+      expect(useGuides.getState().mine.length, code).toBe(1);
+      expect(reads, code).toBe(1);
+    }
+  });
+  it('the delete did land though its answer was no "deleted": the read that follows takes the guide off the list', async () => {
+    deleteAnswer = () => ({ ok: false, code: 'guide_failed' });
+    mineRead = []; // what the server holds once the delete has landed
     const c = show();
     await press(card(c), 'Delete');
     await press(card(c), 'Delete for good');
-    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('You cannot change this guide. Duplicate it to make your own.');
-    expect(useGuides.getState().mine.length).toBe(1);
-    expect(reads).toBe(0);
+    expect(reads).toBe(1);
+    expect(useGuides.getState().mine).toEqual([]);
+    expect(c.querySelector(`.bookguide[data-guide="${ROW}"]`)).toBeNull();
   });
 });
 

@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
 import { artFor } from '../art';
+import { GUIDE_LIMITS } from '@game/guides';
 import { GUIDES, PLACEHOLDER_BODY, guidesFor } from './guides';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 
@@ -15,6 +16,13 @@ describe('lobby rail guides', () => {
   it('has unique ids and at least one core unit per guide', () => {
     expect(new Set(GUIDES.map((g) => g.id)).size).toBe(GUIDES.length);
     for (const g of GUIDES) expect(g.core.length, g.id).toBeGreaterThan(0);
+  });
+
+  it('the built-in guides are no more than one press of the Import button can send', () => {
+    // The team's import sends this whole file in ONE request, and the server refuses a request with more than this.
+    // `npm run guides:pull` refuses to write a longer file for the same reason (packages/guides/src/bundledSource.ts).
+    expect(BUNDLED_GUIDE_DATA.length).toBeGreaterThan(0);
+    expect(BUNDLED_GUIDE_DATA.length).toBeLessThanOrEqual(GUIDE_LIMITS.importBatch);
   });
 
   it('every card id resolves to a card in the guide\'s own set', () => {

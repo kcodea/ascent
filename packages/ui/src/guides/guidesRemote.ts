@@ -13,8 +13,11 @@
  *  - `fetchBookmarkedGuides`: this account's bookmarks, with their guides, under row level security.
  *  - `reportGuideRemote` / `setHiddenRemote` / `dismissReportsRemote` / `retagSetRemote`: step 4's writes. A report is
  *    any signed-in player's; the other three are the team's (the SQL checks).
- *  - `fetchOpenReports` / `fetchHiddenGuides` / `fetchGuideTags`: step 4's reads, answered in full only for a team
- *    account (row level security): any other account is answered no rows, which reads as an empty list.
+ *  - `fetchOpenReports` / `fetchHiddenGuides` / `fetchGuideTags`: step 4's reads, for the team's Reports pill. Row
+ *    level security decides what each answers. Only the reports are the team's alone: any other account is answered
+ *    no rows there. The other two answer what the asking account can already read: for a player, its own hidden
+ *    guides, and the sets, tribes and card ids of every guide it can see. All three page through a whole table, so
+ *    they wait longer than the small reads.
  *  - `fetchCommunityPage`: one page of published player guides. Paged on the server; its search text is cleaned and
  *    quoted so it can only ever be a search.
  *
@@ -25,6 +28,9 @@ import { supabaseClient } from '../remoteBoards';
 import { fetchAllRows } from '../supabaseRows';
 
 const READ_TIMEOUT_MS = 4_000;
+/** The reads that page through a whole table (the team's three): each open report carries its whole guide, and a wave
+ *  of reports is exactly when that list is longest. */
+const LONG_READ_TIMEOUT_MS = 30_000;
 
 export const GUIDE_COLUMNS = 'id, slug, author_id, byline, official, published, published_at, hidden, sets, tribes, pairs_with, icon_card, title, tagline, body, core, enablers, mentions, aliases, forked_from, forked_title, forked_byline, bookmark_count, sort_order, revision, created_at, updated_at';
 
@@ -385,7 +391,7 @@ export async function fetchCommunityPage(q: CommunityQuery): Promise<CommunityPa
   }
 }
 
-// -- Step 4 reads (answered only for a team account: row level security) ----------------------------------------------
+// -- Step 4 reads (the team's Reports pill; row level security decides what each answers: see the header) -------------
 
 export interface OpenReport {
   id: string;
@@ -396,8 +402,8 @@ export interface OpenReport {
   guide: GuideRecord;
 }
 
-/** Every open report with the guide it is about, newest first. `undefined` = could not ask. A non-team account is
- *  answered no rows (the read rule), which reads as an empty list. */
+/** Every open report with the guide it is about, newest first. `undefined` = could not ask. Reports are the team's
+ *  alone: a non-team account is answered no rows (the read rule), which reads as an empty list. */
 export async function fetchOpenReports(): Promise<OpenReport[] | undefined> {
   const c = supabaseClient();
   if (!c) return undefined;
@@ -405,7 +411,7 @@ export async function fetchOpenReports(): Promise<OpenReport[] | undefined> {
     const res = await Promise.race([
       fetchAllRows((from, to) => c.from('guide_reports').select(`id, guide_id, reason, note, created_at, guide:guides(${GUIDE_COLUMNS})`).eq('status', 'open')
         .order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to)),
-      timeout(READ_TIMEOUT_MS, null),
+      timeout(LONG_READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error) return undefined;
     const out: OpenReport[] = [];
@@ -429,7 +435,8 @@ export async function fetchOpenReports(): Promise<OpenReport[] | undefined> {
   }
 }
 
-/** Every hidden guide this account can read (the team: all of them), most recently hidden first. */
+/** Every hidden guide this account can read, most recently hidden first: for the team all of them, for a player its
+ *  own (the read rule lets an author read their hidden guide). `undefined` = could not ask. */
 export async function fetchHiddenGuides(): Promise<GuideRecord[] | undefined> {
   const c = supabaseClient();
   if (!c) return undefined;
@@ -437,7 +444,7 @@ export async function fetchHiddenGuides(): Promise<GuideRecord[] | undefined> {
     const res = await Promise.race([
       fetchAllRows((from, to) => c.from('guides').select(GUIDE_COLUMNS).eq('hidden', true)
         .order('hidden_at', { ascending: false, nullsFirst: false }).order('id', { ascending: true }).range(from, to)),
-      timeout(READ_TIMEOUT_MS, null),
+      timeout(LONG_READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error) return undefined;
     return ((res.data as unknown[] | null) ?? []).map(parseGuideRecord).filter((g): g is GuideRecord => g !== null);
@@ -451,15 +458,15 @@ export interface GuideTagRow { id: string; sets: string[]; tribes: string[]; pai
 
 const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
-/** The sets, tribes and cards of every guide this account can read (the team: every guide), by id. A long read: it
- *  pages through the whole table, so it has a longer time limit than the others. */
+/** The sets, tribes and cards of every guide this account can read, by id: for the team every guide, for a player the
+ *  guides it can already see. A long read: it pages through the whole table. */
 export async function fetchGuideTags(): Promise<GuideTagRow[] | undefined> {
   const c = supabaseClient();
   if (!c) return undefined;
   try {
     const res = await Promise.race([
       fetchAllRows((from, to) => c.from('guides').select('id, sets, tribes, pairs_with, core, enablers, mentions').order('id', { ascending: true }).range(from, to)),
-      timeout(30_000, null),
+      timeout(LONG_READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error) return undefined;
     const out: GuideTagRow[] = [];

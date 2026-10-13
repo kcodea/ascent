@@ -151,32 +151,63 @@ describe('lobby rail guides view', () => {
     expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
   });
 
-  it('the write-up highlights every mentioned card and every nickname the guide has', () => {
+  it('the write-up highlights every mentioned card and every nickname its text really holds', () => {
     const run = createLobbyRun(5150, 'warden');
     run.tribes = ['beast', 'dragon', 'kobold', 'dwarf', 'demon'];
     act(() => { useGame.setState({ run, combatStaged: false }); });
     try { localStorage.setItem('ascent.guidesMode', 'full'); } catch { /* ignore */ }
-    // The examples come from the guides on show: those that name a card or hold a nickname. Which they are does not
-    // matter. If none does (the built-in guides name nothing one day), a guide that does is built here and shown instead.
-    let withNames = guidesFor(run.setId, run.tribes).filter((g) => (g.mentions ?? []).length > 0 || Object.keys(g.aliases ?? {}).length > 0);
-    if (withNames.length === 0) {
-      const made: Guide = {
-        ...GUIDES[0]!, id: 'made-up', tribes: [], sets: [run.setId ?? 'set1'], core: ['b2_oona'], enablers: [], mentions: ['grim'], aliases: { king: 'b2_oona' },
-        body: `Open on ${CARD_INDEX['grim']!.name} and bring the king.`,
-      };
-      act(() => { useGuides.setState({ list: [made], source: 'server', capability: 'on' }); });
-      withNames = [made];
-    }
+    /** Is `name` in `body` as words of its own (not inside a longer word)? Only such a name can be highlighted: a
+     *  guide may list a card its write-up no longer names (a stale mention after an edit), and that is not this
+     *  test's business. */
+    const holds = (body: string, name: string): boolean => {
+      const b = body.toLowerCase();
+      const n = name.toLowerCase();
+      const wordy = (ch: string | undefined): boolean => ch !== undefined && ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'));
+      for (let at = b.indexOf(n); at >= 0; at = b.indexOf(n, at + 1)) if (!wordy(b[at - 1]) && !wordy(b[at + n.length])) return true;
+      return false;
+    };
+    /** Open each guide on the rail and check every name its write-up holds. Says how many names were checked. */
+    const check = (c: HTMLElement, guides: readonly Guide[]): number => {
+      let checked = 0;
+      for (const guide of guides) {
+        const el = [...c.querySelectorAll('.lobbyguide')].find((x) => x.getAttribute('data-guide') === guide.id)!;
+        expect(el, guide.id).toBeDefined();
+        if (!el.classList.contains('open')) click(el.querySelector('.lobbyguide-head')!);
+        const shown = [...el.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+        for (const id of guide.mentions ?? []) {
+          const name = CARD_INDEX[id]?.name;
+          if (!name || !holds(guide.body, name)) continue; // listed, and not in the text: nothing to highlight
+          expect(shown, `${guide.id}: ${id}`).toContain(name.toLowerCase());
+          checked++;
+        }
+        for (const word of Object.keys(guide.aliases ?? {})) {
+          if (!holds(guide.body, word)) continue;
+          expect(shown, `${guide.id}: nickname ${word}`).toContain(word.toLowerCase());
+          checked++;
+        }
+      }
+      return checked;
+    };
+    // The guides on show, whatever they are today: each name their text holds is highlighted. How many that is does
+    // not matter here (it may be none).
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    const c = ui.container;
-    openGuides(c);
-    for (const guide of withNames) {
-      const el = [...c.querySelectorAll('.lobbyguide')].find((x) => x.getAttribute('data-guide') === guide.id)!;
-      if (!el.classList.contains('open')) click(el.querySelector('.lobbyguide-head')!);
-      const shown = [...el.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
-      for (const id of guide.mentions ?? []) expect(shown, `${guide.id}: ${id}`).toContain(CARD_INDEX[id]!.name.toLowerCase());
-      for (const word of Object.keys(guide.aliases ?? {})) expect(shown, `${guide.id}: nickname ${word}`).toContain(word.toLowerCase());
-    }
+    openGuides(ui.container);
+    check(ui.container, guidesFor(run.setId, run.tribes));
+    ui.unmount();
+    // And a guide built here, so the rule is always checked on something: one card and one nickname its text holds,
+    // and one card it lists and does not name.
+    const named = CARD_INDEX['grim']!.name;
+    const made: Guide = {
+      ...GUIDES[0]!, id: 'made-up', tribes: [], sets: [run.setId ?? 'set1'], core: ['b2_oona'], enablers: [], mentions: ['grim', 'b2_sunmane'], aliases: { king: 'b2_oona' },
+      body: `Open on ${named} and bring the king.`,
+    };
+    expect(holds(made.body, CARD_INDEX['b2_sunmane']!.name)).toBe(false);
+    act(() => { useGuides.setState({ list: [made], source: 'server', capability: 'on' }); });
+    ui = mount(<LobbyPanel lobby={run.lobby!} />);
+    openGuides(ui.container);
+    expect(check(ui.container, [made])).toBe(2);
+    const shown = [...ui.container.querySelectorAll('.lobbyguide[data-guide="made-up"] .lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+    expect(shown.sort()).toEqual(['king', named.toLowerCase()].sort());
   });
 
   it('a new game starts on Opponents', () => {

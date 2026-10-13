@@ -1079,17 +1079,24 @@ describe('a delete that cannot go through says so in its own words', () => {
     expect(useGuides.getState().mine).toHaveLength(1);
     expect(listReads).toBe(1);
   });
-  it('any other failure: it was not deleted', async () => {
-    for (const code of ['guide_failed', 'rate_limited', 'unavailable']) {
-      expect(alertText(await tryDelete({ ok: false, code })), code).toBe('Something went wrong deleting the guide. It was not deleted.');
+  it('any other answer that is not a known refusal may have landed too: it says to check again, never that it was not deleted, and the list is read again', async () => {
+    // `guide_failed`: the function's call to the database failed or lost its answer. `guide_malformed`: the write was
+    // made and what came back could not be read. The rest are codes a delete is not known to be refused with.
+    const codes = ['guide_failed', 'guide_malformed', 'rate_limited', 'unavailable', 'something_new'];
+    for (const [i, code] of codes.entries()) {
+      const c = await tryDelete({ ok: false, code });
+      expect(alertText(c), code).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+      expect(useGuides.getState().mine, code).toHaveLength(1);
+      expect(listReads, code).toBe(i + 1);
     }
     expect(closed).toBe(0);
-    expect(listReads).toBe(0); // refused: nothing changed, nothing to read again
   });
-  it('a refusal with a more exact sentence keeps it', async () => {
+  it('a refusal with a more exact sentence keeps it, and nothing is read again: the server said no', async () => {
     expect(alertText(await tryDelete({ ok: false, code: 'not_allowed' }))).toBe('You cannot change this guide. Duplicate it to make your own.');
     expect(alertText(await tryDelete({ ok: false, code: 'unauthenticated' }))).toBe('Sign in to write guides.');
     expect(alertText(await tryDelete({ ok: false, code: 'sign_in_required' }))).toBe('Sign in to write guides.');
+    expect(closed).toBe(0);
+    expect(listReads).toBe(0);
   });
 });
 

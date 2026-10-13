@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * GUIDES, STEP 4: the seam's four new writes and three team reads over a FAKE Supabase client. Pins what is sent to
@@ -66,6 +66,20 @@ describe('the four writes', () => {
     expect(res.ok && res.value.hidden).toBe(true);
     expect(res.ok && res.value.authorId).toBe('u-9');
   });
+  it('a setHidden answer with no guide in it that can be used is a server failure, never a guide', async () => {
+    for (const data of [{}, { guide: null }, { guide: 'nope' }, { guide: { title: 'no id' } }, { guide: [] }]) {
+      invokeImpl = () => ({ data, error: null });
+      expect(await setHiddenRemote('g1', true), JSON.stringify(data)).toEqual({ ok: false, code: 'server' });
+    }
+  });
+  it('a count that is not a number, or is missing, reads as 0; a number written as text is read', async () => {
+    const cases: Array<[unknown, number]> = [['abc', 0], [Number.NaN, 0], [null, 0], [undefined, 0], [Number.POSITIVE_INFINITY, 0], [-1, 0], ['3', 3], [2.9, 2]];
+    for (const [answer, read] of cases) {
+      invokeImpl = (b) => ({ data: b.op === 'resolveReport' ? { dismissed: answer } : { tagged: answer }, error: null });
+      expect(await dismissReportsRemote('g1'), String(answer)).toEqual({ ok: true, value: read });
+      expect(await retagSetRemote('set3', ['g1']), String(answer)).toEqual({ ok: true, value: read });
+    }
+  });
   it('dismiss and carry-over answer a count that is never negative or not a number', async () => {
     invokeImpl = (b) => ({ data: b.op === 'resolveReport' ? { dismissed: 3 } : { tagged: -2 }, error: null });
     expect(await dismissReportsRemote('g1')).toEqual({ ok: true, value: 3 });
@@ -100,6 +114,11 @@ describe('the team reads', () => {
     expect(c.order).toEqual([['created_at', { ascending: false }], ['id', { ascending: true }]]);
     expect(c.ranged).toBe(true);
   });
+  it('a report whose guide comes as a list of one is read like any other', async () => {
+    tableImpl = () => ({ data: [{ id: 'r1', guide_id: 'a', reason: 'spam', note: 'n', created_at: '2026-10-14T02:00:00Z', guide: [row('a')] }, { id: 'r2', guide_id: 'b', reason: 'spam', note: '', created_at: '', guide: [] }], error: null });
+    const res = await fetchOpenReports();
+    expect(res!.map((r) => [r.id, r.guideId, r.guide.title])).toEqual([['r1', 'a', 'T a']]);
+  });
   it('hidden guides, most recently hidden first, paged', async () => {
     tableImpl = () => ({ data: [row('h1', { hidden: true }), row('h2', { hidden: true })], error: null });
     expect((await fetchHiddenGuides())!.map((g) => g.id)).toEqual(['h1', 'h2']);
@@ -126,5 +145,30 @@ describe('the team reads', () => {
     expect(await fetchGuideTags()).toBeUndefined();
     hasClient = false;
     expect(await fetchOpenReports()).toBeUndefined();
+  });
+});
+
+describe('how long the team reads wait', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  /** Ask, with a server that never answers, and say what the read has answered after each wait (in milliseconds). */
+  const waits = async (read: () => Promise<unknown>, at: number[]): Promise<string[]> => {
+    vi.useFakeTimers();
+    tableImpl = () => new Promise<Res>(() => { /* never */ });
+    let state = 'waiting';
+    void read().then((v) => { state = v === undefined ? 'could not ask' : 'answered'; });
+    const seen: string[] = [];
+    let now = 0;
+    for (const t of at) {
+      await vi.advanceTimersByTimeAsync(t - now);
+      now = t;
+      seen.push(state);
+    }
+    return seen;
+  };
+  it('the open reports and the hidden guides wait as long as the read of every guide does, not the four seconds of a small read', async () => {
+    // Each open report carries its whole guide, and a wave of reports is when the list is longest.
+    for (const read of [fetchOpenReports, fetchHiddenGuides, fetchGuideTags]) {
+      expect(await waits(read, [4_000, 29_999, 30_000]), read.name).toEqual(['waiting', 'waiting', 'could not ask']);
+    }
   });
 });

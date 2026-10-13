@@ -25,6 +25,20 @@ describe('groupReports', () => {
     const many = Array.from({ length: 8 }, (_, i) => rep(`r${i}`, 'a', 'spam', `2026-10-14T0${i}:00:00Z`, i === 3 ? '' : `note ${i}`));
     expect(groupReports(many)[0]!.notes).toEqual(['note 7', 'note 6', 'note 5', 'note 4', 'note 2']);
   });
+  it('says how many notes were left out: only the ones that say something count', () => {
+    /** `n` reports of one guide, each with a note, and `blank` more with none. */
+    const group = (n: number, blank = 0): ReturnType<typeof groupReports>[number] => groupReports([
+      ...Array.from({ length: n }, (_, i) => rep(`r${i}`, 'a', 'spam', `2026-10-14T00:00:${String(i).padStart(2, '0')}Z`, `note ${i}`)),
+      ...Array.from({ length: blank }, (_, i) => rep(`b${i}`, 'a', 'spam', '2026-10-14T00:10:00Z', '   ')),
+    ])[0]!;
+    expect(group(0, 2).moreNotes).toBe(0);
+    expect(group(5).moreNotes).toBe(0);
+    expect(group(5, 3).moreNotes).toBe(0); // a report with no note is not a note left out
+    expect(group(6).moreNotes).toBe(1);
+    expect(group(8, 4).moreNotes).toBe(3);
+    // What is drawn and what is left out add up to every note.
+    for (const n of [0, 1, 5, 6, 12]) expect(group(n, 2).notes.length + group(n, 2).moreNotes, String(n)).toBe(n);
+  });
   it('nothing in, nothing out', () => {
     expect(groupReports([])).toEqual([]);
   });
@@ -78,6 +92,9 @@ describe('planCarryOver', () => {
     const plan = planCarryOver([row('ok'), row('had', { sets: ['set3'] }), row('no', { core: ['c'] }), row('ok'), row('had', { sets: ['set3'] }), row('no', { core: ['c'] }), row('ok2')], 'set3', facts);
     expect(plan).toEqual({ carry: ['ok', 'ok2'], stay: 1, already: 1 });
   });
+  it('no guides in, nothing to carry, stay or count', () => {
+    expect(planCarryOver([], 'set3', facts)).toEqual({ carry: [], stay: 0, already: 0 });
+  });
   it('an unknown target set carries nothing', () => {
     expect(planCarryOver([row('x')], 'set9', facts)).toEqual({ carry: [], stay: 1, already: 0 });
   });
@@ -87,5 +104,10 @@ describe('batches', () => {
   it('cuts a list into runs of at most the size, in order', () => {
     expect(batches([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
     expect(batches([], 2)).toEqual([]);
+  });
+  it('a size of nothing or less is a size of one: it never loops for ever and never drops an item', () => {
+    for (const size of [0, -1, -200]) expect(batches([1, 2, 3], size), String(size)).toEqual([[1], [2], [3]]);
+    expect(batches([1, 2, 3], 3)).toEqual([[1, 2, 3]]);
+    expect(batches([1, 2, 3], 99)).toEqual([[1, 2, 3]]);
   });
 });

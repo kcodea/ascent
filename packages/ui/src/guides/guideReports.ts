@@ -20,6 +20,8 @@ export interface ReportGroup {
   reasons: Array<[ReportReason, number]>;
   /** The notes that say something, newest first, five at most. */
   notes: string[];
+  /** How many more notes say something and are not in `notes`. The panel says so: no note goes missing unheard. */
+  moreNotes: number;
   latestAt: string;
 }
 
@@ -42,11 +44,13 @@ export function groupReports(reports: readonly OpenReport[]): ReportGroup[] {
     const newest = [...list].sort((a, b) => timeOf(b.createdAt) - timeOf(a.createdAt));
     const tally = new Map<ReportReason, number>();
     for (const r of list) tally.set(r.reason, (tally.get(r.reason) ?? 0) + 1);
+    const notes = newest.map((r) => r.note.trim()).filter((n) => n !== '');
     groups.push({
       guide: newest[0]!.guide,
       count: list.length,
       reasons: [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-      notes: newest.map((r) => r.note.trim()).filter((n) => n !== '').slice(0, MAX_NOTES),
+      notes: notes.slice(0, MAX_NOTES),
+      moreNotes: Math.max(0, notes.length - MAX_NOTES),
       latestAt: newest[0]!.createdAt,
     });
   }

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MutableRefObject, type RefObject } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
 import { GUIDE_LIMITS, REPORT_REASONS, type ReportReason } from '@game/guides';
@@ -33,6 +33,12 @@ const noReport = (): ReportDraft => ({ reason: null, note: '' });
  *
  * The row wraps (`.gtool-note`). The text box is the editor's (`.gedit-input`, guideEditor.css, which the host loads
  * with the editor, as it does `.gbtn`): full width, so it takes a row of its own inside the card.
+ *
+ * KEYS. The game listens on the window: Tab opens and closes the Compendium, and Escape closes it (Game.tsx). This is
+ * a form that is typed in, so while a key is pressed inside it those two never get that far: Tab (and Shift+Tab) is
+ * stopped on its way up and nothing else is done to it, so it moves focus as usual; Escape is Cancel (the form closes,
+ * what was typed is forgotten, focus goes back to Report), and the Compendium stays open. Every other key goes on to
+ * the game as before. (The editor does the same for itself, with a listener of its own: GuideEditor.tsx.)
  */
 function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
   kept: MutableRefObject<ReportDraft>;
@@ -46,8 +52,12 @@ function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
   const [draft, setDraft] = useState<ReportDraft>(() => kept.current);
   const change = (next: ReportDraft): void => { kept.current = next; setDraft(next); };
   const { reason, note } = draft;
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Tab') e.stopPropagation();
+    else if (e.key === 'Escape') { e.stopPropagation(); onCancel(); }
+  };
   return (
-    <div className="gtool-note bookguide-ask" role="group" aria-label="Report this guide">
+    <div className="gtool-note bookguide-ask" role="group" aria-label="Report this guide" onKeyDown={onKeyDown}>
       <span>Why are you reporting this guide?</span>
       {REPORT_REASONS.map((r, i) => (
         <button type="button" key={r} ref={i === 0 ? firstRef : undefined} className={`book-runetribe${reason === r ? ' on' : ''}`} style={PILL}
@@ -71,10 +81,17 @@ function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
  *  - `canBookmark`: Bookmark.     - Duplicate is on every card.
  *  - `canReport`: Report.         - `moderate`: Hide or Unhide, and Delete (the team, on a player's guide).
  *
+ * WHAT A CARD SAYS OF ITS GUIDE'S STATE. Under My guides the author is told one thing: Published, Private, or (instead
+ * of either) Hidden by Team Ascent; and Not in this set. The team (`moderate`) is told under every pill whether a
+ * player's guide is hidden AND whether it is published or private: a guide the team hid may have been taken back to
+ * private by its author since, and an Unhide would then show it to nobody. Each badge is drawn once, also on a team
+ * member's own guide under My guides.
+ *
  * AN ACTION ANSWERS A SENTENCE OR NOTHING. `onPublish`, `onDelete`, `onBookmark`, `onReport` and `onHide` resolve to
  * null when they worked, or to the sentence the player reads, which is shown on this card. The card keeps only its own
  * small state: which question it is asking, whether it is waiting, that sentence, and the report being written. While
- * it is waiting none of its buttons can be pressed, so nothing is sent twice.
+ * it is waiting none of its buttons can be pressed, so nothing is sent twice. An action that THROWS has no sentence,
+ * and the card does not know what it was or whether it landed: it says to check again, never that nothing changed.
  *
  * Publishing makes a guide public, deleting cannot be undone, and hiding takes a guide away from everyone but its
  * author and the team, so all three ask first, on the card. Unpublish, Unhide and Bookmark do not.
@@ -107,7 +124,8 @@ function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
  * switched off while the card waits, and a browser takes focus off a button that is switched off: so they too get
  * focus back when the server has answered. Focus is never pulled back from somewhere else the player has moved to
  * meanwhile. The report form takes focus on its first reason (a reason is what it needs first, and no answer in it
- * does harm by being pressed early: Send report is off until one is chosen); Cancel hands focus back to Report. Hide
+ * does harm by being pressed early: Send report is off until one is chosen); Cancel hands focus back to Report, and so
+ * does Escape pressed inside the form (see `ReportForm`: Tab and Escape there never reach the game's own keys). Hide
  * and Unhide are one button, like Publish. After a report is sent the Report button is switched off for good and
  * cannot take focus, so focus goes to the sentence the card now shows ("Reported. Thank you.", or that it was already
  * reported) instead of being lost to the page. When the form comes back after a refused send, focus goes back to the
@@ -261,7 +279,8 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
     setError(null);
     setAsk(null);
     let said: string | null;
-    try { said = await action(); } catch { said = 'Something went wrong. Nothing was changed.'; }
+    // A throw says nothing about whether the write landed, and the card does not know which action it was.
+    try { said = await action(); } catch { said = 'Something went wrong. Check again in a moment.'; }
     if (!alive.current) return;
     setBusy(false);
     setError(said);
@@ -278,15 +297,15 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
     }, true);
   };
 
+  // What the card says of the guide's state (see the header). Each badge is pushed at most once.
   const badges: string[] = [];
-  if (mineTab) {
-    if (guide.hidden) badges.push('Hidden by Team Ascent');
-    else badges.push(guide.published ? 'Published' : 'Private');
-    if (!guide.sets.includes(setId)) badges.push('Not in this set');
-  } else if (moderate && guide.hidden) {
+  if (mineTab || moderate) {
     // The team is told a guide is hidden under every pill, not only its author under My guides.
-    badges.push('Hidden by Team Ascent');
+    if (guide.hidden) badges.push('Hidden by Team Ascent');
+    // The author reads one or the other. The team reads both: a hidden guide may be private as well.
+    if (!guide.hidden || moderate) badges.push(guide.published ? 'Published' : 'Private');
   }
+  if (mineTab && !guide.sets.includes(setId)) badges.push('Not in this set');
   if (!guide.official && guide.published && guide.bookmarkCount > 0) badges.push(`${guide.bookmarkCount} bookmark${guide.bookmarkCount === 1 ? '' : 's'}`);
 
   return (

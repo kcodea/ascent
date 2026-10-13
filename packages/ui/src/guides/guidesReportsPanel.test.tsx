@@ -284,6 +284,31 @@ describe('the Reports pill', () => {
     // Each note is an element of its own (its own line: see the stylesheet pins), newest first.
     expect([...c.querySelectorAll('.greports-sum')[0]!.querySelectorAll('.greports-quote')].map((q) => q.textContent)).toEqual(['"again"', '"copy of mine"']);
   });
+  it('a guide with more notes than are drawn says how many more there are, after the last one drawn', async () => {
+    /** `n` reports of the guide `id`, each with a note, the later the newer. */
+    const noted = (id: string, n: number): OpenReport[] =>
+      Array.from({ length: n }, (_, i) => open(`${id}${i}`, id, 'spam', `2026-10-14T01:00:${String(i).padStart(2, '0')}Z`, `${id} note ${i}`));
+    reportsAnswer = () => [...noted('a', 8), ...noted('b', 6), ...noted('c', 5), open('d0', 'd', 'other', T1)];
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    const group = (i: number): Element => c.querySelectorAll('.greports-sum')[i]!;
+    const quotes = (i: number): Array<string | null> => [...group(i).querySelectorAll('.greports-quote:not(.greports-more)')].map((q) => q.textContent);
+    const more = (i: number): Array<string | null> => [...group(i).querySelectorAll('.greports-more')].map((q) => q.textContent);
+    expect(cards(c)).toEqual(['a', 'b', 'c', 'd']);
+    expect(quotes(0)).toEqual(['"a note 7"', '"a note 6"', '"a note 5"', '"a note 4"', '"a note 3"']);
+    expect(more(0)).toEqual(['and 3 more notes.']);
+    expect(quotes(1).length).toBe(5);
+    expect(more(1)).toEqual(['and 1 more note.']);
+    // Five notes are all drawn, and a group with none says nothing about notes.
+    expect(quotes(2).length).toBe(5);
+    expect(more(2)).toEqual([]);
+    expect(quotes(3)).toEqual([]);
+    expect(more(3)).toEqual([]);
+    // The line comes after the last note drawn and before the button, and is a line of its own as a note is (it
+    // wears the note's class, which the stylesheet gives a whole row).
+    const kids = [...group(0).children].map((k) => k.className || k.tagName);
+    expect(kids).toEqual(['SPAN', 'greports-quote', 'greports-quote', 'greports-quote', 'greports-quote', 'greports-quote', 'greports-quote greports-more', 'gbtn']);
+  });
   it('Dismiss reports calls the server for that guide and reads the list again', async () => {
     reportsAnswer = () => [open('r1', 'a', 'spam', '2026-10-14T01:00:00Z')];
     const c = show('team', { tab: 'reports' });
@@ -340,6 +365,34 @@ describe('the Reports pill', () => {
       expect(c.querySelector('.greports-group [role="alert"]')!.textContent, code).toBe(sentence);
       expect(reportsAsked, code).toBe(before + 1);
       expect(sums(c).length, code).toBe(1);
+    }
+  });
+  it('a dismiss answered with anything that is not a known refusal may have landed: it says to check and reads the list again', async () => {
+    for (const code of ['guide_failed', 'guide_malformed', 'unavailable', 'something_new']) {
+      ui?.unmount();
+      reportsAnswer = () => [open('r1', 'a', 'spam', T1)];
+      dismissAnswer = () => ({ ok: false, code });
+      const c = show('team', { tab: 'reports' });
+      await settle();
+      const before = reportsAsked;
+      await press(c, 'Dismiss reports');
+      await settle();
+      expect(c.querySelector('.greports-group [role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+      expect(reportsAsked, code).toBe(before + 1);
+      expect(button(c, 'Dismiss reports')!.disabled, code).toBe(false);
+    }
+    // A refusal the server is known to answer reads nothing again.
+    for (const code of ['not_found', 'sign_in_required', 'unauthenticated']) {
+      ui?.unmount();
+      reportsAnswer = () => [open('r1', 'a', 'spam', T1)];
+      dismissAnswer = () => ({ ok: false, code });
+      const c = show('team', { tab: 'reports' });
+      await settle();
+      const before = reportsAsked;
+      await press(c, 'Dismiss reports');
+      await settle();
+      expect(c.querySelector('.greports-group [role="alert"]'), code).not.toBeNull();
+      expect(reportsAsked, code).toBe(before);
     }
   });
   it('lists hidden guides, each with Unhide and Delete', async () => {
@@ -968,6 +1021,51 @@ describe('Carry guides over', () => {
     expect(c.textContent).toContain(`Carried over 0 of ${n} so far. Press Check to continue.`);
     expect(reads).toBe(1);
   });
+  it('a FIRST batch whose answer is lost, cannot be read, or is no known refusal may have landed: the guides are read again though the line says 0', async () => {
+    const n = GUIDE_LIMITS.retagBatch + 5;
+    tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
+    const held: Guide = { ...src, id: 'o1', rowId: 'o1', revision: 1, sets: ['set2'] };
+    const c = show('team', { tab: 'reports', list: [held] });
+    await settle();
+    chooseSet(c, 'set3');
+    // What the server holds if the batch did land: the same row, at the same revision, now in Set 3 too.
+    officialAnswer = () => [rec('o1', { official: true, authorId: null, byline: 'Team Ascent', sets: ['set2', 'set3'] })];
+    for (const [i, code] of ['offline', 'server', 'guide_failed', 'something_new'].entries()) {
+      retags.length = 0;
+      retagAnswer = () => ({ ok: false, code });
+      await press(c, 'Check');
+      await settle();
+      await press(c, `Carry over ${n} guides`);
+      await settle();
+      expect(retags.length, code).toBe(1); // the run stopped at its first batch
+      expect(c.textContent, code).toContain(`Carried over 0 of ${n} so far. Press Check to continue.`);
+      expect(reads, code).toBe(i + 1);
+    }
+    // The read shows what the server holds: the guide is in the new set without a restart.
+    expect(useGuides.getState().list.map((g) => [g.rowId, [...g.sets]])).toEqual([['o1', ['set2', 'set3']]]);
+    // A refusal the server is known to answer wrote nothing: nothing is read again.
+    for (const code of ['not_allowed', 'sign_in_required', 'unauthenticated']) {
+      retagAnswer = () => ({ ok: false, code });
+      await press(c, 'Check');
+      await settle();
+      await press(c, `Carry over ${n} guides`);
+      await settle();
+      expect(reads, code).toBe(4);
+    }
+  });
+  it('a first batch that throws may have landed too: the guides are read again', async () => {
+    tagsAnswer = () => [tag('fits1')];
+    retagAnswer = () => { throw new Error('boom'); };
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, 'Carry over 1 guide');
+    await settle();
+    expect(c.textContent).toContain('Carried over 0 of 1 so far. Press Check to continue.');
+    expect(reads).toBe(1);
+  });
   it('the batches go one after another, and the line says how far the run has got', async () => {
     const n = GUIDE_LIMITS.retagBatch + 5;
     tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
@@ -1242,6 +1340,24 @@ describe("the panel's own guards, mounted on its own", () => {
     expect(c.querySelector('[role="alert"]')).toBeNull();
     expect(c.textContent).not.toContain('so far');
     expect(c.textContent).not.toContain(`Carried over ${n} guides`);
+  });
+  it('the account changing before a first batch whose answer is lost comes back: nothing is said, and the guides are not read again for the next account', async () => {
+    tagsAnswer = () => [tag('fits1')];
+    const first = later<GuideWriteResult<number>>();
+    retagAnswer = () => first.promise;
+    const { c } = alone();
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, 'Carry over 1 guide');
+    expect(retags.length).toBe(1);
+    nextAccount();
+    await first.answer({ ok: false, code: 'offline' });
+    await settle();
+    expect(reads).toBe(0);
+    expect(c.querySelector('[role="alert"]')).toBeNull();
+    expect(c.textContent).not.toContain('so far');
   });
   it('the account changing after a batch has landed: no further batch, and the guides are not read again for the next account', async () => {
     const n = GUIDE_LIMITS.retagBatch * 2 + 5;

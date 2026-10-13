@@ -16,6 +16,11 @@
  * delete is never told as a failure and the read that follows never settles for an older one; a question whose offer
  * went does not come back by itself; typing a report redraws the form and not the card.
  *
+ * Since the whole-branch review: Tab and Escape inside the report form never reach the game's own key listeners (Tab
+ * there closes the Compendium, and the report with it), and Escape is Cancel; the team's card says whether a guide is
+ * published or private; no answer that is not a known refusal is told as "it was not done", and each one reads the
+ * lists again.
+ *
  * These tests never lay a page out, so the layout rules the report form depends on are pinned as stylesheet text.
  */
 import { readFileSync } from 'node:fs';
@@ -369,7 +374,9 @@ describe('reporting a guide', () => {
       ['offline', 'Could not reach the server. Try again in a moment; if it says you already reported this guide, it went through.'],
       ['report_limit', 'That is a lot of reports. Try again tomorrow.'],
       ['bad_report', 'Check the report.'],
-      ['server', 'Something went wrong. The report was not sent.'],
+      ['server', 'Something went wrong. Try again in a moment.'],
+      ['guide_failed', 'Something went wrong. Try again in a moment.'],
+      ['something_new', 'Something went wrong. Try again in a moment.'],
     ] as const) {
       ui?.unmount();
       reports.length = 0;
@@ -496,6 +503,75 @@ describe('reporting a guide', () => {
     await settle();
     await press(card(c, 'a'), 'Report');
     expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write, bookmark and report guides. It is free and takes a minute.');
+  });
+});
+
+describe("the report form and the game's own keys", () => {
+  /**
+   * Press a key on `el`, as a browser does: the event starts there and travels up to the window, where the game
+   * listens (Game.tsx: Tab opens and closes the Compendium, Escape closes it). Says whether it got that far, and
+   * whether anything stopped what the browser would do with the key (for Tab: move focus).
+   */
+  const key = (el: Element, init: KeyboardEventInit): { reached: boolean; prevented: boolean } => {
+    let reached = false;
+    const onKey = (): void => { reached = true; };
+    window.addEventListener('keydown', onKey);
+    const ev = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    act(() => { el.dispatchEvent(ev); });
+    window.removeEventListener('keydown', onKey);
+    return { reached, prevented: ev.defaultPrevented };
+  };
+  const openForm = async (): Promise<{ c: HTMLElement; form: HTMLElement; input: HTMLInputElement }> => {
+    const c = show('player');
+    await settle();
+    await press(card(c, 'a'), 'Report');
+    await press(card(c, 'a'), 'Spam');
+    const form = card(c, 'a').querySelector<HTMLElement>('.bookguide-ask')!;
+    const input = form.querySelector('input')!;
+    type(input, 'A copy of my guide');
+    return { c, form, input };
+  };
+  it('the listener these tests stand in for does hear a key pressed outside the form', async () => {
+    const { c } = await openForm();
+    expect(key(button(card(c, 'a'), 'Duplicate')!, { key: 'Tab' })).toEqual({ reached: true, prevented: false });
+    expect(key(button(card(c, 'a'), 'Duplicate')!, { key: 'Escape' })).toEqual({ reached: true, prevented: false });
+  });
+  it('Tab and Shift+Tab inside the form move focus as usual and never reach the window: the report is still there', async () => {
+    const { c, form, input } = await openForm();
+    const from: Array<[string, Element]> = [['the note', input], ['a reason', button(form, 'Other')!], ['the chosen reason', button(form, 'Spam')!], ['Send report', button(form, 'Send report')!], ['Cancel', button(form, 'Cancel')!]];
+    for (const [name, el] of from) {
+      for (const shiftKey of [false, true]) {
+        // Not stopped on its way to the browser either: Tab still moves focus.
+        expect(key(el, { key: 'Tab', shiftKey }), `${name} ${shiftKey ? 'Shift+Tab' : 'Tab'}`).toEqual({ reached: false, prevented: false });
+      }
+    }
+    const still = card(c, 'a').querySelector<HTMLElement>('.bookguide-ask[role="group"]')!;
+    expect(still.getAttribute('aria-label')).toBe('Report this guide');
+    expect(still.querySelector('input')!.value).toBe('A copy of my guide');
+    expect(button(still, 'Spam')!.getAttribute('aria-pressed')).toBe('true');
+    expect(reports).toEqual([]);
+  });
+  it('Escape inside the form is Cancel: the form closes, what was typed is forgotten, focus is back on Report, and the key never reaches the window', async () => {
+    for (const where of ['the note', 'a reason'] as const) {
+      ui?.unmount();
+      const { c, form, input } = await openForm();
+      expect(key(where === 'the note' ? input : button(form, 'Other')!, { key: 'Escape' }), where).toEqual({ reached: false, prevented: false });
+      expect(card(c, 'a').querySelector('.bookguide-ask'), where).toBeNull();
+      expect(document.activeElement, where).toBe(button(card(c, 'a'), 'Report'));
+      expect(reports, where).toEqual([]);
+      // Forgotten, as after Cancel: the form opens empty.
+      await press(card(c, 'a'), 'Report');
+      expect(button(card(c, 'a'), 'Spam')!.getAttribute('aria-pressed'), where).toBe('false');
+      expect(card(c, 'a').querySelector<HTMLInputElement>('.bookguide-ask input')!.value, where).toBe('');
+    }
+  });
+  it('no other key is kept from the game', async () => {
+    const { input, form } = await openForm();
+    for (const k of ['a', 'Enter', 'ArrowDown', ' ']) {
+      expect(key(input, { key: k }).reached, k).toBe(true);
+      expect(key(button(form, 'Other')!, { key: k }).reached, k).toBe(true);
+    }
+    expect(input.value).toBe('A copy of my guide');
   });
 });
 
@@ -769,16 +845,127 @@ describe('the team on any player guide', () => {
     expect(asked[1]).toMatchObject({ offset: 0 });
     expect(titles(c)).toEqual(['Guide a', 'Guide b']);
   });
+  it("the team's delete answered with anything that is not a known refusal may have landed: it says to check, reads the guides and asks the list again", async () => {
+    // `guide_failed`: the function's call to the database failed or lost its answer. `guide_malformed`: the write was
+    // made and what came back could not be read. `something_new`: a code this build does not know.
+    for (const code of ['guide_failed', 'guide_malformed', 'something_new', 'unavailable']) {
+      ui?.unmount();
+      asked.length = 0; deleted.length = 0; reads = 0;
+      deleteAnswer = () => ({ ok: false, code });
+      const c = show('team');
+      await settle();
+      await press(card(c, 'a'), 'Delete');
+      await press(card(c, 'a'), 'Delete for good');
+      await settle(350);
+      expect(deleted, code).toEqual(['a']);
+      expect(card(c, 'a').querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+      expect(reads, code).toBe(1);
+      expect(asked.length, code).toBe(2);
+      expect(asked[1], code).toMatchObject({ offset: 0 });
+    }
+  });
   it('a delete the server answered and refused reads and asks nothing again', async () => {
-    deleteAnswer = () => ({ ok: false, code: 'guide_failed' });
+    for (const [code, sentence] of [
+      ['not_allowed', 'You cannot change this guide. Duplicate it to make your own.'],
+      ['sign_in_required', 'Sign in to write guides.'],
+      ['unauthenticated', 'Sign in to write guides.'],
+    ] as const) {
+      ui?.unmount();
+      asked.length = 0; reads = 0;
+      deleteAnswer = () => ({ ok: false, code });
+      const c = show('team');
+      await settle();
+      await press(card(c, 'a'), 'Delete');
+      await press(card(c, 'a'), 'Delete for good');
+      await settle(350);
+      expect(card(c, 'a').querySelector('[role="alert"]')!.textContent, code).toBe(sentence);
+      expect(reads, code).toBe(0);
+      expect(asked.length, code).toBe(1);
+    }
+  });
+  it('a hide answered with anything that is not a known refusal may have landed: it says to check, reads the guides and asks the list again', async () => {
+    for (const code of ['guide_malformed', 'guide_failed', 'something_new', 'unavailable']) {
+      ui?.unmount();
+      asked.length = 0; hides.length = 0; reads = 0;
+      hideAnswer = () => ({ ok: false, code });
+      const c = show('team');
+      await settle();
+      await press(card(c, 'a'), 'Hide');
+      await press(card(c, 'a').querySelector('.bookguide-ask')!, 'Hide');
+      await settle(350);
+      expect(hides, code).toEqual([['a', true]]);
+      expect(card(c, 'a').querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+      expect(reads, code).toBe(1);
+      expect(asked.length, code).toBe(2);
+    }
+    // A refusal the server is known to answer still reads and asks nothing.
+    for (const code of ['not_found', 'sign_in_required', 'unauthenticated']) {
+      ui?.unmount();
+      asked.length = 0; reads = 0;
+      hideAnswer = () => ({ ok: false, code });
+      const c = show('team');
+      await settle();
+      await press(card(c, 'a'), 'Hide');
+      await press(card(c, 'a').querySelector('.bookguide-ask')!, 'Hide');
+      await settle(350);
+      expect(card(c, 'a').querySelector('[role="alert"]'), code).not.toBeNull();
+      expect(reads, code).toBe(0);
+      expect(asked.length, code).toBe(1);
+    }
+  });
+  it('an action that throws is never told as "nothing was changed": the card says to check again, and can be used again', async () => {
+    hideAnswer = () => { throw new Error('boom'); };
     const c = show('team');
     await settle();
-    await press(card(c, 'a'), 'Delete');
-    await press(card(c, 'a'), 'Delete for good');
-    await settle(350);
-    expect(card(c, 'a').querySelector('[role="alert"]')!.textContent).toBe('Something went wrong deleting the guide. It was not deleted.');
-    expect(reads).toBe(0);
-    expect(asked.length).toBe(1);
+    await press(card(c, 'a'), 'Hide');
+    await press(card(c, 'a').querySelector('.bookguide-ask')!, 'Hide');
+    await settle();
+    expect(hides).toEqual([['a', true]]);
+    expect(card(c, 'a').querySelector('[role="alert"]')!.textContent).toBe('Something went wrong. Check again in a moment.');
+    expect(card(c, 'a').hasAttribute('aria-busy')).toBe(false);
+    expect(button(card(c, 'a'), 'Hide')!.disabled).toBe(false);
+  });
+  it('the team is told whether a guide is published or private, under every pill; a player is told nothing of the kind', async () => {
+    // Community, as the team: a published guide says so.
+    const c = show('team');
+    await settle();
+    expect(badges(card(c, 'a'))).toEqual(['Published']);
+    ui!.unmount();
+    // The same list for a player: no badge.
+    const d = show('player');
+    await settle();
+    expect(badges(card(d, 'a'))).toEqual([]);
+    ui!.unmount();
+    // A guide the team hid and its author then took back to private: the team reads both, so an Unhide is no surprise.
+    const list = [asGuide('hp', { hidden: true, published: false }), asGuide('h', { hidden: true }), asGuide('p', { published: false })];
+    const e = show('team', { tab: 'bookmarked', bookmarked: list }, { guides: list });
+    expect(badges(card(e, 'hp'))).toEqual(['Hidden by Team Ascent', 'Private']);
+    expect(badges(card(e, 'h'))).toEqual(['Hidden by Team Ascent', 'Published']);
+    expect(badges(card(e, 'p'))).toEqual(['Private']);
+    ui!.unmount();
+    // A player is shown none of it on those same guides.
+    const f = show('player', { tab: 'bookmarked', bookmarked: list }, { guides: list });
+    for (const id of ['hp', 'h', 'p']) expect(badges(card(f, id)), id).toEqual([]);
+  });
+  it("a team member's own guide under My guides says Published or Private once, never twice", () => {
+    const own = [
+      asGuide('m1', { authorId: 'u-1', byline: 'Mike', published: false }),
+      asGuide('m2', { authorId: 'u-1', byline: 'Mike', published: true }),
+      asGuide('m3', { authorId: 'u-1', byline: 'Mike', published: true, hidden: true }),
+      asGuide('m4', { authorId: 'u-1', byline: 'Mike', published: false, sets: ['set1'] }),
+    ];
+    const c = show('team', { tab: 'mine', mine: own }, { guides: own });
+    expect(badges(card(c, 'm1'))).toEqual(['Private']);
+    expect(badges(card(c, 'm2'))).toEqual(['Published']);
+    expect(badges(card(c, 'm3'))).toEqual(['Hidden by Team Ascent', 'Published']);
+    expect(badges(card(c, 'm4'))).toEqual(['Private', 'Not in this set']);
+    ui!.unmount();
+    // A player's own guides read as they did: a hidden one says only that it is hidden.
+    const d = show('player', { tab: 'mine', mine: own }, { guides: own });
+    expect(badges(card(d, 'm1'))).toEqual(['Private']);
+    expect(badges(card(d, 'm2'))).toEqual(['Published']);
+    expect(badges(card(d, 'm3'))).toEqual(['Hidden by Team Ascent']);
+    expect(badges(card(d, 'm4'))).toEqual(['Private', 'Not in this set']);
   });
   it('the host never answers "done" for a hide it could not ask for', async () => {
     // As for a report: no press can reach this (the buttons go with the connection), so the handler is called as a

@@ -8,12 +8,15 @@
  *    actions: a refused unpublish never tells the player to publish.
  *  - WHETHER ANYTHING WAS KEPT. A refused save writes the author's text to this device only when there are unsaved
  *    changes. "kept on this device" is said only when the caller says something was (`kept`); not told, it is not said.
- *    Publishing and bookmarking change nothing when they are refused, and say so.
- *  - WHETHER IT IS KNOWN. A publish or an unpublish that could not reach the server may still have landed (the answer
- *    was lost, not the request). Whether the player's text is public is not something to guess at: that sentence never
- *    says nothing was changed, it says to check again. A delete is the same (the author's own, and the team's): one
- *    whose answer never came (`offline`), or came and could not be read (`server`), may have landed, so it never says
- *    the guide was not deleted. Only the first of the two says the server could not be reached.
+ *  - WHETHER IT IS KNOWN. THE ONE RULE: no sentence says a write was NOT made unless the server answered a KNOWN
+ *    REFUSAL for it (`KNOWN_REFUSALS`, below: the codes the SQL and the function answer when they refuse that action
+ *    and change nothing). Any other answer may follow a write that landed: the answer never came (`offline`), it
+ *    came and could not be read (`server`), the function could not read what the database answered after writing
+ *    (`guide_malformed`) or lost the database's answer (`guide_failed`), or it is a code nobody knows. Whether a
+ *    player's text is public, or a guide still exists, is not something to guess at: those sentences say to check
+ *    again, and the screen that shows one reads the lists again. Only a lost answer says the server could not be
+ *    reached. A report is the one exception in its words: a player has no way to check, and pressing again is safe
+ *    (the server then says "already reported"), so it says to try again.
  */
 import { GUIDE_LIMITS } from '@game/guides';
 
@@ -46,25 +49,60 @@ const SIGN_IN = 'Sign in to write guides.';
 const NOT_ALLOWED = 'You cannot change this guide. Duplicate it to make your own.';
 const NO_LONGER = 'This guide no longer exists.';
 const NO_SERVER = 'Could not reach the server.';
-/** A publish or unpublish whose answer never came: it may have landed. */
-const MAY_HAVE_CHANGED = `${NO_SERVER} Check again in a moment to see whether it changed.`;
+const WRONG = 'Something went wrong.';
+/** An answer that never came (`lost`), or one that is no known refusal: the write may have landed. */
+const checkAgain = (lost: boolean, whether: 'it changed' | 'it was deleted' | 'they were imported'): string =>
+  `${lost ? NO_SERVER : WRONG} Check again in a moment to see whether ${whether}.`;
+
+/** What every action can be refused for: no account (a guest, or a token that did not verify). */
+const WHO = ['sign_in_required', 'unauthenticated'] as const;
+
+/**
+ * THE KNOWN REFUSALS of each action: the codes the SQL functions raise, and the function answers before it calls
+ * them, when they REFUSE that action and nothing is written (the raise words of supabase/migrations/2026-10-1*-guides*.sql
+ * and `GUIDE_ERROR_STATUS` in packages/guides/src/server.ts). Written down once, here, and read by both sides: the
+ * sentences below say "nothing was changed" (or name the refusal) only for these, and the screens read the lists again
+ * for every answer that is NOT one of these (`isKnownRefusal`). `guideMessages.test.ts` holds the two together: a
+ * code listed here has a sentence of its own, and a code not listed here never says the write was not made.
+ *
+ * Not listed, on purpose: `offline`, `server`, `unavailable` (the seam's own), `guide_failed`, `guide_malformed`
+ * (the write may have landed), and the shape refusals this client never causes (`bad_id`, `bad_op`, `bad_set`,
+ * `bad_ids`...). Those read "check again", which is true of them too, and cost one extra read.
+ *
+ * A save is not here: its sentences speak of the author's text, which is still in the editor either way.
+ */
+export const KNOWN_REFUSALS = {
+  delete: new Set<string>([...WHO, 'not_allowed', 'not_found']),
+  publish: new Set<string>([...WHO, 'not_allowed', 'not_found', 'blocked_text', 'reserved_name', 'guide_hidden', 'conflict', 'rate_limited']),
+  unpublish: new Set<string>([...WHO, 'not_allowed', 'not_found']),
+  bookmark: new Set<string>([...WHO, 'not_allowed', 'not_found', 'too_many_bookmarks', 'rate_limited']),
+  import: new Set<string>([...WHO, 'not_allowed', 'bad_guides', 'bad_guide', 'blocked_text', 'reserved_name']),
+  report: new Set<string>([...WHO, 'not_allowed', 'not_found', 'already_reported', 'report_limit', 'bad_report']),
+  /** Hide, unhide, dismiss and carry-over. */
+  moderate: new Set<string>([...WHO, 'not_allowed', 'not_found']),
+} as const satisfies Readonly<Partial<Record<GuideAction, ReadonlySet<string>>>>;
+
+/** Did the server refuse this `action` with a code that is known to mean nothing was written? Anything else (a lost
+ *  answer, a failure, a code nobody knows) may follow a write that landed: the caller reads the lists again. */
+export function isKnownRefusal(action: keyof typeof KNOWN_REFUSALS, code: string): boolean {
+  return KNOWN_REFUSALS[action].has(code);
+}
 
 export function guideErrorMessage(code: string, field?: string, about: GuideErrorAbout = {}): string {
   const action = about.action ?? 'save';
   if (action === 'import') {
-    return code === 'offline' ? `${NO_SERVER} Nothing was imported.` : 'Something went wrong importing the guides. Nothing was imported.';
+    // Every refusal of an import reads the same. Anything else may have landed.
+    if (isKnownRefusal('import', code)) return 'Something went wrong importing the guides. Nothing was imported.';
+    return checkAgain(code === 'offline', 'they were imported');
   }
   if (action === 'delete') {
     switch (code) {
-      // The answer was lost, not the request: the delete may have landed.
-      case 'offline': return `${NO_SERVER} Check again in a moment to see whether it was deleted.`;
-      // An answer came and could not be read: the delete may have landed too.
-      case 'server': return 'Something went wrong. Check again in a moment to see whether it was deleted.';
       case 'sign_in_required':
       case 'unauthenticated': return SIGN_IN;
       case 'not_allowed': return NOT_ALLOWED;
       case 'not_found': return NO_LONGER;
-      default: return 'Something went wrong deleting the guide. It was not deleted.';
+      // The answer was lost, or it is no refusal: the delete may have landed.
+      default: return checkAgain(code === 'offline', 'it was deleted');
     }
   }
   const part = field ? PART[field] : undefined;
@@ -81,8 +119,9 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'not_allowed': return NOT_ALLOWED;
       case 'not_found': return NO_LONGER;
       case 'rate_limited': return 'That is a lot of changes. Try again in a little while.';
-      case 'offline': return MAY_HAVE_CHANGED;
-      default: return 'Something went wrong. Nothing was changed.';
+      // The answer was lost, or it is no refusal (the publish was made and its answer could not be read): it may
+      // have landed.
+      default: return checkAgain(code === 'offline', 'it changed');
     }
   }
   // Taking a guide back to private checks no text, so it is never refused for its words: nothing here asks the
@@ -93,8 +132,7 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'unauthenticated': return SIGN_IN;
       case 'not_allowed': return NOT_ALLOWED;
       case 'not_found': return NO_LONGER;
-      case 'offline': return MAY_HAVE_CHANGED;
-      default: return 'Something went wrong. Nothing was changed.';
+      default: return checkAgain(code === 'offline', 'it changed');
     }
   }
   if (action === 'bookmark') {
@@ -105,8 +143,8 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'unauthenticated': return 'Sign in to bookmark guides.';
       case 'not_allowed': return 'This guide cannot be bookmarked.';
       case 'not_found': return 'This guide is no longer available.';
-      case 'offline': return `${NO_SERVER} Nothing was changed.`;
-      default: return 'Something went wrong. Nothing was changed.';
+      // The answer was lost, or it is no refusal: the bookmark may have been added or removed.
+      default: return checkAgain(code === 'offline', 'it changed');
     }
   }
   if (action === 'report') {
@@ -120,7 +158,8 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'bad_report': return 'Check the report.';
       // The report may have landed before the answer was lost: a second try then says "already reported".
       case 'offline': return `${NO_SERVER} Try again in a moment; if it says you already reported this guide, it went through.`;
-      default: return 'Something went wrong. The report was not sent.';
+      // Anything else that is no refusal may have been sent too. Pressing again is safe, for the same reason.
+      default: return `${WRONG} Try again in a moment.`;
     }
   }
   if (action === 'moderate') {
@@ -130,7 +169,7 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
       case 'sign_in_required':
       case 'unauthenticated': return SIGN_IN;
       // Hide, unhide, dismiss and carry-over may have landed before the answer was lost.
-      default: return code === 'offline' ? `${NO_SERVER} Check again in a moment to see whether it changed.` : 'Something went wrong. Check again in a moment to see whether it changed.';
+      default: return checkAgain(code === 'offline', 'it changed');
     }
   }
   const kept = about.kept === true;

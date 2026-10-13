@@ -180,6 +180,28 @@ just slightly? its corner is slightly higher than the center line".
   The line was measured as the emblem's axis of vertical symmetry in the gate art (row 429), and `crystalCy`
   moved 430.5 -> 434 so the corners land on it. Checked in a real render: corners at 409.5 px, line at 409.1.
 
+**Then, the build-up sound, a retuned glow, and more at the edge (its own PR):** with `gem build up.mp3`: "can you
+add this to when the gem is building up? make the glow more subtle when pulsing and slightly more aggressive when
+hovering. add more particles and distortion to the edges when the gem is building. add more particles being sucked
+in too".
+
+- **The build-up** is `gateform.mp3` (4.75 s): it rises in about 0.3 s, swells until about 2.6 s (its peak) and
+  dies away. It replaces the stand-in chime, so every gate cue is now the owner's recording. **The forming was
+  lengthened from 1.6 s to 2.6 s to run the length of that swell**: the gem is whole as the sound peaks and the
+  tail rings on under the waiting crystal. The crystal is therefore pressable 4.75 s after "Yes", a second later
+  than before.
+- **Glow.** The waiting pulse is gentler: the halo 0.32-0.7 -> 0.2-0.45 (and it swells less, to 1.08), the lit
+  copy's peak 0.56 -> 0.34. The hover is stronger: the halo 0.7 -> 0.9 and wider (1.14 -> 1.24), the lit copy
+  0.56 -> 0.74. The hover's steady lights were pinned to the pulse's own peak; they now sit well above it, and
+  the test pins that relation (hover at least 1.5x the pulse's peak) instead of equality. The forming glow still
+  ends exactly where the pulse begins.
+- **Edge distortion.** The three plies blur more (4 / 8 / 13 art px, from 3 / 6 / 10) and warp about 1.7x as far
+  (up to 21% uneven stretch, 4.6 degrees of turn, 6.5 degrees of skew, 4% shift). The bloom behind warps wider too.
+- **Particles.** Streaks sucked in 320 -> 800, spiral motes 120 -> 300, rim motes 210 -> 540 and looser (they
+  stray up to a quarter of the way out from the edge). With the forming a second longer that is about half as
+  many again arriving each second. All of a forming's sprites (about 1,970 with `FX_AMOUNT`) are created at its
+  start and wait invisibly on their delays; worth a look in the profiler if the forming ever hitches.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.
@@ -187,7 +209,6 @@ just slightly? its corner is slightly higher than the center line".
   "shatter, which then triggers the gate to slide open"; the shudder was kept as the gate's reaction to it.
 - The gate waits forever. There is no timeout and no skip: the crystal is the only way through.
 - The ambient trickle of embers off the waiting crystal was not asked for.
-- The forming sound is a stand-in.
 - The crystal art is 232 px square, shown at about 280 px on a 1080p screen (more on larger ones), so it is
   slightly soft. A larger source would sharpen it.
 

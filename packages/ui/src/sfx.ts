@@ -459,13 +459,12 @@ function stopGateHum(ms: number): void {
 }
 /** The ranked gate's cues (`sfx.gate`). Each plays on the fader `gate<cue>`. */
 export type GateCue = 'intro' | 'close' | 'slam' | 'rattle' | 'open' | 'form' | 'shatter';
-/** The clip behind each gate cue. All but one are the owner's own recordings (`shatter` is his crystal-shatter
- *  clip, 2026-10-13; `intro` is the cinematic hit he first put on the press of "Yes, let's go." and then moved to
- *  the crystal's shatter, where it plays with `shatter`). `form` (the crystal forming) has none yet, so it borrows
- *  the gem-apply chime already in the game as a STAND-IN. Swap the clip name here when a recorded one arrives. */
+/** The clip behind each gate cue: the owner's own recordings, every one (`shatter` and the `form` build-up arrived
+ *  2026-10-13; `intro` is the cinematic hit he first put on the press of "Yes, let's go." and then moved to the
+ *  crystal's shatter, where it plays with `shatter`). */
 const GATE_CLIP: Record<GateCue, string> = {
   intro: 'gateintro', close: 'gateclose', slam: 'gateslam', rattle: 'gaterattle', open: 'gateopen',
-  form: 'gemapply', shatter: 'gateshatter',
+  form: 'gateform', shatter: 'gateshatter',
 };
 /** Cues that fire on a PRESS skip their file's silent lead-in, so the sound lands with the press: `gateintro`
  *  opens on 49 ms of dead silence and `gateshatter` on 26 ms (both measured in 10 ms windows). A duration past the

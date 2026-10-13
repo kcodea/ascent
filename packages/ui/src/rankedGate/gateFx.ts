@@ -24,8 +24,8 @@
  * about 20% ... not including the motion of the gates itself"): every particle count is multiplied by it, and the
  * seam flash is that much bigger. The doors' own motion (travel, recoil, shudder) lives in rankedGate.css and is
  * untouched by it. The embers were then trebled (owner 2026-10-13: "amplify the blue particles by 200% ... a major
- * part of the sparks that emit"). Worst case is ~560 pooled-texture sprites at the slam, the longest-lived (embers)
- * for under three seconds. Every burst is a one-shot; the one thing that runs on is the ambient trickle, a dozen
+ * part of the sparks that emit"). Worst case is the forming: about 1,970 sprites are created for it at once, most
+ * of them invisible (waiting on their delay) at any moment, all gone within its 2.6 s. Every burst is a one-shot; the one thing that runs on is the ambient trickle, a dozen
  * embers a second for as long as the player leaves the crystal unpressed.
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
@@ -402,8 +402,10 @@ class GateFxController {
 
       // The streaks: they leave all through the first three quarters, so the stream is steady. Each flies in to the
       // edge, then lies along it and slides, breathing, as it fades. Nearly twice as many since the owner asked for
-      // more of them (2026-10-13: "increase the particles that are being sucked into the edges"): 170 -> 320.
-      for (let i = 0, n = amount(320); i < n; i++) {
+      // more of them (2026-10-13: "increase the particles that are being sucked into the edges"): 170 -> 320, then
+      // 800 ("add more particles being sucked in too") as the forming grew from 1.6 s to 2.6 s: about half as many
+      // again arriving each second.
+      for (let i = 0, n = amount(800); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
         const r0 = c.size * (1 + Math.random() * 2.8);
         const swirl = (Math.random() - 0.5) * 1.1; // rad of curve over its flight
@@ -411,7 +413,7 @@ class GateFxController {
         const fly = 300 + Math.random() * 380;
         const dwell = 170 + Math.random() * 230;
         const slide = (Math.random() - 0.5) * 0.7; // rad along the edge while it dwells
-        const breathe = 0.04 + Math.random() * 0.1, hz = 0.012 + Math.random() * 0.02, phase = Math.random() * Math.PI * 2;
+        const breathe = 0.05 + Math.random() * 0.15, hz = 0.012 + Math.random() * 0.02, phase = Math.random() * Math.PI * 2;
         const len = 0.5 + Math.random() * 0.8;
         const sp = this.spawn(this.sparkTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(HOT_TINTS), delay + fly + dwell, true, (p) => {
           const a = p.age - delay;
@@ -438,7 +440,7 @@ class GateFxController {
       }
       // Fine motes among them, on wider spirals, so the pull reads as a draw from all round and not as lines. They
       // too come to rest on the edge.
-      for (let i = 0, n = amount(120); i < n; i++) {
+      for (let i = 0, n = amount(300); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
         const r0 = c.size * (0.8 + Math.random() * 1.9);
         const angVel = ((1.6 + Math.random() * 2.2) * (Math.random() < 0.5 ? 1 : -1)) / 1000; // rad/ms
@@ -458,14 +460,16 @@ class GateFxController {
       // THE RIM: soft motes born on the edge all through the forming. Each drifts along it and breathes in and out
       // of it as it swells and fades, and they overlap, so the outline's brightness and thickness keep shifting:
       // the warble. Their size follows the gem's, so the rim is in proportion from a point to full size.
-      for (let i = 0, n = amount(210); i < n; i++) {
+      for (let i = 0, n = amount(540); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
         const delay = ms * (0.04 + Math.random() * 0.8);
         const life = 240 + Math.random() * 340;
         const drift = (Math.random() - 0.5) * 1.0; // rad along the edge over its life
-        // Fatter and looser than the first cut, so the rim itself blurs and distorts the edge (owner 2026-10-13).
-        const breathe = 0.05 + Math.random() * 0.13, hz = 0.01 + Math.random() * 0.022, phase = Math.random() * Math.PI * 2;
-        const size = 0.6 + Math.random() * 0.8;
+        // Fatter and looser with each ask (owner 2026-10-13: "add more particles and distortion to the edges when the
+        // gem is building"): they stray up to a quarter of the way out from the edge and back, so the outline itself
+        // bulges and breaks. About half as many again are alive at once as before.
+        const breathe = 0.07 + Math.random() * 0.2, hz = 0.01 + Math.random() * 0.026, phase = Math.random() * Math.PI * 2;
+        const size = 0.7 + Math.random() * 1.0;
         const peak = 0.4 + Math.random() * 0.3;
         this.spawn(this.glowTex!, c.x, c.y, pick(HOT_TINTS), delay + life, true, (p) => {
           const a = p.age - delay;

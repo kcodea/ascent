@@ -49,9 +49,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // The cinematic hit: on "Yes, let's go." at first (owner 2026-10-12), on the crystal's shatter since 2026-10-13.
   // 0.6 -> 0.72 on 2026-10-12 (owner: "up the volume of it by about 20%").
   gateintro: 0.72,
-  // The gate's CRYSTAL (owner 2026-10-13): forming on the centre diamond, and shattering under the press. The
-  // shatter is the owner's recording; forming has none yet and plays a clip already in the game as a STAND-IN
-  // (see `sfx.gate`).
+  // The gate's CRYSTAL (owner 2026-10-13): its build-up as it forms on the centre diamond, and its shatter
+  // under the press. Both his recordings.
   gateform: 0.6, gateshatter: 0.6,
   // The crystal's HUM while the pointer is on it (owner 2026-10-13): a seamless loop, faded in and out.
   gatehum: 0.5,
@@ -120,7 +119,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   gaterattle: 'Ranked gate: the shudder',
   gateopen: 'Ranked gate: grinding open',
   gateintro: 'Ranked gate: the hit as the crystal shatters',
-  gateform: 'Ranked gate: the crystal forming (stand-in clip)',
+  gateform: 'Ranked gate: the crystal building up',
   gateshatter: 'Ranked gate: the crystal shattering',
   gatehum: 'Ranked gate: the crystal humming under the pointer (loop)',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',

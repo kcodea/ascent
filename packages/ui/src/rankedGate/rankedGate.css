@@ -112,16 +112,18 @@
 .rgate-crystal-lit { opacity: 0; background: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; filter: brightness(1.55) saturate(1.15); }
 /* HOVER HOLDS THE LIGHT (owner 2026-10-13: "when highlighting the gem with your mouse, the gem should persistently
    glow bright, like the high end of the pulse"). Each pulsing light (the glow behind, the lit copy on the gem) sits
-   in a `-pulse` wrapper and has a STEADY twin (`-hi`) fixed at the pulse's own peak. Pointing at the armed crystal
+   in a `-pulse` wrapper and has a STEADY twin (`-hi`). The twins were first fixed at the pulse's own peak; since the
+   same day's retune ("make the glow more subtle when pulsing and slightly more aggressive when hovering") the pulse
+   is dimmer and the twins sit ABOVE even its old peak, so the hover is a clear step up. Pointing at the armed crystal
    cross-fades the wrapper out and the twin in; leaving cross-fades back. The wrappers carry no animation, so the
    fade is a plain opacity transition and the pulse underneath never has to be stopped or restarted. */
 .rgate-crystal-pulse { transition: opacity 0.16s ease-out; }
-.rgate-crystal-glow-hi { inset: -45%; opacity: 0; transform: scale(1.14); transition: opacity 0.16s ease-out;
+.rgate-crystal-glow-hi { inset: -45%; opacity: 0; transform: scale(1.24); transition: opacity 0.16s ease-out;
   background: radial-gradient(closest-side, rgba(150, 215, 255, 0.85), rgba(64, 150, 255, 0.5) 38%, rgba(40, 110, 255, 0.18) 62%, rgba(40, 110, 255, 0)); }
 .rgate-crystal-lit-hi { opacity: 0; transition: opacity 0.16s ease-out; background: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; filter: brightness(1.55) saturate(1.15); }
 .rgate.is-armed .rgate-crystal:hover .rgate-crystal-pulse { opacity: 0; }
-.rgate.is-armed .rgate-crystal:hover .rgate-crystal-glow-hi { opacity: 0.7; }
-.rgate.is-armed .rgate-crystal:hover .rgate-crystal-lit-hi { opacity: 0.56; }
+.rgate.is-armed .rgate-crystal:hover .rgate-crystal-glow-hi { opacity: 0.9; }
+.rgate.is-armed .rgate-crystal:hover .rgate-crystal-lit-hi { opacity: 0.74; }
 /* The crystal WHITE-HOT while it forms, with an edge that is SOFT and never still (owner 2026-10-13: "can you
    further blur and distort the edges of the diamond as its growing?"). It is three PLIES, each the crystal's shape in
    pure white, each blurred by a different amount, each warping on its own short loop (stretching, leaning, turning a
@@ -134,9 +136,9 @@
 .rgate-crystal-hot { opacity: 0; }
 .rgate-crystal-ply::before { content: ''; position: absolute; inset: 0; background: #fff;
   -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
-.rgate-crystal-ply:nth-child(1) { filter: blur(calc(3 * var(--rg-u))); }
-.rgate-crystal-ply:nth-child(2) { filter: blur(calc(6 * var(--rg-u))); }
-.rgate-crystal-ply:nth-child(3) { filter: blur(calc(10 * var(--rg-u))); }
+.rgate-crystal-ply:nth-child(1) { filter: blur(calc(4 * var(--rg-u))); }
+.rgate-crystal-ply:nth-child(2) { filter: blur(calc(8 * var(--rg-u))); }
+.rgate-crystal-ply:nth-child(3) { filter: blur(calc(13 * var(--rg-u))); }
 /* The glint: a box masked to the crystal's own shape, with a slanted band of light that crosses it now and then
    and a four-point star that flares on its upper facet as the band passes. */
 .rgate-crystal-glint { opacity: 0; overflow: hidden;
@@ -166,40 +168,40 @@
    whole way (its white face over the body, and a white bloom in its own diamond shape around it, both growing with
    it), and only cools to blue over the last third, as the blue glow behind it comes up to where the waiting pulse
    begins. Nothing round is drawn while it forms. */
-.rgate.is-forming .rgate-crystal-gem { animation: rg-cry-grow var(--rg-form, 1600ms) linear both; }
-.rgate.is-forming .rgate-crystal-body { animation: rg-cry-body-in var(--rg-form, 1600ms) linear both; }
-.rgate.is-forming .rgate-crystal-hot { animation: rg-cry-cool var(--rg-form, 1600ms) linear both; }
-.rgate.is-forming .rgate-crystal-heat { animation: rg-cry-heat var(--rg-form, 1600ms) linear both, rg-cry-warp-d 0.61s ease-in-out infinite; }
+.rgate.is-forming .rgate-crystal-gem { animation: rg-cry-grow var(--rg-form, 2600ms) linear both; }
+.rgate.is-forming .rgate-crystal-body { animation: rg-cry-body-in var(--rg-form, 2600ms) linear both; }
+.rgate.is-forming .rgate-crystal-hot { animation: rg-cry-cool var(--rg-form, 2600ms) linear both; }
+.rgate.is-forming .rgate-crystal-heat { animation: rg-cry-heat var(--rg-form, 2600ms) linear both, rg-cry-warp-d 0.61s ease-in-out infinite; }
 /* THE WARP: only while it forms. Three plies, three loops of different lengths, so the edge never repeats in step. */
 .rgate.is-forming .rgate-crystal-ply:nth-child(1) { animation: rg-cry-warp-a 0.37s ease-in-out infinite; }
 .rgate.is-forming .rgate-crystal-ply:nth-child(2) { animation: rg-cry-warp-b 0.53s ease-in-out infinite; }
 .rgate.is-forming .rgate-crystal-ply:nth-child(3) { animation: rg-cry-warp-c 0.44s ease-in-out infinite; }
 @keyframes rg-cry-warp-a {
-  0%, 100% { transform: scale(1.04, 0.97) rotate(-1.6deg) skewX(2deg); }
-  33% { transform: translate(1.5%, -1%) scale(0.96, 1.06) rotate(1.8deg) skewX(-2.5deg); }
-  66% { transform: translate(-1.5%, 1.5%) scale(1.07, 1.01) rotate(-0.6deg) skewX(3deg); }
+  0%, 100% { transform: scale(1.07, 0.94) rotate(-2.8deg) skewX(3.5deg); }
+  33% { transform: translate(2.5%, -2%) scale(0.92, 1.11) rotate(3.2deg) skewX(-4.5deg); }
+  66% { transform: translate(-2.5%, 2.5%) scale(1.12, 1.02) rotate(-1.2deg) skewX(5deg); }
 }
 @keyframes rg-cry-warp-b {
-  0%, 100% { transform: scale(0.97, 1.07) rotate(2.2deg) skewY(-2deg); }
-  40% { transform: translate(-2%, 1%) scale(1.09, 0.96) rotate(-2.4deg) skewY(2.5deg); }
-  72% { transform: translate(1.5%, 2%) scale(1.02, 1.1) rotate(1deg) skewY(-3deg); }
+  0%, 100% { transform: scale(0.94, 1.12) rotate(3.8deg) skewY(-3.5deg); }
+  40% { transform: translate(-3.5%, 2%) scale(1.15, 0.93) rotate(-4deg) skewY(4.5deg); }
+  72% { transform: translate(2.5%, 3.5%) scale(1.03, 1.17) rotate(1.8deg) skewY(-5deg); }
 }
 @keyframes rg-cry-warp-c {
-  0%, 100% { transform: scale(1.1, 1.03) rotate(-2.6deg) skewX(-3deg); }
-  30% { transform: translate(2%, 2%) scale(1.01, 1.12) rotate(2.8deg) skewX(2deg); }
-  64% { transform: translate(-2.5%, -1.5%) scale(1.13, 0.98) rotate(-1.2deg) skewX(4deg); }
+  0%, 100% { transform: scale(1.17, 1.05) rotate(-4.4deg) skewX(-5deg); }
+  30% { transform: translate(3.5%, 3.5%) scale(1.02, 1.2) rotate(4.6deg) skewX(3.5deg); }
+  64% { transform: translate(-4%, -2.5%) scale(1.21, 0.96) rotate(-2deg) skewX(6.5deg); }
 }
 @keyframes rg-cry-warp-d {
-  0%, 100% { transform: scale(1.26, 1.2) rotate(-2deg); }
-  35% { transform: scale(1.18, 1.32) rotate(2.5deg); }
-  70% { transform: scale(1.33, 1.24) rotate(-1deg); }
+  0%, 100% { transform: scale(1.3, 1.18) rotate(-3.5deg); }
+  35% { transform: scale(1.16, 1.4) rotate(4deg); }
+  70% { transform: scale(1.42, 1.24) rotate(-2deg); }
 }
 /* The crisp crystal stays hidden under the white until it starts to cool, then comes up as the white goes. */
 @keyframes rg-cry-body-in {
   0%, 60% { opacity: 0; }
   100% { opacity: 1; }
 }
-.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 1600ms) linear both; }
+.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 2600ms) linear both; }
 @keyframes rg-cry-grow {
   0% { opacity: 0; transform: scale(0.02); }
   6% { opacity: 1; transform: scale(0.05); animation-timing-function: cubic-bezier(0.4, 0, 0.35, 1); }
@@ -217,7 +219,7 @@
 }
 @keyframes rg-cry-glow-in {
   0%, 55% { opacity: 0; transform: scale(0.6); }
-  100% { opacity: 0.32; transform: scale(0.94); }
+  100% { opacity: 0.2; transform: scale(0.94); }
 }
 
 /* ARMED: whole, STILL, and steadily pulsing with light until it is pressed. The body has no animation here.
@@ -227,12 +229,12 @@
 .rgate.is-armed .rgate-crystal-glow { animation: rg-cry-glow-pulse 3.4s ease-in-out infinite; }
 .rgate.is-armed .rgate-crystal-lit { animation: rg-cry-lit-pulse 3.4s ease-in-out infinite; }
 @keyframes rg-cry-glow-pulse {
-  0%, 100% { opacity: 0.32; transform: scale(0.94); }
-  50% { opacity: 0.7; transform: scale(1.14); }
+  0%, 100% { opacity: 0.2; transform: scale(0.94); }
+  50% { opacity: 0.45; transform: scale(1.08); }
 }
 @keyframes rg-cry-lit-pulse {
   0%, 100% { opacity: 0; }
-  50% { opacity: 0.56; }
+  50% { opacity: 0.34; }
 }
 /* THE GLINT: once every 4.4 s the band crosses, taking about a second, and the star flares as it passes. Half the
    speed of the first cut (owner 2026-10-13: "slow down the sheen by 50%"): the crossing went from 0.53 s to

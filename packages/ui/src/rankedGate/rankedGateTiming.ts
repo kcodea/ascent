@@ -22,6 +22,8 @@
  *   - `gaterattle` (2.3 s): the rattle is loud for ~0.7 s. The doors shake for that long.
  *   - `gateopen`   (2.9 s): a clunk ~0.4 s in, then the grind. It starts `openSoundLeadMs` before the doors move,
  *                           so the clunk lands as they part.
+ *   - `gateform`   (4.75 s): the gem's build-up. It rises in ~0.3 s, swells until ~2.6 s (its peak), then dies away.
+ *                           The forming lasts that 2.6 s; the tail rings on under the waiting crystal.
  */
 import { cubicBezier } from '../wipeGeometry';
 
@@ -34,8 +36,9 @@ export interface RankedGateTiming {
   handoffMs: number;
   /** After the slam, how long the gate sits (the recoil settles, the dust rolls) before the crystal starts to form. */
   crystalDelayMs: number;
-  /** The centre diamond forming the crystal: sparks are pulled into its centre and the gem grows there, white-hot,
-   *  then cools. 1100 ms at first; 1600 ms since the coalescing (2026-10-13), which needs the time to read. */
+  /** The centre diamond forming the crystal: sparks are pulled into its edge and the gem grows there, white-hot,
+   *  then cools. 1100 ms at first; 1600 ms with the coalescing; 2600 ms since the owner's build-up recording
+   *  (`gateform`, 2026-10-13), which swells for 2.6 s before it lets go: the gem is whole as the sound peaks. */
   crystalFormMs: number;
   /** The crystal's burst once it is pressed. */
   shatterMs: number;
@@ -52,7 +55,7 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
   slamShakeMs: 460,
   handoffMs: 220,
   crystalDelayMs: 650,
-  crystalFormMs: 1600,
+  crystalFormMs: 2600,
   shatterMs: 420,
   shudderMs: 700,
   openSoundLeadMs: 300,

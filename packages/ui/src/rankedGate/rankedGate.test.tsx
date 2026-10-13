@@ -100,7 +100,7 @@ describe('the two clocks', () => {
 
   it('hands the durations and the crystal\'s place to the stylesheet', () => {
     expect(rankedGateCssVars()).toEqual({
-      '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '1600ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
+      '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '2600ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
       '--rg-art-hw': '836', '--rg-art-h': '941', '--rg-cry-dy': '-36.5', '--rg-cry-size': '236',
     });
   });
@@ -391,11 +391,9 @@ describe('what ships', () => {
       expect(css).toContain(`url('/frames/${door}')`);
     }
     expect(existsSync(pub('frames', 'ranked-gate-crystal.webp'))).toBe(true);
-    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum', 'gateform']) {
       expect(existsSync(ui$('audio', `${cue}.mp3`)), cue).toBe(true);
     }
-    // The crystal FORMING has no recorded cue yet: it borrows a clip already in the game.
-    expect(existsSync(ui$('audio', 'gemapply.mp3'))).toBe(true);
   });
 
   it('each cue has its own fader, on the ui bus, with a name', () => {
@@ -404,7 +402,7 @@ describe('what ships', () => {
       expect(CATEGORY_BUS[cue], cue).toBe('ui');
       expect(CATEGORY_LABEL[cue], cue).toMatch(/^Ranked gate: /);
     }
-    for (const clip of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum']) expect(familyOf(clip), clip).toBe(clip);
+    for (const clip of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum', 'gateform']) expect(familyOf(clip), clip).toBe(clip);
   });
 
   it('the doors meet on the seam: each half is anchored to its seam side and covers its door', () => {
@@ -442,17 +440,27 @@ describe('what ships', () => {
     expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 60% \{/);
   });
 
-  it('pointing at the armed crystal holds its light at the top of the pulse', () => {
+  it('pointing at the armed crystal holds its light steady, a clear step above the pulse', () => {
     // Owner 2026-10-13: "when highlighting the gem with your mouse, the gem should persistently glow bright, like
-    // the high end of the pulse".
+    // the high end of the pulse", then: "make the glow more subtle when pulsing and slightly more aggressive when
+    // hovering". So the waiting pulse is gentle and the hover sits above even the top of it.
     const kf = (name: string): string => new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`).exec(css)![1]!;
-    const glowPeak = /50% \{ opacity: ([\d.]+); transform: scale\(([\d.]+)\); \}/.exec(kf('rg-cry-glow-pulse'))!;
-    const litPeak = /50% \{ opacity: ([\d.]+); \}/.exec(kf('rg-cry-lit-pulse'))!;
-    // The steady twins sit at exactly the pulse's own peak.
-    expect(noComments).toContain(`.rgate.is-armed .rgate-crystal:hover .rgate-crystal-glow-hi { opacity: ${glowPeak[1]}; }`);
-    expect(noComments).toMatch(new RegExp(`\\.rgate-crystal-glow-hi \\{[^}]*transform: scale\\(${glowPeak[2]!.replace('.', '\\.')}\\)`));
-    expect(noComments).toContain(`.rgate.is-armed .rgate-crystal:hover .rgate-crystal-lit-hi { opacity: ${litPeak[1]}; }`);
-    // And the pulsing lights fade out under them, so the brightness holds instead of riding on top of the pulse.
+    const num = (re: RegExp, src: string): number => Number(re.exec(src)![1]);
+    const glowPeak = num(/50% \{ opacity: ([\d.]+);/, kf('rg-cry-glow-pulse'));
+    const glowPeakScale = num(/50% \{ opacity: [\d.]+; transform: scale\(([\d.]+)\);/, kf('rg-cry-glow-pulse'));
+    const litPeak = num(/50% \{ opacity: ([\d.]+); \}/, kf('rg-cry-lit-pulse'));
+    const glowHover = num(/\.rgate\.is-armed \.rgate-crystal:hover \.rgate-crystal-glow-hi \{ opacity: ([\d.]+); \}/, noComments);
+    const glowHoverScale = num(/\.rgate-crystal-glow-hi \{[^}]*transform: scale\(([\d.]+)\)/, noComments);
+    const litHover = num(/\.rgate\.is-armed \.rgate-crystal:hover \.rgate-crystal-lit-hi \{ opacity: ([\d.]+); \}/, noComments);
+    // The pulse is subtle: its brightest moment is under half strength.
+    expect(glowPeak).toBeLessThan(0.5);
+    expect(litPeak).toBeLessThan(0.5);
+    // The hover is a clear step above the top of the pulse, on both lights, and a wider bloom.
+    expect(glowHover).toBeGreaterThan(glowPeak * 1.5);
+    expect(litHover).toBeGreaterThan(litPeak * 1.5);
+    expect(glowHoverScale).toBeGreaterThan(glowPeakScale);
+    expect(glowHover).toBeLessThanOrEqual(1);
+    // And the pulsing lights fade out under the steady ones, so the brightness HOLDS instead of riding on the pulse.
     expect(noComments).toContain('.rgate.is-armed .rgate-crystal:hover .rgate-crystal-pulse { opacity: 0; }');
     expect(noComments).toMatch(/\.rgate-crystal-pulse \{ transition: opacity [\d.]+s/);
     // Only the ARMED crystal answers the pointer.
@@ -481,8 +489,9 @@ describe('what ships', () => {
     expect(noComments, 'the round burst is the shatter\'s alone').not.toMatch(/\.rgate\.is-forming \.rgate-crystal-burst/);
     // The blue glow behind it only comes up as it cools, to where the waiting pulse begins.
     expect(kf('rg-cry-glow-in')).toMatch(/0%, 55% \{ opacity: 0;/);
-    expect(kf('rg-cry-glow-in')).toMatch(/100% \{ opacity: 0\.32;/);
-    expect(kf('rg-cry-glow-pulse')).toMatch(/0%, 100% \{ opacity: 0\.32;/);
+    const endsAt = /100% \{ opacity: ([\d.]+);/.exec(kf('rg-cry-glow-in'))![1];
+    const pulseFrom = /0%, 100% \{ opacity: ([\d.]+);/.exec(kf('rg-cry-glow-pulse'))![1];
+    expect(endsAt, 'no jump in brightness as the waiting begins').toBe(pulseFrom);
   });
 
   it('its edge is soft and swims while it forms: three blurred plies, each warping on its own loop', () => {

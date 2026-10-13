@@ -12,6 +12,24 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-13 owner balance call: Mineral Master archived from EVERY set ("archive mineral master"). --
+  {
+    // ARCHIVED 2026-10-13 (owner: "archive mineral master"). Moved verbatim from set2/kobolds.ts; belongs to no set now.
+    // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
+    // showers the tribe in Rubies, so it turns a single Rally body into a board-wide permanent buff that scales
+    // with the run's Ruby strength.
+    id: 'k_mineralmaster',
+    name: 'Mineral Master',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 7,
+    health: 9,
+    keywords: [],
+    // Owner balance 2026-08-18: now ALL your minions (empty tribe = no filter).
+    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { rubies: 2 } }],
+    text: 'When you trigger a **Rally**, cast **2 Rubies** on your **minions**.',
+    goldenText: 'When you trigger a **Rally**, cast **4 Rubies** on your **minions**.',
+  },
   // -- 2026-10-11 owner Kobold balance batch ("kobolds are overtuned"): Frenzied Excavator archived; Assembler
   //    (`k_assembler`, set2/kobolds.ts) took its slot. --
   {

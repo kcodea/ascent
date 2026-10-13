@@ -120,6 +120,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // 'economy' family — NOT 'shout' / 'spellCast', which would drag those decided family questions across two events.
   'factory:tribePlayedEveryNGrantRandomSpell:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:tribePlayedBuffRandomTribeImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
+  'factory:tribePlayedGainSelfImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' }, // Vaultkeeper (2026-10-13)
+  'factory:goldSpentImproveSelf:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Alchemist Brisbane (2026-10-13)
   'factory:tribePlayedTally:onTribePlayed': { policy: 'passive', family: 'economy' },
   // factory:spellCastBuffRandomHand:spellCast — its one user (Lullaby Lou) moved to onSpellCastBuffRandomTribe 2026-10-07; entry removed (no ghost).
   'factory:shopSpellCastGrowSelf:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Goldilox (set 3, 2026-09-24)
@@ -311,7 +313,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // factory:onSummonBuffTribeAll:onSummon — its one user (Flo Rida) moved to onSummonTribeBuffFlat 2026-10-07; entry removed (no ghost).
   // factory:onTribePlayedBuffSelfPerSpell:onSummon — its one user (Vaultkeeper) was reworked 2026-10-10; entry removed so the registry carries no ghost.
   // Vaultkeeper (owner 2026-10-10): its own beat per pulse (a gain can come from anywhere; the pulse must read as Vaultkeeper's).
-  'factory:onGainAttackBuffAdjacentTribe:onGainAttack': { policy: 'ownBeat', family: 'react' },
+  // factory:onGainAttackBuffAdjacentTribe:onGainAttack — its one user (Vaultkeeper) was reworked again 2026-10-13; entry removed so the registry carries no ghost.
   'factory:onTribePlayedConsumeShop:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffRandomOthers:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Hank Pepe (set 3)

@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-13',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Vaultkeeper and Alchemist Brisbane are reworked, Mountainbond moves to Tier 6, and Mineral Master is removed.',
+        details: [
+          'Vaultkeeper: When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve this. Each 3 played raise the gain by +3/+3. Gilded gains double.',
+          'Vaultkeeper shows its current gain on the card, and a counter for the Dragons and Dwarves played toward the next step.',
+          'Rune of the Vaultkeeper: your Vaultkeepers also give their gains to an adjacent Dragon.',
+          'Alchemist Brisbane: Shout, Echo and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this. Each 30 Gold spent while she is on your board raises it by +2/+2. Gilded gives double.',
+          'Alchemist Brisbane no longer casts Rubies at End of Turn.',
+          'Mountainbond is now Tier 6 (was Tier 5).',
+          'Mineral Master has been removed from the game.',
+        ],
+      },
       { category: 'Systems', text: 'The ranked gate now waits for you. Once it slams shut, a blue crystal forms at its centre: press it to shatter it and open the gate.' },
     ],
   },

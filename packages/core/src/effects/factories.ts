@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, pickAutoTarget, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -1868,7 +1868,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rubyStatGain: (ctx, self, params) => {
     // gainRubyBonus narrates ("+a/+h Ruby Power"), reads live for this fight's later Ruby plays, and carries
     // back — where settle also grows every Ruby still in hand, the shop half's other job.
-    ctx.gainRubyBonus(num(params.attack) * mul(self), num(params.health) * mul(self), self.side, self.uid);
+    const v = improvingGrant(params, self.summonBonus); // + this copy's improve accrual, when the card prints one (Brisbane)
+    ctx.gainRubyBonus(v.attack * mul(self), v.health * mul(self), self.side, self.uid);
   },
   battlecryGainGoldNextTurn: (ctx, self, params) => {
     const n = num(params.amount, 1) * mul(self);

@@ -322,11 +322,11 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
     target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
   }
 }
-function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
+function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string, permanent = false): void {
   if (per <= 0) return;
   for (const m of ctx.living(self.side)) {
     if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
-    playRubyOn(ctx, self, m, per);
+    playRubyOn(ctx, self, m, per, permanent);
   }
 }
 
@@ -2939,15 +2939,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /** Set 2 — Avenge (X): after every `count` friendly deaths in combat, play `rubies` Rubies on your [tribe]
-   *  minions (Gemstorm Instigator, Gemline Martyr). `count` = the Avenge threshold; `rubies` = Rubies per minion
-   *  (× golden). Permanent carry-back via `playRubies`. */
+   *  minions (Party Crasher). `count` = the Avenge threshold; `rubies` = Rubies per minion (× golden). The Rubies
+   *  are TEMPORARY like every combat Ruby (owner ruling 2026-07-31) unless the card passes `permanent: true`
+   *  (Party Crasher, owner 2026-10-13), which rides `playRubyOn`'s carry-back channel to the run board. */
   avengePlayRubies: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 2));
     const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
     if (seen <= 0 || seen % x !== 0) return;
-    playRubies(ctx, self, num(params.rubies, 1) * mul(self), str(params.tribe));
+    playRubies(ctx, self, num(params.rubies, 1) * mul(self), str(params.tribe), params.permanent === true);
   },
 
   /** Set 2 — Rally (Tunnelcharger Rikk): when THIS minion attacks, get `count` Rubies (× golden). Minted into

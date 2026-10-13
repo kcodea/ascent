@@ -447,21 +447,22 @@ describe('Summoning Bulwark — the first 2 summons gain Taunt', () => {
 describe('Gemline Martyr — back to a plain End-of-Turn Veinstorm (owner rework 2026-08-19)', () => {
   it('the trigger moved and the Ruby half is gone', () => {
     const def = CARD_INDEX['k_gemline']!;
-    expect(def.effects.map((e) => e.on), 'End of Turn, not Start of Turn').toEqual(['endOfTurn']);
+    expect(def.effects.map((e) => e.on), 'End of Turn, not Start of Turn').toEqual(['endOfTurn', 'endOfTurn']);
     expect(def.text).toContain('End of Turn');
     expect(def.text, 'the Ruby-improvement clause must be gone').not.toContain('Rubies');
   });
 
   // Re-pin 2026-10-10 (Kobold balance batch): Gemling now CASTS Veinstorm 3 times at End of Turn instead of handing
-  // one over; the full cast is covered in koboldBalance1010.test.ts. Re-pin 2026-10-11 (Kobold nerf batch): 2 casts.
+  // one over. Re-pin 2026-10-11 (Kobold nerf batch): 2 casts. Re-pin 2026-10-13: ONE cast plus a Ruby Transfer to hand
+  // (koboldBalance1013.test.ts covers it in full).
   it('an End of Turn casts Veinstorm (nothing lands in hand)', () => {
     const s: RunState = {
       ...createRun(4), phase: 'recruit', hand: [],
       board: [{ uid: 'g', cardId: 'k_gemline', tribe: 'kobold', attack: 3, health: 5, keywords: [], golden: false }],
     } as RunState;
     applyEndOfTurn(s);
-    expect(s.hand.map((c) => c.cardId), 'no Veinstorm in hand').toEqual([]);
-    expect(s.veinstormRubies, 'two casts banked two Shop Rubies').toEqual({ atk: 2, hp: 2 });
+    expect(s.hand.map((c) => c.cardId), 'no Veinstorm in hand; the Ruby Transfer is the grant').toEqual(['rubytransfer']);
+    expect(s.veinstormRubies, 'one cast banked one Shop Ruby').toEqual({ atk: 1, hp: 1 });
   });
 });
 

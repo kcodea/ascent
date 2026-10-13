@@ -269,9 +269,10 @@ describe('Hydraskus: "End of Turn: Your Demons consume a minion in the Shop."', 
   });
 });
 
-describe('Drunk Daniel: "End of Turn: Give your Shop spells +2/+2."', () => {
-  it('raises the run-wide spell power by +2/+2 each End of Turn (+4/+4 gilded)', () => {
-    for (const [golden, n] of [[false, 2], [true, 4]] as const) {
+// Re-pin 2026-10-13 (second Kobold nerf batch): +1/+1 a turn, Gilded +2/+2 (was +2/+2 and +4/+4).
+describe('Drunk Daniel: "End of Turn: Give your Shop spells +1/+1."', () => {
+  it('raises the run-wide spell power by +1/+1 each End of Turn (+2/+2 gilded)', () => {
+    for (const [golden, n] of [[false, 1], [true, 2]] as const) {
       const s = recruit({ board: [body('dw_drunkdaniel', 'd', { golden })] });
       const b0 = { ...s.spellBonus };
       applyEndOfTurn(s);

@@ -472,6 +472,7 @@ export const SET2_DWARVES_LATE: CardDef[] = [
     // DRUNK DANIEL (owner add 2026-10-10). "End of Turn: Give your Shop Spells +2/+2." The run-wide spell-power channel
     // (`battlecryGrantSpellPowerRun`, Wardkeeper's Shout body) fired at End of Turn instead; it is trigger-agnostic, so the
     // same body serves a combat replay. Gilded +4/+4.
+    // Owner balance 2026-10-13 ("drunk daniel should go from 2/2 to 1/1"): +1/+1 a turn, Gilded +2/+2. The body is unchanged.
     id: 'dw_drunkdaniel',
     name: 'Drunk Daniel',
     tribe: 'dwarf',
@@ -479,8 +480,8 @@ export const SET2_DWARVES_LATE: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpellPowerRun', params: { attack: 2, health: 2 } }],
-    text: '**End of Turn:** give your **Shop spells +2/+2**.',
-    goldenText: '**End of Turn:** give your **Shop spells +4/+4**.',
+    effects: [{ on: 'endOfTurn', do: 'battlecryGrantSpellPowerRun', params: { attack: 1, health: 1 } }],
+    text: '**End of Turn:** give your **Shop spells +1/+1**.',
+    goldenText: '**End of Turn:** give your **Shop spells +2/+2**.',
   },
 ];

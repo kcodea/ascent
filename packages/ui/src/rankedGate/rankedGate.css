@@ -92,7 +92,8 @@
   transform: translate(-50%, -50%); pointer-events: none;
 }
 .rgate.is-armed .rgate-crystal { pointer-events: auto; }
-.rgate-crystal:focus-visible .rgate-crystal-body { outline: 3px solid rgba(214, 240, 255, 0.9); outline-offset: 6px; border-radius: 50%; }
+/* The keyboard's focus ring, in the theme's own ring colour (the same token the Compendium's controls use). */
+.rgate-crystal:focus-visible .rgate-crystal-body { outline: 3px solid var(--ui-edge-hi); outline-offset: 6px; border-radius: 50%; }
 .rgate-crystal-glow, .rgate-crystal-body, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
 /* The light behind it: a static blue bloom, wider than the crystal. Only its opacity and scale move. */
 .rgate-crystal-glow { inset: -45%; opacity: 0; background: radial-gradient(closest-side, rgba(150, 215, 255, 0.85), rgba(64, 150, 255, 0.5) 38%, rgba(40, 110, 255, 0.18) 62%, rgba(40, 110, 255, 0)); }

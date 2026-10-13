@@ -55,6 +55,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   gateform: 0.42, gateshatter: 0.6,
   // The crystal's HUM while the pointer is on it (owner 2026-10-13): a seamless loop, faded in and out.
   gatehum: 0.5,
+  // END OF MATCH (owner 2026-10-13): his tone for a 5th to 8th place finish, at the same level as the gate's cues;
+  // and, for a 1st to 4th, the gate's cinematic hit (the `gateintro` clip) at that cue's own level.
+  placelow: 0.6, placehigh: 0.72,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -88,7 +91,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   gamble: 'ui',
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
-  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui', gatehum: 'ui',
+  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui', gatehum: 'ui', placelow: 'ui', placehigh: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',
@@ -123,6 +126,8 @@ export const CATEGORY_LABEL: Record<string, string> = {
   gateform: 'Ranked gate: the crystal building up',
   gateshatter: 'Ranked gate: the crystal shattering',
   gatehum: 'Ranked gate: the crystal humming under the pointer (loop)',
+  placelow: 'End of match: the tone for a 5th to 8th place finish',
+  placehigh: 'End of match: the hit for a 1st to 4th place finish',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',
   discoverArrive: 'Discover entrance — settle as a card arrives',
   discoverSparkle: 'Discover entrance — sparkle once the set is in',

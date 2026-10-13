@@ -218,6 +218,7 @@ import { recordCursorSample, useGame } from './store';
 import { combatMayEndGame, gateMotionAllowed, resolutionEndsGame } from './rankedGate/endGameGate';
 import { requestRankedGate } from './rankedGate/rankedGateController';
 import { warmRankedGate } from './rankedGate/RankedGate';
+import { endGateRevealDelayMs, playPlacementTone } from './placementTone';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
@@ -2991,6 +2992,9 @@ export function Recruit() {
             pixiFx.clearParticles();
             useGame.getState().commitPresentationAction();
             wipeExitRef.current = false;
+            // THE PLACEMENT TONE (owner 2026-10-13): the result's sound (one for 1st to 4th, one for 5th to 8th),
+            // set off now to land as the doors start to part on it.
+            playPlacementTone(useGame.getState().run, endGateRevealDelayMs());
           }, 'end');
           return;
         }
@@ -3014,6 +3018,9 @@ export function Recruit() {
     // land THAT result. Resolving it again would settle the lobby round twice.
     else if (useGame.getState().presentationTx?.action.type === 'resolveCombat') useGame.getState().commitPresentationAction();
     else dispatch({ type: 'resolveCombat' });
+    // A game that ended WITHOUT the gate (reduced motion, or the gate's rare miss) still gets its placement tone,
+    // as the sweep lifts on the end screen. Nothing plays when the game goes on, or for a place with no tone.
+    if (!sandboxReplay) playPlacementTone(useGame.getState().run);
   }, [wipe, dispatch, sandboxReplay, exitReplay]);
 
   // Skip the replay — the same synchronized fade as End Combat, but it stays IN combat: freeze all motion

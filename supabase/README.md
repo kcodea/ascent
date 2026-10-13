@@ -226,7 +226,8 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
    - If a desktop build lags behind the function: an older client that saves a title the new title rule refuses is
      told 'That "by" line is reserved. Pick another name.' The save is refused correctly; only the part it names is
      wrong. It goes away when that client updates.
-5. **Taking a guide down before step 4.** There is no Hide button yet. Until there is, do it in the SQL Editor.
+5. **Taking a guide down before step 4.** (Step 4 below replaces this with buttons; keep it only for a project where
+   the step 4 migration has not run.) There is no Hide button yet. Until there is, do it in the SQL Editor.
    Find it: `select id, title, byline, published_at from public.guides where not official and published order by published_at desc limit 50;`
    Hide it (on the server it leaves Community, Bookmarked and every lobby rail at once; a game that is already open
    drops it the next time it opens the Compendium's Guides tab or is restarted; its author still sees it, marked
@@ -235,6 +236,60 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
    the Find query again afterwards. Blocking an account is step 4's work.
    Undo: `update public.guides set hidden = false, hidden_at = null where id = '<id>';`
    Delete it for good: `delete from public.guides where id = '<id>';`
+
+### Reports, hiding and release tools (step 4)
+
+1. **Run the migration.** Paste `supabase/migrations/2026-10-14-guides-moderation.sql` into the SQL Editor and Run, after
+   the 2026-10-12 and 2026-10-13 files. It is idempotent. It adds the table that counts bookmark changes (a limit of
+   120 an hour for each account), puts a limit on `guide_bookmark`, and adds `guide_report`, `guide_set_hidden`,
+   `guide_dismiss_reports` and `guide_retag_set`.
+   **Re-run rule:** if you re-ran 2026-10-12, run 2026-10-13 and then this file. If you re-ran 2026-10-13, run this
+   file. Do not leave an earlier guides file as the last one run.
+   Check the locks took. Each of these should answer `f`:
+   `select has_function_privilege('authenticated', 'public.guide_report(uuid, uuid, text, text)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_set_hidden(uuid, uuid, boolean)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_dismiss_reports(uuid, uuid)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_retag_set(uuid, text, uuid[])', 'execute');`
+   `select has_table_privilege('authenticated', 'public.guide_bookmark_log', 'select');`
+2. **Redeploy the function.** `npx supabase functions deploy guide-write`. Run the migration first. Until both are done
+   Report and Hide fail with a plain sentence and change nothing; saving, publishing and bookmarking keep working.
+3. **Check with real accounts** (never yet run against the live project). You need account A (a player), account B
+   (another player) and a team account:
+   - Account A publishes a guide. Account B finds it under Community and presses **Report** on its card, picks a
+     reason, and sends. The card then reads Reported and says "Reported. Thank you." Reopen the Compendium and report
+     the same guide again: it says "You already reported this guide." A report is once per account for each guide,
+     for good, even after the guide is unhidden. Account B cannot see any report anywhere. Neither A nor B is offered
+     Report on their own guide or on a Team Ascent guide.
+   - The team account opens the Compendium, Guides, **Reports**: the report is there with its reason and note. Account
+     A and account B have no Reports pill.
+   - The team presses **Hide** on the guide (on its card in Reports or in Community) and confirms. After B reopens the
+     Guides tab (and the lobby list's Guides view) it is gone from Community, from B's Bookmarked and from the lobby
+     list. The report is no longer open: hiding marks it done. It is listed under Hidden guides in Reports, with
+     Unhide.
+   - Account A still sees the guide under My guides. Its badge reads "Hidden by Team Ascent" where it said Published.
+     The guide is still published, so its card offers **Unpublish**, not Publish. Once A unpublishes it, Publish is
+     greyed out, and a publish sent directly is refused with `guide_hidden` ("Team Ascent has hidden this guide. It
+     cannot be published."). A can still Edit and Delete it.
+   - The team presses **Unhide**: the guide is back in Community (if A had not unpublished it) for B after B reopens
+     the Guides tab.
+   - With a tampered request (or the SQL editor as `authenticated`), account B calling `setHidden` (or `resolveReport`,
+     or `retagSets`) is refused and nothing changes.
+   - The team cannot Hide a Team Ascent guide: no Hide is drawn, and the server refuses it. A team account can Edit and
+     Delete one.
+4. **When a new set goes live:** a team account opens Reports, Carry guides over, picks the new set in the Set box,
+   presses Check, reads the three numbers (how many carry over, how many stay behind, how many already have it), then
+   presses Carry over. It sends the guides in batches of 200 and only ever adds the set to a guide; it never removes
+   one. If it stops partway it says how far it got: press Check and Carry over again. It can be run again at any time.
+5. **Before a release:** `npm run guides:pull` rewrites `packages/ui/src/guides/guides.bundled.ts` from the live Team
+   Ascent guides. It only reads (one request with the public key from `apps/web/.env`, 15 seconds at most). It stops and
+   writes nothing when the answer is not OK, is short or uncounted, has a row it cannot read, has a Team Ascent guide
+   that is in no set, or has no guides at all (run Import first). Then run `npx vitest run packages/ui/src/guides` (the
+   whole folder: every card in every guide must resolve) and commit the file. The first pull drops the hand-written
+   comments inside that file. A live guide with no slug is written under its row id.
+
+The take-down SQL in step 3's notes is no longer needed: Hide, Unhide and Delete are buttons for the team now. A hide
+still stops a guide, not its author: a copy is a new guide, and shows up in Community like any other, and the Reports
+pill is where the team sees it come back. There is no way to block an account.
 
 ### Note
 

@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Guides: report a Community guide that should not be there. Team Ascent reviews reports and can hide a guide.',
+        details: [
+          'Press Report on a guide\'s card, pick a reason, and add a note if you like. You can report a guide once.',
+          'A hidden guide is seen only by its author, who is told it was hidden.',
+          'Adding and removing bookmarks very quickly is now limited.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Guides: publish yours, and browse everyone else\'s. The Compendium\'s Guides tab has a Community list and your Bookmarked guides.',
         details: [
           'Publish a guide from its card under My guides. It asks first, and you can unpublish any time.',

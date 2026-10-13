@@ -6,7 +6,7 @@
 -- Idempotent: safe to re-run. The same block is appended to schema.sql; keep the two identical.
 -- Do not re-run an EARLIER guides file alone after this one. If you re-ran 2026-10-12, run 2026-10-13 and then this
 -- file; if you re-ran 2026-10-13, run this file (it would otherwise leave the old guide_bookmark, with no limit).
--- Spec: docs/superpowers/specs/2026-10-11-community-guides-design.md. Devlog: docs/devlog/2026-10-14-guides-moderation.md.
+-- Spec: docs/superpowers/specs/2026-10-11-community-guides-design.md. Devlog: docs/devlog/2026-10-12-guides-moderation.md.
 --
 -- WHAT
 --  - `guide_bookmark_log`: one row per bookmark added or removed, for the 120-an-hour limit. The service role's alone.

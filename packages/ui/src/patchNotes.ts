@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-13',
+    changes: [
+      { category: 'Systems', text: 'The ranked gate now waits for you. Once it slams shut, a blue crystal forms at its centre: press it to shatter it and open the gate.' },
+    ],
+  },
+  {
     date: '2026-10-12',
     changes: [
       {

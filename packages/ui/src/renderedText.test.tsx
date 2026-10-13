@@ -115,6 +115,7 @@ const richBag = (id: string): LiveTextParams => ({
   goldSpent: 12, /* ≥ Rope Wrangler's per-10-Gold repeat (2026-09-23) */ goldSpentRun: 13, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
   rubyBonus: { attack: 2, health: 2 },
+  spiritTally: 4, /* past Vaultkeeper's every-3 improve step (2026-10-13) */
   lastSpellName: 'Spirit Fire', rememberedSpellNames: ['Spirit Fire', 'Growth'],
   impBank: { attack: 2, health: 3 }, firstSpellThisTurnName: 'Growth', lastSpellThisTurnName: 'Spirit Fire',
   keeperFirstSpellName: 'Growth',
@@ -250,6 +251,8 @@ const CROSS: CrossExemplar[] = [
   { id: 'sergeant', inst: { hpGrantBonus: 3 } }, //      per-instance Deathrattle accrual
   { id: 'ritualist', inst: { eotBonus: 3 } }, //         per-instance End-of-Turn accrual
   { id: 'b2_groveweaver', inst: { summonBonus: 4 } }, // per-instance summon-buff accrual
+  { id: 'd2_herzog', inst: { spiritTally: 4 } }, //      per-instance tribe-played tally (Vaultkeeper, 2026-10-13)
+  { id: 'k_alchemist', inst: { summonBonus: 2 } }, //    per-instance improve accrual (Alchemist Brisbane, 2026-10-13)
   { id: 'chefraag', run: { impBuff: { attack: 2, health: 3 } } }, // run-scoped Imp Aura
   { id: 'n2_wanderer', run: { goldSpent: 13 }, foe: false }, // run-lifetime Gold meter — NOT in the snapshot (by design)
   { id: 'sp3_flamereveler', run: { revelerX: 4 } }, //   run-scoped shared Reveler value (owner 2026-09-10)

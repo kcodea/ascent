@@ -30,6 +30,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ARCHIVED_CARDS } from '@game/content';
 import {
   FIRE_UNOBSERVED, SYNTHETIC_FIRE_SITES, auditFireSites, deriveRallyDivergences, rallyDerivation, type RallyObservation,
 } from './firePaths';
@@ -75,13 +76,20 @@ describe('Doc Bot — fire paths: the Rally derivation pair', () => {
     expect(m, 'simulate.ts must declare RALLY_WATCHER_EFFECTS as a literal Set').toBeTruthy();
     const declared = [...m![1]!.matchAll(/'(\w+)'/g)].map((x) => x[1]!).sort();
     const derived = d.observations.filter((o) => o.cls === 'rally-watcher').map((o) => o.factory).sort();
-    expect(declared, `the engine names [${declared.join(', ')}] as Rally watchers; the cards behave as [${derived.join(', ')}] — a watcher the engine does not name misses every synthetic Rally`).toEqual(derived);
+    // ARCHIVED WATCHERS STAY NAMED (Mineral Master, archived 2026-10-13): an archived card is in no set, so the
+    // derivation (active content only) cannot see it, but a saved run, a pinned opponent board or an old replay can
+    // still field one, and it must keep hearing a free / multiplied Rally exactly as it did when it shipped. So the
+    // engine may name a factory the active pool does not use ONLY while an archived card still carries it on
+    // `onAttack`; the day that card is deleted, this fails and the entry goes with it.
+    const archivedOnly = declared.filter((f) => !derived.includes(f)
+      && ARCHIVED_CARDS.some((c) => c.effects.some((e) => e.on === 'onAttack' && e.do === f)));
+    expect(declared.filter((f) => !archivedOnly.includes(f)), `the engine names [${declared.join(', ')}] as Rally watchers; the cards behave as [${derived.join(', ')}] (archived-only: [${archivedOnly.join(', ')}]) — a watcher the engine does not name misses every synthetic Rally`).toEqual(derived);
   });
 
   it('the classes are populated (the instrument sees something on every side)', () => {
     const count = (cls: RallyObservation['cls']): number => d.observations.filter((o) => o.cls === cls).length;
     expect(count('self-rally')).toBeGreaterThan(10);
-    expect(count('rally-watcher')).toBeGreaterThanOrEqual(3);
+    expect(count('rally-watcher')).toBeGreaterThanOrEqual(2); // 3 until Mineral Master was archived (2026-10-13)
     expect(count('attack-watcher')).toBeGreaterThanOrEqual(2);
     expect(count('unobserved')).toBe(Object.keys(FIRE_UNOBSERVED).length);
   });

@@ -223,6 +223,17 @@ to ease off 1.1 s in, as the gem stops growing fast and begins to cool, over abo
 exponential ease on the clip's gain and then stops it, so the timing is two numbers to tune and the recording is
 untouched. How much earlier was Claude's pick (the cooling point), not the owner's number.
 
+**Then, the waiting crystal's embers (its own PR):** "can you increase the amount of floating particles when the gem
+is waiting? can you increase their glow by 20%? can you increase their life by 20%?".
+
+- **More:** `AMBIENT_PER_SECOND` 12 -> 20 (the owner gave no number; about two thirds more).
+- **Glow +20%** (`AMBIENT_GLOW`): each is 20% brighter where it has the headroom, and its glow covers 20% more area
+  (its width x sqrt(1.2)), so the gain holds even at the moment it is already at full brightness.
+- **Life +20%** (`AMBIENT_LIFE`): 1.3-3.0 s -> 1.56-3.6 s. They rise at the same speed, so they also climb 20%
+  higher before they fade.
+- More of them living longer: about 60 alive at once, up from about 26. Only the waiting trickle changed; the
+  slam's and the shatter's embers are as they were.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

@@ -520,7 +520,7 @@ export const TEXT_RULES: GameRule[] = [
     title: 'A card on loan is visibly marked "On Loan" while it waits in hand',
     statement:
       'A hand card that is destroyed when played this turn (a Funeral on Loan pick) is always told apart from a card '
-      + 'that would stay: it shows the words "On Loan" above the card and a light smoke rising off it, in hand and on '
+      + 'that would stay: it shows the words "On Loan" above the card and smoke rising off it, in hand and on '
       + 'its drag copy. The marker goes away when the loan ends (the next turn) and is never worn by the body on the board.',
     domain: 'text',
     status: 'approved',

@@ -333,7 +333,7 @@ export interface CardView {
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
   /** FUNERAL ON LOAN: this hand card is BORROWED — played this turn it is destroyed and its Echo triggers, so it
-   *  wears the "On Loan" tag and a light smoke (`OnLoanMark`) to tell it apart from a card that would stay. The
+   *  wears the "On Loan" tag and smoke (`OnLoanMark`) to tell it apart from a card that would stay. The
    *  sim clears the flag at the next turn, when the card becomes an ordinary one. Never set on a board body. */
   onLoan?: boolean;
   /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).

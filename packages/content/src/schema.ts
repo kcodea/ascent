@@ -440,6 +440,8 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyGainAttackPerSpiritsPlayed', 'battlecryBuffRandomTribeBoardAndHand', 'revelerSell', 'battlecryGrantRandomReveler',
   'minionSoldRevelerDiscount', 'minionSoldRevelerReturn', 'battlecryBuffRandomTribePlusReveler', 'battlecryDiscoverTribeIfControl',
   'endOfTurnBuffRandomTribeRepeatPerPlayed', 'scBuffTribePerTally', 'tribePlayedEveryNGrantRandomSpell',
+  'tribePlayedGainSelfImproving', // Vaultkeeper (2026-10-13): gain on a Dragon play, improving every N Dragons or Dwarves played
+  'goldSpentImproveSelf', // Alchemist Brisbane (2026-10-13): every N Gold spent improves this copy
   'tribePlayedBuffRandomTribeImproving', 'tribePlayedTally', 'equipmentBuffRandomTribeBoardAndHand', 'spellCastBuffRandomHand',
   // set 3 Spirits (tranche 2 — the hand-summon cards)
   'deathrattleSummonHighestHealthFromHand', 'rallySummonRandomTribeFromHand', 'scGainStatsOfHighestHealthHand',

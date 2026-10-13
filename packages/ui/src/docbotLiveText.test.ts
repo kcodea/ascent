@@ -57,6 +57,7 @@ const RICH: LiveTextParams = {
   goldSpent: 6, goldSpentRun: 12, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
   rubyBonus: { attack: 2, health: 2 },
+  spiritTally: 4, /* past Vaultkeeper's every-3 improve step (2026-10-13) */
 };
 
 /** Both halves present: a `+A/+H` pair, or Attack and Health both named in the live portion. */

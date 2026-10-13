@@ -1,4 +1,4 @@
-import { aleGrantCount, damageMeterOf, damageMeterReading, shopSpellGrowth, type Tribe } from '@game/core';
+import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText } from '@game/sim';
 
@@ -270,6 +270,45 @@ export function hunterText(cardId: string, summonBonus: number, golden: boolean)
 }
 
 /**
+ * Vaultkeeper (`tribePlayedGainSelfImproving`, owner rework 2026-10-13): "When you play a Dragon, gain +3/+3. Play 3
+ * Dragons or Dwarves to improve this." The gain is base x (1 + floor(tally / every)) x golden, where the tally is
+ * this copy's tribe-played count (`spiritTally`). Surface the CURRENT gain (green) in place of the printed one; the
+ * countdown to the next step is the N/3 step counter (`stepProgress`), never a fraction in the text. Null until the
+ * gain has stepped up (the printed base is accurate until then).
+ */
+export function vaultkeeperText(cardId: string, golden: boolean, spiritTally: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'tribePlayedGainSelfImproving');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number; every?: number };
+  const level = 1 + Math.floor(Math.max(0, spiritTally) / Math.max(1, Number(p?.every ?? 3)));
+  if (level <= 1) return null;
+  const g = golden ? 2 : 1;
+  const a = Number(p?.attack ?? 1) * level * g, h = Number(p?.health ?? 1) * level * g;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${a}/+${h}}}`)));
+}
+
+/**
+ * An improving Ruby-strength grant (Alchemist Brisbane, owner rework 2026-10-13: "Your Rubies gain +2/+2. Spend 30 Gold
+ * to improve this"). The grant is (base + step x improvements earned) x golden, the improvements riding this copy's
+ * `summonBonus` (core's `improvingGrant`). Surface the CURRENT grant (green) in place of the printed one; the Gold
+ * still owed is the N/30 step counter. Null until an improvement has been earned. Keyed on the printed improve step,
+ * so any card that adds one to these factories gets its live number with no edit here.
+ */
+export function improvingRubyGrantText(cardId: string, golden: boolean, summonBonus: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => typeof (e.params as { improveAttack?: unknown } | undefined)?.improveAttack === 'number'
+    || typeof (e.params as { improveHealth?: unknown } | undefined)?.improveHealth === 'number');
+  if (!def || !eff || summonBonus <= 0) return null;
+  const v = improvingGrant(eff.params ?? {}, summonBonus);
+  const g = golden ? 2 : 1;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${v.attack * g}/+${v.health * g}}}`)));
+}
+/**
  * A transform card (Spirit Pup) appends its live "N to go" countdown (highlighted green) so the
  * player sees how many spells remain before it transforms. `spellProgress` is the per-instance
  * tally; returns null for non-transform cards so callers fall back to the printed text.
@@ -330,10 +369,10 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
  * over whatever live text the chain resolved, so it composes with every value-injecting helper. Green-marked,
  * like every live value.
  */
-export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: Vaultkeeper buffs ALL your Dragons. */ vaultkeeper?: boolean }
+export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: each Vaultkeeper gain also lands on an adjacent Dragon. */ vaultkeeper?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
-  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Buffs all your Dragons (Rune of the Vaultkeeper).}}';
+  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Also gives its gains to an adjacent Dragon (Rune of the Vaultkeeper).}}';
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
   if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
   if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Rune of Living Treasure).}}';

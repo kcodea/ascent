@@ -74,17 +74,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-numeral-01",
-    "title": "Wording: Gold vs g · 75 vs 2",
+    "title": "Wording: Gold vs g · 77 vs 2",
     "statement": "Money always prints as \"N Gold\" — never the \"Ng\" abbreviation. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"N Gold\" in 75 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"N Gold\" in 77 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
     "cardText": "\"N Gold\" — Bone Taxer: \"Avenge (4): get 2 Gold next shop. Deathrattle: raise your maximum Gold by 1.\" · \"Ng\" — Trail Forager: \"Sells for 3g, plus 1g for every Beast you play.\"",
     "example": "Trail Forager would be re-worded to the \"N Gold\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 75 vs 2)"
+        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 77 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -220,17 +220,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 104 vs 2",
+    "title": "Wording: trigger vs fire/proc · 102 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 104 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 102 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 104 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 102 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",

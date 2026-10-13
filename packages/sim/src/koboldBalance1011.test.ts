@@ -91,12 +91,8 @@ describe('Assembler: "End of Turn: Cast 2 Rubies on your other Kobolds"', () => 
     expect(rubyBuff(at(s, 'as'))).toEqual({ attack: 0, health: 0 });
   });
 
-  it('Alchemist Brisbane is unchanged: her End of Turn still includes herself', () => {
-    const s = run({ board: [body('ab', 'k_alchemist'), body('k1', 'k_beggy')] });
-    applyEndOfTurn(s);
-    expect(rubyBuff(at(s, 'ab'))).toEqual({ attack: 1, health: 1 });
-    expect(rubyBuff(at(s, 'k1'))).toEqual({ attack: 1, health: 1 });
-  });
+  // ("Alchemist Brisbane is unchanged: her End of Turn still includes herself" lived here. Her End of Turn was removed
+  // on 2026-10-13, so Assembler is the only card on `endOfTurnPlayRuby` and it always passes `excludeSelf`.)
 });
 
 describe('Frenzied Excavator is archived; Assembler holds its slot', () => {

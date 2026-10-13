@@ -793,6 +793,8 @@ export type EffectFactoryId =
   | 'endOfTurnBuffRandomTribeRepeatPerPlayed' // Nurturer: End of Turn — a random `tribe` +atk/+hp, repeated per Spirit played
   | 'scBuffTribePerTally' // Forest Colossus: Start of Combat — your `tribe` +atk/+hp per point of this body's tally
   | 'tribePlayedEveryNGrantRandomSpell' // Festival Keeper: every `every` `tribe` plays → a random Shop spell
+  | 'tribePlayedGainSelfImproving' // Vaultkeeper (2026-10-13): a `tribes` minion played from hand counts toward the improve; a `gainTribe` one also pays THIS +a/+h x (1 + floor(prior / every))
+  | 'goldSpentImproveSelf' // Alchemist Brisbane (2026-10-13): every `every` Gold spent steps this copy's improve accrual (`summonBonus`) by 1
   | 'tribePlayedBuffRandomTribeImproving' // Aspect: each `tribe` play → N random `tribe` +v/+v, v improving every `every`
   | 'tribePlayedTally' // Forest Colossus: count `tribe` plays since this was played
   | 'equipmentBuffRandomTribeBoardAndHand' // Spiritbinder: a random `tribe` on board AND a random `tribe` in hand, +atk/+hp (gilding rides gildedParams)

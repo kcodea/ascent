@@ -149,7 +149,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-10 owner spell batch: 120 → 122, CONSCIOUSLY. Perfect Vision's Shop Tier condition ("Set it to 50/50 if you're
 // Shop Tier 6") and Strange Revision's new tier-up transform ("into a random minion of the tier above it. It keeps its
 // stats.") have no grammar rule yet; the archives (Turnabout, Ruby Excavation) were parsed, so they did not offset it.
-const UNRESOLVED_CAP = 122;
+// 2026-10-13 (Vaultkeeper + Alchemist Brisbane reworks): 122 -> 123, CONSCIOUSLY. Two owner texts carry a self-improve
+// clause the grammar has no rule for yet: Vaultkeeper's "Play 3 Dragons or Dwarves to improve this." and Brisbane's
+// "Spend 30 Gold to improve this." behind a three-trigger header ("Shout, Echo and Rally:"). Both rows are unresolved
+// now; the net move is +1.
+const UNRESOLVED_CAP = 123;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

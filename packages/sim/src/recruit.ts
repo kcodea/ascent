@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -4456,6 +4456,46 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const t of pickRandom(ctx.state, pool, num(params.count, 3))) addBuff(t, nameOf(self), a, h);
   },
 
+  /**
+   * Vaultkeeper (owner rework 2026-10-13): "When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve
+   * this." The dispatcher has already matched the played body against `tribes` (the types that COUNT), so every call
+   * is one count on this copy's per-instance tally (`spiritTally`, the tribe-played tally Aspect and Festival Keeper
+   * ride, which is also what draws the N/3 step counter). A play that is ALSO a `gainTribe` body pays this copy
+   * +attack/+health x LEVEL first, where LEVEL = 1 + floor(tally BEFORE this play / every): grant, then count (the
+   * Beardsley / Conductor order), so the play that completes a set of 3 still pays the old value and the NEXT Dragon
+   * pays the improved one. Golden doubles the applied gain, base and steps alike. The copy never counts its own
+   * arrival (the dispatcher skips the played card). Shop-only by nature: nothing is played from hand in combat.
+   *
+   * RUNE OF THE VAULTKEEPER (owner 2026-10-13: back to its pre-10-10 effect): the same gain ALSO lands on an adjacent
+   * Dragon, a seeded pick when both neighbours are Dragons.
+   */
+  tribePlayedGainSelfImproving: (ctx, self, params, payload) => {
+    const played = payload.target;
+    if (!played) return;
+    const every = Math.max(1, num(params.every, 3));
+    const prior = self.spiritTally ?? 0;
+    const gainTribe = str(params.gainTribe) as Tribe;
+    const pdef = CARD_INDEX[played.cardId];
+    if (!gainTribe || (pdef && defIsTribe(pdef, gainTribe, ctx.state))) {
+      const level = 1 + Math.floor(prior / every);
+      const a = num(params.attack, 1) * level * gold(self), h = num(params.health, 1) * level * gold(self);
+      addBuff(self, nameOf(self), a, h);
+      if (ctx.state.runeVaultkeeper) {
+        const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+        const neighbours = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]]
+          .filter((c): c is BoardCard => !!c && isTribe(c, 'dragon' as never)); // owner 2026-08-18: adjacent DRAGONS only
+        if (neighbours.length > 0) {
+          procRuneId(ctx.state, 'rune_herzog');
+          const rng = makeRng(ctx.state.rngCursor);
+          const target = neighbours[rng.int(neighbours.length)]!;
+          ctx.state.rngCursor = rng.state();
+          addBuff(target, 'Rune of the Vaultkeeper', a, h);
+        }
+      }
+    }
+    self.spiritTally = prior + 1;
+  },
+
   /** Forest Colossus: count the `tribe` plays this body witnesses (only those AFTER it was played). */
   tribePlayedTally: (ctx, self) => {
     void ctx;
@@ -4853,6 +4893,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
       }
     }
+  },
+
+  /** Alchemist Brisbane (owner rework 2026-10-13: "Spend 30 Gold to improve this"): each time this copy's Gold meter
+   *  crosses `every` (`applyGoldSpent` owns the meter, which carries across turns), it earns ONE improvement on its
+   *  per-instance accrual (`summonBonus`), x Rune of Mastery like every other "improve this". The size of an
+   *  improvement is printed on the grants that read it (`improveAttack` / `improveHealth`, see `improvingGrant`). */
+  goldSpentImproveSelf: (ctx, self) => {
+    self.summonBonus = (self.summonBonus ?? 0) + improveReps(ctx.state);
   },
 
   /** Coinfire Forewoman (Gold spent): your minions of `tribe` gain +attack. The `every` threshold is applied by
@@ -5428,8 +5476,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   rubyStatGain: (ctx, self, params) => {
-    const a = num(params.attack) * gold(self);
-    const h = num(params.health) * gold(self);
+    // `improvingGrant`: base + this copy's earned improvements, when the card prints an improve step (Brisbane).
+    const v = improvingGrant(params, self?.summonBonus);
+    const a = v.attack * gold(self);
+    const h = v.health * gold(self);
     const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     ctx.state.rubyBonus = { attack: b.attack + a, health: b.health + h };
     // ONLY Rubies — a "Your Rubies gain +X" never touches Shop Spells, and (conversely) a spell buff never
@@ -14355,6 +14405,10 @@ export function fireOnTribePlayed(state: RunState, played: BoardCard): void {
       if (eff.on !== 'onTribePlayed') continue;
       const tribe = str(eff.params?.tribe) as Tribe;
       if (tribe && !defIsTribe(def, tribe, state)) continue;
+      // `tribes` (Vaultkeeper, 2026-10-13: "Dragons or Dwarves") = ANY of the listed types, counted ONCE per play: a
+      // dual-type or All-types body is one play, never one per matching type.
+      const anyOf = eff.params?.tribes;
+      if (Array.isArray(anyOf) && !anyOf.some((t) => defIsTribe(def, String(t) as Tribe, state))) continue;
       // Hand watchers must say so (`inHand: true`); a board watcher in hand stays asleep, and vice versa.
       if (!!eff.params?.inHand !== inHand) continue;
       const fn = RECRUIT_FACTORIES[eff.do];

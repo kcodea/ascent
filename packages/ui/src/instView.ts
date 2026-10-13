@@ -4,7 +4,7 @@ import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedTh
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, drunkenOafText, aleTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, drunkenOafText, aleTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText } from './cardText';
@@ -238,6 +238,8 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden, p.runeMammoth) ?? // Menagerie Mammoth: escalating grant (+Health with the rune)
             soldProgressText(c.id, p.soldProgress ?? 0) ?? // Runic Archivist: sales still owed
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
+            vaultkeeperText(c.id, p.golden, p.spiritTally ?? 0) ?? // Vaultkeeper: its current per-Dragon gain
+            improvingRubyGrantText(c.id, p.golden, p.summonBonus ?? 0) ?? // Alchemist Brisbane: its current Ruby grant
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             thundeerText(c.id, p.summonBonus ?? 0, p.golden) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??

@@ -217,6 +217,12 @@ export const SET2_DRAGONS: CardDef[] = [
     // no Vaultkeeper reacts to a gain made while a Vaultkeeper pulse is resolving, so two adjacent Vaultkeepers
     // settle instead of feeding each other forever (R-VAULT-01). Rune of the Vaultkeeper widens "adjacent" to every
     // other friendly Dragon. Golden doubles the grant.
+    // OWNER REWORK 2026-10-13 ("lets change vaultkeeper again, he just isn't fun"): "When you play a Dragon, gain
+    // +3/+3. Play 3 Dragons or Dwarves to improve this." Back to a self-scaling Dragon-tempo body, on the
+    // played-from-hand trigger this time (`onTribePlayed`; a summoned token is not a play). `tribes` is what COUNTS
+    // toward the improve, `gainTribe` is what pays. Each 3 counted plays add +3/+3 to the gain (owner: "+3/+3 per
+    // step"), per copy, permanently; the N/3 step counter is the tribe-played tally. Golden doubles the gain. The
+    // 10-10 pulse factory (`onGainAttackBuffAdjacentTribe`) has no card now and stays dormant, pinned by a probe.
     id: 'd2_herzog',
     name: 'Vaultkeeper',
     tribe: 'dragon',
@@ -224,9 +230,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 6,
     health: 10,
     keywords: [],
-    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffAdjacentTribe', params: { tribe: 'dragon', attack: 3, health: 4 } }],
-    text: 'When this gains **Attack**, give adjacent **Dragons +3/+4**.',
-    goldenText: 'When this gains **Attack**, give adjacent **Dragons +6/+8**.',
+    effects: [{ on: 'onTribePlayed', do: 'tribePlayedGainSelfImproving', params: { tribes: ['dragon', 'dwarf'], gainTribe: 'dragon', attack: 3, health: 3, every: 3 } }],
+    text: 'When you play a **Dragon**, gain **+3/+3**. Play **3 Dragons or Dwarves** to improve this.',
+    goldenText: 'When you play a **Dragon**, gain **+6/+6**. Play **3 Dragons or Dwarves** to improve this.',
   },
   {
     // Owner add 2026-08-14, respec 2026-08-17. The Dragon line's PERMANENCE card: a warded T4 whose Start of

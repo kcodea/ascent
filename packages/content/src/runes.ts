@@ -2923,7 +2923,9 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner balance batch 2026-10-10: Vaultkeeper's effect was replaced ("When this gains Attack, give adjacent Dragons
     // +3/+4"); owning this rune widens "adjacent Dragons" to ALL your other Dragons, in both phases (the shop reads
     // `runeVaultkeeper`, combat its `QuestCombatMods` twin). Same reward kinds, so a saved run that owns it keeps working.
-    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** buff all **Dragons**.',
+    // Owner 2026-10-13: Vaultkeeper is a self-scaler again ("When you play a Dragon, gain +3/+3..."), so the rune is
+    // back to its pre-10-10 effect and text: each gain is ALSO given to an adjacent Dragon (`tribePlayedGainSelfImproving`).
+    text: 'Get a **Vaultkeeper**. Your **Vaultkeepers** also give their stats to an adjacent **Dragon**.',
     previewCards: ['d2_herzog'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d2_herzog'] }, { kind: 'runeVaultkeeper' }] },
     sets: ['set2'],

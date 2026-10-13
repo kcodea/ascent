@@ -231,22 +231,28 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Echo:** cast **6 Rubies** on each of your **Kobolds**.',
   },
   {
-    // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on
-    // a random friendly Kobold. The Echo's Ruby-strength gain carries back from combat.
+    // Three triggers that all buff your Rubies: Shout (onPlay), Echo (death) and Rally (its own attack). The Echo's
+    // and the Rally's Ruby-strength gains carry back from combat.
     id: 'k_alchemist',
     name: 'Alchemist Brisbane',
     tribe: 'kobold',
     tier: 7,
     attack: 9,
     health: 6,
-    keywords: [],
+    // OWNER REWORK 2026-10-13: "Shout, Echo, and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this." The End
+    // of Turn Ruby cast is REMOVED (owner confirmed). All three triggers pay the same grant: base +2/+2 plus +2/+2 per
+    // improvement this copy has earned (`improveAttack` / `improveHealth` x its `summonBonus`; owner: "+2/+2 per
+    // step"). `goldSpentImproveSelf` earns one improvement per 30 Gold spent while on the board; the meter carries
+    // across turns and draws the N/30 step counter. Golden doubles the applied grant. Rally needs the RL keyword.
+    keywords: ['RL'],
     effects: [
-      { on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1 } },
-      { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } },
-      { on: 'endOfTurn', do: 'endOfTurnPlayRuby', params: { tribe: 'kobold', count: 1 } },
+      { on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 2, improveAttack: 2, improveHealth: 2 } },
+      { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 2, health: 2, improveAttack: 2, improveHealth: 2 } },
+      { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 2, health: 2, improveAttack: 2, improveHealth: 2 } },
+      { on: 'goldSpent', do: 'goldSpentImproveSelf', params: { every: 30 } },
     ],
-    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Cast a Ruby on **each** of your Kobolds.',
-    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Cast **2 Rubies** on **each** of your Kobolds.',
+    text: '**Shout, Echo and Rally:** Your Rubies gain **+2/+2**. Spend **30 Gold** to improve this.',
+    goldenText: '**Shout, Echo and Rally:** Your Rubies gain **+4/+4**. Spend **30 Gold** to improve this.',
   },
   {
     // A cheap Ruby-build enabler: hands you the tribe's shop-wide Ruby spell instead of a body. Same
@@ -263,22 +269,6 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 1 } }],
     text: '**Shout:** Cast **Veinstorm**.',
     goldenText: '**Shout:** Cast **Veinstorm** twice.',
-  },
-  {
-    // Owner add 2026-07-28. The Kobold Rally payoff: it doesn't need a Rally of its own — ANY friendly Rally
-    // showers the tribe in Rubies, so it turns a single Rally body into a board-wide permanent buff that scales
-    // with the run's Ruby strength.
-    id: 'k_mineralmaster',
-    name: 'Mineral Master',
-    tribe: 'kobold',
-    tier: 6,
-    attack: 7,
-    health: 9,
-    keywords: [],
-    // Owner balance 2026-08-18: now ALL your minions (empty tribe = no filter).
-    effects: [{ on: 'onAttack', do: 'onRallyPlayRubiesTribe', params: { rubies: 2 } }],
-    text: 'When you trigger a **Rally**, cast **2 Rubies** on your **minions**.',
-    goldenText: 'When you trigger a **Rally**, cast **4 Rubies** on your **minions**.',
   },
   {
     // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the

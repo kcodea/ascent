@@ -14,17 +14,18 @@ const broker = (uid: string): BoardCard =>
   ({ uid, cardId: 'k_rubybroker', tribe: 'kobold', attack: 4, health: 5, keywords: [], golden: false });
 
 describe('a Ruby played by a card notifies its target', () => {
-  it("Alchemist Brisbane's End of Turn", () => {
+  // The End of Turn Ruby cast was Alchemist Brisbane's (the 2026-08-02 report) until the owner removed it from her on
+  // 2026-10-13; Assembler carries the same factory now (2 Rubies on every OTHER Kobold).
+  it("the End of Turn Ruby cast (Assembler)", () => {
     const s: RunState = { ...createRun(1), board: [broker('b')], hand: [] };
-    s.board.push({ uid: 'ab', cardId: 'k_alchemist', tribe: 'kobold', attack: 9, health: 6, keywords: [], golden: false });
+    s.board.push({ uid: 'as', cardId: 'k_assembler', tribe: 'kobold', attack: 4, health: 3, keywords: [], golden: false });
     const gold = s.embers;
     applyEndOfTurn(s);
     const hit = s.board.find((c) => c.uid === 'b')!;
-    // Brisbane picks a random Kobold — when it picks the Broker, the Broker must pay out.
-    if ((hit.rubiesOnThisTurn ?? 0) > 0) expect(s.embers).toBeGreaterThan(gold);
-    // Brisbane hits EVERY friendly Kobold (owner ruling 2026-08-03), so both bodies must hear about it.
-    const total = s.board.reduce((n, c) => n + (c.rubiesOnThisTurn ?? 0), 0);
-    expect(total, 'the played Ruby was invisible to a target').toBe(s.board.length);
+    // Both Rubies land on the Broker (the only OTHER Kobold), and it must hear each one and pay out.
+    expect(hit.rubiesOnThisTurn ?? 0, 'the played Rubies were invisible to the target').toBe(2);
+    expect(s.embers, 'Ruby Broker never heard the Rubies').toBeGreaterThan(gold);
+    expect(s.board.find((c) => c.uid === 'as')!.rubiesOnThisTurn ?? 0, 'never the caster').toBe(0);
   });
 
   it('Frenzied Excavator (Shout: a Ruby on every friendly)', () => {

@@ -27,6 +27,18 @@ const on = (s: RunState, uid: string): BoardCard | undefined => s.board.find((c)
 /** Play a Pennycat (`alley`, a plain Shout) from hand: one Shout fire. */
 const shout = (s: RunState, uid: string): RunState => act({ ...s, hand: [...s.hand, bc(uid, 'alley')] }, { type: 'play', uid });
 
+// The 10-10 pulse effect ("When this gains Attack, give adjacent Dragons +3/+4") has had NO card since 2026-10-13, when
+// the owner reworked Vaultkeeper again (vaultBrisbane1013.test.ts). The factory, its per-gain-instance Shop dispatch and
+// its loop guard (R-VAULT-01) are dormant engine code, kept pinned here through a probe def that IS the 10-10 card:
+// same body, same name (so the buff source label still reads 'Vaultkeeper'), the old effect.
+const PULSE = 'dbg_1010_vault_pulse';
+CARD_INDEX[PULSE] = {
+  ...CARD_INDEX['d2_herzog']!, id: PULSE,
+  effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffAdjacentTribe', params: { tribe: 'dragon', attack: 3, health: 4 } }],
+  text: 'When this gains **Attack**, give adjacent **Dragons +3/+4**.',
+  goldenText: 'When this gains **Attack**, give adjacent **Dragons +6/+8**.',
+};
+
 describe('2026-10-10 roster: stats, tiers, archive, pool order', () => {
   it('the changed cards carry the owner numbers', () => {
     const t = (id: string) => { const d = CARD_INDEX[id]!; return [d.tier, d.attack, d.health]; };
@@ -102,7 +114,7 @@ describe('Broodfire / Karwind / Conductor numbers', () => {
 // ── R-VAULT-01 ──────────────────────────────────────────────────────────────────────────────────────────────
 describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VAULT-01)', () => {
   it('SHOP: one Attack gain = one pulse onto the ADJACENT Dragons only (not far Dragons, not non-Dragons)', () => {
-    let s = set2({ board: [bc('l', 'd2_cinderchef'), bc('v', 'd2_herzog'), bc('b', 'stray'), bc('far', 'd2_cinderchef')] });
+    let s = set2({ board: [bc('l', 'd2_cinderchef'), bc('v', PULSE), bc('b', 'stray'), bc('far', 'd2_cinderchef')] });
     // One Attack gain on the Vaultkeeper: a Broodfire Shout (all Dragons +3/+2) played at the far right.
     s = act({ ...s, hand: [bc('bf', 'd2_broodfire')] }, { type: 'play', uid: 'bf' });
     expect(totalFrom(on(s, 'l'), 'Vaultkeeper')).toEqual([3, 4]);
@@ -111,16 +123,16 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
     expect(totalFrom(on(s, 'v'), 'Vaultkeeper'), 'never itself').toEqual([0, 0]);
   });
   it('SHOP: a gilded Karwind\'s two pulses are TWO gains, so Vaultkeeper pulses twice (the per-action fold is gone)', () => {
-    const s = shout(set2({ board: [bc('k', 'karwind', { golden: true }), bc('v', 'd2_herzog'), bc('d', 'd2_cinderchef')] }), 'p');
+    const s = shout(set2({ board: [bc('k', 'karwind', { golden: true }), bc('v', PULSE), bc('d', 'd2_cinderchef')] }), 'p');
     expect(totalFrom(on(s, 'd'), 'Vaultkeeper')).toEqual([6, 8]);
     expect(on(s, 'd')!.buffs!.find((b) => b.source === 'Vaultkeeper')!.count).toBe(2);
   });
   it('SHOP: a gilded Vaultkeeper gives +6/+8', () => {
-    const s = shout(set2({ board: [bc('k', 'karwind'), bc('v', 'd2_herzog', { golden: true }), bc('d', 'd2_cinderchef')] }), 'p');
+    const s = shout(set2({ board: [bc('k', 'karwind'), bc('v', PULSE, { golden: true }), bc('d', 'd2_cinderchef')] }), 'p');
     expect(totalFrom(on(s, 'd'), 'Vaultkeeper')).toEqual([6, 8]);
   });
   it('SHOP LOOP GUARD: two adjacent Vaultkeepers pay each other ONCE per outside gain, then stop', () => {
-    const s = shout(set2({ board: [bc('k', 'karwind'), bc('v1', 'd2_herzog'), bc('v2', 'd2_herzog')] }), 'p');
+    const s = shout(set2({ board: [bc('k', 'karwind'), bc('v1', PULSE), bc('v2', PULSE)] }), 'p');
     // Karwind buffs v1 then v2 (one gain each). v1's pulse lands on its Dragon neighbours (Karwind + v2); v2's on
     // v1. Neither pulse's +3 re-triggers the other Vaultkeeper.
     expect(totalFrom(on(s, 'v1'), 'Vaultkeeper')).toEqual([3, 4]);
@@ -128,12 +140,12 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
     expect(totalFrom(on(s, 'k'), 'Vaultkeeper')).toEqual([3, 4]);
   });
   it('SHOP: Rune of the Vaultkeeper widens the pulse to every other Dragon', () => {
-    const s = shout(set2({ runeVaultkeeper: true, board: [bc('k', 'karwind'), bc('v', 'd2_herzog'), bc('b', 'stray'), bc('far', 'd2_cinderchef')] }), 'p');
+    const s = shout(set2({ runeVaultkeeper: true, board: [bc('k', 'karwind'), bc('v', PULSE), bc('b', 'stray'), bc('far', 'd2_cinderchef')] }), 'p');
     expect(totalFrom(on(s, 'far'), 'Vaultkeeper')).toEqual([3, 4]);
     expect(totalFrom(on(s, 'b'), 'Vaultkeeper')).toEqual([0, 0]);
   });
   it('SHOP: a Vaultkeeper in HAND never pulses', () => {
-    const s = act(set2({ board: [bc('d', 'd2_cinderchef')], hand: [bc('v', 'd2_herzog'), bc('bf', 'd2_broodfire')] }), { type: 'play', uid: 'bf' });
+    const s = act(set2({ board: [bc('d', 'd2_cinderchef')], hand: [bc('v', PULSE), bc('bf', 'd2_broodfire')] }), { type: 'play', uid: 'bf' });
     expect(totalFrom(on(s, 'd'), 'Vaultkeeper')).toEqual([0, 0]);
   });
 
@@ -154,7 +166,7 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
   it('COMBAT: a gilded Karwind\'s two pulses make the Vaultkeeper pulse twice', () => {
     const r = vaultFight([
       { cardId: 'karwind', attack: 2, health: 300, sourceUid: 'k', golden: true },
-      { cardId: 'd2_herzog', attack: 6, health: 300, sourceUid: 'v' },
+      { cardId: PULSE, attack: 6, health: 300, sourceUid: 'v' },
       { cardId: 'd2_cinderchef', attack: 1, health: 300, sourceUid: 'd' },
     ]);
     const hits = vaultBuffs(r, 'v', 'd');
@@ -165,8 +177,8 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
   it('COMBAT LOOP GUARD: two adjacent Vaultkeepers settle (each pays the other once per Karwind pulse)', () => {
     const r = vaultFight([
       { cardId: 'karwind', attack: 2, health: 300, sourceUid: 'k' },
-      { cardId: 'd2_herzog', attack: 6, health: 300, sourceUid: 'v1' },
-      { cardId: 'd2_herzog', attack: 6, health: 300, sourceUid: 'v2' },
+      { cardId: PULSE, attack: 6, health: 300, sourceUid: 'v1' },
+      { cardId: PULSE, attack: 6, health: 300, sourceUid: 'v2' },
     ]);
     const karwindPulses = r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === uidOf(r, 'k') && (e as { target?: string }).target === uidOf(r, 'v1')).length;
     expect(karwindPulses).toBeGreaterThan(0);
@@ -176,7 +188,7 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
   it('COMBAT: Rune of the Vaultkeeper reaches a far Dragon', () => {
     const board: BoardMinion[] = [
       { cardId: 'karwind', attack: 2, health: 300, sourceUid: 'k' },
-      { cardId: 'd2_herzog', attack: 6, health: 300, sourceUid: 'v' },
+      { cardId: PULSE, attack: 6, health: 300, sourceUid: 'v' },
       { cardId: 'stray', attack: 1, health: 300, sourceUid: 'b' },
       { cardId: 'd2_cinderchef', attack: 1, health: 300, sourceUid: 'far' },
     ];
@@ -184,7 +196,7 @@ describe('Vaultkeeper: when this gains Attack, give adjacent Dragons +3/+4 (R-VA
     expect(vaultBuffs(vaultFight(board, { runeVaultkeeper: true }), 'v', 'far').length).toBeGreaterThan(0);
   });
   it('COMBAT: the rune flag rides the faceOmen bridge', () => {
-    let s = set2({ runeVaultkeeper: true, board: [bc('v', 'd2_herzog')] });
+    let s = set2({ runeVaultkeeper: true, board: [bc('v', PULSE)] });
     s = act(s, { type: 'faceOmen' });
     expect(s.lastCombat, 'a fight resolved').toBeDefined();
   });
@@ -309,7 +321,7 @@ describe('beats: every new effect is its own source-attributed beat (Shop)', () 
   const beats = (s: RunState, a: Action): SourceTriggerEvent[] =>
     (reduceWithPresentation(s, a, true).batch?.events ?? []).filter((e): e is SourceTriggerEvent => e.type === 'sourceTrigger');
   it("a gilded Karwind's two pulses give the Vaultkeeper TWO pulse beats, each sourced on the Vaultkeeper", () => {
-    const s = set2({ board: [bc('k', 'karwind', { golden: true }), bc('v', 'd2_herzog'), bc('d', 'd2_cinderchef')], hand: [bc('p', 'alley')] });
+    const s = set2({ board: [bc('k', 'karwind', { golden: true }), bc('v', PULSE), bc('d', 'd2_cinderchef')], hand: [bc('p', 'alley')] });
     const vk = beats(s, { type: 'play', uid: 'p' }).filter((t) => t.policyKey === 'factory:onGainAttackBuffAdjacentTribe:onGainAttack');
     expect(vk).toHaveLength(2);
     expect(vk.every((t) => t.source.uid === 'v')).toBe(true);

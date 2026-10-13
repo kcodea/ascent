@@ -54,31 +54,33 @@ describe('live telemetry capture', () => {
   });
 });
 
-describe('Alchemist Brisbane hits EVERY friendly Kobold', () => {
+// The End of Turn Ruby cast (`endOfTurnPlayRuby`) was Alchemist Brisbane's until the owner removed it on 2026-10-13.
+// Assembler is the card that still carries it ("cast 2 Rubies on your OTHER Kobolds"), so it is the fixture now.
+describe('the End of Turn Ruby cast hits EVERY other friendly Kobold (Assembler)', () => {
   const kobold = (uid: string, cardId = 'sandbag'): BoardCard =>
     ({ uid, cardId, tribe: 'kobold', attack: 4, health: 4, keywords: [], golden: false });
 
   it('all three Kobolds gain the Ruby, not one at random', () => {
     const s: RunState = {
       ...createRun(1),
-      board: [kobold('a'), kobold('b'), kobold('c'), { uid: 'ab', cardId: 'k_alchemist', tribe: 'kobold', attack: 9, health: 6, keywords: [], golden: false }],
+      board: [kobold('a'), kobold('b'), kobold('c'), { uid: 'as', cardId: 'k_assembler', tribe: 'kobold', attack: 4, health: 3, keywords: [], golden: false }],
       hand: [],
     };
     const before = s.board.map((c) => c.attack + c.health);
     applyEndOfTurn(s);
     const after = s.board.map((c) => c.attack + c.health);
-    expect(after.map((n, i) => n - before[i]!), 'every Kobold should gain a 1/1 Ruby').toEqual([2, 2, 2, 2]);
+    expect(after.map((n, i) => n - before[i]!), 'every OTHER Kobold gains two 1/1 Rubies; the caster none').toEqual([4, 4, 4, 0]);
   });
 
   it('a non-Kobold on the board is skipped', () => {
     const s: RunState = {
       ...createRun(1),
       board: [{ uid: 'beast', cardId: 'sandbag', tribe: 'beast', attack: 4, health: 4, keywords: [], golden: false },
-        { uid: 'ab', cardId: 'k_alchemist', tribe: 'kobold', attack: 9, health: 6, keywords: [], golden: false }],
+        kobold('k'), { uid: 'as', cardId: 'k_assembler', tribe: 'kobold', attack: 4, health: 3, keywords: [], golden: false }],
       hand: [],
     };
     applyEndOfTurn(s);
     expect(s.board.find((c) => c.uid === 'beast')!.attack).toBe(4);
-    expect(s.board.find((c) => c.uid === 'ab')!.attack).toBe(10);
+    expect(s.board.find((c) => c.uid === 'k')!.attack, 'the Kobold beside it took both Rubies').toBe(6);
   });
 });

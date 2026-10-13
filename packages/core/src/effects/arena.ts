@@ -443,13 +443,12 @@ export const ARENA_EFFECTS = {
     }
   },
 
-  /** Faultline Scrapper / Alchemist Brisbane — Echo: your Rubies gain +atk/+hp (golden doubles). */
+  /** Faultline Scrapper / Alchemist Brisbane — Echo: your Rubies gain +atk/+hp (golden doubles). Folds this
+   *  copy's improve accrual when the card prints one (`improvingGrant`; Brisbane, 2026-10-13). */
   deathrattleRubyStatGain(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
-    arena.grantRubyPower(
-      (typeof params.attack === 'number' ? params.attack : 1) * g,
-      (typeof params.health === 'number' ? params.health : 1) * g,
-    );
+    const v = improvingGrant(params, arena.self.summonBonus, 1);
+    arena.grantRubyPower(v.attack * g, v.health * g);
   },
 
   /** Gemheart Carver — Echo: summon a Shard at 1/1 PLUS the Rubies on this minion. GOLDEN = ONE Shard at
@@ -1583,7 +1582,8 @@ export const ARENA_EFFECTS = {
   /** Crownvein Vanguard — Rally: improve your Rubies (× golden), through the permanent Ruby-power channel. */
   rallyRubyStatGain(arena: EffectArena, params: Record<string, unknown>): void {
     const g = gold(arena);
-    arena.grantRubyPower(num(params.attack, 1) * g, num(params.health, 1) * g);
+    const v = improvingGrant(params, arena.self.summonBonus, 1); // + this copy's improve accrual, when the card prints one
+    arena.grantRubyPower(v.attack * g, v.health * g);
   },
 
   /** Echohorn Stag — Rally: trigger your LEFT-MOST OTHER friendly Echo (it stays alive). ANY `onDeath` effect
@@ -2296,3 +2296,20 @@ export const ARENA_EFFECTS = {
     for (const e of arena.echoEffectsOf(lead)) arena.graftEffect(arena.self, e);
   },
 } as const;
+
+/**
+ * "…and improve this" for a grant whose size is `attack` / `health` (Alchemist Brisbane, owner 2026-10-13: "Your
+ * Rubies gain +2/+2. Spend 30 Gold to improve this"). The card prints its step as `improveAttack` /
+ * `improveHealth`, and each improvement THIS COPY has earned is one count on its per-instance accrual
+ * (`summonBonus`: carried into combat, back at settle, kept through a gild). Returned UN-gilded; the caller applies
+ * its own golden multiplier once, so base and steps each double exactly once. A card with no `improve*` params
+ * gets its printed base back, whatever its accrual holds for another mechanic.
+ */
+export function improvingGrant(params: Record<string, unknown>, accrued: number | undefined, fallback = 0): { attack: number; health: number } {
+  const n = (v: unknown, d: number): number => (typeof v === 'number' ? v : d);
+  const steps = Math.max(0, accrued ?? 0);
+  return {
+    attack: n(params.attack, fallback) + n(params.improveAttack, 0) * steps,
+    health: n(params.health, fallback) + n(params.improveHealth, 0) * steps,
+  };
+}

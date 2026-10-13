@@ -275,7 +275,7 @@ export const SET2_DWARVES: CardDef[] = [
     name: 'Mountainbond',
     tribe: 'dwarf',
     tribe2: 'kobold',
-    tier: 5, // owner rework 2026-08-18: T6 → T5
+    tier: 6, // owner 2026-10-13: back to T6 ("lets move mountainbond to a t6"); it was T6 → T5 on 2026-08-18
     attack: 7,
     health: 6,
     keywords: ['DS', 'CR'],

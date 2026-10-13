@@ -1000,7 +1000,7 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-VAULT-01',
-    title: 'Vaultkeeper pulses once per Attack gain, every gain counts, and no Vaultkeeper reacts inside a pulse',
+    title: 'The Attack-gain pulse (the 2026-10-10 Vaultkeeper): once per Attack gain, every gain counts, no reaction inside a pulse',
     statement:
       'Vaultkeeper: "When this gains Attack, give adjacent Dragons +3/+4." Every separate Attack buff on a Vaultkeeper on '
       + 'your board is one gain and fires one pulse, in the Shop and in combat alike: a gilded Karwind\x27s "+4/+4 twice" '
@@ -1016,9 +1016,9 @@ export const TRIGGERS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner balance batch 2026-10-10 (Vaultkeeper notes)', quote: 'every separate Attack buff must count as gaining Attack' },
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts runVaultPulse + onGainAttackBuffAdjacentTribe; packages/core/src/effects/factories.ts onGainAttackBuffAdjacentTribe; packages/sim/src/recruit.ts addBuff -> vaultkeeperShopPulse' },
     ],
-    contentIds: ['d2_herzog', 'rune_herzog', 'karwind'],
-    currentBehaviour: 'Conforms as of 2026-10-10 (new effect). The Shop\x27s older gain dispatch (the reducer\x27s per-action board diff) fires once per action; Vaultkeeper bypasses it through the addBuff chokepoint.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+    contentIds: ['karwind'],
+    currentBehaviour: 'DORMANT since 2026-10-13: the owner reworked Vaultkeeper again (R-VAULT-02), so no card in the pool carries this effect and Rune of the Vaultkeeper no longer widens it. The factory (onGainAttackBuffAdjacentTribe), its per-gain-instance Shop dispatch through the addBuff chokepoint and its loop guard are unchanged engine code and conform; they are pinned through a probe def that is the 2026-10-10 card. The combat-side rune wiring (QuestCombatMods.runeVaultkeeper -> all) is still connected to the dormant factory and is a cleanup candidate.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
   {
     id: 'R-HUMPHRY-01',
@@ -1147,5 +1147,47 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['dm_ruinouslord', 'rune_ruinous'],
     currentBehaviour: 'Conforms as of 2026-10-11 (new card + new primitive; the Shop half added with the owner phase ruling).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ruinousRune1010.test.ts'], lastVerifiedAt: '2026-10-10' },
+  },
+  {
+    id: 'R-VAULT-02',
+    title: 'Vaultkeeper gains when you play a Dragon, and improves every 3 Dragons or Dwarves played',
+    statement:
+      'Vaultkeeper: "When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve this." Each Dragon played '
+      + 'from hand while a Vaultkeeper is on your board gives that Vaultkeeper its current gain. Every Dragon OR Dwarf '
+      + 'played from hand counts toward the improve, and each 3 counted raise the gain by +3/+3 (+3/+3, then +6/+6, then '
+      + '+9/+9), per copy and permanently. A body that is both types is one play. A summoned token is not a play, a '
+      + 'Vaultkeeper never counts its own arrival, and a Vaultkeeper in hand neither gains nor counts. Gilded doubles the '
+      + 'gain. With Rune of the Vaultkeeper, each gain is also given to an adjacent Dragon.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rework 2026-10-13 (Vaultkeeper)', quote: 'When you play a dragon, gain 3/3. Play 3 Dragons or Dwarves to improve this.' },
+      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (how much the gain grows per 3 played)', quote: '+3/+3 per step' },
+      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (what Rune of the Vaultkeeper does now)', quote: 'Old rune effect' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts tribePlayedGainSelfImproving + fireOnTribePlayed (tribes); packages/content/src/cards/set2/dragons.ts d2_herzog; packages/content/src/runes.ts rune_herzog; packages/ui/src/cardText.ts vaultkeeperText' },
+    ],
+    contentIds: ['d2_herzog', 'rune_herzog'],
+    currentBehaviour: 'Conforms as of 2026-10-13 (new effect on the played-from-hand trigger). ORDER is a lead assumption, not an owner ruling: the gain is paid first and the play counted second (the Beardsley / Conductor order), so the play that completes a set of 3 still pays the old value. The rune picks one adjacent Dragon, seeded when both neighbours are Dragons, as it did before 2026-10-10. Rune of Mastery does not speed the count (it is a tally, like Aspect). Shop only: nothing is played from hand in combat.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultBrisbane1013.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-BRISBANE-01',
+    title: 'Alchemist Brisbane: Shout, Echo and Rally all pay one improving Ruby grant, improved by Gold spent',
+    statement:
+      'Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this." All three '
+      + 'triggers pay the SAME grant, in the Shop and in combat. Every 30 Gold spent while Brisbane is on your board '
+      + 'improves that copy by +2/+2 (+2/+2, then +4/+4, then +6/+6), permanently; the Gold meter carries across turns. '
+      + 'Gilded doubles the grant. Brisbane has no End of Turn effect.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rework 2026-10-13 (Alchemist Brisbane)', quote: 'Shout, Echo, and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this.' },
+      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (how much the grant grows per 30 Gold)', quote: '+2/+2 per step' },
+      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (the End of Turn Ruby cast)', quote: 'Remove it' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts improvingGrant + deathrattleRubyStatGain + rallyRubyStatGain; packages/core/src/effects/factories.ts rubyStatGain; packages/sim/src/recruit.ts rubyStatGain + goldSpentImproveSelf; packages/content/src/cards/set2/kobolds.ts k_alchemist; packages/ui/src/cardText.ts improvingRubyGrantText' },
+    ],
+    contentIds: ['k_alchemist'],
+    currentBehaviour: 'Conforms as of 2026-10-13. The improvements ride the copy (summonBonus), so they go into combat with it and a re-fired Shout, the Echo and every Rally all read them. Rune of Mastery doubles each improvement earned, like every other improve. A Brisbane in hand earns nothing: the Gold meter runs on board bodies only.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultBrisbane1013.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
 ];

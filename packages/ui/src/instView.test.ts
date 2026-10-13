@@ -111,8 +111,9 @@ describe('owner Dragon batch 2026-10-10: live text', () => {
       expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth'] }).text).not.toContain('+0/+0');
     }
   });
-  it('Vaultkeeper prints the Rune of the Vaultkeeper widening as a rune note, only with the rune', () => {
-    expect(liveCardText('d2_herzog', { ...base, runeFlags: { vaultkeeper: true } }).text).toContain('Buffs all your Dragons (Rune of the Vaultkeeper).');
+  // Re-pin 2026-10-13: the rune is back to sharing each gain with an adjacent Dragon (the Vaultkeeper rework).
+  it('Vaultkeeper prints the Rune of the Vaultkeeper effect as a rune note, only with the rune', () => {
+    expect(liveCardText('d2_herzog', { ...base, runeFlags: { vaultkeeper: true } }).text).toContain('Also gives its gains to an adjacent Dragon (Rune of the Vaultkeeper).');
     expect(liveCardText('d2_herzog', base).text).toBe(CARD_INDEX['d2_herzog']!.text);
   });
 });

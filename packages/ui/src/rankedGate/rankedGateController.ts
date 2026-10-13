@@ -6,12 +6,17 @@
  * sequence cannot live in the Title. Same shape as `hero-select/heroLaunchController.ts`: the mounted gate
  * registers one function; callers never learn whether a gate exists.
  *
+ * THE END-GAME GATE (owner 2026-10-13) asks for the same doors from the combat screen, as the `end` variant: no
+ * crystal, and the end screen is what is swapped in behind them (endGameGate.ts).
+ *
  * THE CONTRACT: `onShut` is called EXACTLY ONCE, whatever happens. With no gate mounted (a test, a broken build),
  * with reduced motion, or if the gate throws, it runs at once: the animation may be lost, the player's "Yes" never.
  */
 
+import type { RankedGateVariant } from './rankedGateTiming';
+
 /** Plays the gate. Must call `onShut` once the doors are shut, and resolve when the sequence has ended. */
-export type RankedGateFn = (onShut: () => void) => Promise<void>;
+export type RankedGateFn = (onShut: () => void, variant: RankedGateVariant) => Promise<void>;
 
 let controller: RankedGateFn | null = null;
 /** The sequence in flight, if any: a second press joins it instead of starting another gate. */
@@ -25,9 +30,10 @@ export function registerRankedGate(fn: RankedGateFn | null): void {
 /**
  * Play the gate, then run `onShut` behind the shut doors. Resolves when the doors have opened again. Never
  * rejects. A call made while a gate is already playing joins it and its `onShut` is dropped (the first one owns
- * the swap).
+ * the swap). `variant`: `entry` (the default) is the start of a ranked match, with the crystal; `end` is the fight
+ * that ends a game.
  */
-export function requestRankedGate(onShut: () => void): Promise<void> {
+export function requestRankedGate(onShut: () => void, variant: RankedGateVariant = 'entry'): Promise<void> {
   if (inFlight) return inFlight;
   let done = false;
   const once = (): void => {
@@ -41,7 +47,7 @@ export function requestRankedGate(onShut: () => void): Promise<void> {
   }
   let run: Promise<void>;
   try {
-    run = controller(once);
+    run = controller(once, variant);
   } catch (err) {
     run = Promise.reject(err);
   }

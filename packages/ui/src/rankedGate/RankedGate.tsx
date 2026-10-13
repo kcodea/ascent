@@ -3,7 +3,7 @@ import { sfx } from '../sfx';
 import { gateFx, type GateCrystal, type GateSeam } from './gateFx';
 import { registerRankedGate } from './rankedGateController';
 import {
-  RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt, rankedGateCssVars, rankedGateOpenTimeline,
+  RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt, rankedGateCssVars, rankedGateEndTimeline, rankedGateOpenTimeline,
   type RankedGatePhase,
 } from './rankedGateTiming';
 import './rankedGate.css';
@@ -19,6 +19,10 @@ const CRYSTAL_SRC = `${import.meta.env.BASE_URL}frames/ranked-gate-crystal.webp`
  * THE CRYSTAL (owner 2026-10-13): the shut gate then WAITS. Its centre diamond forms a blue crystal, which pulses
  * until the player presses it; the press shatters it, the doors shudder, and they grind open on hero select. So
  * the sequence is two clocks with the player's own hand between them (rankedGateTiming.ts).
+ *
+ * THE END-GAME GATE (owner 2026-10-13): the same doors for the fight that ends a game, as the `end` variant, which
+ * is the gate of 2026-10-12: close, slam, a one second hold, shudder, open, with no crystal and nothing to press.
+ * The end screen is what is swapped in behind them (endGameGate.ts; asked for by the combat screen's End Combat gem).
  *
  * Mounted in Game, above every screen, because it must outlive the Title: the swap to hero select (`onShut`)
  * happens BEHIND the shut doors and unmounts the Title. The Title only ever calls `requestRankedGate`
@@ -103,23 +107,44 @@ export function RankedGate(): JSX.Element | null {
       later(at.endAt, finish);
     };
 
-    registerRankedGate((onShut) => new Promise<void>((resolve) => {
+    registerRankedGate((onShut, variant) => new Promise<void>((resolve) => {
       if (live.current) { resolve(); return; } // the controller already joins a gate in flight; belt and braces
       live.current = { onShut, done: resolve };
       const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (reduced) { finish(); return; }
 
-      // THE FIRST CLOCK: from the press of "Yes" to the crystal being ready.
-      const at = rankedGateCloseTimeline(t);
       gateFx.warm();
       setPhase('closing');
       sfx.gate('close');
-      later(at.slamAt, () => {
+      const slam = (): void => {
         setPhase('shut');
         sfx.gate('slam');
         const s = seam();
         if (s) gateFx.slam(s);
-      });
+      };
+
+      // THE END-GAME GATE: one clock, no crystal. Slam, the end screen swapped in behind the doors, a one second
+      // hold, the shudder, open.
+      if (variant === 'end') {
+        const end = rankedGateEndTimeline(t);
+        later(end.slamAt, slam);
+        later(end.handoffAt, shut);
+        later(end.shudderAt, () => {
+          shut(); // belt and braces: the doors never part on a screen that has not been swapped
+          setPhase('shudder');
+          sfx.gate('rattle');
+          const s = seam();
+          if (s) gateFx.shudder(s, t.shudderMs);
+        });
+        later(end.openSoundAt, () => sfx.gate('open'));
+        later(end.openAt, () => setPhase('opening'));
+        later(end.endAt, finish);
+        return;
+      }
+
+      // THE FIRST CLOCK: from the press of "Yes" to the crystal being ready.
+      const at = rankedGateCloseTimeline(t);
+      later(at.slamAt, slam);
       later(at.handoffAt, shut);
       later(at.formAt, () => {
         setPhase('forming');
@@ -232,8 +257,10 @@ export function RankedGate(): JSX.Element | null {
 
 /** Get the gate ready before it is asked for (the ranked confirmation calls this as it opens): decode the door and
  *  crystal images and the cues, and start the FX layer, so the first gate of a session has its art, sound and
- *  sparks. */
-export function warmRankedGate(): void {
+ *  sparks. `fx: false` leaves the FX layer alone (the gate starts it itself as it plays): the combat screen warms
+ *  the END-GAME gate that way, since most fights it warms for do not end the game and a started layer would sit
+ *  holding a WebGL context. */
+export function warmRankedGate(opts: { fx?: boolean } = {}): void {
   if (typeof window === 'undefined') return;
   for (const art of ['ranked-gate-left.webp', 'ranked-gate-right.webp', 'ranked-gate-crystal.webp']) {
     const img = new Image();
@@ -241,5 +268,5 @@ export function warmRankedGate(): void {
     img.src = `${import.meta.env.BASE_URL}frames/${art}`;
   }
   sfx.warmGate();
-  gateFx.warm();
+  if (opts.fx !== false) gateFx.warm();
 }

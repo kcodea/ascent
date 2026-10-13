@@ -87,6 +87,7 @@ export function RankedGate(): JSX.Element | null {
       pressRef.current = null;
       const at = rankedGateOpenTimeline(t);
       setPhase('shatter');
+      sfx.gateHum(false, 60); // the hum is gone under the break
       sfx.gate('shatter');
       // The cinematic hit (`intro`): first played on the press of "Yes, let's go." (2026-10-12), moved here the
       // next day (owner: "move the 'ding' tone to when the crystal explodes, not upon clicking 'yes continue'").
@@ -141,6 +142,7 @@ export function RankedGate(): JSX.Element | null {
       const cur = live.current;
       clearTimers();
       pressRef.current = null;
+      sfx.gateHum(false, 60);
       gateFx.clear();
       gateFx.release();
       if (cur) { shut(); live.current = null; cur.done(); }
@@ -150,6 +152,25 @@ export function RankedGate(): JSX.Element | null {
   // The armed crystal takes focus, so the keyboard can open the gate (a pointer press does not need it).
   useEffect(() => {
     if (phase === 'armed') crystalRef.current?.focus({ preventScroll: true });
+  }, [phase]);
+
+  // THE HUM (owner 2026-10-13): the armed crystal hums for as long as the mouse is on it. The button's own
+  // enter / leave drive it. Two cases they cannot see are covered here: the crystal ARMING under a mouse that is
+  // already resting on it (no enter fires for a pointer that did not move), and the window losing focus or the
+  // tab being hidden while the mouse is still there (no leave fires). Whenever the crystal stops being armed the
+  // hum stops.
+  useEffect(() => {
+    if (phase !== 'armed') { sfx.gateHum(false); return undefined; }
+    if (crystalRef.current?.matches(':hover')) sfx.gateHum(true);
+    const quiet = (): void => sfx.gateHum(false);
+    const hidden = (): void => { if (document.hidden) sfx.gateHum(false); };
+    window.addEventListener('blur', quiet);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('blur', quiet);
+      document.removeEventListener('visibilitychange', hidden);
+      sfx.gateHum(false);
+    };
   }, [phase]);
 
   if (!phase) return null;
@@ -168,11 +189,18 @@ export function RankedGate(): JSX.Element | null {
           <button
             ref={crystalRef}
             className="rgate-crystal"
+            // No menu hover tick or click thock on the crystal (owner 2026-10-13: "remove the UI highlight click
+            // sound when highlighting the gem"): it has its own hum under the pointer and its own shatter on the
+            // press. `data-nohoversfx` is the app-wide opt-out both delegated listeners in Game.tsx honour.
+            data-nohoversfx=""
             aria-label="Shatter the crystal to open the gate"
             aria-disabled={!armed}
             tabIndex={armed ? 0 : -1}
             onPointerDown={(e) => { if (e.button === 0) press(); }}
             onClick={press}
+            // The hum is a MOUSE hover's: a finger's touch is already the press.
+            onPointerEnter={(e) => { if (armed && e.pointerType === 'mouse') sfx.gateHum(true); }}
+            onPointerLeave={() => sfx.gateHum(false)}
           >
             {/* The light behind it: the pulsing glow in its `-pulse` wrapper, and its steady twin, fixed at the
                 pulse's peak, which a hover cross-fades to (owner 2026-10-13). */}
@@ -182,6 +210,8 @@ export function RankedGate(): JSX.Element | null {
                 as it forms, flying apart as it shatters); while it waits it is perfectly still (owner 2026-10-13),
                 and the pulse is light: the glow behind, and a brightened copy fading in and out. */}
             <span className="rgate-crystal-gem">
+              {/* Its heat while it forms: a soft white bloom in the crystal's own shape, behind the body. */}
+              <span className="rgate-crystal-heat" aria-hidden="true" />
               <span className="rgate-crystal-body"><img decoding="sync" src={CRYSTAL_SRC} alt="" draggable={false} /></span>
               <span className="rgate-crystal-pulse" aria-hidden="true"><span className="rgate-crystal-lit" /></span>
               <span className="rgate-crystal-lit-hi" aria-hidden="true" />

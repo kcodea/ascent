@@ -105,6 +105,39 @@ the end turn and start combat crystal? that can be the sound that emits when cli
   in-game End Turn crystal is pressed (`turnExplode` is the timer running out, a different sound). It replaces the
   plain menu click on that button and is warmed with the gate's cues.
 
+**Then, the hum (its own PR, after the crystal merged):** "if i give you a sound effect, are you able to make it
+infinitely repeat while hovering the crystal?", with a 15.7 s recording, `crystal hum.mp3`.
+
+- **The loop.** The recording is a hum that swells about every 1.3 s. `gatehum.mp3` is four whole swells of it
+  (3.93 s to 9.15 s, cut between two of its quiet points so the rhythm holds across the wrap), the first 140 ms an
+  equal-power crossfade from the audio that follows the region, then padded with a quarter second of itself each
+  side. So ANY 5.22 s window of the file loops seamlessly, and an MP3 decoder's small shift cannot open a gap.
+  Measured on the encoded file: the audio one loop apart differs by about 2.5% (encoder noise) and the step at
+  the wrap is the size of an ordinary sample-to-sample step. Built by a one-off script, not kept in the repo; the
+  window is `GATE_HUM_LOOP` in sfx.ts and must be re-measured if the clip is replaced.
+- **`sfx.gateHum(on, fadeMs)`**: the bank's one looping clip. On: starts the loop and fades up (180 ms). Off:
+  fades out and stops. Its own fader, `gatehum` (ui bus, 0.5).
+- **When it plays** (`RankedGate.tsx`): while a MOUSE is on the ARMED crystal. It also starts if the crystal arms
+  under a mouse already resting on it, stops if the window loses focus or the tab is hidden (no leave event
+  fires for those), and is cut with a 60 ms fade by the shatter.
+
+**Then, no disc on the forming gem** (with a screenshot of a bright round spot sitting on the growing white
+diamond): "can we have this circle instead grow in size to block the growing diamond? then have it pulse away to
+reveal the diamond? or instead, can we have the shape be the diamond instead of a circle?". The second was taken:
+the heat is the crystal's own shape, and nothing round is drawn while it forms.
+
+- The round sources are gone: the FX layer's white core and blue bloom at the centre (`gateFx.gather`), and the
+  radial `.rgate-crystal-burst` during forming (it is now the shatter's alone).
+- **A pile-up, too:** the hundreds of additive sparks all ended on one point and added up to a bright round spot
+  there. They are now taken up as they reach the gem (`absorbed(r)`: fading between 0.36 and 0.1 of its size from
+  the centre), well short of the middle.
+- **The heat in the diamond's shape:** `.rgate-crystal-heat`, a white fill masked to the crystal and blurred, in
+  the gem so it grows with it. The blur sits on the PARENT of the masked fill: a mask is applied after its own
+  element's filter, so blurring the masked element itself would cut the bloom back to the hard edge. The blur is
+  static; only opacity animates.
+- Checked in a real render (mid-forming, the gem at 70%): a white diamond with a soft diamond-shaped bloom, no
+  disc. The owner's first option (a circle growing to cover the diamond, then pulsing away) was not built.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

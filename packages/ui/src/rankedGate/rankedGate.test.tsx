@@ -32,10 +32,10 @@ const fx = vi.hoisted(() => ({
   clear: vi.fn(), release: vi.fn(),
 }));
 vi.mock('./gateFx', () => ({ gateFx: fx }));
-const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn() }));
+const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn(), gateHum: vi.fn() }));
 vi.mock('../sfx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../sfx')>();
-  return { ...actual, sfx: { ...actual.sfx, gate: snd.gate, warmGate: snd.warmGate } };
+  return { ...actual, sfx: { ...actual.sfx, gate: snd.gate, warmGate: snd.warmGate, gateHum: snd.gateHum } };
 });
 
 import { RankedGate, warmRankedGate } from './RankedGate';
@@ -61,7 +61,7 @@ const reducedMotion = (on: boolean): void => {
 
 beforeEach(() => {
   resetRankedGateForTests();
-  for (const f of [...Object.values(fx), snd.gate, snd.warmGate]) f.mockClear();
+  for (const f of [...Object.values(fx), snd.gate, snd.warmGate, snd.gateHum]) f.mockClear();
   reducedMotion(false);
 });
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -240,6 +240,7 @@ describe('the gate plays', () => {
     expect(el.querySelector(':scope > .rgate-crystal-pulse > .rgate-crystal-glow'), 'the pulsing glow behind it').not.toBeNull();
     expect(el.querySelector(':scope > .rgate-crystal-glow-hi'), 'and its steady twin').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-hot'), 'white-hot while it forms').not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-heat'), 'and its bloom, in its own shape').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
     // A press while it is still forming does nothing.
     pressCrystal();
@@ -257,6 +258,9 @@ describe('the gate plays', () => {
     expect(el.getAttribute('aria-disabled')).toBe('false');
     expect(el.tabIndex).toBe(0);
     expect(el.getAttribute('aria-label')).toBe('Shatter the crystal to open the gate');
+    // It opts out of the app-wide menu hover tick and click thock: it has its own hum and its own shatter.
+    expect(el.hasAttribute('data-nohoversfx')).toBe(true);
+    expect(readFileSync(join(__dirname, '..', 'Game.tsx'), 'utf8'), 'the opt-out both menu-sound listeners honour').toMatch(/const MENU_SFX_SKIP = '\[data-nohoversfx\]/);
     expect(document.activeElement, 'it takes focus, so the keyboard can open the gate').toBe(el);
     // Ten minutes later nothing has moved on by itself.
     advance(600_000);
@@ -266,6 +270,38 @@ describe('the gate plays', () => {
     // And only the left button is a press.
     pressCrystal(2);
     expect(phaseOf()).toBe('armed');
+  });
+
+  it('the armed crystal hums while the mouse is on it, and only then', () => {
+    // Owner 2026-10-13: a sound that repeats for as long as the crystal is hovered.
+    const hum = (): Array<boolean> => snd.gateHum.mock.calls.map((c) => c[0] as boolean);
+    const point = (type: 'pointerover' | 'pointerout', pointerType: string): void => {
+      const ev = new MouseEvent(type, { bubbles: true });
+      Object.defineProperty(ev, 'pointerType', { value: pointerType });
+      act(() => { crystalEl()!.dispatchEvent(ev); });
+    };
+    start();
+    advance(close.formAt);
+    snd.gateHum.mockClear();
+    point('pointerover', 'mouse');
+    expect(hum(), 'not while it is still forming').not.toContain(true);
+    advance(close.armedAt - close.formAt);
+    snd.gateHum.mockClear();
+    point('pointerover', 'touch');
+    expect(hum(), 'a finger is the press, not a hover').not.toContain(true);
+    point('pointerover', 'mouse');
+    expect(hum().at(-1), 'on as the mouse arrives').toBe(true);
+    point('pointerout', 'mouse');
+    expect(hum().at(-1), 'off as it leaves').toBe(false);
+    // Still on it when the window loses focus: no leave fires, so the gate listens for that itself.
+    point('pointerover', 'mouse');
+    act(() => { window.dispatchEvent(new Event('blur')); });
+    expect(hum().at(-1)).toBe(false);
+    // And the shatter silences it at once, with a short fade.
+    point('pointerover', 'mouse');
+    pressCrystal();
+    expect(snd.gateHum.mock.calls.some((c) => c[0] === false && c[1] === 60), 'gone under the break').toBe(true);
+    expect(hum().at(-1)).toBe(false);
   });
 
   it('pressing it shatters it, the doors shudder, then grind open and leave nothing behind', async () => {
@@ -351,7 +387,7 @@ describe('what ships', () => {
       expect(css).toContain(`url('/frames/${door}')`);
     }
     expect(existsSync(pub('frames', 'ranked-gate-crystal.webp'))).toBe(true);
-    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum']) {
       expect(existsSync(ui$('audio', `${cue}.mp3`)), cue).toBe(true);
     }
     // The crystal FORMING has no recorded cue yet: it borrows a clip already in the game.
@@ -359,12 +395,12 @@ describe('what ships', () => {
   });
 
   it('each cue has its own fader, on the ui bus, with a name', () => {
-    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateform', 'gateshatter']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateform', 'gateshatter', 'gatehum']) {
       expect(CATEGORY_GAINS[cue], cue).toBeGreaterThan(0);
       expect(CATEGORY_BUS[cue], cue).toBe('ui');
       expect(CATEGORY_LABEL[cue], cue).toMatch(/^Ranked gate: /);
     }
-    for (const clip of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter']) expect(familyOf(clip), clip).toBe(clip);
+    for (const clip of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum']) expect(familyOf(clip), clip).toBe(clip);
   });
 
   it('the doors meet on the seam: each half is anchored to its seam side and covers its door', () => {
@@ -432,6 +468,13 @@ describe('what ships', () => {
     expect(noComments).toMatch(/\.rgate-crystal-hot \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
     expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-hot \{[^}]*rg-cry-cool var\(--rg-form/);
     expect(kf('rg-cry-cool')).toMatch(/0%, 66% \{ opacity: 1; \}\s*100% \{ opacity: 0; \}/);
+    // Its heat is its OWN SHAPE, never a disc (owner 2026-10-13: "can we have the shape be the diamond instead of
+    // a circle?"): a white fill masked to the crystal, blurred by its parent, and nothing round plays while forming.
+    expect(noComments).toMatch(/\.rgate-crystal-heat \{[^}]*filter: blur\(/);
+    expect(noComments).toMatch(/\.rgate-crystal-heat::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-heat \{[^}]*rg-cry-heat var\(--rg-form/);
+    expect(kf('rg-cry-heat'), 'only its opacity moves: the gem carries the growth').not.toMatch(/transform/);
+    expect(noComments, 'the round burst is the shatter\'s alone').not.toMatch(/\.rgate\.is-forming \.rgate-crystal-burst/);
     // The blue glow behind it only comes up as it cools, to where the waiting pulse begins.
     expect(kf('rg-cry-glow-in')).toMatch(/0%, 55% \{ opacity: 0;/);
     expect(kf('rg-cry-glow-in')).toMatch(/100% \{ opacity: 0\.32;/);

@@ -7,7 +7,7 @@
  *
  * Dependency-free. Generated VERBATIM into supabase/functions/_shared/guidesValidate.ts.
  */
-import { CARD_ID_RE, FORBIDDEN_KEYS, GUIDE_LIMITS, SET_ID_RE, SLUG_RE, TRIBE_RE, UUID_RE } from './guidesTypes.ts';
+import { CARD_ID_RE, FORBIDDEN_KEYS, GUIDE_LIMITS, REPORT_REASONS, SET_ID_RE, SLUG_RE, TRIBE_RE, UUID_RE, type ReportReason } from './guidesTypes.ts';
 
 /** A guide as the save path accepts it, already cleaned. */
 export interface GuideDraft {
@@ -165,4 +165,18 @@ export function draftToSqlDoc(d: GuideDraft): Record<string, unknown> {
     aliases: d.aliases,
     forked_from: d.forkedFrom,
   };
+}
+
+export type ReportValidation = { ok: true; reason: ReportReason; note: string } | { ok: false; error: 'bad_report'; field: 'reason' | 'note' | 'report' };
+
+/** A report as the server accepts it: one of the four reasons, and a clean note of at most the limit (empty is fine). */
+export function validateReport(v: unknown): ReportValidation {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { ok: false, error: 'bad_report', field: 'report' };
+  const o = v as Record<string, unknown>;
+  const reason = REPORT_REASONS.find((r) => r === o.reason);
+  if (!reason) return { ok: false, error: 'bad_report', field: 'reason' };
+  if (o.note !== undefined && o.note !== null && typeof o.note !== 'string') return { ok: false, error: 'bad_report', field: 'note' };
+  const note = cleanText(o.note);
+  if (len(note) > GUIDE_LIMITS.reportNote) return { ok: false, error: 'bad_report', field: 'note' };
+  return { ok: true, reason, note };
 }

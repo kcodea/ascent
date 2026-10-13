@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun } from '@game/sim';
-import { SETS, type SetId } from '@game/content';
+import { CARD_INDEX, SETS, type SetId } from '@game/content';
 import type { Tribe } from '@game/core';
 import { mount, type Mounted } from '../renderedText.mount';
 import { LobbyPanel } from '../LobbyPanel';
@@ -151,24 +151,63 @@ describe('lobby rail guides view', () => {
     expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
   });
 
-  it('the write-up highlights mentioned cards and aliases (Eyes of Aresmar, Staff of Guel, "Oona")', () => {
+  it('the write-up highlights every mentioned card and every nickname its text really holds', () => {
     const run = createLobbyRun(5150, 'warden');
     run.tribes = ['beast', 'dragon', 'kobold', 'dwarf', 'demon'];
     act(() => { useGame.setState({ run, combatStaged: false }); });
     try { localStorage.setItem('ascent.guidesMode', 'full'); } catch { /* ignore */ }
-    ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    const c = ui.container;
-    openGuides(c);
-    const guideNamed = (title: string): Element =>
-      [...c.querySelectorAll('.lobbyguide')].find((g) => g.querySelector('.lobbyguide-head')!.textContent!.includes(title))!;
-    const names = (title: string): string[] => {
-      const g = guideNamed(title);
-      if (!g.classList.contains('open')) click(g.querySelector('.lobbyguide-head')!);
-      return [...g.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!);
+    /** Is `name` in `body` as words of its own (not inside a longer word)? Only such a name can be highlighted: a
+     *  guide may list a card its write-up no longer names (a stale mention after an edit), and that is not this
+     *  test's business. */
+    const holds = (body: string, name: string): boolean => {
+      const b = body.toLowerCase();
+      const n = name.toLowerCase();
+      const wordy = (ch: string | undefined): boolean => ch !== undefined && ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'));
+      for (let at = b.indexOf(n); at >= 0; at = b.indexOf(n, at + 1)) if (!wordy(b[at - 1]) && !wordy(b[at + n.length])) return true;
+      return false;
     };
-    expect(names('Shout Dragons')).toEqual(expect.arrayContaining(['Eyes of Aresmar', 'Drakko']));
-    expect(names('Oona')).toEqual(expect.arrayContaining(['Oona', 'Grim', 'Sylus']));
-    expect(names('Consume')).toEqual(expect.arrayContaining(['Staff of Guel', 'Chipper', 'Bob Blart', 'Grevlin & Co.']));
+    /** Open each guide on the rail and check every name its write-up holds. Says how many names were checked. */
+    const check = (c: HTMLElement, guides: readonly Guide[]): number => {
+      let checked = 0;
+      for (const guide of guides) {
+        const el = [...c.querySelectorAll('.lobbyguide')].find((x) => x.getAttribute('data-guide') === guide.id)!;
+        expect(el, guide.id).toBeDefined();
+        if (!el.classList.contains('open')) click(el.querySelector('.lobbyguide-head')!);
+        const shown = [...el.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+        for (const id of guide.mentions ?? []) {
+          const name = CARD_INDEX[id]?.name;
+          if (!name || !holds(guide.body, name)) continue; // listed, and not in the text: nothing to highlight
+          expect(shown, `${guide.id}: ${id}`).toContain(name.toLowerCase());
+          checked++;
+        }
+        for (const word of Object.keys(guide.aliases ?? {})) {
+          if (!holds(guide.body, word)) continue;
+          expect(shown, `${guide.id}: nickname ${word}`).toContain(word.toLowerCase());
+          checked++;
+        }
+      }
+      return checked;
+    };
+    // The guides on show, whatever they are today: each name their text holds is highlighted. How many that is does
+    // not matter here (it may be none).
+    ui = mount(<LobbyPanel lobby={run.lobby!} />);
+    openGuides(ui.container);
+    check(ui.container, guidesFor(run.setId, run.tribes));
+    ui.unmount();
+    // And a guide built here, so the rule is always checked on something: one card and one nickname its text holds,
+    // and one card it lists and does not name.
+    const named = CARD_INDEX['grim']!.name;
+    const made: Guide = {
+      ...GUIDES[0]!, id: 'made-up', tribes: [], sets: [run.setId ?? 'set1'], core: ['b2_oona'], enablers: [], mentions: ['grim', 'b2_sunmane'], aliases: { king: 'b2_oona' },
+      body: `Open on ${named} and bring the king.`,
+    };
+    expect(holds(made.body, CARD_INDEX['b2_sunmane']!.name)).toBe(false);
+    act(() => { useGuides.setState({ list: [made], source: 'server', capability: 'on' }); });
+    ui = mount(<LobbyPanel lobby={run.lobby!} />);
+    openGuides(ui.container);
+    expect(check(ui.container, [made])).toBe(2);
+    const shown = [...ui.container.querySelectorAll('.lobbyguide[data-guide="made-up"] .lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+    expect(shown.sort()).toEqual(['king', named.toLowerCase()].sort());
   });
 
   it('a new game starts on Opponents', () => {
@@ -274,6 +313,42 @@ describe('lobby rail guides view', () => {
     click(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-head')!);
     expect(c.querySelector('.lobbyguide[data-guide="own-1"] .lobbyguide-modebtn')).not.toBeNull();
     expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+  });
+
+  it("a Team Ascent guide's Edit is drawn only for the team account the store holds the flag for, never for the next account at the same rail", () => {
+    const c = mountRail(8389);
+    const run = useGame.getState().run;
+    // Team Ascent guides as the server lists them (each has a row), for this game's set and tribes.
+    const official = guidesFor(run.setId, run.tribes).map((g) => ({ ...g, rowId: `row-${g.id}` }));
+    expect(official.length).toBeGreaterThan(0);
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } });
+      useGuides.setState({ list: official, source: 'server', team: true, mineOwner: 'u-1', capability: 'on' });
+    });
+    openGuides(c);
+    const first = official[0]!;
+    click(c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-head`)!);
+    const open = (): Element | null => c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-modebtn`);
+    expect(open()).not.toBeNull();
+    expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
+    // The same account, its lists still held for it, but NOT on the team: a Team Ascent guide offers it no Edit.
+    act(() => { useGuides.setState({ team: false }); });
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+    expect(open()).not.toBeNull();
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+    act(() => { useGuides.setState({ team: true }); });
+    expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
+    // Another account signs in and the guides store is not told (a missed read): it still holds u-1's team flag.
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null } }); });
+    expect(useGuides.getState()).toMatchObject({ team: true, mineOwner: 'u-1' });
+    expect(open()).not.toBeNull(); // the guide is still open: Team Ascent's guides are everyone's
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+    // ...or a guest (no account id at all).
+    act(() => { useGame.setState({ account: { userId: null, email: null, anonymous: true, discriminator: null } }); });
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+    // Back to the account the flag is held for: Edit is offered again.
+    act(() => { useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } }); });
+    expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
   });
 
   it('the rail takes its own guides as a snapshot too: a save that lands while it is open does not add a card', () => {

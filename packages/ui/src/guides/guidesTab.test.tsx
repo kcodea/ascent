@@ -21,15 +21,18 @@ import type { GuideDraftInput, GuideWriteResult } from './guidesRemote';
 
 const imports: GuideDraftInput[][] = [];
 type ImportAnswer = GuideWriteResult<{ inserted: number; skipped: number }>;
-/** What the import answers. Null: it imports everything it was sent. */
-let importAnswer: (() => ImportAnswer) | null = null;
+/** What the import answers (at once, or when a test lets it). Null: it imports everything it was sent. */
+let importAnswer: (() => ImportAnswer | Promise<ImportAnswer>) | null = null;
 let accounts = true;
 let officialCalls = 0;
+/** What a read of the Team Ascent guides answers. Null: the server cannot be reached (so the store keeps what a test
+ *  set, and says guides are offline). A list: the server was reached and holds these. */
+let officialRead: GuideRecord[] | null = null;
 const OFFLINE: GuideWriteResult<GuideRecord> = { ok: false, code: 'offline' };
 let saveAnswer: GuideWriteResult<GuideRecord> = OFFLINE;
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
-  fetchOfficialGuides: async () => { officialCalls++; return { state: 'offline' }; },
+  fetchOfficialGuides: async () => { officialCalls++; return officialRead ? { state: 'on', guides: officialRead } : { state: 'offline' }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
   fetchBookmarkedGuides: async () => undefined,
@@ -44,6 +47,13 @@ vi.mock('./guidesRemote', () => ({
     imports.push(g);
     return importAnswer ? importAnswer() : { ok: true, value: { inserted: g.length, skipped: 0 } };
   },
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => accounts }));
 
@@ -52,11 +62,13 @@ const { GUIDES, canEditGuide, guidesFor } = await import('./guides');
 type Guide = (typeof GUIDES)[number];
 const { emptyDraft } = await import('./guideDrafts');
 const { clearLocalDraft, loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
-const { requestGuideEdit, resetGuidesForTests, useGuides } = await import('./guidesStore');
+const { loadGuides, requestGuideEdit, resetGuidesForTests, useGuides } = await import('./guidesStore');
 const { currentIdentity, setIdentity } = await import('../identity');
 const prevIdentity = currentIdentity();
 
 const ROW = '11111111-1111-4111-8111-111111111111';
+/** What the import says when it took every built-in guide: however many the game ships with. */
+const IMPORTED_ALL = `Imported ${GUIDES.length} guide${GUIDES.length === 1 ? '' : 's'}.`;
 const serverList = GUIDES.map((g, i) => ({ ...g, rowId: `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`, revision: 1 }));
 const mineGuide = { ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'My Sunmane', revision: 1 };
 
@@ -102,7 +114,16 @@ const savedRow = (patch: Partial<GuideRecord> = {}): GuideRecord => ({
 const kept = { ...emptyDraft('Mike'), title: 'Left behind', body: 'half', core: ['grim'] };
 const RESUME_FIRST = 'Resume or discard your unsaved guide first.';
 
-beforeEach(() => { localStorage.clear(); resetGuidesForTests(); imports.length = 0; officialCalls = 0; saveAnswer = OFFLINE; importAnswer = null; accounts = true; });
+beforeEach(() => { localStorage.clear(); resetGuidesForTests(); imports.length = 0; officialCalls = 0; officialRead = null; saveAnswer = OFFLINE; importAnswer = null; accounts = true; });
+/** As the game does when an account lands: the store is told who is at the keyboard, and the server is reached (it
+ *  holds no Team Ascent guide yet). A read asked for later is then a refresh for the same account, which leaves the
+ *  team flag and the lists as a test set them, not an account change, which clears them. */
+const landed = async (): Promise<void> => {
+  officialRead = [];
+  setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
+  await loadGuides();
+  officialCalls = 0;
+};
 afterEach(() => { ui?.unmount(); ui = null; setIdentity(prevIdentity); act(() => { useGame.setState({ account: prev.account, playerName: prev.playerName, showBook: prev.showBook, accountPanelOpen: prev.accountPanelOpen }); }); });
 
 describe('canEditGuide', () => {
@@ -195,17 +216,17 @@ describe('starting to write', () => {
     const c = as('guest');
     await press(c, 'New guide');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
+    expect(c.textContent).toContain('Sign in to write, bookmark and report guides.');
     await press(c, 'Create account');
     expect(useGame.getState().accountPanelOpen).toBe(true);
     expect(useGame.getState().showBook).toBe(false);
   });
   it('a guest who presses Duplicate is asked to sign in; no editor opens', async () => {
     const c = as('guest');
-    expect(c.textContent).not.toContain('Sign in to write and bookmark guides.');
+    expect(c.textContent).not.toContain('Sign in to write, bookmark and report guides.');
     await press(card(c, serverList[0]!.id), 'Duplicate');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
+    expect(c.textContent).toContain('Sign in to write, bookmark and report guides.');
   });
   it('when guides are not available, New guide and Duplicate are disabled and the tab says why', () => {
     for (const capability of ['unknown', 'off', 'offline', 'no-backend'] as const) {
@@ -532,7 +553,7 @@ describe('one unsaved guide at a time', () => {
 });
 
 describe('the team-only import', () => {
-  it('is offered only to the team, only while the built-in copies are showing, and sends the eleven guides', async () => {
+  it('is offered only to the team, only while the built-in copies are showing, and sends every built-in guide', async () => {
     expect(button(as('player', { source: 'bundled', list: GUIDES }), 'Import built-in guides')).toBeUndefined();
     ui!.unmount();
     expect(button(as('team'), 'Import built-in guides')).toBeUndefined(); // the server already has guides
@@ -542,36 +563,95 @@ describe('the team-only import', () => {
     expect(imports).toHaveLength(1);
     expect(imports[0]!.map((g) => g.slug)).toEqual(GUIDES.map((g) => g.id));
     expect(officialCalls).toBeGreaterThan(0); // it re-reads afterwards
-    expect(c.textContent).toContain('Imported 11 guides.');
+    expect(c.textContent).toContain(IMPORTED_ALL);
   });
   it('a successful import is said quietly, not as an alert', async () => {
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'Import built-in guides');
     expect(c.querySelector('[role="alert"]')).toBeNull();
-    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === 'Imported 11 guides.')).toBe(true);
+    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === IMPORTED_ALL)).toBe(true);
   });
   it('a refused import is announced, and the button can be pressed again', async () => {
-    importAnswer = () => ({ ok: false, code: 'not_allowed' });
-    const c = as('team', { source: 'bundled', list: GUIDES });
-    await press(c, 'Import built-in guides');
-    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Something went wrong importing the guides. Nothing was imported.');
-    expect(c.textContent).not.toContain('Imported');
-    expect(officialCalls).toBe(0); // nothing changed, so nothing is read again
-    expect(button(c, 'Import built-in guides')!.disabled).toBe(false);
+    await landed();
+    for (const code of ['not_allowed', 'bad_guides', 'bad_guide', 'blocked_text', 'reserved_name', 'sign_in_required', 'unauthenticated']) {
+      ui?.unmount();
+      importAnswer = () => ({ ok: false, code });
+      const c = as('team', { source: 'bundled', list: GUIDES });
+      await press(c, 'Import built-in guides');
+      expect(c.querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong importing the guides. Nothing was imported.');
+      expect(c.textContent, code).not.toContain('Imported');
+      expect(button(c, 'Import built-in guides')!.disabled, code).toBe(false);
+    }
+    expect(officialCalls).toBe(0); // the server said no: nothing changed, so nothing is read again
   });
-  it('an import that could not reach the server says nothing was imported, not that a guide is kept on the device', async () => {
+  it('an import whose answer is lost may have landed: it says to check again, never that nothing was imported, and the guides are read again', async () => {
+    await landed();
     importAnswer = () => ({ ok: false, code: 'offline' });
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'Import built-in guides');
-    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Nothing was imported.');
-    expect(officialCalls).toBe(0);
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether they were imported.');
+    expect(c.textContent).not.toMatch(/Nothing was imported|kept on this device/);
+    expect(officialCalls).toBe(1);
+    // The server still holds none: the built-in copies stay, and the import can be pressed again.
+    expect(useGuides.getState().source).toBe('bundled');
+    expect(button(c, 'Import built-in guides')!.disabled).toBe(false);
   });
-  it('an import that breaks is announced, and the button can be pressed again', async () => {
+  it('an import answered with anything that is not a known refusal says to check again and reads the guides again', async () => {
+    await landed();
+    for (const code of ['server', 'guide_failed', 'guide_malformed', 'unavailable', 'something_new']) {
+      ui?.unmount();
+      officialCalls = 0;
+      importAnswer = () => ({ ok: false, code });
+      const c = as('team', { source: 'bundled', list: GUIDES });
+      await press(c, 'Import built-in guides');
+      expect(c.querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether they were imported.');
+      expect(officialCalls, code).toBe(1);
+    }
+  });
+  it('the import did land though its answer was lost: the read that follows shows the server guides, and the import is no longer offered', async () => {
+    await landed();
+    importAnswer = () => ({ ok: false, code: 'offline' });
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    // What the server holds once the import has landed.
+    officialRead = [savedRow({ id: '33333333-3333-4333-8333-333333333333', slug: 'set2-imported', official: true, authorId: null, byline: 'Team Ascent', published: true, title: 'Imported one' })];
+    await press(c, 'Import built-in guides');
+    expect(officialCalls).toBe(1);
+    expect(useGuides.getState().source).toBe('server');
+    expect(useGuides.getState().list.map((g) => g.title)).toEqual(['Imported one']);
+    expect(button(c, 'Import built-in guides')).toBeUndefined();
+  });
+  it('an import that breaks may have landed too: it says to check again, reads the guides again, and the button can be pressed again', async () => {
+    await landed();
     importAnswer = () => { throw new Error('boom'); };
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'Import built-in guides');
-    expect(c.querySelector('[role="alert"]')!.textContent).toBe('The import did not finish. Try again.');
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Something went wrong. Check again in a moment to see whether they were imported.');
+    expect(officialCalls).toBe(1);
     expect(button(c, 'Import built-in guides')!.disabled).toBe(false);
+  });
+  it('an import answered after the account changed says nothing to the next account, whatever it answers', async () => {
+    await landed();
+    for (const answer of [{ ok: true, value: { inserted: 3, skipped: 0 } }, { ok: false, code: 'offline' }, { ok: false, code: 'not_allowed' }] as ImportAnswer[]) {
+      ui?.unmount();
+      let land!: (a: ImportAnswer) => void;
+      importAnswer = () => new Promise<ImportAnswer>((r) => { land = r; });
+      const c = as('team', { source: 'bundled', list: GUIDES });
+      await press(c, 'Import built-in guides'); // u-1 presses, and the answer is on its way
+      expect(imports.length).toBeGreaterThan(0);
+      becomeAccount('u-2'); // another account signs in on this device before it lands
+      await act(async () => { land(answer); await new Promise((r) => setTimeout(r, 0)); });
+      const notes = [...c.querySelectorAll('.gtool-note')].map((n) => n.textContent ?? '');
+      expect(notes.filter((t) => /Import|import|Check again|went wrong|reach the server/.test(t)), JSON.stringify(answer)).toEqual([]);
+      expect(c.querySelector('.gtool-note[role="alert"]'), JSON.stringify(answer)).toBeNull();
+    }
+    // The account that pressed, and stayed, is still told (the guard is not a blanket silence).
+    ui?.unmount();
+    let land!: (a: ImportAnswer) => void;
+    importAnswer = () => new Promise<ImportAnswer>((r) => { land = r; });
+    const c = as('team', { source: 'bundled', list: GUIDES });
+    await press(c, 'Import built-in guides');
+    await act(async () => { land({ ok: true, value: { inserted: 3, skipped: 0 } }); await new Promise((r) => setTimeout(r, 0)); });
+    expect(c.textContent).toContain('Imported 3 guides.');
   });
   it('a team member cannot start a Team Ascent guide before the import', async () => {
     const c = as('team', { source: 'bundled', list: GUIDES });
@@ -601,6 +681,7 @@ describe('what a screen reader is told', () => {
   /** The toolbar note that says exactly `text` (the offline line and the Resume bar are notes too). */
   const said = (c: HTMLElement, text: string): Element | undefined => [...c.querySelectorAll('.gtool-note')].find((n) => n.textContent === text);
   it('an error that replaces a status is a new element, so it is announced', async () => {
+    await landed();
     saveAnswer = { ok: true, value: savedRow({ title: 'A copy' }) };
     const c = as('team', { source: 'bundled', list: GUIDES, mine: [] });
     await press(card(c, GUIDES[0]!.id), 'Duplicate');
@@ -609,23 +690,24 @@ describe('what a screen reader is told', () => {
     expect(status.getAttribute('role')).toBe('status');
     importAnswer = () => ({ ok: false, code: 'offline' });
     await press(c, 'Import built-in guides');
-    const alert = said(c, 'Could not reach the server. Nothing was imported.')!;
+    const alert = said(c, 'Could not reach the server. Check again in a moment to see whether they were imported.')!;
     expect(alert.getAttribute('role')).toBe('alert');
     expect(alert).not.toBe(status);
     expect(said(c, 'Saved to My guides.')).toBeUndefined(); // it replaced the status: still one note
   });
   it('a status that replaces an error is a new element too; the same kind twice keeps the element', async () => {
+    await landed();
     importAnswer = () => ({ ok: false, code: 'offline' });
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'Import built-in guides');
-    const first = said(c, 'Could not reach the server. Nothing was imported.')!;
+    const first = said(c, 'Could not reach the server. Check again in a moment to see whether they were imported.')!;
     expect(first.getAttribute('role')).toBe('alert');
     importAnswer = () => ({ ok: false, code: 'not_allowed' });
     await press(c, 'Import built-in guides');
     expect(said(c, 'Something went wrong importing the guides. Nothing was imported.')).toBe(first); // another error: the same alert, new words
     importAnswer = null;
     await press(c, 'Import built-in guides');
-    const status = said(c, 'Imported 11 guides.')!;
+    const status = said(c, IMPORTED_ALL)!;
     expect(status.getAttribute('role')).toBe('status');
     expect(status).not.toBe(first);
     expect(c.querySelector('.gtool-note[role="alert"]')).toBeNull();

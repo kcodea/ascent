@@ -86,8 +86,8 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'build-guides',
     topic: 'controls',
     q: 'What are guides? Can I write my own?',
-    a: "Guides are short build write-ups: the cards a build needs and how to play it. Open the **Compendium** and pick **Guides**, or flip the lobby list to its Guides side during a game to see the ones for the tribes in your lobby. **Team Ascent** writes the main ones. Signed in, you can write your own with **New guide**, or press **Duplicate** on any guide to start from it. Your guides are private until you press **Publish**. **Community** lists what other players published, and **Bookmark** keeps one handy under Bookmarked and in your lobby list.",
-    aliases: ['guide', 'build', 'builds', 'comp', 'comps', 'community', 'bookmark', 'publish', 'write a guide', 'strategy'],
+    a: "Guides are short build write-ups: the cards a build needs and how to play it. Open the **Compendium** and pick **Guides**, or flip the lobby list to its Guides side during a game to see the ones for the tribes in your lobby. **Team Ascent** writes the main ones. Signed in, you can write your own with **New guide**, or press **Duplicate** on any guide to start from it. Your guides are private until you press **Publish**. **Community** lists what other players published, and **Bookmark** keeps one handy under Bookmarked and in your lobby list. See a Community guide that should not be there? Press **Report** on it and Team Ascent will take a look.",
+    aliases: ['guide', 'build', 'builds', 'comp', 'comps', 'community', 'bookmark', 'publish', 'report', 'write a guide', 'strategy'],
     seeAlso: ['open-compendium'],
   },
   {

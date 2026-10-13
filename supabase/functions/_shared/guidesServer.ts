@@ -8,14 +8,15 @@
  * word filter, reserved by lines); the SQL functions it calls as the service role own the ROW rules (ownership,
  * official = team only, the 20-guide cap, the rate limit, edit conflicts) and are the only writers of the tables.
  *
- * Ops: `save`, `delete`, `importBuiltIns` (step 1); `setPublished`, `bookmark`, `unbookmark` (step 3). Step 4 adds `report`, `setHidden`.
+ * Ops: `save`, `delete`, `importBuiltIns` (step 1); `setPublished`, `bookmark`, `unbookmark` (step 3);
+ * `report`, `setHidden`, `resolveReport`, `retagSets` (step 4). The last three are for the team only; the SQL says so.
  *
  * Not exported from index.ts (the client never runs it). Dependency-free. `npm run guides:shared` generates this
  * file VERBATIM into supabase/functions/_shared/guidesServer.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { GUIDE_LIMITS, UUID_RE, parseGuideRecord, type GuideRecord } from './guidesTypes.ts';
-import { draftToSqlDoc, validateGuideDraft, type GuideDraft } from './guidesValidate.ts';
-import { guideTextProblem } from './guidesWordFilter.ts';
+import { GUIDE_LIMITS, SET_ID_RE, UUID_RE, parseGuideRecord, type GuideRecord } from './guidesTypes.ts';
+import { draftToSqlDoc, validateGuideDraft, validateReport, type GuideDraft } from './guidesValidate.ts';
+import { guideTextProblem, isBlockedText } from './guidesWordFilter.ts';
 
 export type RpcCall = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
 
@@ -31,6 +32,11 @@ export const GUIDE_ERROR_STATUS: Readonly<Record<string, number>> = Object.freez
   too_many_guides: 422,
   too_many_bookmarks: 422,
   rate_limited: 429,
+  already_reported: 409,
+  report_limit: 429,
+  bad_report: 422,
+  bad_set: 400,
+  bad_ids: 400,
 });
 
 type Log = (msg: string, detail?: unknown) => void;
@@ -139,6 +145,11 @@ async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall
       }
       const problem = guideTextProblem(storedAsDraft(cur));
       if (problem) return { status: 422, body: { error: problem.error, field: problem.field } };
+      // The "Based on" line is a copy of another guide's title and by line, taken when the copy was made. It is shown
+      // on the public card, so it is checked like the rest. The author cannot edit it; the sentence says so.
+      if ((cur.forkedTitle && isBlockedText(cur.forkedTitle)) || (cur.forkedByline && isBlockedText(cur.forkedByline))) {
+        return { status: 422, body: { error: 'blocked_text', field: 'forked' } };
+      }
       revision = cur.revision;
     }
     const out = await call(rpc, 'guide_set_published', { p_user: userId, p_id: o.id, p_on: o.published, p_revision: revision }, log);
@@ -158,6 +169,50 @@ async function dispatch(userId: string, o: Record<string, unknown>, rpc: RpcCall
     const d = (out.data ?? {}) as Record<string, unknown>;
     const n = Number(d.count ?? 0);
     return { status: 200, body: { bookmarked: d.bookmarked === true, count: Number.isFinite(n) ? Math.max(0, n) : 0 } };
+  }
+
+  if (o.op === 'report') {
+    if (typeof o.id !== 'string' || !UUID_RE.test(o.id)) return { status: 400, body: { error: 'bad_id' } };
+    const v = validateReport({ reason: o.reason, note: o.note });
+    if (!v.ok) return { status: 422, body: { error: v.error, field: v.field } };
+    const out = await call(rpc, 'guide_report', { p_user: userId, p_id: o.id, p_reason: v.reason, p_note: v.note }, log);
+    if (!out.ok) return out.res;
+    return { status: 200, body: { reported: true } };
+  }
+
+  if (o.op === 'setHidden') {
+    if (typeof o.id !== 'string' || !UUID_RE.test(o.id)) return { status: 400, body: { error: 'bad_id' } };
+    if (typeof o.hidden !== 'boolean') return { status: 400, body: { error: 'bad_hidden' } };
+    const out = await call(rpc, 'guide_set_hidden', { p_user: userId, p_id: o.id, p_on: o.hidden }, log);
+    if (!out.ok) return out.res;
+    const guide = parseGuideRecord(out.data);
+    if (!guide) {
+      log('guide_set_hidden malformed', out.data);
+      return { status: 500, body: { error: 'guide_malformed' } };
+    }
+    return { status: 200, body: { guide } };
+  }
+
+  if (o.op === 'resolveReport') {
+    if (typeof o.id !== 'string' || !UUID_RE.test(o.id)) return { status: 400, body: { error: 'bad_id' } };
+    const out = await call(rpc, 'guide_dismiss_reports', { p_user: userId, p_id: o.id }, log);
+    if (!out.ok) return out.res;
+    const n = Number(((out.data ?? {}) as Record<string, unknown>).dismissed ?? 0);
+    return { status: 200, body: { dismissed: Number.isFinite(n) ? Math.max(0, n) : 0 } };
+  }
+
+  if (o.op === 'retagSets') {
+    if (typeof o.set !== 'string' || !SET_ID_RE.test(o.set)) return { status: 400, body: { error: 'bad_set' } };
+    const ids = o.ids;
+    // An id is the same id in capitals, so "no id twice" is told without regard to case.
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > GUIDE_LIMITS.retagBatch
+      || ids.some((x) => typeof x !== 'string' || !UUID_RE.test(x)) || new Set(ids.map((x: string) => x.toLowerCase())).size !== ids.length) {
+      return { status: 400, body: { error: 'bad_ids' } };
+    }
+    const out = await call(rpc, 'guide_retag_set', { p_user: userId, p_set: o.set, p_ids: ids }, log);
+    if (!out.ok) return out.res;
+    const n = Number(((out.data ?? {}) as Record<string, unknown>).tagged ?? 0);
+    return { status: 200, body: { tagged: Number.isFinite(n) ? Math.max(0, n) : 0 } };
   }
 
   return { status: 400, body: { error: 'bad_op' } };

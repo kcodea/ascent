@@ -46,8 +46,12 @@ describe('toGuide (a server row -> what the UI draws)', () => {
 });
 
 describe('guidesFor over a list', () => {
-  it('defaults to the built-in guides and keeps today\'s order', () => {
-    expect(guidesFor('set2', ['kobold', 'beast']).map((x) => x.id)).toEqual(['set2-beast-sunmane', 'set2-beast-oona', 'set2-kobold-combat', 'set2-kobold-mountainbond', 'set2-neutral-paragon']);
+  it('defaults to the built-in guides: the same answer as passing them, and only guides from them', () => {
+    const lobby = ['kobold', 'beast', 'dragon', 'dwarf', 'demon'] as const;
+    const got = guidesFor('set2', lobby);
+    expect(got.length).toBeGreaterThan(0);
+    expect(got.map((x) => x.id)).toEqual(guidesFor('set2', lobby, GUIDES).map((x) => x.id));
+    for (const x of got) expect(GUIDES, x.id).toContain(x);
   });
   it('filters on `sets`, so one guide can show in two sets', () => {
     const list = [g({ id: 'both', sets: ['set2', 'set3'], tribes: [] }), g({ id: 'only2', sets: ['set2'], tribes: [] })];
@@ -86,12 +90,14 @@ describe('guideMissingIds', () => {
     expect([...guideMissingIds(guide, 'set2')].sort()).toEqual([archived, 'no_such_card'].sort());
   });
   it('is empty (one shared set) for a whole guide, and for every built-in guide in its own set', () => {
-    expect(guideMissingIds(GUIDES[0]!, 'set2').size).toBe(0);
-    expect(guideMissingIds(GUIDES[0]!, 'set2')).toBe(guideMissingIds(GUIDES[1]!, 'set2'));
+    const whole = g({ core: ['b2_sunmane'], enablers: ['b2_oona'], mentions: undefined });
+    expect(guideMissingIds(whole, 'set2').size).toBe(0);
+    expect(guideMissingIds(whole, 'set2')).toBe(guideMissingIds(g({ core: ['grim'], enablers: [], mentions: undefined }), 'set2'));
     for (const [i, x] of GUIDES.entries()) expect(guideMissingIds(x, BUNDLED_GUIDE_DATA[i]!.set).size, x.id).toBe(0);
   });
   it('the icon never counts (the Imps guide wears a token that is in no set)', () => {
     expect(inSet2.has('impscrap')).toBe(false);
-    expect(guideMissingIds(GUIDES.find((x) => x.id === 'set2-demon-imps')!, 'set2').size).toBe(0);
+    // A guide that wears a card of no set as its icon (built here, so it does not depend on which guides exist).
+    expect(guideMissingIds(g({ iconCard: 'impscrap', core: ['b2_sunmane'], enablers: [], mentions: undefined }), 'set2').size).toBe(0);
   });
 });

@@ -211,7 +211,7 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
    `select has_function_privilege('authenticated', 'public.guide_bookmark(uuid, uuid, boolean)', 'execute');`
    `select has_function_privilege('authenticated', 'public.guide_own_row(uuid, uuid)', 'execute');`
 3. **Redeploy the function.** `npx supabase functions deploy guide-write`. Until then Publish and Bookmark answer
-   "Something went wrong. Nothing was changed." Saving keeps working either way.
+   "Something went wrong. Check again in a moment to see whether it changed." Saving keeps working either way.
 4. **Check with two real accounts** (never yet run against the live project):
    - Account A: write a guide, Publish it from its card under My guides. It reads Published.
    - Account B: it is in Community. Bookmark it: it shows under Bookmarked, and in B's lobby rail when its tribe is in
@@ -226,7 +226,8 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
    - If a desktop build lags behind the function: an older client that saves a title the new title rule refuses is
      told 'That "by" line is reserved. Pick another name.' The save is refused correctly; only the part it names is
      wrong. It goes away when that client updates.
-5. **Taking a guide down before step 4.** There is no Hide button yet. Until there is, do it in the SQL Editor.
+5. **Taking a guide down before step 4.** (Step 4 below replaces this with buttons; keep it only for a project where
+   the step 4 migration has not run.) There is no Hide button yet. Until there is, do it in the SQL Editor.
    Find it: `select id, title, byline, published_at from public.guides where not official and published order by published_at desc limit 50;`
    Hide it (on the server it leaves Community, Bookmarked and every lobby rail at once; a game that is already open
    drops it the next time it opens the Compendium's Guides tab or is restarted; its author still sees it, marked
@@ -235,6 +236,83 @@ Nothing new to run in SQL. The client now calls `guide-write`, so:
    the Find query again afterwards. Blocking an account is step 4's work.
    Undo: `update public.guides set hidden = false, hidden_at = null where id = '<id>';`
    Delete it for good: `delete from public.guides where id = '<id>';`
+
+### Reports, hiding and release tools (step 4)
+
+1. **Run the migration.** Paste `supabase/migrations/2026-10-14-guides-moderation.sql` into the SQL Editor and Run, after
+   the 2026-10-12 and 2026-10-13 files. It is idempotent. It adds the table that counts bookmark changes (a limit of
+   120 an hour for each account), puts that limit on `guide_bookmark`, and adds `guide_report`, `guide_set_hidden`,
+   `guide_dismiss_reports` and `guide_retag_set`.
+   **Re-run rule:** if you re-ran 2026-10-12, run 2026-10-13 and then this file. If you re-ran 2026-10-13, run this
+   file. Do not leave an earlier guides file as the last one run.
+   Check the locks took. Each of these should answer `f`:
+   `select has_function_privilege('authenticated', 'public.guide_report(uuid, uuid, text, text)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_set_hidden(uuid, uuid, boolean)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_dismiss_reports(uuid, uuid)', 'execute');`
+   `select has_function_privilege('authenticated', 'public.guide_retag_set(uuid, text, uuid[])', 'execute');`
+   `select has_table_privilege('authenticated', 'public.guide_bookmark_log', 'select');`
+2. **Redeploy the function.** `npx supabase functions deploy guide-write`. It must be the function from this branch: the
+   four new operations, the "Based on" check at publish and the duplicate-id check in Carry guides over are all in it.
+   Run the migration first. Until both are done, the controls fail with a plain sentence and change nothing. What a
+   player or the team reads in each window (saving, Delete and the Reports pill's reads work in all of them):
+
+   | What is done | Report | Hide, Unhide, Dismiss reports, Carry over | Publish and Bookmark |
+   |---|---|---|---|
+   | Only the game is updated | "Something went wrong. Try again in a moment." The form comes back with what was typed. | "Something went wrong. Check again in a moment to see whether it changed." Check works (it only reads); a run stops at its first batch with that sentence and "Carried over 0 of N so far. Press Check to continue." | Work as in step 3: no bookmark limit, no "Based on" check. |
+   | Migration run, function not redeployed | The same. | The same. | Work. Bookmarks are limited to 120 changes an hour: "That is a lot of bookmarks. Try again in a little while." |
+   | Function redeployed, migration not run | The same (the missing database function is answered as a failure). | The same. | Work. The "Based on" check is on; there is no bookmark limit yet. |
+   | Both | Everything in this section. | Everything in this section. | Both rules on. |
+
+   In the first three windows the words are vaguer than they need to be, because the game cannot tell a missing
+   operation from a failure; nothing has changed in any of them.
+3. **Check with real accounts** (never yet run against the live project). You need account A (a player), account B
+   (another player) and a team account:
+   - Account A publishes a guide. Account B finds it under Community, presses **Bookmark**, then **Report** on its card,
+     picks a reason, adds a note and sends. The card then reads Reported and says "Reported. Thank you." Close and
+     reopen the Compendium and report the same guide again: it says "You already reported this guide." A report is once
+     per account for each guide, for good, even after the guide is unhidden or the report is dismissed. Account B
+     cannot see any report anywhere. Account A is not offered Report on A's own guide, and nobody is offered it on a
+     Team Ascent guide.
+   - The team account opens the Compendium, Guides, **Reports**: the report is there as "1 report: 1 Spam." (or
+     whichever reason B picked) with B's note in quotes. Account A and account B have no Reports pill.
+   - The team presses **Hide** on the guide (on its card in Reports or in Community) and confirms. After B closes and
+     reopens the Compendium it is gone from Community and from B's Bookmarked, and from B's lobby list the next time
+     that list's Guides view is opened (that list shows a guide only when its tribe is in the lobby). The report is no
+     longer open: hiding marks it done. The guide is listed under Hidden guides in Reports, with Unhide and Delete,
+     and its card reads "Hidden by Team Ascent" and "Published".
+   - Account A still sees the guide under My guides. Its badge reads "Hidden by Team Ascent" where it said Published.
+     The guide is still published, so its card offers **Unpublish**, not Publish. Once A unpublishes it, Publish is
+     greyed out, and a publish sent directly is refused with `guide_hidden` ("Team Ascent has hidden this guide. It
+     cannot be published."). A can still Edit and Delete it.
+   - The team presses **Unhide**: the guide is back in Community for B (and in B's Bookmarked) after B closes and reopens
+     the Compendium, unless A had unpublished it.
+   - B reports a second guide of A's. The team presses **Dismiss reports** on it: it leaves Open reports and stays
+     public. B cannot report it again.
+   - With a tampered request (or the SQL editor as `authenticated`), account B calling `setHidden` (or `resolveReport`,
+     or `retagSets`) is refused and nothing changes.
+   - The team cannot Hide a Team Ascent guide: no Hide is drawn, and the server refuses it. A team account can Edit and
+     Delete one (from the editor).
+4. **When a new set goes live:** do this from a build that already contains the new set (the Set box lists the sets the
+   running build knows, and the three numbers use its card lists). A team account opens Reports, Carry guides over,
+   picks the new set in the Set box, presses Check, reads the three numbers (how many carry over, how many stay
+   behind, how many already have it), then presses Carry over. Check reads every guide, so give it a moment. Carry over
+   sends the guides in batches of 200 and only ever adds the set to a guide; it never removes one. Leave the tab open
+   until it says "Carried over N guides to ...": if the panel is left mid-run (another pill, the editor, closing the
+   Compendium, an account change) the run ends quietly after the batch in flight, with no "so far" line. If it stops
+   on its own it says how far it got: press Check and Carry over again. It is safe to repeat at any time.
+   **Run it again a few days after the set goes live.** A guide saved from a game build older than the set loses the
+   new set, and running Carry guides over again puts it back.
+5. **Before a release:** `npm run guides:pull` rewrites `packages/ui/src/guides/guides.bundled.ts` from the live Team
+   Ascent guides. It only reads (one request with the public key from `apps/web/.env`, 15 seconds at most). It stops and
+   writes nothing when the answer is not OK, is short or uncounted, has a row it cannot read, has a Team Ascent guide
+   that is in no set, has more than 50 Team Ascent guides (the most one press of Import can send), or has none at all
+   (run Import first). Then run `npx vitest run packages/ui/src/guides` (the whole folder: every card in every guide
+   must resolve) and commit the file. The first pull drops the hand-written comments inside that file. A live guide with
+   no slug is written under its row id, and each guide is written with its oldest set tag.
+
+The take-down SQL in step 3's notes is no longer needed: Hide, Unhide and Delete are buttons for the team now. A hide
+still stops a guide, not its author: a copy is a new guide and shows up in Community like any other. The team sees the
+copy in Reports only if a player reports it. There is no way to block an account.
 
 ### Note
 

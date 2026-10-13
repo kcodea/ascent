@@ -17,11 +17,13 @@ let mineRows: GuideRecord[] = [];
 let bookmarkedRows: GuideRecord[] = [];
 /** Every question the Community list asked the server. */
 const communityAsked: CommunityQuery[] = [];
+/** Whether the server says this account is on the guides team. */
+let onTeam = false;
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
   // The server answers, has no Team Ascent rows yet (so the built-in guides keep showing), and knows this player's guides.
   fetchOfficialGuides: async () => ({ state: 'on', guides: [] }),
-  fetchTeamFlag: async () => false,
+  fetchTeamFlag: async () => onTeam,
   fetchMyGuides: async () => mineRows,
   fetchBookmarkedGuides: async () => bookmarkedRows,
   fetchGuideById: async () => undefined,
@@ -32,6 +34,13 @@ vi.mock('./guidesRemote', () => ({
   setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
   bookmarkGuideRemote: async () => ({ ok: false, code: 'offline' }),
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 
 const { MinionBook } = await import('../MinionBook');
@@ -70,6 +79,7 @@ beforeEach(async () => {
   resetGuidesForTests();
   mineRows = [elsewhere];
   bookmarkedRows = [];
+  onTeam = false;
   communityAsked.length = 0;
   // A signed-in player, as the game has it once identity has landed: the store has read this account's guides.
   setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
@@ -212,6 +222,26 @@ describe('the pills in the real Compendium', () => {
     await settle();
     expect(communityAsked.length).toBe(3);
     expect(communityAsked[2]).toMatchObject({ search: 'imp', tribes: [], neutral: true, offset: 0 });
+  });
+  it('a player has no Reports pill', async () => {
+    const c = await openGuidesTab();
+    expect(button(c, 'Community')).toBeDefined();
+    expect(button(c, 'Reports')).toBeUndefined();
+  });
+  it("the team's Reports pill: the subtitle says what it is, no list of guides is drawn under it, and a search adds nothing to the subtitle", async () => {
+    onTeam = true;
+    await act(async () => { await loadGuides(); });
+    const c = await openGuidesTab();
+    await settle();
+    expect(shownIds(c).length).toBeGreaterThan(0); // Team Ascent's guides
+    await click(button(c, 'Reports')!);
+    await settle();
+    expect(sub(c)).toBe('Reports and tools for Team Ascent.');
+    expect(c.textContent).toContain('Open reports');
+    expect(shownIds(c)).toEqual([]);
+    await type(c, 'imp');
+    expect(sub(c)).toBe('Reports and tools for Team Ascent.');
+    expect(shownIds(c)).toEqual([]);
   });
   it("My guides counts the player's own guides in the subtitle, not Team Ascent's build lines", async () => {
     const c = await openGuidesTab();

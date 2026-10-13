@@ -11,16 +11,26 @@
  *  - `fetchTeamFlag` / `fetchMyGuides` / `fetchGuideById`: the three small reads the editor needs.
  *  - `setPublishedRemote` / `bookmarkGuideRemote`: step 3's writes, through the same function.
  *  - `fetchBookmarkedGuides`: this account's bookmarks, with their guides, under row level security.
+ *  - `reportGuideRemote` / `setHiddenRemote` / `dismissReportsRemote` / `retagSetRemote`: step 4's writes. A report is
+ *    any signed-in player's; the other three are the team's (the SQL checks).
+ *  - `fetchOpenReports` / `fetchHiddenGuides` / `fetchGuideTags`: step 4's reads, for the team's Reports pill. Row
+ *    level security decides what each answers. Only the reports are the team's alone: any other account is answered
+ *    no rows there. The other two answer what the asking account can already read: for a player, its own hidden
+ *    guides, and the sets, tribes and card ids of every guide it can see. All three page through a whole table, so
+ *    they wait longer than the small reads.
  *  - `fetchCommunityPage`: one page of published player guides. Paged on the server; its search text is cleaned and
  *    quoted so it can only ever be a search.
  *
  * Never throws; every read is time-boxed.
  */
-import { GUIDE_LIMITS, SET_ID_RE, TRIBE_RE, cleanText, parseGuideRecord, type GuideRecord } from '@game/guides';
+import { GUIDE_LIMITS, REPORT_REASONS, SET_ID_RE, TRIBE_RE, cleanText, parseGuideRecord, type GuideRecord, type ReportReason } from '@game/guides';
 import { supabaseClient } from '../remoteBoards';
 import { fetchAllRows } from '../supabaseRows';
 
 const READ_TIMEOUT_MS = 4_000;
+/** The reads that page through a whole table (the team's three): each open report carries its whole guide, and a wave
+ *  of reports is exactly when that list is longest. */
+const LONG_READ_TIMEOUT_MS = 30_000;
 
 export const GUIDE_COLUMNS = 'id, slug, author_id, byline, official, published, published_at, hidden, sets, tribes, pairs_with, icon_card, title, tagline, body, core, enablers, mentions, aliases, forked_from, forked_title, forked_byline, bookmark_count, sort_order, revision, created_at, updated_at';
 
@@ -206,6 +216,38 @@ export async function bookmarkGuideRemote(rowId: string, on: boolean): Promise<G
   return { ok: true, value: { bookmarked: res.value.bookmarked, count: Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0 } };
 }
 
+/** Report someone else's published guide to the team. */
+export async function reportGuideRemote(rowId: string, reason: ReportReason, note: string): Promise<GuideWriteResult<true>> {
+  const res = await invokeGuideWrite({ op: 'report', id: rowId, reason, note });
+  if (!res.ok) return res;
+  return res.value.reported === true ? { ok: true, value: true } : { ok: false, code: 'server' };
+}
+
+/** Team only: hide a player's guide from everyone but its author and the team, or bring it back. */
+export async function setHiddenRemote(rowId: string, hidden: boolean): Promise<GuideWriteResult<GuideRecord>> {
+  const res = await invokeGuideWrite({ op: 'setHidden', id: rowId, hidden });
+  if (!res.ok) return res;
+  const rec = parseGuideAnswer(res.value.guide);
+  return rec ? { ok: true, value: rec } : { ok: false, code: 'server' };
+}
+
+const countOf = (v: unknown): number => {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
+};
+
+/** Team only: dismiss every open report of a guide. Answers how many were dismissed. */
+export async function dismissReportsRemote(rowId: string): Promise<GuideWriteResult<number>> {
+  const res = await invokeGuideWrite({ op: 'resolveReport', id: rowId });
+  return res.ok ? { ok: true, value: countOf(res.value.dismissed) } : res;
+}
+
+/** Team only: add one set to the named guides (a new set going live). Answers how many were changed. */
+export async function retagSetRemote(setId: string, rowIds: readonly string[]): Promise<GuideWriteResult<number>> {
+  const res = await invokeGuideWrite({ op: 'retagSets', set: setId, ids: [...rowIds] });
+  return res.ok ? { ok: true, value: countOf(res.value.tagged) } : res;
+}
+
 // -- The three small reads ----------------------------------------------------------------------------------------
 
 /** Is this account on the guides team? `undefined` = could not ask (never treat that as "no" for an account that
@@ -344,6 +386,96 @@ export async function fetchCommunityPage(q: CommunityQuery): Promise<CommunityPa
     const raw = (res.data as unknown[] | null) ?? [];
     const guides = raw.slice(0, page).map(parseGuideRecord).filter((g): g is GuideRecord => g !== null);
     return { guides, more: raw.length > page };
+  } catch {
+    return undefined;
+  }
+}
+
+// -- Step 4 reads (the team's Reports pill; row level security decides what each answers: see the header) -------------
+
+export interface OpenReport {
+  id: string;
+  guideId: string;
+  reason: ReportReason;
+  note: string;
+  createdAt: string;
+  guide: GuideRecord;
+}
+
+/** Every open report with the guide it is about, newest first. `undefined` = could not ask. Reports are the team's
+ *  alone: a non-team account is answered no rows (the read rule), which reads as an empty list. */
+export async function fetchOpenReports(): Promise<OpenReport[] | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      fetchAllRows((from, to) => c.from('guide_reports').select(`id, guide_id, reason, note, created_at, guide:guides(${GUIDE_COLUMNS})`).eq('status', 'open')
+        .order('created_at', { ascending: false }).order('id', { ascending: true }).range(from, to)),
+      timeout(LONG_READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    const out: OpenReport[] = [];
+    for (const r of ((res.data as unknown[] | null) ?? [])) {
+      const o = (r ?? {}) as Record<string, unknown>;
+      const embedded = o.guide;
+      const guide = parseGuideRecord(Array.isArray(embedded) ? embedded[0] : embedded);
+      if (!guide || typeof o.id !== 'string') continue;
+      out.push({
+        id: o.id,
+        guideId: guide.id,
+        reason: REPORT_REASONS.find((x) => x === o.reason) ?? 'other',
+        note: typeof o.note === 'string' ? o.note : '',
+        createdAt: typeof o.created_at === 'string' ? o.created_at : '',
+        guide,
+      });
+    }
+    return out;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Every hidden guide this account can read, most recently hidden first: for the team all of them, for a player its
+ *  own (the read rule lets an author read their hidden guide). `undefined` = could not ask. */
+export async function fetchHiddenGuides(): Promise<GuideRecord[] | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      fetchAllRows((from, to) => c.from('guides').select(GUIDE_COLUMNS).eq('hidden', true)
+        .order('hidden_at', { ascending: false, nullsFirst: false }).order('id', { ascending: true }).range(from, to)),
+      timeout(LONG_READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return ((res.data as unknown[] | null) ?? []).map(parseGuideRecord).filter((g): g is GuideRecord => g !== null);
+  } catch {
+    return undefined;
+  }
+}
+
+/** What the carry-over rule reads of one guide. */
+export interface GuideTagRow { id: string; sets: string[]; tribes: string[]; pairsWith: string[]; core: string[]; enablers: string[]; mentions: string[] }
+
+const strList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+
+/** The sets, tribes and cards of every guide this account can read, by id: for the team every guide, for a player the
+ *  guides it can already see. A long read: it pages through the whole table. */
+export async function fetchGuideTags(): Promise<GuideTagRow[] | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      fetchAllRows((from, to) => c.from('guides').select('id, sets, tribes, pairs_with, core, enablers, mentions').order('id', { ascending: true }).range(from, to)),
+      timeout(LONG_READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    const out: GuideTagRow[] = [];
+    for (const r of ((res.data as unknown[] | null) ?? [])) {
+      const o = (r ?? {}) as Record<string, unknown>;
+      if (typeof o.id !== 'string' || !o.id) continue;
+      out.push({ id: o.id, sets: strList(o.sets), tribes: strList(o.tribes), pairsWith: strList(o.pairs_with), core: strList(o.core), enablers: strList(o.enablers), mentions: strList(o.mentions) });
+    }
+    return out;
   } catch {
     return undefined;
   }

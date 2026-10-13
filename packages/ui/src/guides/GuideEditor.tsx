@@ -12,9 +12,9 @@ import { GuideCardPicker } from './GuideCardPicker';
 import { GuideEmblem, GuideText, TRIBE_NAME, guideAccent, useGuideViews } from './GuideParts';
 import { draftFromGuide, draftProblems, missingIn, newSaveId, sameDraft, toWire, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from './guideDraftStore';
-import { guideErrorMessage } from './guideMessages';
+import { guideErrorMessage, isKnownRefusal } from './guideMessages';
 import { deleteGuideRemote, fetchGuideById, saveGuideRemote } from './guidesRemote';
-import { guideDeleted, guideSaved } from './guidesStore';
+import { guideDeleted, guideSaved, rereadGuides } from './guidesStore';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
 import './guideEditor.css';
@@ -399,6 +399,9 @@ export const GuideEditor = memo(function GuideEditor({ initial, setId, tribes, r
     // A guide the server no longer has is as good as deleted: finish the same way (its sentence would say the text is
     // kept on this device, which is not true after a delete).
     const gone = res.ok || res.code === 'not_found';
+    // Not a refusal the server is known to answer (the answer was lost, could not be read, or the server failed after
+    // it may have written): the delete may have landed. The list behind is read again.
+    if (!res.ok && !isKnownRefusal('delete', res.code)) void rereadGuides();
     if (closed.current) {
       // The editor is gone (state and onClose are off limits), but the delete landed: keep the books straight.
       if (gone) { guideDeleted(rowId); device.release(sent); }

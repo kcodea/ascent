@@ -20,13 +20,15 @@ let byIdAnswer: GuideRecord | null | undefined;
 let gate: Promise<void> | null = null;
 let deleteGate: Promise<void> | null = null;
 let fetches = 0;
+/** How many times the guides were read again from the server. */
+let listReads = 0;
 /** Hold the next save/delete at the server until the returned function is called. */
 const hold = (): (() => void) => { let r!: () => void; gate = new Promise<void>((res) => { r = res; }); return r; };
 const saves: GuideDraftInput[] = [];
 const deletes: string[] = [];
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
-  fetchOfficialGuides: async () => ({ state: 'offline' }),
+  fetchOfficialGuides: async () => { listReads++; return { state: 'offline' }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
   fetchBookmarkedGuides: async () => undefined,
@@ -41,7 +43,7 @@ const { draftFromGuide, emptyDraft } = await import('./guideDrafts');
 const { loadLocalDraft, saveLocalDraft } = await import('./guideDraftStore');
 const { useGame } = await import('../store');
 const { GUIDES } = await import('./guides');
-const { resetGuidesForTests, useGuides } = await import('./guidesStore');
+const { loadGuides, resetGuidesForTests, useGuides } = await import('./guidesStore');
 const { currentIdentity, setIdentity } = await import('../identity');
 const prevIdentity = currentIdentity();
 
@@ -93,6 +95,7 @@ beforeEach(() => {
   gate = null;
   deleteGate = null;
   fetches = 0;
+  listReads = 0;
   saveAnswer = (g) => ({ ok: true, value: rec({ title: g.title, body: g.body, core: g.core }) });
   deleteAnswer = () => ({ ok: true, value: true });
 });
@@ -1050,29 +1053,50 @@ describe('a delete that cannot go through says so in its own words', () => {
   const tryDelete = async (answer: GuideWriteResult<true>): Promise<HTMLElement> => {
     ui?.unmount();
     deleteAnswer = () => answer;
+    // As the game does when an account lands: the store is told who is at the keyboard, so a read asked for later is
+    // a refresh for the same account, not an account change that clears its guides.
+    await loadGuides();
+    listReads -= 1; // that read is this harness's own: only reads made after it are counted
     useGuides.setState({ mine: [guide() as never], mineOwner: 'u-1' });
     const c = open(existing());
     await press(c, 'Delete');
     await press(c, 'Delete for good');
     return c;
   };
-  it('offline: the guide was not deleted, and nothing is said about saving or the device', async () => {
+  it('offline: the delete may have landed, so it says to check again, and nothing is said about saving or the device', async () => {
     const c = await tryDelete({ ok: false, code: 'offline' });
-    expect(alertText(c)).toBe('Could not reach the server. The guide was not deleted.');
+    expect(alertText(c)).toBe('Could not reach the server. Check again in a moment to see whether it was deleted.');
     expect(closed).toBe(0);
     expect(useGuides.getState().mine).toHaveLength(1);
     expect(c.querySelector('.gedit-ask')).toBeNull();
+    // The editor stays open over the list, so the list is read again: it shows what is true when the editor closes.
+    expect(listReads).toBe(1);
   });
-  it('any other failure: it was not deleted', async () => {
-    for (const code of ['server', 'guide_failed', 'rate_limited', 'unavailable']) {
-      expect(alertText(await tryDelete({ ok: false, code })), code).toBe('Something went wrong deleting the guide. It was not deleted.');
+  it('an answer that came and could not be read: the delete may have landed too, so it says to check again and the list is read again', async () => {
+    const c = await tryDelete({ ok: false, code: 'server' });
+    expect(alertText(c)).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+    expect(closed).toBe(0);
+    expect(useGuides.getState().mine).toHaveLength(1);
+    expect(listReads).toBe(1);
+  });
+  it('any other answer that is not a known refusal may have landed too: it says to check again, never that it was not deleted, and the list is read again', async () => {
+    // `guide_failed`: the function's call to the database failed or lost its answer. `guide_malformed`: the write was
+    // made and what came back could not be read. The rest are codes a delete is not known to be refused with.
+    const codes = ['guide_failed', 'guide_malformed', 'rate_limited', 'unavailable', 'something_new'];
+    for (const [i, code] of codes.entries()) {
+      const c = await tryDelete({ ok: false, code });
+      expect(alertText(c), code).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+      expect(useGuides.getState().mine, code).toHaveLength(1);
+      expect(listReads, code).toBe(i + 1);
     }
     expect(closed).toBe(0);
   });
-  it('a refusal with a more exact sentence keeps it', async () => {
+  it('a refusal with a more exact sentence keeps it, and nothing is read again: the server said no', async () => {
     expect(alertText(await tryDelete({ ok: false, code: 'not_allowed' }))).toBe('You cannot change this guide. Duplicate it to make your own.');
     expect(alertText(await tryDelete({ ok: false, code: 'unauthenticated' }))).toBe('Sign in to write guides.');
     expect(alertText(await tryDelete({ ok: false, code: 'sign_in_required' }))).toBe('Sign in to write guides.');
+    expect(closed).toBe(0);
+    expect(listReads).toBe(0);
   });
 });
 

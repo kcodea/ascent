@@ -28,12 +28,19 @@ const bookmarks: Array<[string, boolean]> = [];
 let bookmarkAnswer: (on: boolean) => GuideWriteResult<{ bookmarked: boolean; count: number }>;
 /** While set, a bookmark does not answer until this resolves. */
 let hold: Promise<void> | null = null;
+/** How many times the guides were read from the server, whether such a read reaches it (it does not, unless a test
+ *  says so: the store then keeps what the test set), and what it answers for an account's bookmarks. */
+let reads = 0;
+let serverReached = false;
+let bookmarkedRead: (userId: string) => GuideRecord[] | undefined;
+/** Whose bookmarks were asked for, in order. */
+const bookmarksAskedFor: string[] = [];
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
-  fetchOfficialGuides: async () => ({ state: 'offline' }),
+  fetchOfficialGuides: async () => { reads++; return serverReached ? { state: 'on', guides: [] } : { state: 'offline' }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
-  fetchBookmarkedGuides: async () => undefined,
+  fetchBookmarkedGuides: async (userId: string) => { bookmarksAskedFor.push(userId); return bookmarkedRead(userId); },
   fetchGuideById: async () => undefined,
   communitySearch: (s: string) => s.trim().replace(/\s+/g, ' '),
   fetchCommunityPage: async (q: CommunityQuery) => { asked.push(q); return pageAnswer(q); },
@@ -42,6 +49,13 @@ vi.mock('./guidesRemote', () => ({
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
   setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
   bookmarkGuideRemote: async (rowId: string, on: boolean) => { bookmarks.push([rowId, on]); if (hold) await hold; return bookmarkAnswer(on); },
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => true }));
 /** How many times a guide card has been drawn: the card works its tribe chips out once each time it renders. */
@@ -54,7 +68,7 @@ vi.mock('./GuideParts', async (importOriginal) => {
 const { CompendiumGuides } = await import('./CompendiumGuides');
 const { GUIDES } = await import('./guides');
 type Guide = (typeof GUIDES)[number];
-const { resetGuidesForTests, useGuides } = await import('./guidesStore');
+const { loadGuides, resetGuidesForTests, useGuides } = await import('./guidesStore');
 const { currentIdentity, setIdentity } = await import('../identity');
 const prevIdentity = currentIdentity();
 
@@ -110,8 +124,9 @@ const PAGE = GUIDE_LIMITS.communityPage;
 beforeEach(() => {
   localStorage.clear();
   resetGuidesForTests();
-  asked.length = 0; bookmarks.length = 0;
+  asked.length = 0; bookmarks.length = 0; bookmarksAskedFor.length = 0;
   hold = null;
+  reads = 0; serverReached = false; bookmarkedRead = () => undefined;
   pageAnswer = () => ({ guides: [rec('a'), rec('b')], more: false });
   bookmarkAnswer = (on) => ({ ok: true, value: { bookmarked: on, count: on ? 1 : 0 } });
 });
@@ -256,12 +271,99 @@ describe('the Community list', () => {
     expect(card(c, 'a').querySelector('[role="alert"]')!.textContent).toBe(`You already have ${GUIDE_LIMITS.bookmarksPerPlayer} bookmarks. Remove one to make room.`);
     expect(useGuides.getState().bookmarked).toEqual([]);
   });
+  /** As the game does when an account lands: the store is told who is at the keyboard, so a read asked for later is a
+   *  refresh for the same account and not an account change (which would reset the pill). The server is reached. */
+  const landed = async (): Promise<void> => {
+    serverReached = true;
+    setIdentity({ userId: 'u-1', displayName: 'Mike', anonymous: false, email: 'm@example.test' });
+    await loadGuides();
+    reads = 0; bookmarksAskedFor.length = 0;
+  };
+  it('a bookmark whose answer is lost may have landed: it says to check again, never that nothing was changed, and the guides are read again', async () => {
+    await landed();
+    bookmarkAnswer = () => ({ ok: false, code: 'offline' });
+    const c = show('player');
+    await settle();
+    await press(card(c, 'a'), 'Bookmark');
+    await settle();
+    expect(bookmarks).toEqual([['a', true]]);
+    expect(card(c, 'a').querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
+    expect(reads).toBe(1);
+    expect(bookmarksAskedFor).toEqual(['u-1']);
+    // The read could not ask for the bookmarks: the card keeps what it showed, and nothing was filed on a guess.
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(button(card(c, 'a'), 'Bookmark')!.getAttribute('aria-pressed')).toBe('false');
+    // A bookmark asks the Community list for nothing, lost or not: the list stays where the player was.
+    expect(asked.length).toBe(1);
+  });
+  it('a bookmark answered with anything that is not a known refusal says to check again and reads the guides again', async () => {
+    await landed();
+    for (const code of ['server', 'guide_failed', 'guide_malformed', 'unavailable', 'something_new']) {
+      ui?.unmount();
+      reads = 0;
+      bookmarkAnswer = () => ({ ok: false, code });
+      const c = show('player');
+      await settle();
+      await press(card(c, 'a'), 'Bookmark');
+      await settle();
+      expect(card(c, 'a').querySelector('[role="alert"]')!.textContent, code).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+      expect(reads, code).toBe(1);
+    }
+  });
+  it('the bookmark did land though its answer was lost: the read that follows shows the card as Bookmarked', async () => {
+    await landed();
+    bookmarkAnswer = () => ({ ok: false, code: 'offline' });
+    bookmarkedRead = () => [rec('a', { bookmarkCount: 1 })];
+    const c = show('player');
+    await settle();
+    await press(card(c, 'a'), 'Bookmark');
+    await settle();
+    expect(reads).toBe(1);
+    expect(useGuides.getState().bookmarked.map((g) => g.rowId)).toEqual(['a']);
+    expect(button(card(c, 'a'), 'Bookmarked')!.getAttribute('aria-pressed')).toBe('true');
+    expect(button(c, 'Bookmarked (1)')).toBeDefined();
+  });
+  it('a bookmark the server refused reads nothing again', async () => {
+    await landed();
+    for (const code of ['too_many_bookmarks', 'rate_limited', 'not_found', 'not_allowed', 'sign_in_required', 'unauthenticated']) {
+      ui?.unmount();
+      bookmarkAnswer = () => ({ ok: false, code });
+      const c = show('player');
+      await settle();
+      await press(card(c, 'a'), 'Bookmark');
+      await settle();
+      expect(card(c, 'a').querySelector('[role="alert"]'), code).not.toBeNull();
+      expect(card(c, 'a').querySelector('[role="alert"]')!.textContent, code).not.toMatch(/Check again/);
+    }
+    expect(reads).toBe(0);
+    expect(bookmarksAskedFor).toEqual([]);
+  });
+  it('a bookmark whose answer is lost after the account changed files nothing for the next account: the read is for whoever is signed in', async () => {
+    await landed();
+    let answer!: () => void;
+    hold = new Promise<void>((r) => { answer = r; });
+    bookmarkAnswer = () => ({ ok: false, code: 'offline' });
+    // What the next account has bookmarked: nothing.
+    bookmarkedRead = (userId) => (userId === 'u-2' ? [] : [rec('a', { bookmarkCount: 1 })]);
+    const c = show('player');
+    await settle();
+    await press(card(c, 'a'), 'Bookmark'); // u-1 presses, and the answer is on its way
+    // Another account signs in on this device before it lands.
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'n@example.test', anonymous: false, discriminator: null } }); });
+    setIdentity({ userId: 'u-2', displayName: 'Nell', anonymous: false, email: 'n@example.test' });
+    await act(async () => { answer(); await new Promise((r) => setTimeout(r, 0)); });
+    await settle();
+    expect(bookmarks).toEqual([['a', true]]);
+    // Only the account now at the keyboard was read for, and u-1's bookmark is nowhere in what it is shown.
+    expect(bookmarksAskedFor).toEqual(['u-2']);
+    expect(useGuides.getState()).toMatchObject({ mineOwner: 'u-2', bookmarked: [] });
+  });
   it('a guest who presses Bookmark is asked to sign in, and the server is not called', async () => {
     const c = show('guest');
     await settle();
     await press(card(c, 'a'), 'Bookmark');
     expect(bookmarks).toEqual([]);
-    expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write and bookmark guides.');
+    expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write, bookmark and report guides.');
   });
   it('while a bookmark is on its way the button cannot be pressed again, and focus comes back to it once it is answered', async () => {
     let answer!: () => void;

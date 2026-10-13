@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
-import { GUIDE_LIMITS } from '@game/guides';
+import { GUIDE_LIMITS, type ReportReason } from '@game/guides';
 import type { RunState } from '@game/sim';
 import { accountsAvailable } from '../GuestSignIn';
 import { LazyCell, LazyRootProvider } from '../bookLazy';
@@ -13,9 +13,10 @@ import { canEditGuide, toGuide, type Guide } from './guides';
 import { GuideEditor } from './GuideEditor';
 import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameDraft, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
-import { guideErrorMessage } from './guideMessages';
-import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
-import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
+import { guideErrorMessage, isKnownRefusal } from './guideMessages';
+import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, reportGuideRemote, setHiddenRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
+import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, rereadGuides, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
+import { ReportsPanel } from './ReportsPanel';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
 
@@ -40,6 +41,14 @@ const keptAs = (who: string, userId: string | null): Kept | null => {
   return draft ? { who, draft } : null;
 };
 
+/** Who is at the keyboard, as one word: an account, or a guest, or nobody. */
+const whoOf = (userId: string | null, anonymous: boolean): string => `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
+/** Who is at the keyboard RIGHT NOW. Read after an answer has come: the account may have changed while it was on its way. */
+const whoNow = (): string => {
+  const a = useGame.getState().account;
+  return whoOf(a.userId, a.anonymous);
+};
+
 /** Forget a kept guide of `userId` that has nothing in it, so it never stands in the way of a new one. */
 const forgetEmptyKept = (userId: string | null): void => {
   const d = userId ? loadLocalDraft(userId) : null;
@@ -55,25 +64,70 @@ const forgetEmptyKept = (userId: string | null): void => {
  * guide, Edit on the ones this account may change, and the editor, which takes over the tab while it is open. The card
  * itself lives in `CompendiumGuideCard.tsx`.
  *
- * FOUR PILLS: Team Ascent, My guides, Bookmarked, Community. The first three draw the list this tab is handed. The
- * Community list is its own component (`CommunityGuides.tsx`): it asks the server itself, one page at a time, with the
- * tribe pills and the search box this tab passes on, and a list handed in under that pill is never drawn. Bookmarked
- * and Community need the server, so their pills cannot be chosen while guides are not `on`. If guides stop being `on`
- * while the Community pill is showing, the Community list is taken away (so the server is not asked), and the tab says
- * guides are offline. Bookmarks the store already holds can still be read then. The order chosen for the Community
- * list (Most bookmarked, Newest) is kept here, because this tab stays while the editor is open and that list does not.
+ * FIVE PILLS: Team Ascent, My guides, Bookmarked, Community, and (the team only) Reports. The first three draw the
+ * list this tab is handed. The Community list is its own component (`CommunityGuides.tsx`): it asks the server itself,
+ * one page at a time, with the tribe pills and the search box this tab passes on, and a list handed in under that pill
+ * is never drawn. Bookmarked and Community need the server, so their pills cannot be chosen while guides are not `on`.
+ * If guides stop being `on` while the Community pill is showing, the Community list is taken away (so the server is
+ * not asked), and the tab says guides are offline. Bookmarks the store already holds can still be read then. The order
+ * chosen for the Community list (Most bookmarked, Newest) is kept here, because this tab stays while the editor is
+ * open and that list does not.
+ *
+ * THE REPORTS PILL IS THE TEAM'S (`ReportsPanel.tsx`): open reports, hidden guides, and Carry guides over. The pill is
+ * drawn only while the store holds the team flag for the account that is signed in (`team`, see WHOSE GUIDES); like
+ * Bookmarked and Community it is drawn switched off while guides are not `on`. The panel is mounted only while both
+ * hold. For anyone else the panel is never mounted and nothing about reports is asked for: a store left on that pill
+ * (the flag was lost, or the account changed) goes back to Team Ascent before anything is painted. While guides are
+ * not `on` the panel is taken away, as the Community list is, and comes back with them; the pill stays lit, so the tab
+ * still says where it is. The panel holds its own data: nothing about reports is in the guides store or in this tab
+ * (after a carry-over it asks the store to read the GUIDES again, so they show in their new set). It belongs to
+ * one account (its key is the account, like a card's), so when the account changes it is thrown away with everything
+ * it read, and a new one reads for the new account. A list handed in under that pill is never drawn. The cards in the
+ * panel are drawn by `renderCard`, like every other card.
  *
  * ONE FUNCTION DRAWS A CARD, FOR EVERY LIST (`renderCard`), so who is offered what is decided in one place. Publish,
  * Unpublish and Delete are offered only on the player's own guide (not Team Ascent's, one with a server row, written by
- * the signed-in account), and only under My guides. Edit is not offered under Bookmarked or Community. Bookmark is
- * offered on someone else's published guide, under every pill.
+ * the signed-in account), and only under My guides. Edit is not offered under Bookmarked, Community or Reports.
+ * Bookmark is offered on someone else's published guide, under every pill, and so is Report. A team account is also
+ * offered Hide or Unhide, and Delete, on every player's guide that has a server row, under every pill.
+ *
+ * A GUIDE IS REPORTED FROM ITS CARD. A guest who presses Report is asked to sign in before any form opens. A report
+ * keeps nothing in the guides store: the card remembers that it was sent. So that one account's "Reported" is never
+ * shown to the next, a card belongs to the account it was drawn for: when the account changes every card is drawn
+ * anew (its key is the account), which also drops any question, sentence or half-written report it held. A report
+ * that was refused keeps what was typed (the card holds it), so trying again is one press.
+ *
+ * ONLY A KNOWN REFUSAL IS TOLD AS "NOT DONE" (the one rule; `KNOWN_REFUSALS` in guideMessages.ts lists, per action,
+ * the codes the server answers when it refuses and writes nothing). Every other answer to a write made here may follow
+ * a write that LANDED: the answer never came, it came and could not be read, the server failed after writing, or it
+ * is a code this build does not know. For each of those the card is told to check again, never that nothing changed,
+ * and the lists are read again so the screen shows what is true once the server answers. That holds for a publish,
+ * an unpublish, a delete, a bookmark, a hide, an unhide and the team's import alike (`isKnownRefusal` decides, here
+ * and in the sentences, so the two cannot drift). A report is the one write with nothing to read again.
+ *
+ * THE TEAM HIDES, UNHIDES AND DELETES ANY PLAYER'S GUIDE FROM ITS CARD. After a hide or an unhide the guides are read
+ * again and the Community list is asked again (`refreshKey`), because a hidden guide leaves Community and the lists
+ * this account holds. The team's Reports panel reads its lists again on the same signal. A hide that may have landed
+ * (see above) makes the same reads: it is never told as a failure. A delete is the same, for the author as for the
+ * team, and a delete that worked asks the Community list again too. The read made after any of these is
+ * `rereadGuides`, so it never settles for a read that began before the action. The read is for whoever is signed in
+ * when it is made, and the refresh is this tab's own state, so neither can put one account's answer in front of
+ * another.
  *
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
  * a deleted one), or the sentence the player reads, which the card shows. A guide that is already gone on the server
- * when it is deleted simply leaves the list. A publish or unpublish whose answer never came may still have landed, so
- * the card is told to check again and the guides are read again: the card shows the truth once the server answers.
+ * when it is deleted simply leaves the list. A publish, unpublish or delete that may have landed (see above) reads the
+ * guides again (`rereadGuides`, so a read that began before the press is never the last word): the card shows the
+ * truth once the server answers.
  * None of this opens the editor or touches the unsaved guide the device keeps, so the rules below are unchanged.
+ *
+ * THE TEAM'S IMPORT follows the same rule, and what it answers is said in the toolbar only to the account that pressed
+ * it: this tab outlives an account change (a card does not), so an answer that lands after one is said to nobody.
+ *
+ * A BOOKMARK THAT MAY HAVE LANDED reads the guides again too, and files nothing itself: whose bookmark it is, is then
+ * the server's word, read for whoever is signed in when the read is made. It does not ask the Community list again
+ * (a bookmark never does: that list would go back to its first page under the player).
  *
  * Which guides show (pill, set, tribe pills, search) is decided by the caller (MinionBook). Who may do what is
  * decided by the server; this only draws the buttons (`canEditGuide`). Writing needs the guides capability to be
@@ -94,7 +148,9 @@ const forgetEmptyKept = (userId: string | null): void => {
  *
  * WHOSE GUIDES. The My guides and Bookmarked lists and their counts are drawn only while the store holds them for the
  * account that is signed in (`ownsMine`): guides it still holds for another account are never drawn, whatever list
- * this is handed.
+ * this is handed. The team flag is read the same way (`team`): what the team alone is offered (Hide, Unhide, Delete
+ * on a player's guide, Edit on a Team Ascent guide, the import, "Team Ascent" in the editor) is drawn only while the
+ * store holds the flag for the signed-in account, never while it still holds the last account's.
  *
  * THE CAP IS SAID BEFORE THE GUIDE IS WRITTEN. A player who already owns the most guides allowed is told so when they
  * press New guide or Duplicate, instead of after writing one that cannot be saved. Edit and Resume are never stopped
@@ -135,7 +191,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The first read has not answered yet: whether guides can be written is not known. */
   const unknown = useGuides((s) => s.capability === 'unknown');
   const source = useGuides((s) => s.source);
-  const team = useGuides((s) => s.team);
+  /** The team flag as the store holds it: it belongs to `mineOwner`, like the lists (see `team` below). */
+  const teamHeld = useGuides((s) => s.team);
   const tab = useGuides((s) => s.tab);
   const mineHeld = useGuides((s) => s.mine.length);
   const mineOwner = useGuides((s) => s.mineOwner);
@@ -149,19 +206,21 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The store holds THIS account's own guides (not nobody's, and not ones still held for another account). */
   const mineIsMine = ownsMine({ mineOwner }, userId);
   const mineCount = mineIsMine ? mineHeld : 0;
+  /** On the team, only while the store holds the flag for THIS account: never the last account's (WHOSE GUIDES). */
+  const team = teamHeld && mineIsMine;
   /** The bookmarks, only while the store holds them for THIS account. */
   const bookmarkedMine = mineIsMine ? bookmarkedHeld : NO_GUIDES;
   const bookmarkedIds = useMemo(() => new Set(bookmarkedMine.map((g) => g.rowId)), [bookmarkedMine]);
   const bookmarkedHere = useMemo(() => bookmarkedMine.filter((g) => g.sets.includes(setId)).length, [bookmarkedMine, setId]);
   /** The list this tab is handed, when it may be drawn: never under Community (that list is the server's answer), and
    *  a personal list only for its owner. */
-  const shown = tab === 'community' || ((tab === 'mine' || tab === 'bookmarked') && !mineIsMine) ? NO_GUIDES : guides;
+  const shown = tab === 'community' || tab === 'reports' || ((tab === 'mine' || tab === 'bookmarked') && !mineIsMine) ? NO_GUIDES : guides;
   /** What the Community list asks for: the lit pills, or (none lit) every tribe this list is for, and Neutral. */
   const queryTribes = useMemo(() => (pillTribes.length ? pillTribes.filter((t) => t !== 'neutral') : tribes), [pillTribes, tribes]);
   const queryNeutral = pillTribes.length ? pillTribes.includes('neutral') : true;
   const byline = playerName.trim() || 'Player';
   /** Who is at the keyboard: an open editor, and the Resume bar, belong to exactly one of these. */
-  const who = `${userId ?? ''}:${anonymous ? 'guest' : 'account'}`;
+  const who = whoOf(userId, anonymous);
 
   /** The open editor: its guide, and who opened it. */
   const [editing, setEditing] = useState<{ draft: EditorDraft; key: number; who: string } | null>(null);
@@ -173,8 +232,15 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const [discardAsk, setDiscardAsk] = useState(false);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
+  // The Reports pill is the team's (see the header). A store left on it for anyone else shows Team Ascent instead,
+  // and nothing about reports is asked for. A layout effect: the pill is put back before anything is painted.
+  const reportsOpen = tab === 'reports' && team && online;
+  useLayoutEffect(() => { if (tab === 'reports' && !team) setGuidesTab('team'); }, [tab, team]);
   /** The Community list's order. Held here so it is still the player's choice when the editor closes. */
   const [communitySort, setCommunitySort] = useState<CommunitySort>('bookmarked');
+  /** Bumped after a hide, an unhide or a delete: the Community list asks its question again from the first page. */
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
   // Lazy (perf 2026-10-09): the first two guides mount with the tab, the rest as they near the viewport (bookLazy.tsx),
   // so opening Guides builds two guides' portraits instead of every guide's.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -236,47 +302,94 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const onPublish = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
     if (!g.rowId) return null;
     const res = await setPublishedRemote(g.rowId, on);
+    const action = on ? 'publish' : 'unpublish';
     if (!res.ok) {
-      // The answer was lost, not refused: the server may have done it. Read again, so the card shows what is true.
-      if (res.code === 'offline') void loadGuides();
-      return guideErrorMessage(res.code, res.field, { action: on ? 'publish' : 'unpublish' });
+      // Not a refusal the server is known to answer: it may have done it. Read again, so the card shows what is true.
+      // `rereadGuides`: a read already on its way began before the publish and must not be the last word.
+      if (!isKnownRefusal(action, res.code)) void rereadGuides();
+      return guideErrorMessage(res.code, res.field, { action });
     }
     const next = toGuide(res.value);
     if (next) guideSaved(next);
     sfx.pulse();
     return null;
   }, []);
-  /** Delete one of the player's guides. One that is already gone on the server simply leaves the list. */
+  /** Delete one of the player's guides, or (the team) any player's. One that is already gone on the server simply
+   *  leaves the list. (A guide with no server row is offered no Delete, so the first line is never reached.) */
   const onDelete = useCallback(async (g: Guide): Promise<string | null> => {
     if (!g.rowId) return null;
     const res = await deleteGuideRemote(g.rowId);
-    if (!res.ok && res.code !== 'not_found') return guideErrorMessage(res.code, res.field, { action: 'delete' });
+    if (!res.ok && res.code !== 'not_found') {
+      // Not a refusal the server is known to answer: the delete may have landed. Read again, and ask the Community
+      // list again (the team deletes from there), so the lists show what is true.
+      if (!isKnownRefusal('delete', res.code)) { void rereadGuides(); refresh(); }
+      return guideErrorMessage(res.code, res.field, { action: 'delete' });
+    }
     guideDeleted(g.rowId);
+    refresh(); // a guide the team deleted leaves the Community list
     sfx.tick();
     return null;
-  }, []);
+  }, [refresh]);
   /** Bookmark a guide, or remove the bookmark. A guest is asked to sign in instead. */
   const onBookmark = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
     if (!online || !g.rowId) return null;
     if (!signedIn) { raise('signin'); return null; }
     const pressedBy = userId; // who pressed: the answer may land after the account has changed
     const res = await bookmarkGuideRemote(g.rowId, on);
-    if (!res.ok) return guideErrorMessage(res.code, res.field, { action: 'bookmark' });
+    if (!res.ok) {
+      // Not a refusal the server is known to answer: the bookmark may have been added or removed. Nothing is filed on
+      // a guess; the guides are read again, for whoever is signed in when the read is made.
+      if (!isKnownRefusal('bookmark', res.code)) void rereadGuides();
+      return guideErrorMessage(res.code, res.field, { action: 'bookmark' });
+    }
     guideBookmarked(g, res.value.bookmarked, res.value.count, pressedBy);
     sfx.tick();
     return null;
   }, [online, signedIn, userId, raise]);
+  /** A guest pressed Report: asked to sign in instead, before any form opens. */
+  const needSignIn = useCallback(() => raise('signin'), [raise]);
+  /** Report a guide to the team. Nothing is kept in the store. Null means the report WAS sent (the card then says
+   *  thank you), so a report that could not even be asked answers a sentence, never null. */
+  const onReport = useCallback(async (g: Guide, reason: ReportReason, note: string): Promise<string | null> => {
+    if (!online || !g.rowId) return guideErrorMessage('offline', undefined, { action: 'report' });
+    const res = await reportGuideRemote(g.rowId, reason, note);
+    if (!res.ok) return guideErrorMessage(res.code, res.field, { action: 'report' });
+    sfx.tick();
+    return null;
+  }, [online]);
+  /** Team: hide or unhide a player's guide, then read the lists again (a hidden guide leaves Community). Null means
+   *  it WAS done, so a hide that could not even be asked answers a sentence, never null. The read is `rereadGuides`:
+   *  one that was already in flight began before the hide and must not be the last word. */
+  const onHide = useCallback(async (g: Guide, hidden: boolean): Promise<string | null> => {
+    if (!online || !g.rowId) return guideErrorMessage('offline', undefined, { action: 'moderate' });
+    const res = await setHiddenRemote(g.rowId, hidden);
+    if (!res.ok) {
+      // Not a refusal the server is known to answer: the hide may have landed. Read again, so the lists show what is
+      // true.
+      if (!isKnownRefusal('moderate', res.code)) { void rereadGuides(); refresh(); }
+      return guideErrorMessage(res.code, res.field, { action: 'moderate' });
+    }
+    void rereadGuides();
+    refresh();
+    sfx.tick();
+    return null;
+  }, [online, refresh]);
   /** Draw one guide's card, whichever list it is in: who is offered what is decided here (see the header). */
   const renderCard = useCallback((g: Guide): JSX.Element => {
     const own = !g.official && g.rowId !== null && signedIn && g.authorId === userId;
+    /** Someone else's published guide: what Bookmark and Report are offered on. */
+    const theirs = !g.official && g.published && !g.hidden && g.rowId !== null && !own;
+    // Keyed by the account: a card is drawn anew when the account changes (see the header).
     return (
-      <CompendiumGuideCard guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
-        editable={online && tab !== 'community' && tab !== 'bookmarked' && canEditGuide(g, userId, team)} own={own && tab === 'mine'}
-        canBookmark={!g.official && g.published && !g.hidden && g.rowId !== null && !own}
-        bookmarked={g.rowId !== null && bookmarkedIds.has(g.rowId)}
-        onEdit={onEdit} onDuplicate={onDuplicate} onPublish={onPublish} onDelete={onDelete} onBookmark={onBookmark} />
+      <CompendiumGuideCard key={who} guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
+        editable={online && tab !== 'community' && tab !== 'bookmarked' && tab !== 'reports' && canEditGuide(g, userId, team)} own={own && tab === 'mine'}
+        canBookmark={theirs} bookmarked={g.rowId !== null && bookmarkedIds.has(g.rowId)}
+        canReport={theirs} moderate={team && online && !g.official && g.rowId !== null}
+        signedIn={signedIn} onNeedSignIn={needSignIn}
+        onEdit={onEdit} onDuplicate={onDuplicate} onPublish={onPublish} onDelete={onDelete} onBookmark={onBookmark}
+        onReport={onReport} onHide={onHide} />
     );
-  }, [tribes, run, setId, tab, online, signedIn, userId, team, bookmarkedIds, onEdit, onDuplicate, onPublish, onDelete, onBookmark]);
+  }, [who, tribes, run, setId, tab, online, signedIn, userId, team, bookmarkedIds, onEdit, onDuplicate, onPublish, onDelete, onBookmark, needSignIn, onReport, onHide]);
 
   // The account. When the tab opens, a kept guide with nothing in it is forgotten. When the account changes, an open
   // editor is closed (it was drawn for the last account only, and has already kept its unsaved text on the device
@@ -301,7 +414,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     if (rowId === null || editorOpen) return;
     const s = useGuides.getState();
     const g = [...s.mine, ...s.list].find((x) => x.rowId === rowId);
-    if (!g || !online || !signedIn || !canEditGuide(g, userId, s.team)) return;
+    if (!g || !online || !signedIn || !canEditGuide(g, userId, s.team && ownsMine(s, userId))) return;
     if (waiting) { raise('resume'); return; }
     openEditor(draftFromGuide(g));
   }, [pending, editorOpen, online, signedIn, userId, waiting, raise, openEditor]);
@@ -361,14 +474,26 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   };
 
   const runImport = async (): Promise<void> => {
+    /** Who pressed. The answer may land after the account has changed: it is then said to nobody (the reads below
+     *  are safe either way, they are made for whoever is signed in). */
+    const pressedBy = who;
+    const say = (text: string, alert: boolean): void => { if (whoNow() === pressedBy) setNote({ text, alert }); };
     setImporting(true);
     try {
       const res = await importBuiltInsRemote(builtInImportPayload());
-      if (!res.ok) { setNote({ text: guideErrorMessage(res.code, res.field, { action: 'import' }), alert: true }); return; }
-      setNote({ text: `Imported ${res.value.inserted} guide${res.value.inserted === 1 ? '' : 's'}.`, alert: false });
+      if (!res.ok) {
+        // Not a refusal the server is known to answer: the import may have landed. Read again, so the list (and
+        // whether the import is still offered) shows what is true.
+        if (!isKnownRefusal('import', res.code)) void rereadGuides();
+        say(guideErrorMessage(res.code, res.field, { action: 'import' }), true);
+        return;
+      }
+      say(`Imported ${res.value.inserted} guide${res.value.inserted === 1 ? '' : 's'}.`, false);
       void loadGuides();
     } catch {
-      setNote({ text: 'The import did not finish. Try again.', alert: true });
+      // A throw says nothing about whether the import landed: the same words as an answer that could not be read.
+      void rereadGuides();
+      say(guideErrorMessage('server', undefined, { action: 'import' }), true);
     } finally {
       setImporting(false);
     }
@@ -396,7 +521,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const emptyText = tab === 'mine' && mineCount === 0 ? 'You have not written a guide yet. Press New guide, or Duplicate on any guide to start from it.'
     : tab === 'bookmarked' && !signedIn ? 'Sign in to bookmark guides. Your bookmarks also show in the lobby rail.'
     : tab === 'bookmarked' && bookmarkedMine.length === 0 ? 'No bookmarks yet. Press Bookmark on a Community guide to keep it here and in your lobby rail.'
-    : tab === 'community' ? 'Guides are offline.'
+    : tab === 'community' || tab === 'reports' ? 'Guides are offline.'
     : 'No guides match these filters.';
   return (
     <div className="bookguides" key="list" ref={attachRoot}>
@@ -410,6 +535,10 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
             aria-pressed={tab === 'bookmarked'} disabled={!online} onClick={() => setGuidesTab('bookmarked')}>{bookmarkedHere > 0 ? `Bookmarked (${bookmarkedHere})` : 'Bookmarked'}</button>
           <button type="button" className={`book-runetribe${tab === 'community' ? ' on' : ''}`} style={pillStyle}
             aria-pressed={tab === 'community'} disabled={!online} onClick={() => setGuidesTab('community')}>Community</button>
+          {team && (
+            <button type="button" className={`book-runetribe${tab === 'reports' ? ' on' : ''}`} style={pillStyle}
+              aria-pressed={tab === 'reports'} disabled={!online} onClick={() => setGuidesTab('reports')}>Reports</button>
+          )}
         </div>
         <div className="gtool-actions">
           {team && online && source === 'bundled' && (
@@ -425,7 +554,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
         {capAsked && <p className="gtool-note gtool-cap" role="status" tabIndex={-1} ref={capRef}>{guideErrorMessage('too_many_guides')}</p>}
         {signInAsked && (
           <p className="gtool-note gtool-signin" role="status" tabIndex={-1} ref={signInRef}>
-            <span>{canSignIn ? 'Sign in to write and bookmark guides. It is free and takes a minute.' : 'Sign in to write and bookmark guides. Accounts cannot be reached right now.'}</span>
+            <span>{canSignIn ? 'Sign in to write, bookmark and report guides. It is free and takes a minute.' : 'Sign in to write, bookmark and report guides. Accounts cannot be reached right now.'}</span>
             {canSignIn && <button type="button" className="gbtn gbtn-primary" ref={createRef} onClick={createAccount}>Create account</button>}
           </p>
         )}
@@ -448,9 +577,11 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
           </p>
         )}
       </div>
-      {tab === 'community' && online ? (
+      {reportsOpen ? (
+        <ReportsPanel key={who} setId={setId} refreshKey={refreshKey} renderCard={renderCard} root={root} />
+      ) : tab === 'community' && online ? (
         <CommunityGuides setId={setId} queryTribes={queryTribes} neutral={queryNeutral} search={search} sort={communitySort} onSort={setCommunitySort}
-          root={root} renderCard={renderCard} />
+          refreshKey={refreshKey} root={root} renderCard={renderCard} />
       ) : shown.length === 0 ? (
         <div className="book-empty gtool-empty">{emptyText}</div>
       ) : (

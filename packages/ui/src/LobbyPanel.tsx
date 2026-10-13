@@ -130,9 +130,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   }, [setId, runTribes, guideSnap.bookmarked, guides, myGuidesAll]);
   // Who may edit: a boolean and an id, both cheap to subscribe to. The guide LISTS are still only a snapshot.
   // Editing needs the server, so no Edit button unless the guides capability is on.
-  const guideTeam = useGuides((s) => s.team);
+  // The team flag belongs to the account the store read it for (`mineOwner`), like the player's own guides: it counts
+  // only while that account is the signed-in one, never for the next account at the same screen (as the Compendium).
+  const guideTeamOwner = useGuides((s) => (s.team ? s.mineOwner : null));
   const guidesLive = useGuides((s) => s.capability === 'on');
   const guideUserId = useGame((st) => st.account.userId);
+  const guideTeam = ownsMine({ mineOwner: guideTeamOwner }, guideUserId);
   const myGuides = guideUserId === guideSnap.uid ? myGuidesAll : NO_GUIDES;
   const bookmarkedGuides = guideUserId === guideSnap.uid ? bookmarkedAll : NO_GUIDES;
   const guideCount = guides.length + myGuides.length + bookmarkedGuides.length;

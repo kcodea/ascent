@@ -65,6 +65,16 @@ crystal?" and "move the 'ding' tone to when the crystal explodes, not upon click
   It no longer plays there; it plays with the shatter clip on the press of the crystal. The Yes button now makes
   only the ordinary menu click, then the doors' grind.
 
+**Then:** "it looks great, lets lessen the glow amount by 30%, slow down the pulsing by 50%, and slow down the
+sheen by 50%".
+
+- **Glow -30%:** every glow opacity x 0.7 (the halo's pulse 0.45-1 -> 0.32-0.7, the lit copy's peak 0.8 -> 0.56,
+  and the forming glow, which now ends at the pulse's own starting level instead of jumping down to it).
+- **Pulse at half speed:** 1.7 s -> 3.4 s a breath.
+- **Sheen at half speed:** the band's crossing 0.53 s -> 1.06 s; the cycle 3.8 s -> 4.4 s, so the rest between
+  glints is unchanged. The star's flare stretched with it. "Slow down by 50%" was read as half the speed (twice
+  as long) both times.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

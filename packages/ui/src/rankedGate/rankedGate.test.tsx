@@ -382,16 +382,16 @@ describe('what ships', () => {
     expect(armedBody).not.toMatch(/animation|transform/);
     expect(armedBody).toContain('opacity: 1');
     // The light: the glow behind it and a brightened copy of it, both forever, both on the same beat.
-    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glow \{[^}]*rg-cry-glow-pulse 1\.7s ease-in-out infinite/);
-    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-lit \{[^}]*rg-cry-lit-pulse 1\.7s ease-in-out infinite/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glow \{[^}]*rg-cry-glow-pulse 3\.4s ease-in-out infinite/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-lit \{[^}]*rg-cry-lit-pulse 3\.4s ease-in-out infinite/);
     const lit = /@keyframes rg-cry-lit-pulse \{([\s\S]*?)\n\}/.exec(css)![1]!;
     expect(lit, 'the lit copy only fades: it never scales').not.toMatch(/transform/);
     expect(noComments, 'its brightness is a static filter, not an animated one').toMatch(/\.rgate-crystal-lit \{[^}]*filter: brightness\(/);
     // The glint: masked to the crystal's own shape, on a slow cycle that is mostly rest.
     expect(noComments).toMatch(/\.rgate-crystal-glint \{[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
-    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glint::before \{[^}]*rg-cry-glint 3\.8s linear infinite/);
-    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-twinkle \{[^}]*rg-cry-twinkle 3\.8s linear infinite/);
-    expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 62% \{/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glint::before \{[^}]*rg-cry-glint 4\.4s linear infinite/);
+    expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-twinkle \{[^}]*rg-cry-twinkle 4\.4s linear infinite/);
+    expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 60% \{/);
   });
 
   it('the motion is compositor-only, in stage units, with no bare cursor', () => {

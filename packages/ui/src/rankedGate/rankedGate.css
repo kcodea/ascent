@@ -126,9 +126,9 @@
 .rgate.is-forming .rgate-crystal-burst { animation: rg-cry-burst var(--rg-form, 1100ms) linear both; }
 @keyframes rg-cry-glow-in {
   0% { opacity: 0; transform: scale(0.35); }
-  50% { opacity: 1; transform: scale(0.8); }
-  68% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.8); }
+  68% { opacity: 0.7; transform: scale(1.15); }
+  100% { opacity: 0.32; transform: scale(0.94); }
 }
 @keyframes rg-cry-form {
   0% { opacity: 0; transform: scale(0.3); }
@@ -144,30 +144,34 @@
   100% { opacity: 0; transform: scale(1.7); }
 }
 
-/* ARMED: whole, STILL, and steadily pulsing with light until it is pressed. The body has no animation here. */
+/* ARMED: whole, STILL, and steadily pulsing with light until it is pressed. The body has no animation here.
+   Tuned by the owner 2026-10-13 after seeing it: the glow 30% dimmer (every glow opacity x 0.7, forming included,
+   which now ends where the pulse begins), and the pulse at half speed (1.7 s -> 3.4 s a breath). */
 .rgate.is-armed .rgate-crystal-body { opacity: 1; }
-.rgate.is-armed .rgate-crystal-glow { animation: rg-cry-glow-pulse 1.7s ease-in-out infinite; }
-.rgate.is-armed .rgate-crystal-lit { animation: rg-cry-lit-pulse 1.7s ease-in-out infinite; }
+.rgate.is-armed .rgate-crystal-glow { animation: rg-cry-glow-pulse 3.4s ease-in-out infinite; }
+.rgate.is-armed .rgate-crystal-lit { animation: rg-cry-lit-pulse 3.4s ease-in-out infinite; }
 @keyframes rg-cry-glow-pulse {
-  0%, 100% { opacity: 0.45; transform: scale(0.94); }
-  50% { opacity: 1; transform: scale(1.14); }
+  0%, 100% { opacity: 0.32; transform: scale(0.94); }
+  50% { opacity: 0.7; transform: scale(1.14); }
 }
 @keyframes rg-cry-lit-pulse {
   0%, 100% { opacity: 0; }
-  50% { opacity: 0.8; }
+  50% { opacity: 0.56; }
 }
-/* THE GLINT: once every 3.8 s the band crosses (about half a second), and the star flares as it passes. */
+/* THE GLINT: once every 4.4 s the band crosses, taking about a second, and the star flares as it passes. Half the
+   speed of the first cut (owner 2026-10-13: "slow down the sheen by 50%"): the crossing went from 0.53 s to
+   1.06 s, and the cycle grew by that much so the rest between glints is unchanged. */
 .rgate.is-armed .rgate-crystal-glint { opacity: 1; }
-.rgate.is-armed .rgate-crystal-glint::before { animation: rg-cry-glint 3.8s linear infinite; }
-.rgate.is-armed .rgate-crystal-twinkle { animation: rg-cry-twinkle 3.8s linear infinite; }
+.rgate.is-armed .rgate-crystal-glint::before { animation: rg-cry-glint 4.4s linear infinite; }
+.rgate.is-armed .rgate-crystal-twinkle { animation: rg-cry-twinkle 4.4s linear infinite; }
 @keyframes rg-cry-glint {
-  0%, 62% { transform: translateX(-160%) skewX(-22deg); animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
-  76%, 100% { transform: translateX(460%) skewX(-22deg); }
+  0%, 60% { transform: translateX(-160%) skewX(-22deg); animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  84%, 100% { transform: translateX(460%) skewX(-22deg); }
 }
 @keyframes rg-cry-twinkle {
-  0%, 66% { opacity: 0; transform: scale(0.2) rotate(0deg); }
-  71% { opacity: 1; transform: scale(1) rotate(20deg); }
-  80%, 100% { opacity: 0; transform: scale(0.3) rotate(45deg); }
+  0%, 67% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  75% { opacity: 1; transform: scale(1) rotate(20deg); }
+  87%, 100% { opacity: 0; transform: scale(0.3) rotate(45deg); }
 }
 
 /* SHATTER: the body is gone in a blink (the shards are the FX layer's), the light lets go. */

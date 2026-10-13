@@ -57,16 +57,70 @@ describe('lobby rail guides', () => {
     for (const g of GUIDES) expect(g.body, g.id).not.toMatch(/\u2014|--/); // no em dashes in player text
   });
 
-  it('shows only this set\'s guides, for tribes in the lobby, plus neutral', () => {
-    const ids = guidesFor('set2', ['kobold', 'beast']).map((g) => g.id);
-    expect(ids).toEqual(['set2-beast-sunmane', 'set2-beast-oona', 'set2-kobold-combat', 'set2-kobold-mountainbond', 'set2-neutral-paragon']);
-    expect(guidesFor('set1', ['beast', 'dragon'])).toEqual([]);
-    // A Dwarf crossover never makes a Kobold line show on its own.
-    expect(guidesFor('set2', ['dwarf']).map((g) => g.id)).toEqual(['set2-dwarf-ale', 'set2-dwarf-spend', 'set2-neutral-paragon']);
+  describe('which guides show (the rule, worked out from the data)', () => {
+    type G = (typeof GUIDES)[number];
+    const SET_IDS = Object.keys(SETS) as (keyof typeof SETS)[];
+    /** The rule: this set is one of the guide's sets, and the guide is neutral or for a tribe that is in the lobby. */
+    const shows = (g: G, set: string, lobby: readonly string[]): boolean =>
+      (g.sets as readonly string[]).includes(set) && (g.tribes.length === 0 || g.tribes.some((t) => lobby.includes(t)));
+    /** Lobbies to try for a set: nobody, each tribe alone, a pair, and all of them. */
+    const lobbies = (set: keyof typeof SETS): (typeof SETS)[keyof typeof SETS]['tribes'][number][][] => {
+      const ts = [...SETS[set].tribes];
+      return [[], ...ts.map((t) => [t]), ts.slice(0, 2), ts];
+    };
+
+    it('shows exactly the guides of this set that are neutral or for a tribe in the lobby, each once', () => {
+      for (const set of SET_IDS) {
+        for (const lobby of lobbies(set)) {
+          const got = guidesFor(set, lobby);
+          const want = GUIDES.filter((g) => shows(g, set, lobby)).map((g) => g.id).sort();
+          expect(got.map((g) => g.id).sort(), `${set} with ${lobby.join(',') || 'nobody'}`).toEqual(want);
+          for (const g of got) expect((g.sets as readonly string[]), g.id).toContain(set);
+        }
+      }
+    });
+
+    it('never shows a guide for a tribe that is not in the lobby, and a crossover tribe alone does not bring one in', () => {
+      for (const g of GUIDES) {
+        if (g.tribes.length === 0) continue;
+        for (const set of SET_IDS.filter((s) => (g.sets as readonly string[]).includes(s))) {
+          const others = SETS[set].tribes.filter((t) => !g.tribes.includes(t));
+          expect(guidesFor(set, others).map((x) => x.id), `${g.id} in ${set}`).not.toContain(g.id);
+          const crossover = (g.pairsWith ?? []).filter((t) => !g.tribes.includes(t));
+          expect(guidesFor(set, crossover).map((x) => x.id), `${g.id} crossover alone`).not.toContain(g.id);
+        }
+      }
+    });
+
+    it('lists neutral guides last and keeps each first tribe together, tribes in the order they first appear, each group in guide order', () => {
+      for (const set of SET_IDS) {
+        const got = guidesFor(set, [...SETS[set].tribes]);
+        const lastTribed = got.map((g) => g.tribes.length > 0).lastIndexOf(true);
+        const firstNeutral = got.findIndex((g) => g.tribes.length === 0);
+        if (firstNeutral >= 0) expect(lastTribed, `${set}: a neutral guide comes before a tribe guide`).toBeLessThan(firstNeutral);
+        const base = [...got].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+        const groupOrder: string[] = [];
+        for (const g of got.filter((x) => x.tribes.length > 0)) {
+          const t = g.tribes[0]!;
+          if (groupOrder[groupOrder.length - 1] !== t) {
+            expect(groupOrder, `${set}: ${t} appears in two separate runs`).not.toContain(t);
+            groupOrder.push(t);
+          }
+        }
+        const firstSeen: string[] = [];
+        for (const g of base) if (g.tribes.length > 0 && !firstSeen.includes(g.tribes[0]!)) firstSeen.push(g.tribes[0]!);
+        expect(groupOrder, `${set}: tribe groups out of order`).toEqual(firstSeen);
+        for (const t of groupOrder) {
+          const inGroup = got.filter((g) => g.tribes[0] === t);
+          expect(inGroup.map((g) => g.id), `${set}: ${t} group out of guide order`).toEqual(base.filter((g) => g.tribes[0] === t).map((g) => g.id));
+        }
+      }
+    });
   });
 
-  it('is one card per build line: eleven Set 2 lines, every tribe of the set covered', () => {
-    expect(BUNDLED_GUIDE_DATA.filter((g) => g.set === 'set2')).toHaveLength(11);
-    for (const t of SETS.set2.tribes) expect(GUIDES.filter((g) => g.tribes.includes(t)).length, t).toBe(2);
+  it('has at least one guide for every tribe of Set 2, the set the built-in guides were written for', () => {
+    for (const t of SETS.set2.tribes) {
+      expect(GUIDES.filter((g) => (g.sets as readonly string[]).includes('set2') && g.tribes.includes(t)).length, t).toBeGreaterThan(0);
+    }
   });
 });

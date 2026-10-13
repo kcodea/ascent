@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordsToBundled, renderBundledGuides, type BundledSourceGuide } from './bundledSource';
+import { contentRangeTotal, pullProblems, recordsToBundled, renderBundledGuides, type BundledSourceGuide } from './bundledSource';
 import type { GuideRecord } from './types';
 
 const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
@@ -58,5 +58,52 @@ describe('renderBundledGuides', () => {
   });
   it('the same guides always give the same text', () => {
     expect(renderBundledGuides([one])).toBe(renderBundledGuides([one]));
+  });
+  it('writes control characters as escapes, so a line break or tab in a string cannot break the file', () => {
+    const c = (n: number): string => String.fromCharCode(n);
+    const raw = 'a' + c(10) + 'b' + c(9) + 'c' + c(0) + 'd' + c(0x2028) + 'e' + c(0x7f);
+    const out = renderBundledGuides([{ ...one, title: raw }]);
+    expect(out).toContain("title: 'a" + BS + 'u000ab' + BS + 'u0009c' + BS + 'u0000d' + BS + 'u2028e' + BS + "u007f',");
+    expect(out.includes(c(10) + 'b')).toBe(false);
+    expect(out.includes(c(9))).toBe(false);
+    expect(out.includes(c(0))).toBe(false);
+  });
+  it('says in its header that it is also the seed the team imports', () => {
+    expect(text).toContain('importBuiltIns');
+  });
+});
+
+describe('pullProblems', () => {
+  const row = (r: GuideRecord): { id: string } => ({ id: r.id });
+  it('is empty when every row was read and every Team Ascent guide has a set', () => {
+    const a = rec('a'), b = rec('b', { official: false, sets: [] });
+    expect(pullProblems([row(a), row(b)], [a, b])).toEqual([]);
+  });
+  it('names a row that could not be read, including one with no readable id', () => {
+    const a = rec('a');
+    const out = pullProblems([row(a), { id: 'bad-1' }, { title: 'no id' }, null], [a]);
+    expect(out).toEqual(['3 of 4 guides could not be read: bad-1, (no id), (no id)']);
+  });
+  it('names a Team Ascent guide that is in no set (by slug when it has one), and ignores a player guide with none', () => {
+    const a = rec('a', { sets: [], slug: 'set2-x' }), b = rec('b', { sets: [] }), p = rec('p', { official: false, sets: [] });
+    expect(pullProblems([a, b, p].map(row), [a, b, p])).toEqual(['2 Team Ascent guides are in no set, so they could not be shown: set2-x, b']);
+  });
+  it('reports both problems', () => {
+    const a = rec('a', { sets: [] });
+    expect(pullProblems([row(a), { id: 'x' }], [a])).toHaveLength(2);
+  });
+});
+
+describe('contentRangeTotal', () => {
+  it('reads the total after the slash', () => {
+    expect(contentRangeTotal('0-10/11')).toBe(11);
+    expect(contentRangeTotal('0-0/1')).toBe(1);
+    expect(contentRangeTotal(' 0-24/25 ')).toBe(25);
+  });
+  it('reads an empty answer', () => {
+    expect(contentRangeTotal('*/0')).toBe(0);
+  });
+  it('is null when the header is missing, has no total, or is not a range', () => {
+    for (const bad of [null, undefined, '', '0-10/*', '0-10', 'garbage', '0-10/x', '/11', '0-10/11/12', '-1/5']) expect(contentRangeTotal(bad), String(bad)).toBeNull();
   });
 });

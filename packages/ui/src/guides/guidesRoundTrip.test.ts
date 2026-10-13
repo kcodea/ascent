@@ -128,19 +128,20 @@ const comparable = (g: Guide): Record<string, unknown> =>
   Object.fromEntries(Object.entries(g).filter(([k, v]) => !SERVER_OWNED.has(k) && v !== undefined));
 
 describe('guides, end to end: handler -> SQL -> the client reader', () => {
-  it('the eleven built-in guides import through the real handler and read back identical', async () => {
-    expect(BUNDLED_GUIDE_DATA).toHaveLength(11);
+  it('the built-in guides import through the real handler and read back identical', async () => {
+    const count = BUNDLED_GUIDE_DATA.length;
+    expect(count).toBeGreaterThan(0);
     // The payload, built by the same function the Import button uses.
     BUNDLED_GUIDE_DATA.forEach((d, i) => expect(GUIDES[i]!.id).toBe(d.id));
     const guides = builtInImportPayload();
     const logged: unknown[] = [];
     const res = await handleGuideWrite(TEAM, false, { op: 'importBuiltIns', guides }, rpc, (msg, detail) => { logged.push([msg, detail]); });
     expect(logged).toEqual([]);
-    expect(res).toEqual({ status: 200, body: { inserted: 11, skipped: 0 } });
+    expect(res).toEqual({ status: 200, body: { inserted: count, skipped: 0 } });
 
     // Read back as a signed-out player, with exactly the client's column list and order.
     const rows = await readAs('anon', null, `select ${GUIDE_COLUMNS} from public.guides where official order by sort_order, id`);
-    expect(rows).toHaveLength(11);
+    expect(rows).toHaveLength(count);
     const back = rows.map((r) => {
       const rec = parseGuideRecord(r);
       expect(rec, 'a row the client cannot parse').not.toBeNull();

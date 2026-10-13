@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun } from '@game/sim';
-import { SETS, type SetId } from '@game/content';
+import { CARD_INDEX, SETS, type SetId } from '@game/content';
 import type { Tribe } from '@game/core';
 import { mount, type Mounted } from '../renderedText.mount';
 import { LobbyPanel } from '../LobbyPanel';
@@ -151,24 +151,32 @@ describe('lobby rail guides view', () => {
     expect(localStorage.getItem('ascent.guidesMode')).toBe('full');
   });
 
-  it('the write-up highlights mentioned cards and aliases (Eyes of Aresmar, Staff of Guel, "Oona")', () => {
+  it('the write-up highlights every mentioned card and every nickname the guide has', () => {
     const run = createLobbyRun(5150, 'warden');
     run.tribes = ['beast', 'dragon', 'kobold', 'dwarf', 'demon'];
     act(() => { useGame.setState({ run, combatStaged: false }); });
     try { localStorage.setItem('ascent.guidesMode', 'full'); } catch { /* ignore */ }
+    // The examples come from the guides on show: those that name a card or hold a nickname. Which they are does not
+    // matter. If none does (the built-in guides name nothing one day), a guide that does is built here and shown instead.
+    let withNames = guidesFor(run.setId, run.tribes).filter((g) => (g.mentions ?? []).length > 0 || Object.keys(g.aliases ?? {}).length > 0);
+    if (withNames.length === 0) {
+      const made: Guide = {
+        ...GUIDES[0]!, id: 'made-up', tribes: [], sets: [run.setId ?? 'set1'], core: ['b2_oona'], enablers: [], mentions: ['grim'], aliases: { king: 'b2_oona' },
+        body: `Open on ${CARD_INDEX['grim']!.name} and bring the king.`,
+      };
+      act(() => { useGuides.setState({ list: [made], source: 'server', capability: 'on' }); });
+      withNames = [made];
+    }
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
     const c = ui.container;
     openGuides(c);
-    const guideNamed = (title: string): Element =>
-      [...c.querySelectorAll('.lobbyguide')].find((g) => g.querySelector('.lobbyguide-head')!.textContent!.includes(title))!;
-    const names = (title: string): string[] => {
-      const g = guideNamed(title);
-      if (!g.classList.contains('open')) click(g.querySelector('.lobbyguide-head')!);
-      return [...g.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!);
-    };
-    expect(names('Shout Dragons')).toEqual(expect.arrayContaining(['Eyes of Aresmar', 'Drakko']));
-    expect(names('Oona')).toEqual(expect.arrayContaining(['Oona', 'Grim', 'Sylus']));
-    expect(names('Consume')).toEqual(expect.arrayContaining(['Staff of Guel', 'Chipper', 'Bob Blart', 'Grevlin & Co.']));
+    for (const guide of withNames) {
+      const el = [...c.querySelectorAll('.lobbyguide')].find((x) => x.getAttribute('data-guide') === guide.id)!;
+      if (!el.classList.contains('open')) click(el.querySelector('.lobbyguide-head')!);
+      const shown = [...el.querySelectorAll('.lobbyguide-text .lobbyguide-name')].map((n) => n.textContent!.toLowerCase());
+      for (const id of guide.mentions ?? []) expect(shown, `${guide.id}: ${id}`).toContain(CARD_INDEX[id]!.name.toLowerCase());
+      for (const word of Object.keys(guide.aliases ?? {})) expect(shown, `${guide.id}: nickname ${word}`).toContain(word.toLowerCase());
+    }
   });
 
   it('a new game starts on Opponents', () => {

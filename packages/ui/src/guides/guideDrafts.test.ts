@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CARD_INDEX, SETS, poolFor } from '@game/content';
+import { CARD_INDEX, SETS, poolFor, type SetId } from '@game/content';
 import { GUIDE_LIMITS, UUID_RE, validateGuideDraft } from '@game/guides';
 import { BUNDLED_GUIDE_DATA } from './guides.bundled';
 import { GUIDES, type Guide } from './guides';
@@ -11,8 +11,13 @@ const REGEX_SPECIAL: ReadonlySet<string> = new Set('.*+?^${}()|[]' + String.from
 const name = (id: string): string => CARD_INDEX[id]!.name;
 const inSet2 = new Set(poolFor('set2').all.map((c) => c.id));
 const archived = Object.values(CARD_INDEX).find((c) => !inSet2.has(c.id) && !c.spell && !c.token)!;
-const sunmane = GUIDES.find((g) => g.id === 'set2-beast-sunmane')!;
-const oona = GUIDES.find((g) => g.id === 'set2-beast-oona')!;
+/** The set a built-in guide was written for (a copy of one, with another id, falls back to Set 2). */
+const setOf = (g: Guide): SetId => BUNDLED_GUIDE_DATA.find((b) => b.id === g.id)?.set ?? 'set2';
+/** Any built-in guide, and one with more than one Core card; the examples come from the data, not from a name. */
+const sample = GUIDES[0]!;
+const several = GUIDES.find((g) => g.core.length > 1) ?? { ...sample, core: [...sample.core, 'b2_oona'] };
+/** A built-in guide that has nicknames; none may, one day, so the test then builds one. */
+const aliased: Guide = GUIDES.find((g) => Object.keys(g.aliases ?? {}).length > 0) ?? { ...sample, aliases: { oona: 'b2_oona' } };
 const serverGuide = (g: Guide, patch: Partial<Guide> = {}): Guide => ({ ...g, rowId: '11111111-1111-4111-8111-111111111111', revision: 4, ...patch });
 
 describe('mentionsFor: the cards a write-up names', () => {
@@ -67,21 +72,22 @@ describe('drafts from guides', () => {
     expect(emptyDraft('Mike')).toMatchObject({ rowId: null, revision: null, official: false, byline: 'Mike', title: '', body: '', core: [], enablers: [], aliases: [], forkedFrom: null });
   });
   it('editing a guide carries its row, revision and every field; nicknames become rows', () => {
-    const d = draftFromGuide(serverGuide(oona));
-    expect(d).toMatchObject({ rowId: '11111111-1111-4111-8111-111111111111', revision: 4, official: true, title: oona.title, body: oona.body, core: [...oona.core], enablers: [...oona.enablers] });
-    expect(d.aliases).toEqual([{ word: 'oona', card: 'b2_oona' }]);
+    const d = draftFromGuide(serverGuide(aliased));
+    expect(d).toMatchObject({ rowId: '11111111-1111-4111-8111-111111111111', revision: 4, official: true, title: aliased.title, body: aliased.body, core: [...aliased.core], enablers: [...aliased.enablers] });
+    expect(d.aliases).toEqual(Object.entries(aliased.aliases ?? {}).map(([word, card]) => ({ word, card })));
+    expect(d.aliases.length).toBeGreaterThan(0);
   });
   it('a duplicate is a NEW private guide under the duplicator\'s name that remembers its source', () => {
-    const d = duplicateDraft(serverGuide(sunmane), 'Mike');
-    expect(d).toMatchObject({ rowId: null, revision: null, official: false, byline: 'Mike', forkedFrom: '11111111-1111-4111-8111-111111111111', core: [...sunmane.core] });
-    expect(d.title).toBe(`${sunmane.title} (copy)`);
+    const d = duplicateDraft(serverGuide(several), 'Mike');
+    expect(d).toMatchObject({ rowId: null, revision: null, official: false, byline: 'Mike', forkedFrom: '11111111-1111-4111-8111-111111111111', core: [...several.core] });
+    expect(d.title).toBe(`${several.title} (copy)`);
   });
   it('a duplicate\'s title is cut to the limit; a copy of a built-in with no server row has no source', () => {
-    expect(duplicateDraft(serverGuide(sunmane, { title: 'x'.repeat(40) }), 'Mike').title).toHaveLength(GUIDE_LIMITS.title);
-    expect(duplicateDraft(sunmane, 'Mike').forkedFrom).toBeNull();
+    expect(duplicateDraft(serverGuide(several, { title: 'x'.repeat(40) }), 'Mike').title).toHaveLength(GUIDE_LIMITS.title);
+    expect(duplicateDraft(several, 'Mike').forkedFrom).toBeNull();
   });
   it('sameDraft compares by value', () => {
-    const a = draftFromGuide(serverGuide(sunmane));
+    const a = draftFromGuide(serverGuide(several));
     expect(sameDraft(a, { ...a, core: [...a.core] })).toBe(true);
     expect(sameDraft(a, { ...a, title: `${a.title}!` })).toBe(false);
   });
@@ -97,7 +103,7 @@ describe('toWire: the document sent to the server', () => {
     }
   });
   it('an update carries id and revision; a new guide carries neither; a Team Ascent guide says official and wears Team Ascent', () => {
-    const upd = toWire(draftFromGuide(serverGuide(sunmane)), 'set2');
+    const upd = toWire(draftFromGuide(serverGuide(several)), setOf(several));
     expect(upd).toMatchObject({ id: '11111111-1111-4111-8111-111111111111', revision: 4, official: true, byline: 'Team Ascent' });
     const fresh = toWire({ ...emptyDraft('Mike'), title: 'T', body: 'B', core: ['grim'] }, 'set2');
     expect(fresh).not.toHaveProperty('id');
@@ -128,8 +134,8 @@ describe('toWire: the document sent to the server', () => {
     expect(validateGuideDraft(wire)).toMatchObject({ ok: true });
   });
   it('a duplicate sends its source only when it is new', () => {
-    expect(toWire({ ...duplicateDraft(serverGuide(sunmane), 'Mike') }, 'set2').forkedFrom).toBe('11111111-1111-4111-8111-111111111111');
-    expect(toWire(draftFromGuide(serverGuide(sunmane)), 'set2').forkedFrom ?? null).toBeNull();
+    expect(toWire({ ...duplicateDraft(serverGuide(several), 'Mike') }, setOf(several)).forkedFrom).toBe('11111111-1111-4111-8111-111111111111');
+    expect(toWire(draftFromGuide(serverGuide(several)), setOf(several)).forkedFrom ?? null).toBeNull();
   });
 });
 
@@ -179,7 +185,7 @@ describe('draftProblems: what stops a save, in the player\'s words', () => {
 });
 
 describe('builtInImportPayload', () => {
-  it('is the eleven built-in guides as Team Ascent documents the server accepts, each with its slug', () => {
+  it('is the built-in guides as Team Ascent documents the server accepts, each with its slug', () => {
     const payload = builtInImportPayload();
     expect(payload.map((p) => p.slug)).toEqual(BUNDLED_GUIDE_DATA.map((b) => b.id));
     for (const p of payload) {
@@ -223,7 +229,7 @@ describe('newSaveId on a browser that cannot make a uuid by itself', () => {
       expect(hex(id)[12], id).toBe('4');
       expect(['8', '9', 'a', 'b'], id).toContain(hex(id)[16]);
       // The server takes it as a save id.
-      expect(validateGuideDraft({ ...toWire(draftFromGuide(sunmane), 'set2'), saveId: id })).toMatchObject({ ok: true, draft: { saveId: id } });
+      expect(validateGuideDraft({ ...toWire(draftFromGuide(several), setOf(several)), saveId: id })).toMatchObject({ ok: true, draft: { saveId: id } });
     }
     expect(a).not.toBe(b);
     // Only those two digits are fixed: with every random bit set, the rest stay as they came.

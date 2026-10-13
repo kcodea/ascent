@@ -61,7 +61,7 @@ const WHO = ['sign_in_required', 'unauthenticated'] as const;
  * THE KNOWN REFUSALS of each action: the codes the SQL functions raise, and the function answers before it calls
  * them, when they REFUSE that action and nothing is written (the raise words of supabase/migrations/2026-10-1*-guides*.sql
  * and `GUIDE_ERROR_STATUS` in packages/guides/src/server.ts). Written down once, here, and read by both sides: the
- * sentences below say "nothing was changed" (or name the refusal) only for these, and the screens read the lists again
+ * sentences below name the refusal (or say nothing was imported) only for these, and the screens read the lists again
  * for every answer that is NOT one of these (`isKnownRefusal`). `guideMessages.test.ts` holds the two together: a
  * code listed here has a sentence of its own, and a code not listed here never says the write was not made.
  *

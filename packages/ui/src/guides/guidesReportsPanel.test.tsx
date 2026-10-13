@@ -917,6 +917,32 @@ describe('Carry guides over', () => {
     expect(retags).toEqual([]);
     expect(button(c, 'Carry over 2 guides')).toBeDefined();
   });
+  it('the line a Check or a run answers with is brought into view, and an idle tool moves nothing', async () => {
+    const seen: string[] = [];
+    const proto = Element.prototype as unknown as { scrollIntoView?: (o?: unknown) => void };
+    const before = proto.scrollIntoView;
+    proto.scrollIntoView = function scrollIntoView(this: Element, o?: unknown): void { seen.push(`${this.textContent ?? ''} ${JSON.stringify(o)}`); };
+    try {
+      tagsAnswer = () => [tag('fits1'), tag('fits2')];
+      const c = show('team', { tab: 'reports' });
+      await settle();
+      expect(seen).toEqual([]);
+      chooseSet(c, 'set3');
+      await press(c, 'Check');
+      await settle();
+      expect(seen).toEqual([`2 guides carry over to ${SETS.set3.name}. 0 stay behind. 0 already have it. {"block":"nearest"}`]);
+      await press(c, 'Carry over 2 guides');
+      await settle();
+      expect(seen[seen.length - 1]).toBe(`Carried over 2 guides to ${SETS.set3.name}. {"block":"nearest"}`);
+      // Choosing another set puts the tool back to idle: nothing is scrolled for that.
+      const n = seen.length;
+      chooseSet(c, 'set2');
+      await settle();
+      expect(seen.length).toBe(n);
+    } finally {
+      if (before) proto.scrollIntoView = before; else delete proto.scrollIntoView;
+    }
+  });
   it('the result reads right for one guide and for many', async () => {
     tagsAnswer = () => [tag('fits1'), tag('has1', { sets: ['set3'] }), tag('has2', { sets: ['set3'] }), tag('stays1', { core: ['no-such-card'] }), tag('stays2', { tribes: ['no-such-tribe'] })];
     const c = show('team', { tab: 'reports' });

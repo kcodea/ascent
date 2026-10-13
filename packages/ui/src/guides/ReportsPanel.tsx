@@ -178,6 +178,12 @@ const CarryOver = memo(function CarryOver({ setId }: { setId: SetId }): JSX.Elem
     backToCheck.current = false;
     if (focusIsFree(checkRef.current)) checkRef.current?.focus();
   }, [ended]);
+  // By eye: this tool is the last thing in the panel, so the line a Check or a run answers with is drawn at the
+  // bottom edge of the scroll box, just out of sight (found in a real render, 2026-10-12). Bring it into view by the
+  // nearest edge, at once and only when the step changes. An idle tool and a Check still reading draw no line, so
+  // they move nothing.
+  const lineRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { lineRef.current?.scrollIntoView?.({ block: 'nearest' }); }, [carry.step]);
 
   return (
     <>
@@ -194,21 +200,21 @@ const CarryOver = memo(function CarryOver({ setId }: { setId: SetId }): JSX.Elem
           <button type="button" className="gbtn gbtn-primary" onClick={() => void run(carry.set, carry.plan.carry)}>Carry over {plural(carry.plan.carry.length, 'guide', 'guides')}</button>
         )}
       </div>
-      {carry.step === 'checked' && carry.plan.carry.length > 0 && <p className="gtool-note greports-row" role="status">{checkedLine(carry.plan, carry.set)}</p>}
-      {carry.step === 'checked' && carry.plan.carry.length === 0 && <p className="gtool-note greports-row" role="status">No guide needs carrying over to {nameOf(carry.set)}.</p>}
-      {carry.step === 'running' && <p className="gtool-note greports-row" role="status">Carried over {carry.done} of {carry.total}.</p>}
+      {carry.step === 'checked' && carry.plan.carry.length > 0 && <p ref={lineRef} className="gtool-note greports-row" role="status">{checkedLine(carry.plan, carry.set)}</p>}
+      {carry.step === 'checked' && carry.plan.carry.length === 0 && <p ref={lineRef} className="gtool-note greports-row" role="status">No guide needs carrying over to {nameOf(carry.set)}.</p>}
+      {carry.step === 'running' && <p ref={lineRef} className="gtool-note greports-row" role="status">Carried over {carry.done} of {carry.total}.</p>}
       {carry.step === 'done' && (
-        <p className="gtool-note greports-row" role="status">
+        <p ref={lineRef} className="gtool-note greports-row" role="status">
           {carry.tagged > 0 ? `Carried over ${plural(carry.tagged, 'guide', 'guides')} to ${nameOf(carry.set)}.` : `No guide needed carrying over to ${nameOf(carry.set)}.`}
         </p>
       )}
       {carry.step === 'stopped' && (
         <>
           <p className="gtool-note greports-row" role="alert">{carry.said}</p>
-          <p className="gtool-note greports-row" role="status">Carried over {carry.done} of {carry.total} so far. Press Check to continue.</p>
+          <p ref={lineRef} className="gtool-note greports-row" role="status">Carried over {carry.done} of {carry.total} so far. Press Check to continue.</p>
         </>
       )}
-      {carry.step === 'failed' && <p className="gtool-note greports-row" role="alert">Could not read the guides. Try again.</p>}
+      {carry.step === 'failed' && <p ref={lineRef} className="gtool-note greports-row" role="alert">Could not read the guides. Try again.</p>}
     </>
   );
 });

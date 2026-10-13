@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-13',
     changes: [
+      { category: 'Balance', text: 'Disco Dan now starts turn 1 with 0 Gold, since he cannot spend any that turn. His Gold is normal from turn 2.' },
       {
         category: 'Balance',
         text: 'Vaultkeeper and Alchemist Brisbane are reworked, Mountainbond moves to Tier 6, and Mineral Master is removed.',

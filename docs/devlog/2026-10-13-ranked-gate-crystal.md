@@ -160,6 +160,26 @@ It is back, on the diamond's outline:
 Not watched: the FX layer is mocked in tests and the preview pane does not animate. Whether the rim reads as a
 warble, and how thick and bright it should be, is the owner's to judge.
 
+**Then, softer, wilder, fuller, and a touch lower (same PR):** "can you further blur and distort the edges of the
+diamond as its growing? increase the particles that are being sucked into the edges" and "can you lower the diamond
+just slightly? its corner is slightly higher than the center line".
+
+- **Blur + distort.** The white-hot face was one crisp white diamond. It is now three PLIES, each the crystal's
+  shape in white, blurred by 3 / 6 / 10 art px, each warping on its own loop (0.37 / 0.53 / 0.44 s: uneven
+  stretch, a degree or two of turn, a little skew and shift). Where they agree the diamond is solid; round the
+  outside they keep disagreeing, so the edge swims. The bloom behind is wider and softer (blur 9 -> 16, scale
+  1.16 -> 1.26) and warps too. The crisp crystal underneath is now hidden until 60% of the forming and fades up
+  as the white cools (`rg-cry-body-in`), or its hard edge would show through the soft one.
+  PERF: each ply's blur is a static filter on the ply itself and the animation is that ply's own transform, so
+  it is a cached texture moved by the compositor, not a re-blur per frame. The mask sits on the ply's `::before`
+  for the same reason as the bloom's (a mask is applied after its own element's filter).
+- **More particles.** Streaks sucked into the edge 170 -> 320 (384 with `FX_AMOUNT`), spiral motes 60 -> 120,
+  rim motes 150 -> 210 and fatter and looser (they add to the blur and the distortion themselves).
+- **Lowered 3.5 art px.** The crystal is a kite: its side corners are on row 111 of its 232 px image, five rows
+  above the image's middle, so centring the IMAGE on the emblem left the corners above the emblem's centre line.
+  The line was measured as the emblem's axis of vertical symmetry in the gate art (row 429), and `crystalCy`
+  moved 430.5 -> 434 so the corners land on it. Checked in a real render: corners at 409.5 px, line at 409.1.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

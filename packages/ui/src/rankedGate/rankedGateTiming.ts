@@ -119,10 +119,16 @@ export function rankedGateOpenTimeline(t: RankedGateTiming = RANKED_GATE_TIMING)
 /**
  * WHERE THE CRYSTAL SITS, in the gate art's own pixels. The art is 1672 x 941 with its seam on the centre column, so
  * each door's image is `halfW` x `h`. The centre diamond of the emblem is NOT on the art's vertical centre: it sits
- * a little above it. `crystalCy` is where the crystal IMAGE's centre goes and `crystalSize` its square size, chosen
- * so its solid body covers the gold diamond and fills the steel recess around it (the owner's mock, 2026-10-13).
+ * a little above it, on row 429 (the emblem's own line of symmetry, measured). `crystalCy` is where the crystal
+ * IMAGE's centre goes and `crystalSize` its square size, chosen so its solid body covers the gold diamond and fills
+ * the steel recess around it (the owner's mock, 2026-10-13).
+ *
+ * `crystalCy` is 434, not 429: the crystal is a kite, widest (its side corners) on row 111 of its 232 px image, five
+ * rows above the image's middle. Centring the image on the line left those corners sitting above it (owner, the
+ * same day: "can you lower the diamond just slightly? its corner is slightly higher than the center line"), so the
+ * image is placed for its CORNERS to land on row 429: 429 + (116 - 111) * 236 / 232.
  */
-export const RANKED_GATE_ART = { halfW: 836, h: 941, crystalCy: 430.5, crystalSize: 236 } as const;
+export const RANKED_GATE_ART = { halfW: 836, h: 941, crystalCy: 434, crystalSize: 236 } as const;
 
 /**
  * THE CRYSTAL'S BODY inside its square image, as fractions of the image's size: the solid diamond is 128 x 183 px of

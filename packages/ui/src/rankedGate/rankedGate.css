@@ -90,7 +90,7 @@
 /* THE CRYSTAL ─────────────────────────────────────────────────────────────────────────────────────────────── */
 .rgate-crystal {
   --rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)));
-  position: absolute; left: 50%; top: calc(50% + var(--rg-cry-dy, -40) * var(--rg-u));
+  position: absolute; left: 50%; top: calc(50% + var(--rg-cry-dy, -36.5) * var(--rg-u));
   width: calc(var(--rg-cry-size, 236) * var(--rg-u)); aspect-ratio: 1;
   margin: 0; padding: 0; border: 0; background: none; outline: none;
   transform: translate(-50%, -50%); pointer-events: none;
@@ -98,7 +98,7 @@
 .rgate.is-armed .rgate-crystal { pointer-events: auto; }
 /* The keyboard's focus ring, in the theme's own ring colour (the same token the Compendium's controls use). */
 .rgate-crystal:focus-visible .rgate-crystal-gem { outline: 3px solid var(--ui-edge-hi); outline-offset: 6px; border-radius: 50%; }
-.rgate-crystal-glow, .rgate-crystal-gem, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-hot, .rgate-crystal-heat, .rgate-crystal-glint, .rgate-crystal-burst,
+.rgate-crystal-glow, .rgate-crystal-gem, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-hot, .rgate-crystal-ply, .rgate-crystal-heat, .rgate-crystal-glint, .rgate-crystal-burst,
 .rgate-crystal-pulse, .rgate-crystal-glow-hi, .rgate-crystal-lit-hi { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
 /* THE GEM is the crystal's own body: the image and everything painted ON it (its lit copy, its white-hot face, its
    glint). It carries the only transforms the crystal ever has: growing from a point as it forms, and flying apart
@@ -122,10 +122,21 @@
 .rgate.is-armed .rgate-crystal:hover .rgate-crystal-pulse { opacity: 0; }
 .rgate.is-armed .rgate-crystal:hover .rgate-crystal-glow-hi { opacity: 0.7; }
 .rgate.is-armed .rgate-crystal:hover .rgate-crystal-lit-hi { opacity: 0.56; }
-/* The crystal WHITE-HOT: a pure white fill in the crystal's own shape, over the body, while it forms. It cools off
-   (fades) to show the blue underneath. */
-.rgate-crystal-hot { opacity: 0; background: #fff;
+/* The crystal WHITE-HOT while it forms, with an edge that is SOFT and never still (owner 2026-10-13: "can you
+   further blur and distort the edges of the diamond as its growing?"). It is three PLIES, each the crystal's shape in
+   pure white, each blurred by a different amount, each warping on its own short loop (stretching, leaning, turning a
+   degree or two). Where they agree the diamond is solid white; round the outside they keep disagreeing, so the edge
+   swims. The crisp crystal underneath is hidden until this cools (see `rg-cry-body-in`), or its hard edge would show
+   through the soft one.
+   PERF: each ply's blur is a STATIC filter on the ply itself and what animates is that ply's own transform, so each
+   is one cached texture moved by the compositor; nothing is re-blurred per frame. The mask is on the `::before`,
+   because a mask on the ply would be applied after its filter and cut the blur back to the hard edge. */
+.rgate-crystal-hot { opacity: 0; }
+.rgate-crystal-ply::before { content: ''; position: absolute; inset: 0; background: #fff;
   -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
+.rgate-crystal-ply:nth-child(1) { filter: blur(calc(3 * var(--rg-u))); }
+.rgate-crystal-ply:nth-child(2) { filter: blur(calc(6 * var(--rg-u))); }
+.rgate-crystal-ply:nth-child(3) { filter: blur(calc(10 * var(--rg-u))); }
 /* The glint: a box masked to the crystal's own shape, with a slanted band of light that crosses it now and then
    and a four-point star that flares on its upper facet as the band passes. */
 .rgate-crystal-glint { opacity: 0; overflow: hidden;
@@ -140,9 +151,10 @@
 /* The HEAT around it while it forms, in the crystal's OWN SHAPE (owner 2026-10-13, of the round glow this replaced:
    "can we have the shape be the diamond instead of a circle?"). A white fill masked to the crystal (the `::before`)
    inside a box that blurs it: the blur has to sit on the PARENT, because a mask is applied after its own element's
-   filter and would cut the bloom back to the hard edge. The blur is static; only the box's opacity moves, and it
-   lives in the gem, so it grows with it. Slightly oversized, so the bloom shows all round. */
-.rgate-crystal-heat { opacity: 0; transform: scale(1.16); filter: blur(calc(9 * var(--rg-u))); }
+   filter and would cut the bloom back to the hard edge. The blur is static; the box's opacity and (as it warps
+   with the plies above) its transform move, and it lives in the gem, so it grows with it. Oversized, so the bloom
+   shows all round. Wider and softer since the edge was asked to blur further (9 -> 16 art px, 1.16 -> 1.26). */
+.rgate-crystal-heat { opacity: 0; transform: scale(1.26); filter: blur(calc(16 * var(--rg-u))); }
 .rgate-crystal-heat::before { content: ''; position: absolute; inset: 0; background: #fff;
   -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
 /* The white-blue burst in front of it as it SHATTERS (round: it is a flash going off, not the crystal's body). */
@@ -155,9 +167,38 @@
    it), and only cools to blue over the last third, as the blue glow behind it comes up to where the waiting pulse
    begins. Nothing round is drawn while it forms. */
 .rgate.is-forming .rgate-crystal-gem { animation: rg-cry-grow var(--rg-form, 1600ms) linear both; }
-.rgate.is-forming .rgate-crystal-body { opacity: 1; }
+.rgate.is-forming .rgate-crystal-body { animation: rg-cry-body-in var(--rg-form, 1600ms) linear both; }
 .rgate.is-forming .rgate-crystal-hot { animation: rg-cry-cool var(--rg-form, 1600ms) linear both; }
-.rgate.is-forming .rgate-crystal-heat { animation: rg-cry-heat var(--rg-form, 1600ms) linear both; }
+.rgate.is-forming .rgate-crystal-heat { animation: rg-cry-heat var(--rg-form, 1600ms) linear both, rg-cry-warp-d 0.61s ease-in-out infinite; }
+/* THE WARP: only while it forms. Three plies, three loops of different lengths, so the edge never repeats in step. */
+.rgate.is-forming .rgate-crystal-ply:nth-child(1) { animation: rg-cry-warp-a 0.37s ease-in-out infinite; }
+.rgate.is-forming .rgate-crystal-ply:nth-child(2) { animation: rg-cry-warp-b 0.53s ease-in-out infinite; }
+.rgate.is-forming .rgate-crystal-ply:nth-child(3) { animation: rg-cry-warp-c 0.44s ease-in-out infinite; }
+@keyframes rg-cry-warp-a {
+  0%, 100% { transform: scale(1.04, 0.97) rotate(-1.6deg) skewX(2deg); }
+  33% { transform: translate(1.5%, -1%) scale(0.96, 1.06) rotate(1.8deg) skewX(-2.5deg); }
+  66% { transform: translate(-1.5%, 1.5%) scale(1.07, 1.01) rotate(-0.6deg) skewX(3deg); }
+}
+@keyframes rg-cry-warp-b {
+  0%, 100% { transform: scale(0.97, 1.07) rotate(2.2deg) skewY(-2deg); }
+  40% { transform: translate(-2%, 1%) scale(1.09, 0.96) rotate(-2.4deg) skewY(2.5deg); }
+  72% { transform: translate(1.5%, 2%) scale(1.02, 1.1) rotate(1deg) skewY(-3deg); }
+}
+@keyframes rg-cry-warp-c {
+  0%, 100% { transform: scale(1.1, 1.03) rotate(-2.6deg) skewX(-3deg); }
+  30% { transform: translate(2%, 2%) scale(1.01, 1.12) rotate(2.8deg) skewX(2deg); }
+  64% { transform: translate(-2.5%, -1.5%) scale(1.13, 0.98) rotate(-1.2deg) skewX(4deg); }
+}
+@keyframes rg-cry-warp-d {
+  0%, 100% { transform: scale(1.26, 1.2) rotate(-2deg); }
+  35% { transform: scale(1.18, 1.32) rotate(2.5deg); }
+  70% { transform: scale(1.33, 1.24) rotate(-1deg); }
+}
+/* The crisp crystal stays hidden under the white until it starts to cool, then comes up as the white goes. */
+@keyframes rg-cry-body-in {
+  0%, 60% { opacity: 0; }
+  100% { opacity: 1; }
+}
 .rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 1600ms) linear both; }
 @keyframes rg-cry-grow {
   0% { opacity: 0; transform: scale(0.02); }

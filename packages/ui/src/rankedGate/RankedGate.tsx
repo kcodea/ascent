@@ -216,7 +216,10 @@ export function RankedGate(): JSX.Element | null {
               <span className="rgate-crystal-pulse" aria-hidden="true"><span className="rgate-crystal-lit" /></span>
               <span className="rgate-crystal-lit-hi" aria-hidden="true" />
               {/* White-hot while it forms, cooling to the blue beneath. */}
-              <span className="rgate-crystal-hot" aria-hidden="true" />
+              <span className="rgate-crystal-hot" aria-hidden="true">
+                {/* Three plies, each blurred differently and warping on its own loop: a soft edge that swims. */}
+                <span className="rgate-crystal-ply" /><span className="rgate-crystal-ply" /><span className="rgate-crystal-ply" />
+              </span>
               <span className="rgate-crystal-glint" aria-hidden="true"><span className="rgate-crystal-twinkle" /></span>
             </span>
             <span className="rgate-crystal-burst" aria-hidden="true" />

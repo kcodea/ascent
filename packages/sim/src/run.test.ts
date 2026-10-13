@@ -4230,6 +4230,30 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(s, { type: 'upgrade' })).toBe(before);
     // After advancing to turn 2 the lock lifts (roll works).
   });
+
+  it('Disco Dan opens turn 1 on 0 Gold (he can spend none of it) and is paid the normal Gold from turn 2 (owner 2026-10-13)', () => {
+    const turn2 = (heroId: string): RunState => {
+      let s = createRun(1, heroId);
+      while (s.discover) s = reduce(s, { type: 'discover', index: 0 });
+      s = reduce(s, { type: 'faceOmen' });
+      return reduce(s, { type: 'resolveCombat' });
+    };
+    const fresh = createRun(1, 'discodan');
+    expect(fresh.embers, 'turn 1 shows no Gold').toBe(0);
+    expect(fresh.maxEmbers, 'the Gold curve itself is untouched').toBe(CONFIG.startEmbers);
+    let picked = fresh;
+    while (picked.discover) picked = reduce(picked, { type: 'discover', index: 0 });
+    expect(picked.embers, 'still 0 once the Setlist is resolved').toBe(0);
+    // Every other hero keeps the normal turn-1 Gold.
+    expect(createRun(1, 'soren').embers).toBe(CONFIG.startEmbers);
+    // Turn 2: the same Gold as anyone else, nothing owed and nothing lost.
+    const dan = turn2('discodan');
+    expect(dan.wave).toBe(2);
+    expect(dan.embers).toBe(turn2('soren').embers);
+    expect(dan.embers).toBe(CONFIG.startEmbers + CONFIG.embersPerWave);
+    // A reload on turn 1 keeps the 0 (the save wins over the fresh skeleton).
+    expect(deserialize(serialize(picked)).embers).toBe(0);
+  });
 });
 
 describe('PvE course + record (@game/sim)', () => {

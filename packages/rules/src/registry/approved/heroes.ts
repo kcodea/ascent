@@ -2045,4 +2045,18 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGildmaster.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
+  {
+    id: "R-DISCO-01",
+    title: "Disco Dan has 0 Gold on turn 1",
+    statement:
+      "Disco Dan can take no Shop action on turn 1, so he has 0 Gold on that turn. Only that turn's Gold is removed: from turn 2 on he is paid the same Gold as every other hero.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-13 (Disco Dan turn-1 Gold)", quote: "disco dan shows 3 gold available on turn 1, even though he cannot make any turns, can we reduce that to 0 for that round?" },
+      { kind: 'code', ref: "packages/sim/src/state.ts createRun (the Setlist block sets embers to 0, maxEmbers untouched)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-13). createRun opens a Disco Dan run on 0 Gold; the turn-2 refill reads maxEmbers, which is unchanged.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/run.test.ts"], lastVerifiedAt: '2026-10-13' },
+  },
 ];

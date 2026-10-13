@@ -3072,6 +3072,10 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     for (const tier of [6, 4, 2]) {
       queueDiscover(state, { kind: 'minion', tier, exactTier: tier, lockTier: tier });
     }
+    // Turn 1 is a pure Setlist (the reducer refuses every shop action on it), so he opens on 0 Gold rather
+    // than 3 he can never spend (owner 2026-10-13). ONLY this turn's Gold: `maxEmbers` keeps the normal
+    // curve, so the turn-2 refill pays him exactly what every other hero gets.
+    state.embers = 0;
   }
   // Brackus's Summit: one Tier 7 Discover at run start, locked in hand until 70 Gold has been spent this
   // run. `exactTier: 7` is a FIXED-tier Discover, so it is honoured with no rift active — that back door is

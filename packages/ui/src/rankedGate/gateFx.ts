@@ -12,7 +12,8 @@
  *               seam and the floor and float upward like sparks off a fire (owner 2026-10-12).
  *  - shudder(): the rattle. Dust shakes loose from the top of the doors and a few sparks spit from the seam.
  * And the CRYSTAL's three (owner 2026-10-13), fed the crystal's screen centre and size:
- *  - gather():  the centre diamond forming it. Blue motes spiral INTO the diamond while a glow swells on it.
+ *  - gather():  the centre diamond forming it. Sparks are SUCKED into the diamond's centre from all round, in a
+ *               steady stream, while a white-hot core grows there (the gem coalescing out of them).
  *  - ambient(): while it waits to be pressed, a steady trickle of embers lifts off it (until `stopAmbient`).
  *  - shatter(): the press. Shards fly out and fall, a flash blooms, and a burst of embers is thrown wide.
  * Sparks are additive streaks turned along their travel; dust is a soft normal-blended puff that grows as it
@@ -41,6 +42,8 @@ const CRYSTAL_REF_SIZE = 271;
 const SPARK_TINTS = [0xffffff, 0xfff2c0, 0xffd27a, 0xffa84a, 0xff7a2e] as const;
 const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
 const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
+/** The sparks the forming crystal pulls in: white-hot, with the crystal's own blues among them. */
+const HOT_TINTS = [0xffffff, 0xffffff, 0xeaf6ff, 0xbfe4ff, 0x7fc4ff] as const;
 /** How much of everything there is: 1 = the first cut, 1.2 = the owner's "+20%" (2026-10-12). Particles only. */
 const FX_AMOUNT = 1.2;
 /** A particle count at the current amount. */
@@ -364,33 +367,64 @@ class GateFxController {
     });
   }
 
-  /** THE CRYSTAL FORMING: blue motes spiral into the centre diamond while a glow swells on it, over `ms`. */
+  /**
+   * THE CRYSTAL FORMING (owner 2026-10-13: "have the gem almost coalesce from sparks that suck into the middle ...
+   * glowing hot white as its forming. growing from the center"). For the whole of `ms` sparks are pulled into the
+   * diamond's centre from all round: each starts slow, far out, and accelerates in along a slightly curved path,
+   * stretching into a streak as it goes, and is gone as it arrives. Under them a white-hot core grows from a point
+   * (the stylesheet grows the gem itself on the same clock), then lets go as the crystal cools.
+   */
   gather(c: GateCrystal, ms: number): void {
     this.run(() => {
       const k = c.size / CRYSTAL_REF_SIZE;
-      for (let i = 0, n = amount(70); i < n; i++) {
+      // The streaks: they leave all through the first three quarters, so the stream is steady, and the last of them
+      // arrive as the gem reaches full size.
+      for (let i = 0, n = amount(170); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
-        const r0 = c.size * (0.7 + Math.random() * 1.5);
-        const angVel = ((1.8 + Math.random() * 2.4) * (Math.random() < 0.5 ? 1 : -1)) / 1000; // rad/ms
-        const delay = Math.random() * ms * 0.35;
-        const life = ms * (0.45 + Math.random() * 0.3);
-        const scale = (0.16 + Math.random() * 0.26) * k;
+        const r0 = c.size * (1 + Math.random() * 2.8);
+        const swirl = (Math.random() - 0.5) * 1.1; // rad of curve over its flight
+        const delay = Math.random() * ms * 0.74;
+        const life = 300 + Math.random() * 380;
+        const len = 0.5 + Math.random() * 0.8;
+        const sp = this.spawn(this.sparkTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(HOT_TINTS), delay + life, true, (p) => {
+          if (p.age < delay) return;
+          const t = (p.age - delay) / life;
+          const pull = t * t * (0.4 + 0.6 * t); // slow to start, then it is taken
+          const r = r0 * (1 - pull);
+          const ang = ang0 + swirl * pull;
+          p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
+          p.sp.rotation = ang + Math.PI; // pointing at the centre it is falling into
+          p.sp.alpha = Math.min(1, t * 5) * (t < 0.92 ? 1 : (1 - t) / 0.08);
+          p.sp.scale.set(len * k * (0.5 + t * 1.6), k * (1 - t * 0.35));
+        });
+        sp.rotation = ang0 + Math.PI;
+      }
+      // Fine motes among them, on wider spirals, so the pull reads as a draw from all round and not as lines.
+      for (let i = 0, n = amount(60); i < n; i++) {
+        const ang0 = Math.random() * Math.PI * 2;
+        const r0 = c.size * (0.8 + Math.random() * 1.9);
+        const angVel = ((1.6 + Math.random() * 2.2) * (Math.random() < 0.5 ? 1 : -1)) / 1000; // rad/ms
+        const delay = Math.random() * ms * 0.6;
+        const life = ms * (0.28 + Math.random() * 0.2);
+        const scale = (0.14 + Math.random() * 0.22) * k;
         this.spawn(this.glowTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(EMBER_TINTS), delay + life, true, (p) => {
           if (p.age < delay) return;
           const t = (p.age - delay) / life;
-          const r = r0 * (1 - t * t); // an accelerating fall into the diamond
+          const r = r0 * (1 - t * t);
           const ang = ang0 + angVel * (p.age - delay);
           p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
           p.sp.alpha = Math.min(1, t * 4) * (1 - t * 0.5);
-          p.sp.scale.set(scale * (1 - t * 0.45));
+          p.sp.scale.set(scale * (1 - t * 0.5));
         });
       }
-      // The swell: a blue-white bloom on the diamond that peaks as the crystal pushes out, then lets go.
-      for (const [tint, mul] of [[0x4fa8ff, 1.5], [0xd6f0ff, 0.9]] as const) {
+      // The white-hot core: it grows from a point with the gem, holds, and lets go over the last third as it cools.
+      // A wider blue bloom rides under it so the heat has a colour at its edge.
+      for (const [tint, mul, peak] of [[0x4fa8ff, 2.1, 0.55], [0xffffff, 1.15, 0.95]] as const) {
         this.spawn(this.glowTex!, c.x, c.y, tint, ms, true, (p) => {
           const t = p.age / p.life;
-          p.sp.alpha = (t < 0.6 ? t / 0.6 : (1 - t) / 0.4) * 0.85;
-          p.sp.scale.set((c.size / 32) * mul * (0.35 + t * 0.9));
+          const grow = 0.06 + 0.94 * Math.min(1, t / 0.86);
+          p.sp.alpha = peak * Math.min(1, t * 10) * (t < 0.66 ? 1 : (1 - t) / 0.34);
+          p.sp.scale.set((c.size / 32) * mul * grow);
         });
       }
     });

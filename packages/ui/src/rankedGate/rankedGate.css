@@ -97,8 +97,11 @@
 }
 .rgate.is-armed .rgate-crystal { pointer-events: auto; }
 /* The keyboard's focus ring, in the theme's own ring colour (the same token the Compendium's controls use). */
-.rgate-crystal:focus-visible .rgate-crystal-body { outline: 3px solid var(--ui-edge-hi); outline-offset: 6px; border-radius: 50%; }
-.rgate-crystal-glow, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-glint, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
+.rgate-crystal:focus-visible .rgate-crystal-gem { outline: 3px solid var(--ui-edge-hi); outline-offset: 6px; border-radius: 50%; }
+.rgate-crystal-glow, .rgate-crystal-gem, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-hot, .rgate-crystal-glint, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
+/* THE GEM is the crystal's own body: the image and everything painted ON it (its lit copy, its white-hot face, its
+   glint). It carries the only transforms the crystal ever has: growing from a point as it forms, and flying apart
+   as it shatters. While it waits it has none. Its children only ever change opacity. */
 /* The light behind it: a static blue bloom, wider than the crystal. Only its opacity and scale move. */
 .rgate-crystal-glow { inset: -45%; opacity: 0; background: radial-gradient(closest-side, rgba(150, 215, 255, 0.85), rgba(64, 150, 255, 0.5) 38%, rgba(40, 110, 255, 0.18) 62%, rgba(40, 110, 255, 0)); }
 .rgate-crystal-body { opacity: 0; }
@@ -106,6 +109,10 @@
 /* The crystal lit from within: a brighter copy of itself over the body. The brightness never changes (a static
    filter, rasterised once); the copy fades in and out. */
 .rgate-crystal-lit { opacity: 0; background: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; filter: brightness(1.55) saturate(1.15); }
+/* The crystal WHITE-HOT: a pure white fill in the crystal's own shape, over the body, while it forms. It cools off
+   (fades) to show the blue underneath. */
+.rgate-crystal-hot { opacity: 0; background: #fff;
+  -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
 /* The glint: a box masked to the crystal's own shape, with a slanted band of light that crosses it now and then
    and a four-point star that flares on its upper facet as the band passes. */
 .rgate-crystal-glint { opacity: 0; overflow: hidden;
@@ -117,31 +124,38 @@
     radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 30%),
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0)) 50% 50% / 100% 6% no-repeat,
     linear-gradient(0deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0)) 50% 50% / 6% 100% no-repeat; }
-/* The white-blue burst in front of it, at the moment it pushes out of the diamond and again as it shatters. */
+/* The white-blue bloom in front of it: its heat while it forms, and the flash as it shatters. */
 .rgate-crystal-burst { inset: -30%; opacity: 0; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.98), rgba(190, 230, 255, 0.75) 30%, rgba(90, 170, 255, 0.25) 60%, rgba(90, 170, 255, 0)); }
 
-/* FORMING: the glow gathers on the gold diamond, then the crystal pushes out of it with a burst and settles. */
-.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 1100ms) ease-out both; }
-.rgate.is-forming .rgate-crystal-body { animation: rg-cry-form var(--rg-form, 1100ms) linear both; }
-.rgate.is-forming .rgate-crystal-burst { animation: rg-cry-burst var(--rg-form, 1100ms) linear both; }
-@keyframes rg-cry-glow-in {
-  0% { opacity: 0; transform: scale(0.35); }
-  50% { opacity: 0.7; transform: scale(0.8); }
-  68% { opacity: 0.7; transform: scale(1.15); }
-  100% { opacity: 0.32; transform: scale(0.94); }
-}
-@keyframes rg-cry-form {
-  0% { opacity: 0; transform: scale(0.3); }
-  46% { opacity: 0; transform: scale(0.3); animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
-  66% { opacity: 1; transform: scale(1.16); animation-timing-function: ease-in-out; }
-  84% { opacity: 1; transform: scale(0.96); animation-timing-function: ease-in-out; }
+/* FORMING (owner 2026-10-13: "have the gem almost coalesce from sparks that suck into the middle? have it glowing
+   hot white as its forming. growing from the center"). The FX layer pulls sparks into the diamond's centre for the
+   whole of it. Here the gem GROWS from a point at that centre, steadily, as they arrive; it is white-hot the
+   whole way (its white face over the body, and a white bloom around it that grows with it), and only cools to
+   blue over the last third, as the blue glow behind it comes up to where the waiting pulse begins. */
+.rgate.is-forming .rgate-crystal-gem { animation: rg-cry-grow var(--rg-form, 1600ms) linear both; }
+.rgate.is-forming .rgate-crystal-body { opacity: 1; }
+.rgate.is-forming .rgate-crystal-hot { animation: rg-cry-cool var(--rg-form, 1600ms) linear both; }
+.rgate.is-forming .rgate-crystal-burst { animation: rg-cry-heat var(--rg-form, 1600ms) linear both; }
+.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 1600ms) linear both; }
+@keyframes rg-cry-grow {
+  0% { opacity: 0; transform: scale(0.02); }
+  6% { opacity: 1; transform: scale(0.05); animation-timing-function: cubic-bezier(0.4, 0, 0.35, 1); }
+  88% { opacity: 1; transform: scale(1.05); animation-timing-function: ease-in-out; }
   100% { opacity: 1; transform: scale(1); }
 }
-@keyframes rg-cry-burst {
-  0% { opacity: 0; transform: scale(0.3); }
-  44% { opacity: 0; transform: scale(0.3); }
-  56% { opacity: 0.95; transform: scale(0.9); }
-  100% { opacity: 0; transform: scale(1.7); }
+@keyframes rg-cry-cool {
+  0%, 66% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes rg-cry-heat {
+  0% { opacity: 0; transform: scale(0.08); }
+  10% { opacity: 0.95; transform: scale(0.16); animation-timing-function: cubic-bezier(0.4, 0, 0.35, 1); }
+  72% { opacity: 0.95; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+@keyframes rg-cry-glow-in {
+  0%, 55% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 0.32; transform: scale(0.94); }
 }
 
 /* ARMED: whole, STILL, and steadily pulsing with light until it is pressed. The body has no animation here.
@@ -175,7 +189,8 @@
 }
 
 /* SHATTER: the body is gone in a blink (the shards are the FX layer's), the light lets go. */
-.rgate.is-shatter .rgate-crystal-body { animation: rg-cry-break 130ms ease-out both; }
+.rgate.is-shatter .rgate-crystal-body { opacity: 1; }
+.rgate.is-shatter .rgate-crystal-gem { animation: rg-cry-break 130ms ease-out both; }
 .rgate.is-shatter .rgate-crystal-glow { animation: rg-cry-glow-out var(--rg-shatter, 420ms) ease-out both; }
 .rgate.is-shatter .rgate-crystal-burst { animation: rg-cry-shatter var(--rg-shatter, 420ms) ease-out both; }
 @keyframes rg-cry-break { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }

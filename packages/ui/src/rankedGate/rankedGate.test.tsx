@@ -99,7 +99,7 @@ describe('the two clocks', () => {
 
   it('hands the durations and the crystal\'s place to the stylesheet', () => {
     expect(rankedGateCssVars()).toEqual({
-      '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '1100ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
+      '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '1600ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
       '--rg-art-hw': '836', '--rg-art-h': '941', '--rg-cry-dy': '-40', '--rg-cry-size': '236',
     });
   });
@@ -232,8 +232,12 @@ describe('the gate plays', () => {
     expect(el).not.toBeNull();
     expect(el.getAttribute('aria-disabled')).toBe('true');
     expect(el.querySelector('img')!.getAttribute('src')).toContain('frames/ranked-gate-crystal.webp');
-    expect(el.querySelector('.rgate-crystal-lit'), 'the brightened copy that carries the pulse').not.toBeNull();
-    expect(el.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
+    // The gem holds the image and everything painted on it: its lit copy, its white-hot face, its glint.
+    const gem = el.querySelector('.rgate-crystal-gem')!;
+    expect(gem.querySelector('.rgate-crystal-body img')).not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-lit'), 'the brightened copy that carries the pulse').not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-hot'), 'white-hot while it forms').not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
     // A press while it is still forming does nothing.
     pressCrystal();
     expect(phaseOf()).toBe('forming');
@@ -381,6 +385,7 @@ describe('what ships', () => {
     const armedBody = /\.rgate\.is-armed \.rgate-crystal-body \{([^}]*)\}/.exec(noComments)![1]!;
     expect(armedBody).not.toMatch(/animation|transform/);
     expect(armedBody).toContain('opacity: 1');
+    expect(noComments, 'nor does the gem that holds it').not.toMatch(/\.rgate\.is-armed \.rgate-crystal-gem\b/);
     // The light: the glow behind it and a brightened copy of it, both forever, both on the same beat.
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glow \{[^}]*rg-cry-glow-pulse 3\.4s ease-in-out infinite/);
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-lit \{[^}]*rg-cry-lit-pulse 3\.4s ease-in-out infinite/);
@@ -394,6 +399,25 @@ describe('what ships', () => {
     expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 60% \{/);
   });
 
+  it('it forms by growing from a point, white-hot, and cools to blue at the end', () => {
+    // Owner 2026-10-13: "have the gem almost coalesce from sparks that suck into the middle? have it glowing hot
+    // white as its forming. growing from the center".
+    const kf = (name: string): string => new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`).exec(css)![1]!;
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-gem \{[^}]*rg-cry-grow var\(--rg-form/);
+    const scales = [...kf('rg-cry-grow').matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]));
+    expect(scales[0], 'from a point').toBeLessThan(0.05);
+    expect(scales[scales.length - 1], 'to its full size, exactly').toBe(1);
+    expect([...scales].slice(0, -1), 'growing all the way (the last step is only the settle)').toEqual([...scales].slice(0, -1).sort((a, b) => a - b));
+    // The white face: a pure white fill in the crystal's own shape, full on until the last third.
+    expect(noComments).toMatch(/\.rgate-crystal-hot \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-hot \{[^}]*rg-cry-cool var\(--rg-form/);
+    expect(kf('rg-cry-cool')).toMatch(/0%, 66% \{ opacity: 1; \}\s*100% \{ opacity: 0; \}/);
+    // The blue glow behind it only comes up as it cools, to where the waiting pulse begins.
+    expect(kf('rg-cry-glow-in')).toMatch(/0%, 55% \{ opacity: 0;/);
+    expect(kf('rg-cry-glow-in')).toMatch(/100% \{ opacity: 0\.32;/);
+    expect(kf('rg-cry-glow-pulse')).toMatch(/0%, 100% \{ opacity: 0\.32;/);
+  });
+
   it('the motion is compositor-only, in stage units, with no bare cursor', () => {
     const blocks = [...css.matchAll(/@keyframes ([\w-]+) \{/g)].map((m) => {
       let depth = 0;
@@ -404,9 +428,9 @@ describe('what ships', () => {
       throw new Error(`unterminated @keyframes ${m[1]}`);
     });
     expect(blocks.map((b) => b[0]).sort()).toEqual([
-      'rg-close-l', 'rg-close-r', 'rg-cry-break', 'rg-cry-burst', 'rg-cry-form', 'rg-cry-glint', 'rg-cry-glow-in', 'rg-cry-glow-out',
-      'rg-cry-glow-pulse', 'rg-cry-lit-pulse', 'rg-cry-shatter', 'rg-cry-twinkle', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l', 'rg-open-r',
-      'rg-shudder',
+      'rg-close-l', 'rg-close-r', 'rg-cry-break', 'rg-cry-cool', 'rg-cry-glint', 'rg-cry-glow-in', 'rg-cry-glow-out', 'rg-cry-glow-pulse',
+      'rg-cry-grow', 'rg-cry-heat', 'rg-cry-lit-pulse', 'rg-cry-shatter', 'rg-cry-twinkle', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l',
+      'rg-open-r', 'rg-shudder',
     ]);
     for (const [name, body] of blocks) {
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]).filter((p) => p !== 'animation-timing-function');

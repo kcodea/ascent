@@ -22,8 +22,8 @@ between them (`rankedGateTiming.ts`):
 | From "Yes" | 0 ms | The doors grind in. `gateclose`. |
 | | 1500 ms | Slam: `gateslam`, recoil, flash, sparks, dust, blue embers. |
 | | 1720 ms | Behind the shut doors, `startLobby` (the swap to hero select). |
-| | 2150 ms | The centre diamond starts to form the crystal: blue motes spiral into it, a glow swells. |
-| | 3250 ms | ARMED: the crystal is whole, pulsing, shedding embers, and takes focus. |
+| | 2150 ms | The centre diamond starts to form the crystal (1.6 s; see "it coalesces" below). |
+| | 3750 ms | ARMED: the crystal is whole, pulsing, shedding embers, and takes focus. |
 | ... | | The gate sits shut for as long as the player likes. |
 | From the press | 0 ms | Shatter: `gateshatter`, shards, flash, a ring of embers. The doors shudder (`gaterattle`). |
 | | 400 ms | `gateopen` starts. |
@@ -74,6 +74,22 @@ sheen by 50%".
 - **Sheen at half speed:** the band's crossing 0.53 s -> 1.06 s; the cycle 3.8 s -> 4.4 s, so the rest between
   glints is unchanged. The star's flare stretched with it. "Slow down by 50%" was read as half the speed (twice
   as long) both times.
+
+**Then, it coalesces:** "can we have the gem almost coalesce from sparks that suck into the middle? have it glowing
+hot white as its forming. growing from the center".
+
+The forming was a glow gathering, then the crystal popping out whole with a flash. It is now, over 1.6 s (was 1.1):
+
+- **Sparks sucked in** (`gateFx.gather`): 204 streaks from all round, leaving steadily through the first three
+  quarters. Each starts slow and far out, accelerates in along a slightly curved path, stretches as it goes and is
+  gone as it arrives. 72 fine motes spiral in among them.
+- **Growing from the centre:** the gem scales from a point (0.02) to full size across the forming (`rg-cry-grow`,
+  on a new `.rgate-crystal-gem` wrapper that holds the image and everything painted on it), with a 5% overshoot
+  and settle at the end.
+- **White-hot:** `.rgate-crystal-hot`, a pure white fill in the crystal's own shape, covers the body for the first
+  two thirds, with a white bloom around it that grows with it (CSS) and a white-hot core in the FX layer on top.
+  Over the last third the white fades to show the blue, and the blue glow behind comes up to exactly where the
+  waiting pulse begins.
 
 ## Judgement calls to confirm with the owner
 

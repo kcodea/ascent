@@ -32,7 +32,8 @@ export interface RankedGateTiming {
   handoffMs: number;
   /** After the slam, how long the gate sits (the recoil settles, the dust rolls) before the crystal starts to form. */
   crystalDelayMs: number;
-  /** The centre diamond forming the crystal: the glow gathers, the crystal pushes out of it. */
+  /** The centre diamond forming the crystal: sparks are pulled into its centre and the gem grows there, white-hot,
+   *  then cools. 1100 ms at first; 1600 ms since the coalescing (2026-10-13), which needs the time to read. */
   crystalFormMs: number;
   /** The crystal's burst once it is pressed. */
   shatterMs: number;
@@ -49,7 +50,7 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
   slamShakeMs: 460,
   handoffMs: 220,
   crystalDelayMs: 650,
-  crystalFormMs: 1100,
+  crystalFormMs: 1600,
   shatterMs: 420,
   shudderMs: 700,
   openSoundLeadMs: 300,

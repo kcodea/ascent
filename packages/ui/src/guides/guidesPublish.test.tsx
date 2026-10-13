@@ -303,13 +303,14 @@ describe('deleting from the card', () => {
     await press(card(c), 'Delete for good');
     expect(useGuides.getState().mine).toEqual([]);
   });
-  it('a delete that could not reach the server says so and keeps the guide', async () => {
+  it('a delete whose answer was lost is not told as a failure: it says to check, keeps the guide and reads the guides again', async () => {
     deleteAnswer = () => ({ ok: false, code: 'offline' });
     const c = show();
     await press(card(c), 'Delete');
     await press(card(c), 'Delete for good');
-    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. The guide was not deleted.');
+    expect(card(c).querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether it was deleted.');
     expect(useGuides.getState().mine.length).toBe(1);
+    expect(reads).toBe(1);
   });
 });
 
@@ -435,10 +436,10 @@ describe('who is offered what', () => {
       expect(button(card(c), 'Duplicate')).toBeDefined();
     }
   });
-  it('the guest line names both things an account is for', async () => {
+  it('the guest line names the three things an account is for', async () => {
     const c = show({ mine: [], mineOwner: null, tab: 'team' }, 'guest');
     await press(c, 'New guide');
-    expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write and bookmark guides. It is free and takes a minute.');
+    expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write, bookmark and report guides. It is free and takes a minute.');
   });
 });
 

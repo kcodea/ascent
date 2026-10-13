@@ -72,8 +72,9 @@ describe('guideErrorMessage: a save', () => {
 
 describe('guideErrorMessage: a delete', () => {
   const del = (code: string, kept = false): string => guideErrorMessage(code, undefined, { action: 'delete', kept });
-  it('could not reach the server: the guide was not deleted', () => {
-    expect(del('offline')).toBe('Could not reach the server. The guide was not deleted.');
+  it('could not reach the server: the delete may have landed, so it says to check again, never that it was not deleted', () => {
+    expect(del('offline')).toBe('Could not reach the server. Check again in a moment to see whether it was deleted.');
+    expect(del('offline')).not.toContain('not deleted');
   });
   it('a refusal with a more exact sentence keeps it', () => {
     expect(del('not_allowed')).toBe('You cannot change this guide. Duplicate it to make your own.');

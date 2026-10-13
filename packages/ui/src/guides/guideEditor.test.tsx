@@ -1056,9 +1056,9 @@ describe('a delete that cannot go through says so in its own words', () => {
     await press(c, 'Delete for good');
     return c;
   };
-  it('offline: the guide was not deleted, and nothing is said about saving or the device', async () => {
+  it('offline: the delete may have landed, so it says to check again, and nothing is said about saving or the device', async () => {
     const c = await tryDelete({ ok: false, code: 'offline' });
-    expect(alertText(c)).toBe('Could not reach the server. The guide was not deleted.');
+    expect(alertText(c)).toBe('Could not reach the server. Check again in a moment to see whether it was deleted.');
     expect(closed).toBe(0);
     expect(useGuides.getState().mine).toHaveLength(1);
     expect(c.querySelector('.gedit-ask')).toBeNull();

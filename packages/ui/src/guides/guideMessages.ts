@@ -4,14 +4,15 @@
  *
  * A sentence says only what is true for the thing that was refused:
  *  - WHICH ACTION. A save, a delete and the team's import each have their own words. A delete that could not reach
- *    the server says the guide was not deleted; it never speaks of saving. Publishing and unpublishing are two
+ *    the server speaks of the delete; it never speaks of saving. Publishing and unpublishing are two
  *    actions: a refused unpublish never tells the player to publish.
  *  - WHETHER ANYTHING WAS KEPT. A refused save writes the author's text to this device only when there are unsaved
  *    changes. "kept on this device" is said only when the caller says something was (`kept`); not told, it is not said.
  *    Publishing and bookmarking change nothing when they are refused, and say so.
  *  - WHETHER IT IS KNOWN. A publish or an unpublish that could not reach the server may still have landed (the answer
  *    was lost, not the request). Whether the player's text is public is not something to guess at: that sentence never
- *    says nothing was changed, it says to check again.
+ *    says nothing was changed, it says to check again. A delete is the same (the author's own, and the team's): one
+ *    whose answer never came may have landed, so it never says the guide was not deleted.
  */
 import { GUIDE_LIMITS } from '@game/guides';
 
@@ -54,7 +55,8 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
   }
   if (action === 'delete') {
     switch (code) {
-      case 'offline': return `${NO_SERVER} The guide was not deleted.`;
+      // The answer was lost, not the request: the delete may have landed.
+      case 'offline': return `${NO_SERVER} Check again in a moment to see whether it was deleted.`;
       case 'sign_in_required':
       case 'unauthenticated': return SIGN_IN;
       case 'not_allowed': return NOT_ALLOWED;

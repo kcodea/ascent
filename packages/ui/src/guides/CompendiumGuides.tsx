@@ -15,7 +15,7 @@ import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameD
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
 import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, reportGuideRemote, setHiddenRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
-import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
+import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, rereadGuides, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
 
@@ -72,20 +72,24 @@ const forgetEmptyKept = (userId: string | null): void => {
  * A GUIDE IS REPORTED FROM ITS CARD. A guest who presses Report is asked to sign in before any form opens. A report
  * keeps nothing in the guides store: the card remembers that it was sent. So that one account's "Reported" is never
  * shown to the next, a card belongs to the account it was drawn for: when the account changes every card is drawn
- * anew (its key is the account), which also drops any question, sentence or half-written report it held.
+ * anew (its key is the account), which also drops any question, sentence or half-written report it held. A report
+ * that was refused keeps what was typed (the card holds it), so trying again is one press.
  *
  * THE TEAM HIDES, UNHIDES AND DELETES ANY PLAYER'S GUIDE FROM ITS CARD. After a hide or an unhide the guides are read
  * again and the Community list is asked again (`refreshKey`), because a hidden guide leaves Community and the lists
- * this account holds. A hide whose answer never came may still have landed, so the card is told to check again and
- * the same reads are made: it is never told as a failure. After a delete that worked the Community list is asked
- * again too. The read is for whoever is signed in when it is made, and the refresh is this tab's own state, so neither
- * can put one account's answer in front of another.
+ * this account holds. A hide whose answer never came, or came and could not be read, may still have landed, so the
+ * card is told to check again and the same reads are made: it is never told as a failure. A delete is the same, for
+ * the author as for the team: a lost answer says to check again and reads again, and a delete that worked asks the
+ * Community list again too. The read made after any of these is `rereadGuides`, so it never settles for a read that
+ * began before the action. The read is for whoever is signed in when it is made, and the refresh is this tab's own
+ * state, so neither can put one account's answer in front of another.
  *
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
  * a deleted one), or the sentence the player reads, which the card shows. A guide that is already gone on the server
- * when it is deleted simply leaves the list. A publish or unpublish whose answer never came may still have landed, so
- * the card is told to check again and the guides are read again: the card shows the truth once the server answers.
+ * when it is deleted simply leaves the list. A publish, unpublish or delete whose answer never came may still have
+ * landed, so the card is told to check again and the guides are read again: the card shows the truth once the server
+ * answers.
  * None of this opens the editor or touches the unsaved guide the device keeps, so the rules below are unchanged.
  *
  * Which guides show (pill, set, tribe pills, search) is decided by the caller (MinionBook). Who may do what is
@@ -107,7 +111,9 @@ const forgetEmptyKept = (userId: string | null): void => {
  *
  * WHOSE GUIDES. The My guides and Bookmarked lists and their counts are drawn only while the store holds them for the
  * account that is signed in (`ownsMine`): guides it still holds for another account are never drawn, whatever list
- * this is handed.
+ * this is handed. The team flag is read the same way (`team`): what the team alone is offered (Hide, Unhide, Delete
+ * on a player's guide, Edit on a Team Ascent guide, the import, "Team Ascent" in the editor) is drawn only while the
+ * store holds the flag for the signed-in account, never while it still holds the last account's.
  *
  * THE CAP IS SAID BEFORE THE GUIDE IS WRITTEN. A player who already owns the most guides allowed is told so when they
  * press New guide or Duplicate, instead of after writing one that cannot be saved. Edit and Resume are never stopped
@@ -148,7 +154,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The first read has not answered yet: whether guides can be written is not known. */
   const unknown = useGuides((s) => s.capability === 'unknown');
   const source = useGuides((s) => s.source);
-  const team = useGuides((s) => s.team);
+  /** The team flag as the store holds it: it belongs to `mineOwner`, like the lists (see `team` below). */
+  const teamHeld = useGuides((s) => s.team);
   const tab = useGuides((s) => s.tab);
   const mineHeld = useGuides((s) => s.mine.length);
   const mineOwner = useGuides((s) => s.mineOwner);
@@ -162,6 +169,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   /** The store holds THIS account's own guides (not nobody's, and not ones still held for another account). */
   const mineIsMine = ownsMine({ mineOwner }, userId);
   const mineCount = mineIsMine ? mineHeld : 0;
+  /** On the team, only while the store holds the flag for THIS account: never the last account's (WHOSE GUIDES). */
+  const team = teamHeld && mineIsMine;
   /** The bookmarks, only while the store holds them for THIS account. */
   const bookmarkedMine = mineIsMine ? bookmarkedHeld : NO_GUIDES;
   const bookmarkedIds = useMemo(() => new Set(bookmarkedMine.map((g) => g.rowId)), [bookmarkedMine]);
@@ -262,11 +271,17 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     sfx.pulse();
     return null;
   }, []);
-  /** Delete one of the player's guides. One that is already gone on the server simply leaves the list. */
+  /** Delete one of the player's guides, or (the team) any player's. One that is already gone on the server simply
+   *  leaves the list. (A guide with no server row is offered no Delete, so the first line is never reached.) */
   const onDelete = useCallback(async (g: Guide): Promise<string | null> => {
     if (!g.rowId) return null;
     const res = await deleteGuideRemote(g.rowId);
-    if (!res.ok && res.code !== 'not_found') return guideErrorMessage(res.code, res.field, { action: 'delete' });
+    if (!res.ok && res.code !== 'not_found') {
+      // The answer was lost, not refused: the delete may have landed. Read again, and ask the Community list again
+      // (the team deletes from there), so the lists show what is true.
+      if (res.code === 'offline') { void rereadGuides(); refresh(); }
+      return guideErrorMessage(res.code, res.field, { action: 'delete' });
+    }
     guideDeleted(g.rowId);
     refresh(); // a guide the team deleted leaves the Community list
     sfx.tick();
@@ -294,16 +309,19 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     sfx.tick();
     return null;
   }, [online]);
-  /** Team: hide or unhide a player's guide, then read the lists again (a hidden guide leaves Community). */
+  /** Team: hide or unhide a player's guide, then read the lists again (a hidden guide leaves Community). Null means
+   *  it WAS done, so a hide that could not even be asked answers a sentence, never null. The read is `rereadGuides`:
+   *  one that was already in flight began before the hide and must not be the last word. */
   const onHide = useCallback(async (g: Guide, hidden: boolean): Promise<string | null> => {
-    if (!online || !g.rowId) return null;
+    if (!online || !g.rowId) return guideErrorMessage('offline', undefined, { action: 'moderate' });
     const res = await setHiddenRemote(g.rowId, hidden);
     if (!res.ok) {
-      // The answer was lost, not refused: it may have landed. Read again, so the lists show what is true.
-      if (res.code === 'offline') { void loadGuides(); refresh(); }
+      // The answer was lost (`offline`), or it came and could not be read (`server`): either way the hide may have
+      // landed. Read again, so the lists show what is true.
+      if (res.code === 'offline' || res.code === 'server') { void rereadGuides(); refresh(); }
       return guideErrorMessage(res.code, res.field, { action: 'moderate' });
     }
-    void loadGuides();
+    void rereadGuides();
     refresh();
     sfx.tick();
     return null;
@@ -348,7 +366,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     if (rowId === null || editorOpen) return;
     const s = useGuides.getState();
     const g = [...s.mine, ...s.list].find((x) => x.rowId === rowId);
-    if (!g || !online || !signedIn || !canEditGuide(g, userId, s.team)) return;
+    if (!g || !online || !signedIn || !canEditGuide(g, userId, s.team && ownsMine(s, userId))) return;
     if (waiting) { raise('resume'); return; }
     openEditor(draftFromGuide(g));
   }, [pending, editorOpen, online, signedIn, userId, waiting, raise, openEditor]);
@@ -472,7 +490,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
         {capAsked && <p className="gtool-note gtool-cap" role="status" tabIndex={-1} ref={capRef}>{guideErrorMessage('too_many_guides')}</p>}
         {signInAsked && (
           <p className="gtool-note gtool-signin" role="status" tabIndex={-1} ref={signInRef}>
-            <span>{canSignIn ? 'Sign in to write and bookmark guides. It is free and takes a minute.' : 'Sign in to write and bookmark guides. Accounts cannot be reached right now.'}</span>
+            <span>{canSignIn ? 'Sign in to write, bookmark and report guides. It is free and takes a minute.' : 'Sign in to write, bookmark and report guides. Accounts cannot be reached right now.'}</span>
             {canSignIn && <button type="button" className="gbtn gbtn-primary" ref={createRef} onClick={createAccount}>Create account</button>}
           </p>
         )}

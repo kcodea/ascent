@@ -268,7 +268,7 @@ describe('the Community list', () => {
     await settle();
     await press(card(c, 'a'), 'Bookmark');
     expect(bookmarks).toEqual([]);
-    expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write and bookmark guides.');
+    expect(c.querySelector('.gtool-signin')!.textContent).toContain('Sign in to write, bookmark and report guides.');
   });
   it('while a bookmark is on its way the button cannot be pressed again, and focus comes back to it once it is answered', async () => {
     let answer!: () => void;

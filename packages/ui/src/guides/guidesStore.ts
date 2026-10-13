@@ -32,9 +32,15 @@
  * changes. So that a missed call can never show one account's private guides to another, the rail's snapshot and the
  * Compendium's My guides draw `mine` only while `mineOwner` is the signed-in account's user id, and `guideSaved`
  * keeps a player's guide only when its author is the account at the keyboard (a save can land after its author left).
+ * `team` and `bookmarked` belong to `mineOwner` in the same way, so nothing may make an account the owner while they
+ * still hold the last account's: when `guideSaved` or `guideBookmarked` files something for an account that did not
+ * already hold the lists, the guides, the bookmarks and the team flag held for the last account all go. A screen that
+ * draws team-only buttons reads `team` only while `mineOwner` is the signed-in account, as it reads `mine`.
  *
  * A READ NEVER UNDOES A LOCAL CHANGE. `guideSaved`, `guideBookmarked` and `guideDeleted` bump a counter; a read that was already in
  * flight when one landed applies only `capability` and asks for one fresh read, so a stale answer cannot overwrite it.
+ * `rereadGuides` bumps the same counter for a change the store was not told the result of (the team hid a guide), so
+ * the read it asks for never settles for one that began before the change.
  *
  * THE RAIL DOES NOT SUBSCRIBE to `list` or `mine`. It reads them when its Guides view opens (LobbyPanel), so a
  * refresh that lands while the player is reading never moves a card under them. The Compendium does subscribe.
@@ -169,6 +175,17 @@ export function loadGuides(): Promise<void> {
   return loading;
 }
 
+/**
+ * Read again after this account changed guides on the server in a way the store was not told (the team hid, unhid or
+ * deleted one, or the answer to such a change was lost). A read that is already in flight began BEFORE the change, so
+ * its answer may be the old state: it is marked stale, as a local save marks it, and one fresh read follows it. With
+ * no read in flight this is one ordinary read.
+ */
+export function rereadGuides(): Promise<void> {
+  localChanges++;
+  return loadGuides();
+}
+
 export function setGuidesTab(tab: GuidesTab): void {
   useGuides.setState({ tab });
 }
@@ -202,7 +219,10 @@ export function guideSaved(g: Guide): void {
     if (!id || id.anonymous || g.authorId !== id.userId) return;
     localChanges++;
     const s = useGuides.getState();
-    useGuides.setState({ mine: upsert(s.mineOwner === id.userId ? s.mine : NO_GUIDES, g), mineOwner: id.userId });
+    // The lists were not this account's (a missed read after an account change): nothing personal that was held for
+    // the last account is handed over with `mineOwner`. Its guides, its bookmarks and its team flag all go.
+    if (s.mineOwner !== id.userId) useGuides.setState({ mine: [g], bookmarked: NO_GUIDES, team: false, mineOwner: id.userId });
+    else useGuides.setState({ mine: upsert(s.mine, g) });
     return;
   }
   localChanges++;
@@ -233,6 +253,8 @@ export function guideBookmarked(g: Guide, on: boolean, count: number, forUserId:
   useGuides.setState({
     bookmarked: on ? [{ ...g, bookmarkCount: count }, ...rest] : rest,
     mine: mineIsTheirs ? s.mine : NO_GUIDES,
+    // The team flag belongs to `mineOwner` too: it is never handed to an account it was not read for.
+    team: mineIsTheirs ? s.team : false,
     mineOwner: id.userId,
   });
 }

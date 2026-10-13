@@ -26,7 +26,7 @@ let identity: { userId: string; anonymous: boolean } | null = null;
 vi.mock('../identity', () => ({ currentIdentity: () => identity }));
 
 const { GUIDES } = await import('./guides');
-const { guideBookmarked, guideDeleted, guideSaved, loadGuides, requestGuideEdit, resetGuidesForTests, setGuidesTab, takePendingEdit, useGuides } = await import('./guidesStore');
+const { guideBookmarked, guideDeleted, guideSaved, loadGuides, requestGuideEdit, rereadGuides, resetGuidesForTests, setGuidesTab, takePendingEdit, useGuides } = await import('./guidesStore');
 
 const rec = (id: string, patch: Partial<GuideRecord> = {}): GuideRecord => ({
   id, slug: null, authorId: null, byline: 'Team Ascent', official: true, published: true, publishedAt: null, hidden: false, sets: ['set2'], tribes: ['beast'],
@@ -320,6 +320,25 @@ describe('after a save or a delete, without a re-read', () => {
     expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['b1']);
     expect(useGuides.getState().mineOwner).toBe('u-2');
   });
+  it("a save by an account that did not hold the lists never keeps the last account's team flag or bookmarks", () => {
+    // A missed re-read: the store still holds a team account's flag, guides and bookmarks when the next account saves.
+    useGuides.setState({ team: true, mine: [own('a1', 'u-1')], bookmarked: [g({ id: 'bm1', rowId: 'bm1', official: false, authorId: 'u-9' })], mineOwner: 'u-1' });
+    identity = { userId: 'u-2', anonymous: false };
+    guideSaved(own('b1', 'u-2'));
+    expect(useGuides.getState().mineOwner).toBe('u-2');
+    expect(useGuides.getState().team).toBe(false);
+    expect(useGuides.getState().bookmarked).toEqual([]);
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['b1']);
+  });
+  it('a save by the account that already holds the lists keeps its team flag and its bookmarks', () => {
+    const marked = [g({ id: 'bm1', rowId: 'bm1', official: false, authorId: 'u-9' })];
+    useGuides.setState({ team: true, mine: [own('a1', 'u-1')], bookmarked: marked, mineOwner: 'u-1' });
+    identity = { userId: 'u-1', anonymous: false };
+    guideSaved(own('a2', 'u-1'));
+    expect(useGuides.getState().team).toBe(true);
+    expect(useGuides.getState().bookmarked).toBe(marked);
+    expect(useGuides.getState().mine.map((x) => x.rowId)).toEqual(['a1', 'a2']);
+  });
   it('a save that is not kept does not make a read in flight throw its answer away', async () => {
     identity = { userId: 'u-2', anonymous: false };
     let releaseMine: (g: GuideRecord[] | undefined) => void = () => {};
@@ -352,6 +371,33 @@ describe('after a save or a delete, without a re-read', () => {
     await vi.waitFor(() => expect(asked.filter((a) => a === 'mine:u-1')).toHaveLength(2));
     await vi.waitFor(() => expect(useGuides.getState().mine.map((x) => x.id)).toEqual(['r9']));
     expect(sawEmpty).toBe(false);
+  });
+  it('a read asked for after a change made elsewhere never settles for a read that began before it', async () => {
+    // The team hid a guide: the server now says hidden. A read was already in flight and will answer the old state.
+    identity = { userId: 'u-1', anonymous: false };
+    const row = (hidden: boolean): GuideRecord => rec('r9', { official: false, published: true, authorId: 'u-1', byline: 'Mike', hidden });
+    let releaseMine: (g: GuideRecord[] | undefined) => void = () => {};
+    mineHold = new Promise((r) => { releaseMine = r; });
+    const p = loadGuides();
+    while (!asked.includes('mine:u-1')) await Promise.resolve();
+    mineAnswer = [row(true)]; // what a read made now finds
+    const again = rereadGuides();
+    expect(again).toBe(p); // it joins the read in flight, and marks that read's answer as stale
+    let sawOld = false;
+    useGuides.subscribe((s) => { if (s.mine.some((x) => !x.hidden)) sawOld = true; });
+    releaseMine([row(false)]); // the read that began before the hide answers the old state
+    await p;
+    await vi.waitFor(() => expect(asked.filter((a) => a === 'mine:u-1')).toHaveLength(2));
+    await vi.waitFor(() => expect(useGuides.getState().mine.map((x) => [x.rowId, x.hidden])).toEqual([['r9', true]]));
+    expect(sawOld).toBe(false);
+  });
+  it('with no read in flight, a read asked for after a change is one read', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    mineAnswer = [rec('r9', { official: false, authorId: 'u-1', byline: 'Mike', hidden: true })];
+    await rereadGuides();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(asked.filter((a) => a === 'mine:u-1')).toHaveLength(1);
+    expect(useGuides.getState().mine.map((x) => x.hidden)).toEqual([true]);
   });
   it('a deleted guide leaves both lists', async () => {
     await loadGuides();
@@ -520,6 +566,22 @@ describe('bookmarks', () => {
     expect(useGuides.getState().mine).toEqual([]);
     expect(useGuides.getState().mineOwner).toBe('u-1');
     expect(useGuides.getState().bookmarked.map((x) => x.rowId)).toEqual(['bm7']);
+  });
+  it("filing a bookmark for an account that did not hold the lists never keeps the last account's team flag", async () => {
+    identity = { userId: 'u-2', anonymous: false };
+    teamAnswer = true;
+    await loadGuides();
+    expect(useGuides.getState()).toMatchObject({ team: true, mineOwner: 'u-2' });
+    identity = { userId: 'u-1', anonymous: false }; // switched, loadGuides not yet called
+    guideBookmarked(bm('bm7'), true, 1, 'u-1');
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+    expect(useGuides.getState().team).toBe(false);
+    // The account the flag was read for keeps it across its own bookmarks.
+    resetGuidesForTests();
+    identity = { userId: 'u-2', anonymous: false };
+    await loadGuides();
+    guideBookmarked(bm('bm8'), true, 1, 'u-2');
+    expect(useGuides.getState()).toMatchObject({ team: true, mineOwner: 'u-2' });
   });
   it('guideBookmarked puts the guide first with its new count, and takes it out again', async () => {
     identity = { userId: 'u-1', anonymous: false };

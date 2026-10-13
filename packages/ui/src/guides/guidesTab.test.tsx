@@ -64,6 +64,8 @@ const { currentIdentity, setIdentity } = await import('../identity');
 const prevIdentity = currentIdentity();
 
 const ROW = '11111111-1111-4111-8111-111111111111';
+/** What the import says when it took every built-in guide: however many the game ships with. */
+const IMPORTED_ALL = `Imported ${GUIDES.length} guide${GUIDES.length === 1 ? '' : 's'}.`;
 const serverList = GUIDES.map((g, i) => ({ ...g, rowId: `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`, revision: 1 }));
 const mineGuide = { ...GUIDES[0]!, id: ROW, rowId: ROW, official: false, published: false, authorId: 'u-1', byline: 'Mike', title: 'My Sunmane', revision: 1 };
 
@@ -202,17 +204,17 @@ describe('starting to write', () => {
     const c = as('guest');
     await press(c, 'New guide');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
+    expect(c.textContent).toContain('Sign in to write, bookmark and report guides.');
     await press(c, 'Create account');
     expect(useGame.getState().accountPanelOpen).toBe(true);
     expect(useGame.getState().showBook).toBe(false);
   });
   it('a guest who presses Duplicate is asked to sign in; no editor opens', async () => {
     const c = as('guest');
-    expect(c.textContent).not.toContain('Sign in to write and bookmark guides.');
+    expect(c.textContent).not.toContain('Sign in to write, bookmark and report guides.');
     await press(card(c, serverList[0]!.id), 'Duplicate');
     expect(c.querySelector('.gedit')).toBeNull();
-    expect(c.textContent).toContain('Sign in to write and bookmark guides.');
+    expect(c.textContent).toContain('Sign in to write, bookmark and report guides.');
   });
   it('when guides are not available, New guide and Duplicate are disabled and the tab says why', () => {
     for (const capability of ['unknown', 'off', 'offline', 'no-backend'] as const) {
@@ -539,7 +541,7 @@ describe('one unsaved guide at a time', () => {
 });
 
 describe('the team-only import', () => {
-  it('is offered only to the team, only while the built-in copies are showing, and sends the eleven guides', async () => {
+  it('is offered only to the team, only while the built-in copies are showing, and sends every built-in guide', async () => {
     expect(button(as('player', { source: 'bundled', list: GUIDES }), 'Import built-in guides')).toBeUndefined();
     ui!.unmount();
     expect(button(as('team'), 'Import built-in guides')).toBeUndefined(); // the server already has guides
@@ -549,13 +551,13 @@ describe('the team-only import', () => {
     expect(imports).toHaveLength(1);
     expect(imports[0]!.map((g) => g.slug)).toEqual(GUIDES.map((g) => g.id));
     expect(officialCalls).toBeGreaterThan(0); // it re-reads afterwards
-    expect(c.textContent).toContain('Imported 11 guides.');
+    expect(c.textContent).toContain(IMPORTED_ALL);
   });
   it('a successful import is said quietly, not as an alert', async () => {
     const c = as('team', { source: 'bundled', list: GUIDES });
     await press(c, 'Import built-in guides');
     expect(c.querySelector('[role="alert"]')).toBeNull();
-    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === 'Imported 11 guides.')).toBe(true);
+    expect([...c.querySelectorAll('[role="status"]')].some((n) => n.textContent === IMPORTED_ALL)).toBe(true);
   });
   it('a refused import is announced, and the button can be pressed again', async () => {
     importAnswer = () => ({ ok: false, code: 'not_allowed' });
@@ -632,7 +634,7 @@ describe('what a screen reader is told', () => {
     expect(said(c, 'Something went wrong importing the guides. Nothing was imported.')).toBe(first); // another error: the same alert, new words
     importAnswer = null;
     await press(c, 'Import built-in guides');
-    const status = said(c, 'Imported 11 guides.')!;
+    const status = said(c, IMPORTED_ALL)!;
     expect(status.getAttribute('role')).toBe('status');
     expect(status).not.toBe(first);
     expect(c.querySelector('.gtool-note[role="alert"]')).toBeNull();

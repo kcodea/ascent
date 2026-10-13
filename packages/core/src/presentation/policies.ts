@@ -90,6 +90,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantSpell:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:endOfTurnCastSpellOnSelf:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Arnold -> Beefy
   'factory:battlecryGrantSpell:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Fel Conjurer: turn opens with a Quick Study
+  'factory:battlecryGrantSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Gemling -> Ruby Transfer (2026-10-13; the row it held until 2026-10-10)
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpellPowerRun:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Drunk Daniel (2026-10-10)
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },

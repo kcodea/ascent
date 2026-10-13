@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, RUBY_TYPE_IDS, type BoardMinion } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, endOfTurnTicksOf, eotTickCount, projectEndOfTurnSteps } from './recruit';
+import { applyEndOfTurn, endOfTurnTicksOf, eotTickCount } from './recruit';
 
 /**
  * THE OWNER'S KOBOLD / RUBY BALANCE BATCH (2026-10-10) — each change through the real reducer / End-of-Turn /
@@ -19,26 +19,20 @@ const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): Board
 const run = (over: Partial<RunState> = {}): RunState =>
   ({ ...createRun(1), setId: 'set2', phase: 'recruit', embers: 20, tier: 6, hand: [], board: [], shop: [], ...over } as RunState);
 const act = (s: RunState, a: Action): RunState => reduce(s, a);
-const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const rubyBuff = (c: { buffs?: { source: string; attack: number; health: number; count?: number }[] } | undefined) =>
   c?.buffs?.filter((b) => b.source === 'Ruby').reduce((n, b) => ({ attack: n.attack + b.attack, health: n.health + b.health }), { attack: 0, health: 0 });
 const rubiesInHand = (s: RunState): BoardCard[] => s.hand.filter((c) => !!CARD_INDEX[c.cardId]?.ruby);
 const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
-describe('Veinstorm: "Cast a Ruby on your minions and the shop"', () => {
-  it('plays one Ruby on every friendly minion AND gems the Shop (the Shop half unchanged)', () => {
-    const s0 = run({ board: [body('a', 'sandbag'), body('b', 'stray')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [spell('vs', 'veinstorm')] });
-    const s = act(s0, { type: 'play', uid: 'vs' });
-    expect(rubyBuff(at(s, 'a'))).toEqual({ attack: 1, health: 1 });
-    expect(rubyBuff(at(s, 'b'))).toEqual({ attack: 1, health: 1 });
-    expect(rubyBuff(s.shop.find((o) => o.uid === 'o1'))).toEqual({ attack: 1, health: 1 });
-    expect(s.veinstormRubies, 'the Shop bank still grows').toEqual({ atk: 1, hp: 1 });
-  });
-  it('the minion Ruby carries the run Ruby strength, the same value the Shop half lands', () => {
+// Veinstorm's "on your minions AND the Shop" half (this batch) was REMOVED on 2026-10-13: it gems the Shop only again.
+// Its tests, Storm Chaser's minion-half pins and Gemling's cast counts moved to `koboldBalance1013.test.ts`. What
+// stays here is what is still true: the Shop half, and Storm Chaser's combat cast banking that half for settle.
+describe('Veinstorm: the Shop half', () => {
+  it('gems the Shop and banks it, at the run Ruby strength', () => {
     const s0 = run({ rubyBonus: { attack: 2, health: 1 }, board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [spell('vs', 'veinstorm')] });
     const s = act(s0, { type: 'play', uid: 'vs' });
-    expect(rubyBuff(at(s, 'a'))).toEqual({ attack: 3, health: 2 });
     expect(rubyBuff(s.shop.find((o) => o.uid === 'o1'))).toEqual({ attack: 3, health: 2 });
+    expect(s.veinstormRubies, 'the Shop bank grows').toEqual({ atk: 3, hp: 2 });
   });
 });
 
@@ -51,13 +45,12 @@ describe('Facetwright: both options are +2', () => {
 });
 
 describe('Storm Chaser: "Shout: Cast Veinstorm"', () => {
-  it('playing it casts Veinstorm (board + Shop Rubies), no Veinstorm in hand; Gilded casts twice', () => {
+  it('playing it casts Veinstorm (the Shop is gemmed), no Veinstorm in hand; Gilded casts twice', () => {
     for (const golden of [false, true]) {
       const s0 = run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', 'k_stormchaser', { golden })] });
       const s = act(s0, { type: 'play', uid: 'sc' });
       const casts = golden ? 2 : 1;
       expect(s.hand.some((c) => c.cardId === 'veinstorm')).toBe(false);
-      expect(rubyBuff(at(s, 'a'))).toEqual({ attack: casts, health: casts });
       expect(s.veinstormRubies).toEqual({ atk: casts, hp: casts });
     }
   });
@@ -68,30 +61,17 @@ describe('Storm Chaser in combat: "Split (real time)" (owner ruling 2026-10-10)'
   const refire = (golden: boolean, side = combatSide({ tier: 6 })) => simulate(
     [{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: 'k_stormchaser', attack: 0, health: 100, golden, sourceUid: 'SC' } as BoardMinion],
     [{ cardId: 'omen', attack: 50, health: 2000 } as BoardMinion], makeRng(1), CARD_INDEX, side, combatSide({ tier: 1 }));
-  const rubyBuffs = (r: ReturnType<typeof refire>) =>
-    r.events.filter((e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && (e as { ruby?: boolean }).ruby === true);
 
-  it('the minion half lands INSTANTLY in combat (a live Ruby on the living minions); nothing defers as a Shout', () => {
+  it('the cast is live in combat (its own line / beat) and banks ONE Shop half; nothing defers as a Shout', () => {
     const r = refire(false);
     expect(r.playerDeferredBattlecries ?? [], 'no longer a Shop-only Shout').toEqual([]);
-    const sc = r.initial.player.find((m) => m.cardId === 'k_stormchaser')!.uid;
-    const live = rubyBuffs(r);
-    expect(live.some((e) => (e as { target: string }).target === sc), 'Storm Chaser itself gets the Ruby').toBe(true);
-    for (const e of live) expect([(e as { attack: number }).attack, (e as { health: number }).health]).toEqual([1, 1]);
     expect(r.events.some((e) => e.type === 'sc' && /casts Veinstorm/.test((e as { text: string }).text)), 'the cast has its own line / beat').toBe(true);
     expect(r.playerShoutCarry?.shopSpellHalves, 'ONE Shop half banked for settle').toEqual(['veinstorm']);
   });
 
-  it('Gilded casts twice: two live Rubies and two banked Shop halves', () => {
+  it('Gilded casts twice: two banked Shop halves', () => {
     const r = refire(true);
     expect(r.playerShoutCarry?.shopSpellHalves).toEqual(['veinstorm', 'veinstorm']);
-  });
-
-  it('spell power folds the same way as the Shop half (1 + Ruby strength + spell power)', () => {
-    const r = refire(false, combatSide({ tier: 6, spellPowerAtk: 2, spellPowerHp: 1, rubyBonus: { attack: 1, health: 0 } }));
-    const live = rubyBuffs(r);
-    expect(live.length).toBeGreaterThan(0);
-    for (const e of live) expect([(e as { attack: number }).attack, (e as { health: number }).health]).toEqual([4, 2]);
   });
 
   it('settle applies the Shop half ONCE per cast; the run board gets no second Ruby', () => {
@@ -102,37 +82,25 @@ describe('Storm Chaser in combat: "Split (real time)" (owner ruling 2026-10-10)'
     expect(rubyBuff(s.board.find((c) => c.uid === 'SC')) ?? { attack: 0, health: 0 }, 'combat Rubies are temporary; settle adds none to the board').toEqual({ attack: 0, health: 0 });
   });
 
-  it('in the Shop nothing changed: a played Storm Chaser still casts the whole Veinstorm at once', () => {
-    const s = act(run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', 'k_stormchaser')] }), { type: 'play', uid: 'sc' });
-    expect(rubyBuff(at(s, 'a'))).toEqual({ attack: 1, health: 1 });
-    expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
-  });
-
-  it('Shrieker (End of Turn: trigger Shouts) runs in the Shop: its Storm Chaser re-fire casts the whole Veinstorm', () => {
+  it('Shrieker (End of Turn: trigger Shouts) runs in the Shop: its Storm Chaser re-fire casts Veinstorm', () => {
     const s = run({ board: [body('sh', 'd2_shrieker'), body('sc', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
     applyEndOfTurn(s);
     expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
-    expect(rubyBuff(at(s, 'sh'))).toEqual({ attack: 1, health: 1 });
   });
 });
 
-describe('Gemling: "End of Turn: Cast Veinstorm 2 times" (Gilded 4), one beat per cast', () => {
-  it('ticks: 2 plain, 4 gilded', () => {
-    const eff = CARD_INDEX['k_gemline']!.effects[0]!;
+describe('Gemling: the `times` End-of-Turn cast is one tick per cast, and gilding doubles the ticks', () => {
+  // The card itself is "cast once and get a Ruby Transfer" since 2026-10-13 (koboldBalance1013.test.ts); this pins
+  // the `castSpell { times }` tick contract the 10-10 batch introduced, which Gemling still rides.
+  it('ticks: `times` plain, double gilded', () => {
     const s = run();
-    expect(eotTickCount(s, eff)).toBe(2);
-    expect(eotTickCount(s, eff, true)).toBe(4);
-    expect(endOfTurnTicksOf(s, body('g', 'k_gemline'))).toBe(2);
-    expect(endOfTurnTicksOf(s, body('g', 'k_gemline', { golden: true }))).toBe(4);
-  });
-  it.each([[false, 2], [true, 4]] as const)('golden=%s casts Veinstorm %i times at End of Turn, one projected step per cast', (golden, casts) => {
-    const s = run({ board: [body('g', 'k_gemline', { golden })], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
-    const { steps } = projectEndOfTurnSteps(s);
-    expect(steps.length).toBe(casts);
-    applyEndOfTurn(s);
-    expect(s.veinstormRubies).toEqual({ atk: casts, hp: casts });
-    // Each cast also lands a Ruby on the Gemling itself (Veinstorm's minion half).
-    expect(rubyBuff(at(s, 'g'))).toEqual({ attack: casts, health: casts });
+    for (const times of [1, 3]) {
+      const eff = { do: 'castSpell', params: { spellId: 'veinstorm', times } };
+      expect(eotTickCount(s, eff)).toBe(times);
+      expect(eotTickCount(s, eff, true)).toBe(times * 2);
+    }
+    expect(endOfTurnTicksOf(s, body('g', 'k_gemline'))).toBe(1);
+    expect(endOfTurnTicksOf(s, body('g', 'k_gemline', { golden: true }))).toBe(2);
   });
 });
 

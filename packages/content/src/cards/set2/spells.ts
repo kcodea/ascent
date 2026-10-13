@@ -74,8 +74,12 @@ export const SET2_SPELLS: CardDef[] = [
     // Owner balance 2026-10-10: "Cast a Ruby on your minions and the shop." The Shop half is unchanged; `minions`
     // ALSO casts that same Ruby on every friendly minion first (the `spellPlayRubiesAll` landing, inside the one
     // factory so both halves share one value, spell power folded per the 2026-08-26 ruling).
-    effects: [{ on: 'cast', do: 'spellBuffShopByRuby', params: { minions: true } }],
-    text: 'Cast a **Ruby** (**+1/+1**) on your minions and the Shop. The Shop keeps its Rubies **permanently**.',
+    // Owner balance 2026-10-13 ("the veinstorm effect should only cast on shop, not friendly minions"): the
+    // `minions` param is OFF again and the text is back to its pre-10-10 wording. The factory still honours
+    // `minions: true` (and the combat split in `battlecryCastNamedSpell` reads it), so the minion half is a
+    // one-param switch if it ever returns; nothing in the pool passes it today.
+    effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
+    text: 'Your Shop minions **permanently** get stats equal to your Rubies (**+1/+1**), as **Rubies**.',
   },
   {
     // Ruby Transfer (owner add 2026-08-06) — consolidate a row's Rubies onto one body. `target: 'any'` so it

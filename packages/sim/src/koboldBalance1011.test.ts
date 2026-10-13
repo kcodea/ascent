@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { applyEndOfTurn, endOfTurnTicksOf, projectEndOfTurnSteps } from './recruit';
+import { applyEndOfTurn } from './recruit';
 
 /**
  * THE OWNER'S KOBOLD NERF BATCH (2026-10-11, "kobolds are overtuned") through the real reducer / End-of-Turn
@@ -52,20 +52,8 @@ describe('Ruby strength gains come down', () => {
   });
 });
 
-describe('Gemling: "End of Turn: Cast Veinstorm 2 times" (Gilded 4), one beat per cast', () => {
-  it.each([[false, 2], [true, 4]] as const)('golden=%s casts Veinstorm %i times', (golden, casts) => {
-    const s = run({ board: [body('g', 'k_gemline', { golden })], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
-    expect(endOfTurnTicksOf(s, at(s, 'g'))).toBe(casts);
-    expect(projectEndOfTurnSteps(s).steps.length).toBe(casts);
-    applyEndOfTurn(s);
-    expect(s.veinstormRubies).toEqual({ atk: casts, hp: casts });
-    expect(rubyBuff(at(s, 'g'))).toEqual({ attack: casts, health: casts });
-  });
-  it('the printed count matches', () => {
-    const d = CARD_INDEX['k_gemline']!;
-    expect([d.text, d.goldenText]).toEqual(['**End of Turn:** Cast **Veinstorm** 2 times.', '**End of Turn:** Cast **Veinstorm** 4 times.']);
-  });
-});
+// Gemling's "2 casts" from this batch became "cast once and get a Ruby Transfer" on 2026-10-13: see
+// koboldBalance1013.test.ts.
 
 describe('Assembler: "End of Turn: Cast 2 Rubies on your other Kobolds"', () => {
   const board = (golden = false): BoardCard[] => [

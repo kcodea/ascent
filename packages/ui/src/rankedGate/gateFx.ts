@@ -25,8 +25,9 @@
  * seam flash is that much bigger. The doors' own motion (travel, recoil, shudder) lives in rankedGate.css and is
  * untouched by it. The embers were then trebled (owner 2026-10-13: "amplify the blue particles by 200% ... a major
  * part of the sparks that emit"). Worst case is the forming: about 1,970 sprites are created for it at once, most
- * of them invisible (waiting on their delay) at any moment, all gone within its 1.8 s. Every burst is a one-shot; the one thing that runs on is the ambient trickle, a dozen
- * embers a second for as long as the player leaves the crystal unpressed.
+ * of them invisible (waiting on their delay) at any moment, all gone within its 1.8 s. Every burst is a one-shot;
+ * the one thing that runs on is the ambient trickle, twenty embers a second (about sixty alive at once) for as long
+ * as the player leaves the crystal unpressed.
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { stageHost } from '../stage';
@@ -54,7 +55,12 @@ const amount = (count: number): number => Math.round(count * FX_AMOUNT);
  *  particles by 200%"). */
 const EMBERS_AT_SLAM = 210;
 /** Embers a second the waiting crystal sheds. */
-const AMBIENT_PER_SECOND = 12;
+const AMBIENT_PER_SECOND = 20;
+/** The waiting crystal's embers against an ordinary one: how bright, and how long-lived. 12 a second at first; then
+ *  more of them, 20% more glow and 20% more life (owner 2026-10-13: "increase the amount of floating particles when
+ *  the gem is waiting ... increase their glow by 20% ... increase their life by 20%"). */
+const AMBIENT_GLOW = 1.2;
+const AMBIENT_LIFE = 1.2;
 const pick = <T,>(a: readonly T[]): T => a[(Math.random() * a.length) | 0]!;
 
 interface Particle {
@@ -184,7 +190,7 @@ class GateFxController {
         this.ambientOwed -= 1;
         const c = this.ambientAt;
         const k = c.size / CRYSTAL_REF_SIZE;
-        this.ember(c.x + (Math.random() - 0.5) * c.size * 0.5, c.y + (Math.random() - 0.3) * c.size * 0.6, k, 0, { kick: 0.35, rise: 0.7 });
+        this.ember(c.x + (Math.random() - 0.5) * c.size * 0.5, c.y + (Math.random() - 0.3) * c.size * 0.6, k, 0, { kick: 0.35, rise: 0.7, glow: AMBIENT_GLOW, life: AMBIENT_LIFE });
       }
     }
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -275,7 +281,7 @@ class GateFxController {
   }
 
   /** One ember: it lifts off with a small sideways kick, then floats up, swaying wider and flickering as it dies. */
-  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number } = {}): void {
+  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number; glow?: number; life?: number } = {}): void {
     const drag = o.drag ?? 1; // how hard the air takes the throw back: lower = it carries further
     const rise = (70 + Math.random() * 190) * k * (o.rise ?? 1); // px/s upward
     // The kick off the impact (a random sideways one, or the shatter's own throw); the air takes it back.
@@ -287,8 +293,12 @@ class GateFxController {
     const swayPhase = Math.random() * Math.PI * 2;
     const flickHz = 0.012 + Math.random() * 0.02;
     const flickPhase = Math.random() * Math.PI * 2;
-    const life = 1300 + Math.random() * 1700;
-    const size = 0.16 + Math.random() * 0.3;
+    const life = (1300 + Math.random() * 1700) * (o.life ?? 1);
+    // `glow` is how much light it gives off: it is that much brighter (as far as full brightness allows) and its
+    // glow covers that much more AREA (so its width grows by the square root), which holds even where it was
+    // already at full brightness.
+    const glow = o.glow ?? 1;
+    const size = (0.16 + Math.random() * 0.3) * Math.sqrt(glow);
     this.spawn(this.glowTex!, x, y, pick(EMBER_TINTS), delay + life, true, (p, dt) => {
       if (p.age < delay) return;
       const s = dt / 1000;
@@ -299,7 +309,7 @@ class GateFxController {
       bx += vx * s;
       p.sp.y += (vy - rise * (1 - t * 0.35)) * s; // it slows a little as it cools
       p.sp.x = bx + Math.sin(age * swayHz + swayPhase) * swayAmp * t;
-      p.sp.alpha = Math.min(1, t * 8) * Math.pow(1 - t, 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase));
+      p.sp.alpha = Math.min(1, glow * Math.min(1, t * 8) * Math.pow(1 - t, 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase)));
       p.sp.scale.set(size * k * (1 - t * 0.55));
     });
   }

@@ -9138,8 +9138,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 1,
+            "health": 1
           }
         }
       }
@@ -16884,20 +16884,31 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "times": 2
+            "times": 1
           }
         },
         "refs": [
           "veinstorm"
         ]
+      },
+      {
+        "kind": "battlecryGrantSpell",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1
+          }
+        },
+        "refs": [
+          "rubytransfer"
+        ]
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -16959,6 +16970,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
+        "avengePlayRubies.permanent",
         "avengePlayRubies.tribe"
       ]
     },
@@ -41870,10 +41882,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
-      "unparsed": [
-        "spellBuffShopByRuby.minions"
-      ]
+      "confidence": "low"
     },
     "setIds": [
       "set2",

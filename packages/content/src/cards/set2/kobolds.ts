@@ -37,8 +37,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
   {
-    // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
-    // carried back to the run board). `rubies` is per-minion (matching Crownvein's "a Ruby on 2 minions").
+    // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your Kobolds gets 3 Rubies, PERMANENT (carried
+    // back to the run board) since 2026-10-13. `rubies` is per-minion.
     id: 'k_gemstorm',
     name: 'Party Crasher', // was 'Gemstorm Instigator', then 'Gemstorm Mage' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
@@ -47,9 +47,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 10,
     keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
     // Owner balance 2026-08-18: now Kobolds-only. Owner balance 2026-09-23: 2 Rubies → 3 (gilded 6).
-    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 3, tribe: 'kobold' } }],
-    text: '**Avenge (2):** Cast **3 Rubies** on your **Kobolds**.',
-    goldenText: '**Avenge (2):** Cast **6 Rubies** on your **Kobolds**.',
+    // Owner balance 2026-10-13 ("party crasher should apply permanent gems"): `permanent` rides `playRubyOn`'s
+    // carry-back channel, the flag Boulderdash uses. Without it the header comment's "permanent" had been untrue
+    // since combat Rubies became temporary (owner ruling 2026-07-31): these Rubies ended with the fight.
+    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 3, tribe: 'kobold', permanent: true } }],
+    text: '**Avenge (2):** Cast **3 permanent Rubies** on your **Kobolds**.',
+    goldenText: '**Avenge (2):** Cast **6 permanent Rubies** on your **Kobolds**.',
   },
   {
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
@@ -68,9 +71,15 @@ export const SET2_KOBOLDS: CardDef[] = [
     // `castSpell` factory with `times`: every cast is a full Shop-spell cast AND its own End-of-Turn tick (one
     // beat per cast). Gilded doubles the TICKS (6 casts, 6 beats), since the owner asked for a beat per cast.
     // Owner balance 2026-10-11 ("kobolds are overtuned"): 3 casts -> 2 (Gilded 6 -> 4).
-    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'veinstorm', times: 2 } }],
-    text: '**End of Turn:** Cast **Veinstorm** 2 times.',
-    goldenText: '**End of Turn:** Cast **Veinstorm** 4 times.',
+    // Owner balance 2026-10-13 ("gemling should cast veinstorm once and get a ruby transfer spell"): ONE cast (`times`
+    // stays, so a Gilded Gemling's two casts are still one beat each), then a Ruby Transfer to hand through the
+    // trigger-agnostic `battlecryGrantSpell` this card used before 2026-10-10. Gilded: 2 casts, 2 Ruby Transfers.
+    effects: [
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'veinstorm', times: 1 } },
+      { on: 'endOfTurn', do: 'battlecryGrantSpell', params: { spellId: 'rubytransfer', count: 1 } },
+    ],
+    text: '**End of Turn:** Cast **Veinstorm** and get a **Ruby Transfer**.',
+    goldenText: '**End of Turn:** Cast **Veinstorm** twice and get **2 Ruby Transfers**.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,

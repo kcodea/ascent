@@ -211,32 +211,39 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(css).not.toMatch(/\.rankedconfirm[^{]*\{[^}]*cursor:\s*pointer/);
   });
 
-  it('"Yes, let\'s go." plays none of the gate\'s cues itself (the cinematic hit moved to the crystal\'s shatter)', () => {
-    // Owner 2026-10-13: "move the 'ding' tone to when the crystal explodes, not upon clicking 'yes continue'".
-    // No gate is mounted in this file, so anything `sfx.gate` plays here would be the Title's own doing.
+  it('"Yes, let\'s go." sounds like End Turn, and plays none of the gate\'s cues itself; "No, go back." plays neither', () => {
+    // Owner 2026-10-13: "add the 'end turn' sound effect we use in game when clicking the end turn and start combat
+    // crystal ... that can be the sound that emits when clicking the 'yes continue' button", and "move the 'ding'
+    // tone to when the crystal explodes, not upon clicking 'yes continue'". No gate is mounted in this file, so
+    // anything `sfx.gate` plays here would be the Title's own doing.
     const gate = vi.spyOn(sfx, 'gate').mockImplementation(() => {});
+    const endTurn = vi.spyOn(sfx, 'combatStart').mockImplementation(() => {});
     openConfirm();
+    act(() => button(RANKED_CONFIRM_NO)!.click());
+    expect(endTurn).not.toHaveBeenCalled();
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
     act(() => button(RANKED_CONFIRM_YES)!.click());
     expect(useGame.getState().rankedEntry, 'the Yes went through').not.toBeNull();
+    expect(endTurn, 'the End Turn cue, once').toHaveBeenCalledTimes(1);
     expect(gate).not.toHaveBeenCalled();
     gate.mockRestore();
+    endTurn.mockRestore();
   });
 
   it('"Yes, let\'s go." acts on the PRESS, and the release that follows does nothing more', () => {
-    const pulse = vi.spyOn(sfx, 'pulse').mockImplementation(() => {});
+    const endTurn = vi.spyOn(sfx, 'combatStart').mockImplementation(() => {});
     openConfirm();
-    pulse.mockClear(); // the Play card's own click
     const yes = button(RANKED_CONFIRM_YES)!;
     // A right-button press is not a "Yes".
     act(() => { yes.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 2 })); });
-    expect(pulse).not.toHaveBeenCalled();
+    expect(endTurn).not.toHaveBeenCalled();
     expect(useGame.getState().rankedEntry).toBeNull();
     act(() => { yes.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); });
-    expect(pulse, 'it answers as the button goes down').toHaveBeenCalledTimes(1);
+    expect(endTurn, 'it answers as the button goes down').toHaveBeenCalledTimes(1);
     expect(useGame.getState().rankedEntry, 'and the entry is committed there').not.toBeNull();
     act(() => { yes.click(); });
-    expect(pulse, 'the release (click) is not a second Yes').toHaveBeenCalledTimes(1);
-    pulse.mockRestore();
+    expect(endTurn, 'the release (click) is not a second Yes').toHaveBeenCalledTimes(1);
+    endTurn.mockRestore();
   });
 
   it('"Yes, let\'s go." commits a ranked entry (persisted) and opens hero select on its heroes', () => {

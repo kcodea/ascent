@@ -235,7 +235,10 @@ describe('the gate plays', () => {
     // The gem holds the image and everything painted on it: its lit copy, its white-hot face, its glint.
     const gem = el.querySelector('.rgate-crystal-gem')!;
     expect(gem.querySelector('.rgate-crystal-body img')).not.toBeNull();
-    expect(gem.querySelector('.rgate-crystal-lit'), 'the brightened copy that carries the pulse').not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-pulse > .rgate-crystal-lit'), 'the brightened copy that carries the pulse').not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-lit-hi'), 'and its steady twin, for the hover').not.toBeNull();
+    expect(el.querySelector(':scope > .rgate-crystal-pulse > .rgate-crystal-glow'), 'the pulsing glow behind it').not.toBeNull();
+    expect(el.querySelector(':scope > .rgate-crystal-glow-hi'), 'and its steady twin').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-hot'), 'white-hot while it forms').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
     // A press while it is still forming does nothing.
@@ -397,6 +400,23 @@ describe('what ships', () => {
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glint::before \{[^}]*rg-cry-glint 4\.4s linear infinite/);
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-twinkle \{[^}]*rg-cry-twinkle 4\.4s linear infinite/);
     expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 60% \{/);
+  });
+
+  it('pointing at the armed crystal holds its light at the top of the pulse', () => {
+    // Owner 2026-10-13: "when highlighting the gem with your mouse, the gem should persistently glow bright, like
+    // the high end of the pulse".
+    const kf = (name: string): string => new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`).exec(css)![1]!;
+    const glowPeak = /50% \{ opacity: ([\d.]+); transform: scale\(([\d.]+)\); \}/.exec(kf('rg-cry-glow-pulse'))!;
+    const litPeak = /50% \{ opacity: ([\d.]+); \}/.exec(kf('rg-cry-lit-pulse'))!;
+    // The steady twins sit at exactly the pulse's own peak.
+    expect(noComments).toContain(`.rgate.is-armed .rgate-crystal:hover .rgate-crystal-glow-hi { opacity: ${glowPeak[1]}; }`);
+    expect(noComments).toMatch(new RegExp(`\\.rgate-crystal-glow-hi \\{[^}]*transform: scale\\(${glowPeak[2]!.replace('.', '\\.')}\\)`));
+    expect(noComments).toContain(`.rgate.is-armed .rgate-crystal:hover .rgate-crystal-lit-hi { opacity: ${litPeak[1]}; }`);
+    // And the pulsing lights fade out under them, so the brightness holds instead of riding on top of the pulse.
+    expect(noComments).toContain('.rgate.is-armed .rgate-crystal:hover .rgate-crystal-pulse { opacity: 0; }');
+    expect(noComments).toMatch(/\.rgate-crystal-pulse \{ transition: opacity [\d.]+s/);
+    // Only the ARMED crystal answers the pointer.
+    expect(noComments).not.toMatch(/(?<!is-armed )\.rgate-crystal:hover/);
   });
 
   it('it forms by growing from a point, white-hot, and cools to blue at the end', () => {

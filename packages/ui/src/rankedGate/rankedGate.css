@@ -98,7 +98,8 @@
 .rgate.is-armed .rgate-crystal { pointer-events: auto; }
 /* The keyboard's focus ring, in the theme's own ring colour (the same token the Compendium's controls use). */
 .rgate-crystal:focus-visible .rgate-crystal-gem { outline: 3px solid var(--ui-edge-hi); outline-offset: 6px; border-radius: 50%; }
-.rgate-crystal-glow, .rgate-crystal-gem, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-hot, .rgate-crystal-glint, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
+.rgate-crystal-glow, .rgate-crystal-gem, .rgate-crystal-body, .rgate-crystal-lit, .rgate-crystal-hot, .rgate-crystal-glint, .rgate-crystal-burst,
+.rgate-crystal-pulse, .rgate-crystal-glow-hi, .rgate-crystal-lit-hi { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
 /* THE GEM is the crystal's own body: the image and everything painted ON it (its lit copy, its white-hot face, its
    glint). It carries the only transforms the crystal ever has: growing from a point as it forms, and flying apart
    as it shatters. While it waits it has none. Its children only ever change opacity. */
@@ -109,6 +110,18 @@
 /* The crystal lit from within: a brighter copy of itself over the body. The brightness never changes (a static
    filter, rasterised once); the copy fades in and out. */
 .rgate-crystal-lit { opacity: 0; background: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; filter: brightness(1.55) saturate(1.15); }
+/* HOVER HOLDS THE LIGHT (owner 2026-10-13: "when highlighting the gem with your mouse, the gem should persistently
+   glow bright, like the high end of the pulse"). Each pulsing light (the glow behind, the lit copy on the gem) sits
+   in a `-pulse` wrapper and has a STEADY twin (`-hi`) fixed at the pulse's own peak. Pointing at the armed crystal
+   cross-fades the wrapper out and the twin in; leaving cross-fades back. The wrappers carry no animation, so the
+   fade is a plain opacity transition and the pulse underneath never has to be stopped or restarted. */
+.rgate-crystal-pulse { transition: opacity 0.16s ease-out; }
+.rgate-crystal-glow-hi { inset: -45%; opacity: 0; transform: scale(1.14); transition: opacity 0.16s ease-out;
+  background: radial-gradient(closest-side, rgba(150, 215, 255, 0.85), rgba(64, 150, 255, 0.5) 38%, rgba(40, 110, 255, 0.18) 62%, rgba(40, 110, 255, 0)); }
+.rgate-crystal-lit-hi { opacity: 0; transition: opacity 0.16s ease-out; background: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; filter: brightness(1.55) saturate(1.15); }
+.rgate.is-armed .rgate-crystal:hover .rgate-crystal-pulse { opacity: 0; }
+.rgate.is-armed .rgate-crystal:hover .rgate-crystal-glow-hi { opacity: 0.7; }
+.rgate.is-armed .rgate-crystal:hover .rgate-crystal-lit-hi { opacity: 0.56; }
 /* The crystal WHITE-HOT: a pure white fill in the crystal's own shape, over the body, while it forms. It cools off
    (fades) to show the blue underneath. */
 .rgate-crystal-hot { opacity: 0; background: #fff;

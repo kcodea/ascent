@@ -91,6 +91,20 @@ The forming was a glow gathering, then the crystal popping out whole with a flas
   Over the last third the white fades to show the blue, and the blue glow behind comes up to exactly where the
   waiting pulse begins.
 
+**Then, the hover and the Yes sound:** "when highlighting the gem with your mouse, the gem should persistently glow
+bright, like the high end of the pulse. also, can you add the 'end turn' sound effect we use in game when clicking
+the end turn and start combat crystal? that can be the sound that emits when clicking the 'yes continue button'".
+
+- **Hover holds the light.** Each pulsing light (the glow behind, the lit copy on the gem) now sits in a
+  `.rgate-crystal-pulse` wrapper and has a steady twin (`-glow-hi`, `-lit-hi`) fixed at the pulse's own peak
+  (opacity 0.7 / scale 1.14, and 0.56). Pointing at the ARMED crystal cross-fades the wrappers out and the twins
+  in over 0.16 s; leaving cross-fades back. The wrappers carry no animation, so this is a plain opacity transition
+  and the pulse underneath is never stopped or restarted (stopping an animation mid-cycle would have jumped).
+  The test pins the twins to the pulse keyframes' peak values, so tuning the pulse cannot leave the hover behind.
+- **"Yes, let's go." sounds like End Turn:** `sfx.combatStart()`, the cue the `faceOmen` action plays when the
+  in-game End Turn crystal is pressed (`turnExplode` is the timer running out, a different sound). It replaces the
+  plain menu click on that button and is warmed with the gate's cues.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

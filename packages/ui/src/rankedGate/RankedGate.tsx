@@ -174,13 +174,17 @@ export function RankedGate(): JSX.Element | null {
             onPointerDown={(e) => { if (e.button === 0) press(); }}
             onClick={press}
           >
-            <span className="rgate-crystal-glow" aria-hidden="true" />
+            {/* The light behind it: the pulsing glow in its `-pulse` wrapper, and its steady twin, fixed at the
+                pulse's peak, which a hover cross-fades to (owner 2026-10-13). */}
+            <span className="rgate-crystal-pulse" aria-hidden="true"><span className="rgate-crystal-glow" /></span>
+            <span className="rgate-crystal-glow-hi" aria-hidden="true" />
             {/* THE GEM: the image and everything painted on it. It alone carries a transform (growing from a point
                 as it forms, flying apart as it shatters); while it waits it is perfectly still (owner 2026-10-13),
                 and the pulse is light: the glow behind, and a brightened copy fading in and out. */}
             <span className="rgate-crystal-gem">
               <span className="rgate-crystal-body"><img decoding="sync" src={CRYSTAL_SRC} alt="" draggable={false} /></span>
-              <span className="rgate-crystal-lit" aria-hidden="true" />
+              <span className="rgate-crystal-pulse" aria-hidden="true"><span className="rgate-crystal-lit" /></span>
+              <span className="rgate-crystal-lit-hi" aria-hidden="true" />
               {/* White-hot while it forms, cooling to the blue beneath. */}
               <span className="rgate-crystal-hot" aria-hidden="true" />
               <span className="rgate-crystal-glint" aria-hidden="true"><span className="rgate-crystal-twinkle" /></span>

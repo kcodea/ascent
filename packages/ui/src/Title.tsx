@@ -153,9 +153,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // button keeps `onClick` too for the keyboard; the `open` guard makes the second of the two a no-op.
   const confirmRanked = (): void => {
     if (rankedConfirm !== 'open') return;
-    sfx.pulse();
-    // (The cinematic hit that played here from 2026-10-12 moved to the crystal's shatter on 2026-10-13: see
-    // RankedGate.tsx.)
+    // The in-game End Turn sound (owner 2026-10-13: "add the 'end turn' sound effect we use in game when clicking
+    // the end turn and start combat crystal ... that can be the sound that emits when clicking the 'yes continue'
+    // button"): `sfx.combatStart`, the cue `faceOmen` plays when the End Turn crystal is pressed. It replaces the
+    // plain menu click here. (The cinematic hit that played here on 2026-10-12 moved to the crystal's shatter.)
+    sfx.combatStart();
     closeRankedConfirm();
     void requestRankedGate(startLobby);
   };

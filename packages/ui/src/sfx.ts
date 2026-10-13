@@ -1524,7 +1524,7 @@ export const sfx = {
   },
   /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
    *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */
-  warmGate: (): void => { for (const clip of Object.values(GATE_CLIP)) loadSample(clip); },
+  warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart']) loadSample(clip); }, // + the End Turn cue "Yes" plays
   /**
    * THE "GOOD LUCK" INTRO — the shine sweeping the words left to right (owner ask 2026-09-24: "it needs a sound
    * effect"). The Equipment art-sheen clip: the same light-across-gold sweep, already in the owner's mix.

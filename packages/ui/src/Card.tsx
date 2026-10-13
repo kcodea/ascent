@@ -1453,33 +1453,55 @@ function splitPaint(style: CSSProperties): [CSSProperties, CSSProperties] {
   return out;
 }
 
-/** The "On Loan" smoke: a FIXED set of wisps seated along the card's top edge and upper sides. `x` / `y` are the
- *  seat (% of the card box), `size` the wisp's width, `dx` / `dy` how far it drifts while it fades (all three in
- *  card widths), `dur` its cycle and `delay` a negative offset so the wisps never rise in step. Deterministic on
- *  purpose (no jitter): every loaned card smokes the same way, and the array is referentially stable. */
-const LOAN_WISPS = [
-  { x: 12, y: 9, size: 0.34, dx: -0.07, dy: -0.3, dur: 4.4, delay: -0.3 },
-  { x: 33, y: 3, size: 0.4, dx: 0.04, dy: -0.36, dur: 5.2, delay: -2.1 },
-  { x: 52, y: 1, size: 0.36, dx: -0.03, dy: -0.4, dur: 4.8, delay: -3.6 },
-  { x: 71, y: 4, size: 0.42, dx: 0.06, dy: -0.34, dur: 5.6, delay: -1.2 },
-  { x: 89, y: 10, size: 0.33, dx: 0.08, dy: -0.29, dur: 4.2, delay: -2.8 },
-  { x: 3, y: 38, size: 0.28, dx: -0.1, dy: -0.26, dur: 5, delay: -4.1 },
-  { x: 97, y: 42, size: 0.28, dx: 0.1, dy: -0.27, dur: 4.6, delay: -0.9 },
-].map((w) => ({
-  left: `${w.x}%`, top: `${w.y}%`,
-  '--lw-size': w.size, '--lw-dx': w.dx, '--lw-dy': w.dy,
-  animationDuration: `${w.dur}s`, animationDelay: `${w.delay}s`,
-} as CSSProperties));
+/** A fixed 0..1 value from a wisp index and a salt, so the smoke is the same on every loaned card and on every
+ *  render (no jitter between mounts; the array below is built once and stays referentially stable). */
+const loanRand = (i: number, salt: number): number => {
+  const v = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
+  return v - Math.floor(v);
+};
 
-/** FUNERAL ON LOAN marker (owner 2026-10-13): the "On Loan" tag above a borrowed hand card, with a light smoke
- *  rising off it. PERF: each wisp animates transform + opacity only; its gradient is static paint on a plain
- *  child, so it rasterises once into the moving layer (the Execute smoke's `splitPaint` rule). */
+/** The "On Loan" smoke (owner 2026-10-13: "more smoke ... more whispy like authentic smoke ... more aggressive").
+ *  Two kinds of wisp, seated along the top edge and down both sides of the card:
+ *   · a PLUME: a tall thin streak that climbs fast, sways side to side and spreads as it thins out;
+ *   · a CURL: a thin arc that rises while it spins and opens, the filament real smoke throws off.
+ *  Lengths are in card widths. Every wisp leans away from the card's centre line, so the smoke fans out. */
+const LOAN_WISP_COUNT = 26;
+const LOAN_WISPS = Array.from({ length: LOAN_WISP_COUNT }, (_, i) => {
+  const r = (salt: number): number => loanRand(i, salt);
+  const curl = i % 3 === 2;
+  const side = i % 4 === 3 ? (((i - 3) / 4) % 2 === 0 ? -1 : 1) : 0; // every fourth wisp, alternating left / right edge
+  // Top seats walk the edge in a shuffled order (37 is coprime with the count), so neighbours never fire in step.
+  const x = side ? (side < 0 ? 1 + r(2) * 3 : 96 + r(2) * 3) : 4 + (((i * 37) % LOAN_WISP_COUNT) / (LOAN_WISP_COUNT - 1)) * 92;
+  const y = side ? 6 + r(3) * 60 : r(3) * 6;
+  const lean = side || (x - 50) / 50;
+  const dur = (curl ? 2.2 : 1.7) + r(4) * 1.2;
+  const spin = (r(5) < 0.5 ? -1 : 1) * (curl ? 110 + r(6) * 150 : 6 + r(6) * 20);
+  const style = {
+    left: `${x.toFixed(1)}%`, top: `${y.toFixed(1)}%`,
+    '--lw-w': (curl ? 0.2 + r(7) * 0.18 : 0.13 + r(7) * 0.1).toFixed(3),
+    '--lw-h': (0.5 + r(8) * 0.38).toFixed(3),
+    '--lw-dx': (lean * 0.16 + (r(9) - 0.5) * 0.12).toFixed(3),
+    '--lw-dy': (-(0.6 + r(10) * 0.55)).toFixed(3),
+    '--lw-sway': ((r(11) - 0.5) * 0.3).toFixed(3),
+    '--lw-r0': `${((r(12) - 0.5) * 34).toFixed(1)}deg`,
+    '--lw-rot': `${spin.toFixed(1)}deg`,
+    '--lw-a': (0.62 + r(13) * 0.3).toFixed(2),
+    animationDuration: `${dur.toFixed(2)}s`, animationDelay: `${(-r(14) * dur).toFixed(2)}s`,
+  } as CSSProperties;
+  return { className: `cardloan-wisp ${curl ? 'curl' : 'plume'}`, style };
+});
+
+/** FUNERAL ON LOAN marker (owner 2026-10-13): the "On Loan" tag above a borrowed hand card, with smoke pouring
+ *  off it. PERF: the haze and every wisp animate transform + opacity only; the gradient, the arc and the blur
+ *  are static paint on a plain child, so they rasterise once into the moving layer (the Execute smoke's
+ *  `splitPaint` rule). */
 const OnLoanMark = memo(function OnLoanMark() {
   return (
     <span className="cardloan" aria-label="On Loan. If you play it this turn, it is destroyed and its Echo triggers.">
       <span className="cardloan-smoke" aria-hidden="true">
-        {LOAN_WISPS.map((style, i) => (
-          <span key={i} className="cardloan-wisp" style={style}><span className="cardloan-wisp-paint" /></span>
+        <span className="cardloan-haze"><span className="cardloan-haze-paint" /></span>
+        {LOAN_WISPS.map((w, i) => (
+          <span key={i} className={w.className} style={w.style}><span className="cardloan-wisp-paint" /></span>
         ))}
       </span>
       <b className="cardloan-tag">On Loan</b>

@@ -52,7 +52,11 @@ describe('On Loan — what the card shows', () => {
     const mark = m.container.querySelector('.card.onloan .cardloan');
     expect(mark, 'the marker sits inside the loaned card').not.toBeNull();
     expect(mark!.querySelector('.cardloan-tag')!.textContent).toBe('On Loan');
-    expect(mark!.querySelectorAll('.cardloan-wisp').length).toBeGreaterThan(0);
+    // Plenty of smoke, of both kinds, rising out of a haze (owner 2026-10-13: "more smoke", "whispy", "aggressive").
+    expect(mark!.querySelectorAll('.cardloan-wisp').length).toBeGreaterThanOrEqual(20);
+    expect(mark!.querySelectorAll('.cardloan-wisp.plume').length).toBeGreaterThan(0);
+    expect(mark!.querySelectorAll('.cardloan-wisp.curl').length).toBeGreaterThan(0);
+    expect(mark!.querySelector('.cardloan-haze > .cardloan-haze-paint')).not.toBeNull();
     for (const w of mark!.querySelectorAll('.cardloan-wisp')) expect(w.querySelector('.cardloan-wisp-paint')).not.toBeNull();
     // Screen readers get the consequence, never a native browser tooltip.
     expect(mark!.getAttribute('aria-label')).toContain('destroyed');
@@ -67,16 +71,22 @@ describe('On Loan — what the card shows', () => {
 
 describe('On Loan — the smoke obeys the perf rule', () => {
   const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'styles.css'), 'utf8');
-  it('the looping `loanwisp` keyframes touch transform and opacity only', () => {
-    const block = /@keyframes loanwisp \{([\s\S]*?)\n\}/.exec(css);
-    expect(block, 'the keyframes exist').not.toBeNull();
-    const props = [...block![1]!.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]);
-    expect(props.length).toBeGreaterThan(0);
-    for (const p of props) expect(['transform', 'opacity']).toContain(p);
+  it('every looping smoke keyframe (plume, curl, haze) touches transform and opacity only', () => {
+    const blocks = [...css.matchAll(/@keyframes (loan[a-z]+) \{([\s\S]*?)\n\}/g)];
+    expect(blocks.map((b) => b[1]).sort()).toEqual(['loancurl', 'loanhaze', 'loanplume']);
+    for (const [, name, body] of blocks) {
+      const props = [...body!.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]);
+      expect(props.length, name).toBeGreaterThan(0);
+      for (const p of props) expect(['transform', 'opacity'], `${name} animates ${p}`).toContain(p);
+    }
   });
-  it('the animated wisp carries no paint of its own: the gradient is on the static child', () => {
-    const wisp = /\.cardloan-wisp \{([\s\S]*?)\}/.exec(css)![1]!;
-    expect(wisp).not.toMatch(/background|filter|box-shadow/);
-    expect(/\.cardloan-wisp-paint \{([\s\S]*?)\}/.exec(css)![1]!).toMatch(/radial-gradient/);
+  it('the animated layers carry no paint of their own: gradient, arc and blur sit on the static child', () => {
+    const rule = (sel: string): string => new RegExp(`\\n${sel.replace(/[.>]/g, '\\$&')} \\{([\\s\\S]*?)\\}`).exec(css)![1]!;
+    for (const moving of ['.cardloan-haze', '.cardloan-wisp', '.cardloan-wisp.plume', '.cardloan-wisp.curl']) {
+      expect(rule(moving), moving).not.toMatch(/background|filter|box-shadow|border/);
+    }
+    expect(rule('.cardloan-haze-paint')).toMatch(/radial-gradient/);
+    expect(rule('.cardloan-wisp.plume > .cardloan-wisp-paint')).toMatch(/radial-gradient/);
+    expect(rule('.cardloan-wisp.curl > .cardloan-wisp-paint')).toMatch(/border-top-color/);
   });
 });

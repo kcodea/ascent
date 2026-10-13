@@ -2134,12 +2134,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   pointer-events: none; color: #fff; font-family: var(--font-ui); font-weight: 800; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
 .cardlock-ico { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
 .cardlock b { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--ink); padding: 2px 9px; border-radius: 8px; }
-/* FUNERAL ON LOAN — a borrowed hand card: an "On Loan" tag ABOVE the card and a light smoke rising off its top
-   edge and upper sides, so it never reads as a card that would stay if played (owner 2026-10-13). Rendered by
+/* FUNERAL ON LOAN — a borrowed hand card: an "On Loan" tag ABOVE the card and smoke pouring off its top edge and
+   down both sides, so it never reads as a card that would stay if played (owner 2026-10-13). Rendered by
    Card.tsx `OnLoanMark`; the wisp seats live in `LOAN_WISPS` there. The card itself is NOT dimmed: it is fully
    playable, playing it is the point. A PLATED card (the hand, the drag copy) re-seats `.cardloan` on the plate's
    own box (see HAND CARD BACKPLATE), because the plate is wider than the card box and starts above it.
-   PERF: the only loop is `loanwisp` (transform + opacity). Each wisp's gradient is static paint on a plain child. */
+   THE SMOKE (owner 2026-10-13, second pass: "more smoke", "whispy like authentic smoke", "more aggressive"):
+     · PLUMES — tall thin streaks that climb fast, sway and spread as they thin (`loanplume`);
+     · CURLS  — thin arcs that spin open as they rise, the filaments real smoke throws off (`loancurl`);
+     · a HAZE hugging the top edge that breathes, so the wisps rise out of a body of smoke (`loanhaze`).
+   PERF: the three loops animate transform + opacity only. Every gradient, arc and blur is static paint on a
+   plain child (`*-paint`), rasterised once into the moving layer. */
 .cardloan { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
 .cardloan-tag {
   position: absolute; left: 50%; bottom: calc(100% + var(--ccw) * 0.035); transform: translateX(-50%);
@@ -2149,18 +2154,56 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   padding: calc(var(--ccw) * 0.03) calc(var(--ccw) * 0.07); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 .cardloan-smoke { position: absolute; inset: 0; }
+.cardloan-haze {
+  position: absolute; left: -10%; right: -10%; top: calc(var(--ccw) * -0.26); height: calc(var(--ccw) * 0.62);
+  animation: loanhaze 2.3s ease-in-out infinite; will-change: transform, opacity;
+}
+.cardloan-haze-paint {
+  position: absolute; inset: 0; filter: blur(calc(var(--ccw) * 0.05));
+  background:
+    radial-gradient(ellipse 34% 60% at 22% 62%, rgba(232, 227, 244, 0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 70% at 52% 56%, rgba(240, 236, 250, 0.6) 0%, transparent 70%),
+    radial-gradient(ellipse 34% 60% at 80% 64%, rgba(232, 227, 244, 0.55) 0%, transparent 70%);
+}
+@keyframes loanhaze {
+  0%, 100% { transform: translateY(0) scale(1, 1); opacity: 0.5; }
+  50%      { transform: translateY(calc(var(--ccw) * -0.05)) scale(1.06, 1.22); opacity: 0.85; }
+}
 .cardloan-wisp {
-  position: absolute; width: calc(var(--ccw) * var(--lw-size, 0.36)); aspect-ratio: 1; opacity: 0;
-  animation: loanwisp 4.8s ease-out infinite; will-change: transform, opacity;
+  position: absolute; opacity: 0; will-change: transform, opacity;
+  animation-timing-function: linear; animation-iteration-count: infinite;
 }
-.cardloan-wisp-paint {
-  position: absolute; inset: 0; border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, rgba(226, 220, 240, 0.62) 0%, rgba(196, 188, 216, 0.3) 38%, transparent 70%);
+.cardloan-wisp.plume {
+  width: calc(var(--ccw) * var(--lw-w, 0.18)); height: calc(var(--ccw) * var(--lw-h, 0.65));
+  transform-origin: 50% 100%; animation-name: loanplume;
 }
-@keyframes loanwisp {
-  0%   { transform: translate(-50%, -50%) scale(0.45); opacity: 0; }
-  20%  { opacity: 0.55; }
-  100% { transform: translate(calc(-50% + var(--ccw) * var(--lw-dx, 0)), calc(-50% + var(--ccw) * var(--lw-dy, -0.3))) scale(1.55); opacity: 0; }
+.cardloan-wisp.curl {
+  width: calc(var(--ccw) * var(--lw-w, 0.28)); aspect-ratio: 1; animation-name: loancurl;
+}
+.cardloan-wisp-paint { position: absolute; inset: 0; border-radius: 50%; }
+.cardloan-wisp.plume > .cardloan-wisp-paint {
+  filter: blur(calc(var(--ccw) * 0.024));
+  background: radial-gradient(ellipse 46% 50% at 50% 60%, rgba(244, 240, 252, 0.95) 0%, rgba(218, 212, 236, 0.5) 42%, transparent 100%);
+}
+.cardloan-wisp.curl > .cardloan-wisp-paint {
+  filter: blur(calc(var(--ccw) * 0.013));
+  border: calc(var(--ccw) * 0.024) solid transparent;
+  border-top-color: rgba(244, 240, 252, 0.95); border-right-color: rgba(226, 220, 242, 0.55);
+}
+/* A plume grows UP out of its seat (origin at its foot): it leaves fast, swings one way, back the other, and
+   spreads wide as it fades. */
+@keyframes loanplume {
+  0%   { transform: translate(-50%, -100%) rotate(var(--lw-r0, 0deg)) scale(0.35, 0.22); opacity: 0; }
+  10%  { opacity: var(--lw-a, 0.8); }
+  42%  { transform: translate(calc(-50% + var(--ccw) * var(--lw-sway, 0.1)), calc(-100% + var(--ccw) * var(--lw-dy, -0.8) * 0.5)) rotate(calc(var(--lw-r0, 0deg) + var(--lw-rot, 12deg) * 0.5)) scale(0.85, 0.8); opacity: var(--lw-a, 0.8); }
+  74%  { transform: translate(calc(-50% + var(--ccw) * (var(--lw-dx, 0) * 0.7 - var(--lw-sway, 0.1) * 0.7)), calc(-100% + var(--ccw) * var(--lw-dy, -0.8) * 0.82)) rotate(calc(var(--lw-r0, 0deg) + var(--lw-rot, 12deg) * 0.8)) scale(1.4, 1.1); opacity: calc(var(--lw-a, 0.8) * 0.5); }
+  100% { transform: translate(calc(-50% + var(--ccw) * (var(--lw-dx, 0) + var(--lw-sway, 0.1) * 0.5)), calc(-100% + var(--ccw) * var(--lw-dy, -0.8))) rotate(calc(var(--lw-r0, 0deg) + var(--lw-rot, 12deg))) scale(2.1, 1.35); opacity: 0; }
+}
+@keyframes loancurl {
+  0%   { transform: translate(-50%, -50%) rotate(var(--lw-r0, 0deg)) scale(0.28); opacity: 0; }
+  14%  { opacity: var(--lw-a, 0.8); }
+  60%  { opacity: calc(var(--lw-a, 0.8) * 0.6); }
+  100% { transform: translate(calc(-50% + var(--ccw) * var(--lw-dx, 0)), calc(-50% + var(--ccw) * var(--lw-dy, -0.8))) rotate(calc(var(--lw-r0, 0deg) + var(--lw-rot, 180deg))) scale(1.75); opacity: 0; }
 }
 /* Taunt signifies via its silver bulwark Pixi AURA (behind the card) — no badge. */
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth); edge stays tribe-coloured. */

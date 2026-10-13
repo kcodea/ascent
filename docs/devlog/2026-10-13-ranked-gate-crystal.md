@@ -216,6 +216,13 @@ back down to about 1.8 seconds? can you adjust the clip to match the new timing?
 - The particle counts raised for the 2.6 s forming were left as they are, so the same particles now arrive in
   1.8 s: denser still.
 
+**Then, an earlier fade (same PR):** "can you have the swell audio clip start to fade out earlier?". The clip was at
+its loudest right up to the end of the forming (its peak is at 1.7 s of 1.8) and only then died away. It now starts
+to ease off 1.1 s in, as the gem stops growing fast and begins to cool, over about 0.9 s (`formSoundFadeAtMs` /
+`formSoundFadeMs`). Done at PLAYBACK, not in the file: `sfx.gate(cue, delay, { atMs, overMs })` schedules an
+exponential ease on the clip's gain and then stops it, so the timing is two numbers to tune and the recording is
+untouched. How much earlier was Claude's pick (the cooling point), not the owner's number.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

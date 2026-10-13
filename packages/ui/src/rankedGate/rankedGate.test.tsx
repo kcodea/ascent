@@ -229,6 +229,13 @@ describe('the gate plays', () => {
     advance(close.formAt);
     expect(phaseOf()).toBe('forming');
     expect(cues()).toEqual(['close', 'slam', 'form']);
+    // The build-up eases off EARLY (owner 2026-10-13: "can you have the swell audio clip start to fade out
+    // earlier?"): it starts to fade before the forming ends, and is asked to be gone soon after the crystal is whole.
+    const fade = snd.gate.mock.calls.at(-1)![2] as { atMs: number; overMs: number };
+    expect(fade).toEqual({ atMs: RANKED_GATE_TIMING.formSoundFadeAtMs, overMs: RANKED_GATE_TIMING.formSoundFadeMs });
+    expect(fade.atMs).toBeLessThan(RANKED_GATE_TIMING.crystalFormMs * 0.7);
+    expect(fade.atMs).toBeGreaterThan(RANKED_GATE_TIMING.crystalFormMs * 0.4);
+    expect(fade.atMs + fade.overMs).toBeLessThan(RANKED_GATE_TIMING.crystalFormMs + 500);
     expect(fx.gather).toHaveBeenCalledTimes(1);
     expect(fx.gather.mock.calls[0]![0]).toEqual(CRYSTAL);
     expect(fx.gather.mock.calls[0]![1]).toBe(RANKED_GATE_TIMING.crystalFormMs);

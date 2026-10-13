@@ -123,7 +123,7 @@ export function RankedGate(): JSX.Element | null {
       later(at.handoffAt, shut);
       later(at.formAt, () => {
         setPhase('forming');
-        sfx.gate('form');
+        sfx.gate('form', 0, { atMs: t.formSoundFadeAtMs, overMs: t.formSoundFadeMs }); // it eases off as the gem cools
         const c = crystal();
         if (c) gateFx.gather(c, t.crystalFormMs);
       });

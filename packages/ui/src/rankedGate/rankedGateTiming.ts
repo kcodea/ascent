@@ -44,6 +44,12 @@ export interface RankedGateTiming {
    *  1800 ms the same day (owner: "reduce the swell effect back down to about 1.8 seconds ... adjust the clip to
    *  match"), with the clip itself time-compressed to that length. */
   crystalFormMs: number;
+  /** How far into the forming the build-up cue (`gateform`) starts to fade, and how long the fade takes. Left to
+   *  itself the clip is at its loudest right up to the end of the forming and only then dies away; it now eases off
+   *  as the gem stops growing and starts to cool, and is gone soon after the crystal is whole (owner 2026-10-13:
+   *  "can you have the swell audio clip start to fade out earlier?"). */
+  formSoundFadeAtMs: number;
+  formSoundFadeMs: number;
   /** The crystal's burst once it is pressed. */
   shatterMs: number;
   /** How long the shut doors shudder (from the shatter) before they part. */
@@ -60,6 +66,8 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
   handoffMs: 220,
   crystalDelayMs: 650,
   crystalFormMs: 1800,
+  formSoundFadeAtMs: 1100,
+  formSoundFadeMs: 900,
   shatterMs: 420,
   shudderMs: 700,
   openSoundLeadMs: 300,

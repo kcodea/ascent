@@ -188,6 +188,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'ruby-bounce' + 'spell-bounce' joined on 2026-09-15: the cross-target re-cast ribbon, fired from the `bounceFx`
       // watcher in `Recruit.tsx` (shop) and the `bounceFx` channel in `choreo/score.ts` (combat).
       'freeze-blast',
+      // 'funeral-on-loan' joined on 2026-10-13: the owner-authored On Loan smoke, a looping play that follows a
+      // Funeral on Loan hand card (`useOnLoanFx.ts`).
+      'funeral-on-loan',
       // 'gild-trail' joined on 2026-09-24: the owner's gild redesign — one play per consumed copy, from where it stood
       // into the new gilded card (`gildTrail.ts`), replacing plateGild's hand-written centre-screen fuse.
       'gild-trail',

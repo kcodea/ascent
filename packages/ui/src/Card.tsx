@@ -332,6 +332,11 @@ export interface CardView {
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
+  /** FUNERAL ON LOAN: this hand card is BORROWED (played this turn it is destroyed and its Echo triggers), so it
+   *  is told apart from a card that would stay. A stable key, stamped on the card root as `data-on-loan`: the
+   *  ONLY contract the looping smoke binds to (`useOnLoanFx` follows it), and what makes the card print its
+   *  "On Loan" text (`OnLoanMark`). The sim clears the loan at the next turn. Never set on a board body. */
+  onLoanKey?: string;
   /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).
    *  The footer prints ALL instead of the primary tribe, since every tribal effect counts it. */
   universalTribe?: boolean;
@@ -859,13 +864,14 @@ export const Card = memo(function Card({
   const plateFade = useArtFade(usePlate ? plateSrcFor(card.tribe) : undefined);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
          the card itself renders exactly as a spell (owner 2026-09-25). */
       data-triple-reward={card.cardId === 'discoverspell' ? '' : undefined}
       data-choose-both={card.chooseBothKey}
+      data-on-loan={card.onLoanKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
@@ -1009,6 +1015,8 @@ export const Card = memo(function Card({
           <span className="cardlock-ico" aria-hidden="true">🔒</span>{lockLabel ? <b>{lockLabel}</b> : null}
         </span>
       )}
+      {/* Funeral on Loan — the "On Loan" text above the card (owner 2026-10-13). Its smoke is the Pixi loop. */}
+      {card.onLoanKey && <OnLoanMark />}
       {/* cost badge — a gold coin overhanging the corner (the cost in Gold). Minions are a flat 3, so their
           cost is hidden (only shown if something has changed it off 3); spells always show their cost. */}
       {card.cost !== undefined && (card.spell || card.cost !== 3) && (
@@ -1446,6 +1454,17 @@ function splitPaint(style: CSSProperties): [CSSProperties, CSSProperties] {
   paintSplits.set(style, out);
   return out;
 }
+
+/** FUNERAL ON LOAN marker (owner 2026-10-13): the words "On Loan" above a borrowed hand card. Plain text with a
+ *  dark drop shadow, no pill. The smoke is NOT drawn here: it is the owner-authored `funeral-on-loan` Pixi loop,
+ *  bound to the card's `data-on-loan` hook by `useOnLoanFx`. */
+const OnLoanMark = memo(function OnLoanMark() {
+  return (
+    <span className="cardloan" aria-label="On Loan. If you play it this turn, it is destroyed and its Echo triggers.">
+      <b className="cardloan-tag">On Loan</b>
+    </span>
+  );
+});
 
 const ExecuteAura = memo(function ExecuteAura() {
   const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);

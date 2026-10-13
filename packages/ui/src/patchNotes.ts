@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-13',
     changes: [
+      {
+        category: 'Systems',
+        text: 'The end of a game now closes with the gate: the doors slam shut over your last fight and open on the results.',
+        details: [
+          'It plays when you press the gem to leave the fight that ends your game, win or lose, in ranked and in Practice.',
+          'The doors open again by themselves after a moment. There is no crystal to press here.',
+        ],
+      },
       { category: 'Balance', text: 'Disco Dan now starts turn 1 with 0 Gold, since he cannot spend any that turn. His Gold is normal from turn 2.' },
       {
         category: 'Systems',

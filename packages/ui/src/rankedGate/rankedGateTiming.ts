@@ -14,6 +14,12 @@
  *      forming, then ARMED. The gate then sits shut, the crystal pulsing, for as long as the player likes.
  *   2. `rankedGateOpenTimeline`, from the press on the crystal: it shatters, the doors shudder, then grind open.
  *
+ * THE END-GAME GATE (owner 2026-10-13, the same day) is the gate of 2026-10-12 again, for the fight that ends a
+ * game: "the doors ... slide closed and slam for a moment and then reopen to the end game stats screen. basically
+ * the exact version we had in place yesterday before todays adjustments". No crystal and no wait for the player:
+ * ONE clock, `rankedGateEndTimeline`, from the press on the End Combat gem: close, slam, the swap behind the shut
+ * doors, a one second hold, the shudder, open. See endGameGate.ts.
+ *
  * Pure numbers, no DOM: the component schedules from the two timelines, the stylesheet reads the same durations as
  * `--rg-*` vars (`rankedGateCssVars`), and the test pins the order. The durations are fitted to the owner's
  * recorded cues (measured 2026-10-12):
@@ -50,6 +56,12 @@ export interface RankedGateTiming {
    *  "can you have the swell audio clip start to fade out earlier?"). */
   formSoundFadeAtMs: number;
   formSoundFadeMs: number;
+  /** THE END-GAME GATE only: the owner's "brief 1 second delay" of 2026-10-12, from the slam to the shudder. (The
+   *  entry gate has no fixed hold: it waits on the crystal.) */
+  holdMs: number;
+  /** THE END-GAME GATE only: after the slam, how long until the end screen is swapped in behind the shut doors. It
+   *  waits out the impact shake (`slamShakeMs`), so mounting the end screen never stutters the burst of sparks. */
+  endHandoffMs: number;
   /** The crystal's burst once it is pressed. */
   shatterMs: number;
   /** How long the shut doors shudder (from the shatter) before they part. */
@@ -68,6 +80,8 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
   crystalFormMs: 1800,
   formSoundFadeAtMs: 1100,
   formSoundFadeMs: 900,
+  holdMs: 1000,
+  endHandoffMs: 520,
   shatterMs: 420,
   shudderMs: 700,
   openSoundLeadMs: 300,
@@ -77,8 +91,14 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
 /**
  * The gate's visible states, in order. The root wears `is-<phase>`.
  * `armed` is the only one with no clock: it lasts until the crystal is pressed.
+ * The entry gate runs closing, shut, forming, armed, shatter, opening; the end-game gate runs closing, shut,
+ * shudder, opening.
  */
-export type RankedGatePhase = 'closing' | 'shut' | 'forming' | 'armed' | 'shatter' | 'opening';
+export type RankedGatePhase = 'closing' | 'shut' | 'forming' | 'armed' | 'shatter' | 'shudder' | 'opening';
+
+/** Which gate plays: `entry` is the start of a ranked match (the crystal, the player's press); `end` is the fight
+ *  that ends a game (no crystal, one clock). */
+export type RankedGateVariant = 'entry' | 'end';
 
 /** The first clock: every moment from the press of "Yes" to the crystal being ready, in ms. */
 export interface RankedGateCloseTimeline {
@@ -126,6 +146,40 @@ export function rankedGateOpenTimeline(t: RankedGateTiming = RANKED_GATE_TIMING)
   return {
     shatterAt: 0,
     openSoundAt: Math.max(0, openAt - Math.max(0, t.openSoundLeadMs)),
+    openAt,
+    endAt: openAt + t.openMs,
+  };
+}
+
+/** The END-GAME gate's one clock: every moment from the press on the End Combat gem, in ms. */
+export interface RankedGateEndTimeline {
+  /** The doors start to slide; `gateclose` plays. */
+  closeAt: number;
+  /** The doors meet: `gateslam`, the shake, the smoke, the sparks and the blue embers. */
+  slamAt: number;
+  /** The end screen is swapped in behind the shut gate. */
+  handoffAt: number;
+  /** The shudder starts; `gaterattle` plays. */
+  shudderAt: number;
+  /** `gateopen` starts. */
+  openSoundAt: number;
+  /** The doors start to part. */
+  openAt: number;
+  /** The doors are clear of the screen; the gate unmounts. */
+  endAt: number;
+}
+
+export function rankedGateEndTimeline(t: RankedGateTiming = RANKED_GATE_TIMING): RankedGateEndTimeline {
+  const slamAt = t.closeMs;
+  const shudderAt = slamAt + Math.max(0, t.holdMs);
+  const openAt = shudderAt + Math.max(0, t.shudderMs);
+  return {
+    closeAt: 0,
+    slamAt,
+    // Never before the doors are fully shut and never once they start to part: the swap must stay hidden.
+    handoffAt: Math.max(slamAt, Math.min(slamAt + Math.max(0, t.endHandoffMs), openAt - 1)),
+    shudderAt,
+    openSoundAt: Math.max(shudderAt, openAt - Math.max(0, t.openSoundLeadMs)),
     openAt,
     endAt: openAt + t.openMs,
   };

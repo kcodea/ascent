@@ -5313,4 +5313,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Bronze Practice game is a candidate for it.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/practiceRank.test.ts', 'packages/ui/src/PracticeOptionsRank.test.tsx', 'packages/ui/src/opponentPool/poolLoader.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-ENDGATE-01',
+    title: 'The fight that ends a lobby game leaves through the gate, and that fight is resolved exactly once',
+    statement:
+      'When the player presses the End Combat gem on the fight that ends their game (knocked out, the table won, or '
+      + 'an Unlimited-health Practice game at its curtain), in a ranked or a Practice game, the gate\x27s doors slide '
+      + 'shut over the fight, slam, hold for one second, shudder and open again on the end screen, by themselves: '
+      + 'there is no crystal and nothing to press. The end screen is swapped in behind the shut doors, never in view. '
+      + 'Every other fight leaves through the usual sweep. The start-of-match gate (its crystal, its wait for the '
+      + 'player) is a separate sequence and is not changed by this one. Leaving a fight resolves the lobby round, and '
+      + 'that resolution runs exactly once however the fight is left: a fight that is resolved early to learn whether '
+      + 'it ends the game is held and committed, never resolved a second time.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-13 (the end-game gate)', quote: 'when a player either loses or wins, when they hit the gem to end the combat phase, i want the doors to slide closed and slam for a moment and then reopen to the end game stats screen. basically the exact version we had in place yesterday before todays adjustments. do NOT touch the start match screen we did today' },
+      { kind: 'code', ref: 'packages/ui/src/rankedGate/endGameGate.ts combatMayEndGame / resolutionEndsGame; packages/ui/src/rankedGate/rankedGateTiming.ts rankedGateEndTimeline (holdMs, endHandoffMs); packages/ui/src/rankedGate/RankedGate.tsx (the `end` variant); packages/ui/src/rankedGate/rankedGateController.ts requestRankedGate(onShut, variant); packages/ui/src/Recruit.tsx endCombat + the coveredOut commit; packages/ui/src/store.ts preparePresentationAction / commitPresentationAction' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-13, with two stated limits. (1) Whether a fight could end the game is asked cheaply '
+      + 'first (combatMayEndGame), so ordinary rounds resolve nothing at the press; with more than three rivals '
+      + 'standing the table is taken not to be able to finish, so if four or more all fall in one round the game '
+      + 'ends through the usual sweep (same end screen, no doors). (2) Reduced motion: no gate, the usual exit. The '
+      + 'tutorial, the Gauntlet and sandbox runs (God Mode, the Scene Builder) are not covered: they keep their own '
+      + 'endings. The component test drives the real gate on fake timers; the press on the gem itself (Recruit.tsx) '
+      + 'is not driven by a test, only the helpers it calls and the store seam it uses.',
+    example:
+      'Two players left; you lose the fight and press the gem: the doors close over the board, slam, and a second '
+      + 'later shudder and open on your placement. Round 3 with a full table: the usual sweep back to the shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rankedGate/endGameGate.test.tsx', 'packages/ui/src/rankedGate/rankedGate.test.tsx'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

@@ -215,6 +215,9 @@ import { Flip } from 'gsap/Flip';
 import { elementBelowVeil, hideDragCursorVeil, showDragCursorVeil } from './dragCursorVeil';
 import { fromSimpleState, getSimpleState, withoutFlipBodyLock, type StageFlipState } from './stageFlip';
 import { recordCursorSample, useGame } from './store';
+import { combatMayEndGame, gateMotionAllowed, resolutionEndsGame } from './rankedGate/endGameGate';
+import { requestRankedGate } from './rankedGate/rankedGateController';
+import { warmRankedGate } from './rankedGate/RankedGate';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
@@ -2937,6 +2940,13 @@ export function Recruit() {
     if (spectating) useGame.setState({ combatReplayDone: replay.done });
   }, [spectating, replay.done]);
 
+  // THE END-GAME GATE: a fight that could end the game has its doors' art and cues decoded while its result is on
+  // screen, so a session that never saw the ranked gate (Practice, a game resumed with Continue) still has them
+  // when the gem is pressed. Images and sounds only; the gate starts its own FX layer as it plays.
+  useEffect(() => {
+    if (fighting && replay.done && !spectating && !sandboxReplay && combatMayEndGame(useGame.getState().run)) warmRankedGate({ fx: false });
+  }, [fighting, replay.done, spectating, sandboxReplay]);
+
   // REPLAY V2 free-cursor capture (2026-09-19): on the LIVE recruit screen, every pointermove records where the
   // hand is (≤20 Hz, throttled inside; viewport fractions; no layout reads — `clientX/Y` are event fields).
   // A passive window listener, so it can never delay scrolling or the drag session's own move handling; off
@@ -2957,12 +2967,37 @@ export function Recruit() {
   // the curtain reaches full cover (`coveredOut` — see the wipe hold effect), so the combat→shop swap always
   // happens out of sight. `wipeExitRef` carries the pending exit across that gap and doubles as the
   // double-click guard. (`skipFade` still uses the old crossfade classes — Skip stays in combat.)
+  //
+  // THE END-GAME GATE (owner 2026-10-13: "when a player either loses or wins, when they hit the gem to end the
+  // combat phase, i want the doors to slide closed and slam for a moment and then reopen to the end game stats
+  // screen"). The fight that ENDS the game leaves through the gate's doors instead of the blue sweep. Whether it
+  // does is only known once the fight is resolved, and that resolution must run exactly once, so a fight that
+  // COULD be the last (`combatMayEndGame`, a cheap check) is resolved here, at the press, through the store's
+  // prepared-action seam, and held. If it ends the game the doors close over the fight and the held result is
+  // committed behind them; if not, the blue sweep plays as always and commits it at full cover (below). Every other
+  // fight is untouched: nothing is resolved at the press. See rankedGate/endGameGate.ts.
   const wipeExitRef = useRef(false);
   const endCombat = useCallback((): void => {
     if (wipeExitRef.current) return; // already leaving — ignore a double-click
     wipeExitRef.current = true;
+    if (!sandboxReplay && !spectating) {
+      const st = useGame.getState();
+      if (combatMayEndGame(st.run)) {
+        const tx = st.preparePresentationAction({ type: 'resolveCombat' });
+        if (tx && tx.action.type === 'resolveCombat' && resolutionEndsGame(tx.after) && gateMotionAllowed()) {
+          void requestRankedGate(() => {
+            // Behind the shut doors: drop the fight's lingering particles, then land the result. The phase flips
+            // to the end of the game, so the end screen mounts out of sight and the doors open on it.
+            pixiFx.clearParticles();
+            useGame.getState().commitPresentationAction();
+            wipeExitRef.current = false;
+          }, 'end');
+          return;
+        }
+      }
+    }
     setWipe('primeOut'); // one parked-circle frame, then the exit bloom (see the wipe hold effect)
-  }, []);
+  }, [sandboxReplay, spectating]);
   useEffect(() => {
     if (wipe !== 'coveredOut' || !wipeExitRef.current) return;
     wipeExitRef.current = false;
@@ -2975,6 +3010,9 @@ export function Recruit() {
     // wave +1, embers refilled, a fresh opponent served, and the board you authored stranded a wave back.
     // The replay must be a pure animation, so its exit is a pure phase flip (see store `exitReplay`).
     if (sandboxReplay) exitReplay();
+    // A fight that could have ended the game was already resolved at the press and is being held (see `endCombat`):
+    // land THAT result. Resolving it again would settle the lobby round twice.
+    else if (useGame.getState().presentationTx?.action.type === 'resolveCombat') useGame.getState().commitPresentationAction();
     else dispatch({ type: 'resolveCombat' });
   }, [wipe, dispatch, sandboxReplay, exitReplay]);
 

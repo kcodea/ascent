@@ -39,7 +39,7 @@
 .rgate-door::after { content: ''; position: absolute; top: 0; bottom: 0; width: 70px; pointer-events: none; transition: opacity 0.12s linear; }
 .rgate-door-l::after { left: 100%; background: linear-gradient(90deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)); }
 .rgate-door-r::after { right: 100%; background: linear-gradient(270deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)); }
-.rgate:is(.is-shut, .is-forming, .is-armed, .is-shatter) .rgate-door::after { opacity: 0; }
+.rgate:is(.is-shut, .is-forming, .is-armed, .is-shatter, .is-shudder) .rgate-door::after { opacity: 0; }
 /* The hot flash on the seam at the slam: a static gradient, only its opacity moves. */
 .rgate-flash { position: absolute; left: 50%; top: 0; bottom: 0; width: 320px; margin-left: -160px; opacity: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(255, 214, 140, 0), rgba(255, 226, 170, 0.5) 38%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 226, 170, 0.5) 62%, rgba(255, 214, 140, 0)); }
@@ -73,7 +73,7 @@
 }
 
 /* SHUT: the doors rest closed; the pair recoils from the hit and the seam flashes. */
-.rgate:is(.is-shut, .is-forming, .is-armed, .is-shatter) .rgate-door { transform: translateX(0); }
+.rgate:is(.is-shut, .is-forming, .is-armed, .is-shatter, .is-shudder) .rgate-door { transform: translateX(0); }
 .rgate.is-shut .rgate-doors { animation: rg-impact var(--rg-shake, 460ms) linear both; }
 .rgate.is-shut .rgate-flash { animation: rg-flash var(--rg-shake, 460ms) ease-out both; }
 @keyframes rg-impact {
@@ -262,7 +262,8 @@
 @keyframes rg-cry-shatter { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2.4); } }
 
 /* THE SHUDDER: as the crystal shatters the shut pair rattles, hardest in the middle of it. */
-.rgate.is-shatter .rgate-doors { animation: rg-shudder var(--rg-shudder, 700ms) linear both; }
+/* `is-shudder` is the END-GAME gate's (2026-10-13): the same shake, with no crystal to break first. */
+.rgate:is(.is-shatter, .is-shudder) .rgate-doors { animation: rg-shudder var(--rg-shudder, 700ms) linear both; }
 @keyframes rg-shudder {
   0% { transform: translate(0, 0) rotate(0deg); }
   8% { transform: translate(-3px, 1px) rotate(-0.1deg); }

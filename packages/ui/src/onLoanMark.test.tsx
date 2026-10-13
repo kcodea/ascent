@@ -34,6 +34,10 @@ vi.mock('./fx/playDef', () => ({
   },
 }));
 
+// The def layers as the hook reads them (the real registry is not loaded here); each test sets the part it needs.
+let defLayers: { anchorPart?: string }[] = [{}];
+vi.mock('./fx/fxDefs', () => ({ getDef: (id: string) => (id === 'funeral-on-loan' ? { id, layers: defLayers } : undefined) }));
+
 const here = dirname(fileURLToPath(import.meta.url));
 const m = mount(<div />);
 afterEach(() => { m.render(<div />); });
@@ -92,7 +96,7 @@ describe('On Loan — what the card shows', () => {
 });
 
 describe('On Loan — the smoke is the owner-authored Pixi loop', () => {
-  beforeEach(() => { plays = []; disposers.length = 0; });
+  beforeEach(() => { plays = []; disposers.length = 0; defLayers = [{}]; });
   afterEach(() => { for (const el of document.querySelectorAll('[data-test-loan]')) el.remove(); });
 
   /** A mounted card element carrying the `data-on-loan` hook the smoke binds to. */
@@ -162,5 +166,37 @@ describe('On Loan — the smoke is the owner-authored Pixi loop', () => {
     expect(follow!()).toBeNull();
     h.unmount();
     spy.mockRestore();
+  });
+
+  it('sits on the edge of the card the def is authored on (the owner moved it to the bottom), else the centre', async () => {
+    const { useOnLoanFx, onLoanFollowPart } = await import('./useOnLoanFx');
+    const fx = await import('./fx/playDef');
+    const followed = (): { x: number; y: number } | null => {
+      let follow: (() => { x: number; y: number } | null) | undefined;
+      const spy = vi.spyOn(fx, 'playDef').mockImplementation((_id, _a, opts) => { follow = opts?.follow as typeof follow; return vi.fn(); });
+      const Harness = (): null => { useOnLoanFx(['a']); return null; };
+      const h = mount(<Harness />);
+      const at = follow!();
+      h.unmount();
+      spy.mockRestore();
+      return at;
+    };
+    stubCard('a'); // rect: left 10, top 10, 100 x 140
+    defLayers = [{ anchorPart: 'bottom' }];
+    expect(onLoanFollowPart()).toBe('bottom');
+    expect(followed(), 'the bottom edge, centred').toEqual({ x: 60, y: 150 });
+    defLayers = [{ anchorPart: 'top' }];
+    expect(followed()).toEqual({ x: 60, y: 10 });
+    // No part, a child-element part (a hand card has no such gem to find), or layers that disagree: the centre.
+    for (const layers of [[{}], [{ anchorPart: 'medallion' }], [{ anchorPart: 'top' }, { anchorPart: 'bottom' }]]) {
+      defLayers = layers;
+      expect(onLoanFollowPart()).toBe('card');
+      expect(followed()).toEqual({ x: 60, y: 80 });
+    }
+  });
+
+  it('the committed def is authored on the bottom of the card', () => {
+    const def = JSON.parse(readFileSync(join(here, 'fx/defs/funeral-on-loan.json'), 'utf8')) as { layers: { anchorPart?: string }[] };
+    expect(def.layers.map((l) => l.anchorPart)).toEqual(['bottom']);
   });
 });

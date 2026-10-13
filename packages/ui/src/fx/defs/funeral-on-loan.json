@@ -6,9 +6,10 @@
     {
       "primitive": "emitter",
       "anchor": "source",
+      "anchorPart": "bottom",
       "at": 0,
       "params": {
-        "rate": 220,
+        "rate": 475,
         "rateCurve": [
           [
             0,
@@ -20,8 +21,8 @@
           ]
         ],
         "life": 2840,
-        "spread": 0.24,
-        "speed": 65,
+        "spread": 0.13,
+        "speed": 130,
         "speedVar": 0.73,
         "reverse": false,
         "speedCurve": [

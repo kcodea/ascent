@@ -532,7 +532,7 @@ export const TEXT_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms as of 2026-10-13: instView sets onLoanKey from the borrowed flag of a hand card (never on a board body); '
       + 'Card prints the words (plain text, dark drop shadow) and stamps the data-on-loan hook; useOnLoanFx loops the '
-      + 'owner-authored funeral-on-loan def on that hook, at most 2 at once, torn down in combat and under any overlay. '
+      + 'owner-authored funeral-on-loan def on that hook, at most 1 at once, torn down in combat and under any overlay. '
       + 'The smoke hides while the card is being dragged (the words stay on the drag copy).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/onLoanMark.test.tsx'], lastVerifiedAt: '2026-10-13' },
   },

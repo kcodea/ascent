@@ -1,15 +1,37 @@
 import { useEffect, useRef } from 'react';
 import { playDef } from './fx/playDef';
+import { getDef } from './fx/fxDefs';
+import { isSelectorPart, partPointFromRects, partsUsedByLayers } from './fx/anchorParts';
+import type { FxAnchorPart } from './fx/def';
 
 /**
  * ON LOAN MARKER — the maximum number of `funeral-on-loan` loops alive at once.
  *
- * The owner-authored def emits at 220/s with a 2840 ms particle life, so ONE loop settles at roughly 625 live
- * particles: about three times the (Both) marker. A hand rarely holds more than one loaned card (Funeral on Loan
- * is one Discover per cast, and the loan ends at the next turn), so the cap is two: ~1,250 particles at the very
- * most. A card past the cap carries no smoke; it still wears the "On Loan" text, which is the load-bearing half.
+ * The owner-authored def (second save, 2026-10-13) emits at 475/s with a 2840 ms particle life, so ONE loop settles
+ * at roughly 1,350 live particles. The shop scene's whole budget is 1,500 (`maxParticlesShop`), and a loop is never
+ * thinned, so a second loop cannot fit: the cap is ONE. A hand rarely holds more than one loaned card anyway
+ * (Funeral on Loan is one Discover per cast, and the loan ends at the next turn). A card past the cap carries no
+ * smoke; it still wears the "On Loan" text, which is the load-bearing half.
+ *
+ * KNOWN COST: while that loop is alive it holds most of the shop budget, so every other shop effect that plays
+ * in the same moment is thinned (fewer particles per play; every play still fires). Lowering the def's `rate` is
+ * the dial for that.
  */
-export const ON_LOAN_FX_CAP = 2;
+export const ON_LOAN_FX_CAP = 1;
+
+
+/**
+ * WHERE ON THE CARD the smoke sits. The owner authors that in the workbench as the layer's anchor PART (the
+ * 2026-10-13 save moved it to `bottom`), but a FOLLOWING play hands the engine ONE live point that replaces every
+ * anchor, parts included, so the part would be silently ignored and the smoke would sit on the card's centre
+ * whatever the def says. So the hook honours it itself: when the def's layers name exactly one EDGE of the card
+ * (`top` / `bottom` / `left` / `right`), the followed point is that edge of the card's rect. No part, a part
+ * that names a child element, or layers that disagree: the centre, as before.
+ */
+export function onLoanFollowPart(): FxAnchorPart {
+  const parts = partsUsedByLayers(getDef('funeral-on-loan')?.layers ?? []);
+  return parts.length === 1 && !isSelectorPart(parts[0]!) ? parts[0]! : 'card';
+}
 
 /** How many frames `sync` will wait for a card to paint before giving up on marking it. See `sync`. */
 export const ON_LOAN_RETRY_FRAMES = 10;
@@ -47,16 +69,17 @@ export function useOnLoanFx(keys: readonly string[]): void {
       for (const [k, dispose] of map) {
         if (!want.has(k)) { dispose(); map.delete(k); }
       }
+      const part = onLoanFollowPart(); // read once per sync, never per frame
       for (const k of want) {
         if (map.has(k)) continue;
-        // The live centre of THIS card's rect, or null while it is being dragged / not in the DOM. Matched by
+        // The live point on THIS card's rect (its centre, or the edge the def is authored on: see
+        // `onLoanFollowPart`), or null while it is being dragged / not in the DOM. Matched by
         // dataset rather than a selector built out of run data. The hand card comes first in the DOM, ahead of
         // its drag copy, so the copy (which carries the same key) is never the one followed.
         const at = (): { x: number; y: number } | null => {
           const el = [...document.querySelectorAll<HTMLElement>('[data-on-loan]')].find((n) => n.dataset.onLoan === k);
           if (!el || el.classList.contains('dragsrc')) return null;
-          const r = el.getBoundingClientRect();
-          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+          return partPointFromRects(el.getBoundingClientRect(), part, null);
         };
         const start = at();
         if (!start) { unmounted = true; continue; }

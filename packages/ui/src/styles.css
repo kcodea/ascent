@@ -2134,6 +2134,34 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   pointer-events: none; color: #fff; font-family: var(--font-ui); font-weight: 800; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
 .cardlock-ico { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
 .cardlock b { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--ink); padding: 2px 9px; border-radius: 8px; }
+/* FUNERAL ON LOAN — a borrowed hand card: an "On Loan" tag ABOVE the card and a light smoke rising off its top
+   edge and upper sides, so it never reads as a card that would stay if played (owner 2026-10-13). Rendered by
+   Card.tsx `OnLoanMark`; the wisp seats live in `LOAN_WISPS` there. The card itself is NOT dimmed: it is fully
+   playable, playing it is the point. A PLATED card (the hand, the drag copy) re-seats `.cardloan` on the plate's
+   own box (see HAND CARD BACKPLATE), because the plate is wider than the card box and starts above it.
+   PERF: the only loop is `loanwisp` (transform + opacity). Each wisp's gradient is static paint on a plain child. */
+.cardloan { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
+.cardloan-tag {
+  position: absolute; left: 50%; bottom: calc(100% + var(--ccw) * 0.035); transform: translateX(-50%);
+  white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #efeaf8;
+  background: var(--ink); border: 1px solid rgba(206, 196, 232, 0.6); border-radius: calc(var(--ccw) * 0.05);
+  padding: calc(var(--ccw) * 0.03) calc(var(--ccw) * 0.07); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.cardloan-smoke { position: absolute; inset: 0; }
+.cardloan-wisp {
+  position: absolute; width: calc(var(--ccw) * var(--lw-size, 0.36)); aspect-ratio: 1; opacity: 0;
+  animation: loanwisp 4.8s ease-out infinite; will-change: transform, opacity;
+}
+.cardloan-wisp-paint {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(226, 220, 240, 0.62) 0%, rgba(196, 188, 216, 0.3) 38%, transparent 70%);
+}
+@keyframes loanwisp {
+  0%   { transform: translate(-50%, -50%) scale(0.45); opacity: 0; }
+  20%  { opacity: 0.55; }
+  100% { transform: translate(calc(-50% + var(--ccw) * var(--lw-dx, 0)), calc(-50% + var(--ccw) * var(--lw-dy, -0.3))) scale(1.55); opacity: 0; }
+}
 /* Taunt signifies via its silver bulwark Pixi AURA (behind the card) — no badge. */
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth); edge stays tribe-coloured. */
 .card.stealth { opacity: 0.8; }
@@ -4644,9 +4672,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   isolation: isolate;
 }
 /* Shared geometry — the plate and its hover-glow copy are the same size and place, stacked by tree order
-   (`.plateglow` renders first, so it sits behind). */
+   (`.plateglow` renders first, so it sits behind). The Funeral on Loan marker (`.cardloan`) takes the SAME box,
+   so its tag sits above the plate's top edge and its smoke rises off the plate, not off the smaller card box. */
 .card.plated .cardplate,
-.card.plated .plateglow {
+.card.plated .plateglow,
+.card.plated .cardloan {
   position: absolute;
   z-index: 0;                       /* behind every sibling; tree order already puts it first */
   left: 50%;
@@ -4661,6 +4691,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 .card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+.card.plated .cardloan { z-index: 9; } /* the shared rule seats it at z0 with the plate; the marker goes on top */
 /* TRIBE NAME on the plate's bottom gem (tribe-plated cards only — the drawer label is suppressed for them).
    Positioned down the plate by the SAME geometry the plate uses, so it tracks the bottom diamond at any size;
    `--plate-tribe-yf` (fraction of plate height) nudges it onto the gem. No icon; text only. Above the plate

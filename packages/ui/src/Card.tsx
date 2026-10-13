@@ -332,6 +332,10 @@ export interface CardView {
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
+  /** FUNERAL ON LOAN: this hand card is BORROWED — played this turn it is destroyed and its Echo triggers, so it
+   *  wears the "On Loan" tag and a light smoke (`OnLoanMark`) to tell it apart from a card that would stay. The
+   *  sim clears the flag at the next turn, when the card becomes an ordinary one. Never set on a board body. */
+  onLoan?: boolean;
   /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).
    *  The footer prints ALL instead of the primary tribe, since every tribal effect counts it. */
   universalTribe?: boolean;
@@ -859,7 +863,7 @@ export const Card = memo(function Card({
   const plateFade = useArtFade(usePlate ? plateSrcFor(card.tribe) : undefined);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoan ? ' onloan' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -1009,6 +1013,8 @@ export const Card = memo(function Card({
           <span className="cardlock-ico" aria-hidden="true">🔒</span>{lockLabel ? <b>{lockLabel}</b> : null}
         </span>
       )}
+      {/* Funeral on Loan — the "On Loan" tag above the card and the smoke rising off it (owner 2026-10-13). */}
+      {card.onLoan && <OnLoanMark />}
       {/* cost badge — a gold coin overhanging the corner (the cost in Gold). Minions are a flat 3, so their
           cost is hidden (only shown if something has changed it off 3); spells always show their cost. */}
       {card.cost !== undefined && (card.spell || card.cost !== 3) && (
@@ -1446,6 +1452,40 @@ function splitPaint(style: CSSProperties): [CSSProperties, CSSProperties] {
   paintSplits.set(style, out);
   return out;
 }
+
+/** The "On Loan" smoke: a FIXED set of wisps seated along the card's top edge and upper sides. `x` / `y` are the
+ *  seat (% of the card box), `size` the wisp's width, `dx` / `dy` how far it drifts while it fades (all three in
+ *  card widths), `dur` its cycle and `delay` a negative offset so the wisps never rise in step. Deterministic on
+ *  purpose (no jitter): every loaned card smokes the same way, and the array is referentially stable. */
+const LOAN_WISPS = [
+  { x: 12, y: 9, size: 0.34, dx: -0.07, dy: -0.3, dur: 4.4, delay: -0.3 },
+  { x: 33, y: 3, size: 0.4, dx: 0.04, dy: -0.36, dur: 5.2, delay: -2.1 },
+  { x: 52, y: 1, size: 0.36, dx: -0.03, dy: -0.4, dur: 4.8, delay: -3.6 },
+  { x: 71, y: 4, size: 0.42, dx: 0.06, dy: -0.34, dur: 5.6, delay: -1.2 },
+  { x: 89, y: 10, size: 0.33, dx: 0.08, dy: -0.29, dur: 4.2, delay: -2.8 },
+  { x: 3, y: 38, size: 0.28, dx: -0.1, dy: -0.26, dur: 5, delay: -4.1 },
+  { x: 97, y: 42, size: 0.28, dx: 0.1, dy: -0.27, dur: 4.6, delay: -0.9 },
+].map((w) => ({
+  left: `${w.x}%`, top: `${w.y}%`,
+  '--lw-size': w.size, '--lw-dx': w.dx, '--lw-dy': w.dy,
+  animationDuration: `${w.dur}s`, animationDelay: `${w.delay}s`,
+} as CSSProperties));
+
+/** FUNERAL ON LOAN marker (owner 2026-10-13): the "On Loan" tag above a borrowed hand card, with a light smoke
+ *  rising off it. PERF: each wisp animates transform + opacity only; its gradient is static paint on a plain
+ *  child, so it rasterises once into the moving layer (the Execute smoke's `splitPaint` rule). */
+const OnLoanMark = memo(function OnLoanMark() {
+  return (
+    <span className="cardloan" aria-label="On Loan. If you play it this turn, it is destroyed and its Echo triggers.">
+      <span className="cardloan-smoke" aria-hidden="true">
+        {LOAN_WISPS.map((style, i) => (
+          <span key={i} className="cardloan-wisp" style={style}><span className="cardloan-wisp-paint" /></span>
+        ))}
+      </span>
+      <b className="cardloan-tag">On Loan</b>
+    </span>
+  );
+});
 
 const ExecuteAura = memo(function ExecuteAura() {
   const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);

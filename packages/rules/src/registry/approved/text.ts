@@ -515,4 +515,22 @@ export const TEXT_RULES: GameRule[] = [
     example: 'After casting Growth, Steward of Spells reads "End of Turn: Get a copy of the last spell cast. (Growth)".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/stewardLiveText.test.tsx'], lastVerifiedAt: '2026-10-09' },
   },
+  {
+    id: 'R-LOAN-01',
+    title: 'A card on loan is visibly marked "On Loan" while it waits in hand',
+    statement:
+      'A hand card that is destroyed when played this turn (a Funeral on Loan pick) is always told apart from a card '
+      + 'that would stay: it shows the words "On Loan" above the card and a light smoke rising off it, in hand and on '
+      + 'its drag copy. The marker goes away when the loan ends (the next turn) and is never worn by the body on the board.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-13 (Funeral on Loan marker)', quote: 'right now theres no visual distinction between a card granted by funeral on loan and other cards, so players may accidentally play it and destroy it (how the spell works). can we add some light smoke that emits from the card and have text above the card say "On Loan"?' },
+      { kind: 'code', ref: 'packages/ui/src/instView.ts (onLoan), packages/ui/src/Card.tsx (OnLoanMark), packages/ui/src/styles.css (.cardloan)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-13: instView sets onLoan from the borrowed flag of a hand card (never on a board body), and '
+      + 'Card renders the tag and the smoke for it. The exact look (smoke colour, density, tag position) is for the owner to tune.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/onLoanMark.test.tsx'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

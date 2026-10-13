@@ -257,6 +257,9 @@ describe('the gate plays', () => {
     expect(el.getAttribute('aria-disabled')).toBe('false');
     expect(el.tabIndex).toBe(0);
     expect(el.getAttribute('aria-label')).toBe('Shatter the crystal to open the gate');
+    // It opts out of the app-wide menu hover tick and click thock: it has its own hum and its own shatter.
+    expect(el.hasAttribute('data-nohoversfx')).toBe(true);
+    expect(readFileSync(join(__dirname, '..', 'Game.tsx'), 'utf8'), 'the opt-out both menu-sound listeners honour').toMatch(/const MENU_SFX_SKIP = '\[data-nohoversfx\]/);
     expect(document.activeElement, 'it takes focus, so the keyboard can open the gate').toBe(el);
     // Ten minutes later nothing has moved on by itself.
     advance(600_000);

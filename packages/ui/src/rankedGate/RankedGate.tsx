@@ -189,6 +189,10 @@ export function RankedGate(): JSX.Element | null {
           <button
             ref={crystalRef}
             className="rgate-crystal"
+            // No menu hover tick or click thock on the crystal (owner 2026-10-13: "remove the UI highlight click
+            // sound when highlighting the gem"): it has its own hum under the pointer and its own shatter on the
+            // press. `data-nohoversfx` is the app-wide opt-out both delegated listeners in Game.tsx honour.
+            data-nohoversfx=""
             aria-label="Shatter the crystal to open the gate"
             aria-disabled={!armed}
             tabIndex={armed ? 0 : -1}

@@ -22,6 +22,10 @@
  *   - `gaterattle` (2.3 s): the rattle is loud for ~0.7 s. The doors shake for that long.
  *   - `gateopen`   (2.9 s): a clunk ~0.4 s in, then the grind. It starts `openSoundLeadMs` before the doors move,
  *                           so the clunk lands as they part.
+ *   - `gateform`   (3.3 s): the gem's build-up. The owner's 4.75 s recording swelled for 2.6 s; the committed clip is
+ *                           that recording played 1.444x faster at the SAME PITCH (ffmpeg `atempo`), so it rises in
+ *                           ~0.2 s, swells until ~1.8 s and dies away. The forming lasts that 1.8 s; the tail rings on
+ *                           under the waiting crystal.
  */
 import { cubicBezier } from '../wipeGeometry';
 
@@ -34,9 +38,18 @@ export interface RankedGateTiming {
   handoffMs: number;
   /** After the slam, how long the gate sits (the recoil settles, the dust rolls) before the crystal starts to form. */
   crystalDelayMs: number;
-  /** The centre diamond forming the crystal: sparks are pulled into its centre and the gem grows there, white-hot,
-   *  then cools. 1100 ms at first; 1600 ms since the coalescing (2026-10-13), which needs the time to read. */
+  /** The centre diamond forming the crystal: sparks are pulled into its edge and the gem grows there, white-hot,
+   *  then cools. It runs the length of the build-up cue's swell (`gateform`), so the gem is whole as the sound
+   *  peaks. 1100 ms at first; 1600 ms with the coalescing; 2600 ms to fit the owner's recording as recorded; then
+   *  1800 ms the same day (owner: "reduce the swell effect back down to about 1.8 seconds ... adjust the clip to
+   *  match"), with the clip itself time-compressed to that length. */
   crystalFormMs: number;
+  /** How far into the forming the build-up cue (`gateform`) starts to fade, and how long the fade takes. Left to
+   *  itself the clip is at its loudest right up to the end of the forming and only then dies away; it now eases off
+   *  as the gem stops growing and starts to cool, and is gone soon after the crystal is whole (owner 2026-10-13:
+   *  "can you have the swell audio clip start to fade out earlier?"). */
+  formSoundFadeAtMs: number;
+  formSoundFadeMs: number;
   /** The crystal's burst once it is pressed. */
   shatterMs: number;
   /** How long the shut doors shudder (from the shatter) before they part. */
@@ -52,7 +65,9 @@ export const RANKED_GATE_TIMING: RankedGateTiming = {
   slamShakeMs: 460,
   handoffMs: 220,
   crystalDelayMs: 650,
-  crystalFormMs: 1600,
+  crystalFormMs: 1800,
+  formSoundFadeAtMs: 1100,
+  formSoundFadeMs: 900,
   shatterMs: 420,
   shudderMs: 700,
   openSoundLeadMs: 300,

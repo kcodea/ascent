@@ -459,13 +459,12 @@ function stopGateHum(ms: number): void {
 }
 /** The ranked gate's cues (`sfx.gate`). Each plays on the fader `gate<cue>`. */
 export type GateCue = 'intro' | 'close' | 'slam' | 'rattle' | 'open' | 'form' | 'shatter';
-/** The clip behind each gate cue. All but one are the owner's own recordings (`shatter` is his crystal-shatter
- *  clip, 2026-10-13; `intro` is the cinematic hit he first put on the press of "Yes, let's go." and then moved to
- *  the crystal's shatter, where it plays with `shatter`). `form` (the crystal forming) has none yet, so it borrows
- *  the gem-apply chime already in the game as a STAND-IN. Swap the clip name here when a recorded one arrives. */
+/** The clip behind each gate cue: the owner's own recordings, every one (`shatter` and the `form` build-up arrived
+ *  2026-10-13; `intro` is the cinematic hit he first put on the press of "Yes, let's go." and then moved to the
+ *  crystal's shatter, where it plays with `shatter`). */
 const GATE_CLIP: Record<GateCue, string> = {
   intro: 'gateintro', close: 'gateclose', slam: 'gateslam', rattle: 'gaterattle', open: 'gateopen',
-  form: 'gemapply', shatter: 'gateshatter',
+  form: 'gateform', shatter: 'gateshatter',
 };
 /** Cues that fire on a PRESS skip their file's silent lead-in, so the sound lands with the press: `gateintro`
  *  opens on 49 ms of dead silence and `gateshatter` on 26 ms (both measured in 10 ms windows). A duration past the
@@ -1543,10 +1542,24 @@ export const sfx = {
    * name. `delay` (ms) schedules on the audio clock. No synth stand-in: a late beep over a gate reads worse than
    * silence, and the sequence is visual-driven either way (the audio-never-blocks rule).
    */
-  gate: (cue: GateCue, delay = 0): void => {
+  gate: (cue: GateCue, delay = 0, fade?: { atMs: number; overMs: number }): void => {
     // The press cues skip their files' silent lead-ins (`GATE_SLICE`; owner 2026-10-12: "there seems to be a slight
     // delay before i hear the sound").
-    playSample(GATE_CLIP[cue], `gate${cue}`, Math.max(0, delay) / 1000, undefined, GATE_SLICE[cue]);
+    const delaySec = Math.max(0, delay) / 1000;
+    playSample(GATE_CLIP[cue], `gate${cue}`, delaySec, fade && (({ src, gain }) => {
+      // AN EARLY FADE (the build-up cue): from `atMs` into the clip its level eases away over about `overMs`, on
+      // the audio clock, instead of running at full strength to the clip's own end. An exponential ease (a third
+      // of `overMs` as its time constant is about -26 dB by the end), then the source is stopped.
+      const a = ctx;
+      if (!a) return;
+      try {
+        const from = a.currentTime + delaySec + Math.max(0, fade.atMs) / 1000;
+        const over = Math.max(0.05, fade.overMs / 1000);
+        gain.gain.setValueAtTime(gain.gain.value, from);
+        gain.gain.setTargetAtTime(0.0001, from, over / 3);
+        src.stop(from + over * 1.6);
+      } catch { /* the fade is a nicety: the clip then simply plays out */ }
+    }), GATE_SLICE[cue]);
   },
   /**
    * THE CRYSTAL'S HUM, on or off (see `GATE_HUM_LOOP`). On: the loop starts and fades up over `fadeMs`; a second

@@ -520,17 +520,20 @@ export const TEXT_RULES: GameRule[] = [
     title: 'A card on loan is visibly marked "On Loan" while it waits in hand',
     statement:
       'A hand card that is destroyed when played this turn (a Funeral on Loan pick) is always told apart from a card '
-      + 'that would stay: it shows the words "On Loan" above the card and smoke rising off it, in hand and on '
-      + 'its drag copy. The marker goes away when the loan ends (the next turn) and is never worn by the body on the board.',
+      + 'that would stay: it shows the words "On Loan" above the card (in hand and on its drag copy) and smoke rising '
+      + 'off it in hand. The marker goes away when the loan ends (the next turn) and is never worn by the body on the board.',
     domain: 'text',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-13 (Funeral on Loan marker)', quote: 'right now theres no visual distinction between a card granted by funeral on loan and other cards, so players may accidentally play it and destroy it (how the spell works). can we add some light smoke that emits from the card and have text above the card say "On Loan"?' },
-      { kind: 'code', ref: 'packages/ui/src/instView.ts (onLoan), packages/ui/src/Card.tsx (OnLoanMark), packages/ui/src/styles.css (.cardloan)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-13 (Funeral on Loan marker, the look)', quote: 'ok i made an effect and saved it in the fx workbench called: funeral-on-loan [...] do not apply the css except for the on loan text. but remove the pill around the text and instead use a dark drop shadow' },
+      { kind: 'code', ref: 'packages/ui/src/instView.ts (onLoanKey), packages/ui/src/Card.tsx (OnLoanMark), packages/ui/src/useOnLoanFx.ts, packages/ui/src/fx/defs/funeral-on-loan.json' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-10-13: instView sets onLoan from the borrowed flag of a hand card (never on a board body), and '
-      + 'Card renders the tag and the smoke for it. The exact look (smoke colour, density, tag position) is for the owner to tune.',
+      'Conforms as of 2026-10-13: instView sets onLoanKey from the borrowed flag of a hand card (never on a board body); '
+      + 'Card prints the words (plain text, dark drop shadow) and stamps the data-on-loan hook; useOnLoanFx loops the '
+      + 'owner-authored funeral-on-loan def on that hook, at most 2 at once, torn down in combat and under any overlay. '
+      + 'The smoke hides while the card is being dragged (the words stay on the drag copy).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/onLoanMark.test.tsx'], lastVerifiedAt: '2026-10-13' },
   },
 ];

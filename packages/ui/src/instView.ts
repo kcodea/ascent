@@ -401,9 +401,10 @@ export function instView(
     // (Both) MARKER hook — a card still WAITING to be played (hand). A body already on the board has resolved
     // its Choose One, so it is not a promise any more and carries no marker.
     chooseBothKey: chooseBoth && !live?.onBoard ? inst.uid : undefined,
-    // FUNERAL ON LOAN: a borrowed card still WAITING in hand wears the "On Loan" marker. The body that lands on
-    // the board for its Echo is already resolving, so it carries none; the sim clears `borrowed` at the next turn.
-    onLoan: inst.borrowed && !live?.onBoard ? true : undefined,
+    // FUNERAL ON LOAN: a borrowed card still WAITING in hand wears the "On Loan" marker (its text + the smoke loop
+    // bound to this key). The body that lands on the board for its Echo is already resolving, so it carries none;
+    // the sim clears `borrowed` at the next turn.
+    onLoanKey: inst.borrowed && !live?.onBoard ? inst.uid : undefined,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes || !!(inst as { unityTribes?: boolean }).unityTribes, // + Rune of Unity's full house (Set 3 design pass)
     attack: shownAtk, health: shownHp,
     keywords: shownKeywords, text: shownText + tempTags,

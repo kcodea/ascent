@@ -82,7 +82,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A minion from Funeral on Loan now shows "On Loan" above it in your hand, with smoke rising off it, so you can tell it apart.',
         details: [
           'Playing a card on loan this turn destroys it and triggers its Echo. The marker is there so you do not do it by accident.',
-          'The marker follows the card while you drag it, and goes away next turn, when the card is yours to keep.',
+          'The words stay on the card while you drag it. The marker goes away next turn, when the card is yours to keep.',
         ],
       },
       {

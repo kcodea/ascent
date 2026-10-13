@@ -40,6 +40,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'auctioneer-hp': ['Recruit.tsx'],
   'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards
   'cia-hp': ['useCiaEnchantedFx.ts'],
+  // The persistent ON LOAN smoke on a Funeral on Loan hand card (owner-authored 2026-10-13): a looping play that
+  // follows the card, fired by literal id from its hook.
+  'funeral-on-loan': ['useOnLoanFx.ts'],
   'click-puff': ['Recruit.tsx'],
   // The generic buff-other ribbon (owner-authored 2026-09-02, replacing the stripped procedural tendril). Fired
   // from the ONE shared buff-other path so the combat replay and the shop draw the same trail; a card's own

@@ -332,10 +332,11 @@ export interface CardView {
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
-  /** FUNERAL ON LOAN: this hand card is BORROWED — played this turn it is destroyed and its Echo triggers, so it
-   *  wears the "On Loan" tag and smoke (`OnLoanMark`) to tell it apart from a card that would stay. The
-   *  sim clears the flag at the next turn, when the card becomes an ordinary one. Never set on a board body. */
-  onLoan?: boolean;
+  /** FUNERAL ON LOAN: this hand card is BORROWED (played this turn it is destroyed and its Echo triggers), so it
+   *  is told apart from a card that would stay. A stable key, stamped on the card root as `data-on-loan`: the
+   *  ONLY contract the looping smoke binds to (`useOnLoanFx` follows it), and what makes the card print its
+   *  "On Loan" text (`OnLoanMark`). The sim clears the loan at the next turn. Never set on a board body. */
+  onLoanKey?: string;
   /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).
    *  The footer prints ALL instead of the primary tribe, since every tribal effect counts it. */
   universalTribe?: boolean;
@@ -863,13 +864,14 @@ export const Card = memo(function Card({
   const plateFade = useArtFade(usePlate ? plateSrcFor(card.tribe) : undefined);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoan ? ' onloan' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
          the card itself renders exactly as a spell (owner 2026-09-25). */
       data-triple-reward={card.cardId === 'discoverspell' ? '' : undefined}
       data-choose-both={card.chooseBothKey}
+      data-on-loan={card.onLoanKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
@@ -1013,8 +1015,8 @@ export const Card = memo(function Card({
           <span className="cardlock-ico" aria-hidden="true">🔒</span>{lockLabel ? <b>{lockLabel}</b> : null}
         </span>
       )}
-      {/* Funeral on Loan — the "On Loan" tag above the card and the smoke rising off it (owner 2026-10-13). */}
-      {card.onLoan && <OnLoanMark />}
+      {/* Funeral on Loan — the "On Loan" text above the card (owner 2026-10-13). Its smoke is the Pixi loop. */}
+      {card.onLoanKey && <OnLoanMark />}
       {/* cost badge — a gold coin overhanging the corner (the cost in Gold). Minions are a flat 3, so their
           cost is hidden (only shown if something has changed it off 3); spells always show their cost. */}
       {card.cost !== undefined && (card.spell || card.cost !== 3) && (
@@ -1453,57 +1455,12 @@ function splitPaint(style: CSSProperties): [CSSProperties, CSSProperties] {
   return out;
 }
 
-/** A fixed 0..1 value from a wisp index and a salt, so the smoke is the same on every loaned card and on every
- *  render (no jitter between mounts; the array below is built once and stays referentially stable). */
-const loanRand = (i: number, salt: number): number => {
-  const v = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
-  return v - Math.floor(v);
-};
-
-/** The "On Loan" smoke (owner 2026-10-13: "more smoke ... more whispy like authentic smoke ... more aggressive").
- *  Two kinds of wisp, seated along the top edge and down both sides of the card:
- *   · a PLUME: a tall thin streak that climbs fast, sways side to side and spreads as it thins out;
- *   · a CURL: a thin arc that rises while it spins and opens, the filament real smoke throws off.
- *  Lengths are in card widths. Every wisp leans away from the card's centre line, so the smoke fans out. */
-const LOAN_WISP_COUNT = 26;
-const LOAN_WISPS = Array.from({ length: LOAN_WISP_COUNT }, (_, i) => {
-  const r = (salt: number): number => loanRand(i, salt);
-  const curl = i % 3 === 2;
-  const side = i % 4 === 3 ? (((i - 3) / 4) % 2 === 0 ? -1 : 1) : 0; // every fourth wisp, alternating left / right edge
-  // Top seats walk the edge in a shuffled order (37 is coprime with the count), so neighbours never fire in step.
-  const x = side ? (side < 0 ? 1 + r(2) * 3 : 96 + r(2) * 3) : 4 + (((i * 37) % LOAN_WISP_COUNT) / (LOAN_WISP_COUNT - 1)) * 92;
-  const y = side ? 6 + r(3) * 60 : r(3) * 6;
-  const lean = side || (x - 50) / 50;
-  const dur = (curl ? 2.2 : 1.7) + r(4) * 1.2;
-  const spin = (r(5) < 0.5 ? -1 : 1) * (curl ? 110 + r(6) * 150 : 6 + r(6) * 20);
-  const style = {
-    left: `${x.toFixed(1)}%`, top: `${y.toFixed(1)}%`,
-    '--lw-w': (curl ? 0.2 + r(7) * 0.18 : 0.13 + r(7) * 0.1).toFixed(3),
-    '--lw-h': (0.5 + r(8) * 0.38).toFixed(3),
-    '--lw-dx': (lean * 0.16 + (r(9) - 0.5) * 0.12).toFixed(3),
-    '--lw-dy': (-(0.6 + r(10) * 0.55)).toFixed(3),
-    '--lw-sway': ((r(11) - 0.5) * 0.3).toFixed(3),
-    '--lw-r0': `${((r(12) - 0.5) * 34).toFixed(1)}deg`,
-    '--lw-rot': `${spin.toFixed(1)}deg`,
-    '--lw-a': (0.62 + r(13) * 0.3).toFixed(2),
-    animationDuration: `${dur.toFixed(2)}s`, animationDelay: `${(-r(14) * dur).toFixed(2)}s`,
-  } as CSSProperties;
-  return { className: `cardloan-wisp ${curl ? 'curl' : 'plume'}`, style };
-});
-
-/** FUNERAL ON LOAN marker (owner 2026-10-13): the "On Loan" tag above a borrowed hand card, with smoke pouring
- *  off it. PERF: the haze and every wisp animate transform + opacity only; the gradient, the arc and the blur
- *  are static paint on a plain child, so they rasterise once into the moving layer (the Execute smoke's
- *  `splitPaint` rule). */
+/** FUNERAL ON LOAN marker (owner 2026-10-13): the words "On Loan" above a borrowed hand card. Plain text with a
+ *  dark drop shadow, no pill. The smoke is NOT drawn here: it is the owner-authored `funeral-on-loan` Pixi loop,
+ *  bound to the card's `data-on-loan` hook by `useOnLoanFx`. */
 const OnLoanMark = memo(function OnLoanMark() {
   return (
     <span className="cardloan" aria-label="On Loan. If you play it this turn, it is destroyed and its Echo triggers.">
-      <span className="cardloan-smoke" aria-hidden="true">
-        <span className="cardloan-haze"><span className="cardloan-haze-paint" /></span>
-        {LOAN_WISPS.map((w, i) => (
-          <span key={i} className={w.className} style={w.style}><span className="cardloan-wisp-paint" /></span>
-        ))}
-      </span>
       <b className="cardloan-tag">On Loan</b>
     </span>
   );

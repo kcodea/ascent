@@ -162,6 +162,7 @@ import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxCon
 import { reformRebirth, reformReborn } from './choreo/channels/aura';
 import { useCiaEnchantedFx } from './useCiaEnchantedFx';
 import { useChooseBothFx } from './useChooseBothFx';
+import { useOnLoanFx } from './useOnLoanFx';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getConsumeFxConfig } from './consumeFxConfig';
@@ -2792,6 +2793,20 @@ export function Recruit() {
     return [...hand, ...shop];
   }, [run, inCombat, discoverMin, heroSelecting, overlayOpen, inspectView]);
   useChooseBothFx(chooseBothKeys);
+
+  /**
+   * ON LOAN SMOKE — which hand cards the owner-authored `funeral-on-loan` loop rides right now: every card still
+   * on loan (`borrowed`; the keys are the `data-on-loan` values the hand views stamp, see `CardView.onLoanKey`).
+   * Same PAUSE as the (Both) marker above: combat and anything covering the board yield `[]`, which tears the
+   * loops down rather than leaving emitters spending frames behind a backdrop.
+   */
+  const onLoanKeys = useMemo(() => {
+    if (run.phase === 'combat' || inCombat) return [];
+    if ((run.discover?.length && !discoverMin) || inspectView) return [];
+    if (run.chooseOne || run.questOffer || run.powerOffer || run.runeforgeOffer || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return [];
+    return run.hand.filter((c) => c.borrowed).map((c) => c.uid);
+  }, [run, inCombat, discoverMin, heroSelecting, overlayOpen, inspectView]);
+  useOnLoanFx(onLoanKeys);
 
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {

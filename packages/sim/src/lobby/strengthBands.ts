@@ -1,5 +1,6 @@
 import { medalOf, type RankMedal } from '../rank';
 import { MAX_SEATS_PER_PLAYER } from './snapshotSeats';
+import type { PracticeRank } from '../state';
 
 /**
  * MATCHMAKING BANDS BY RANK (owner design 2026-09-30, R-LOBBY-09): "serve for example 0-30 for bronze, 10-40 in
@@ -19,7 +20,8 @@ import { MAX_SEATS_PER_PLAYER } from './snapshotSeats';
  * - When a band cannot fill the table, it widens by `BAND_WIDEN_STEP` on each capped side, step by step, until it
  *   is uncapped; only then do generated seats fill what is left (`bandSteps`). A floor-only band would widen by
  *   lowering its floor.
- * - Unrated modes (Practice, the tutorial) and Platinum, Diamond and Ascendant have no band.
+ * - The tutorial and Platinum, Diamond and Ascendant have no band. Practice has none either unless the player picks
+ *   an Opponent Rank on its setup screen (2026-10-13, `practiceStrengthBand` below): it then draws that medal's band.
  *
  * Shaped for a second pool later (owner: "dont worry about the ancients and plat separation just yet"): the band
  * is one input to selection, next to the pool id the server sample takes (`pool_runs_sample(p_pool)`).
@@ -118,6 +120,34 @@ export const BAND_WIDEN_STEP = 10;
 /** The band for a ladder position (by division index). Null = uncapped. */
 export function strengthBandForDivision(divisionIndex: number): StrengthBand | null {
   const b = STRENGTH_BANDS[medalOf(divisionIndex)];
+  return b ? { ...b } : null;
+}
+
+/**
+ * PRACTICE "OPPONENT RANK" (owner 2026-10-13, R-PRACTICE-RANK-01): "when playing in practice mode, can we add an option
+ * to select what rank the snapshots they face are in? this should be exactly what is already in place with what
+ * snapshots a bronze vs silver vs gold player can face", then "we'd just add buttons that says All Ranks, Bronze,
+ * Silver, Gold, Platinum". The choices in the order the row shows them.
+ */
+export const PRACTICE_RANKS: readonly PracticeRank[] = Object.freeze(['all', 'bronze', 'silver', 'gold', 'platinum'] as const);
+
+const PRACTICE_RANK_MEDAL: Readonly<Record<Exclude<PracticeRank, 'all'>, RankMedal>> = Object.freeze({
+  bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum',
+});
+
+/** A stored Practice rank, healed: anything that is not one of the five choices (an older draft or run, which has
+ *  none) reads as `all`. */
+export function normalizePracticeRank(raw: unknown): PracticeRank {
+  return typeof raw === 'string' && (PRACTICE_RANKS as readonly string[]).includes(raw) ? (raw as PracticeRank) : 'all';
+}
+
+/** The band a Practice game of this rank draws its recorded seats from: the medal's own entry of `STRENGTH_BANDS`,
+ *  never a copy of its numbers, so a retune of the ranked bands retunes Practice with it. `all` (and anything
+ *  unknown) is no band. Platinum has no band today either, so it draws like `all` until the table gives it one. */
+export function practiceStrengthBand(rank: unknown): StrengthBand | null {
+  const r = normalizePracticeRank(rank);
+  if (r === 'all') return null;
+  const b = STRENGTH_BANDS[PRACTICE_RANK_MEDAL[r]];
   return b ? { ...b } : null;
 }
 

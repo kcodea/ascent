@@ -18,7 +18,7 @@ import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
-import { bandSteps, runInStrengthBand, type StrengthBand } from './strengthBands';
+import { bandSteps, practiceStrengthBand, runInStrengthBand, type StrengthBand } from './strengthBands';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -341,6 +341,13 @@ export interface LobbySeatOptions {
    *  OVERALL cap (R-LOBBY-15: Bronze 40, Silver 60, Gold 75 on the weighted strength) holds at every step and never
    *  widens. Null / absent = no band, exactly the selection of before. */
   strengthBand?: StrengthBand | null;
+  /** Runs (by run key) that are NOT candidates for this table, as if they were not in the pool (2026-10-13,
+   *  R-PRACTICE-RANK-01). The app passes the runs this session fetched only for ANOTHER rank's band (a Practice game
+   *  set to another rank, or the player's rank before it changed): the pool keeps them (a saved game may be seated
+   *  from them), but a table of this rank must draw from its own rank's sample, or a detour through a Practice game
+   *  set to a lower rank would hand a rated lobby that rank's weaker runs. Absent / empty = every run is a
+   *  candidate, the selection of before, seat for seat. */
+  excludeRuns?: ReadonlySet<string>;
 }
 
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
@@ -395,7 +402,10 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   // passed over for the next one in the shuffle, so every run of an under-cap player stays equally likely; when the
   // pool genuinely lacks enough players, generated seats fill the rest below, exactly as for an empty pool. YOUR OWN
   // runs are seated like anyone else's, under the same cap (owner 2026-09-30: "this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this").
-  const available = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
+  // `excludeRuns` is applied AFTER the shuffle, so without it the draw is the one of before, seat for seat.
+  const exclude = opts.excludeRuns?.size ? opts.excludeRuns : null;
+  const shuffled = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
+  const available = exclude ? shuffled.filter((run) => !exclude.has(run.key)) : shuffled;
   const seatsByOwner = new Map<string, number>();
   const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
   const tableFull = (): boolean => picked >= r.seatCount - 1 || seats.filter((x) => x.kind === 'snapshot').length >= maxSnapshotSeats;
@@ -1009,6 +1019,18 @@ export function lobbyOpponentBoard(
 }
 
 /**
+ * PRACTICE OPPONENT RANK (owner 2026-10-13, R-PRACTICE-RANK-01): a Practice game whose setup picked a rank draws its
+ * recorded seats from that medal's band, through the very selection a rated lobby of that medal uses (`createRunLobby`
+ * with `strengthBand`: the band, its overall cap, the widening). `all` (and a config with no rank) is no band:
+ * Practice as it always was. A band the caller passes explicitly wins. Every other mode is returned untouched.
+ */
+function practiceSeatOptions(mode: 'lobby' | 'practice', config: PracticeConfig | undefined, seatOpts: LobbySeatOptions | undefined): LobbySeatOptions | undefined {
+  if (mode !== 'practice' || seatOpts?.strengthBand !== undefined) return seatOpts;
+  const band = practiceStrengthBand(config?.rank);
+  return band ? { ...seatOpts, strengthBand: band } : seatOpts;
+}
+
+/**
  * Start a run that is a seat in an 8-seat lobby: ordinary Ascent play, no course clock, and the run ends when
  * the player's SEAT is knocked out rather than after 17 rounds.
  */
@@ -1032,7 +1054,7 @@ export function createLobbyRun(
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
   const lobby = practiceConfig?.opponents === 'bots'
     ? createPracticeBotLobby(seed, heroId, practiceConfig.botDifficulty, rules)
-    : createRunLobby(seed, heroId, rules, run.setId, seatOpts);
+    : createRunLobby(seed, heroId, rules, run.setId, practiceSeatOptions(mode, practiceConfig, seatOpts));
   const me = lobby.seats[0]!;
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;

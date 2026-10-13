@@ -14,10 +14,17 @@
  * checked for completeness here, registration is all-or-nothing per run (`registerOpponentRuns`), and the cache
  * stores whole runs keyed by run key under a version, so no path can hand the lobby a cut-down run.
  *
+ * 2026-10-13, SAMPLES FOR MORE THAN ONE RANK (R-PRACTICE-RANK-01): Practice can now ask for another rank's opponents,
+ * so one session can hold samples fetched for several bands. Registration only ever ADDS (a saved game may be seated
+ * from any of them), so the loader remembers which band each run was fetched for: `matchBand()` fetches the sample
+ * for the band wanted now, and `foreignRuns(band)` names the runs fetched only for OTHER bands, which seat selection
+ * then passes over. Without that, a Practice game set to Bronze would leave Bronze's runs in the pool for the
+ * player's next rated lobby.
+ *
  * Pure orchestration over injected deps (fetch, register, cache, clock), so the tests drive it without a network,
  * a browser or real time. Everything here is async and off the render path; nothing blocks the menu.
  */
-import { sameBand, type BoardSnapshot, type RunRegistration, type StrengthBand } from '@game/sim';
+import { bandVersionLabel, sameBand, type BoardSnapshot, type RunRegistration, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
 
 export type PoolStatus = 'idle' | 'loading' | 'ready' | 'failed';
@@ -114,6 +121,9 @@ export interface LoadOptions {
 export const STARTUP_LOAD: LoadOptions = { perRequestMs: 12000, attempts: 2, retryBaseMs: 500 };
 /** The lobby gate's own retry: a player is waiting on it, so it is allowed longer. */
 export const GATE_LOAD: LoadOptions = { perRequestMs: 15000, attempts: 2, retryBaseMs: 750 };
+/** `matchBand`: one attempt, shorter than the gate's own. A player is waiting, and the pool on hand already seats a
+ *  table (seat selection filters and widens from it), so a slow fetch is given up on rather than waited out. */
+export const BAND_MATCH_LOAD: LoadOptions = { perRequestMs: 10000, attempts: 1, retryBaseMs: 0 };
 /** Background retry delays after a load that failed. Stops after the last one (the `online` event and every
  *  lobby launch still retry). */
 export const BACKGROUND_RETRY_MS = [5000, 15000, 45000, 120000, 300000];
@@ -165,6 +175,17 @@ export interface PoolLoader {
   /** Resolve once the pool is usable: immediately when ready, else after the in-flight load or a fresh one
    *  with the gate's longer budget. Never rejects. */
   ensure(): Promise<PoolLoadState>;
+  /** Has a network sample arrived, for ANOTHER band than the one wanted now (a rank change, or a Practice game set
+   *  to another rank)? */
+  bandStale(): boolean;
+  /** Fetch a sample for the band wanted now when the last one was for another band (`bandStale`); a load already
+   *  in flight is waited for first. Resolves at once when there is nothing to do, and after ONE attempt otherwise,
+   *  whether or not it arrived (the pool on hand still seats a table). Never rejects. */
+  matchBand(opts?: LoadOptions): Promise<PoolLoadState>;
+  /** The runs (by run key) this session's network samples delivered ONLY for other bands than `band`: not
+   *  candidates for a table of `band` (`LobbySeatOptions.excludeRuns`). Empty until a sample for `band` itself has
+   *  arrived, so a table can always be seated from the pool on hand, as before. Runs from the cache are never in it. */
+  foreignRuns(band: StrengthBand | null): Set<string>;
   /** Kick an immediate retry when nothing fresh has arrived yet (wired to the browser `online` event). */
   onOnline(): void;
   dispose(): void;
@@ -183,6 +204,10 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
   let cachePromise: Promise<CachedPool | null> | null = null;
   let lastCacheWrite = -Infinity;
   const freshRuns = new Map<string, PoolRun>(); // this session's network runs, for the cache write
+  // Which bands each network run was fetched FOR (by `bandVersionLabel`, "*" = no band), and every band a sample
+  // has arrived for. See `foreignRuns`.
+  const deliveredFor = new Map<string, Set<string>>();
+  const sampledBands = new Set<string>();
   let retryIndex = 0;
   let cancelRetry: (() => void) | null = null;
   const listeners = new Set<(s: PoolLoadState) => void>();
@@ -230,7 +255,13 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
         const band = bandNow();
         const got = await withTimeout(deps.fetchRuns(ctl.signal), opts.perRequestMs, ctl);
         const accepted = register(got.runs);
-        for (const r of accepted) freshRuns.set(r.key, r);
+        const label = bandVersionLabel(band);
+        sampledBands.add(label);
+        for (const r of accepted) {
+          freshRuns.set(r.key, r);
+          const bands = deliveredFor.get(r.key);
+          if (bands) bands.add(label); else deliveredFor.set(r.key, new Set([label]));
+        }
         fresh = true;
         loadedBand = band;
         bandWidenings = typeof got.widenings === 'number' ? got.widenings : null;
@@ -306,6 +337,21 @@ export function createPoolLoader(deps: PoolLoaderDeps): PoolLoader {
         if (s.status === 'ready') return s;
       }
       return load(GATE_LOAD);
+    },
+    bandStale: () => fresh && !sameBand(loadedBand, bandNow()),
+    async matchBand(opts = BAND_MATCH_LOAD) {
+      // A load already under way may be for the band of before (it read the band when it started): let it land,
+      // then look again.
+      if (inFlight) await inFlight;
+      if (!fresh || sameBand(loadedBand, bandNow())) return snapshot();
+      return load({ ...opts, refresh: true });
+    },
+    foreignRuns(band) {
+      const label = bandVersionLabel(band);
+      const out = new Set<string>();
+      if (!sampledBands.has(label)) return out;
+      for (const [key, bands] of deliveredFor) if (!bands.has(label)) out.add(key);
+      return out;
     },
     onOnline() {
       if (fresh) return;

@@ -119,8 +119,8 @@ medal + division — see *Ranked ladder* below).
     4 seats per player (your own runs included, under the same cap). A run with **no score yet counts as inside every
     band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
     logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap is
-    left). Only then do generated seats fill the rest. Practice and the
-    tutorial have no band. Until the owner runs `supabase/migrations/2026-10-06-early-late-strength.sql` the pool has no
+    left). Only then do generated seats fill the rest. The tutorial has no
+    band; Practice has none unless its setup picks an **Opponent Rank** (below, R-PRACTICE-RANK-01). Until the owner runs `supabase/migrations/2026-10-06-early-late-strength.sql` the pool has no
     early / late ratings, and the same bands filter the weighted strength instead. Until the owner runs
     `supabase/migrations/2026-10-09-strength-overall-caps.sql` the server does not apply the overall cap; the game then
     applies it itself when it picks the seats (every run arrives with its weighted strength), so the rule holds either way.
@@ -177,8 +177,27 @@ Source: `packages/sim/src/lobby/boardStrength.ts` + `strengthBands.ts` (board st
 The Practice screen offers two modes side by side in two equal halves, **Sandbox Mode** on the left and **God
 Mode** on the right, each with a **Select** button and a short description, then **Start** (R-GODMODE-08).
 **Sandbox Mode** is the Practice game that already existed (its options are described under *Unverified / confirm*
-below) and is selected every time the Practice screen opens; its options (heroes, health, time, tribes) are greyed
-out and can't be changed while God Mode is selected.
+below) and is selected every time the Practice screen opens; its options (heroes, health, time, opponent rank,
+tribes) are greyed out and can't be changed while God Mode is selected.
+
+**Opponent Rank** (owner 2026-10-13, R-PRACTICE-RANK-01: *"add an option to select what rank the snapshots they face
+are in ... exactly what is already in place with what snapshots a bronze vs silver vs gold player can face"*, then
+*"add buttons that says All Ranks, Bronze, Silver, Gold, Platinum"*). A Sandbox Mode row with five choices, **All
+Ranks** by default. Set to a medal, the game's recorded seats are drawn **exactly as a rated lobby of that medal draws
+them**: that medal's own band (R-LOBBY-13), its overall cap (R-LOBBY-15), the same widening and the same 4-seats-per-
+player cap. The numbers are read from the ranked band table, never copied, so a retune of ranked retunes Practice.
+**All Ranks** has no band: every recorded run is a candidate. **Platinum** has no band in ranked, so today it draws
+like All Ranks. The choice changes only who is seated; a Practice game is unrated whatever it is set to, and God Mode
+ignores it.
+
+- The opponent pool is sampled per band, so a Practice launch fetches the picked rank's sample: it starts when the
+  hero picker opens, and the launch waits for it behind the usual "Finding opponents..." wait (one attempt, at most
+  10 seconds). If it does not arrive, the game is seated from the pool on hand, filtered and widened the same way.
+- **A table is never seated from runs fetched only for another rank** (rated and Practice alike): the pool keeps
+  them (a saved game may be seated from them), but seat selection passes them over once this rank's own sample has
+  arrived. So a Practice game set to Bronze cannot leave Bronze's runs in a later rated lobby.
+- Before 2026-10-13 Practice had no band, but it drew from the pool sampled for the player's own medal, so a Bronze,
+  Silver or Gold player's Practice in effect met mostly their own band. All Ranks now fetches and draws every rank.
 
 ### God Mode
 

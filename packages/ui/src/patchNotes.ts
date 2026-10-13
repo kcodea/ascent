@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-13',
     changes: [
       {
+        category: 'Systems',
+        text: 'Practice has a new option: Opponent Rank. Pick which rank of opponents you face.',
+        details: [
+          'All Ranks (the default) can seat any recorded player.',
+          'Bronze, Silver and Gold seat the same opponents a player of that rank meets in ranked games.',
+          'Platinum has no limit in ranked, so it plays like All Ranks.',
+          'It only changes who you face. Practice is still never rated.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Vaultkeeper and Alchemist Brisbane are reworked, Mountainbond moves to Tier 6, and Mineral Master is removed.',
         details: [

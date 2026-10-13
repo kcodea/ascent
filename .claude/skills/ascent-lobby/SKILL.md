@@ -25,7 +25,10 @@ behaviour from a legacy symbol.**
   real elimination — the reducer gates now read `practiceConfig?.health !== 'normal'`), `timeMult` (feeds
   `practiceTimer`), and `tribes` (the picked run tribes, empty = Normal; `practiceTribes.ts`: `createLobbyRun`
   passes them to `createRun` as the run's tribes, and `poolOf` narrows the pool to them plus neutral for a
-  practice run with picks. Replaced the 2x-weight `tribeSurge` on 2026-09-27; old drafts drop it to Normal). Practice is **always unrated**
+  practice run with picks. Replaced the 2x-weight `tribeSurge` on 2026-09-27; old drafts drop it to Normal), and `rank` (the Opponent
+  Rank, owner 2026-10-13, R-PRACTICE-RANK-01: `all` = no band; a medal = that medal's `STRENGTH_BANDS` entry through
+  `practiceStrengthBand`, applied inside `createLobbyRun`, so the table is the one a rated lobby of that medal
+  seats; read old values through `normalizePracticeRank`). Practice is **always unrated**
   regardless of these (rating/upload gates key on `mode === 'lobby'`). There is no standalone `bots` RunMode —
   bots live inside Practice.
 - `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`. The
@@ -79,7 +82,13 @@ behaviour from a legacy symbol.**
   it; the cap then holds in seat selection, since every row carries `strength`) and
   `createRunLobby` (`runInStrengthBand`); unscored runs are in every
   band, and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
-  selection is R-LOBBY-08's, seat for seat. Your own boards are scored in idle slices from capture
+  selection is R-LOBBY-08's, seat for seat. **One session can hold samples for several bands** (2026-10-13: Practice
+  can ask for another rank): the loader fetches the wanted band's sample (`matchBand`; `poolBandFor` in
+  `ui/src/boardStrength` decides which band is wanted now) and names the runs fetched only for OTHER bands
+  (`foreignRuns`), which every table passes as `LobbySeatOptions.excludeRuns`. Registration only ever adds; never
+  remove runs from the pool to "clean" it (a saved game may be seated from them). A new door that builds a lobby
+  must pass those exclusions (`ratedSeatOptions` / `seatExclusionsFor` in the store), or a Practice game set to
+  Bronze makes the next rated lobby easier. Your own boards are scored in idle slices from capture
   (`ui/src/boardStrength/`), never on an interaction path; the run-end freeze reads them. Never read `runStrength`
   in combat.
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a

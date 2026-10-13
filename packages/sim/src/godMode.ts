@@ -15,9 +15,10 @@ export const GOD_MODE_MAX_ROUNDS = 999;
 export const GOD_MODE_GOLD = 999;
 
 /** God Mode's fixed practice settings (owner sketch 2026-10-08): the Sandbox Mode options are greyed out while God
- *  Mode is selected, so God Mode ignores them - every hero, Unlimited health, every tribe, no timer. */
+ *  Mode is selected, so God Mode ignores them - every hero, Unlimited health, every tribe, no timer, opponents of
+ *  every rank. */
 export function godPracticeConfig(cfg: PracticeConfig): PracticeConfig {
-  return { ...cfg, godMode: true, heroes: 'all', health: 'unlimited', tribes: [], timeMult: 0 };
+  return { ...cfg, godMode: true, heroes: 'all', health: 'unlimited', tribes: [], timeMult: 0, rank: 'all' };
 }
 
 export function isGodMode(run: Pick<RunState, 'godMode'>): boolean {

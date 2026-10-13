@@ -1,11 +1,11 @@
 import { useGame } from './store';
 import { sfx } from './sfx';
-import { practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeTribe } from '@game/sim';
+import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
 
 /**
  * PRACTICE OPTIONS (owner ask 2026-08-24) — the setup screen shown after choosing Practice and before the hero
- * picker. A dedicated menu of knobs: whether the player can die, the shop-timer speed, and
- * which tribes are in the game. `Start` applies them and opens the hero picker; the choices are pinned onto the run.
+ * picker. A dedicated menu of knobs: whether the player can die, the shop-timer speed, which rank's opponents
+ * they face, and which tribes are in the game. `Start` applies them and opens the hero picker; the choices are pinned onto the run.
  *
  * SANDBOX MODE | GOD MODE (owner sketch 2026-10-08, revised the same day): two modes in even halves. Sandbox Mode
  * (left, selected every time the screen opens) is the practice game above; God Mode (right) plays its own fixed
@@ -63,6 +63,14 @@ const TIMES: { value: PracticeConfig['timeMult']; label: string }[] = [
   // Owner 2026-09-27: "add an unlimited time option in practice". 0 = no turn clock.
   { value: 0, label: 'Unlimited' },
 ];
+/** OPPONENT RANK (owner 2026-10-13, R-PRACTICE-RANK-01): "add buttons that says All Ranks, Bronze, Silver, Gold,
+ *  Platinum". A rank draws exactly the opponents a ranked game of that rank draws (`practiceStrengthBand`). */
+const RANK_LABEL: Record<PracticeRank, string> = { all: 'All Ranks', bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
+const RANKS: { value: PracticeRank; label: string }[] = PRACTICE_RANKS.map((value) => ({ value, label: RANK_LABEL[value] }));
+const rankHint = (rank: PracticeRank): string => (rank === 'all'
+  ? 'Your opponents are recorded players of every rank.'
+  : `Your opponents are the recorded players a ${RANK_LABEL[rank]} player meets in ranked games.`);
+
 /** "Normal" (the usual random tribes) plus the tribes of the set a new run uses, in that set's order (owner
  *  2026-09-27: multi-select, "reword 'none' to 'Normal'"). Normal is `null`; the draft holds the picked list. */
 const TRIBE_OPTIONS: { value: PracticeTribe | null; label: string }[] = [
@@ -127,6 +135,14 @@ export function PracticeOptions() {
                 value={cfg.timeMult}
                 options={TIMES}
                 onPick={(v) => setDraft({ timeMult: v })}
+                disabled={god}
+              />
+              <Segmented
+                label="Opponent Rank"
+                hint={rankHint(normalizePracticeRank(cfg.rank))}
+                value={normalizePracticeRank(cfg.rank)}
+                options={RANKS}
+                onPick={(v) => setDraft({ rank: v })}
                 disabled={god}
               />
               <Segmented

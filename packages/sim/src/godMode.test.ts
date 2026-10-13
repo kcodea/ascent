@@ -19,9 +19,9 @@ const fight = (s: RunState): RunState => {
 };
 
 describe('God Mode run', () => {
-  it('ignores the Sandbox Mode options: every hero, Unlimited health, every tribe, no timer', () => {
-    const sandboxDraft: PracticeConfig = { opponents: 'players', botDifficulty: 3, health: 'normal', timeMult: 2, tribes: ['demon'], heroes: 'beginner', godMode: true };
-    expect(godPracticeConfig(sandboxDraft)).toEqual({ ...sandboxDraft, heroes: 'all', health: 'unlimited', tribes: [], timeMult: 0, godMode: true });
+  it('ignores the Sandbox Mode options: every hero, Unlimited health, every tribe, no timer, opponents of every rank', () => {
+    const sandboxDraft: PracticeConfig = { opponents: 'players', botDifficulty: 3, health: 'normal', timeMult: 2, tribes: ['demon'], heroes: 'beginner', rank: 'bronze', godMode: true };
+    expect(godPracticeConfig(sandboxDraft)).toEqual({ ...sandboxDraft, heroes: 'all', health: 'unlimited', tribes: [], timeMult: 0, rank: 'all', godMode: true });
   });
 
   it('is a sandbox God Mode run with 999 Gold and an invulnerable background table', () => {

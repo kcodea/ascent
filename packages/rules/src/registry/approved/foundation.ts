@@ -724,7 +724,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'every division of a medal shares its band, still whole runs, at '
       + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
-      + 'generated seats fill the rest; the overall cap never widens. Practice and the tutorial have no band. The player\'s own game shows '
+      + 'generated seats fill the rest; the overall cap never widens. The tutorial has no band, and Practice has none unless its setup picks an Opponent Rank (R-PRACTICE-RANK-01). The player\'s own game shows '
       + '"Game strength N" (the display name, owner 2026-09-30: "game strength for the display"; the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
       + 'round\'s board percentile and each opponent seat\'s run strength), frozen at the moment the game ended; a '
       + 'game that was not scored shows nothing.',
@@ -4972,7 +4972,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the cap is allowed, anything above it is not. Platinum, Diamond and Ascendant have no cap (and no band). The cap '
       + 'is HARD: when a band cannot fill the table and widens (+10 per capped side), only the early / late band widens; '
       + 'the overall cap stays, and whatever the table still lacks is filled by generated seats. A run with no overall '
-      + 'strength yet (unscored) stays eligible. Practice and the tutorial have no band and no cap. The rule holds whether '
+      + 'strength yet (unscored) stays eligible. The tutorial has no band and no cap; Practice has them only when its setup picks an Opponent Rank (R-PRACTICE-RANK-01), and then exactly that medal\x27s. The rule holds whether '
       + 'or not the server applies the cap: the game re-checks every delivered run when it picks the seats.',
     domain: 'foundation',
     status: 'approved',
@@ -5277,5 +5277,40 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Cast Power Shifter with a Power Shifter still in hand: on a power card and on the hand card, the dark text '
       + 'panel meets the plate\x27s gold trim at the same place and the name sits the same distance under the frame.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/discoverEntrance/offerPlateScale.test.ts'], lastVerifiedAt: '2026-10-12' },
+  },
+  {
+    id: 'R-PRACTICE-RANK-01',
+    title: 'Practice Opponent Rank: a Practice game set to a medal draws exactly the opponents a rated lobby of that medal draws',
+    statement:
+      'The Practice setup screen has an Opponent Rank row: All Ranks, Bronze, Silver, Gold, Platinum; All Ranks by '
+      + 'default. A Practice game against recorded players that is set to a medal draws its recorded seats exactly as a '
+      + 'rated lobby of that medal does: that medal\x27s own entry of the band table (never a copy of its numbers, so a '
+      + 'retune of ranked retunes Practice), the same overall cap, the same widening, the same per-player seat cap. All '
+      + 'Ranks draws from every recorded run, with no band. A medal with no band in ranked (Platinum today) has none in '
+      + 'Practice. The choice changes only who is seated: a Practice game is unrated whatever it is set to. God Mode '
+      + 'ignores it. A setup or a run saved before the row existed reads as All Ranks. A table (rated or Practice) is '
+      + 'never seated from runs that were fetched this session only for another rank than its own, so a Practice game '
+      + 'set to a lower rank can never make a later rated lobby easier.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-13 (Practice options)', quote: 'when playing in practice mode, can we add an option to select what rank the snapshots they face are in? this should be exactly what is already in place with what snapshots a bronze vs silver vs gold player can face' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-10-13', quote: 'add buttons that says All Ranks, Bronze, Silver, Gold, Platinum' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts PracticeRank / PracticeConfig.rank; packages/sim/src/lobby/strengthBands.ts PRACTICE_RANKS / normalizePracticeRank / practiceStrengthBand; packages/sim/src/lobby/runLobby.ts practiceSeatOptions (createLobbyRun) + LobbySeatOptions.excludeRuns (createRunLobby); packages/sim/src/godMode.ts godPracticeConfig; packages/ui/src/PracticeOptions.tsx (the row); packages/ui/src/boardStrength/index.ts pendingPracticeRank / poolBandFor / seatExclusionsFor; packages/ui/src/opponentPool/poolLoader.ts matchBand / foreignRuns / bandStale; packages/ui/src/opponentPool/poolGate.ts run({ matchBand }); packages/ui/src/store.ts confirmPracticeSetup / pickHero / ratedSeatOptions' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-13. The opponent pool is fetched per band, so a Practice launch asks for the picked '
+      + 'rank\x27s sample: the fetch starts when the Practice hero picker opens and the launch waits for it behind the '
+      + 'usual "Finding opponents..." wait (one attempt of at most 10 s). PARTIAL when that fetch does not arrive: the '
+      + 'game is then seated from the pool on hand, filtered to the band and widened as a rated lobby would be, so it '
+      + 'can hold fewer of that rank\x27s runs than a rated lobby of that rank would. Runs read from the offline cache '
+      + 'are never passed over. BEHAVIOUR CHANGE to note: before this, Practice had no band in seat selection but drew '
+      + 'from the pool sampled for the PLAYER\x27S OWN medal, so a Bronze, Silver or Gold player\x27s Practice met mostly '
+      + 'their own band in effect; All Ranks now really fetches and draws every rank.',
+    example:
+      'A Platinum player sets Practice to Bronze: no seated run has a weighted strength over 40, and its early score '
+      + 'is 0 to 20 unless the band had to widen. They then play a rated game: none of the runs fetched for that '
+      + 'Bronze Practice game is a candidate for it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/practiceRank.test.ts', 'packages/ui/src/PracticeOptionsRank.test.tsx', 'packages/ui/src/opponentPool/poolLoader.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
 ];

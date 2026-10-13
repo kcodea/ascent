@@ -76,7 +76,9 @@ export function HeroLaunchCurtain() {
       // Retry / Play anyway / Back to menu choice instead of a silent all-bot table.
       const pre = useGame.getState();
       if (poolNeededFor(pre.pendingMode, pre.practiceDraft)) {
-        const outcome = await lobbyPoolGate.run();
+        // A Practice game draws the rank picked on its setup screen (R-PRACTICE-RANK-01), which may not be the rank
+        // the pool was loaded for: wait for that rank's sample too (God Mode keeps the pool on hand, as before).
+        const outcome = await lobbyPoolGate.run({ matchBand: pre.pendingMode === 'practice' && pre.practiceDraft.godMode !== true });
         if (dead) return;
         if (outcome === 'cancel') {
           useGame.getState().openTitle();

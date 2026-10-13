@@ -222,9 +222,9 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'practice-options',
     topic: 'lobby',
     q: 'What can I change in Practice?',
-    a: "**Heroes** (Beginner or All), **Opponents** (real players' recorded boards, or simple Bots), **Bot difficulty** (1 to 10), **Health** (Unlimited or Normal), **Time** (1× to 4× the shop timer, or Unlimited) and **Tribes** (Normal, or pick the tribes you want).",
+    a: "**Heroes** (Beginner or All), **Opponents** (real players' recorded boards, or simple Bots), **Bot difficulty** (1 to 10), **Health** (Unlimited or Normal), **Time** (1× to 4× the shop timer, or Unlimited), **Opponent Rank** (All Ranks, or the opponents of one rank) and **Tribes** (Normal, or pick the tribes you want).",
     aliases: ['practice settings', 'practice setup', 'custom game', 'options'],
-    seeAlso: ['practice-bots', 'practice-unlimited-health', 'practice-timer', 'practice-heroes', 'practice-tribes'],
+    seeAlso: ['practice-bots', 'practice-unlimited-health', 'practice-timer', 'practice-heroes', 'practice-rank', 'practice-tribes'],
   },
   {
     id: 'practice-bots',
@@ -268,6 +268,15 @@ export const ENTRIES: readonly WikiEntry[] = [
     aliases: ['beginner heroes', 'all heroes', 'starter heroes', 'hero pick', 'choose any hero'],
     seeAlso: ['practice-options'],
     covers: [{ rule: 'R-PRACTICE-HEROES-01', fp: '0c849145' }],
+  },
+  {
+    id: 'practice-rank',
+    topic: 'lobby',
+    q: 'Can I choose how strong my Practice opponents are?',
+    a: "Yes. Set **Opponent Rank** on the Practice screen. **All Ranks** (the default) can seat any recorded player. **Bronze**, **Silver** and **Gold** seat the same opponents a player of that rank meets in ranked games, so Bronze is the gentlest. **Platinum** has no limit in ranked, so it plays like All Ranks. It only changes who you face: Practice is never rated.",
+    aliases: ['opponent rank', 'practice difficulty', 'easier opponents', 'bronze opponents', 'practice rank', 'harder opponents'],
+    seeAlso: ['practice-options', 'rated-vs-unrated'],
+    covers: [{ rule: 'R-PRACTICE-RANK-01', fp: '464b3d20' }],
   },
   {
     id: 'practice-tribes',

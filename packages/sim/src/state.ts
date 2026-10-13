@@ -417,6 +417,11 @@ export type PracticeTribe = Exclude<Tribe, 'neutral'>;
  *  The per-level dials live in `lobby/practiceBots.ts` (`BOT_LEVELS`). */
 export type BotLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
+/** The Practice "Opponent Rank" row (owner 2026-10-13): which rank's opponents a Practice game against recorded
+ *  players draws. `all` = no rank (every recorded run, Practice as it always was); a medal = exactly the runs a
+ *  RATED lobby of that medal draws (`practiceStrengthBand`, lobby/strengthBands.ts). */
+export type PracticeRank = 'all' | 'bronze' | 'silver' | 'gold' | 'platinum';
+
 /** The Practice setup screen's choices (owner ask 2026-08-24). Pinned onto a practice run at creation. */
 export interface PracticeConfig {
   /** Who fills the other seven seats: recorded real player warbands, or effectless scaling bots. */
@@ -439,15 +444,19 @@ export interface PracticeConfig {
    *  (`BEGINNER_HERO_IDS`: Indy, Warden, Keshi), shown as the usual three-choice pick; `all` = every Practice hero.
    *  Absent on drafts/runs saved before this existed: read it through `practiceHeroMode`. */
   heroes?: 'beginner' | 'all';
+  /** Which rank's opponents the recorded seats are drawn from (owner 2026-10-13): `all` = every recorded run; a medal
+   *  = the runs a rated lobby of that medal draws, by the same rule (R-PRACTICE-RANK-01). Absent on drafts/runs saved
+   *  before this existed, and anything unknown: read it through `normalizePracticeRank` (it reads as `all`). */
+  rank?: PracticeRank;
   /** GOD MODE (owner 2026-10-08): 999 Gold, no clock, the God Mode panel, and a chosen-round real board each fight.
    *  Absent / false = a normal practice run. See `godMode.ts`. */
   godMode?: boolean;
 }
 
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly
- *  as Practice always has (recorded opponents, invulnerable, 1× timer, Normal tribes). */
+ *  as Practice always has (recorded opponents of every rank, invulnerable, 1× timer, Normal tribes). */
 export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
-  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [], heroes: 'beginner',
+  opponents: 'players', botDifficulty: 3, health: 'unlimited', timeMult: 1, tribes: [], heroes: 'beginner', rank: 'all',
 };
 
 export type DiscoverSpec =

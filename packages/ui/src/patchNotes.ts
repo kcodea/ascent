@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Balance', text: 'Disco Dan now starts turn 1 with 0 Gold, since he cannot spend any that turn. His Gold is normal from turn 2.' },
       {
+        category: 'Systems',
+        text: 'Practice has a new option: Opponent Rank. Pick which rank of opponents you face.',
+        details: [
+          'All Ranks (the default) can seat any recorded player.',
+          'Bronze, Silver and Gold seat the same opponents a player of that rank meets in ranked games.',
+          'Platinum has no limit in ranked, so it plays like All Ranks.',
+          'It only changes who you face. Practice is still never rated.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Vaultkeeper and Alchemist Brisbane are reworked, Mountainbond moves to Tier 6, and Mineral Master is removed.',
         details: [

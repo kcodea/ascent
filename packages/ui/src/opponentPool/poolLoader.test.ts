@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { OPPONENT_POOL, createLobbyRun, lobbyPoolTelemetryOf, playableHeroes, registerOpponentRuns, type BoardSnapshot, type RunRegistration } from '@game/sim';
+import { OPPONENT_POOL, STRENGTH_BANDS, createLobbyRun, lobbyPoolTelemetryOf, playableHeroes, registerOpponentRuns, type BoardSnapshot, type RunRegistration, type StrengthBand } from '@game/sim';
 import { activeSet, type SetId } from '@game/content';
-import { CACHE_MAX_RUNS, POOL_CACHE_VERSION, createPoolLoader, isWholeRun, type LoadOptions, type PoolFetch, type PoolLoaderDeps, type PoolRun } from './poolLoader';
+import { BAND_MATCH_LOAD, CACHE_MAX_RUNS, POOL_CACHE_VERSION, createPoolLoader, isWholeRun, type LoadOptions, type PoolFetch, type PoolLoaderDeps, type PoolRun } from './poolLoader';
 import { memoryPoolCache } from './poolCache';
 import { createPoolGate, poolNeededFor } from './poolGate';
 
@@ -268,5 +268,170 @@ describe('the rated lobby start waits for the pool and uses it', () => {
     online = true;
     gate.retry();
     expect(await c).toBe('go');
+  });
+});
+
+/**
+ * SAMPLES FOR MORE THAN ONE RANK (R-PRACTICE-RANK-01, owner 2026-10-13: "add an option to select what rank the
+ * snapshots they face are in ... exactly what is already in place with what snapshots a bronze vs silver vs gold
+ * player can face"). A Practice game may ask for another rank's opponents than the player's own, so the loader fetches
+ * the wanted band's sample (`matchBand`) and names the runs fetched only for other bands (`foreignRuns`), which the
+ * next table of this band passes over.
+ */
+describe('a Practice game set to another rank', () => {
+  const BRONZE = STRENGTH_BANDS.Bronze!;
+  const GOLD = STRENGTH_BANDS.Gold!;
+  const bandRuns = (tag: string, base: number): PoolRun[] => heroes.map((h, i) => runOf(`${tag}${i}`, h, base + i, 6, SET, `${tag}-owner-${i}`));
+  /** A loader whose band the test switches, and whose every fetch answers with that band's own runs. */
+  function banded(start: StrengthBand | null) {
+    let band: StrengthBand | null = start;
+    const asked: (StrengthBand | null)[] = [];
+    const answers = new Map<StrengthBand | null, PoolRun[]>();
+    const d = deps({
+      band: () => band,
+      fetchRuns: () => { asked.push(band); return Promise.resolve(rpc(answers.get(band) ?? [])); },
+    });
+    return { loader: createPoolLoader(d), d, asked, answers, want: (b: StrengthBand | null) => { band = b; } };
+  }
+
+  it('matchBand fetches the wanted band once, and is a no-op while the bands agree', async () => {
+    const t = banded(GOLD);
+    t.answers.set(GOLD, bandRuns('Gold', 100));
+    t.answers.set(BRONZE, bandRuns('Bronze', 200));
+    await t.loader.load(FAST);
+    expect(t.loader.bandStale()).toBe(false);
+    await t.loader.matchBand(FAST);
+    expect(t.asked).toEqual([GOLD]); // nothing to do: the pool is this band's
+
+    t.want(BRONZE); // the Practice hero picker opened with Bronze picked
+    expect(t.loader.bandStale()).toBe(true);
+    const s = await t.loader.matchBand(FAST);
+    expect(t.asked).toEqual([GOLD, BRONZE]);
+    expect(s.status).toBe('ready');
+    expect(t.loader.bandStale()).toBe(false);
+    await t.loader.matchBand(FAST);
+    expect(t.asked).toEqual([GOLD, BRONZE]);
+    // Both samples are registered: nothing is ever taken out of the pool (a saved game may be seated from either).
+    expect(t.d.registered.length).toBe(14);
+  });
+
+  it('matchBand gives up after ONE attempt and leaves the pool usable', async () => {
+    expect(BAND_MATCH_LOAD.attempts).toBe(1);
+    let fail = false;
+    let band: StrengthBand | null = GOLD;
+    let calls = 0;
+    const loader = createPoolLoader(deps({
+      band: () => band,
+      fetchRuns: () => { calls++; return fail ? Promise.reject(new Error('offline')) : Promise.resolve(rpc(sevenRuns())); },
+    }));
+    await loader.load(FAST);
+    band = BRONZE; fail = true;
+    const s = await loader.matchBand({ perRequestMs: 40, attempts: 1, retryBaseMs: 0 });
+    expect(calls).toBe(2);
+    expect(s.status).toBe('ready'); // the pool on hand still seats a table
+    expect(loader.bandStale()).toBe(true);
+    expect(loader.foreignRuns(BRONZE).size).toBe(0); // no Bronze sample arrived: nothing is passed over
+  });
+
+  it('matchBand waits for a load already in flight, then fetches the wanted band', async () => {
+    let band: StrengthBand | null = GOLD;
+    const asked: (StrengthBand | null)[] = [];
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    const loader = createPoolLoader(deps({
+      band: () => band,
+      fetchRuns: async () => { const mine = band; asked.push(mine); if (mine === GOLD) await held; return rpc(mine === GOLD ? bandRuns('Gold', 100) : bandRuns('Bronze', 200)); },
+    }));
+    void loader.load({ perRequestMs: 5000, attempts: 1, retryBaseMs: 0 }); // the startup load, for the player's own rank
+    band = BRONZE;
+    const p = loader.matchBand(FAST);
+    release();
+    await p;
+    expect(asked).toEqual([GOLD, BRONZE]);
+    expect(loader.bandStale()).toBe(false);
+  });
+
+  it('foreignRuns names the runs fetched ONLY for other bands, and nothing before this band has a sample', async () => {
+    const t = banded(GOLD);
+    const gold = bandRuns('Gold', 100);
+    const bronze = bandRuns('Bronze', 200);
+    t.answers.set(GOLD, gold);
+    t.answers.set(BRONZE, [...bronze, gold[0]!]); // one run is in both bands' samples
+    await t.loader.load(FAST);
+    expect(t.loader.foreignRuns(GOLD).size).toBe(0);
+    expect(t.loader.foreignRuns(BRONZE).size).toBe(0); // no Bronze sample yet: the table is seated from what is on hand
+
+    t.want(BRONZE);
+    await t.loader.matchBand(FAST);
+    // A Gold table passes over the Bronze-only runs; the shared run stays a candidate for both.
+    expect([...t.loader.foreignRuns(GOLD)].sort()).toEqual(bronze.map((r) => r.key).sort());
+    expect([...t.loader.foreignRuns(BRONZE)].sort()).toEqual(gold.slice(1).map((r) => r.key).sort());
+    // A band that was never sampled (All Ranks here) passes over nothing.
+    expect(t.loader.foreignRuns(null).size).toBe(0);
+  });
+
+  it('a rated lobby after a Bronze Practice game is not seated from the Bronze sample', async () => {
+    let band: StrengthBand | null = null; // an uncapped (Platinum) player
+    const open = bandRuns('Open', 100);
+    const bronze = bandRuns('Weak', 200);
+    const loader = createPoolLoader(deps({
+      band: () => band,
+      fetchRuns: () => Promise.resolve(rpc(band ? bronze : open)),
+      registerRuns: registerOpponentRuns,
+    }));
+    await loader.load(FAST);
+    band = BRONZE;
+    await loader.matchBand(FAST); // the Practice game's sample: 14 runs are now in the pool
+    band = null;
+    const hero = playableHeroes()[0]!.id;
+    const weak = new Set(bronze.map((r) => r.key));
+    for (let seed = 1; seed <= 12; seed++) {
+      const rated = createLobbyRun(seed, hero, {}, 'lobby', undefined, undefined, { strengthBand: null, excludeRuns: loader.foreignRuns(null) });
+      const keys = rated.lobby!.seats.filter((x) => x.kind === 'snapshot').map((x) => x.runKey!);
+      expect(keys.length).toBeGreaterThan(0);
+      for (const k of keys) expect(weak.has(k)).toBe(false);
+    }
+  });
+
+  it('the gate waits for the picked rank only when asked (matchBand), and goes on if it never arrives', async () => {
+    let band: StrengthBand | null = GOLD;
+    let release!: () => void;
+    let held = new Promise<void>((r) => { release = r; });
+    let calls = 0;
+    const loader = createPoolLoader(deps({
+      band: () => band,
+      fetchRuns: async () => { calls++; if (calls > 1) await held; return rpc(sevenRuns()); },
+    }));
+    await loader.load(FAST);
+    const gate = createPoolGate(() => loader);
+    band = BRONZE;
+
+    // A rated launch does not wait for another band's sample: exactly as before.
+    const rated = gate.run();
+    expect(gate.phase()).toBe('idle');
+    expect(await rated).toBe('go');
+    expect(calls).toBe(1);
+
+    // A Practice launch does: "Finding opponents..." until the picked rank's sample lands.
+    const practice = gate.run({ matchBand: true });
+    expect(gate.phase()).toBe('waiting');
+    release();
+    expect(await practice).toBe('go');
+    expect(calls).toBe(2);
+    expect(loader.bandStale()).toBe(false);
+
+    // The bands agree now: no wait at all.
+    const again = gate.run({ matchBand: true });
+    expect(gate.phase()).toBe('idle');
+    expect(await again).toBe('go');
+
+    // Cancel works during the wait, and a fetch that fails still lets the game start on the pool on hand.
+    band = GOLD;
+    held = new Promise<void>((r) => { release = r; });
+    const cancelled = gate.run({ matchBand: true });
+    expect(gate.phase()).toBe('waiting');
+    gate.cancel();
+    expect(await cancelled).toBe('cancel');
+    release();
   });
 });

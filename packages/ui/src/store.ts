@@ -91,8 +91,8 @@ import type { GauntletSubmitOutcome } from './gauntlet/gauntletRemote';
 import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
-import { boardStrengthScorer, lobbyBandFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
-import { runStrengthFromScores, type StrengthScore } from '@game/sim';
+import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
+import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
@@ -954,6 +954,8 @@ function loadPracticeConfig(): PracticeConfig {
       heroes: parsed.heroes === 'all' ? 'all' : 'beginner',
       // GOD MODE (owner 2026-10-08): the Practice screen remembers which mode was selected.
       godMode: parsed.godMode === true,
+      // Opponent Rank (owner 2026-10-13): one of the five choices; an older draft (it has none) opens on All Ranks.
+      rank: normalizePracticeRank(parsed.rank),
     };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
@@ -2530,9 +2532,11 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const god = mode === 'practice' && !stage && s.practiceDraft.godMode === true;
       const built = stage ? createGauntletRun(seed, heroId, stage) : createLobbyRun(seed, heroId, god ? { maxRounds: GOD_MODE_MAX_ROUNDS } : {}, mode,
         mode === 'practice' ? (god ? godPracticeConfig(s.practiceDraft) : s.practiceDraft) : undefined, undefined,
-        // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal;
-        // Practice is never banded. Your own runs are seated like anyone else's (owner 2026-09-30).
-        mode === 'lobby' ? { strengthBand: lobbyBandFor(s.profile) } : {});
+        // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal.
+        // Your own runs are seated like anyone else's (owner 2026-09-30). A PRACTICE game draws the band of the
+        // Opponent Rank picked on its setup screen (R-PRACTICE-RANK-01; `createLobbyRun` reads it off the config, All
+        // Ranks = none); God Mode keeps the pool on hand, as before.
+        mode === 'lobby' ? ratedSeatOptions(s.profile) : god ? {} : seatExclusionsFor(practiceStrengthBand(s.practiceDraft.rank), opponentPoolLoader()));
       const run = god ? makeGodModeRun(built) : built;
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
@@ -2564,7 +2568,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     set((s) => {
       // A lobby run, like pickHero's (R-PERSIST-01) — never the retired course.
       const run = recordRunCosmetics(createLobbyRun(seed ?? randomSeed(), heroId ?? DEFAULT_HERO_ID, {}, 'lobby', undefined, undefined,
-        { strengthBand: lobbyBandFor(s.profile) })); // R-LOBBY-09 band; own runs seat like anyone's (owner 2026-09-30)
+        ratedSeatOptions(s.profile))); // R-LOBBY-09 band; own runs seat like anyone's (owner 2026-09-30)
       pinMedalAtStart(run, s.profile); // R-TELEMETRY-RANK-01: the medal + rank this game starts in
       warmLobbyDrivers(run);
       writeSave(run, []);
@@ -2587,7 +2591,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     savePracticeConfig(next);
     return { practiceDraft: next };
   }),
-  confirmPracticeSetup: () => set((s) => {
+  confirmPracticeSetup: () => { set((s) => {
     // The chosen time multiplier IS the Practice shop-timer knob — apply it so the in-run clock and its dropdown
     // both start where the setup screen left them.
     try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
@@ -2600,7 +2604,12 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // `practiceTimer` stays the player's own choice: God Mode never reads it (a sandbox run has no Practice clock),
     // and a 0 left in memory would make a Practice save resumed later this session silently untimed.
     return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)) };
-  }),
+  });
+    // OPPONENT RANK (R-PRACTICE-RANK-01): the pool may hold the player's own rank's sample, not the picked rank's.
+    // Start fetching that one NOW, while the hero is being picked, so the launch rarely has to wait for it (the
+    // curtain's gate waits for whatever is left). Nothing to do when the bands agree, and never for God Mode.
+    if (pendingPracticeRank(get()) !== null) void opponentPoolLoader()?.matchBand();
+  },
   cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
@@ -3086,6 +3095,13 @@ function settleAbandonedRun(abandoned: RunState | null | undefined): void {
   if (enqueuePendingRank(rankRequestFor(quit.runId, quit.placement, abandoned.seed, seatKeys, 'abandon'))) void flushPendingRanks(applyRankOutcome);
 }
 
+/** Seat selection for a RATED table (R-LOBBY-09): the band of the player's medal, minus the runs this session fetched
+ *  only for another rank (a Practice game set to another rank, R-PRACTICE-RANK-01; or the rank before it changed). */
+function ratedSeatOptions(profile: Parameters<typeof lobbyBandFor>[0]): LobbySeatOptions {
+  const band = lobbyBandFor(profile);
+  return { strengthBand: band, ...seatExclusionsFor(band, opponentPoolLoader()) };
+}
+
 /**
  * THE RANKED ENTRY ABANDONED (owner 2026-10-11, R-RANK-06): "even at the hero select screen, if they go back, they
  * should place as if they came in eighth place and lose the associated mmr". No run exists yet, so the entry's own
@@ -3330,8 +3346,9 @@ function initAccounts(): void {
   });
 }
 initAccounts();
-// MATCHMAKING BAND (R-LOBBY-09): the pool fetch asks for the band of the player's CURRENT rank.
-setPoolBandProvider(() => lobbyBandFor(useGame.getState().profile));
+// MATCHMAKING BAND (R-LOBBY-09): the pool fetch asks for the band of the player's CURRENT rank, or, while a Practice
+// game is being launched, for the band of the Opponent Rank picked on its setup screen (R-PRACTICE-RANK-01).
+setPoolBandProvider(() => poolBandFor(useGame.getState()));
 installRankRetryTriggers(applyRankOutcome); // MEDAL RANK: network return → retry pending settlements
 installProgression(); // ACCOUNT PROGRESSION: network return → retry pending XP settlements
 installGauntletClearRetryTriggers((item, outcome) => { void onGauntletSettled(item, outcome); }); // GAUNTLET: network return → retry queued clears

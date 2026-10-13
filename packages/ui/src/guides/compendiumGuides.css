@@ -84,6 +84,12 @@
 .gtool-empty, .gcomm-sort, .gcomm-note, .gcomm-more { grid-column: 1 / -1; }
 /* The sort pills and Show more line up with the toolbar's pills above them (the toolbar's own 2px side inset). */
 .gcomm-sort, .gcomm-more { padding: 0 2px; }
+/* The team's Reports panel (ReportsPanel.tsx): its headings, its notes and each reported guide's group take the whole
+   width too. A group is the summary of a guide's reports over that guide's card, spaced like the list. */
+.greports-head, .greports-row, .greports-group { grid-column: 1 / -1; }
+.greports-group { display: grid; gap: inherit; }
+/* Each note a reporter wrote is a line of its own in the summary, and wraps however long its words are. */
+.greports-quote { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
 
 .bookguide-by { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; font-size: 13.5px; font-weight: 700; color: var(--ui-muted); }
 .bookguide-badge {

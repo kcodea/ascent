@@ -12,7 +12,7 @@ import { RuneCard } from './RuneCard';
 import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker';
 import { CompendiumGuides } from './guides/CompendiumGuides';
 import { guidesFor } from './guides/guides';
-import { loadGuides, ownsMine, useGuides } from './guides/guidesStore';
+import { loadGuides, ownsMine, useGuides, type GuidesTab } from './guides/guidesStore';
 import { artFor, heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
@@ -291,7 +291,8 @@ const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }
 });
 
 /** The Compendium subtitle while the Guides tab is up: what the chosen pill is showing. */
-function guidesSubtitle(tab: 'team' | 'mine' | 'bookmarked' | 'community', n: number, setName: string, searching: boolean): string {
+function guidesSubtitle(tab: GuidesTab, n: number, setName: string, searching: boolean): string {
+  if (tab === 'reports') return 'Reports and tools for Team Ascent.';
   if (tab === 'community') return `Community guides for ${setName}.`;
   if (searching) return `${n} result${n === 1 ? '' : 's'}`;
   if (tab === 'mine') return `${n} guide${n === 1 ? '' : 's'} of yours.`;
@@ -472,6 +473,7 @@ export function MinionBook() {
     const base = guideTab === 'mine' ? (guidesAreMine ? [...guideMine] : [])
       : guideTab === 'bookmarked' ? (guidesAreMine ? guideBookmarked.filter((g) => g.sets.includes(setId)) : [])
       : guideTab === 'community' ? []
+      : guideTab === 'reports' ? [] // the team's panel reads its own lists
       : guidesFor(setId, tribes, guideList);
     return base
       .filter((g) => guideTribes.size === 0 || (g.tribes.length ? g.tribes.some((t) => guideTribes.has(t)) : guideTribes.has('neutral')))
@@ -697,7 +699,7 @@ export function MinionBook() {
                     : query && guidesOn
                       // The Guides tab says what its pill shows. The Community list is searched on the server, so it
                       // has no count here.
-                      ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
+                      ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' || guideTab === 'reports' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
                     : query
                       ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
                           (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'

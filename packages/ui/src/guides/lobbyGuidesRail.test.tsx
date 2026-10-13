@@ -284,6 +284,35 @@ describe('lobby rail guides view', () => {
     expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
   });
 
+  it("a Team Ascent guide's Edit is drawn only for the team account the store holds the flag for, never for the next account at the same rail", () => {
+    const c = mountRail(8389);
+    const run = useGame.getState().run;
+    // Team Ascent guides as the server lists them (each has a row), for this game's set and tribes.
+    const official = guidesFor(run.setId, run.tribes).map((g) => ({ ...g, rowId: `row-${g.id}` }));
+    expect(official.length).toBeGreaterThan(0);
+    act(() => {
+      useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } });
+      useGuides.setState({ list: official, source: 'server', team: true, mineOwner: 'u-1', capability: 'on' });
+    });
+    openGuides(c);
+    const first = official[0]!;
+    click(c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-head`)!);
+    const open = (): Element | null => c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-modebtn`);
+    expect(open()).not.toBeNull();
+    expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
+    // Another account signs in and the guides store is not told (a missed read): it still holds u-1's team flag.
+    act(() => { useGame.setState({ account: { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null } }); });
+    expect(useGuides.getState()).toMatchObject({ team: true, mineOwner: 'u-1' });
+    expect(open()).not.toBeNull(); // the guide is still open: Team Ascent's guides are everyone's
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+    // ...or a guest (no account id at all).
+    act(() => { useGame.setState({ account: { userId: null, email: null, anonymous: true, discriminator: null } }); });
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+    // Back to the account the flag is held for: Edit is offered again.
+    act(() => { useGame.setState({ account: { userId: 'u-1', email: 'm@example.test', anonymous: false, discriminator: null } }); });
+    expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
+  });
+
   it('the rail takes its own guides as a snapshot too: a save that lands while it is open does not add a card', () => {
     const c = mountRail(8484);
     const run = useGame.getState().run;

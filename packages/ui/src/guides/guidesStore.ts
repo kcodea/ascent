@@ -13,7 +13,9 @@
  *               set, cleared wherever they are cleared.
  *   bookmarked  the published guides this account has bookmarked, newest first. Personal like `mine`: it belongs to
  *               `mineOwner`, is cleared with it, and is drawn only for that account.
- *   tab         which pill the Compendium Guides tab shows: Team Ascent, My guides, Bookmarked or Community.
+ *   tab         which pill the Compendium Guides tab shows: Team Ascent, My guides, Bookmarked, Community or (the
+ *               team only) Reports. Only the pill is held here: nothing about reports is ever in this store. The
+ *               Compendium shows that pill only to a team account, and an account change resets it like any pill.
  *   pendingEdit a guide (by row id) the lobby rail asked the Compendium to open in the editor.
  *
  * A failed or empty read never replaces something already showing: one timed-out refresh must not reshuffle the
@@ -57,7 +59,7 @@ import { GUIDES, toGuide, type Guide } from './guides';
 import { fetchBookmarkedGuides, fetchMyGuides, fetchOfficialGuides, fetchTeamFlag } from './guidesRemote';
 
 export type GuidesCapability = 'unknown' | 'no-backend' | 'off' | 'offline' | 'on';
-export type GuidesTab = 'team' | 'mine' | 'bookmarked' | 'community';
+export type GuidesTab = 'team' | 'mine' | 'bookmarked' | 'community' | 'reports';
 
 interface GuidesStore {
   capability: GuidesCapability;

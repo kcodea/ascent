@@ -650,11 +650,24 @@ describe('a server change that does not bump the revision still reaches an open 
   });
 });
 
-describe('the four pills', () => {
+describe('the pills', () => {
   it('each can be chosen', () => {
-    for (const tab of ['mine', 'bookmarked', 'community', 'team'] as const) {
+    for (const tab of ['mine', 'bookmarked', 'community', 'reports', 'team'] as const) {
       setGuidesTab(tab);
       expect(useGuides.getState().tab).toBe(tab);
     }
+  });
+  it("an account change takes the team's Reports pill back to Team Ascent at once, before any read answers", async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    teamAnswer = true;
+    await loadGuides();
+    setGuidesTab('reports');
+    expect(useGuides.getState()).toMatchObject({ team: true, tab: 'reports' });
+    identity = { userId: 'u-2', anonymous: false };
+    teamAnswer = false;
+    const p = loadGuides();
+    expect(useGuides.getState()).toMatchObject({ team: false, tab: 'team', mineOwner: null });
+    await p;
+    expect(useGuides.getState()).toMatchObject({ team: false, tab: 'team', mineOwner: 'u-2' });
   });
 });

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
 import { GUIDE_LIMITS, type ReportReason } from '@game/guides';
@@ -16,6 +16,7 @@ import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
 import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, reportGuideRemote, setHiddenRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
 import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, rereadGuides, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
+import { ReportsPanel } from './ReportsPanel';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
 
@@ -55,19 +56,30 @@ const forgetEmptyKept = (userId: string | null): void => {
  * guide, Edit on the ones this account may change, and the editor, which takes over the tab while it is open. The card
  * itself lives in `CompendiumGuideCard.tsx`.
  *
- * FOUR PILLS: Team Ascent, My guides, Bookmarked, Community. The first three draw the list this tab is handed. The
- * Community list is its own component (`CommunityGuides.tsx`): it asks the server itself, one page at a time, with the
- * tribe pills and the search box this tab passes on, and a list handed in under that pill is never drawn. Bookmarked
- * and Community need the server, so their pills cannot be chosen while guides are not `on`. If guides stop being `on`
- * while the Community pill is showing, the Community list is taken away (so the server is not asked), and the tab says
- * guides are offline. Bookmarks the store already holds can still be read then. The order chosen for the Community
- * list (Most bookmarked, Newest) is kept here, because this tab stays while the editor is open and that list does not.
+ * FIVE PILLS: Team Ascent, My guides, Bookmarked, Community, and (the team only) Reports. The first three draw the
+ * list this tab is handed. The Community list is its own component (`CommunityGuides.tsx`): it asks the server itself,
+ * one page at a time, with the tribe pills and the search box this tab passes on, and a list handed in under that pill
+ * is never drawn. Bookmarked and Community need the server, so their pills cannot be chosen while guides are not `on`.
+ * If guides stop being `on` while the Community pill is showing, the Community list is taken away (so the server is
+ * not asked), and the tab says guides are offline. Bookmarks the store already holds can still be read then. The order
+ * chosen for the Community list (Most bookmarked, Newest) is kept here, because this tab stays while the editor is
+ * open and that list does not.
+ *
+ * THE REPORTS PILL IS THE TEAM'S (`ReportsPanel.tsx`): open reports, hidden guides, and Carry guides over. The pill is
+ * drawn, and the panel is mounted, only while the store holds the team flag for the account that is signed in (`team`,
+ * see WHOSE GUIDES) and guides are `on`. For anyone else the panel is never mounted and nothing about reports is
+ * asked for: a store left on that pill (the flag was lost, or the account changed) goes back to Team Ascent before
+ * anything is painted. While guides are not `on` the panel is taken away, as the Community list is, and comes back
+ * with them. The panel holds its own data: nothing about reports is in the guides store or in this tab. It belongs to
+ * one account (its key is the account, like a card's), so when the account changes it is thrown away with everything
+ * it read, and a new one reads for the new account. A list handed in under that pill is never drawn. The cards in the
+ * panel are drawn by `renderCard`, like every other card.
  *
  * ONE FUNCTION DRAWS A CARD, FOR EVERY LIST (`renderCard`), so who is offered what is decided in one place. Publish,
  * Unpublish and Delete are offered only on the player's own guide (not Team Ascent's, one with a server row, written by
- * the signed-in account), and only under My guides. Edit is not offered under Bookmarked or Community. Bookmark is
- * offered on someone else's published guide, under every pill, and so is Report. A team account is also offered Hide
- * or Unhide, and Delete, on every player's guide that has a server row, under every pill.
+ * the signed-in account), and only under My guides. Edit is not offered under Bookmarked, Community or Reports.
+ * Bookmark is offered on someone else's published guide, under every pill, and so is Report. A team account is also
+ * offered Hide or Unhide, and Delete, on every player's guide that has a server row, under every pill.
  *
  * A GUIDE IS REPORTED FROM ITS CARD. A guest who presses Report is asked to sign in before any form opens. A report
  * keeps nothing in the guides store: the card remembers that it was sent. So that one account's "Reported" is never
@@ -77,12 +89,13 @@ const forgetEmptyKept = (userId: string | null): void => {
  *
  * THE TEAM HIDES, UNHIDES AND DELETES ANY PLAYER'S GUIDE FROM ITS CARD. After a hide or an unhide the guides are read
  * again and the Community list is asked again (`refreshKey`), because a hidden guide leaves Community and the lists
- * this account holds. A hide whose answer never came, or came and could not be read, may still have landed, so the
- * card is told to check again and the same reads are made: it is never told as a failure. A delete is the same, for
- * the author as for the team: a lost answer says to check again and reads again, and a delete that worked asks the
- * Community list again too. The read made after any of these is `rereadGuides`, so it never settles for a read that
- * began before the action. The read is for whoever is signed in when it is made, and the refresh is this tab's own
- * state, so neither can put one account's answer in front of another.
+ * this account holds. The team's Reports panel reads its lists again on the same signal. A hide whose answer never
+ * came, or came and could not be read, may still have landed, so the card is told to check again and the same reads
+ * are made: it is never told as a failure. A delete is the same, for the author as for the team: a lost answer says to
+ * check again and reads again, and a delete that worked asks the Community list again too. The read made after any of
+ * these is `rereadGuides`, so it never settles for a read that began before the action. The read is for whoever is
+ * signed in when it is made, and the refresh is this tab's own state, so neither can put one account's answer in
+ * front of another.
  *
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
@@ -177,7 +190,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const bookmarkedHere = useMemo(() => bookmarkedMine.filter((g) => g.sets.includes(setId)).length, [bookmarkedMine, setId]);
   /** The list this tab is handed, when it may be drawn: never under Community (that list is the server's answer), and
    *  a personal list only for its owner. */
-  const shown = tab === 'community' || ((tab === 'mine' || tab === 'bookmarked') && !mineIsMine) ? NO_GUIDES : guides;
+  const shown = tab === 'community' || tab === 'reports' || ((tab === 'mine' || tab === 'bookmarked') && !mineIsMine) ? NO_GUIDES : guides;
   /** What the Community list asks for: the lit pills, or (none lit) every tribe this list is for, and Neutral. */
   const queryTribes = useMemo(() => (pillTribes.length ? pillTribes.filter((t) => t !== 'neutral') : tribes), [pillTribes, tribes]);
   const queryNeutral = pillTribes.length ? pillTribes.includes('neutral') : true;
@@ -195,6 +208,10 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const [discardAsk, setDiscardAsk] = useState(false);
   const [note, setNote] = useState<{ text: string; alert: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
+  // The Reports pill is the team's (see the header). A store left on it for anyone else shows Team Ascent instead,
+  // and nothing about reports is asked for. A layout effect: the pill is put back before anything is painted.
+  const reportsOpen = tab === 'reports' && team && online;
+  useLayoutEffect(() => { if (tab === 'reports' && !team) setGuidesTab('team'); }, [tab, team]);
   /** The Community list's order. Held here so it is still the player's choice when the editor closes. */
   const [communitySort, setCommunitySort] = useState<CommunitySort>('bookmarked');
   /** Bumped after a hide, an unhide or a delete: the Community list asks its question again from the first page. */
@@ -334,7 +351,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     // Keyed by the account: a card is drawn anew when the account changes (see the header).
     return (
       <CompendiumGuideCard key={who} guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
-        editable={online && tab !== 'community' && tab !== 'bookmarked' && canEditGuide(g, userId, team)} own={own && tab === 'mine'}
+        editable={online && tab !== 'community' && tab !== 'bookmarked' && tab !== 'reports' && canEditGuide(g, userId, team)} own={own && tab === 'mine'}
         canBookmark={theirs} bookmarked={g.rowId !== null && bookmarkedIds.has(g.rowId)}
         canReport={theirs} moderate={team && online && !g.official && g.rowId !== null}
         signedIn={signedIn} onNeedSignIn={needSignIn}
@@ -461,7 +478,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const emptyText = tab === 'mine' && mineCount === 0 ? 'You have not written a guide yet. Press New guide, or Duplicate on any guide to start from it.'
     : tab === 'bookmarked' && !signedIn ? 'Sign in to bookmark guides. Your bookmarks also show in the lobby rail.'
     : tab === 'bookmarked' && bookmarkedMine.length === 0 ? 'No bookmarks yet. Press Bookmark on a Community guide to keep it here and in your lobby rail.'
-    : tab === 'community' ? 'Guides are offline.'
+    : tab === 'community' || tab === 'reports' ? 'Guides are offline.'
     : 'No guides match these filters.';
   return (
     <div className="bookguides" key="list" ref={attachRoot}>
@@ -475,6 +492,10 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
             aria-pressed={tab === 'bookmarked'} disabled={!online} onClick={() => setGuidesTab('bookmarked')}>{bookmarkedHere > 0 ? `Bookmarked (${bookmarkedHere})` : 'Bookmarked'}</button>
           <button type="button" className={`book-runetribe${tab === 'community' ? ' on' : ''}`} style={pillStyle}
             aria-pressed={tab === 'community'} disabled={!online} onClick={() => setGuidesTab('community')}>Community</button>
+          {team && online && (
+            <button type="button" className={`book-runetribe${tab === 'reports' ? ' on' : ''}`} style={pillStyle}
+              aria-pressed={tab === 'reports'} onClick={() => setGuidesTab('reports')}>Reports</button>
+          )}
         </div>
         <div className="gtool-actions">
           {team && online && source === 'bundled' && (
@@ -513,7 +534,9 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
           </p>
         )}
       </div>
-      {tab === 'community' && online ? (
+      {reportsOpen ? (
+        <ReportsPanel key={who} setId={setId} refreshKey={refreshKey} renderCard={renderCard} root={root} />
+      ) : tab === 'community' && online ? (
         <CommunityGuides setId={setId} queryTribes={queryTribes} neutral={queryNeutral} search={search} sort={communitySort} onSort={setCommunitySort}
           refreshKey={refreshKey} root={root} renderCard={renderCard} />
       ) : shown.length === 0 ? (

@@ -100,7 +100,7 @@ describe('the two clocks', () => {
 
   it('hands the durations and the crystal\'s place to the stylesheet', () => {
     expect(rankedGateCssVars()).toEqual({
-      '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '2600ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
+      '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '1800ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
       '--rg-art-hw': '836', '--rg-art-h': '941', '--rg-cry-dy': '-36.5', '--rg-cry-size': '236',
     });
   });

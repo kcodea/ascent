@@ -168,10 +168,10 @@
    whole way (its white face over the body, and a white bloom in its own diamond shape around it, both growing with
    it), and only cools to blue over the last third, as the blue glow behind it comes up to where the waiting pulse
    begins. Nothing round is drawn while it forms. */
-.rgate.is-forming .rgate-crystal-gem { animation: rg-cry-grow var(--rg-form, 2600ms) linear both; }
-.rgate.is-forming .rgate-crystal-body { animation: rg-cry-body-in var(--rg-form, 2600ms) linear both; }
-.rgate.is-forming .rgate-crystal-hot { animation: rg-cry-cool var(--rg-form, 2600ms) linear both; }
-.rgate.is-forming .rgate-crystal-heat { animation: rg-cry-heat var(--rg-form, 2600ms) linear both, rg-cry-warp-d 0.61s ease-in-out infinite; }
+.rgate.is-forming .rgate-crystal-gem { animation: rg-cry-grow var(--rg-form, 1800ms) linear both; }
+.rgate.is-forming .rgate-crystal-body { animation: rg-cry-body-in var(--rg-form, 1800ms) linear both; }
+.rgate.is-forming .rgate-crystal-hot { animation: rg-cry-cool var(--rg-form, 1800ms) linear both; }
+.rgate.is-forming .rgate-crystal-heat { animation: rg-cry-heat var(--rg-form, 1800ms) linear both, rg-cry-warp-d 0.61s ease-in-out infinite; }
 /* THE WARP: only while it forms. Three plies, three loops of different lengths, so the edge never repeats in step. */
 .rgate.is-forming .rgate-crystal-ply:nth-child(1) { animation: rg-cry-warp-a 0.37s ease-in-out infinite; }
 .rgate.is-forming .rgate-crystal-ply:nth-child(2) { animation: rg-cry-warp-b 0.53s ease-in-out infinite; }
@@ -201,7 +201,7 @@
   0%, 60% { opacity: 0; }
   100% { opacity: 1; }
 }
-.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 2600ms) linear both; }
+.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 1800ms) linear both; }
 @keyframes rg-cry-grow {
   0% { opacity: 0; transform: scale(0.02); }
   6% { opacity: 1; transform: scale(0.05); animation-timing-function: cubic-bezier(0.4, 0, 0.35, 1); }

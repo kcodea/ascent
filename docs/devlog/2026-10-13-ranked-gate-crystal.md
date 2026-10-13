@@ -202,6 +202,20 @@ in too".
   many again arriving each second. All of a forming's sprites (about 1,970 with `FX_AMOUNT`) are created at its
   start and wait invisibly on their delays; worth a look in the profiler if the forming ever hitches.
 
+**Then, a shorter swell (same PR):** "lower the gem building sound by 30%, is it possible to reduce the swell effect
+back down to about 1.8 seconds? can you adjust the clip to match the new timing?".
+
+- **Forming 2.6 s -> 1.8 s** (`crystalFormMs`). The crystal is pressable 3.95 s after "Yes".
+- **The clip was time-compressed to match**, not cut: the owner's recording played 1.444x faster at the same
+  pitch (ffmpeg `atempo=1.4444`), so its 2.6 s swell is 1.8 s and the whole clip 3.3 s. Three ways were compared
+  by loudness profile against the original (mean -17.2 dB, peak -1.0): `atempo` kept it (-17.8 / -1.1) while
+  `rubberband`, at its default and at its crisp settings, lost about 3 dB across the swell (-20.2 / -3.3), so
+  `atempo` was used. The source recording is not in the repo; re-make the clip from it, never from the committed
+  one, if the length changes again.
+- **30% quieter:** the `gateform` fader 0.6 -> 0.42.
+- The particle counts raised for the 2.6 s forming were left as they are, so the same particles now arrive in
+  1.8 s: denser still.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

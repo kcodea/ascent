@@ -51,7 +51,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   gateintro: 0.72,
   // The gate's CRYSTAL (owner 2026-10-13): its build-up as it forms on the centre diamond, and its shatter
   // under the press. Both his recordings.
-  gateform: 0.6, gateshatter: 0.6,
+  // gateform 0.6 -> 0.42 the same day (owner: "lower the gem building sound by 30%").
+  gateform: 0.42, gateshatter: 0.6,
   // The crystal's HUM while the pointer is on it (owner 2026-10-13): a seamless loop, faded in and out.
   gatehum: 0.5,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the

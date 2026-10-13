@@ -25,7 +25,7 @@
  * seam flash is that much bigger. The doors' own motion (travel, recoil, shudder) lives in rankedGate.css and is
  * untouched by it. The embers were then trebled (owner 2026-10-13: "amplify the blue particles by 200% ... a major
  * part of the sparks that emit"). Worst case is the forming: about 1,970 sprites are created for it at once, most
- * of them invisible (waiting on their delay) at any moment, all gone within its 2.6 s. Every burst is a one-shot; the one thing that runs on is the ambient trickle, a dozen
+ * of them invisible (waiting on their delay) at any moment, all gone within its 1.8 s. Every burst is a one-shot; the one thing that runs on is the ambient trickle, a dozen
  * embers a second for as long as the player leaves the crystal unpressed.
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
@@ -403,8 +403,7 @@ class GateFxController {
       // The streaks: they leave all through the first three quarters, so the stream is steady. Each flies in to the
       // edge, then lies along it and slides, breathing, as it fades. Nearly twice as many since the owner asked for
       // more of them (2026-10-13: "increase the particles that are being sucked into the edges"): 170 -> 320, then
-      // 800 ("add more particles being sucked in too") as the forming grew from 1.6 s to 2.6 s: about half as many
-      // again arriving each second.
+      // 800 ("add more particles being sucked in too"). The forming is 1.8 s, so they arrive thick and fast.
       for (let i = 0, n = amount(800); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
         const r0 = c.size * (1 + Math.random() * 2.8);

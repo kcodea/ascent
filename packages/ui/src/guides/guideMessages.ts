@@ -12,7 +12,8 @@
  *  - WHETHER IT IS KNOWN. A publish or an unpublish that could not reach the server may still have landed (the answer
  *    was lost, not the request). Whether the player's text is public is not something to guess at: that sentence never
  *    says nothing was changed, it says to check again. A delete is the same (the author's own, and the team's): one
- *    whose answer never came may have landed, so it never says the guide was not deleted.
+ *    whose answer never came (`offline`), or came and could not be read (`server`), may have landed, so it never says
+ *    the guide was not deleted. Only the first of the two says the server could not be reached.
  */
 import { GUIDE_LIMITS } from '@game/guides';
 
@@ -57,6 +58,8 @@ export function guideErrorMessage(code: string, field?: string, about: GuideErro
     switch (code) {
       // The answer was lost, not the request: the delete may have landed.
       case 'offline': return `${NO_SERVER} Check again in a moment to see whether it was deleted.`;
+      // An answer came and could not be read: the delete may have landed too.
+      case 'server': return 'Something went wrong. Check again in a moment to see whether it was deleted.';
       case 'sign_in_required':
       case 'unauthenticated': return SIGN_IN;
       case 'not_allowed': return NOT_ALLOWED;

@@ -66,11 +66,13 @@ const forgetEmptyKept = (userId: string | null): void => {
  * open and that list does not.
  *
  * THE REPORTS PILL IS THE TEAM'S (`ReportsPanel.tsx`): open reports, hidden guides, and Carry guides over. The pill is
- * drawn, and the panel is mounted, only while the store holds the team flag for the account that is signed in (`team`,
- * see WHOSE GUIDES) and guides are `on`. For anyone else the panel is never mounted and nothing about reports is
- * asked for: a store left on that pill (the flag was lost, or the account changed) goes back to Team Ascent before
- * anything is painted. While guides are not `on` the panel is taken away, as the Community list is, and comes back
- * with them. The panel holds its own data: nothing about reports is in the guides store or in this tab. It belongs to
+ * drawn only while the store holds the team flag for the account that is signed in (`team`, see WHOSE GUIDES); like
+ * Bookmarked and Community it is drawn switched off while guides are not `on`. The panel is mounted only while both
+ * hold. For anyone else the panel is never mounted and nothing about reports is asked for: a store left on that pill
+ * (the flag was lost, or the account changed) goes back to Team Ascent before anything is painted. While guides are
+ * not `on` the panel is taken away, as the Community list is, and comes back with them; the pill stays lit, so the tab
+ * still says where it is. The panel holds its own data: nothing about reports is in the guides store or in this tab
+ * (after a carry-over it asks the store to read the GUIDES again, so they show in their new set). It belongs to
  * one account (its key is the account, like a card's), so when the account changes it is thrown away with everything
  * it read, and a new one reads for the new account. A list handed in under that pill is never drawn. The cards in the
  * panel are drawn by `renderCard`, like every other card.
@@ -91,18 +93,18 @@ const forgetEmptyKept = (userId: string | null): void => {
  * again and the Community list is asked again (`refreshKey`), because a hidden guide leaves Community and the lists
  * this account holds. The team's Reports panel reads its lists again on the same signal. A hide whose answer never
  * came, or came and could not be read, may still have landed, so the card is told to check again and the same reads
- * are made: it is never told as a failure. A delete is the same, for the author as for the team: a lost answer says to
- * check again and reads again, and a delete that worked asks the Community list again too. The read made after any of
- * these is `rereadGuides`, so it never settles for a read that began before the action. The read is for whoever is
- * signed in when it is made, and the refresh is this tab's own state, so neither can put one account's answer in
- * front of another.
+ * are made: it is never told as a failure. A delete is the same, for the author as for the team: an answer that was
+ * lost, or came and could not be read, says to check again and reads again, and a delete that worked asks the
+ * Community list again too. The read made after any of these is `rereadGuides`, so it never settles for a read that
+ * began before the action. The read is for whoever is signed in when it is made, and the refresh is this tab's own
+ * state, so neither can put one account's answer in front of another.
  *
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
  * a deleted one), or the sentence the player reads, which the card shows. A guide that is already gone on the server
  * when it is deleted simply leaves the list. A publish, unpublish or delete whose answer never came may still have
- * landed, so the card is told to check again and the guides are read again: the card shows the truth once the server
- * answers.
+ * landed, so the card is told to check again and the guides are read again (`rereadGuides`, so a read that began
+ * before the press is never the last word): the card shows the truth once the server answers.
  * None of this opens the editor or touches the unsaved guide the device keeps, so the rules below are unchanged.
  *
  * Which guides show (pill, set, tribe pills, search) is decided by the caller (MinionBook). Who may do what is
@@ -280,7 +282,8 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     const res = await setPublishedRemote(g.rowId, on);
     if (!res.ok) {
       // The answer was lost, not refused: the server may have done it. Read again, so the card shows what is true.
-      if (res.code === 'offline') void loadGuides();
+      // `rereadGuides`: a read already on its way began before the publish and must not be the last word.
+      if (res.code === 'offline') void rereadGuides();
       return guideErrorMessage(res.code, res.field, { action: on ? 'publish' : 'unpublish' });
     }
     const next = toGuide(res.value);
@@ -294,9 +297,10 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     if (!g.rowId) return null;
     const res = await deleteGuideRemote(g.rowId);
     if (!res.ok && res.code !== 'not_found') {
-      // The answer was lost, not refused: the delete may have landed. Read again, and ask the Community list again
-      // (the team deletes from there), so the lists show what is true.
-      if (res.code === 'offline') { void rereadGuides(); refresh(); }
+      // The answer was lost (`offline`), or it came and could not be read (`server`): either way the delete may have
+      // landed. Read again, and ask the Community list again (the team deletes from there), so the lists show what is
+      // true.
+      if (res.code === 'offline' || res.code === 'server') { void rereadGuides(); refresh(); }
       return guideErrorMessage(res.code, res.field, { action: 'delete' });
     }
     guideDeleted(g.rowId);
@@ -492,9 +496,9 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
             aria-pressed={tab === 'bookmarked'} disabled={!online} onClick={() => setGuidesTab('bookmarked')}>{bookmarkedHere > 0 ? `Bookmarked (${bookmarkedHere})` : 'Bookmarked'}</button>
           <button type="button" className={`book-runetribe${tab === 'community' ? ' on' : ''}`} style={pillStyle}
             aria-pressed={tab === 'community'} disabled={!online} onClick={() => setGuidesTab('community')}>Community</button>
-          {team && online && (
+          {team && (
             <button type="button" className={`book-runetribe${tab === 'reports' ? ' on' : ''}`} style={pillStyle}
-              aria-pressed={tab === 'reports'} onClick={() => setGuidesTab('reports')}>Reports</button>
+              aria-pressed={tab === 'reports'} disabled={!online} onClick={() => setGuidesTab('reports')}>Reports</button>
           )}
         </div>
         <div className="gtool-actions">

@@ -417,6 +417,36 @@ describe('reporting a guide', () => {
     expect(button(card(c, 'a'), 'Spam')!.getAttribute('aria-pressed')).toBe('false');
     expect(card(c, 'a').querySelector<HTMLInputElement>('.bookguide-ask input')!.value).toBe('');
   });
+  it('a half-written report is forgotten when the player leaves the form for another action on the card', async () => {
+    const c = show('player');
+    await settle();
+    await press(card(c, 'a'), 'Report');
+    await press(card(c, 'a'), 'Spam');
+    type(card(c, 'a').querySelector('.bookguide-ask input')!, 'half a thought');
+    // Another action on the card: the form goes. (This bookmark is refused, which is beside the point.)
+    await press(card(c, 'a'), 'Bookmark');
+    expect(card(c, 'a').querySelector('.bookguide-ask[role="group"]')).toBeNull();
+    await press(card(c, 'a'), 'Report');
+    expect(button(card(c, 'a'), 'Spam')!.getAttribute('aria-pressed')).toBe('false');
+    expect(card(c, 'a').querySelector<HTMLInputElement>('.bookguide-ask input')!.value).toBe('');
+    expect(button(card(c, 'a'), 'Send report')!.disabled).toBe(true);
+    expect(reports).toEqual([]);
+  });
+  it('a half-written report is forgotten when the player leaves the form for another question on the card', async () => {
+    const c = show('team');
+    await settle();
+    await press(card(c, 'a'), 'Report');
+    await press(card(c, 'a'), 'Spam');
+    type(card(c, 'a').querySelector('.bookguide-ask input')!, 'half a thought');
+    await press(card(c, 'a'), 'Hide'); // another question takes the form's place
+    expect(card(c, 'a').textContent).toContain('Hide this guide?');
+    await press(card(c, 'a').querySelector('.bookguide-ask')!, 'Cancel');
+    await press(card(c, 'a'), 'Report');
+    expect(button(card(c, 'a'), 'Spam')!.getAttribute('aria-pressed')).toBe('false');
+    expect(card(c, 'a').querySelector<HTMLInputElement>('.bookguide-ask input')!.value).toBe('');
+    expect(reports).toEqual([]);
+    expect(hides).toEqual([]);
+  });
   it('focus is not pulled into a form that comes back after the player has moved on', async () => {
     let answer!: () => void;
     hold = new Promise<void>((r) => { answer = r; });
@@ -725,8 +755,22 @@ describe('the team on any player guide', () => {
     expect(asked[1]).toMatchObject({ offset: 0 });
     expect(titles(c)).toEqual(['Guide a', 'Guide b']);
   });
-  it('a delete the server answered and refused reads and asks nothing again', async () => {
+  it("the team's delete whose answer came and could not be read may have landed too: it says to check, reads the guides and asks the list again", async () => {
     deleteAnswer = () => ({ ok: false, code: 'server' });
+    const c = show('team');
+    await settle();
+    await press(card(c, 'a'), 'Delete');
+    await press(card(c, 'a'), 'Delete for good');
+    await settle(350);
+    expect(deleted).toEqual(['a']);
+    expect(card(c, 'a').querySelector('[role="alert"]')!.textContent).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+    expect(reads).toBe(1);
+    expect(asked.length).toBe(2);
+    expect(asked[1]).toMatchObject({ offset: 0 });
+    expect(titles(c)).toEqual(['Guide a', 'Guide b']);
+  });
+  it('a delete the server answered and refused reads and asks nothing again', async () => {
+    deleteAnswer = () => ({ ok: false, code: 'guide_failed' });
     const c = show('team');
     await settle();
     await press(card(c, 'a'), 'Delete');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GUIDE_LIMITS } from '@game/guides';
-import { guideErrorMessage } from './guideMessages';
+import { guideErrorMessage, type GuideAction } from './guideMessages';
 
 /** Every code a write can answer: the server's own, and the three the seam makes (`offline`, `unavailable`, `server`). */
 const CODES = ['blocked_text', 'reserved_name', 'bad_guide', 'sign_in_required', 'unauthenticated', 'not_allowed', 'not_found', 'conflict', 'too_many_guides', 'rate_limited', 'offline', 'unavailable', 'server', 'guide_failed', 'something_new'];
@@ -82,8 +82,13 @@ describe('guideErrorMessage: a delete', () => {
     expect(del('sign_in_required')).toBe('Sign in to write guides.');
     expect(del('unauthenticated')).toBe('Sign in to write guides.');
   });
+  it('an answer that came and could not be read: the delete may have landed too, so it says to check again', () => {
+    expect(del('server')).toBe('Something went wrong. Check again in a moment to see whether it was deleted.');
+    expect(del('server')).not.toContain('not deleted');
+    expect(del('server')).not.toContain('reach the server'); // the server was reached
+  });
   it('anything else: it was not deleted', () => {
-    for (const c of ['server', 'guide_failed', 'something_new', 'rate_limited', 'unavailable', 'conflict', 'too_many_guides', 'blocked_text', 'bad_guide', 'reserved_name']) {
+    for (const c of ['guide_failed', 'something_new', 'rate_limited', 'unavailable', 'conflict', 'too_many_guides', 'blocked_text', 'bad_guide', 'reserved_name']) {
       expect(del(c), c).toBe('Something went wrong deleting the guide. It was not deleted.');
     }
   });
@@ -106,14 +111,27 @@ describe('guideErrorMessage: the import', () => {
 });
 
 describe('every sentence, for every action', () => {
-  it('has no long dash and no double hyphen, and never shows the code', () => {
-    for (const action of ['save', 'delete', 'import'] as const) for (const kept of [true, false]) for (const c of CODES) for (const field of [undefined, 'title', 'aliases']) {
+  /** Every action the module knows. Typed as a record of them all, so a new action cannot be left out. */
+  const EVERY_ACTION: Record<GuideAction, true> = { save: true, delete: true, import: true, publish: true, unpublish: true, bookmark: true, report: true, moderate: true };
+  const ACTIONS = Object.keys(EVERY_ACTION) as GuideAction[];
+  /** Every code any action has a sentence of its own for, and two it does not know. */
+  const ALL_CODES = [...CODES, 'guide_hidden', 'too_many_bookmarks', 'already_reported', 'report_limit', 'bad_report'];
+  /** The fields that change a sentence: none, a named part, the nicknames, the "Based on" line, and one not known. */
+  const FIELDS = [undefined, 'title', 'aliases', 'forked', 'something_new'];
+  it('has no long dash and no double hyphen, never shows the code, and ends as a sentence', () => {
+    const seen = new Set<string>();
+    for (const action of ACTIONS) for (const kept of [true, false]) for (const c of ALL_CODES) for (const field of FIELDS) {
       const m = guideErrorMessage(c, field, { action, kept });
       const where = `${action} ${c} ${String(field)} ${String(kept)}`;
       expect(m.includes(String.fromCharCode(0x2014)) || m.includes(String.fromCharCode(0x2013)) || m.includes('--'), where).toBe(false);
       expect(m, where).not.toContain(c);
       expect(m.endsWith('.'), where).toBe(true);
+      seen.add(`${action}: ${m}`);
     }
+    // The loop does reach the sentences of the two newest actions.
+    expect(seen.has('report: You already reported this guide.')).toBe(true);
+    expect(seen.has('moderate: Only Team Ascent can do that.')).toBe(true);
+    expect(seen.has('delete: Something went wrong. Check again in a moment to see whether it was deleted.')).toBe(true);
   });
 });
 

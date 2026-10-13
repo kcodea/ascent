@@ -300,6 +300,13 @@ describe('lobby rail guides view', () => {
     const open = (): Element | null => c.querySelector(`.lobbyguide[data-guide="${first.id}"] .lobbyguide-modebtn`);
     expect(open()).not.toBeNull();
     expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
+    // The same account, its lists still held for it, but NOT on the team: a Team Ascent guide offers it no Edit.
+    act(() => { useGuides.setState({ team: false }); });
+    expect(useGuides.getState().mineOwner).toBe('u-1');
+    expect(open()).not.toBeNull();
+    expect(c.querySelector('.lobbyguide-editbtn')).toBeNull();
+    act(() => { useGuides.setState({ team: true }); });
+    expect(c.querySelector('.lobbyguide-editbtn')).not.toBeNull();
     // Another account signs in and the guides store is not told (a missed read): it still holds u-1's team flag.
     act(() => { useGame.setState({ account: { userId: 'u-2', email: 'x@example.test', anonymous: false, discriminator: null } }); });
     expect(useGuides.getState()).toMatchObject({ team: true, mineOwner: 'u-1' });

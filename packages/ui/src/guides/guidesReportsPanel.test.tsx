@@ -44,13 +44,15 @@ const deleted: string[] = [];
 let reportsAsked = 0;
 let hiddenAsked = 0;
 let tagsAsked = 0;
-/** How many times the guides were read again from the server (a hide reads them again). */
+/** How many times the guides were read again from the server (a hide reads them again), and the Team Ascent guides
+ *  such a read answers (none: the store then keeps the list each test set). */
 let reads = 0;
+let officialAnswer: () => GuideRecord[];
 vi.mock('./guidesRemote', () => ({
   GUIDE_COLUMNS: '',
   // The server answers and has no Team Ascent rows; a read of the account's own lists cannot ask (`undefined`), so
   // the store keeps what each test set. A read after a hide therefore leaves the pill, the team flag and the lists.
-  fetchOfficialGuides: async () => { reads++; return { state: 'on', guides: [] }; },
+  fetchOfficialGuides: async () => { reads++; return { state: 'on', guides: officialAnswer() }; },
   fetchTeamFlag: async () => undefined,
   fetchMyGuides: async () => undefined,
   fetchBookmarkedGuides: async () => undefined,
@@ -166,6 +168,7 @@ beforeEach(async () => {
   localStorage.clear();
   resetGuidesForTests();
   dismissed.length = 0; retags.length = 0; hides.length = 0; deleted.length = 0;
+  officialAnswer = () => [];
   reportsAnswer = () => [];
   hiddenAnswer = () => [];
   tagsAnswer = () => [];
@@ -185,12 +188,19 @@ afterEach(() => {
 });
 
 describe('the Reports pill', () => {
-  it('is drawn for a team account only, and only while guides are on', () => {
-    expect(button(show('team', { tab: 'team' }), 'Reports')).toBeDefined();
+  it('is drawn for a team account only, and cannot be pressed while guides are not on', async () => {
+    expect(button(show('team', { tab: 'team' }), 'Reports')!.disabled).toBe(false);
     ui!.unmount();
     expect(button(show('player', { tab: 'team' }), 'Reports')).toBeUndefined();
     ui!.unmount();
-    expect(button(show('team', { tab: 'team', capability: 'offline' }), 'Reports')).toBeUndefined();
+    // Not on: drawn switched off, exactly as Bookmarked and Community are. Still the team's alone.
+    const c = show('team', { tab: 'team', capability: 'offline' });
+    for (const t of ['Bookmarked', 'Community', 'Reports']) expect(button(c, t)!.disabled, t).toBe(true);
+    expect(button(c, 'Reports')!.className).toBe(button(c, 'Community')!.className);
+    await press(c, 'Reports'); // a switched-off pill takes no press
+    expect(useGuides.getState().tab).toBe('team');
+    ui!.unmount();
+    expect(button(show('player', { tab: 'team', capability: 'offline' }), 'Reports')).toBeUndefined();
   });
   it('is the fifth pill, after Community, and pressing it opens the panel and reads once', async () => {
     const c = show('team', { tab: 'team' });
@@ -236,6 +246,9 @@ describe('the Reports pill', () => {
     expect(c.textContent).not.toContain('Open reports');
     expect(c.querySelector('.gtool-empty')!.textContent).toBe('Guides are offline.');
     expect(useGuides.getState().tab).toBe('reports');
+    // The pill is still there, lit and switched off, so the tab still says which pill it is on.
+    expect(button(c, 'Reports')!.disabled).toBe(true);
+    expect(button(c, 'Reports')!.getAttribute('aria-pressed')).toBe('true');
     act(() => { useGuides.setState({ capability: 'on' }); });
     await settle();
     expect([reportsAsked, hiddenAsked]).toEqual([1, 1]);
@@ -372,27 +385,31 @@ describe('the Reports pill', () => {
     await press(card(c, 'h1'), 'Unhide');
     expect(hiddenAsked).toBe(2);
     expect(cards(c)).toEqual(['h1', 'h2']);
-    expect(c.textContent).not.toContain('Loading reports.');
+    expect(c.textContent).not.toContain('Loading');
     expect(c.textContent).not.toContain('No hidden guides.');
     await again.answer([rec('h1', { hidden: true }), rec('h2', { hidden: true })]);
     expect(cards(c)).toEqual(['h1', 'h2']);
     expect(card(c, 'h1').querySelector('[role="alert"]')!.textContent).toBe('Could not reach the server. Check again in a moment to see whether it changed.');
   });
-  it('Hide on a reported guide reads the lists again: the guide then wears Unhide and joins the hidden list', async () => {
-    reportsAnswer = () => [open('r1', 'a', 'spam', T1)];
+  it('Hide on a reported guide reads the lists again: the guide leaves Open reports and is under Hidden guides, with Unhide', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'spam', T1), open('r2', 'b', 'other', T1)];
     hideAnswer = (hidden) => ({ ok: true, value: rec('a', { hidden }) });
     const c = show('team', { tab: 'reports' });
     await settle();
-    reportsAnswer = () => [open('r1', 'a', 'spam', T1, '', { hidden: true })];
+    expect(cards(c)).toEqual(['a', 'b']);
+    // As the server does it: hiding a guide closes its open reports, so only b's are still open.
+    reportsAnswer = () => [open('r2', 'b', 'other', T1)];
     hiddenAnswer = () => [rec('a', { hidden: true })];
     await press(card(c, 'a'), 'Hide');
     await press(card(c, 'a').querySelector('.bookguide-ask')!, 'Hide');
     await settle();
     expect(hides).toEqual([['a', true]]);
     expect([reportsAsked, hiddenAsked]).toEqual([2, 2]);
-    expect(cards(c)).toEqual(['a', 'a']); // under its reports, and in the hidden list
-    expect(button(card(c, 'a'), 'Unhide')).toBeDefined();
     expect(sums(c).length).toBe(1);
+    expect([...c.querySelectorAll('.greports-group .bookguide')].map((e) => e.getAttribute('data-guide'))).toEqual(['b']);
+    expect(cards(c)).toEqual(['b', 'a']); // a is drawn once, in the hidden list
+    expect(button(card(c, 'a'), 'Unhide')).toBeDefined();
+    expect(button(card(c, 'a'), 'Hide')).toBeUndefined();
   });
   it('Delete from the panel deletes the guide and reads the lists again', async () => {
     hiddenAnswer = () => [rec('h1', { hidden: true })];
@@ -421,17 +438,34 @@ describe('the Reports pill', () => {
     await settle();
     expect(d.textContent).toContain('No open reports.');
   });
-  it('says it is loading on the first read only', async () => {
+  it('each list says it is loading until its first answer, and never after', async () => {
     const first = later<OpenReport[] | undefined>();
     reportsAnswer = () => first.promise;
     const c = show('team', { tab: 'reports' });
     await settle();
     expect(c.querySelector('[role="status"]')!.textContent).toBe('Loading reports.');
+    expect([...c.querySelectorAll('.greports-row[role="status"]')].map((e) => e.textContent)).toEqual(['Loading reports.', 'Loading hidden guides.']);
     expect(c.textContent).not.toContain('No open reports.');
     expect(c.textContent).not.toContain('No hidden guides.');
     await first.answer([]);
-    expect(c.textContent).not.toContain('Loading reports.');
+    expect(c.textContent).not.toContain('Loading');
     expect(c.textContent).toContain('No open reports.');
+    expect(c.textContent).toContain('No hidden guides.');
+  });
+  it('Try again on a hidden list that never loaded says it is loading again, and the list that did load says nothing of the kind', async () => {
+    hiddenAnswer = () => undefined;
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    expect(c.textContent).toContain('Could not load the hidden guides.');
+    expect(c.textContent).not.toContain('Loading');
+    const second = later<GuideRecord[] | undefined>();
+    hiddenAnswer = () => second.promise;
+    await press(c, 'Try again');
+    expect([...c.querySelectorAll('.greports-row[role="status"]')].map((e) => e.textContent)).toEqual(['Loading hidden guides.']);
+    expect(c.textContent).toContain('No open reports.');
+    await second.answer([]);
+    expect(c.textContent).not.toContain('Loading');
+    expect(c.textContent).toContain('No hidden guides.');
   });
   it('when only one of the two lists could be read, the other is shown and the one that failed says so', async () => {
     reportsAnswer = () => [open('r1', 'a', 'spam', T1)];
@@ -572,6 +606,142 @@ describe('the Reports pill', () => {
     // The counter does count: a card's own question is the card's own state.
     await press(card(c, 'h1'), 'Delete');
     expect(cardDraws).toBeGreaterThan(drawn);
+  });
+});
+
+describe('the Reports pill, the fine print', () => {
+  it('a refused dismiss is said in the group it is about, and in no other', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'spam', T1), open('r2', 'b', 'other', T1)];
+    dismissAnswer = () => ({ ok: false, code: 'not_allowed' });
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    const groups = (): Element[] => [...c.querySelectorAll('.greports-group')];
+    await press(groups()[1]!, 'Dismiss reports');
+    expect(dismissed).toEqual(['b']);
+    expect(groups()[1]!.querySelector('[role="alert"]')!.textContent).toBe('Only Team Ascent can do that.');
+    expect(groups()[0]!.querySelector('[role="alert"]')).toBeNull();
+    expect(c.querySelectorAll('[role="alert"]').length).toBe(1);
+    // The next dismiss takes the old sentence away and says its own, in its own group.
+    await press(groups()[0]!, 'Dismiss reports');
+    expect(groups()[0]!.querySelector('[role="alert"]')!.textContent).toBe('Only Team Ascent can do that.');
+    expect(groups()[1]!.querySelector('[role="alert"]')).toBeNull();
+  });
+  it('each of the four reasons has its own word in the summary', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'impersonation', T1), open('r2', 'b', 'offensive', T1), open('r3', 'd', 'spam', T1), open('r4', 'e', 'other', T1)];
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    expect(sums(c).map((s) => s.replace('Dismiss reports', ''))).toEqual(['1 report: 1 Impersonation.', '1 report: 1 Offensive.', '1 report: 1 Spam.', '1 report: 1 Other.']);
+  });
+  it('a list that was empty and cannot be read again says it could not be loaded, not that there is nothing', async () => {
+    const { c, again } = alone();
+    await settle();
+    expect(c.textContent).toContain('No open reports.');
+    expect(c.textContent).toContain('No hidden guides.');
+    reportsAnswer = () => undefined;
+    hiddenAnswer = () => undefined;
+    again(1);
+    await settle();
+    expect(c.textContent).toContain('Could not load the reports.');
+    expect(c.textContent).toContain('Could not load the hidden guides.');
+    expect(c.textContent).not.toContain('No open reports.');
+    expect(c.textContent).not.toContain('No hidden guides.');
+  });
+  it('the panel goes at once when the team flag is dropped, with nothing else changing', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'spam', T1, 'a private note')];
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    expect(c.textContent).toContain('a private note');
+    const asked = [reportsAsked, hiddenAsked];
+    act(() => { useGuides.setState({ team: false }); });
+    expect(c.textContent).not.toContain('a private note');
+    expect(c.textContent).not.toContain('Open reports');
+    expect(button(c, 'Reports')).toBeUndefined();
+    await settle();
+    expect(useGuides.getState()).toMatchObject({ team: false, mineOwner: 'u-1', tab: 'team' });
+    expect([reportsAsked, hiddenAsked]).toEqual(asked);
+  });
+  it('a note that looks like markup is drawn as the text it is', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'spam', T1, '<b>bold</b> <img src=x onerror=alert(1)>')];
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    const quote = c.querySelector('.greports-quote')!;
+    expect(quote.textContent).toBe('"<b>bold</b> <img src=x onerror=alert(1)>"');
+    expect(quote.children.length).toBe(0);
+    expect(c.querySelector('.greports-sum b, .greports-sum img')).toBeNull();
+  });
+  it('a read that throws is a read that failed: each list says so, and Try again reads again', async () => {
+    reportsAnswer = () => { throw new Error('boom'); };
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    expect(c.textContent).toContain('Could not load the reports.');
+    expect(c.textContent).toContain('Could not load the hidden guides.');
+    expect(c.textContent).not.toContain('Loading');
+    reportsAnswer = () => [];
+    await press(c, 'Try again');
+    await settle();
+    expect(c.textContent).toContain('No open reports.');
+    expect(c.textContent).toContain('No hidden guides.');
+  });
+  it('a dismiss that throws may have landed: it says to check, the lists are read again, and the buttons come back', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'spam', T1)];
+    dismissAnswer = () => { throw new Error('boom'); };
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    const before = reportsAsked;
+    await press(c, 'Dismiss reports');
+    await settle();
+    expect(c.querySelector('.greports-group [role="alert"]')!.textContent).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+    expect(reportsAsked).toBe(before + 1);
+    expect(button(c, 'Dismiss reports')!.disabled).toBe(false);
+  });
+  it('a check that throws says the guides could not be read, and Check can be pressed again', async () => {
+    tagsAnswer = () => { throw new Error('boom'); };
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    await press(c, 'Check');
+    await settle();
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Could not read the guides. Try again.');
+    expect(button(c, 'Check')!.disabled).toBe(false);
+  });
+  it('a batch that throws stops the run and says how far it got', async () => {
+    tagsAnswer = () => [tag('fits1')];
+    retagAnswer = () => { throw new Error('boom'); };
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, 'Carry over 1 guide');
+    await settle();
+    expect(c.querySelector('[role="alert"]')!.textContent).toBe('Something went wrong. Check again in a moment to see whether it changed.');
+    expect(c.textContent).toContain('Carried over 0 of 1 so far. Press Check to continue.');
+    expect(button(c, 'Check')!.disabled).toBe(false);
+  });
+  it('a card action that asks the lists again while a dismiss is being read back: the Dismiss buttons stay off until the newest read lands', async () => {
+    reportsAnswer = () => [open('r1', 'a', 'spam', T1), open('r2', 'b', 'other', T1)];
+    hideAnswer = (hidden) => ({ ok: true, value: rec('b', { hidden }) });
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    const waiting: Array<ReturnType<typeof later<OpenReport[] | undefined>>> = [];
+    reportsAnswer = () => { const w = later<OpenReport[] | undefined>(); waiting.push(w); return w.promise; };
+    const off = (): boolean[] => [...c.querySelectorAll<HTMLButtonElement>('button[data-dismiss]')].map((b) => b.disabled);
+    const first = c.querySelectorAll('.greports-group')[0]!;
+    button(first, 'Dismiss reports')!.focus();
+    await press(first, 'Dismiss reports'); // a: dismissed, and the lists are asked again
+    expect(dismissed).toEqual(['a']);
+    expect(waiting.length).toBe(1);
+    await press(card(c, 'b'), 'Hide');
+    await press(card(c, 'b').querySelector('.bookguide-ask')!, 'Hide'); // b: hidden, and the lists are asked once more
+    expect(waiting.length).toBe(2);
+    (document.activeElement as HTMLElement | null)?.blur();
+    // The older read lands first. It is not the newest: nothing is drawn from it, no button comes back, focus stays.
+    await waiting[0]!.answer([open('r1', 'a', 'spam', T1), open('r2', 'b', 'other', T1)]);
+    expect(off()).toEqual([true, true]);
+    expect(document.activeElement).toBe(document.body);
+    await waiting[1]!.answer([open('r2', 'b', 'other', T1)]);
+    expect(cards(c)).toEqual(['b']);
+    expect(off()).toEqual([false]);
+    expect(document.activeElement).toBe(c.querySelector('button[data-dismiss="b"]'));
   });
 });
 
@@ -717,6 +887,86 @@ describe('Carry guides over', () => {
     expect(retags.map((r) => [r[0], r[1].length])).toEqual([['set3', GUIDE_LIMITS.retagBatch], ['set3', 5]]);
     expect(retags.flatMap((r) => r[1])).toEqual(Array.from({ length: n }, (_, i) => `g${i}`));
     expect(c.textContent).toContain(`Carried over ${n} guides to ${SETS.set3.name}.`);
+  });
+  it("the done line says the server's number of guides changed, not how many ids were sent; the progress line counts ids sent", async () => {
+    const n = GUIDE_LIMITS.retagBatch + 5;
+    tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
+    const waiting: Array<ReturnType<typeof later<GuideWriteResult<number>>>> = [];
+    retagAnswer = () => { const w = later<GuideWriteResult<number>>(); waiting.push(w); return w.promise; };
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, `Carry over ${n} guides`);
+    // The server changed 3 of the first batch (the others had the set already, or are gone).
+    await waiting[0]!.answer({ ok: true, value: 3 });
+    expect(c.textContent).toContain(`Carried over ${GUIDE_LIMITS.retagBatch} of ${n}.`);
+    await waiting[1]!.answer({ ok: true, value: 4 });
+    expect(c.textContent).toContain(`Carried over 7 guides to ${SETS.set3.name}.`);
+    expect(c.textContent).not.toContain(`Carried over ${n} guides`);
+  });
+  it('one guide changed reads as one; none changed says no guide needed it, never "Carried over 0 guides"', async () => {
+    tagsAnswer = () => [tag('fits1'), tag('fits2')];
+    retagAnswer = () => ({ ok: true, value: 1 });
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, 'Carry over 2 guides');
+    await settle();
+    expect(c.textContent).toContain(`Carried over 1 guide to ${SETS.set3.name}.`);
+    retagAnswer = () => ({ ok: true, value: 0 });
+    await press(c, 'Check');
+    await settle();
+    await press(c, 'Carry over 2 guides');
+    await settle();
+    expect([...c.querySelectorAll('.greports-row[role="status"]')].map((e) => e.textContent)).toEqual([`No guide needed carrying over to ${SETS.set3.name}.`]);
+    expect(c.textContent).not.toContain('Carried over 0');
+  });
+  it('when a run ends the guides are read again, once, and the carried guides then show in the new set without a restart', async () => {
+    const n = GUIDE_LIMITS.retagBatch + 5;
+    tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
+    // A Team Ascent guide the store holds, in Set 2 only.
+    const held: Guide = { ...src, id: 'o1', rowId: 'o1', revision: 1, sets: ['set2'] };
+    const c = show('team', { tab: 'reports', list: [held] });
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    expect(reads).toBe(0);
+    // What the server holds once the run has landed: the same row, at the same revision, now in Set 3 too.
+    officialAnswer = () => [rec('o1', { official: true, authorId: null, byline: 'Team Ascent', sets: ['set2', 'set3'] })];
+    await press(c, `Carry over ${n} guides`);
+    await settle();
+    expect(retags.length).toBe(2);
+    expect(c.textContent).toContain(`Carried over ${n} guides to ${SETS.set3.name}.`);
+    expect(reads).toBe(1);
+    expect(useGuides.getState().list.map((g) => [g.rowId, [...g.sets]])).toEqual([['o1', ['set2', 'set3']]]);
+  });
+  it('a run that stopped after a batch had landed reads the guides again too; one that stopped before any had reads nothing', async () => {
+    const n = GUIDE_LIMITS.retagBatch + 5;
+    tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
+    let call = 0;
+    retagAnswer = (ids) => (++call === 2 ? { ok: false, code: 'offline' } : { ok: true, value: ids.length });
+    const c = show('team', { tab: 'reports' });
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, `Carry over ${n} guides`);
+    await settle();
+    expect(c.textContent).toContain(`Carried over ${GUIDE_LIMITS.retagBatch} of ${n} so far. Press Check to continue.`);
+    expect(reads).toBe(1);
+    // Again, and this time the very first batch is refused: nothing landed, so there is nothing new to read.
+    retagAnswer = () => ({ ok: false, code: 'not_allowed' });
+    await press(c, 'Check');
+    await settle();
+    await press(c, `Carry over ${n} guides`);
+    await settle();
+    expect(c.textContent).toContain(`Carried over 0 of ${n} so far. Press Check to continue.`);
+    expect(reads).toBe(1);
   });
   it('the batches go one after another, and the line says how far the run has got', async () => {
     const n = GUIDE_LIMITS.retagBatch + 5;
@@ -993,6 +1243,26 @@ describe("the panel's own guards, mounted on its own", () => {
     expect(c.textContent).not.toContain('so far');
     expect(c.textContent).not.toContain(`Carried over ${n} guides`);
   });
+  it('the account changing after a batch has landed: no further batch, and the guides are not read again for the next account', async () => {
+    const n = GUIDE_LIMITS.retagBatch * 2 + 5;
+    tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
+    const waiting: Array<ReturnType<typeof later<GuideWriteResult<number>>>> = [];
+    retagAnswer = () => { const w = later<GuideWriteResult<number>>(); waiting.push(w); return w.promise; };
+    const { c } = alone();
+    await settle();
+    chooseSet(c, 'set3');
+    await press(c, 'Check');
+    await settle();
+    await press(c, `Carry over ${n} guides`);
+    await waiting[0]!.answer({ ok: true, value: GUIDE_LIMITS.retagBatch });
+    expect(retags.length).toBe(2);
+    nextAccount();
+    await waiting[1]!.answer({ ok: true, value: GUIDE_LIMITS.retagBatch });
+    await settle();
+    expect(retags.length).toBe(2);
+    expect(reads).toBe(0);
+    expect(c.textContent).not.toContain('so far');
+  });
   it('the panel going in the middle of a run stops it: no further batch is sent', async () => {
     const n = GUIDE_LIMITS.retagBatch * 2 + 5;
     tagsAnswer = () => Array.from({ length: n }, (_, i) => tag(`g${i}`));
@@ -1032,7 +1302,11 @@ describe('the layout rules the panel depends on', () => {
   it("the panel's rows take the whole width of the list box, and a note is a line of its own that can wrap", () => {
     const css = strip('compendiumGuides.css');
     expect(rule(css, '.greports-head, .greports-row, .greports-group')).toContain('grid-column: 1 / -1');
+    // A group is a guide's summary tied to its card: the small gap the note rows use, not the list's wide one.
     expect(rule(css, '.greports-group')).toContain('display: grid');
+    expect(rule(css, '.greports-group')).toContain('row-gap: 10px');
+    expect(rule(css, '.greports-group')).not.toContain('inherit');
+    expect(rule(css, '.gtool-note')).toContain('gap: 10px');
     const quote = rule(css, '.greports-quote');
     expect(quote).toContain('flex: 1 1 100%');
     expect(quote).toContain('min-width: 0');

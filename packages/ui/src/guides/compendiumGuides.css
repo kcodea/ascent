@@ -85,9 +85,11 @@
 /* The sort pills and Show more line up with the toolbar's pills above them (the toolbar's own 2px side inset). */
 .gcomm-sort, .gcomm-more { padding: 0 2px; }
 /* The team's Reports panel (ReportsPanel.tsx): its headings, its notes and each reported guide's group take the whole
-   width too. A group is the summary of a guide's reports over that guide's card, spaced like the list. */
+   width too. A group is the summary of a guide's reports over that guide's card. The two are tied together by a small
+   gap (the note rows' own 10px), so a summary reads as its card's and not as the card above's: groups stay the list's
+   28px apart. */
 .greports-head, .greports-row, .greports-group { grid-column: 1 / -1; }
-.greports-group { display: grid; gap: inherit; }
+.greports-group { display: grid; row-gap: 10px; }
 /* Each note a reporter wrote is a line of its own in the summary, and wraps however long its words are. */
 .greports-quote { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
 

@@ -648,6 +648,30 @@ describe('a server change that does not bump the revision still reaches an open 
     await loadGuides();
     expect(useGuides.getState().mine[0]!.hidden).toBe(true);
   });
+  it('a guide the team carried over to another set replaces the list, in every list the store holds', async () => {
+    identity = { userId: 'u-1', anonymous: false };
+    const own = { official: false, authorId: 'u-1', byline: 'Mike' };
+    const theirs = { official: false, authorId: 'u-9', byline: 'Ann', published: true };
+    answer = async () => ({ state: 'on', guides: [rec('a')] });
+    mineAnswer = [rec('m1', own)];
+    bookmarkedAnswer = [rec('bm1', theirs)];
+    await loadGuides();
+    const before = useGuides.getState();
+    expect([before.list[0]!.sets, before.mine[0]!.sets, before.bookmarked[0]!.sets]).toEqual([['set2'], ['set2'], ['set2']]);
+    // The same rows at the same revision: only their sets changed (a carry-over does not bump the revision).
+    answer = async () => ({ state: 'on', guides: [rec('a', { sets: ['set2', 'set3'] })] });
+    mineAnswer = [rec('m1', { ...own, sets: ['set2', 'set3'] })];
+    bookmarkedAnswer = [rec('bm1', { ...theirs, sets: ['set2', 'set3'] })];
+    await loadGuides();
+    const after = useGuides.getState();
+    expect([after.list[0]!.sets, after.mine[0]!.sets, after.bookmarked[0]!.sets]).toEqual([['set2', 'set3'], ['set2', 'set3'], ['set2', 'set3']]);
+    // And a read that changes nothing still keeps the same arrays.
+    await loadGuides();
+    const again = useGuides.getState();
+    expect(again.list).toBe(after.list);
+    expect(again.mine).toBe(after.mine);
+    expect(again.bookmarked).toBe(after.bookmarked);
+  });
 });
 
 describe('the pills', () => {

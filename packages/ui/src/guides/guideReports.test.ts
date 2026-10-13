@@ -28,6 +28,28 @@ describe('groupReports', () => {
   it('nothing in, nothing out', () => {
     expect(groupReports([])).toEqual([]);
   });
+  it('newest means the later TIME, not the later text: a time with a fraction of a second is after the whole second', () => {
+    // As the server writes them: a whole second has no fraction. Compared as text these two are in the wrong order.
+    const whole = '2026-10-14T01:00:00+00:00';
+    const half = '2026-10-14T01:00:00.5+00:00';
+    expect(Date.parse(half)).toBeGreaterThan(Date.parse(whole));
+    for (const order of [[whole, half], [half, whole]]) {
+      const groups = groupReports([rep('r1', 'a', 'spam', order[0]!, `at ${order[0]!}`), rep('r2', 'a', 'spam', order[1]!, `at ${order[1]!}`)]);
+      expect(groups[0]!.notes, order.join()).toEqual([`at ${half}`, `at ${whole}`]);
+      expect(groups[0]!.latestAt, order.join()).toBe(half);
+    }
+    // Between two guides reported as often, the one reported last is first.
+    for (const order of [['a', 'b'], ['b', 'a']]) {
+      const groups = groupReports([rep('r1', order[0]!, 'spam', order[0] === 'a' ? whole : half), rep('r2', order[1]!, 'spam', order[1] === 'a' ? whole : half)]);
+      expect(groups.map((g) => g.guide.id), order.join()).toEqual(['b', 'a']);
+    }
+  });
+  it('a time that cannot be read counts as the oldest, and nothing breaks', () => {
+    const groups = groupReports([rep('r1', 'a', 'spam', '', 'no time'), rep('r2', 'a', 'spam', 'not a time', 'bad time'), rep('r3', 'a', 'spam', '2026-10-14T01:00:00Z', 'real')]);
+    expect(groups[0]!.notes[0]).toBe('real');
+    expect(groups[0]!.latestAt).toBe('2026-10-14T01:00:00Z');
+    expect(groups[0]!.count).toBe(3);
+  });
 });
 
 describe('planCarryOver', () => {
@@ -51,6 +73,10 @@ describe('planCarryOver', () => {
   });
   it('a guide that already carries the set is counted, not sent', () => {
     expect(planCarryOver([row('had', { sets: ['set2', 'set3'] }), row('new')], 'set3', facts)).toEqual({ carry: ['new'], stay: 0, already: 1 });
+  });
+  it('a row that comes twice (a page edge of a table being written to) counts once, and its id is proposed once', () => {
+    const plan = planCarryOver([row('ok'), row('had', { sets: ['set3'] }), row('no', { core: ['c'] }), row('ok'), row('had', { sets: ['set3'] }), row('no', { core: ['c'] }), row('ok2')], 'set3', facts);
+    expect(plan).toEqual({ carry: ['ok', 'ok2'], stay: 1, already: 1 });
   });
   it('an unknown target set carries nothing', () => {
     expect(planCarryOver([row('x')], 'set9', facts)).toEqual({ carry: [], stay: 1, already: 0 });

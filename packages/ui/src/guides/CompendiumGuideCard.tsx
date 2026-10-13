@@ -89,8 +89,9 @@ function ReportForm({ kept, writable, firstRef, sendRef, onSend, onCancel }: {
  * A REFUSED REPORT KEEPS WHAT WAS TYPED. The form is taken away while a send is on its way, like every question. If
  * the send is refused (no connection, too many reports today, anything but "already reported"), the form comes back
  * with the reason and the note as they were, and the sentence about the refusal under it: trying again is one press.
- * What was typed is forgotten when the report is cancelled, when it is sent, and when the server says it was already
- * sent, so a form opened after any of those starts empty. The form is `ReportForm`, above.
+ * What was typed is forgotten when the report is cancelled, when it is sent, when the server says it was already
+ * sent, and when the player leaves the form for another question or another action on the card (Hide, Delete,
+ * Bookmark...), so a form opened after any of those starts empty. The form is `ReportForm`, above.
  *
  * A QUESTION GOES WHEN ITS OFFER DOES, FOR GOOD. A question is drawn only while this account is still offered the
  * thing it asks about (the guide is still its own, it is still on the team, guides can still be written). When the
@@ -231,6 +232,8 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
   /** Ask before publishing, deleting or hiding, or open the report form. */
   const question = (kind: Ask): void => {
     opener.current = kind;
+    // Another question takes the report form's place: what was typed in it is forgotten.
+    if (kind !== 'report') report.current = noReport();
     setError(null);
     setAsk(kind);
   };
@@ -247,10 +250,13 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
   };
   /** Run one action: wait, then show its sentence if it has one. Nothing is set once the card is gone. `from`: the
    *  button that was pressed, when the action asked nothing first (it gets focus back: see the header). `then`: what
-   *  the card itself notes once the answer is in, told the sentence; it too is skipped once the card is gone. */
-  const perform = async (action: () => Promise<string | null>, from?: 'publish' | 'bookmark' | 'hide', then?: (said: string | null) => void): Promise<void> => {
+   *  the card itself notes once the answer is in, told the sentence; it too is skipped once the card is gone.
+   *  `sendsReport`: the action is the report's own send, the one action that keeps what was typed in the report form
+   *  (a refusal brings it back). Any other action leaves the form, and what was typed in it is forgotten. */
+  const perform = async (action: () => Promise<string | null>, from?: 'publish' | 'bookmark' | 'hide', then?: (said: string | null) => void, sendsReport = false): Promise<void> => {
     if (busy) return;
     if (from) opener.current = from;
+    if (!sendsReport) report.current = noReport();
     setBusy(true);
     setError(null);
     setAsk(null);
@@ -269,7 +275,7 @@ export const CompendiumGuideCard = memo(function CompendiumGuideCard({
       if (said === null || said === ALREADY) { report.current = noReport(); setReported(true); return; }
       comeback.current = true;
       setAsk('report');
-    });
+    }, true);
   };
 
   const badges: string[] = [];

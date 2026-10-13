@@ -47,9 +47,10 @@
  * THE RAIL DOES NOT SUBSCRIBE to `list` or `mine`. It reads them when its Guides view opens (LobbyPanel), so a
  * refresh that lands while the player is reading never moves a card under them. The Compendium does subscribe.
  *
- * WHAT COUNTS AS "THE SAME GUIDE". Publishing, hiding and bookmark counts change a row without bumping its revision.
- * So an unchanged list is one whose guides match on row id, revision, published, hidden AND bookmark count; anything
- * else replaces the array, and the open Compendium redraws.
+ * WHAT COUNTS AS "THE SAME GUIDE". Publishing, hiding, bookmark counts and the team's carry-over to a new set change a
+ * row without bumping its revision. So an unchanged list is one whose guides match on row id, revision, published,
+ * hidden, bookmark count AND sets; anything else replaces the array, and the open Compendium redraws. Those four are
+ * every server change that skips the revision: any other field changes only through a save, which bumps it.
  *
  * BACK ONLINE. A game that loaded with no connection hears the browser's `online` event and reads again.
  */
@@ -81,7 +82,8 @@ export const useGuides = create<GuidesStore>(() => ({ ...INITIAL }));
 const sameList = (a: readonly Guide[], b: readonly Guide[]): boolean =>
   a.length === b.length && a.every((g, i) => {
     const o = b[i]!;
-    return g.rowId === o.rowId && g.revision === o.revision && g.published === o.published && g.hidden === o.hidden && g.bookmarkCount === o.bookmarkCount;
+    return g.rowId === o.rowId && g.revision === o.revision && g.published === o.published && g.hidden === o.hidden && g.bookmarkCount === o.bookmarkCount
+      && g.sets.join() === o.sets.join();
   });
 
 /** Who a read is for: the account, and whether it is a guest. */
@@ -179,7 +181,8 @@ export function loadGuides(): Promise<void> {
 
 /**
  * Read again after this account changed guides on the server in a way the store was not told (the team hid, unhid or
- * deleted one, or the answer to such a change was lost). A read that is already in flight began BEFORE the change, so
+ * deleted one, or carried guides over to a set, or the answer to a change was lost or could not be read). A read that
+ * is already in flight began BEFORE the change, so
  * its answer may be the old state: it is marked stale, as a local save marks it, and one fresh read follows it. With
  * no read in flight this is one ordinary read.
  */

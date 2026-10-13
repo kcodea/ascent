@@ -49,6 +49,10 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // The cinematic hit on "Yes, let's go." itself (owner 2026-10-12), under the gate's own cues. 0.6 -> 0.72 the
   // same day (owner: "up the volume of it by about 20%").
   gateintro: 0.72,
+  // The gate's CRYSTAL (owner 2026-10-13): forming on the centre diamond, and shattering under the press. The
+  // shatter is the owner's recording; forming has none yet and plays a clip already in the game as a STAND-IN
+  // (see `sfx.gate`).
+  gateform: 0.6, gateshatter: 0.6,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -82,7 +86,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   gamble: 'ui',
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
-  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui',
+  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',
@@ -114,6 +118,8 @@ export const CATEGORY_LABEL: Record<string, string> = {
   gaterattle: 'Ranked gate: the shudder',
   gateopen: 'Ranked gate: grinding open',
   gateintro: 'Ranked gate: the hit on Yes',
+  gateform: 'Ranked gate: the crystal forming (stand-in clip)',
+  gateshatter: 'Ranked gate: the crystal shattering',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',
   discoverArrive: 'Discover entrance — settle as a card arrives',
   discoverSparkle: 'Discover entrance — sparkle once the set is in',

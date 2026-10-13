@@ -431,8 +431,22 @@ interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 const GOOD_LUCK_SPARK_CLIP = 'fx/djartmusic-christmas-sparkle-whoosh-1-275404';
 /** Play only a window of a clip (seconds into the file, and for how long). */
 interface ClipSlice { offset: number; duration: number; }
-/** `gateintro.mp3` from just before its hit to its end (a duration past the clip's end simply plays it out). */
-const GATE_INTRO_SLICE: ClipSlice = { offset: 0.045, duration: 60 };
+/** The ranked gate's cues (`sfx.gate`). Each plays on the fader `gate<cue>`. */
+export type GateCue = 'intro' | 'close' | 'slam' | 'rattle' | 'open' | 'form' | 'shatter';
+/** The clip behind each gate cue. All but one are the owner's own recordings (`shatter` is his crystal-shatter
+ *  clip, 2026-10-13). `form` (the crystal forming) has none yet, so it borrows the gem-apply chime already in the
+ *  game as a STAND-IN. Swap the clip name here when a recorded one arrives. */
+const GATE_CLIP: Record<GateCue, string> = {
+  intro: 'gateintro', close: 'gateclose', slam: 'gateslam', rattle: 'gaterattle', open: 'gateopen',
+  form: 'gemapply', shatter: 'gateshatter',
+};
+/** Cues that fire on a PRESS skip their file's silent lead-in, so the sound lands with the press: `gateintro`
+ *  opens on 49 ms of dead silence and `gateshatter` on 26 ms (both measured in 10 ms windows). A duration past the
+ *  clip's end simply plays it out. */
+const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
+  intro: { offset: 0.045, duration: 60 },
+  shatter: { offset: 0.024, duration: 60 },
+};
 /** A tailed play with every dial off: the clip's own end, no reverb (the old behaviour, for bare calls). */
 const NO_TAIL: TailOpts = { fadeOutMs: 0, reverbMix: 0, reverbSec: 0 };
 
@@ -1503,14 +1517,14 @@ export const sfx = {
    * name. `delay` (ms) schedules on the audio clock. No synth stand-in: a late beep over a gate reads worse than
    * silence, and the sequence is visual-driven either way (the audio-never-blocks rule).
    */
-  gate: (cue: 'intro' | 'close' | 'slam' | 'rattle' | 'open', delay = 0): void => {
-    // `intro` skips its own lead-in: the file opens on 49 ms of dead silence before the hit (measured 2026-10-12;
-    // owner: "there seems to be a slight delay before i hear the sound"), so it starts 45 ms in.
-    playSample(`gate${cue}`, `gate${cue}`, Math.max(0, delay) / 1000, undefined, cue === 'intro' ? GATE_INTRO_SLICE : undefined);
+  gate: (cue: GateCue, delay = 0): void => {
+    // The press cues skip their files' silent lead-ins (`GATE_SLICE`; owner 2026-10-12: "there seems to be a slight
+    // delay before i hear the sound").
+    playSample(GATE_CLIP[cue], `gate${cue}`, Math.max(0, delay) / 1000, undefined, GATE_SLICE[cue]);
   },
   /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
    *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */
-  warmGate: (): void => { for (const cue of ['intro', 'close', 'slam', 'rattle', 'open']) loadSample(`gate${cue}`); },
+  warmGate: (): void => { for (const clip of Object.values(GATE_CLIP)) loadSample(clip); },
   /**
    * THE "GOOD LUCK" INTRO — the shine sweeping the words left to right (owner ask 2026-09-24: "it needs a sound
    * effect"). The Equipment art-sheen clip: the same light-across-gold sweep, already in the owner's mix.
@@ -1893,7 +1907,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   runeArrival: () => sfx.runeSelectImplosion(),
   goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
-  gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'), gateintro: () => sfx.gate('intro'),
+  gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'), gateintro: () => sfx.gate('intro'), gateform: () => sfx.gate('form'), gateshatter: () => sfx.gate('shatter'),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

@@ -11,14 +11,20 @@
  *               it, stone dust rolls outward and up from the seam and along the floor, and BLUE EMBERS lift off the
  *               seam and the floor and float upward like sparks off a fire (owner 2026-10-12).
  *  - shudder(): the rattle. Dust shakes loose from the top of the doors and a few sparks spit from the seam.
+ * And the CRYSTAL's three (owner 2026-10-13), fed the crystal's screen centre and size:
+ *  - gather():  the centre diamond forming it. Blue motes spiral INTO the diamond while a glow swells on it.
+ *  - ambient(): while it waits to be pressed, a steady trickle of embers lifts off it (until `stopAmbient`).
+ *  - shatter(): the press. Shards fly out and fall, a flash blooms, and a burst of embers is thrown wide.
  * Sparks are additive streaks turned along their travel; dust is a soft normal-blended puff that grows as it
- * fades; an ember is a small additive glow that rises, sways and flickers out.
+ * fades; an ember is a small additive glow that rises, sways and flickers out; a shard is a spinning sliver.
  *
  * `FX_AMOUNT` is the one dial on how MUCH there is of all of it (owner 2026-10-12: "amp up the overall effects by
  * about 20% ... not including the motion of the gates itself"): every particle count is multiplied by it, and the
  * seam flash is that much bigger. The doors' own motion (travel, recoil, shudder) lives in rankedGate.css and is
- * untouched by it. Worst case is ~380 pooled-texture sprites, the longest-lived (embers) for under three seconds:
- * a one-shot, not a loop.
+ * untouched by it. The embers were then trebled (owner 2026-10-13: "amplify the blue particles by 200% ... a major
+ * part of the sparks that emit"). Worst case is ~560 pooled-texture sprites at the slam, the longest-lived (embers)
+ * for under three seconds. Every burst is a one-shot; the one thing that runs on is the ambient trickle, a dozen
+ * embers a second for as long as the player leaves the crystal unpressed.
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { stageHost } from '../stage';
@@ -27,6 +33,10 @@ import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafe
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
+/** The crystal on the gate's centre diamond: its centre and its (square) size, in screen px. */
+export interface GateCrystal { x: number; y: number; size: number }
+/** The crystal's size on a 1080-tall 16:9 gate, which the particle sizes and speeds were tuned at. */
+const CRYSTAL_REF_SIZE = 271;
 
 const SPARK_TINTS = [0xffffff, 0xfff2c0, 0xffd27a, 0xffa84a, 0xff7a2e] as const;
 const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
@@ -35,6 +45,11 @@ const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
 const FX_AMOUNT = 1.2;
 /** A particle count at the current amount. */
 const amount = (count: number): number => Math.round(count * FX_AMOUNT);
+/** Blue embers thrown at the slam, before `FX_AMOUNT`: 70 at first, trebled 2026-10-13 (owner: "amplify the blue
+ *  particles by 200%"). */
+const EMBERS_AT_SLAM = 210;
+/** Embers a second the waiting crystal sheds. */
+const AMBIENT_PER_SECOND = 12;
 const pick = <T,>(a: readonly T[]): T => a[(Math.random() * a.length) | 0]!;
 
 interface Particle {
@@ -53,6 +68,10 @@ class GateFxController {
   private glowTex: Texture | null = null;
   private sparkTex: Texture | null = null;
   private puffTex: Texture | null = null;
+  private shardTex: Texture | null = null;
+  /** The crystal's waiting trickle: where it is, and the fraction of an ember owed since the last frame. */
+  private ambientAt: GateCrystal | null = null;
+  private ambientOwed = 0;
   /** The gate has ended: tear the layer down as soon as nothing is left alive on it. */
   private releaseWhenIdle = false;
 
@@ -96,6 +115,11 @@ class GateFxController {
     const puff = new Graphics();
     for (let r = 32; r >= 4; r -= 4) puff.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.085 });
     this.puffTex = app.renderer.generateTexture(puff);
+    // A crystal shard: a thin sliver with a brighter facet, so it glints as it spins.
+    const shard = new Graphics();
+    shard.poly([0, -16, 7, 2, 0, 16, -6, 3]).fill({ color: 0xffffff, alpha: 0.7 });
+    shard.poly([0, -16, 7, 2, 0, 4]).fill({ color: 0xffffff, alpha: 0.95 });
+    this.shardTex = app.renderer.generateTexture(shard);
 
     app.ticker.add(() => this.tick(app.ticker.deltaMS));
     app.ticker.stop();
@@ -103,7 +127,7 @@ class GateFxController {
     const queued = this.pending;
     this.pending = [];
     for (const fn of queued) fn();
-    if (this.particles.length) this.start();
+    if (this.busy()) this.start();
     else if (this.releaseWhenIdle) this.destroy(); // released while it was still starting up
   }
 
@@ -112,8 +136,14 @@ class GateFxController {
    * context freed; the next `warm()` builds a fresh one. Safe to call at any time, any number of times.
    */
   release(): void {
+    this.ambientAt = null; // a gate that has ended is not waiting on a crystal any more
     this.releaseWhenIdle = true;
-    if (this.app && !this.particles.length) this.destroy();
+    if (this.app && !this.busy()) this.destroy();
+  }
+
+  /** Is anything alive on the layer (a particle, or the crystal's trickle)? */
+  private busy(): boolean {
+    return this.particles.length > 0 || this.ambientAt !== null;
   }
 
   private destroy(): void {
@@ -121,7 +151,8 @@ class GateFxController {
     this.app = null;
     this.initing = null;
     this.layer = null;
-    this.glowTex = this.sparkTex = this.puffTex = null;
+    this.glowTex = this.sparkTex = this.puffTex = this.shardTex = null;
+    this.ambientAt = null;
     this.particles.length = 0;
     this.pending.length = 0;
     this.releaseWhenIdle = false;
@@ -141,6 +172,16 @@ class GateFxController {
   }
 
   private tick(dt: number): void {
+    if (this.ambientAt) {
+      // The waiting crystal sheds embers at a steady rate, whatever the frame rate.
+      this.ambientOwed += (Math.min(dt, 100) / 1000) * AMBIENT_PER_SECOND;
+      while (this.ambientOwed >= 1) {
+        this.ambientOwed -= 1;
+        const c = this.ambientAt;
+        const k = c.size / CRYSTAL_REF_SIZE;
+        this.ember(c.x + (Math.random() - 0.5) * c.size * 0.5, c.y + (Math.random() - 0.3) * c.size * 0.6, k, 0, { kick: 0.35, rise: 0.7 });
+      }
+    }
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i]!;
       p.age += dt;
@@ -151,16 +192,17 @@ class GateFxController {
       }
       p.update(p, dt);
     }
-    if (!this.particles.length && this.app) {
+    if (!this.busy() && this.app) {
       this.app.ticker.stop();
       this.app.canvas.style.visibility = 'hidden';
       // Never tear the app down from inside its own ticker callback: let this frame finish first.
-      if (this.releaseWhenIdle) window.setTimeout(() => { if (this.releaseWhenIdle && this.app && !this.particles.length) this.destroy(); }, 0);
+      if (this.releaseWhenIdle) window.setTimeout(() => { if (this.releaseWhenIdle && this.app && !this.busy()) this.destroy(); }, 0);
     }
   }
 
   /** Kill everything now (the gate unmounted mid-sequence). */
   clear(): void {
+    this.ambientAt = null;
     this.pending.length = 0;
     for (const p of this.particles) p.sp.destroy();
     this.particles.length = 0;
@@ -228,9 +270,11 @@ class GateFxController {
   }
 
   /** One ember: it lifts off with a small sideways kick, then floats up, swaying wider and flickering as it dies. */
-  private ember(x: number, y: number, k: number, delay = 0): void {
-    const rise = (70 + Math.random() * 190) * k; // px/s upward
-    let vx = (Math.random() - 0.5) * 170 * k; // the kick off the impact; the air takes it back
+  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number } = {}): void {
+    const rise = (70 + Math.random() * 190) * k * (o.rise ?? 1); // px/s upward
+    // The kick off the impact (a random sideways one, or the shatter's own throw); the air takes it back.
+    let vx = o.throwX !== undefined ? o.throwX * k : (Math.random() - 0.5) * 170 * k * (o.kick ?? 1);
+    let vy = (o.throwY ?? 0) * k;
     let bx = x; // the path it sways around
     const swayAmp = (8 + Math.random() * 24) * k;
     const swayHz = 0.0038 + Math.random() * 0.0062; // rad/ms
@@ -245,8 +289,9 @@ class GateFxController {
       const age = p.age - delay;
       const t = age / life;
       vx *= 1 - 1.8 * s;
+      vy *= 1 - 2.4 * s;
       bx += vx * s;
-      p.sp.y -= rise * (1 - t * 0.35) * s; // it slows a little as it cools
+      p.sp.y += (vy - rise * (1 - t * 0.35)) * s; // it slows a little as it cools
       p.sp.x = bx + Math.sin(age * swayHz + swayPhase) * swayAmp * t;
       p.sp.alpha = Math.min(1, t * 8) * Math.pow(1 - t, 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase));
       p.sp.scale.set(size * k * (1 - t * 0.55));
@@ -293,7 +338,7 @@ class GateFxController {
       }
       // Blue embers: most lift off the seam (more from its lower half), the rest off the floor either side of it.
       // They leave over the first half second, so the seam keeps giving them up after the hit.
-      for (let i = 0, n = amount(70); i < n; i++) {
+      for (let i = 0, n = amount(EMBERS_AT_SLAM); i < n; i++) {
         const offSeam = Math.random() < 0.6;
         const x = offSeam ? seam.x + (Math.random() - 0.5) * 26 * k : seam.x + (Math.random() - 0.5) * 840 * k;
         const y = offSeam ? seam.top + h * (1 - Math.random() * Math.random()) : seam.bottom - Math.random() * 24 * k;
@@ -314,6 +359,97 @@ class GateFxController {
       }
       for (let i = 0, n = amount(30); i < n; i++) {
         this.spark(seam.x, seam.top + Math.random() * h, k, 140, 520, Math.random() * ms * 0.8);
+      }
+    });
+  }
+
+  /** THE CRYSTAL FORMING: blue motes spiral into the centre diamond while a glow swells on it, over `ms`. */
+  gather(c: GateCrystal, ms: number): void {
+    this.run(() => {
+      const k = c.size / CRYSTAL_REF_SIZE;
+      for (let i = 0, n = amount(70); i < n; i++) {
+        const ang0 = Math.random() * Math.PI * 2;
+        const r0 = c.size * (0.7 + Math.random() * 1.5);
+        const angVel = ((1.8 + Math.random() * 2.4) * (Math.random() < 0.5 ? 1 : -1)) / 1000; // rad/ms
+        const delay = Math.random() * ms * 0.35;
+        const life = ms * (0.45 + Math.random() * 0.3);
+        const scale = (0.16 + Math.random() * 0.26) * k;
+        this.spawn(this.glowTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(EMBER_TINTS), delay + life, true, (p) => {
+          if (p.age < delay) return;
+          const t = (p.age - delay) / life;
+          const r = r0 * (1 - t * t); // an accelerating fall into the diamond
+          const ang = ang0 + angVel * (p.age - delay);
+          p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
+          p.sp.alpha = Math.min(1, t * 4) * (1 - t * 0.5);
+          p.sp.scale.set(scale * (1 - t * 0.45));
+        });
+      }
+      // The swell: a blue-white bloom on the diamond that peaks as the crystal pushes out, then lets go.
+      for (const [tint, mul] of [[0x4fa8ff, 1.5], [0xd6f0ff, 0.9]] as const) {
+        this.spawn(this.glowTex!, c.x, c.y, tint, ms, true, (p) => {
+          const t = p.age / p.life;
+          p.sp.alpha = (t < 0.6 ? t / 0.6 : (1 - t) / 0.4) * 0.85;
+          p.sp.scale.set((c.size / 32) * mul * (0.35 + t * 0.9));
+        });
+      }
+    });
+  }
+
+  /** THE CRYSTAL WAITING: start its steady trickle of embers. It runs until `stopAmbient` (or the gate ends). */
+  ambient(c: GateCrystal): void {
+    this.run(() => {
+      this.ambientAt = c;
+      this.ambientOwed = 0;
+    });
+  }
+
+  stopAmbient(): void {
+    this.ambientAt = null;
+  }
+
+  /** THE SHATTER: shards fly out of the crystal and fall, a flash blooms, and embers are thrown wide before they
+   *  float up. */
+  shatter(c: GateCrystal): void {
+    this.run(() => {
+      this.ambientAt = null;
+      const k = c.size / CRYSTAL_REF_SIZE;
+      // Shards: every direction, the upper ones thrown a little harder, all of them spinning and falling.
+      for (let i = 0, n = amount(56); i < n; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const speed = (260 + Math.random() * 900) * k;
+        let vx = Math.cos(ang) * speed;
+        let vy = Math.sin(ang) * speed - 180 * k;
+        const spin = (Math.random() - 0.5) * 22; // rad/s
+        const life = 520 + Math.random() * 700;
+        const sx = (0.5 + Math.random() * 1.1) * k, sy = (0.6 + Math.random() * 1.2) * k;
+        const r0 = Math.random() * c.size * 0.22;
+        const sp = this.spawn(this.shardTex!, c.x + Math.cos(ang) * r0, c.y + Math.sin(ang) * r0, pick(EMBER_TINTS), life, true, (p, dt) => {
+          const s = dt / 1000;
+          vx *= 1 - 0.9 * s;
+          vy = vy * (1 - 0.5 * s) + 1700 * k * s;
+          p.sp.x += vx * s;
+          p.sp.y += vy * s;
+          p.sp.rotation += spin * s;
+          const t = p.age / p.life;
+          p.sp.alpha = Math.min(1, t * 20) * (1 - t * t);
+          p.sp.scale.set(sx * (1 - t * 0.3), sy * (1 - t * 0.3));
+        });
+        sp.rotation = Math.random() * Math.PI * 2;
+      }
+      // The flash: the crystal's light let go at once.
+      for (const [tint, mul, life] of [[0xffffff, 1.3, 240], [0x7fc4ff, 2.6, 420], [0x3f8cff, 4, 560]] as const) {
+        this.spawn(this.glowTex!, c.x, c.y, tint, life, true, (p) => {
+          const t = p.age / p.life;
+          p.sp.alpha = (1 - t) * 0.95;
+          p.sp.scale.set((c.size / 32) * mul * (0.5 + t * 0.9));
+        });
+      }
+      // The burst of embers: thrown out in a ring, then they do what embers do and float up.
+      for (let i = 0, n = amount(120); i < n; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const out = 200 + Math.random() * 520;
+        this.ember(c.x + Math.cos(ang) * c.size * 0.15, c.y + Math.sin(ang) * c.size * 0.2, k, Math.random() * 90,
+          { throwX: Math.cos(ang) * out, throwY: Math.sin(ang) * out, rise: 0.8 + Math.random() * 0.5 });
       }
     });
   }

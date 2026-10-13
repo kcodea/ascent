@@ -1,6 +1,8 @@
 /* ══ THE RANKED GATE (RankedGate.tsx, owner 2026-10-12) ══════════════════════════════════════════════════════════
    Two painted doors (`/frames/ranked-gate-left.webp` / `-right.webp`: the owner's gate, cut down its centre seam)
-   grind in from the sides, slam shut, shudder a second later, and grind open again.
+   grind in from the sides and slam shut. The centre diamond then forms a blue CRYSTAL
+   (`/frames/ranked-gate-crystal.webp`), which pulses until it is pressed; the press shatters it, the doors
+   shudder, and they grind open again (owner 2026-10-13).
 
    LAYERS. `.rgate` covers the screen above every other screen (z 700; the smoke-and-sparks canvas is 701) and
    takes every pointer event while it plays. `.rgate-doors` is the pair as ONE body: the slam's recoil and the
@@ -10,13 +12,20 @@
 
    THE ART is `cover`ed and anchored on the seam side, so the two halves always meet exactly, at any window shape.
 
-   PERF. Every keyframe is `transform` / `opacity` only. The one loop is the grind's vibration, `transform` on a
-   promoted layer, and it runs only while the doors travel (1.5 s). The seam shadow and the flash are static
-   gradients whose opacity changes. Durations are `--rg-*`, set on the root from rankedGateTiming.ts.
-   No per-element `cursor`: nothing here is a button. ══ */
+   THE CRYSTAL sits on the emblem's centre diamond at ANY window shape: `.rgate-doors` is a size container, so
+   `--rg-u` (one art pixel, in screen px) is the same `cover` scale the doors' images get, and the crystal's place
+   and size are art pixels times it (`--rg-cry-*`, from RANKED_GATE_ART). The button centres itself with a static
+   translate; everything that MOVES is on its three children (the glow behind, the body, the burst in front), so
+   no animation fights that translate. It is a real `<button>`: the global rule paints the game cursor on it.
+
+   PERF. Every keyframe is `transform` / `opacity` only. Two loops, both compositor-only: the grind's vibration
+   (only while the doors travel, 1.5 s) and the armed crystal's pulse (its body's scale and its glow's opacity,
+   until it is pressed). The seam shadow, the flash and the crystal's glow are static gradients whose opacity
+   changes. Durations and the crystal's place are `--rg-*`, set on the root from rankedGateTiming.ts.
+   No per-element `cursor` anywhere. ══ */
 .rgate { position: fixed; inset: 0; z-index: 700; overflow: hidden; }
 .gatefx-canvas { position: fixed; inset: 0; z-index: 701; pointer-events: none; }
-.rgate-doors { position: absolute; inset: -16px; }
+.rgate-doors { position: absolute; inset: -16px; container-type: size; }
 .rgate-door { position: absolute; top: 0; bottom: 0; width: 50%; will-change: transform; }
 .rgate-door-l { left: 0; transform: translateX(-102%); }
 .rgate-door-r { right: 0; transform: translateX(102%); }
@@ -26,7 +35,7 @@
 .rgate-door::after { content: ''; position: absolute; top: 0; bottom: 0; width: 70px; pointer-events: none; transition: opacity 0.12s linear; }
 .rgate-door-l::after { left: 100%; background: linear-gradient(90deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)); }
 .rgate-door-r::after { right: 100%; background: linear-gradient(270deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0)); }
-.rgate:is(.is-shut, .is-shudder) .rgate-door::after { opacity: 0; }
+.rgate:is(.is-shut, .is-forming, .is-armed, .is-shatter) .rgate-door::after { opacity: 0; }
 /* The hot flash on the seam at the slam: a static gradient, only its opacity moves. */
 .rgate-flash { position: absolute; left: 50%; top: 0; bottom: 0; width: 320px; margin-left: -160px; opacity: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(255, 214, 140, 0), rgba(255, 226, 170, 0.5) 38%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 226, 170, 0.5) 62%, rgba(255, 214, 140, 0)); }
@@ -60,7 +69,7 @@
 }
 
 /* SHUT: the doors rest closed; the pair recoils from the hit and the seam flashes. */
-.rgate:is(.is-shut, .is-shudder) .rgate-door { transform: translateX(0); }
+.rgate:is(.is-shut, .is-forming, .is-armed, .is-shatter) .rgate-door { transform: translateX(0); }
 .rgate.is-shut .rgate-doors { animation: rg-impact var(--rg-shake, 460ms) linear both; }
 .rgate.is-shut .rgate-flash { animation: rg-flash var(--rg-shake, 460ms) ease-out both; }
 @keyframes rg-impact {
@@ -74,8 +83,70 @@
 }
 @keyframes rg-flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
 
-/* SHUDDER: a second later the shut pair rattles, hardest in the middle of it. */
-.rgate.is-shudder .rgate-doors { animation: rg-shudder var(--rg-shudder, 700ms) linear both; }
+/* THE CRYSTAL ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.rgate-crystal {
+  --rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)));
+  position: absolute; left: 50%; top: calc(50% + var(--rg-cry-dy, -40) * var(--rg-u));
+  width: calc(var(--rg-cry-size, 236) * var(--rg-u)); aspect-ratio: 1;
+  margin: 0; padding: 0; border: 0; background: none; outline: none;
+  transform: translate(-50%, -50%); pointer-events: none;
+}
+.rgate.is-armed .rgate-crystal { pointer-events: auto; }
+.rgate-crystal:focus-visible .rgate-crystal-body { outline: 3px solid rgba(214, 240, 255, 0.9); outline-offset: 6px; border-radius: 50%; }
+.rgate-crystal-glow, .rgate-crystal-body, .rgate-crystal-burst { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
+/* The light behind it: a static blue bloom, wider than the crystal. Only its opacity and scale move. */
+.rgate-crystal-glow { inset: -45%; opacity: 0; background: radial-gradient(closest-side, rgba(150, 215, 255, 0.85), rgba(64, 150, 255, 0.5) 38%, rgba(40, 110, 255, 0.18) 62%, rgba(40, 110, 255, 0)); }
+.rgate-crystal-body { opacity: 0; }
+.rgate-crystal-body img { display: block; width: 100%; height: 100%; }
+/* The white-blue burst in front of it, at the moment it pushes out of the diamond and again as it shatters. */
+.rgate-crystal-burst { inset: -30%; opacity: 0; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.98), rgba(190, 230, 255, 0.75) 30%, rgba(90, 170, 255, 0.25) 60%, rgba(90, 170, 255, 0)); }
+
+/* FORMING: the glow gathers on the gold diamond, then the crystal pushes out of it with a burst and settles. */
+.rgate.is-forming .rgate-crystal-glow { animation: rg-cry-glow-in var(--rg-form, 1100ms) ease-out both; }
+.rgate.is-forming .rgate-crystal-body { animation: rg-cry-form var(--rg-form, 1100ms) linear both; }
+.rgate.is-forming .rgate-crystal-burst { animation: rg-cry-burst var(--rg-form, 1100ms) linear both; }
+@keyframes rg-cry-glow-in {
+  0% { opacity: 0; transform: scale(0.35); }
+  50% { opacity: 1; transform: scale(0.8); }
+  68% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 0.7; transform: scale(1); }
+}
+@keyframes rg-cry-form {
+  0% { opacity: 0; transform: scale(0.3); }
+  46% { opacity: 0; transform: scale(0.3); animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1); }
+  66% { opacity: 1; transform: scale(1.16); animation-timing-function: ease-in-out; }
+  84% { opacity: 1; transform: scale(0.96); animation-timing-function: ease-in-out; }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes rg-cry-burst {
+  0% { opacity: 0; transform: scale(0.3); }
+  44% { opacity: 0; transform: scale(0.3); }
+  56% { opacity: 0.95; transform: scale(0.9); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+
+/* ARMED: whole, and steadily pulsing until it is pressed. */
+.rgate.is-armed .rgate-crystal-body { opacity: 1; animation: rg-cry-pulse 1.7s ease-in-out infinite; }
+.rgate.is-armed .rgate-crystal-glow { animation: rg-cry-glow-pulse 1.7s ease-in-out infinite; }
+@keyframes rg-cry-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+@keyframes rg-cry-glow-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+/* SHATTER: the body is gone in a blink (the shards are the FX layer's), the light lets go. */
+.rgate.is-shatter .rgate-crystal-body { animation: rg-cry-break 130ms ease-out both; }
+.rgate.is-shatter .rgate-crystal-glow { animation: rg-cry-glow-out var(--rg-shatter, 420ms) ease-out both; }
+.rgate.is-shatter .rgate-crystal-burst { animation: rg-cry-shatter var(--rg-shatter, 420ms) ease-out both; }
+@keyframes rg-cry-break { 0% { opacity: 1; transform: scale(1.04); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes rg-cry-glow-out { 0% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.9); } }
+@keyframes rg-cry-shatter { 0% { opacity: 1; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2.4); } }
+
+/* THE SHUDDER: as the crystal shatters the shut pair rattles, hardest in the middle of it. */
+.rgate.is-shatter .rgate-doors { animation: rg-shudder var(--rg-shudder, 700ms) linear both; }
 @keyframes rg-shudder {
   0% { transform: translate(0, 0) rotate(0deg); }
   8% { transform: translate(-3px, 1px) rotate(-0.1deg); }

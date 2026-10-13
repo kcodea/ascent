@@ -121,6 +121,23 @@ infinitely repeat while hovering the crystal?", with a 15.7 s recording, `crysta
   under a mouse already resting on it, stops if the window loses focus or the tab is hidden (no leave event
   fires for those), and is cut with a 60 ms fade by the shatter.
 
+**Then, no disc on the forming gem** (with a screenshot of a bright round spot sitting on the growing white
+diamond): "can we have this circle instead grow in size to block the growing diamond? then have it pulse away to
+reveal the diamond? or instead, can we have the shape be the diamond instead of a circle?". The second was taken:
+the heat is the crystal's own shape, and nothing round is drawn while it forms.
+
+- The round sources are gone: the FX layer's white core and blue bloom at the centre (`gateFx.gather`), and the
+  radial `.rgate-crystal-burst` during forming (it is now the shatter's alone).
+- **A pile-up, too:** the hundreds of additive sparks all ended on one point and added up to a bright round spot
+  there. They are now taken up as they reach the gem (`absorbed(r)`: fading between 0.36 and 0.1 of its size from
+  the centre), well short of the middle.
+- **The heat in the diamond's shape:** `.rgate-crystal-heat`, a white fill masked to the crystal and blurred, in
+  the gem so it grows with it. The blur sits on the PARENT of the masked fill: a mask is applied after its own
+  element's filter, so blurring the masked element itself would cut the bloom back to the hard edge. The blur is
+  static; only opacity animates.
+- Checked in a real render (mid-forming, the gem at 70%): a white diamond with a soft diamond-shaped bloom, no
+  disc. The owner's first option (a circle growing to cover the diamond, then pulsing away) was not built.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

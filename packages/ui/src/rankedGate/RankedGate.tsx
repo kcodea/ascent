@@ -210,6 +210,8 @@ export function RankedGate(): JSX.Element | null {
                 as it forms, flying apart as it shatters); while it waits it is perfectly still (owner 2026-10-13),
                 and the pulse is light: the glow behind, and a brightened copy fading in and out. */}
             <span className="rgate-crystal-gem">
+              {/* Its heat while it forms: a soft white bloom in the crystal's own shape, behind the body. */}
+              <span className="rgate-crystal-heat" aria-hidden="true" />
               <span className="rgate-crystal-body"><img decoding="sync" src={CRYSTAL_SRC} alt="" draggable={false} /></span>
               <span className="rgate-crystal-pulse" aria-hidden="true"><span className="rgate-crystal-lit" /></span>
               <span className="rgate-crystal-lit-hi" aria-hidden="true" />

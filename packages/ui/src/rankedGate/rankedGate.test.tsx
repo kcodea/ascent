@@ -240,6 +240,7 @@ describe('the gate plays', () => {
     expect(el.querySelector(':scope > .rgate-crystal-pulse > .rgate-crystal-glow'), 'the pulsing glow behind it').not.toBeNull();
     expect(el.querySelector(':scope > .rgate-crystal-glow-hi'), 'and its steady twin').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-hot'), 'white-hot while it forms').not.toBeNull();
+    expect(gem.querySelector('.rgate-crystal-heat'), 'and its bloom, in its own shape').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
     // A press while it is still forming does nothing.
     pressCrystal();
@@ -467,6 +468,13 @@ describe('what ships', () => {
     expect(noComments).toMatch(/\.rgate-crystal-hot \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
     expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-hot \{[^}]*rg-cry-cool var\(--rg-form/);
     expect(kf('rg-cry-cool')).toMatch(/0%, 66% \{ opacity: 1; \}\s*100% \{ opacity: 0; \}/);
+    // Its heat is its OWN SHAPE, never a disc (owner 2026-10-13: "can we have the shape be the diamond instead of
+    // a circle?"): a white fill masked to the crystal, blurred by its parent, and nothing round plays while forming.
+    expect(noComments).toMatch(/\.rgate-crystal-heat \{[^}]*filter: blur\(/);
+    expect(noComments).toMatch(/\.rgate-crystal-heat::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-heat \{[^}]*rg-cry-heat var\(--rg-form/);
+    expect(kf('rg-cry-heat'), 'only its opacity moves: the gem carries the growth').not.toMatch(/transform/);
+    expect(noComments, 'the round burst is the shatter\'s alone').not.toMatch(/\.rgate\.is-forming \.rgate-crystal-burst/);
     // The blue glow behind it only comes up as it cools, to where the waiting pulse begins.
     expect(kf('rg-cry-glow-in')).toMatch(/0%, 55% \{ opacity: 0;/);
     expect(kf('rg-cry-glow-in')).toMatch(/100% \{ opacity: 0\.32;/);

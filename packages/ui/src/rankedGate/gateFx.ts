@@ -13,7 +13,7 @@
  *  - shudder(): the rattle. Dust shakes loose from the top of the doors and a few sparks spit from the seam.
  * And the CRYSTAL's three (owner 2026-10-13), fed the crystal's screen centre and size:
  *  - gather():  the centre diamond forming it. Sparks are SUCKED into the diamond's centre from all round, in a
- *               steady stream, while a white-hot core grows there (the gem coalescing out of them).
+ *               steady stream (the gem coalescing out of them is the stylesheet's, in its own diamond shape).
  *  - ambient(): while it waits to be pressed, a steady trickle of embers lifts off it (until `stopAmbient`).
  *  - shatter(): the press. Shards fly out and fall, a flash blooms, and a burst of embers is thrown wide.
  * Sparks are additive streaks turned along their travel; dust is a soft normal-blended puff that grows as it
@@ -371,12 +371,16 @@ class GateFxController {
    * THE CRYSTAL FORMING (owner 2026-10-13: "have the gem almost coalesce from sparks that suck into the middle ...
    * glowing hot white as its forming. growing from the center"). For the whole of `ms` sparks are pulled into the
    * diamond's centre from all round: each starts slow, far out, and accelerates in along a slightly curved path,
-   * stretching into a streak as it goes, and is gone as it arrives. Under them a white-hot core grows from a point
-   * (the stylesheet grows the gem itself on the same clock), then lets go as the crystal cools.
+   * stretching into a streak as it goes, and is gone as it arrives. The gem they feed, and its white heat, are
+   * the stylesheet's, on the same clock: this draws only what flies in.
    */
   gather(c: GateCrystal, ms: number): void {
     this.run(() => {
       const k = c.size / CRYSTAL_REF_SIZE;
+      // What flies in is taken up as it reaches the gem, well short of the very centre. Hundreds of additive
+      // sparks all ending on one point piled up into a bright round spot there, which is exactly the disc the owner
+      // did not want sitting on the growing diamond.
+      const absorbed = (r: number): number => Math.max(0, Math.min(1, (r - c.size * 0.1) / (c.size * 0.26)));
       // The streaks: they leave all through the first three quarters, so the stream is steady, and the last of them
       // arrive as the gem reaches full size.
       for (let i = 0, n = amount(170); i < n; i++) {
@@ -394,7 +398,7 @@ class GateFxController {
           const ang = ang0 + swirl * pull;
           p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
           p.sp.rotation = ang + Math.PI; // pointing at the centre it is falling into
-          p.sp.alpha = Math.min(1, t * 5) * (t < 0.92 ? 1 : (1 - t) / 0.08);
+          p.sp.alpha = Math.min(1, t * 5) * absorbed(r);
           p.sp.scale.set(len * k * (0.5 + t * 1.6), k * (1 - t * 0.35));
         });
         sp.rotation = ang0 + Math.PI;
@@ -413,20 +417,13 @@ class GateFxController {
           const r = r0 * (1 - t * t);
           const ang = ang0 + angVel * (p.age - delay);
           p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
-          p.sp.alpha = Math.min(1, t * 4) * (1 - t * 0.5);
+          p.sp.alpha = Math.min(1, t * 4) * (1 - t * 0.5) * absorbed(r);
           p.sp.scale.set(scale * (1 - t * 0.5));
         });
       }
-      // The white-hot core: it grows from a point with the gem, holds, and lets go over the last third as it cools.
-      // A wider blue bloom rides under it so the heat has a colour at its edge.
-      for (const [tint, mul, peak] of [[0x4fa8ff, 2.1, 0.55], [0xffffff, 1.15, 0.95]] as const) {
-        this.spawn(this.glowTex!, c.x, c.y, tint, ms, true, (p) => {
-          const t = p.age / p.life;
-          const grow = 0.06 + 0.94 * Math.min(1, t / 0.86);
-          p.sp.alpha = peak * Math.min(1, t * 10) * (t < 0.66 ? 1 : (1 - t) / 0.34);
-          p.sp.scale.set((c.size / 32) * mul * grow);
-        });
-      }
+      // No glow of its own at the centre: the white heat is the crystal's own diamond shape, drawn by the
+      // stylesheet (`.rgate-crystal-hot` / `-heat`). A round bloom here read as a disc sitting on the growing gem
+      // (owner 2026-10-13).
     });
   }
 

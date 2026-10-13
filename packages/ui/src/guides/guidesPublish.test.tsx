@@ -47,6 +47,13 @@ vi.mock('./guidesRemote', () => ({
   bookmarkGuideRemote: async () => ({ ok: false, code: 'offline' }),
   setPublishedRemote: async (rowId: string, on: boolean) => { published.push([rowId, on]); if (hold) await hold; return publishAnswer(rowId, on); },
   deleteGuideRemote: async (rowId: string) => { deleted.push(rowId); return deleteAnswer(); },
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => true }));
 

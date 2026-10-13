@@ -38,6 +38,13 @@ const unanswered = (key: string): Listed => ({ key, guides: NO_GUIDES, next: 0, 
  * (a bookmark, the host's toolbar) asks nothing. Until a question is answered the list says it is loading: what is
  * held for an older question is never drawn, and never read as "no guides match".
  *
+ * THE SAME QUESTION AGAIN (`refreshKey`). The host bumps it when the answer may have changed (the team hid, unhid or
+ * deleted a guide). The list then asks the same question once more from the first page: one request per bump, none
+ * when the list is first drawn, and the sort and filters are untouched. Unlike a new question, the guides already on
+ * the screen STAY until the new answer lands and replaces them: the card that was just acted on may be showing the
+ * sentence about it, and taking the cards away for a moment would throw that sentence away. If the list cannot be
+ * read again, Try again asks for what failed (here, the first page again), as it does for a page that failed.
+ *
  * A SLOW ANSWER NEVER WINS. Each ask takes a number; an answer is used only if no newer ask has been made since. So
  * typing, switching the sort or lighting a tribe pill mid-flight can never be undone by an older answer landing late.
  * Leaving the list counts as a newer ask, so an answer that lands after it is gone sets nothing. It is a counter, not
@@ -56,7 +63,7 @@ const unanswered = (key: string): Listed => ({ key, guides: NO_GUIDES, next: 0, 
  * PERFORMANCE: cards mount through `LazyCell` (the first two at once, the rest near the viewport); nothing animates;
  * no scroll listener; no layout is read.
  */
-export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribes, neutral, search, sort, onSort, root, renderCard }: {
+export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribes, neutral, search, sort, onSort, refreshKey, root, renderCard }: {
   setId: SetId;
   /** Guides for any of these tribes... */
   queryTribes: readonly Tribe[];
@@ -68,6 +75,8 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
   sort: CommunitySort;
   /** The player chose another order. Must be stable. */
   onSort: (sort: CommunitySort) => void;
+  /** Bumped by the host after a hide or a delete: ask again from the first page. Not part of the question. */
+  refreshKey: number;
   /** The scroll box the lazy cells watch. */
   root: HTMLDivElement | null;
   renderCard: (g: Guide, eager: boolean) => JSX.Element;
@@ -88,10 +97,14 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
   const asks = useRef(0);
   useEffect(() => () => { asks.current += 1; }, []); // gone: no answer may be used
 
-  const load = useCallback(async (offset: number): Promise<void> => {
+  /** The ask made last: the one Try again makes again. */
+  const lastAsk = useRef({ offset: 0, keep: false });
+  /** `keep`: the same question again from the first page (see the header): what is shown stays until it is answered. */
+  const load = useCallback(async (offset: number, keep = false): Promise<void> => {
     asks.current += 1;
     const mine = asks.current;
-    setHeld((cur) => (offset === 0 || cur.key !== key ? unanswered(key) : { ...cur, status: 'loading' }));
+    lastAsk.current = { offset, keep };
+    setHeld((cur) => ((offset === 0 && !keep) || cur.key !== key ? unanswered(key) : { ...cur, status: 'loading' }));
     let page: CommunityPage | undefined;
     try {
       page = await fetchCommunityPage({ setId, tribes: tribesKey ? tribesKey.split(',') : [], neutral, search: text, sort, offset });
@@ -109,8 +122,15 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
     });
   }, [key, setId, tribesKey, neutral, text, sort]);
 
-  // A new question: start again from the first page.
-  useEffect(() => { void load(0); }, [load]);
+  // A new question: start again from the first page. The same question again (`refreshKey` moved and the question did
+  // not): the first page again, keeping what is shown until it is answered. One effect for both, so a render in which
+  // both changed still asks once. `load` is the question: it is a new function exactly when the question is new.
+  const askedWith = useRef<typeof load | null>(null);
+  useEffect(() => {
+    const sameQuestion = askedWith.current === load;
+    askedWith.current = load;
+    void load(0, sameQuestion);
+  }, [load, refreshKey]);
 
   // By keyboard (see the header): focus back on Show more, or on Try again, once the answer has landed.
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -124,10 +144,10 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
     // Without scrolling: Show more is now below the guides it added, and the player is reading from where they were.
     if (!at || at === document.body) (moreRef.current ?? againRef.current)?.focus({ preventScroll: true });
   }, [status]);
-  /** Ask for more (the next page, or the page that failed) from a button that is about to go. */
-  const askFor = (offset: number): void => {
+  /** Ask for more (the next page, or the ask that failed) from a button that is about to go. */
+  const askFor = (offset: number, keep = false): void => {
     giveFocusBack.current = true;
-    void load(offset);
+    void load(offset, keep);
   };
 
   const pick = (s: CommunitySort): void => { if (s !== sort) { sfx.tick(); onSort(s); } };
@@ -154,7 +174,7 @@ export const CommunityGuides = memo(function CommunityGuides({ setId, queryTribe
       {status === 'failed' && (
         <p className="gtool-note gcomm-note" role="alert">
           <span>Could not load the Community guides.</span>
-          <button type="button" className="gbtn" ref={againRef} onClick={() => askFor(shown.length === 0 ? 0 : list.next)}>Try again</button>
+          <button type="button" className="gbtn" ref={againRef} onClick={() => askFor(lastAsk.current.offset, lastAsk.current.keep)}>Try again</button>
         </p>
       )}
       {shown.length > 0 && list.more && status !== 'failed' && (

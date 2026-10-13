@@ -42,6 +42,13 @@ vi.mock('./guidesRemote', () => ({
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
   setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
   bookmarkGuideRemote: async (rowId: string, on: boolean) => { bookmarks.push([rowId, on]); if (hold) await hold; return bookmarkAnswer(on); },
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => true }));
 /** How many times a guide card has been drawn: the card works its tribe chips out once each time it renders. */

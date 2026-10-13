@@ -44,6 +44,13 @@ vi.mock('./guidesRemote', () => ({
     imports.push(g);
     return importAnswer ? importAnswer() : { ok: true, value: { inserted: g.length, skipped: 0 } };
   },
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 vi.mock('../GuestSignIn', () => ({ accountsAvailable: () => accounts }));
 

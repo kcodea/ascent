@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
 import type { SetId } from '@game/content';
-import { GUIDE_LIMITS } from '@game/guides';
+import { GUIDE_LIMITS, type ReportReason } from '@game/guides';
 import type { RunState } from '@game/sim';
 import { accountsAvailable } from '../GuestSignIn';
 import { LazyCell, LazyRootProvider } from '../bookLazy';
@@ -14,7 +14,7 @@ import { GuideEditor } from './GuideEditor';
 import { builtInImportPayload, draftFromGuide, duplicateDraft, emptyDraft, sameDraft, type EditorDraft } from './guideDrafts';
 import { clearLocalDraft, loadLocalDraft } from './guideDraftStore';
 import { guideErrorMessage } from './guideMessages';
-import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
+import { bookmarkGuideRemote, deleteGuideRemote, importBuiltInsRemote, reportGuideRemote, setHiddenRemote, setPublishedRemote, type CommunitySort } from './guidesRemote';
 import { guideBookmarked, guideDeleted, guideSaved, loadGuides, ownsMine, setGuidesTab, takePendingEdit, useGuides } from './guidesStore';
 import './lobbyGuides.css';
 import './compendiumGuides.css';
@@ -66,7 +66,20 @@ const forgetEmptyKept = (userId: string | null): void => {
  * ONE FUNCTION DRAWS A CARD, FOR EVERY LIST (`renderCard`), so who is offered what is decided in one place. Publish,
  * Unpublish and Delete are offered only on the player's own guide (not Team Ascent's, one with a server row, written by
  * the signed-in account), and only under My guides. Edit is not offered under Bookmarked or Community. Bookmark is
- * offered on someone else's published guide, under every pill.
+ * offered on someone else's published guide, under every pill, and so is Report. A team account is also offered Hide
+ * or Unhide, and Delete, on every player's guide that has a server row, under every pill.
+ *
+ * A GUIDE IS REPORTED FROM ITS CARD. A guest who presses Report is asked to sign in before any form opens. A report
+ * keeps nothing in the guides store: the card remembers that it was sent. So that one account's "Reported" is never
+ * shown to the next, a card belongs to the account it was drawn for: when the account changes every card is drawn
+ * anew (its key is the account), which also drops any question, sentence or half-written report it held.
+ *
+ * THE TEAM HIDES, UNHIDES AND DELETES ANY PLAYER'S GUIDE FROM ITS CARD. After a hide or an unhide the guides are read
+ * again and the Community list is asked again (`refreshKey`), because a hidden guide leaves Community and the lists
+ * this account holds. A hide whose answer never came may still have landed, so the card is told to check again and
+ * the same reads are made: it is never told as a failure. After a delete that worked the Community list is asked
+ * again too. The read is for whoever is signed in when it is made, and the refresh is this tab's own state, so neither
+ * can put one account's answer in front of another.
  *
  * A PLAYER'S OWN GUIDE IS PUBLISHED, UNPUBLISHED AND DELETED FROM ITS CARD. This tab does the write and tells the card
  * what happened: nothing when it worked (the store then holds the guide as the server answered it, or no longer holds
@@ -175,6 +188,9 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
   const [importing, setImporting] = useState(false);
   /** The Community list's order. Held here so it is still the player's choice when the editor closes. */
   const [communitySort, setCommunitySort] = useState<CommunitySort>('bookmarked');
+  /** Bumped after a hide, an unhide or a delete: the Community list asks its question again from the first page. */
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
   // Lazy (perf 2026-10-09): the first two guides mount with the tab, the rest as they near the viewport (bookLazy.tsx),
   // so opening Guides builds two guides' portraits instead of every guide's.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -252,9 +268,10 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     const res = await deleteGuideRemote(g.rowId);
     if (!res.ok && res.code !== 'not_found') return guideErrorMessage(res.code, res.field, { action: 'delete' });
     guideDeleted(g.rowId);
+    refresh(); // a guide the team deleted leaves the Community list
     sfx.tick();
     return null;
-  }, []);
+  }, [refresh]);
   /** Bookmark a guide, or remove the bookmark. A guest is asked to sign in instead. */
   const onBookmark = useCallback(async (g: Guide, on: boolean): Promise<string | null> => {
     if (!online || !g.rowId) return null;
@@ -266,17 +283,47 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
     sfx.tick();
     return null;
   }, [online, signedIn, userId, raise]);
+  /** A guest pressed Report: asked to sign in instead, before any form opens. */
+  const needSignIn = useCallback(() => raise('signin'), [raise]);
+  /** Report a guide to the team. Nothing is kept in the store. Null means the report WAS sent (the card then says
+   *  thank you), so a report that could not even be asked answers a sentence, never null. */
+  const onReport = useCallback(async (g: Guide, reason: ReportReason, note: string): Promise<string | null> => {
+    if (!online || !g.rowId) return guideErrorMessage('offline', undefined, { action: 'report' });
+    const res = await reportGuideRemote(g.rowId, reason, note);
+    if (!res.ok) return guideErrorMessage(res.code, res.field, { action: 'report' });
+    sfx.tick();
+    return null;
+  }, [online]);
+  /** Team: hide or unhide a player's guide, then read the lists again (a hidden guide leaves Community). */
+  const onHide = useCallback(async (g: Guide, hidden: boolean): Promise<string | null> => {
+    if (!online || !g.rowId) return null;
+    const res = await setHiddenRemote(g.rowId, hidden);
+    if (!res.ok) {
+      // The answer was lost, not refused: it may have landed. Read again, so the lists show what is true.
+      if (res.code === 'offline') { void loadGuides(); refresh(); }
+      return guideErrorMessage(res.code, res.field, { action: 'moderate' });
+    }
+    void loadGuides();
+    refresh();
+    sfx.tick();
+    return null;
+  }, [online, refresh]);
   /** Draw one guide's card, whichever list it is in: who is offered what is decided here (see the header). */
   const renderCard = useCallback((g: Guide): JSX.Element => {
     const own = !g.official && g.rowId !== null && signedIn && g.authorId === userId;
+    /** Someone else's published guide: what Bookmark and Report are offered on. */
+    const theirs = !g.official && g.published && !g.hidden && g.rowId !== null && !own;
+    // Keyed by the account: a card is drawn anew when the account changes (see the header).
     return (
-      <CompendiumGuideCard guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
+      <CompendiumGuideCard key={who} guide={g} tribes={tribes} run={run} setId={setId} mineTab={tab === 'mine'} writable={online}
         editable={online && tab !== 'community' && tab !== 'bookmarked' && canEditGuide(g, userId, team)} own={own && tab === 'mine'}
-        canBookmark={!g.official && g.published && !g.hidden && g.rowId !== null && !own}
-        bookmarked={g.rowId !== null && bookmarkedIds.has(g.rowId)}
-        onEdit={onEdit} onDuplicate={onDuplicate} onPublish={onPublish} onDelete={onDelete} onBookmark={onBookmark} />
+        canBookmark={theirs} bookmarked={g.rowId !== null && bookmarkedIds.has(g.rowId)}
+        canReport={theirs} moderate={team && online && !g.official && g.rowId !== null}
+        signedIn={signedIn} onNeedSignIn={needSignIn}
+        onEdit={onEdit} onDuplicate={onDuplicate} onPublish={onPublish} onDelete={onDelete} onBookmark={onBookmark}
+        onReport={onReport} onHide={onHide} />
     );
-  }, [tribes, run, setId, tab, online, signedIn, userId, team, bookmarkedIds, onEdit, onDuplicate, onPublish, onDelete, onBookmark]);
+  }, [who, tribes, run, setId, tab, online, signedIn, userId, team, bookmarkedIds, onEdit, onDuplicate, onPublish, onDelete, onBookmark, needSignIn, onReport, onHide]);
 
   // The account. When the tab opens, a kept guide with nothing in it is forgotten. When the account changes, an open
   // editor is closed (it was drawn for the last account only, and has already kept its unsaved text on the device
@@ -450,7 +497,7 @@ export const CompendiumGuides = memo(function CompendiumGuides({ guides, tribes,
       </div>
       {tab === 'community' && online ? (
         <CommunityGuides setId={setId} queryTribes={queryTribes} neutral={queryNeutral} search={search} sort={communitySort} onSort={setCommunitySort}
-          root={root} renderCard={renderCard} />
+          refreshKey={refreshKey} root={root} renderCard={renderCard} />
       ) : shown.length === 0 ? (
         <div className="book-empty gtool-empty">{emptyText}</div>
       ) : (

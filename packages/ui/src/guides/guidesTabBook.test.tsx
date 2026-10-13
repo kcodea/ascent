@@ -32,6 +32,13 @@ vi.mock('./guidesRemote', () => ({
   setPublishedRemote: async () => ({ ok: false, code: 'offline' }),
   bookmarkGuideRemote: async () => ({ ok: false, code: 'offline' }),
   importBuiltInsRemote: async () => ({ ok: true, value: { inserted: 0, skipped: 0 } }),
+  reportGuideRemote: async () => ({ ok: false, code: 'offline' }),
+  setHiddenRemote: async () => ({ ok: false, code: 'offline' }),
+  dismissReportsRemote: async () => ({ ok: false, code: 'offline' }),
+  retagSetRemote: async () => ({ ok: false, code: 'offline' }),
+  fetchOpenReports: async () => undefined,
+  fetchHiddenGuides: async () => undefined,
+  fetchGuideTags: async () => undefined,
 }));
 
 const { MinionBook } = await import('../MinionBook');

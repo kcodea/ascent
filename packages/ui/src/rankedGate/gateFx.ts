@@ -13,7 +13,8 @@
  *  - shudder(): the rattle. Dust shakes loose from the top of the doors and a few sparks spit from the seam.
  * And the CRYSTAL's three (owner 2026-10-13), fed the crystal's screen centre and size:
  *  - gather():  the centre diamond forming it. Sparks are SUCKED into the diamond's centre from all round, in a
- *               steady stream (the gem coalescing out of them is the stylesheet's, in its own diamond shape).
+ *               steady stream, and LAND ON THE GROWING GEM'S EDGE, where they shimmer and slide before they
+ *               fade: a living, shifting rim of light in the diamond's own outline.
  *  - ambient(): while it waits to be pressed, a steady trickle of embers lifts off it (until `stopAmbient`).
  *  - shatter(): the press. Shards fly out and fall, a flash blooms, and a burst of embers is thrown wide.
  * Sparks are additive streaks turned along their travel; dust is a soft normal-blended puff that grows as it
@@ -31,6 +32,7 @@ import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { stageHost } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
+import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateTiming';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -369,42 +371,74 @@ class GateFxController {
 
   /**
    * THE CRYSTAL FORMING (owner 2026-10-13: "have the gem almost coalesce from sparks that suck into the middle ...
-   * glowing hot white as its forming. growing from the center"). For the whole of `ms` sparks are pulled into the
-   * diamond's centre from all round: each starts slow, far out, and accelerates in along a slightly curved path,
-   * stretching into a streak as it goes, and is gone as it arrives. The gem they feed, and its white heat, are
-   * the stylesheet's, on the same clock: this draws only what flies in.
+   * glowing hot white as its forming. growing from the center"). For the whole of `ms` sparks are pulled in from
+   * all round: each starts slow, far out, and accelerates in along a slightly curved path, stretching into a streak.
+   *
+   * WHERE THEY END is the gem's own EDGE (owner, later the same day: "i want the edges to still warble and shift as
+   * the diamond glows. like the circle did. can you have the particals instead have the diamond shape around the
+   * edge?"). The first cut ended them all on one point, where hundreds of additive sparks piled up into a bright
+   * round spot whose edge crawled as they came and went. That crawl was the good part; the disc was not. So each
+   * one now lands on the diamond's outline at the size the gem is AT THAT MOMENT (`rankedGateCrystalGrowth`, the
+   * stylesheet's own growth curve), then rides the edge for a moment, sliding along it and breathing in and out of
+   * it, before it fades. A crowd of soft motes born on the edge does the same throughout. Together they are a rim
+   * of light in the diamond's shape that never holds still, growing with the gem and cooling off with it.
    */
   gather(c: GateCrystal, ms: number): void {
     this.run(() => {
       const k = c.size / CRYSTAL_REF_SIZE;
-      // What flies in is taken up as it reaches the gem, well short of the very centre. Hundreds of additive
-      // sparks all ending on one point piled up into a bright round spot there, which is exactly the disc the owner
-      // did not want sitting on the growing diamond.
-      const absorbed = (r: number): number => Math.max(0, Math.min(1, (r - c.size * 0.1) / (c.size * 0.26)));
-      // The streaks: they leave all through the first three quarters, so the stream is steady, and the last of them
-      // arrive as the gem reaches full size.
-      for (let i = 0, n = amount(170); i < n; i++) {
+      const B = RANKED_GATE_CRYSTAL_BODY;
+      /** The gem's scale `tau` ms into its forming. */
+      const grown = (tau: number): number => rankedGateCrystalGrowth(tau / ms);
+      /** From the gem's centre to its edge in direction `ang`, `tau` ms in: a diamond, |x|/halfW + |y|/halfH = 1. */
+      const edge = (ang: number, tau: number): number =>
+        (grown(tau) * c.size) / (Math.abs(Math.cos(ang)) / B.halfW + Math.abs(Math.sin(ang)) / B.halfH);
+      /** Which way the edge runs where direction `ang` meets it (for a streak lying along it). */
+      const alongEdge = (ang: number): number => Math.atan2(Math.sign(Math.sin(ang) || 1) * B.halfH, -Math.sign(Math.cos(ang) || 1) * B.halfW);
+      /** Full while the gem is white-hot, letting go over the last 30% as it cools (the stylesheet's `rg-cry-heat`). */
+      const heat = (tau: number): number => { const t = tau / ms; return t < 0.7 ? 1 : Math.max(0, (1 - t) / 0.3); };
+      const place = (sp: Sprite, ang: number, r: number, tau: number): void => {
+        sp.position.set(c.x + Math.cos(ang) * r, c.y + B.dy * c.size * grown(tau) + Math.sin(ang) * r);
+      };
+
+      // The streaks: they leave all through the first three quarters, so the stream is steady. Each flies in to the
+      // edge, then lies along it and slides, breathing, as it fades. Nearly twice as many since the owner asked for
+      // more of them (2026-10-13: "increase the particles that are being sucked into the edges"): 170 -> 320.
+      for (let i = 0, n = amount(320); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
         const r0 = c.size * (1 + Math.random() * 2.8);
         const swirl = (Math.random() - 0.5) * 1.1; // rad of curve over its flight
-        const delay = Math.random() * ms * 0.74;
-        const life = 300 + Math.random() * 380;
+        const delay = Math.random() * ms * 0.72;
+        const fly = 300 + Math.random() * 380;
+        const dwell = 170 + Math.random() * 230;
+        const slide = (Math.random() - 0.5) * 0.7; // rad along the edge while it dwells
+        const breathe = 0.04 + Math.random() * 0.1, hz = 0.012 + Math.random() * 0.02, phase = Math.random() * Math.PI * 2;
         const len = 0.5 + Math.random() * 0.8;
-        const sp = this.spawn(this.sparkTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(HOT_TINTS), delay + life, true, (p) => {
-          if (p.age < delay) return;
-          const t = (p.age - delay) / life;
-          const pull = t * t * (0.4 + 0.6 * t); // slow to start, then it is taken
-          const r = r0 * (1 - pull);
-          const ang = ang0 + swirl * pull;
-          p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
-          p.sp.rotation = ang + Math.PI; // pointing at the centre it is falling into
-          p.sp.alpha = Math.min(1, t * 5) * absorbed(r);
-          p.sp.scale.set(len * k * (0.5 + t * 1.6), k * (1 - t * 0.35));
+        const sp = this.spawn(this.sparkTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(HOT_TINTS), delay + fly + dwell, true, (p) => {
+          const a = p.age - delay;
+          if (a < 0) return;
+          if (a < fly) {
+            const t = a / fly;
+            const pull = t * t * (0.4 + 0.6 * t); // slow to start, then it is taken
+            const ang = ang0 + swirl * pull;
+            const land = edge(ang, p.age) * 1.03;
+            place(p.sp, ang, land + (r0 - land) * (1 - pull), p.age);
+            p.sp.rotation = ang + Math.PI; // pointing at the gem it is falling to
+            p.sp.alpha = Math.min(1, t * 5) * heat(p.age);
+            p.sp.scale.set(len * k * (0.5 + t * 1.6), k * (1 - t * 0.35));
+            return;
+          }
+          const u = (a - fly) / dwell;
+          const ang = ang0 + swirl + slide * u;
+          place(p.sp, ang, edge(ang, p.age) * (1.03 + breathe * Math.sin(a * hz + phase)), p.age);
+          p.sp.rotation = alongEdge(ang);
+          p.sp.alpha = (1 - u) * heat(p.age);
+          p.sp.scale.set(len * k * (2.1 - u * 1.2), k * (0.65 + 0.5 * (1 - u)));
         });
         sp.rotation = ang0 + Math.PI;
       }
-      // Fine motes among them, on wider spirals, so the pull reads as a draw from all round and not as lines.
-      for (let i = 0, n = amount(60); i < n; i++) {
+      // Fine motes among them, on wider spirals, so the pull reads as a draw from all round and not as lines. They
+      // too come to rest on the edge.
+      for (let i = 0, n = amount(120); i < n; i++) {
         const ang0 = Math.random() * Math.PI * 2;
         const r0 = c.size * (0.8 + Math.random() * 1.9);
         const angVel = ((1.6 + Math.random() * 2.2) * (Math.random() < 0.5 ? 1 : -1)) / 1000; // rad/ms
@@ -414,16 +448,37 @@ class GateFxController {
         this.spawn(this.glowTex!, c.x + Math.cos(ang0) * r0, c.y + Math.sin(ang0) * r0, pick(EMBER_TINTS), delay + life, true, (p) => {
           if (p.age < delay) return;
           const t = (p.age - delay) / life;
-          const r = r0 * (1 - t * t);
           const ang = ang0 + angVel * (p.age - delay);
-          p.sp.position.set(c.x + Math.cos(ang) * r, c.y + Math.sin(ang) * r);
-          p.sp.alpha = Math.min(1, t * 4) * (1 - t * 0.5) * absorbed(r);
-          p.sp.scale.set(scale * (1 - t * 0.5));
+          const land = edge(ang, p.age);
+          place(p.sp, ang, land + (r0 - land) * (1 - t * t), p.age);
+          p.sp.alpha = Math.min(1, t * 4) * (1 - t * 0.5) * heat(p.age);
+          p.sp.scale.set(scale * (1 - t * 0.4));
         });
       }
-      // No glow of its own at the centre: the white heat is the crystal's own diamond shape, drawn by the
-      // stylesheet (`.rgate-crystal-hot` / `-heat`). A round bloom here read as a disc sitting on the growing gem
-      // (owner 2026-10-13).
+      // THE RIM: soft motes born on the edge all through the forming. Each drifts along it and breathes in and out
+      // of it as it swells and fades, and they overlap, so the outline's brightness and thickness keep shifting:
+      // the warble. Their size follows the gem's, so the rim is in proportion from a point to full size.
+      for (let i = 0, n = amount(210); i < n; i++) {
+        const ang0 = Math.random() * Math.PI * 2;
+        const delay = ms * (0.04 + Math.random() * 0.8);
+        const life = 240 + Math.random() * 340;
+        const drift = (Math.random() - 0.5) * 1.0; // rad along the edge over its life
+        // Fatter and looser than the first cut, so the rim itself blurs and distorts the edge (owner 2026-10-13).
+        const breathe = 0.05 + Math.random() * 0.13, hz = 0.01 + Math.random() * 0.022, phase = Math.random() * Math.PI * 2;
+        const size = 0.6 + Math.random() * 0.8;
+        const peak = 0.4 + Math.random() * 0.3;
+        this.spawn(this.glowTex!, c.x, c.y, pick(HOT_TINTS), delay + life, true, (p) => {
+          const a = p.age - delay;
+          if (a < 0) return;
+          const u = a / life;
+          const ang = ang0 + drift * u;
+          place(p.sp, ang, edge(ang, p.age) * (1 + breathe * Math.sin(a * hz + phase)), p.age);
+          p.sp.alpha = Math.sin(Math.PI * u) * peak * heat(p.age);
+          p.sp.scale.set(size * k * Math.max(0.14, grown(p.age)));
+        });
+      }
+      // No glow at the centre: the white heat INSIDE the outline is the crystal's own shape, drawn by the stylesheet
+      // (`.rgate-crystal-hot` / `-heat`).
     });
   }
 

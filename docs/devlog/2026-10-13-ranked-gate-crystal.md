@@ -138,6 +138,48 @@ the heat is the crystal's own shape, and nothing round is drawn while it forms.
 - Checked in a real render (mid-forming, the gem at 70%): a white diamond with a soft diamond-shaped bloom, no
   disc. The owner's first option (a circle growing to cover the diamond, then pulsing away) was not built.
 
+**Then, the warble back, in the diamond's shape (its own PR):** "i want the edges to still warble and shift as the
+diamond glows. like the circle did. can you have the particals instead have the diamond shape around the edge?".
+
+The disc's crawling edge had been the pile-up of sparks coming and going. Removing the pile-up removed the life.
+It is back, on the diamond's outline:
+
+- **Where particles end.** Every streak and mote now lands on the gem's EDGE, at the size the gem is at that
+  moment, instead of fading out short of the centre (`absorbed` is gone). The edge is the diamond
+  `|x|/halfW + |y|/halfH = 1` scaled by the gem's growth.
+- **They stay a moment.** A streak that arrives turns to lie along the edge, slides along it, breathes in and out
+  of it, and fades over 170 to 400 ms.
+- **The rim.** 180 soft motes are born ON the edge all through the forming; each drifts along it, breathes, swells
+  and fades. They overlap, so the outline's brightness and thickness never hold still. Their size follows the
+  gem's, and the whole rim cools off with the heat over the last 30%.
+- **One growth curve.** `rankedGateCrystalGrowth` (rankedGateTiming.ts) is the `rg-cry-grow` keyframes as numbers
+  (the same cubic-bezier, evaluated with `wipeGeometry.cubicBezier`), and `RANKED_GATE_CRYSTAL_BODY` is the solid
+  diamond's extent inside its image. A test reads the stylesheet's keyframes and fails if JS and CSS disagree,
+  since the particles would then ride an edge that is not where the gem is.
+
+Not watched: the FX layer is mocked in tests and the preview pane does not animate. Whether the rim reads as a
+warble, and how thick and bright it should be, is the owner's to judge.
+
+**Then, softer, wilder, fuller, and a touch lower (same PR):** "can you further blur and distort the edges of the
+diamond as its growing? increase the particles that are being sucked into the edges" and "can you lower the diamond
+just slightly? its corner is slightly higher than the center line".
+
+- **Blur + distort.** The white-hot face was one crisp white diamond. It is now three PLIES, each the crystal's
+  shape in white, blurred by 3 / 6 / 10 art px, each warping on its own loop (0.37 / 0.53 / 0.44 s: uneven
+  stretch, a degree or two of turn, a little skew and shift). Where they agree the diamond is solid; round the
+  outside they keep disagreeing, so the edge swims. The bloom behind is wider and softer (blur 9 -> 16, scale
+  1.16 -> 1.26) and warps too. The crisp crystal underneath is now hidden until 60% of the forming and fades up
+  as the white cools (`rg-cry-body-in`), or its hard edge would show through the soft one.
+  PERF: each ply's blur is a static filter on the ply itself and the animation is that ply's own transform, so
+  it is a cached texture moved by the compositor, not a re-blur per frame. The mask sits on the ply's `::before`
+  for the same reason as the bloom's (a mask is applied after its own element's filter).
+- **More particles.** Streaks sucked into the edge 170 -> 320 (384 with `FX_AMOUNT`), spiral motes 60 -> 120,
+  rim motes 150 -> 210 and fatter and looser (they add to the blur and the distortion themselves).
+- **Lowered 3.5 art px.** The crystal is a kite: its side corners are on row 111 of its 232 px image, five rows
+  above the image's middle, so centring the IMAGE on the emblem left the corners above the emblem's centre line.
+  The line was measured as the emblem's axis of vertical symmetry in the gate art (row 429), and `crystalCy`
+  moved 430.5 -> 434 so the corners land on it. Checked in a real render: corners at 409.5 px, line at 409.1.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

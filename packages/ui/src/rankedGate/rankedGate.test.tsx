@@ -41,7 +41,8 @@ vi.mock('../sfx', async (importOriginal) => {
 import { RankedGate, warmRankedGate } from './RankedGate';
 import { registerRankedGate, requestRankedGate, resetRankedGateForTests } from './rankedGateController';
 import {
-  RANKED_GATE_ART, RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt, rankedGateCssVars, rankedGateOpenTimeline,
+  RANKED_GATE_ART, RANKED_GATE_CRYSTAL_BODY, RANKED_GATE_CRYSTAL_GROW, RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt,
+  rankedGateCrystalGrowth, rankedGateCssVars, rankedGateOpenTimeline,
 } from './rankedGateTiming';
 import { CATEGORY_BUS, CATEGORY_GAINS, CATEGORY_LABEL } from '../audio/config';
 import { familyOf } from '../audio/clipFamily';
@@ -100,7 +101,7 @@ describe('the two clocks', () => {
   it('hands the durations and the crystal\'s place to the stylesheet', () => {
     expect(rankedGateCssVars()).toEqual({
       '--rg-close': '1500ms', '--rg-shake': '460ms', '--rg-form': '1600ms', '--rg-shatter': '420ms', '--rg-shudder': '700ms', '--rg-open': '1500ms',
-      '--rg-art-hw': '836', '--rg-art-h': '941', '--rg-cry-dy': '-40', '--rg-cry-size': '236',
+      '--rg-art-hw': '836', '--rg-art-h': '941', '--rg-cry-dy': '-36.5', '--rg-cry-size': '236',
     });
   });
 });
@@ -113,6 +114,9 @@ describe('the crystal sits on the art\'s centre diamond', () => {
     expect(c.y).toBeCloseTo(RANKED_GATE_ART.crystalCy, 5);
     expect(c.size).toBe(236);
     expect(c.y, 'the diamond is above the art\'s centre row').toBeLessThan(941 / 2);
+    // Its SIDE CORNERS (the widest row of the kite, 5 of 232 rows above the image's middle) land on the emblem's
+    // centre line, row 429 (owner 2026-10-13: "its corner is slightly higher than the center line").
+    expect(c.y - (5 / 232) * c.size).toBeCloseTo(429, 0);
     // Twice the size, and offset: everything doubles around the box's centre.
     const d = rankedGateCrystalAt({ left: 100, top: 50, width: 3344, height: 1882 });
     expect(d).toEqual({ x: 100 + 1672, y: 50 + RANKED_GATE_ART.crystalCy * 2, size: 472 });
@@ -239,7 +243,7 @@ describe('the gate plays', () => {
     expect(gem.querySelector('.rgate-crystal-lit-hi'), 'and its steady twin, for the hover').not.toBeNull();
     expect(el.querySelector(':scope > .rgate-crystal-pulse > .rgate-crystal-glow'), 'the pulsing glow behind it').not.toBeNull();
     expect(el.querySelector(':scope > .rgate-crystal-glow-hi'), 'and its steady twin').not.toBeNull();
-    expect(gem.querySelector('.rgate-crystal-hot'), 'white-hot while it forms').not.toBeNull();
+    expect(gem.querySelectorAll('.rgate-crystal-hot > .rgate-crystal-ply'), 'white-hot while it forms: three plies').toHaveLength(3);
     expect(gem.querySelector('.rgate-crystal-heat'), 'and its bloom, in its own shape').not.toBeNull();
     expect(gem.querySelector('.rgate-crystal-glint .rgate-crystal-twinkle'), 'the glint and its star').not.toBeNull();
     // A press while it is still forming does nothing.
@@ -413,7 +417,7 @@ describe('what ships', () => {
     expect(noComments).toMatch(/\.rgate-doors \{[^}]*container-type: size/);
     const rule = noComments.slice(noComments.indexOf('.rgate-crystal {'), noComments.indexOf('}', noComments.indexOf('.rgate-crystal {')));
     expect(rule).toContain('--rg-u: max(calc(50cqw / var(--rg-art-hw, 836)), calc(100cqh / var(--rg-art-h, 941)))');
-    expect(rule).toContain('top: calc(50% + var(--rg-cry-dy, -40) * var(--rg-u))');
+    expect(rule).toContain('top: calc(50% + var(--rg-cry-dy, -36.5) * var(--rg-u))');
     expect(rule).toContain('width: calc(var(--rg-cry-size, 236) * var(--rg-u))');
     expect(rule).toContain('pointer-events: none');
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal \{ pointer-events: auto; \}/);
@@ -465,7 +469,7 @@ describe('what ships', () => {
     expect(scales[scales.length - 1], 'to its full size, exactly').toBe(1);
     expect([...scales].slice(0, -1), 'growing all the way (the last step is only the settle)').toEqual([...scales].slice(0, -1).sort((a, b) => a - b));
     // The white face: a pure white fill in the crystal's own shape, full on until the last third.
-    expect(noComments).toMatch(/\.rgate-crystal-hot \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate-crystal-ply::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
     expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-hot \{[^}]*rg-cry-cool var\(--rg-form/);
     expect(kf('rg-cry-cool')).toMatch(/0%, 66% \{ opacity: 1; \}\s*100% \{ opacity: 0; \}/);
     // Its heat is its OWN SHAPE, never a disc (owner 2026-10-13: "can we have the shape be the diamond instead of
@@ -481,6 +485,54 @@ describe('what ships', () => {
     expect(kf('rg-cry-glow-pulse')).toMatch(/0%, 100% \{ opacity: 0\.32;/);
   });
 
+  it('its edge is soft and swims while it forms: three blurred plies, each warping on its own loop', () => {
+    // Owner 2026-10-13: "can you further blur and distort the edges of the diamond as its growing?".
+    const blurs = [1, 2, 3].map((n) => Number(new RegExp(`\\.rgate-crystal-ply:nth-child\\(${n}\\) \\{ filter: blur\\(calc\\((\\d+) \\* var\\(--rg-u\\)\\)\\); \\}`).exec(noComments)![1]));
+    expect(blurs, 'each ply softer than the last').toEqual([...blurs].sort((a, b) => a - b));
+    expect(new Set(blurs).size).toBe(3);
+    // The warp is the plies' own transform (a static blur moved by the compositor), on loops of different lengths.
+    const loops = ['a', 'b', 'c'].map((id, i) => Number(new RegExp(`\\.rgate\\.is-forming \\.rgate-crystal-ply:nth-child\\(${i + 1}\\) \\{ animation: rg-cry-warp-${id} ([\\d.]+)s ease-in-out infinite; \\}`).exec(noComments)![1]));
+    expect(new Set(loops).size, 'no two plies in step').toBe(3);
+    for (const id of ['a', 'b', 'c', 'd']) {
+      const kf = new RegExp(`@keyframes rg-cry-warp-${id} \\{([\\s\\S]*?)\\n\\}`).exec(css)![1]!;
+      expect(kf, id).toMatch(/scale\([\d.]+, [\d.]+\)/); // stretched unevenly: that is the distortion
+      expect(kf, id).toMatch(/rotate\(-?[\d.]+deg\)/);
+    }
+    // Only while forming: the waiting crystal's edge is its own crisp one.
+    expect(noComments).not.toMatch(/\.rgate\.is-armed [^{]*rgate-crystal-ply/);
+    // The crisp body stays under the white until it cools, so its hard edge never shows through the soft one.
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-body \{ animation: rg-cry-body-in var\(--rg-form/);
+    expect(css).toMatch(/@keyframes rg-cry-body-in \{\s*0%, 60% \{ opacity: 0; \}\s*100% \{ opacity: 1; \}/);
+  });
+
+  it('the FX layer knows the gem\'s growth: its curve is the stylesheet\'s own, so particles land on the live edge', () => {
+    // Owner 2026-10-13: "i want the edges to still warble and shift as the diamond glows ... can you have the
+    // particals instead have the diamond shape around the edge?". The particles are placed on the gem's edge at the
+    // size the gem is at that moment, which only works if JS and CSS agree on that size.
+    const g = RANKED_GATE_CRYSTAL_GROW;
+    const grow = /@keyframes rg-cry-grow \{([\s\S]*?)\n\}/.exec(css)![1]!;
+    const stops = [...grow.matchAll(/(\d+)% \{[^}]*scale\(([\d.]+)\)[^}]*\}/g)].map((m) => [Number(m[1]) / 100, Number(m[2])]);
+    expect(stops).toEqual([[0, g.fromScale], [g.startAt, g.startScale], [g.peakAt, g.peakScale], [1, 1]]);
+    expect(grow).toContain(`${Math.round(g.startAt * 100)}% { opacity: 1; transform: scale(${g.startScale}); animation-timing-function: cubic-bezier(${g.bezier.join(', ')}); }`);
+    expect(grow).toContain(`${Math.round(g.peakAt * 100)}% { opacity: 1; transform: scale(${g.peakScale}); animation-timing-function: ease-in-out; }`);
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-gem \{ animation: rg-cry-grow var\(--rg-form, \d+ms\) linear both; \}/);
+    // The function hits every stop, never shrinks until the settle, and stays within the keyframes' range.
+    for (const [at, scale] of stops) expect(rankedGateCrystalGrowth(at!), `at ${at}`).toBeCloseTo(scale!, 5);
+    let prev = 0;
+    for (let i = 0; i <= 88; i++) {
+      const v = rankedGateCrystalGrowth(i / 100);
+      expect(v, `still growing at ${i}%`).toBeGreaterThanOrEqual(prev);
+      prev = v;
+    }
+    expect(rankedGateCrystalGrowth(0.94)).toBeLessThan(g.peakScale);
+    expect(rankedGateCrystalGrowth(0.94)).toBeGreaterThan(1);
+    expect(rankedGateCrystalGrowth(-1)).toBe(g.fromScale);
+    expect(rankedGateCrystalGrowth(2)).toBe(1);
+    // The body it traces: a diamond taller than it is wide, inside its square image.
+    expect(RANKED_GATE_CRYSTAL_BODY.halfH).toBeGreaterThan(RANKED_GATE_CRYSTAL_BODY.halfW);
+    expect(RANKED_GATE_CRYSTAL_BODY.halfH).toBeLessThan(0.5);
+  });
+
   it('the motion is compositor-only, in stage units, with no bare cursor', () => {
     const blocks = [...css.matchAll(/@keyframes ([\w-]+) \{/g)].map((m) => {
       let depth = 0;
@@ -491,9 +543,9 @@ describe('what ships', () => {
       throw new Error(`unterminated @keyframes ${m[1]}`);
     });
     expect(blocks.map((b) => b[0]).sort()).toEqual([
-      'rg-close-l', 'rg-close-r', 'rg-cry-break', 'rg-cry-cool', 'rg-cry-glint', 'rg-cry-glow-in', 'rg-cry-glow-out', 'rg-cry-glow-pulse',
-      'rg-cry-grow', 'rg-cry-heat', 'rg-cry-lit-pulse', 'rg-cry-shatter', 'rg-cry-twinkle', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l',
-      'rg-open-r', 'rg-shudder',
+      'rg-close-l', 'rg-close-r', 'rg-cry-body-in', 'rg-cry-break', 'rg-cry-cool', 'rg-cry-glint', 'rg-cry-glow-in', 'rg-cry-glow-out',
+      'rg-cry-glow-pulse', 'rg-cry-grow', 'rg-cry-heat', 'rg-cry-lit-pulse', 'rg-cry-shatter', 'rg-cry-twinkle', 'rg-cry-warp-a', 'rg-cry-warp-b',
+      'rg-cry-warp-c', 'rg-cry-warp-d', 'rg-flash', 'rg-grind', 'rg-impact', 'rg-open-l', 'rg-open-r', 'rg-shudder',
     ]);
     for (const [name, body] of blocks) {
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]).filter((p) => p !== 'animation-timing-function');

@@ -23,6 +23,8 @@
  *   - `gateopen`   (2.9 s): a clunk ~0.4 s in, then the grind. It starts `openSoundLeadMs` before the doors move,
  *                           so the clunk lands as they part.
  */
+import { cubicBezier } from '../wipeGeometry';
+
 export interface RankedGateTiming {
   /** The doors' travel from off-screen to shut. */
   closeMs: number;
@@ -117,10 +119,45 @@ export function rankedGateOpenTimeline(t: RankedGateTiming = RANKED_GATE_TIMING)
 /**
  * WHERE THE CRYSTAL SITS, in the gate art's own pixels. The art is 1672 x 941 with its seam on the centre column, so
  * each door's image is `halfW` x `h`. The centre diamond of the emblem is NOT on the art's vertical centre: it sits
- * a little above it. `crystalCy` is where the crystal IMAGE's centre goes and `crystalSize` its square size, chosen
- * so its solid body covers the gold diamond and fills the steel recess around it (the owner's mock, 2026-10-13).
+ * a little above it, on row 429 (the emblem's own line of symmetry, measured). `crystalCy` is where the crystal
+ * IMAGE's centre goes and `crystalSize` its square size, chosen so its solid body covers the gold diamond and fills
+ * the steel recess around it (the owner's mock, 2026-10-13).
+ *
+ * `crystalCy` is 434, not 429: the crystal is a kite, widest (its side corners) on row 111 of its 232 px image, five
+ * rows above the image's middle. Centring the image on the line left those corners sitting above it (owner, the
+ * same day: "can you lower the diamond just slightly? its corner is slightly higher than the center line"), so the
+ * image is placed for its CORNERS to land on row 429: 429 + (116 - 111) * 236 / 232.
  */
-export const RANKED_GATE_ART = { halfW: 836, h: 941, crystalCy: 430.5, crystalSize: 236 } as const;
+export const RANKED_GATE_ART = { halfW: 836, h: 941, crystalCy: 434, crystalSize: 236 } as const;
+
+/**
+ * THE CRYSTAL'S BODY inside its square image, as fractions of the image's size: the solid diamond is 128 x 183 px of
+ * the 232 px art, its centre 3 px above the image's (measured off the art's alpha). The FX layer needs it to put
+ * particles ON the gem's edge.
+ */
+export const RANKED_GATE_CRYSTAL_BODY = { halfW: 64 / 232, halfH: 91.5 / 232, dy: -3 / 232 } as const;
+
+/**
+ * HOW THE GEM GROWS while it forms: the `rg-cry-grow` keyframes of rankedGate.css, as numbers. From `fromScale` it
+ * creeps to `startScale` by `startAt` (linear), swells to `peakScale` by `peakAt` along `bezier`, then settles to 1
+ * (ease-in-out). The test reads the stylesheet and fails if the two disagree.
+ */
+export const RANKED_GATE_CRYSTAL_GROW = {
+  fromScale: 0.02, startAt: 0.06, startScale: 0.05, peakAt: 0.88, peakScale: 1.05,
+  bezier: [0.4, 0, 0.35, 1] as readonly [number, number, number, number],
+} as const;
+const growSwell = cubicBezier(...RANKED_GATE_CRYSTAL_GROW.bezier);
+const growSettle = cubicBezier(0.42, 0, 0.58, 1); // CSS `ease-in-out`
+
+/** The gem's scale at `t` (0..1) of its forming: what the stylesheet is showing at that moment. */
+export function rankedGateCrystalGrowth(t: number): number {
+  const g = RANKED_GATE_CRYSTAL_GROW;
+  if (t <= 0) return g.fromScale;
+  if (t >= 1) return 1;
+  if (t < g.startAt) return g.fromScale + (g.startScale - g.fromScale) * (t / g.startAt);
+  if (t < g.peakAt) return g.startScale + (g.peakScale - g.startScale) * growSwell((t - g.startAt) / (g.peakAt - g.startAt));
+  return g.peakScale + (1 - g.peakScale) * growSettle((t - g.peakAt) / (1 - g.peakAt));
+}
 
 /** A box on screen (a `DOMRect` fits). */
 export interface GateBox { left: number; top: number; width: number; height: number }

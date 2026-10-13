@@ -32,10 +32,10 @@ const fx = vi.hoisted(() => ({
   clear: vi.fn(), release: vi.fn(),
 }));
 vi.mock('./gateFx', () => ({ gateFx: fx }));
-const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn() }));
+const snd = vi.hoisted(() => ({ gate: vi.fn(), warmGate: vi.fn(), gateHum: vi.fn() }));
 vi.mock('../sfx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../sfx')>();
-  return { ...actual, sfx: { ...actual.sfx, gate: snd.gate, warmGate: snd.warmGate } };
+  return { ...actual, sfx: { ...actual.sfx, gate: snd.gate, warmGate: snd.warmGate, gateHum: snd.gateHum } };
 });
 
 import { RankedGate, warmRankedGate } from './RankedGate';
@@ -61,7 +61,7 @@ const reducedMotion = (on: boolean): void => {
 
 beforeEach(() => {
   resetRankedGateForTests();
-  for (const f of [...Object.values(fx), snd.gate, snd.warmGate]) f.mockClear();
+  for (const f of [...Object.values(fx), snd.gate, snd.warmGate, snd.gateHum]) f.mockClear();
   reducedMotion(false);
 });
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -268,6 +268,38 @@ describe('the gate plays', () => {
     expect(phaseOf()).toBe('armed');
   });
 
+  it('the armed crystal hums while the mouse is on it, and only then', () => {
+    // Owner 2026-10-13: a sound that repeats for as long as the crystal is hovered.
+    const hum = (): Array<boolean> => snd.gateHum.mock.calls.map((c) => c[0] as boolean);
+    const point = (type: 'pointerover' | 'pointerout', pointerType: string): void => {
+      const ev = new MouseEvent(type, { bubbles: true });
+      Object.defineProperty(ev, 'pointerType', { value: pointerType });
+      act(() => { crystalEl()!.dispatchEvent(ev); });
+    };
+    start();
+    advance(close.formAt);
+    snd.gateHum.mockClear();
+    point('pointerover', 'mouse');
+    expect(hum(), 'not while it is still forming').not.toContain(true);
+    advance(close.armedAt - close.formAt);
+    snd.gateHum.mockClear();
+    point('pointerover', 'touch');
+    expect(hum(), 'a finger is the press, not a hover').not.toContain(true);
+    point('pointerover', 'mouse');
+    expect(hum().at(-1), 'on as the mouse arrives').toBe(true);
+    point('pointerout', 'mouse');
+    expect(hum().at(-1), 'off as it leaves').toBe(false);
+    // Still on it when the window loses focus: no leave fires, so the gate listens for that itself.
+    point('pointerover', 'mouse');
+    act(() => { window.dispatchEvent(new Event('blur')); });
+    expect(hum().at(-1)).toBe(false);
+    // And the shatter silences it at once, with a short fade.
+    point('pointerover', 'mouse');
+    pressCrystal();
+    expect(snd.gateHum.mock.calls.some((c) => c[0] === false && c[1] === 60), 'gone under the break').toBe(true);
+    expect(hum().at(-1)).toBe(false);
+  });
+
   it('pressing it shatters it, the doors shudder, then grind open and leave nothing behind', async () => {
     const { onShut, done } = start();
     advance(close.armedAt + 2_345);
@@ -351,7 +383,7 @@ describe('what ships', () => {
       expect(css).toContain(`url('/frames/${door}')`);
     }
     expect(existsSync(pub('frames', 'ranked-gate-crystal.webp'))).toBe(true);
-    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum']) {
       expect(existsSync(ui$('audio', `${cue}.mp3`)), cue).toBe(true);
     }
     // The crystal FORMING has no recorded cue yet: it borrows a clip already in the game.
@@ -359,12 +391,12 @@ describe('what ships', () => {
   });
 
   it('each cue has its own fader, on the ui bus, with a name', () => {
-    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateform', 'gateshatter']) {
+    for (const cue of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateform', 'gateshatter', 'gatehum']) {
       expect(CATEGORY_GAINS[cue], cue).toBeGreaterThan(0);
       expect(CATEGORY_BUS[cue], cue).toBe('ui');
       expect(CATEGORY_LABEL[cue], cue).toMatch(/^Ranked gate: /);
     }
-    for (const clip of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter']) expect(familyOf(clip), clip).toBe(clip);
+    for (const clip of ['gateintro', 'gateclose', 'gateslam', 'gaterattle', 'gateopen', 'gateshatter', 'gatehum']) expect(familyOf(clip), clip).toBe(clip);
   });
 
   it('the doors meet on the seam: each half is anchored to its seam side and covers its door', () => {

@@ -431,6 +431,32 @@ interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 const GOOD_LUCK_SPARK_CLIP = 'fx/djartmusic-christmas-sparkle-whoosh-1-275404';
 /** Play only a window of a clip (seconds into the file, and for how long). */
 interface ClipSlice { offset: number; duration: number; }
+/**
+ * THE GATE CRYSTAL'S HUM (owner 2026-10-13): the one LOOPING clip in the bank, played for as long as the pointer is
+ * on the armed crystal. `gatehum.mp3` was built from the owner's 15.7 s recording (a hum that swells about every
+ * 1.3 s): four whole swells, cut between two of its quiet points, the wrap cross-faded (140 ms, equal power) so
+ * the end flows into the start, then padded with a quarter second of ITSELF on each side. So any 5.22 s window of
+ * the file is a seamless loop, and the few tens of ms an MP3 decoder may shift the audio by cannot open a gap.
+ * These are that window, in seconds into the decoded file.
+ */
+const GATE_HUM_LOOP = { start: 0.25, end: 5.47 };
+/** The hum now sounding: its source and the gain its fades ride. Null when it is silent. */
+let gateHumNodes: PlayNodes | null = null;
+/** Fade the hum out over `ms` and stop it. Safe when it is not playing. Never creates an audio context. */
+function stopGateHum(ms: number): void {
+  const a = ctx;
+  const nodes = gateHumNodes;
+  gateHumNodes = null;
+  if (!a || !nodes) return;
+  try {
+    const t = a.currentTime;
+    const fade = Math.max(0.01, ms / 1000);
+    nodes.gain.gain.cancelScheduledValues(t);
+    nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, t);
+    nodes.gain.gain.linearRampToValueAtTime(0.0001, t + fade);
+    nodes.src.stop(t + fade + 0.02);
+  } catch { /* already ended / stopped */ }
+}
 /** The ranked gate's cues (`sfx.gate`). Each plays on the fader `gate<cue>`. */
 export type GateCue = 'intro' | 'close' | 'slam' | 'rattle' | 'open' | 'form' | 'shatter';
 /** The clip behind each gate cue. All but one are the owner's own recordings (`shatter` is his crystal-shatter
@@ -1522,9 +1548,36 @@ export const sfx = {
     // delay before i hear the sound").
     playSample(GATE_CLIP[cue], `gate${cue}`, Math.max(0, delay) / 1000, undefined, GATE_SLICE[cue]);
   },
+  /**
+   * THE CRYSTAL'S HUM, on or off (see `GATE_HUM_LOOP`). On: the loop starts and fades up over `fadeMs`; a second
+   * "on" while it plays does nothing. Off: it fades out over `fadeMs` and stops (the shatter passes a short fade,
+   * so the hum is gone under the break). Like every cue it is silent while the bank is muted, the tab is hidden or
+   * the clip is not decoded yet (it then only starts its load): a hum that came in late would be worse than none.
+   */
+  gateHum: (on: boolean, fadeMs = 180): void => {
+    if (!on) { stopGateHum(fadeMs); return; }
+    if (gateHumNodes) return;
+    if (isHidden() || audioSuspended) return;
+    const a = audio();
+    if (!a || muted) return;
+    const buf = buffers.get('gatehum');
+    if (!buf) { loadSample('gatehum'); return; }
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.loopStart = GATE_HUM_LOOP.start;
+    src.loopEnd = Math.min(GATE_HUM_LOOP.end, buf.duration);
+    const g = a.createGain();
+    const t = a.currentTime;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(effectiveGain(cfg, 'gatehum', 'gatehum'), t + Math.max(0.01, fadeMs / 1000));
+    src.connect(g).connect(busInput(a, 'gatehum'));
+    src.start(t, GATE_HUM_LOOP.start);
+    gateHumNodes = { src, gain: g };
+  },
   /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
    *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */
-  warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart']) loadSample(clip); }, // + the End Turn cue "Yes" plays
+  warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum']) loadSample(clip); }, // + the End Turn cue "Yes" plays, and the hum
   /**
    * THE "GOOD LUCK" INTRO — the shine sweeping the words left to right (owner ask 2026-09-24: "it needs a sound
    * effect"). The Equipment art-sheen clip: the same light-across-gold sweep, already in the owner's mix.
@@ -1908,6 +1961,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
   gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'), gateintro: () => sfx.gate('intro'), gateform: () => sfx.gate('form'), gateshatter: () => sfx.gate('shatter'),
+  gatehum: () => { sfx.gateHum(true); window.setTimeout(() => sfx.gateHum(false), 2600); },
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

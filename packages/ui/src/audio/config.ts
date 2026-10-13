@@ -53,6 +53,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // shatter is the owner's recording; forming has none yet and plays a clip already in the game as a STAND-IN
   // (see `sfx.gate`).
   gateform: 0.6, gateshatter: 0.6,
+  // The crystal's HUM while the pointer is on it (owner 2026-10-13): a seamless loop, faded in and out.
+  gatehum: 0.5,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -86,7 +88,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   gamble: 'ui',
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
-  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui',
+  gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui', gatehum: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',
@@ -120,6 +122,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   gateintro: 'Ranked gate: the hit as the crystal shatters',
   gateform: 'Ranked gate: the crystal forming (stand-in clip)',
   gateshatter: 'Ranked gate: the crystal shattering',
+  gatehum: 'Ranked gate: the crystal humming under the pointer (loop)',
   discoverWhoosh: 'Discover entrance — whoosh under the flight',
   discoverArrive: 'Discover entrance — settle as a card arrives',
   discoverSparkle: 'Discover entrance — sparkle once the set is in',

@@ -466,6 +466,15 @@ const GATE_CLIP: Record<GateCue, string> = {
   intro: 'gateintro', close: 'gateclose', slam: 'gateslam', rattle: 'gaterattle', open: 'gateopen',
   form: 'gateform', shatter: 'gateshatter',
 };
+/** THE PLACEMENT TONES (owner 2026-10-13). 5th to 8th: his recorded tone ("apply this tone when ending the match in
+ *  5th through 8th place", `placelow`). 1st to 4th: the gate's cinematic hit ("use the start match tone we moved to
+ *  when clicking the crystal if you placed 1st through 4th", the `gateintro` clip), on its OWN fader (`placehigh`)
+ *  so the end of a match and the crystal's shatter can be mixed apart. Null for anything that is not a place. */
+const placementTone = (placement: number): { clip: string; category: string } | null => (
+  placement >= 1 && placement <= 4 ? { clip: 'gateintro', category: 'placehigh' }
+    : placement >= 5 && placement <= 8 ? { clip: 'placelow', category: 'placelow' }
+      : null);
+
 /** Cues that fire on a PRESS skip their file's silent lead-in, so the sound lands with the press: `gateintro`
  *  opens on 49 ms of dead silence and `gateshatter` on 26 ms (both measured in 10 ms windows). A duration past the
  *  clip's end simply plays it out. */
@@ -1590,7 +1599,20 @@ export const sfx = {
   },
   /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
    *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */
-  warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum']) loadSample(clip); }, // + the End Turn cue "Yes" plays, and the hum
+  warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum', 'placelow']) loadSample(clip); }, // + the End Turn cue "Yes" plays, the hum, and the end-of-match tone
+  /**
+   * THE PLACEMENT TONES (owner 2026-10-13): the sound of the result. 1st to 4th plays the gate's cinematic hit;
+   * 5th to 8th his recorded tone (`audio/placelow.mp3`). One fader each. `delay` (ms) schedules on the audio
+   * clock, so it can be set off behind the end-game gate's shut doors and land as they part (placementTone.ts).
+   * Not a place: nothing plays. No synth stand-in.
+   */
+  placementTone: (placement: number, delay = 0): void => {
+    const tone = placementTone(placement);
+    // The hit's file opens on 49 ms of silence (`GATE_SLICE.intro`); skipped here as it is under the crystal.
+    if (tone) playSample(tone.clip, tone.category, Math.max(0, delay) / 1000, undefined, tone.clip === GATE_CLIP.intro ? GATE_SLICE.intro : undefined);
+  },
+  /** The clip and fader a finishing place plays, or null (the tests' and placementTone.ts's read of the table). */
+  placementToneOf: (placement: number): { clip: string; category: string } | null => placementTone(placement),
   /**
    * THE "GOOD LUCK" INTRO — the shine sweeping the words left to right (owner ask 2026-09-24: "it needs a sound
    * effect"). The Equipment art-sheen clip: the same light-across-gold sweep, already in the owner's mix.
@@ -1975,6 +1997,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
   gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'), gateintro: () => sfx.gate('intro'), gateform: () => sfx.gate('form'), gateshatter: () => sfx.gate('shatter'),
   gatehum: () => { sfx.gateHum(true); window.setTimeout(() => sfx.gateHum(false), 2600); },
+  placelow: () => sfx.placementTone(8), placehigh: () => sfx.placementTone(1),
   felSpikeEcho: sfx.felSpikeEcho, felSpikeEchoLand: sfx.felSpikeEchoLand,
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.

@@ -138,6 +138,28 @@ the heat is the crystal's own shape, and nothing round is drawn while it forms.
 - Checked in a real render (mid-forming, the gem at 70%): a white diamond with a soft diamond-shaped bloom, no
   disc. The owner's first option (a circle growing to cover the diamond, then pulsing away) was not built.
 
+**Then, the warble back, in the diamond's shape (its own PR):** "i want the edges to still warble and shift as the
+diamond glows. like the circle did. can you have the particals instead have the diamond shape around the edge?".
+
+The disc's crawling edge had been the pile-up of sparks coming and going. Removing the pile-up removed the life.
+It is back, on the diamond's outline:
+
+- **Where particles end.** Every streak and mote now lands on the gem's EDGE, at the size the gem is at that
+  moment, instead of fading out short of the centre (`absorbed` is gone). The edge is the diamond
+  `|x|/halfW + |y|/halfH = 1` scaled by the gem's growth.
+- **They stay a moment.** A streak that arrives turns to lie along the edge, slides along it, breathes in and out
+  of it, and fades over 170 to 400 ms.
+- **The rim.** 180 soft motes are born ON the edge all through the forming; each drifts along it, breathes, swells
+  and fades. They overlap, so the outline's brightness and thickness never hold still. Their size follows the
+  gem's, and the whole rim cools off with the heat over the last 30%.
+- **One growth curve.** `rankedGateCrystalGrowth` (rankedGateTiming.ts) is the `rg-cry-grow` keyframes as numbers
+  (the same cubic-bezier, evaluated with `wipeGeometry.cubicBezier`), and `RANKED_GATE_CRYSTAL_BODY` is the solid
+  diamond's extent inside its image. A test reads the stylesheet's keyframes and fails if JS and CSS disagree,
+  since the particles would then ride an edge that is not where the gem is.
+
+Not watched: the FX layer is mocked in tests and the preview pane does not animate. Whether the rim reads as a
+warble, and how thick and bright it should be, is the owner's to judge.
+
 ## Judgement calls to confirm with the owner
 
 - "Amplify by 200%" was read as three times as many (plus 200%), not twice.

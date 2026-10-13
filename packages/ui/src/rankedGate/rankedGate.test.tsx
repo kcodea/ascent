@@ -41,7 +41,8 @@ vi.mock('../sfx', async (importOriginal) => {
 import { RankedGate, warmRankedGate } from './RankedGate';
 import { registerRankedGate, requestRankedGate, resetRankedGateForTests } from './rankedGateController';
 import {
-  RANKED_GATE_ART, RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt, rankedGateCssVars, rankedGateOpenTimeline,
+  RANKED_GATE_ART, RANKED_GATE_CRYSTAL_BODY, RANKED_GATE_CRYSTAL_GROW, RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt,
+  rankedGateCrystalGrowth, rankedGateCssVars, rankedGateOpenTimeline,
 } from './rankedGateTiming';
 import { CATEGORY_BUS, CATEGORY_GAINS, CATEGORY_LABEL } from '../audio/config';
 import { familyOf } from '../audio/clipFamily';
@@ -479,6 +480,34 @@ describe('what ships', () => {
     expect(kf('rg-cry-glow-in')).toMatch(/0%, 55% \{ opacity: 0;/);
     expect(kf('rg-cry-glow-in')).toMatch(/100% \{ opacity: 0\.32;/);
     expect(kf('rg-cry-glow-pulse')).toMatch(/0%, 100% \{ opacity: 0\.32;/);
+  });
+
+  it('the FX layer knows the gem\'s growth: its curve is the stylesheet\'s own, so particles land on the live edge', () => {
+    // Owner 2026-10-13: "i want the edges to still warble and shift as the diamond glows ... can you have the
+    // particals instead have the diamond shape around the edge?". The particles are placed on the gem's edge at the
+    // size the gem is at that moment, which only works if JS and CSS agree on that size.
+    const g = RANKED_GATE_CRYSTAL_GROW;
+    const grow = /@keyframes rg-cry-grow \{([\s\S]*?)\n\}/.exec(css)![1]!;
+    const stops = [...grow.matchAll(/(\d+)% \{[^}]*scale\(([\d.]+)\)[^}]*\}/g)].map((m) => [Number(m[1]) / 100, Number(m[2])]);
+    expect(stops).toEqual([[0, g.fromScale], [g.startAt, g.startScale], [g.peakAt, g.peakScale], [1, 1]]);
+    expect(grow).toContain(`${Math.round(g.startAt * 100)}% { opacity: 1; transform: scale(${g.startScale}); animation-timing-function: cubic-bezier(${g.bezier.join(', ')}); }`);
+    expect(grow).toContain(`${Math.round(g.peakAt * 100)}% { opacity: 1; transform: scale(${g.peakScale}); animation-timing-function: ease-in-out; }`);
+    expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-gem \{ animation: rg-cry-grow var\(--rg-form, \d+ms\) linear both; \}/);
+    // The function hits every stop, never shrinks until the settle, and stays within the keyframes' range.
+    for (const [at, scale] of stops) expect(rankedGateCrystalGrowth(at!), `at ${at}`).toBeCloseTo(scale!, 5);
+    let prev = 0;
+    for (let i = 0; i <= 88; i++) {
+      const v = rankedGateCrystalGrowth(i / 100);
+      expect(v, `still growing at ${i}%`).toBeGreaterThanOrEqual(prev);
+      prev = v;
+    }
+    expect(rankedGateCrystalGrowth(0.94)).toBeLessThan(g.peakScale);
+    expect(rankedGateCrystalGrowth(0.94)).toBeGreaterThan(1);
+    expect(rankedGateCrystalGrowth(-1)).toBe(g.fromScale);
+    expect(rankedGateCrystalGrowth(2)).toBe(1);
+    // The body it traces: a diamond taller than it is wide, inside its square image.
+    expect(RANKED_GATE_CRYSTAL_BODY.halfH).toBeGreaterThan(RANKED_GATE_CRYSTAL_BODY.halfW);
+    expect(RANKED_GATE_CRYSTAL_BODY.halfH).toBeLessThan(0.5);
   });
 
   it('the motion is compositor-only, in stage units, with no bare cursor', () => {

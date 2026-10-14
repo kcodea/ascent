@@ -44,16 +44,18 @@ const gauntlet = readFileSync(join(root, 'supabase/migrations/2026-09-29-gauntle
 const frames = readFileSync(join(root, 'supabase/migrations/2026-10-01-portrait-frames.sql'), 'utf8');
 // The announcer slot file (2026-10-11): the newest equip_cosmetic (the account-wide announcer slot).
 const announcerSlot = readFileSync(join(root, 'supabase/migrations/2026-10-11-announcer-slot.sql'), 'utf8');
+// The emote file (2026-10-13): the newest equip_cosmetic (the four-position emote slot) and the starter acquisition.
+const emotes = readFileSync(join(root, 'supabase/migrations/2026-10-13-emotes.sql'), 'utf8');
 // The Ancient rarity file (2026-10-02): the newest progression_crate_pick + open_crate (five rarities, roll version 4).
 const ancient = readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8');
 // The placement XP file (2026-10-03, owner "+50% bonuses"): the newest settle_progression (Top 4 60, 1st 90).
 const placementXp = readFileSync(join(root, 'supabase/migrations/2026-10-03-placement-xp.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -203,6 +205,25 @@ describe('the migration shape', () => {
   });
 });
 
+describe('the emote file (2026-10-13)', () => {
+  it('its acquisition check allows every source the code catalog syncs (the starter emotes included)', () => {
+    const m = /check \(acquisition_source in \(([^)]*)\)\)/.exec(emotes);
+    expect(m, 'the widened check').toBeTruthy();
+    const allowed = m![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'));
+    expect(allowed).toEqual(['crate', 'level_milestone', 'achievement', 'event', 'starter']);
+    for (const i of catalogSyncPayload().items) expect(allowed, i.cosmeticId).toContain(i.acquisitionSource);
+  });
+
+  it('equip_cosmetic: an emote position is 0 to 3, a starter needs no ownership row, and an emote moves', () => {
+    const body = fnBody('equip_cosmetic');
+    expect(body).toContain("elsif p_slot = 'emote' then");
+    expect(body).toContain("p_target_id !~ '^[0-3]$'");
+    expect(body).toContain("if v_cat.acquisition_source <> 'starter'");
+    expect(body).toMatch(/delete from public\.cosmetic_loadouts\s+where user_id = p_user and slot = 'emote' and cosmetic_id = p_cosmetic_id and target_id <> p_target_id;/);
+    expect(schema.replace(/\r\n/g, '\n')).toContain(emotes.replace(/\r\n/g, '\n').trim());
+  });
+});
+
 describe('the crates migration (2026-09-28)', () => {
   it('replaces settle_progression WITHOUT changing a single XP / curve / title constant (every later writer keeps the MVP ones, except the 2026-10-03 placement bonuses)', () => {
     const consts = (body: string): string[] => [...body.matchAll(/^\s*(c_[a-z_]+)\s+constant\s+[a-z]+\s*:=\s*([^;]+);/gm)].map((m) => `${m[1]}=${m[2]!.trim()}`);
@@ -265,8 +286,8 @@ describe('the crates migration (2026-09-28)', () => {
 
   it('the crates file first seed: every category with the code weight and target (titles on), never re-writing a flag', () => {
     const rows = seedRows('cosmetic_categories');
-    // Categories added AFTER the crates file (portrait_frame, 2026-10-01) arrive through the catalog sync, not this seed.
-    expect(rows.map((r) => r[0])).toEqual(COSMETIC_CATEGORIES.filter((c) => c !== 'portrait_frame'));
+    // Categories added AFTER the crates file (portrait_frame 2026-10-01, emote 2026-10-13) arrive through the catalog sync, not this seed.
+    expect(rows.map((r) => r[0])).toEqual(COSMETIC_CATEGORIES.filter((c) => c !== 'portrait_frame' && c !== 'emote'));
     for (const [id, weight, , target] of rows) {
       const def = COSMETIC_CATEGORY_DEFS[id as keyof typeof COSMETIC_CATEGORY_DEFS];
       expect({ weight: Number(weight), target }, id).toEqual({ weight: def.weight, target: def.target });

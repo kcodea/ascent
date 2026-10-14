@@ -69,6 +69,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Emotes are here. Right-click your hero portrait in a game to say one.',
+        details: [
+          'Your menu holds four emotes. Pick one and its bubble pops up beside your portrait, in the shop or in combat.',
+          'There are 20 seconds between emotes. The menu shows the wait.',
+          'Everyone starts with four: Angry Mushy, Flirty Midas, Nervous Jensen and Zen Brian.',
+          'Choose which emote sits in each of the four slots on the new Emotes tab in your Collection.',
+          'The players you meet see your emotes beside your portrait on their table, at the same moment in their round.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The end of a game now closes with the gate: the doors slam shut over your last fight and open on the results.',
         details: [
           'It plays when you press the gem to leave the fight that ends your game, win or lose, in ranked and in Practice.',

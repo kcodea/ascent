@@ -58,6 +58,10 @@ export interface SeatRoundOutcome {
  */
 export interface SeatDriver {
   readonly kind: 'recorded' | 'bot' | 'player';
+  /** A REAL player's recorded run (`snapshotSeat`), as opposed to a generated, bot or authored one. Only these boards
+   *  can carry the owner's recorded emotes (2026-10-13), so the emote replay asks for no board from any other driver
+   *  (a generated seat's board can cost an autoplay). */
+  readonly realPlayer?: true;
   /** Human-readable, for the elimination log. */
   readonly label: string;
   readonly heroId: string;

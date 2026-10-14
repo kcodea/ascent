@@ -93,6 +93,8 @@ import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced,
 import { perfMonitor } from './perfMonitor';
 import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
+import { withRecordedEmotes } from '@game/sim';
+import { takeShopEmotes } from './emotes/emoteRecording';
 import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
@@ -1654,8 +1656,9 @@ function commitResolvedAction(
     // deferred, and the end screen must not keep adding to it). Null = unknown (resumed from a pre-clock save).
     const endedActiveMs = (next.phase === 'gameover' || next.phase === 'victory') && s.run.phase !== 'gameover' && s.run.phase !== 'victory'
       ? activePlay.freeze(activeNow()) : null;
+    // EMOTES (owner 2026-10-13): the shop emotes used this turn ride the round's board (emotes/emoteRecording.ts).
     const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
-      ? [...s.capturedBoards, snapshotBoard(next)]
+      ? [...s.capturedBoards, withRecordedEmotes(snapshotBoard(next), next.sandbox ? [] : takeShopEmotes(next.wave))]
       : s.capturedBoards;
     // BOARD STRENGTH (R-LOBBY-09): score each captured board in idle time, from the moment it is captured, so the
     // run-end uploads never wait for it. Every captured board is offered (the scorer skips the ones it has), which

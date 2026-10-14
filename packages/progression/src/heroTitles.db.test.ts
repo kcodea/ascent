@@ -25,6 +25,8 @@ const FILES = [
   '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql', '2026-09-28-progression-hero-attack.sql',
   '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-10-02-ancient-rarity.sql',
 ].map(read);
+// The emote file's starter-acquisition check only (2026-10-13): the code catalog holds STARTER emotes.
+FILES.push(((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(read('2026-10-13-emotes.sql')));
 const MVP = read('2026-09-27-account-progression.sql');
 const ACH = read('2026-09-28-achievements.sql');
 const HERO = read('2026-09-29-hero-titles.sql');

@@ -10,7 +10,7 @@ import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIRS = ['minions', 'heroes', 'effects', 'equipment', 'powers', 'quests', 'runes', 'spells', 'modes', 'ranks', 'skins', 'frames'].map((s) => join(ROOT, 'packages/ui/src/art', s));
+const DIRS = ['minions', 'heroes', 'effects', 'equipment', 'powers', 'quests', 'runes', 'spells', 'modes', 'ranks', 'skins', 'frames', 'emotes'].map((s) => join(ROOT, 'packages/ui/src/art', s));
 const MAX = 512;
 // Hero portrait FRAMES (ring overlays) paint LARGER than a card portrait: the in-game portrait and the Now Facing
 // splash draw the ring at ~350 design px, so they keep 768px to stay crisp on a 1440p/4K stage.

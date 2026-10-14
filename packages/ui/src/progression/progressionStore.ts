@@ -28,7 +28,7 @@ import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import { addSeen, adoptAccountSeen, ensureSeenBaseline } from './collectionSeen';
 import {
-  COSMETICS, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
+  COSMETICS, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -619,7 +619,11 @@ function devUnlockEquipCosmetic(slot: EquipSlot, targetId: string, cosmeticId: s
   const d = loadDevUnlock();
   if (!d) return;
   const lo: Record<string, unknown> = { ...d.loadout };
-  if (slot === 'hero_skin' || slot === 'minion_skin') {
+  if (slot === 'emote') {
+    // The emote menu keys by position (2026-10-13): move the emote there, like the SQL does.
+    const moved = withEmoteAt(lo as RunCosmeticSnapshot, Number(targetId), cosmeticId);
+    if (moved.emotes) lo.emotes = moved.emotes; else delete lo.emotes;
+  } else if (slot === 'hero_skin' || slot === 'minion_skin') {
     const field = slot === 'hero_skin' ? 'heroSkinByHeroId' : 'minionSkinByCardId';
     const map: Record<string, string> = { ...((lo[field] as Record<string, string> | undefined) ?? {}) };
     if (cosmeticId) map[targetId] = cosmeticId; else delete map[targetId];

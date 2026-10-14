@@ -1,5 +1,5 @@
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, achievementOf, heroTitleInfo, isCategoryLive, isCosmeticLive, titleShelf,
+  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, achievementOf, emoteLoadoutOf, heroTitleInfo, isCategoryLive, isCosmeticLive, titleShelf,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type ProgressionProfile,
 } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
@@ -78,6 +78,8 @@ export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | n
 /** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
  *  account-wide hero attack / portrait frame / announcer slot. */
 export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
+  // An emote is in the four-position menu (2026-10-13), which the starters fill even with no account at all.
+  if (item.category === 'emote') return emoteLoadoutOf(p?.loadout).includes(item.id);
   if (!p) return false;
   if (item.category === 'title') return p.equippedTitleId === item.id;
   if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;
@@ -124,6 +126,7 @@ export function acquisitionText(c: CosmeticDef): string {
     case 'level_milestone': return `Reach Level ${c.acquisition.level}.`;
     case 'achievement': return achievementOf(c.acquisition.id)?.requirement ?? 'Earned from an achievement.';
     case 'event': return 'Earned in an event.';
+    case 'starter': return 'Every player starts with it.';
   }
 }
 
@@ -152,6 +155,7 @@ export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
   board: 'New boards to fight on.',
   music: 'New music for your games.',
   portrait_frame: 'New rings for your hero portrait.',
+  emote: 'Bubbles your hero can say in a game.',
 };
 
 // ── NEW: the local "seen" list ────────────────────────────────────────────────────────────────────────────

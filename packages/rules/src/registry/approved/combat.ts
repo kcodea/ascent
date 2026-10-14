@@ -107,7 +107,10 @@ export const COMBAT_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/snapshot.ts snapshotBoard (omits attackFirstNext); packages/sim/src/boardSide.ts sideFromSnapshot (drops it); packages/core/src/combat/bankedOpeners.ts armedCasts (player side only)' },
     ],
     contentIds: ['preemptive'],
-    currentBehaviour: 'Conforms (2026-10-07). PR #1969 captured it on the snapshot but kept it inert for opponents; it is no longer captured at all.',
+    currentBehaviour: 'Conforms (2026-10-07). PR #1969 captured it on the snapshot but kept it inert for opponents; it is no longer captured at all. '
+      + 'AMENDED 2026-10-13 by R-SYMMETRY-01: this is now a CAPTURE policy only. The engine treats strike-first as a per-side option '
+      + '(`CombatConfig.playerAttacksFirst` / `enemyAttacksFirst`, both at once cancel), so a live opponent (Versus) could hold it; recorded '
+      + 'boards still never carry it.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {
@@ -129,5 +132,35 @@ export const COMBAT_RULES: GameRule[] = [
       'Conforms from 2026-10-13. Before, the engine set the Health but emitted only a narration `sc`, which the replay '
       + 'never folded, so the weakened card kept its full Health on screen until it was hit and the spell looked dead.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/weakenSetsHealth.test.ts', 'packages/core/src/combat/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-SYMMETRY-01',
+    title: 'Combat is 1:1 symmetric: both sides capture, read, grow, show and carry back exactly the same things',
+    statement:
+      'Every combat rule runs identically for the two sides. Whatever one side has (live spell power, auras, tallies '
+      + 'such as the Echo count, per-card stacks, Pack Mentality growth, Blood Trail, quests that complete mid-fight, '
+      + 'Echo Warden, Soulbind / bond mods, hand grants and hand buffs, rune and hero triggers) works the same for the '
+      + 'other side, live during the fight, with the same events in the log (side-tagged) and the same carry-backs. '
+      + 'Resolving A against B and B against A is the SAME fight up to the side swap. The one permitted difference is '
+      + 'the tie-break for things that happen to both sides at once (which side resolves first at Start of Combat, '
+      + 'a board-wide spray, which board mints its uids first, which side draws random hand grants from the main RNG '
+      + 'stream, and which side the seeded first-attacker coin names first): `CombatConfig.firstSide`, the player by '
+      + 'default. A recorded board carries everything the fight of its owner read (its full combat mods including the hero, '
+      + 'its run-card uids, its first spell of the turn, Spellhide, its pending combat quests); older boards load with '
+      + 'those defaulted to none.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-13 (combat side symmetry)', quote: "all of this just shows bugged logic, then. all of this should work on both sides. it's imperative that both sides are equal in what's captured, represented, buffed etc. they should be 1:1 exact" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (SIDES / firstSide, stateOf, per-side Pack Mentality / pending quests / Blood Trail / spell power, applyAuras on both starting boards); packages/core/src/types.ts CombatConfig.firstSide / enemyAttacksFirst; packages/sim/src/snapshot.ts + boardSide.ts + opponents.ts (capture + restore)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-13. Before, the enemy side was a pure accumulation with kept asymmetries: Pack Mentality '
+      + 'and Blood Trail were player-only, an enemy Grim / spell power / Imp Aura / per-card stacks stayed frozen all '
+      + 'fight, the starting Undead of the enemy never got its Lantern aura, its Herald folded no Echo multipliers, its Echo '
+      + 'Warden did nothing, its spell tally started at 0, its hand grants and many rune triggers were silent, and a served '
+      + 'board lost its hero mods, pending quests, Spellhide and uid-keyed bonds. R-PREEMPTIVE-PLAYER-01 is now a capture '
+      + 'policy only (the engine option is per side).',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/sideSymmetry.test.ts', 'packages/core/src/combat/enemySideLive.test.ts', 'packages/core/src/combat/symmetricCarry.test.ts', 'packages/sim/src/snapshotFidelity.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
 ];

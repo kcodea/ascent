@@ -29,6 +29,11 @@ mechanic separately in recruit, combat, and UI.
 - Preserve deterministic array order and target selection — pools, offers, pairings depend on it.
 - Never mutate shared `CardDef`s; clone into run/combat instances.
 - Resolve a lobby encounter **once** and apply both sides' damage from that single result.
+- **Combat is 1:1 symmetric** (owner 2026-10-13, R-SYMMETRY-01). Never gate a combat rule, live read, event or
+  carry-back on `side === 'player'`: read the side's own context through `stateOf(side)` / `modsFor(side)` and emit
+  side-tagged events (the UI filters by side). Iterate both sides through `SIDES` (the `firstSide` tie-break), never
+  a literal `['player', 'enemy']`. A new per-side input belongs on `CombatSideState` AND the snapshot
+  (`snapshotBoard` / `sideFromSnapshot`). `sideSymmetry.test.ts` (the mirror test) fails any new asymmetry.
 - Guard recursive triggers (Echo → Rally → Shout → Echo), repeated summons, copies and immediate attacks
   against unbounded loops. Test the actual boundary, not just the happy path.
 - **Dynamic card text is a hard rule**: if a value scales from live state, print the CURRENT value on BOTH

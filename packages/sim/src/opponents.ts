@@ -119,6 +119,7 @@ export function pickOpponent(
 export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
   const board: BoardMinion[] = snap.minions.map((m) => ({
     cardId: m.cardId,
+    ...(m.sourceUid ? { sourceUid: m.sourceUid } : {}), // the owner's run-card uid: its uid-keyed combat mods name bodies by it (R-SYMMETRY-01)
     attack: m.attack,
     health: m.health,
     keywords: [...(m.keywords ?? [])],

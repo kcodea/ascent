@@ -170,13 +170,14 @@ export function applyBankedOpeners(
 /** The Start of Combat cast markers for everything a side ARMED that has no opening effect of its own (it resolves
  *  later in the fight, or inside the Start-of-Combat pass): one per spell, in a fixed order. Weaken is excluded —
  *  its marker is emitted inline, right before the Weaken pass sets the Health. */
-function armedCasts(side: Side, m: QuestCombatMods, board: readonly BoardMinion[], playerAttacksFirst: boolean): CombatEvent[] {
+function armedCasts(side: Side, m: QuestCombatMods, board: readonly BoardMinion[], attacksFirst: boolean): CombatEvent[] {
   const out: CombatEvent[] = [];
   const cast = (spellId: string, count?: number): void => { out.push({ type: 'bankedCast', side, spellId, ...(count && count > 1 ? { count } : {}), key: BANKED_CAST_KEY }); };
   if (m.rallyDouble) cast(BANKED_SPELL_OF.rallyDouble);
-  // Pre-emptive Assault is a PLAYER-ONLY carry (owner 2026-10-07, R-PREEMPTIVE-PLAYER-01): its channel is
-  // `CombatConfig.playerAttacksFirst`, and only the player side ever announces it.
-  if (side === 'player' && playerAttacksFirst && m.attackFirstNext) cast(BANKED_SPELL_OF.attackFirstNext);
+  // Pre-emptive Assault: its channel is the side's `CombatConfig` attack-first option (`playerAttacksFirst` /
+  // `enemyAttacksFirst`, per side since R-SYMMETRY-01). A recorded board never carries it (R-PREEMPTIVE-PLAYER-01 is
+  // a capture policy), so in the shipped game only the player's side ever announces it.
+  if (attacksFirst && m.attackFirstNext) cast(BANKED_SPELL_OF.attackFirstNext);
   if ((m.decoySigils ?? 0) > 0) cast(BANKED_SPELL_OF.decoySigils, m.decoySigils);
   if ((m.summonTaunts ?? 0) > 0) cast(BANKED_SPELL_OF.summonTaunts);
   if ((m.solidGroundLeft ?? 0) > 0) cast(BANKED_SPELL_OF.solidGroundLeft);
@@ -202,17 +203,20 @@ export function openingEvents(
   records: Record<Side, OpenerRecord>,
   mods: Record<Side, QuestCombatMods>,
   inputBoards: Record<Side, readonly BoardMinion[]>,
-  playerAttacksFirst: boolean,
+  attacksFirst: boolean | Record<Side, boolean>,
+  /** The `firstSide` tie-break order (R-SYMMETRY-01); player first by default, as always. */
+  order: readonly Side[] = ['player', 'enemy'],
 ): CombatEvent[] {
+  const first: Record<Side, boolean> = typeof attacksFirst === 'boolean' ? { player: attacksFirst, enemy: false } : attacksFirst;
   const events: CombatEvent[] = [];
   // Imps are removed from the starting snapshot first (they are the trailing entries), so the indices the
   // other rewinds use are the board's own.
   const impSnaps: Record<Side, MinionSnapshot[]> = { player: [], enemy: [] };
-  for (const side of ['player', 'enemy'] as const) {
+  for (const side of order) {
     const n = records[side].imps.length;
     if (n > 0) impSnaps[side] = initial[side].splice(initial[side].length - n, n);
   }
-  for (const side of ['player', 'enemy'] as const) {
+  for (const side of order) {
     const rec = records[side];
     const snaps = initial[side];
     if (rec.fleeting) {
@@ -223,6 +227,8 @@ export function openingEvents(
       if (firstUid) {
         events.push({
           type: 'sc', source: firstUid,
+          // Narration from the viewer's seat (the player's "your", the foe's "their"); the event itself is the same
+          // for either side.
           text: side === 'player' ? `Fleeting Vigor — your minions surge +${a}/+${h}` : `Fleeting Vigor: their minions surge +${a}/+${h}`,
         });
       }
@@ -255,7 +261,7 @@ export function openingEvents(
     }
   }
   // Marked Target after BOTH sides' openers, so a foe's banked Imp it marks has already been summoned.
-  for (const side of ['player', 'enemy'] as const) {
+  for (const side of order) {
     const rec = records[side];
     if (!rec.markArmed) continue;
     events.push({ type: 'bankedCast', side, spellId: BANKED_SPELL_OF.markFoeRightmostTaunt, key: BANKED_CAST_KEY });
@@ -268,8 +274,8 @@ export function openingEvents(
       events.push({ type: 'keyword', target: s.uid, keyword: 'T' });
     }
   }
-  for (const side of ['player', 'enemy'] as const) {
-    events.push(...armedCasts(side, mods[side], inputBoards[side], playerAttacksFirst));
+  for (const side of order) {
+    events.push(...armedCasts(side, mods[side], inputBoards[side], first[side]));
   }
   return events;
 }

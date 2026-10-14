@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Enemy boards now use every live bonus in combat, exactly like yours.',
+        details: [
+          'Both sides of a fight follow the same rules. A bonus that grows during a fight now grows for the enemy too.',
+          'Enemy spell power, Imp Aura, Echo counts and card stacks now update during the fight.',
+          'Enemy Undead get their Undead Aura from the start of the fight.',
+          'Enemy Pack Mentality, Blood Trail, Echo Warden and Rune of the Herald now work like yours.',
+          'Recorded opponent boards keep their hero bonuses, their quests in progress and their bonds.',
+          'Cards the enemy gets in combat now show in the combat log.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Hero select has a new look: a gold Select Your Hero title, and buttons that match the rest of the game.',
         details: [
           'The ASCENT logo no longer sits above the heroes on this screen.',

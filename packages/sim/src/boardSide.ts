@@ -85,6 +85,11 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)
     beastRitualExtra: snap.beastRitualExtra ?? 0, // enemy Elderhorn (Echo)
     tribes: snap.tribes ?? [], // captured since v1 but never threaded — tribe-scoped random grants read it
+    // R-SYMMETRY-01 (2026-10-13): the rest of the owner's run context, so a served board fights 1:1 like the board it
+    // was captured from. Absent on older captures = none (the fight then behaves as it always did for them).
+    ...(snap.firstSpellThisTurnId ? { firstSpellThisTurnId: snap.firstSpellThisTurnId } : {}), // enemy Comet Conductor
+    ...(snap.spellhide?.length ? { spellhide: snap.spellhide.map((h) => ({ ...h })) } : {}), // enemy Rune of Spellhide
+    ...(snap.pendingQuests?.length ? { pendingQuests: snap.pendingQuests.map((p) => ({ ...p })) } : {}), // enemy mid-fight quest completion
   });
 }
 

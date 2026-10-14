@@ -196,6 +196,11 @@ const hasTribeOval = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_OV
 // (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
 // grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
 const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`;
+// SET 4 WHISPER arch (owner 2026-10-14: "add this to the whisper spell frames"): the owner's painted blue-violet
+// version of the spell arch, the SAME geometry (705x862 master, window and gems measured identical to
+// spell-frame-arch.webp), so it swaps in with no CSS change. Shipped at 768 px tall. Named outside `spell-*` so the
+// preload plan keeps it off the chrome lane while Set 4 is disabled.
+const WHISPER_SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/whisper-spell-frame.webp`;
 let spellFrameAvailable = true;
 // HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
@@ -868,13 +873,14 @@ export const Card = memo(function Card({
   const spellKindAttr = card.heroPowerOf ? 'power' : card.ruby ? 'ruby' : isWhisper ? 'spell' : CARD_INDEX[card.cardId]?.gift ? 'gift' : 'spell';
   const spellKind = spellKindAttr === 'power' ? card.heroPowerOf! : spellKindAttr === 'ruby' ? 'Ruby' : spellKindAttr === 'gift' ? 'Gift' : isWhisper ? 'Whisper' : 'Shop Spell';
   const useSpellFrame = spellLike && pframeOk;
+  const spellFrameSrc = whisperLook ? WHISPER_SPELL_FRAME_SRC : SPELL_FRAME_SRC;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   // The FRAME and the hand PLATE obey the same rule as the art (art pop-in fix 2026-09-29): until decoded they are
   // invisible (the dark art-window stand-in shows) and fade in once, instead of the card flashing a bare white
   // window. Already-decoded frames — every one after the first seconds of a session — render exactly as before.
   const frameSrc = card.keywords.includes('T')
     ? (frameOk ? tauntFrameSrcFor(card.tribe, !!card.golden) : undefined)
-    : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? SPELL_FRAME_SRC : undefined;
+    : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? spellFrameSrc : undefined;
   const frameFade = useArtFade(frameSrc);
   const plateSrc = whisperLook ? WHISPER_PLATE_SRC : plateSrcFor(card.tribe);
   const plateFade = useArtFade(usePlate ? plateSrc : undefined);
@@ -1218,14 +1224,14 @@ export const Card = memo(function Card({
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the square seated
                 behind the art so the spell sits on the board. */}
-            <img decoding="sync" className={`cframe cframe-img cshadow${frameFade.cls}`} src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
+            <img decoding="sync" className={`cframe cframe-img cshadow${frameFade.cls}`} src={spellFrameSrc} alt="" aria-hidden="true" />
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
             <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
               className={`cframe cframe-img${frameFade.cls}`}
-              src={SPELL_FRAME_SRC}
+              src={spellFrameSrc}
               alt=""
               aria-hidden="true"
               ref={frameFade.ref}

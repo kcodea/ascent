@@ -1339,7 +1339,7 @@ export function stepProgress(
   const goldSpent = def.effects.find((e) => e.on === 'goldSpent' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)));
   // Rope Wrangler (any End-of-Turn `castSpell` with a `perGold` repeat): "Repeat for every 10 Gold spent this turn".
-  // The readout under the minion is the turn's Gold spent toward the NEXT repeat, N/10 Gold, cyclic like the gold
+  // The readout under the minion is the turn's Gold spent toward the NEXT repeat, N/10, cyclic like the gold
   // meter above (owner ask 2026-10-13: "needs a gold spent counter under him in recruit phase"). Read off the run's
   // `goldSpentThisTurn`, so it is a SHOP-phase readout: combat passes no `goldSpentTurn` and shows none. The text
   // already prints the live tick count (`castSpellPerGoldText`); this is the at-a-glance progress beside it.
@@ -1347,7 +1347,7 @@ export function stepProgress(
   if (perGold) {
     if (p.goldSpentTurn === undefined) return null; // combat: no Gold is spent mid-fight
     const step = cyc(Math.max(0, p.goldSpentTurn), Math.max(1, n((perGold.params as { perGold?: number }).perGold, 10)));
-    return { ...step, label: `${step.current}/${step.total} Gold` };
+    return { ...step, label: `${step.current}/${step.total}` }; // owner 2026-10-13: plain "x/y", no "Gold"
   }
   // Gemgorge Fiend: its Consume re-fires every N spell+Ruby casts witnessed WHILE ON THE BOARD — a
   // per-instance meter (`rubyCastTick`), so a freshly bought copy reads 0/3 instead of inheriting the run.

@@ -115,6 +115,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Buffs from Demon damage now land one trigger at a time instead of in one big chunk.',
+        details: [
+          "Gasket and Fel Spikes: each pass still hits everything at once. Then every hit's reactions (Rad Rachel, Ruinous Lord, Impossible Todd, Leech, Axeman, Rune of Ruins) play in order, and each minion's numbers step up once per hit.",
+          'Fixed: with Impossible Todd or Rune of Ruins on the board, those buffs used to skip their tendrils and pop in late, at the attack.',
+          'The same one-at-a-time stepping now applies when a Gilded Echohorn triggers an Echo twice, or when one swing triggers a buff several times.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The end of a game now closes with the gate: the doors slam shut over your last fight and open on the results.',
         details: [
           'It plays when you press the gem to leave the fight that ends your game, win or lose, in ranked and in Practice.',

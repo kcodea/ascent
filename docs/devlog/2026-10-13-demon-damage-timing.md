@@ -1,4 +1,4 @@
-# 2026-10-13: Demon-damage timing diagnosis (Gasket, Fel Spikes, Rad Rachel) vs Rally / Echo (DRAFT, phase 1)
+# 2026-10-13: Demon-damage timing: every trigger fire is its own tick (R-DEMON-DMG-BEATS-02)
 
 Owner ask, 2026-10-13:
 
@@ -8,7 +8,7 @@ Owner ask, 2026-10-13:
 > dragonflame triggering minions. Please explain whats wrong here and recommend fixes so our rally, echo, and
 > triggered buff timings are uniform.
 
-Status: **diagnosis only**. Nothing in the game changed. The instrumentation is
+Status: **shipped** (phase 2 below). Phase 1 was the diagnosis; its instrumentation is
 `packages/ui/src/choreographer/timingProbe.test.ts` (skipped unless `PROBE=1`):
 
 ```
@@ -115,7 +115,78 @@ fold bug, not the base latency.**
 - `buffFxRender.ts`'s comment says the tendril flight is ~384 ms; every `tendril-trail*.json` ribbon is 210 ms (the code
   reads the def, so only the comment is stale). `hitReactions.ts` repeats the 384 in its `READ` rationale.
 
-## Recommended fix plan (phase 2, presentation only, no gameplay change)
+## Owner answers (2026-10-13)
+
+1. "every trigger of the effect should get its own beat, like every volley from fel spikes, every rally trigger from
+   gasket. the buffs should per tick if possible."
+2. "the whole pass i think so it doesnt take forever to show and look kinda goofy" (keep the pass whole, no sweep).
+3. 160 ms a tick, ~1.6 s cap: "we can try that and adjust if needed".
+4. "the dragonflame animation seems like it's perfect already assuming it is working correctly." (do not touch it).
+
+## What shipped (phase 2, presentation only)
+
+- **The dropped beat.** `deferClashBuffs` now partitions a whole wave slice in one go: the volley's own events (damage,
+  Ward pops, deaths, the bodies they summon) first, then EVERYTHING the reactions emitted (buffs, Todd's `tribeAura`,
+  Rune of Ruins' `questTrigger`, hand buffs, improves), stable on both sides. `hitReactionStart` walks back over that
+  whole tail (`isReactionTailEvent`). The reaction moment is always scored as a `buffWave`, so its cues play even when
+  a Todd aura leads it. Same folded frame at the end of the pass.
+- **One tick per fire.** `reactionTicks` derives fires from the log (no engine stamp, `types.ts` untouched): a fire is
+  a run of buffs sharing (effect key, source) with no repeated target, and a new tick starts when a fire identity
+  repeats. For a pass that is one tick per landed hit, with every reactor that hit fired inside it. `compileMoments`
+  stamps `Moment.ticks` on every hit-reaction beat and on any stand-alone buff wave of more than one fire.
+  `useCombatReplay.fireBuffChain` plays tick k at `k x stride`: its tendrils (the same `fireBuffCasts` FX, numbers left to
+  the chain) and one badge STEP per unit per tick (`steppedRevealPlan` / `scheduleSteppedRoll`, King Oona's mechanism).
+  The `buffCast` cue hands a chained moment to it and `buffSelf` stands down.
+- **One clock.** `REACTION_TICK_MS = 160` and `REACTION_CHAIN_CAP_MS = 1600` live in `choreo/hitReactions.ts`, the one
+  place to tune them. `reactionChainMs(n) = (n - 1) x stride + HIT_REACTION_READ_MS` is read by `holdMs`,
+  `echoDeliveryLead` and `scheduleEchoVolleys` (whose spike shift is now the real chain length), so the next volley,
+  its spike and Gasket's parked strike all wait for the last tick. A one-fire reaction is exactly the old 640 ms read.
+- **Rally.** A swing whose Rally fired more than once (Gilded Echohorn) steps its absorbed buffs one tick per proc,
+  `RALLY_PROC_STRIDE_MS` apart, so each pulse delivers its own number. A cast is never chained (`chainEligible`
+  excludes any buff with a `spellId` or a Ruby), so Dragonflame, Flamebeat and Flamus are byte-identical (regression
+  test pins the swing shape and holds).
+- **Perf: `chainTendrilPlan`.** Tendrils draw on every tick while the ribbons alive at once fit `CHAIN_RIBBON_BUDGET`
+  (12): a cleave's 3 hits, a Gilded Echohorn's 2 procs. A wide pass (7-10 ticks x 7-10 tendrils) draws its full fan on
+  the first tick only, and the later ticks are told by their number steps. Bursts are thinned to
+  `CHAIN_PARTICLE_BUDGET` (2400 particles) either way.
+
+### Perf measurement
+
+The Browser pane was shared with another session and reported `visibilityState: hidden` during this work (rAF at 1 Hz),
+so a visible prod frame trace was NOT possible (a later attempt reported `visible` but rAF still ran at 1 Hz: the
+desktop window was occluded). Measured instead the documented hidden-pane way (`docs/performance.md`
+§3b): PROD bench build (`VITE_PERF_BENCH=1`, `vite preview` on :5292), the FX layer's `ticker.update` driven by hand at
+4.17 ms steps, each timed, firing the exact tendril schedule each design produces for the two scenes (warm, second run).
+
+| Scene (tendrils fired) | FX tick mean | p95 | p99 | max | ticks > 6.25 ms | peak particles |
+|---|---|---|---|---|---|---|
+| Gasket + Rachel + Todd + Lord + Leech 7v7, one summed beat (10 at once) | 0.76 ms | 1.4 | 2.9 | 4.2 | 0 / 384 | 1,675 |
+| same, ribbons on EVERY tick (7 x 10, thinned bursts) | 1.51 | 3.2 | 4.7 | 7.3 | 2 / 615 | 816 |
+| same, ribbons on every tick, unthinned | 1.89 | 4.3 | 5.7 | 8.1 | 4 / 615 | 2,405 |
+| Gilded Fel Spikes + Rachel + Lord + Leech 7v7, summed (7 + 7) | 0.76 | 1.5 | 3.0 | 4.8 | 0 / 586 | 1,967 |
+| same, ribbons on every tick (2 x 10 x 7, thinned) | 1.64 | 3.0 | 4.2 | 9.4 | 2 / 1325 | 1,087 |
+
+Ribbons (shader meshes) are the cost, not particles: on every tick they doubled the FX tick and put ticks over the
+6.25 ms bar. So the shipped plan draws a wide pass's fan ONCE (the "summed" rows: identical plays, same cost as
+before) and steps the numbers per tick. What is NOT measured: the main-thread cost of the badge steps (up to ~7 units x
+10 steps per chain, each a short roll). The #2028 devlog's open item (a Rachel fight dropping to ~70 fps once stats
+climb, suspected badge restyling) is the place to look; **a visible prod trace of a Todd + Rachel fight is still owed**.
+
+## Tuning knobs (all in `packages/ui/src/choreo/hitReactions.ts`)
+
+- `REACTION_TICK_MS` (160) and `REACTION_CHAIN_CAP_MS` (1600): the pace and the longest a chain may run.
+- `HIT_REACTION_READ_MS` (640): the read after the last tick. `HIT_REACTION_LEAD_MS` (200): pass → first tick.
+- `CHAIN_RIBBON_BUDGET` (12): raise it to draw tendrils on every tick of wider chains (perf cost above).
+
+## Tests
+
+`packages/ui/src/choreographer/demonDamageTicks.test.ts` (11): Todd / Rune of Ruins / Fel Spikes + Todd keep their
+reaction beat; the reorder only moves events inside a pass; one tick per landed hit, each a single +2/+1; Gilded passes
+interleave with both reactors in every tick; the hold covers the chain and grows with fires; the constants; a melee hit
+is unchanged; the tendril plan stays inside budget; Dragonflame's swing is unchanged. 8 fail on `main`.
+`demonDamageBeats.test.ts` (R-DEMON-DMG-BEATS-01) still passes unchanged.
+
+## Phase 1 recommendations (kept for the record)
 
 One rule for every triggered stat change, Rally, Echo or reaction: **one trigger fire = one tick**. Its source pulses,
 its FX travels, and its number steps in when the FX lands. Ticks in a chain are spaced by one shared stride, and the
@@ -155,12 +226,3 @@ Nothing here adds a layout read per frame or a looping paint animation; stepped 
 machinery. The `#2028` devlog's open item (a Rachel fight dropping to about 70 fps once stats climb, suspected per-frame
 badge restyling) is directly relevant: more badge steps means more restyles, so that trace should be done first or
 alongside.
-
-## Open questions for the owner
-
-1. Per-fire ticks (recommended) or keep one lump per reactor but fix the dropped beat only?
-2. Should a pass stay "everything at once, then the reactions", or become a left-to-right sweep (hit, its reactions,
-   next hit)?
-3. The stride: 160 ms a tick with a ~1.6 s cap per chain, or another number?
-4. Should Dragonflame's own "repeat for every Dragon" also step per repeat (the repeat-vs-lump rule says each repeat is
-   its own tick), or stay one column per target per cast?

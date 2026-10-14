@@ -2,7 +2,7 @@ import type { Moment } from './compile';
 import { RESULT_TYPES } from '../combatBeats';
 import { getLungeConfig } from '../lungeConfig';
 import { combatKeyedHoldMs } from '../choreographer/combatHolds';
-import { HIT_REACTION_LEAD_MS, HIT_REACTION_READ_MS } from './hitReactions';
+import { HIT_REACTION_LEAD_MS, reactionChainMs } from './hitReactions';
 
 /** Moment kinds whose hold is a plain timeout — the only ones an authored hold may replace. */
 export const KEYED_HOLD_KINDS = new Set([
@@ -53,9 +53,11 @@ export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: num
   // A wave pass's REACTION beat (R-DEMON-DMG-BEATS-01): it starts right after the pass lands, and nothing after it
   // (the next pass, the parked swing's strike) starts until its tendrils have reached their targets.
   if (shown && next.hitReaction) return HIT_REACTION_LEAD_MS / spd;
-  if (shown?.hitReaction) {
+  // …and holds until its LAST tick has read (R-DEMON-DMG-BEATS-02: one tick per trigger fire, `reactionChainMs`). A
+  // stand-alone buff wave of several fires holds for its chain the same way.
+  if (shown && (shown.hitReaction || (shown.ticks ?? 1) > 1)) {
     const base = beatDelay(next.primary.type) * cfg.speed;
-    return Math.max(base, HIT_REACTION_READ_MS) / spd;
+    return Math.max(base, reactionChainMs(shown.ticks ?? 1)) / spd;
   }
   if (shown && OVERLAP_INTO.has(next.primary.type)) return cfg.overlapMs / spd; // ride on the preceding FX
   // A REPEATED NARRATION rides the one before it, for the same reason those consequence beats do.

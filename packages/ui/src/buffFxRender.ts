@@ -12,7 +12,7 @@ import { sfx } from './sfx';
  * the roll with it and nothing has to be kept in sync by hand. The burst layer has its own (tiny) `travelMs`,
  * hence the primitive check. 384 is the authored value at the time of writing, kept only as a safety net.
  */
-const TENDRIL_TRAIL_TRAVEL_MS: number =
+export const TENDRIL_TRAIL_TRAVEL_MS: number =
   tendrilTrail.layers.find((l) => l.primitive === 'ribbon')?.travelMs ?? 384;
 
 /** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` alone keeps
@@ -59,6 +59,9 @@ export function fireBuffFx(o: {
   /** The buffer and the buffed unit, handed to `playDef` so a `react` layer knows which cards this is about
    *  (see `playDefUids.test.ts` — an effect that forgets them plays on nobody). */
   uids?: { source?: string | null; target?: string | null };
+  /** Particle QUANTITY scale (`playDef`'s `intensity`, 0..1): a per-fire chain thins its tendrils' bursts so a long
+   *  chain keeps about the particle load one summed beat had (R-DEMON-DMG-BEATS-02). Omitted = as authored. */
+  intensity?: number;
 }): number {
   if (o.sourceless || !o.source) {
     return tunedDescend(DESCEND_PRESETS[descendPreset(o.cardId, o.tribe)]!).dropMs;
@@ -77,15 +80,15 @@ export function fireBuffFx(o: {
     spiritBurstIdx = now - spiritBurstAt <= SPIRIT_BURST_WINDOW_MS ? spiritBurstIdx + 1 : 0;
     spiritBurstAt = now;
     const stagger = spiritBurstIdx * Math.max(0, cfg.spiritHitStaggerMs);
-    const fire = (): void => { playDef('tendril-trail-spirit', { source: o.source!, target: o.target }, { uids: o.uids }); };
+    const fire = (): void => { playDef('tendril-trail-spirit', { source: o.source!, target: o.target }, { uids: o.uids, ...(o.intensity !== undefined && o.intensity < 1 ? { intensity: o.intensity } : {}) }); };
     if (stagger > 0) window.setTimeout(fire, stagger); else fire();
     sfx.spiritTendril(stagger + SPIRIT_LANDING_MS + cfg.spiritSfxOffsetMs);
     return stagger + SPIRIT_LANDING_MS;
   }
   if (TENDRIL_TRIBES.has(o.tribe)) {
-    playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids });
+    playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids, ...(o.intensity !== undefined && o.intensity < 1 ? { intensity: o.intensity } : {}) });
   } else {
-    playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
+    playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids, ...(o.intensity !== undefined && o.intensity < 1 ? { intensity: o.intensity } : {}) });
   }
   return TENDRIL_TRAIL_TRAVEL_MS;
 }

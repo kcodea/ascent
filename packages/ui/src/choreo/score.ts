@@ -313,6 +313,10 @@ export interface CueContext {
   /** This moment's buff-OTHER casts (source !== target), grouped per (source,target). The replay fires a
    *  tendril per cast (Task 4 adds the held-value release / badge flash at the strike). */
   onBuffCasts: (casts: import('./channels/buffCast').BuffCast[]) => void;
+  /** A moment whose buffs are several trigger fires (`moment.ticks > 1`, R-DEMON-DMG-BEATS-02) → the replay plays ONE
+   *  TICK PER FIRE (tendrils + a badge step each) instead of `onBuffCasts` + `onSelfBuffs`. Optional: a context without
+   *  it falls back to the one-shot casts. */
+  onBuffChain?: (moment: Moment) => void;
   /** This moment's "X casts Y" announcements (`sc` + `spellId`), in order — the cast preview above each caster
    *  (owner ask 2026-09-23). Optional: older callers / tests build contexts without it. */
   onSpellCastPreviews?: (casts: CombatSpellCast[]) => void;
@@ -581,10 +585,14 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // NB: the authored-def substitution is NOT made here. Both this channel and the attack wind-up hand their
       // casts to the SAME `fireBuffCasts`, which owns that rule — one place, so a spell cannot animate on a
       // standalone buff wave and tendril on a swing (which is exactly the bug that produced it).
+      // SEVERAL TRIGGER FIRES → one tick per fire (R-DEMON-DMG-BEATS-02): the chain plays every tendril and every
+      // badge step, self-buffs included, so the `buffSelf` cue below stands down for the same moment.
+      if ((moment.ticks ?? 1) > 1 && ctx.onBuffChain) { ctx.onBuffChain(moment); return; }
       const casts = groupBuffCasts(moment, ctx.events);
       if (casts.length) ctx.onBuffCasts(casts);
     });
     else if (cue.ch === 'buffSelf') at(cue, () => {
+      if ((moment.ticks ?? 1) > 1 && ctx.onBuffChain) return; // the chain owns these steps (see `buffCast`)
       const selfBuffs = groupSelfBuffs(moment, ctx.events);
       if (selfBuffs.length) ctx.onSelfBuffs(selfBuffs);
     });

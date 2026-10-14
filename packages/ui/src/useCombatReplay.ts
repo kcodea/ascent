@@ -26,10 +26,10 @@ import { CastPreviewMemory } from './choreo/channels/castPreview';
 import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, showCombatCastPreviews } from './castPreview';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
-import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
+import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { wavesAheadOf } from './choreo/channels/windupWaves';
-import { HIT_REACTION_LEAD_MS, HIT_REACTION_READ_MS, hitReactionStart } from './choreo/hitReactions';
+import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
@@ -40,7 +40,7 @@ import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPr
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
-import { fireBuffFx } from './buffFxRender';
+import { fireBuffFx, TENDRIL_TRAIL_TRAVEL_MS as TENDRIL_LAND_MS } from './buffFxRender';
 import { isShoutChainTrigger } from './choreo/shoutChain';
 import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
@@ -1076,15 +1076,17 @@ const parkedContactRef: { current: (() => void) | null } = { current: null };
  *  than any strike drive (130–190 ms) plus its rebound, so a real contact always wins. */
 const PARKED_RESUME_FALLBACK_MS = 900;
 
-/** Does wave `wave` (its contiguous slice, found from `from`) split off a hit-reaction beat? The same predicate the
- *  compiler uses (`hitReactionStart`), so the volley schedule and the moment list agree. */
-function waveHasHitReaction(events: CombatEvent[], wave: number, from: number): boolean {
+/** How many TICKS the hit-reaction beat wave `wave` (its contiguous slice, found from `from`) splits off plays as, or 0
+ *  when it splits off none. The same predicates the compiler uses (`hitReactionStart`, `chainTickCount`), so the volley
+ *  schedule and the moment list agree (R-DEMON-DMG-BEATS-02). */
+function waveHitReactionTicks(events: CombatEvent[], wave: number, from: number): number {
   let a = -1;
   for (let j = Math.max(0, from); j < events.length; j++) if (events[j]?.wave === wave) { a = j; break; }
-  if (a < 0) return false;
+  if (a < 0) return 0;
   let b = a;
   while (b < events.length && events[b]!.wave === wave) b++;
-  return hitReactionStart(events, a, b) > a;
+  const split = hitReactionStart(events, a, b);
+  return split > a ? chainTickCount(events, split, b) : 0;
 }
 
 /** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
@@ -1116,7 +1118,7 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
   }
   // After the previous volley's REACTION beat (R-DEMON-DMG-BEATS-01): hold until its tendrils have read; the spike
   // schedule (`scheduleEchoVolleys`) was pushed back by the same amount, so this volley still lands on its spike.
-  if (shown.hitReaction) return HIT_REACTION_READ_MS;
+  if (shown.hitReaction) return reactionChainMs(shown.ticks ?? 1);
   // A SUBSEQUENT volley of the same spray (the sprayer died in an EARLIER beat): its spike connects one
   // pass-gap after the previous one, so hold that long — the number climbs by this volley's amount as it lands.
   return ECHO_PASS_GAP_MS;
@@ -1159,10 +1161,13 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
   // followed by that reaction's own beat, so the NEXT volley's damage beat comes `LEAD + READ` after it instead of
   // one pass gap (see `echoDeliveryLead`). Each later spike is pushed back by that difference so it still connects
   // on its own damage beat.
-  let reactedBefore = 0;
+  // The shift is the reaction beat's REAL length (`reactionChainMs` of its tick count), the same number the beat clock
+  // holds it for, so a long chain pushes the next spike back exactly as far as it pushes the next volley's beat.
+  let reactionShift = 0;
   echoWaves(events, dyingUid, startIdx, endIdx).forEach((wv, w) => {
-    const reactionShift = reactedBefore * (HIT_REACTION_LEAD_MS + HIT_REACTION_READ_MS - ECHO_PASS_GAP_MS);
-    if (waveHasHitReaction(events, wv.wave, startIdx)) reactedBefore++;
+    const shiftNow = reactionShift;
+    const reactTicks = waveHitReactionTicks(events, wv.wave, startIdx);
+    if (reactTicks > 0) reactionShift += HIT_REACTION_LEAD_MS + reactionChainMs(reactTicks) - ECHO_PASS_GAP_MS;
     // Did THIS wave deal any actual damage (a number fires)? Gates the land cue — a fully ward-absorbed volley
     // (only `shield` pops, no number) stays silent (see `echoWaveDamagedCount`).
     const dealtDamage = echoWaveDamagedCount(events, dyingUid, wv.wave, startIdx, endIdx) > 0;
@@ -1174,7 +1179,7 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
         if (a) playDef(defId, a, { uids: { source: dyingUid, target: uid }, index: k });
       });
     };
-    const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS + reactionShift) / s;
+    const delay = (launchDelayMs + w * ECHO_PASS_GAP_MS + shiftNow) / s;
     if (delay <= 0) fire();
     else register(window.setTimeout(fire, delay));
     // Land cue: ONE play per volley, timed to when its spikes CONNECT (launch + beam travel), only if the volley
@@ -1795,7 +1800,8 @@ export function useCombatReplay(
     return { start, get: pt.get, stop: () => { clearInterval(iv); clearTimeout(backstop); } };
   }, [findEl]);
 
-  const fireBuffCasts = useCallback((casts: BuffCast[]): void => {
+  // `rolls: false` = draw the FX only and leave the numbers to the caller (`fireBuffChain`, which steps them per tick).
+  const fireBuffCasts = useCallback((casts: BuffCast[], rolls = true, intensity = 1): void => {
     // target uid → the first landing cast's tendril flight time. A target can take several casts in one
     // moment, but they all release the SAME store hold together, so only the timing of the first is needed
     // — later casts on the same target no longer aggregate atk/hp here (the store already holds the beat's
@@ -1953,7 +1959,7 @@ export function useCombatReplay(
           const liveEl = findEl(c.target) ?? tEl;
           const target = settleTarget(c.target, liveEl) ?? undefined;
           playDef(srcAuthored, { source: sc, target: target?.start ?? tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-            { uids: { source: c.source, target: c.target }, index, target: target?.get, onDone: target?.stop });
+            { uids: { source: c.source, target: c.target }, index, target: target?.get, onDone: target?.stop, ...(intensity < 1 ? { intensity } : {}) });
         };
         const delayMs = (srcRank.get(c.source) ?? 0) * SOURCE_CASCADE_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
         if (delayMs > 0) srcCascadeTimersRef.current.push(window.setTimeout(fire, delayMs));
@@ -1973,9 +1979,11 @@ export function useCombatReplay(
         cardId, tribe,
         sourceless,
         uids: { source: c.source, target: c.target },
+        ...(intensity < 1 ? { intensity } : {}),
       });
       if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
     }
+    if (!rolls) return;
     const unitOf = (uid: string) =>
       frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
     for (const [target, strikes] of steppedStrikes) {
@@ -1998,6 +2006,55 @@ export function useCombatReplay(
       scheduleRoll(target, ms);
     }
   }, [findEl, cardIds, scheduleRoll, scheduleSteppedRoll, settleTarget]);
+
+  /**
+   * ONE TICK PER TRIGGER FIRE (R-DEMON-DMG-BEATS-02, owner 2026-10-13: *"every trigger of the effect should get its own
+   * beat ... the buffs should per tick if possible."*). Plays `ticks` (contiguous slices of one moment, one per fire
+   * round: `reactionTicks`) `strideMs` apart (1x, divided by combat speed): tick k draws its own tendrils (the same
+   * `fireBuffCasts` FX, numbers left to us), and every unit's badge STEPS through the true value after each tick, each
+   * step landing with that tick's tendril (`steppedRevealPlan` / `scheduleSteppedRoll`, King Oona's mechanism). The beat
+   * clock holds the moment for `reactionChainMs(ticks.length)`, which is this schedule's length plus the read.
+   *
+   * Self-buffs (Rad Rachel's own gain, Leech, Axeman) draw nothing, exactly as `fireSelfBuffs`; their step lands with
+   * the tick's tendrils. Timers ride `srcCascadeTimersRef`, so a seek/reset cancels a chain mid-way.
+   */
+  const fireBuffChain = useCallback((ticks: ReactionTick[], strideMs: number): void => {
+    const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+    const steps = new Map<string, { gain: number; atMs: number }[]>();
+    // INSIDE THE PERF BAR (`chainTendrilPlan`): tendrils on every tick while the ribbons alive at once fit the budget,
+    // else the full fan on the first tick only and the later ticks told by their badge steps; bursts thinned to about
+    // the particle load ONE summed beat used to carry.
+    const castsPerTick = ticks.map((tk) => groupBuffCasts(tk as Moment, events));
+    const plan = chainTendrilPlan(castsPerTick.map((c) => c.length), strideMs);
+    const intensity = plan.intensity;
+    ticks.forEach((tk, k) => {
+      const at = (k * strideMs) / speed;
+      const casts = castsPerTick[k]!;
+      if (casts.length && (k === 0 || plan.everyTick)) {
+        const fire = (): void => fireBuffCasts(casts, false, intensity);
+        if (at <= 0) fire();
+        else srcCascadeTimersRef.current.push(window.setTimeout(fire, at));
+      }
+      // This tick's gain per unit (Rubies excluded: a chain never holds one, see `chainEligible`).
+      const gain = new Map<string, number>();
+      for (let i = tk.start; i < tk.end; i++) {
+        const e = events[i];
+        if (e?.type !== 'buff' || e.ruby) continue;
+        gain.set(e.target, (gain.get(e.target) ?? 0) + Math.max(0, e.attack) + Math.max(0, e.health));
+      }
+      for (const [uid, g] of gain) {
+        const list = steps.get(uid) ?? [];
+        list.push({ gain: g, atMs: at + TENDRIL_LAND_MS / speed });
+        steps.set(uid, list);
+      }
+    });
+    const unitOf = (uid: string) =>
+      frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
+    for (const [uid, list] of steps) {
+      if (!unitOf(uid)) continue;
+      scheduleSteppedRoll(uid, steppedRevealPlan(list.map((x) => x.gain), list.map((x) => x.atMs)));
+    }
+  }, [events, fireBuffCasts, scheduleSteppedRoll]);
 
   // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then after its own
   // hold time, roll its badge from the pre-buff value to the new one — the blast "causes" the tick. Shared by
@@ -2579,6 +2636,7 @@ export function useCombatReplay(
       },
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts),
+      onBuffChain: (m) => { const n = m.ticks ?? 1; fireBuffChain(reactionTicks(events, m.start, m.end), reactionTickStrideMs(n)); },
       // "X casts Y" → the spell's card preview above X (owner ask 2026-09-23), once per (caster, spell) per
       // fight. Anchored from the SLOT reading (`rectOf`), like a float — not a mid-lunge position.
       // The memory is CLAIMED only once the caster has a rect: a cast whose body is not on screen yet must not
@@ -2805,7 +2863,7 @@ export function useCombatReplay(
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
-  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs]);
+  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs, fireBuffChain]);
 
   // No verdict sting when the replay finishes (the round won / lost chimes were removed 2026-09-23 with the
   // lobby background music, owner ask): the music carries the verdict through uninterrupted.
@@ -2948,6 +3006,20 @@ export function useCombatReplay(
          * feeds later summons — no badge on screen moves, so there is nothing to wait for).
          */
         let windupStatChange = windupCasts.length > 0 || windupSelfBuffs.length > 0;
+        // One tick per Rally proc when the swing's Rally fired more than once (split at each of the attacker's `rally`
+        // events; anything before the first rides tick 0). Empty when it is a single proc or a spell cast.
+        const windupProcTicks: ReactionTick[] = [];
+        if (rallyProcsFor(cur, events, atkUid) > 1 && chainEligible(events, cur.start, cur.end)) {
+          let from = cur.start;
+          let seenRally = false;
+          for (let i = cur.start; i < cur.end; i++) {
+            const e = events[i];
+            if (e?.type !== 'rally' || e.source !== atkUid) continue;
+            if (seenRally) { windupProcTicks.push({ start: from, end: i }); from = i; }
+            seenRally = true;
+          }
+          windupProcTicks.push({ start: from, end: cur.end });
+        }
         /**
          * The units this swing RUBIED, which need their badge rolled by hand.
          *
@@ -3043,8 +3115,11 @@ export function useCombatReplay(
           // their own channels — but the pause still happens, which is the whole point.
           onWindupBuffs: windupStatChange
             ? () => {
-              fireBuffCasts(windupCasts);
-              fireSelfBuffs(windupSelfBuffs);
+              // A MULTIPLIED RALLY (Gilded Echohorn forcing an Echo twice) is one tick per proc, each landing with its
+              // own pulse (`RALLY_PROC_STRIDE_MS` apart, the stride the wind-up already stretches by), instead of one
+              // summed tendril at the first pulse (R-DEMON-DMG-BEATS-02). A cast (Dragonflame) is never chained.
+              if (windupProcTicks.length > 1) fireBuffChain(windupProcTicks, RALLY_PROC_STRIDE_MS);
+              else { fireBuffCasts(windupCasts); fireSelfBuffs(windupSelfBuffs); }
               // …and the Rubies' numbers, which have their own FX but no deliverer (see `windupRubyUids`).
               // Same lead the authored buff defs use, so every number on this swing lands together.
               for (const uid of windupRubyUids) scheduleRoll(uid, AUTHORED_BUFF_ROLL_MS);
@@ -3124,7 +3199,7 @@ export function useCombatReplay(
     // that per-beat clearing was the Task 6 bug. They now live in the combat-lifetime roll registry (see
     // `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this effect never reaches into.
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
-  }), [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+  }), [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs, fireBuffChain]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();

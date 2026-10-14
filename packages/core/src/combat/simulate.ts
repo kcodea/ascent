@@ -5094,7 +5094,10 @@ export function simulate(
         nextStep();
         m.health = 1;
         m.maxHealth = Math.min(m.maxHealth ?? 1, 1) || 1;
-        emit({ type: 'sc', source: m.uid, text: `${m.name} is Weakened to 1 Health`, cast: true });
+        // `setHealth` carries the new value to the replay: without it the `sc` was narration only and the
+        // card kept showing its full Health until the next hit (owner report 2026-10-13, "weaken is simply not
+        // working"). The engine always set it; the screen never showed it.
+        emit({ type: 'sc', source: m.uid, text: `${m.name} is Weakened to 1 Health`, cast: true, setHealth: 1 });
       }
     }
     // Rune of Forthcoming (owner sheet 2026-07-31): the LEFT-MOST minion gains Ward and attacks immediately.

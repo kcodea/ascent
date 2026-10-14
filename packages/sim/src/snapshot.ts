@@ -310,6 +310,7 @@ export function socBoard(result: CombatResult): BoardMinion[] {
   for (const e of result.events) {
     if (e.type === 'attack') break; // SoC phase ends at the first swing
     if (e.type === 'buff') { const u = byUid.get(e.target); if (u) { u.attack += e.attack; u.health += e.health; } }
+    else if (e.type === 'sc' && e.setHealth !== undefined) { const u = byUid.get(e.source); if (u) u.health = e.setHealth; } // an enemy's Weaken
     else if (e.type === 'keyword') { const u = byUid.get(e.target); if (u && !u.keywords.includes(e.keyword)) u.keywords.push(e.keyword); }
     else if (e.type === 'shieldUp') { const u = byUid.get(e.target); if (u && !u.keywords.includes('DS')) u.keywords.push('DS'); }
     else if (e.type === 'summon' && e.side === 'player') {

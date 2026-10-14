@@ -61,6 +61,14 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Balance', text: 'Storm Chaser: Shout now gets a Veinstorm in your hand instead of casting it. Gilded gets 2.' },
       {
         category: 'Systems',
+        text: 'Weaken now shows its effect: the enemy it hits drops to 1 Health on screen at Start of Combat. Rope Wrangler shows a Gold spent counter in the Shop.',
+        details: [
+          'Weaken always set the Health to 1, but the card kept showing its old Health until it was hit.',
+          "Rope Wrangler's counter shows your Gold spent this turn toward its next Lasso, like 4/10 Gold.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The end of a game now closes with the gate: the doors slam shut over your last fight and open on the results.',
         details: [
           'It plays when you press the gem to leave the fight that ends your game, win or lose, in ranked and in Practice.',

@@ -20,7 +20,14 @@ medal + division — see *Ranked ladder* below).
 > **Player-facing vocabulary:** the UI displays some systems under themed names while the code keeps the
 > internal terms — **Resolve** is the seat's health pool, **Embers** are Gold. **Rating is displayed as
 > "Rating"** (owner 2026-08-04; the earlier *Renown* rename is reverted). A lobby run's Career row reads as
-> its score, finish position, Victory/Defeat and the Rating change — no Oath verdict.
+> its score, finish position, Victory/Defeat and the Rating change, with no Line verdict.
+>
+> **Retired terms (owner 2026-10-14, R-TERM-01):** *"remove oath everywhere, and any mention of climb. this is
+> not the terminology or story we are using."* **Oath** (the old display name for the Line) and **climb** (the
+> run as "a climb", "climber") never appear in player-facing text. Describe the game in its own terms: an
+> eight-seat elimination lobby, placement, Rating, Resolve. The guard is
+> `packages/ui/src/retiredTerms.test.ts`. A few content names still carry the words pending an owner rename
+> (Oathshield Orin, Twin Sun Oath, Crest of the Climb) and are allow-listed there.
 
 ---
 
@@ -406,7 +413,7 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   game; it never drops the division on its own). The applied delta of a won promotion is therefore +10 on
   the scalar (`100 × division + points`), whatever the finish; the game's award is reported as converted
   into the promotion, not as capped. A lost promotion
-  game (5th–8th) applies its normal negative points from 100; the gate reopens when the player climbs back
+  game (5th–8th) applies its normal negative points from 100; the gate reopens when the player gets back
   to 100. At a **medal** gate, a 2nd–4th finish neither promotes nor gains — the player stays at 100, still
   promotion-ready.
 - **There are no instant demotions** (owner ruling 2026-09-21: *"Hitting 0 MMR should halt the loss and put
@@ -425,7 +432,7 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   **top-4 finish escapes**, applies its positive award normally from 0 (3rd → Gold II 16), and disarms the
   gate (reaching 100 that way unlocks the promotion gate as usual).
 - **Bronze I floors at 0** with no gate (nothing below it). **Ascendant III is uncapped** (points keep
-  climbing past 100, no promotion gate); a loss that hits 0 there arms a demotion game like everywhere else
+  rising past 100, no promotion gate); a loss that hits 0 there arms a demotion game like everywhere else
   (its demotion game drops to Ascendant II).
 - **Career best** (division first, then points) never decreases. **Leaderboards sort by division, then
   points** — the reporting scalar `100 × division + points` still exists (`profile.rating`) but ties Gold II
@@ -801,7 +808,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   power uses, more distinct heroes played and won with). Two new categories: **Combat** (36: flawless wins, wins with
   1 minion left, win streaks, knockouts, damage to opponents, enemy kills, finishing well after falling to 5 or less
   Health, an unbeaten Ranked 1st) and **Milestones** (34: games, Ranked games, Top 4s, 1sts, lifetime Gold, Gilds,
-  runes, promotions, achievements completed, Ascendant and Brutal wins, streaks). XP climbs with difficulty: 25 to
+  runes, promotions, achievements completed, Ascendant and Brutal wins, streaks). XP rises with difficulty: 25 to
   100 for one-game feats, up to 1,500 for the biggest milestones. A **knockout** is an opponent who fell in the round
   your own fight hit them. The new counters are run metrics (ordinary trust). No SQL: `submit-progression` syncs the
   catalog on its next cold start.
@@ -1487,6 +1494,7 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 | Magnetize | **Attach** |
 | Magnetic | **Attachment** |
 | Golden | **Gilded** |
+| Line (the old per-run win target) | *nothing*: retired, never displayed (it was shown as "Oath" until 2026-10-14) |
 
 **Kept as-is** (no rename): Taunt, Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave,
 Consume, Discover, Overflow (a keyword since 2026-09-19 — see the Rise ordering section), Pummel (a keyword

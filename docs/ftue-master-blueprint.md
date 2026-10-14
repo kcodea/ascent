@@ -258,7 +258,7 @@ The first experience begins with a short rules foundation before the player sees
 scrolling rulebook. It is a sequence of four focused panels followed by one interactive board-order
 demonstration. Each panel contains one idea, one image or live UI focus, and no more than two short sentences.
 
-### Foundation panel 1: The climb
+### Foundation panel 1: The goal
 
 **Title:** Be the Last Standing
 

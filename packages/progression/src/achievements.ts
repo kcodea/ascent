@@ -609,7 +609,7 @@ const MILESTONES: AchievementDef[] = [
   ...([[1000, 'Humming Stones', 300], [5000, 'Eternal Engine', 750]] as const).map(([n, name, xp]) => ms({
     id: `rune.triggers_lifetime_${n}`, family: 'rune.triggers_lifetime', name, requirement: `Have your Runes trigger ${n0(n)} times across all your games.`, mode: 'any', metric: 'runeTriggers', agg: 'sum', target: n, xp,
   })),
-  ...([[10, 'Climber', 300], [25, 'Ever Upward', 600]] as const).map(([n, name, xp]) => ms({
+  ...([[10, 'Rising Star', 300], [25, 'Ever Upward', 600]] as const).map(([n, name, xp]) => ms({
     id: `ranked.promotions_${n}`, family: 'ranked.promotions', name, requirement: `Win ${n} promotion games.`, mode: 'ranked', metric: 'promoted', agg: 'sum', target: n, xp, trust: 'S',
   })),
   ...([[50, 'Trophy Case', 200], [100, 'Hall of Trophies', 400], [200, 'Living Legend', 750]] as const).map(([n, name, xp]) => ms({

@@ -16,7 +16,7 @@ import {
 } from '@game/sim';
 ```
 
-- 18 divisions, index `0` = Bronze I … `17` = Ascendant III; order within a medal is **I → II → III** (owner 2026-09-22: the numerals ascend with the climb).
+- 18 divisions, index `0` = Bronze I … `17` = Ascendant III; order within a medal is **I → II → III** (owner 2026-09-22: the numerals ascend as you rank up).
 - `RankResult` (blueprint §4 plus `promotionKind: 'division' | 'medal' | null`, `requiredFinish: 4 | 1 | null`,
   `wasDemotionGame`, `demotionUnlocked`, `highestAfter`) is what the screen animates. `appliedDelta` is
   **the number to show** — it is `+10` on a won promotion (the `RANK_RULES.promotionLanding` cushion: 10/100

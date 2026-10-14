@@ -1,7 +1,7 @@
 {
   "name": "ASCENT",
   "short_name": "ASCENT",
-  "description": "Single-player roguelike auto-battler — survive the ever-rising climb.",
+  "description": "An auto-battler. Outlast seven rivals in an eight-player lobby.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

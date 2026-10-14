@@ -139,7 +139,7 @@ export function RecentGames(): JSX.Element | null {
         {!remoteEnabled() ? (
           <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable. No backend configured.</div></div>
         ) : shown === null ? (
-          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{practice ? 'Gathering the latest practice games…' : 'Gathering the latest climbs…'}</div></div>
+          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{practice ? 'Gathering the latest practice games…' : 'Gathering the latest games…'}</div></div>
         ) : shown.length === 0 ? (
           practice
             ? <div className="lbempty lb-state"><Icon name="target" /><div>No practice games yet. Finish a practice game to see it here.</div></div>
@@ -162,7 +162,7 @@ export function RecentGames(): JSX.Element | null {
                 <>
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.heroId} />
-                    <div className="lb-row-name">{r.author || 'Unnamed climber'}</div>
+                    <div className="lb-row-name">{r.author || 'Unnamed player'}</div>
                     <div className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</div>
                     <div className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</div>
                   </div>

@@ -5436,4 +5436,32 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-13',
     },
   },
+  {
+    id: 'R-TERM-01',
+    title: 'Retired terms: no "Oath" and no "climb" in player-facing text',
+    statement:
+      'Oath (the old display name of the retired Line, the per-run win target) and climb (the old story of a run: '
+      + '"the climb", "climber") never appear in text a player can read: UI strings, aria labels, hero bios and tips, '
+      + 'build tags, achievements, the Rules Wiki, the tutorial, card, quest and rune text, and patch notes from '
+      + '2026-10-14 on. A UI element that existed only to show the Oath is removed, not renamed: the round plaque\x27s '
+      + '"Oath N" pill, the hero picker\x27s "Oath N" pill and the end screen\x27s "Oath N, verdict" row are gone, and a '
+      + 'promotion on that screen reads just "Promoted" or "Demoted". This is display only: the Line is still computed '
+      + '(metLine, lineResult, profile.currentLine, the save fields) and old saves and replays load unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (terminology)', quote: 'remove oath everywhere, and any mention of climb. this is not the terminology or story we are using' },
+      { kind: 'code', ref: 'packages/ui/src/HudBar.tsx (plaque pill removed); packages/ui/src/HeroSelect.tsx (.hsline keeps only the Rating); packages/ui/src/EndScreen.tsx (endline row removed, headline reworded); packages/sim/src/heroes.ts blurbs; packages/sim/src/heroTips.ts; packages/sim/src/buildTags.ts (Tempo Climber -> Fast Starter); packages/progression/src/achievements.ts (Climber -> Rising Star); packages/ui/src/RecentGames.tsx; packages/ui/src/rulesWiki/lobbyModes.ts; apps/web/public/manifest.webmanifest' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-14, with stated gaps left for an owner ruling. Content names still carrying the words '
+      + '(Oathshield Orin, Twin Sun Oath, Crest of the Climb) are allow-listed in the guard until renamed, since a '
+      + 'rename re-keys art. Recorded voice lines (packages/tools/vo-lines.json: Brackus, Tradesman, Orin) still say '
+      + 'the words; changing them needs a re-record. Patch notes before 2026-10-14 are history and are not rewritten. '
+      + 'Dev-only surfaces (tuners, the FX workbench, the perf HUD) are out of scope.',
+    example:
+      'A legacy Ascent run on round 9 with a 1-7 record shows "ROUND 9 / 17", the dashes and "1-7" on the plaque, '
+      + 'and nothing after the record. The Rules Wiki says divisions "go up Bronze I, Bronze II, Bronze III".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/retiredTerms.test.ts', 'packages/ui/src/gauntlet/heroSelectGauntlet.test.tsx'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

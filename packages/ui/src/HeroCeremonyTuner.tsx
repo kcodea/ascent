@@ -17,7 +17,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
  */
 const SPECS: Record<keyof HscTunerConfig, [string, TunerUnit | undefined, string, string]> = {
   pressMs:           ['Press', 'ms', 'The selected card’s press-in acknowledgment.', 'Commit'],
-  headerExitDelayMs: ['Header exit at', 'ms', 'When the title / Oath / Back begin fading.', 'Commit'],
+  headerExitDelayMs: ['Header exit at', 'ms', 'When the title / Rating / Back begin fading.', 'Commit'],
   optionExitDelayMs: ['Exits start at', 'ms', 'When the unselected cards begin leaving.', 'Dismiss'],
   optionExitMs:      ['Exit duration', 'ms', 'One unselected card’s exit.', 'Dismiss'],
   optionStaggerMs:   ['Exit stagger', 'ms', 'Per-card stagger between exits (total capped at 180ms).', 'Dismiss'],

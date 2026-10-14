@@ -25,8 +25,9 @@ underneath? ... the button needs to change and should look fancy and blue and go
   buttons i want") and pointed at the End Combat pill. When the owner says blue with gold trim, or "the newer UI
   buttons", he means the shared Gem plate: `--ui-sheen` + `--ui-plate` + `--ui-edge`, theme tokens only. No new colours.
 - "The button" was read as Start Game; Main Menu was restyled to match.
-- Then, same day: "lets incrase the size and put some little details on the sides of the button text". Start Game is
-  about a quarter larger (24px label) and carries a small gold flourish either side of the label: a fine line fading
+- Then, same day: "lets incrase the size and put some little details on the sides of the button text". Start Game was
+  enlarged (24px label), then enlarged again on "looks good - make the button larger though" (30px label, padding and
+  ornaments scaled with it, about 60% larger than the 19px original), and carries a small gold flourish either side of the label: a fine line fading
   away from the text into the theme's gold stud (`.hsc-start-orn`). These ornaments were asked for; the studs in the
   rejected first cut were not.
 - Hover lifts 1px onto the lit plate and the press drops 1px, like the Compendium's buttons. `translate`, not

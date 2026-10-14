@@ -53,7 +53,7 @@ describe('detectCardKeywords', () => {
     expect(ids({ keywords: [], text: '**Rally:** summon a random Spirit from your hand.' })).toEqual(['rally', 'summonfromhand']);
     expect(ids({ keywords: [], text: 'After you play an **Attachment** from hand, get a random Shop spell.' })).toEqual(['attachment', 'shopspell']);
     expect(ids({ keywords: [], text: 'gains +1 Attack permanently.' })).toEqual(['permanent']);
-    expect(ids({ keywords: [], text: 'Improve this by **+2/+2** when you cast a Shop spell.' })).toEqual(['improve', 'shopspell']);
+    expect(ids({ keywords: [], text: 'Improve this by **+2/+2** when you cast a Shop spell.' })).toEqual(['shopspell']); // no Improve pill (owner 2026-10-14: "remove improve pill")
     expect(ids({ keywords: [], text: '**Amplify** your Equipment. **Start of Turn:** repeat this.' })).toEqual(['startofturn', 'equipment', 'amplified']);
     expect(ids({ keywords: [], text: 'Whenever another minion is summoned, gain +1/+1.' })).toEqual([]); // no Watcher pill
   });

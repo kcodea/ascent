@@ -3321,6 +3321,12 @@ export interface CombatConfig {
    *  alive — so a scripted lesson (e.g. "the enemy kills your T-Rex, watch its Echo fire") lands no matter
    *  where the player placed it. Ignored in every real run; targeting is otherwise random. */
   forceEnemyFirstTargetCard?: string;
+  /** AUDIT ONLY (the real-time stats audit, 2026-10-14): called at every resolution-step boundary, and once more
+   *  after the last event, with the number of events logged so far and the LIVE boards. Lets a test check that the
+   *  replay's fold of the log so far (`computeFrame`) shows exactly the engine's stats at that moment. Read-only:
+   *  a probe must never mutate what it is handed. The count is BEFORE the opening cast beats are unshifted (see
+   *  `simulate`), so a caller offsets it by `events.length - lastCount`. Never set in a real run. */
+  probe?: (eventCount: number, boards: Readonly<Record<Side, readonly Minion[]>>) => void;
 }
 
 /** See `CombatResult.enemyScalers`. */

@@ -1252,4 +1252,31 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13. Stats kept at 4/5 (the owner gave none).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Batch1013.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-REALTIME-STATS-01',
+    title: 'Every stat change in combat shows on the minion on the beat it happens, at the exact engine number',
+    statement:
+      'During the combat replay, every Attack / Health change (a buff, a Ruby, an aura a body takes, a Rise, a summon) '
+      + 'moves the badges of the affected minion on the beat its event plays, and after every resolution step the screen shows '
+      + 'each living minion at exactly the Attack and Health the engine holds. Nothing waits for the next beat, the expiry '
+      + 'of a hold or settle. Every number the replay withholds for an animation has a deliverer on its own beat: a tendril or '
+      + 'pulse, the attack wind-up, or (for a Ruby, whose gem carries no number) a roll timed to the gem landing. A stat '
+      + 'change the engine makes always rides an event the replay folds (R-REALTIME-01 is the trigger half of this rule).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (real-time combat buffs)', quote: 'can you make sure our buffs update in real time in combat? i believe ive seen some that dont, like veinstorm but im sure there are others.' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts computeFrame (reborn clears the overkill debt; prefolded buffs) + the per-beat undeliveredRollPlan roll; packages/ui/src/choreo/buffDelivery.ts; packages/ui/src/choreo/clashOrder.ts prefoldedShareOf; packages/ui/src/choreo/avengeOrder.ts; packages/core/src/combat/simulate.ts syncUnityCombat (buff events) + CombatConfig.probe' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-14. The audit (simulate probe vs computeFrame over the replay order, every set, random '
+      + 'boards, contexts and rune / quest / hero mods) found five defects: (1) a risen body kept the overkill debt of the '
+      + 'blow that killed it, so its first Health buffs never showed (every Rise minion); (2) Rune of Unity gave the Undead '
+      + 'Aura with no event; (3) the clash reorder slid a Health buff past a later hit on the same body, whose absolute '
+      + 'remaining Health already held it, so the gain showed twice for the rest of the fight (Chosen Fiend, Ruinous Lord, '
+      + 'Rad Rachel); (4) a grant on a body before it is placed (Solid Ground, an Avenge grant) was slid past its own '
+      + 'summon and shown twice; (5) every Ruby outside an attack wind-up (Gemstorm, Blazer, Kobaby Boldies, a Shout '
+      + 'casting Rubies) was withheld with no deliverer and snapped in on the next beat.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/realtimeStatsAudit.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

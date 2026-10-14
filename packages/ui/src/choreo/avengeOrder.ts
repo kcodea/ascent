@@ -55,7 +55,9 @@ export function deferAvengeAfterSummons(events: CombatEvent[]): CombatEvent[] {
       const f = work[j]!;
       if (f.type === 'attack') break; // a new exchange — this death's cascade ends here
       if (f.wave !== e.wave) break; // never slide an Avenge into/across a WAVE (multi-pass echo) — keep waves contiguous
-      if (f.type === 'summon') { lastSummon = j; continue; } // new uid → always safe to hop
+      // A new uid is safe to hop, EXCEPT the payoff's own target: a grant that lands on a body before it is placed is
+      // already inside that body's `summon` snapshot, so hopping it would fold the gain twice (R-REALTIME-STATS-01).
+      if (f.type === 'summon') { if (et !== undefined && f.minion.uid === et) break; lastSummon = j; continue; }
       const ft = targetOf(f);
       if (et !== undefined && ft === et) break; // a same-unit interaction → don't reorder two ops on one unit
     }

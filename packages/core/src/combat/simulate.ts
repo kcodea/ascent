@@ -243,7 +243,11 @@ export function simulate(
   // Pure metadata: zero logic/RNG/order impact — outcomes are locked by the determinism + golden suites.
   // Rule of thumb when extending the sim: finer is safer (the UI compiler can MERGE steps, never split them).
   let stepN = 0;
-  const nextStep = (): void => { stepN++; };
+  // AUDIT PROBE (`CombatConfig.probe`, test-only): armed once the starting snapshot is taken, it sees the live boards at
+  // every step boundary. One boolean check per step when unset.
+  const probe = config.probe;
+  let probeArmed = false;
+  const nextStep = (): void => { if (probeArmed) probe!(events.length, boards); stepN++; };
   // `inAvenge` is true only while an Avenge handler bus-emission is running (see `emitAvenge`). Every event a
   // handler emits during that window is stamped `avenge:true` — pure presentation metadata (like `step`) that
   // lets the replay hold Avenge payoff beats until after the death's summons deploy. Zero effect on outcomes.
@@ -809,7 +813,7 @@ export function simulate(
   // Fold the run-wide auras into BOTH sides' starting minions (already baked → live part only). It used to run
   // for the player only, so a served board's Undead fought without its owner's Lantern aura (R-SYMMETRY-01).
   for (const s of SIDES) for (const m of boards[s]) applyAuras(m, false);
-  for (const s of SIDES) syncUnityCombat(s); // Rune of Unity: the starting boards, before Start of Combat
+  for (const s of SIDES) syncUnityCombat(s, true); // Rune of Unity: the starting boards, before Start of Combat (the `initial` snapshot shows it)
   // ANCIENTS × Lord of the Risen: find the Undying bodies (the run card's uid rides in as `sourceUid`). War's Rise on
   // them is RED (Death's BLUE) from the first frame (the `initial` snapshot reads `riseTint`).
   for (const side of SIDES) {
@@ -2858,6 +2862,7 @@ export function simulate(
     player: boards.player.map(snapshot),
     enemy: boards.enemy.map(snapshot),
   };
+  probeArmed = !!probe;
 
   // Running death tally per side — drives Avenge (X) (A.4).
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
@@ -5594,11 +5599,12 @@ export function simulate(
    *  (`universalTribe`, which every combat tribe check reads); when a death breaks the full house, Unity's grant is
    *  withdrawn (a printed All-types body keeps its own). A body that newly counts as Undead takes the whole Undead
    *  Aura once, as the Shop fold shows it (`foldedAuraOf`); an Aura already given is not taken back mid-fight. */
-  function syncUnityCombat(side: Side): void {
+  function syncUnityCombat(side: Side, opening = false): void {
     if (!modsFor(side).runeUnity) return;
     const granted = unityGranted[side];
     if (unityHolds(side)) {
       let fresh = false;
+      const shown: { uid: string; attack: number; health: number }[] = [];
       for (const m of boards[side]) {
         if (m.dead || m.health <= 0 || m.universalTribe) continue;
         const naturalUndead = defIsTribe(cards[m.cardId], 'undead');
@@ -5610,11 +5616,21 @@ export function simulate(
           unityAuraGiven.add(m);
           const ua = undeadAura[side];
           const a = ua.attack + ua.buyAtk;
+          const before = m.attack;
           if (a > 0) m.attack = Math.max(0, m.attack + a);
           if (ua.health > 0) { m.health += ua.health; m.maxHealth += ua.health; }
+          const da = m.attack - before;
+          const dh = Math.max(0, ua.health);
+          if (da !== 0 || dh !== 0) shown.push({ uid: m.uid, attack: da, health: dh });
         }
       }
       if (fresh) fireTrigger('runeUnity', side);
+      // REAL-TIME STATS (R-REALTIME-STATS-01, owner 2026-10-14): the Undead Aura a body takes on joining the full house
+      // moves its badges on this beat. It used to land silently (no event), so the replay showed the old stats until a
+      // later hit or buff re-based them. The opening pass is in the `initial` snapshot already. Presentation only: a
+      // `buff` event the replay folds, never `ctx.buff` (this is an aura, not a gain, so no stat-gain reactor or
+      // carry-back may hear it).
+      if (!opening) for (const s of shown) emit({ type: 'buff', target: s.uid, attack: s.attack, health: s.health, source: 'Rune of Unity' });
     } else if (granted.size > 0) {
       for (const m of granted) m.universalTribe = undefined;
       granted.clear();
@@ -6520,6 +6536,7 @@ export function simulate(
   // banked next-combat spell and open the log with its cast + effect. Presentation only — the fight above already
   // resolved from the banked board — and unshifted at the very end, exactly where `enterCombat` used to put
   // Fleeting Vigor's surge, so no event the fight emitted moves relative to another.
+  if (probeArmed) probe!(events.length, boards); // the resting end state
   const opening = openingEvents(
     initial,
     opened.records,

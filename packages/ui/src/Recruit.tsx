@@ -45,7 +45,6 @@ type RecordedEot = {
 if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
-import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
@@ -74,7 +73,7 @@ import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { FightRecap } from './FightRecap';
-import { instView, liveCardText, tribeFace, type LiveTextParams } from './instView';
+import { instView, liveCardText, tribeFace, type LiveTextParams, type SellTextState } from './instView';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
@@ -686,6 +685,9 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
   clueBonus?: number,
   /** Rune of Falling Embers' Star Crash extra — a previewed Star Crash prints what it grants NOW. */
   starCrashBonus?: { attack: number; health: number },
+  /** THE FULL live inputs (`liveOptsFromRun`). When given, a referenced SPELL prints through `liveCardText`, the chain the
+   *  hand / Shop / Discover use, instead of the partial `spellLive` subset (R-TEXT-SURFACES-01, 2026-10-14). */
+  live?: ShopViewOpts,
 ): CardView {
   const c = CARD_INDEX[id];
   // GEMHEART GOLEM: its stats come from the Rubies on the minion that summons it, so previewing a flat 1/1
@@ -717,6 +719,15 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
       text: spellDisplayText(c.id, 0, 0, 0, 0, 0, 0, { rubyBonus }),
       spell: c.spell, ruby: true, target: c.target,
       baseAttack: c.attack, baseHealth: c.health, // so the gain reads green against the printed 1/1
+    };
+  }
+  if (c.spell && live) {
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
+      attack: c.attack, health: c.health, keywords: c.keywords,
+      text: liveCardText(c.id, offerLiveTextParams(false, live, c.id)).text,
+      tier: c.tier, spell: c.spell, target: c.target,
+      baseAttack: c.attack, baseHealth: c.health,
     };
   }
   if (c.spell && spellLive) {
@@ -769,11 +780,12 @@ export function conjuredView(cardId: string, run: RunState): CardView | null { /
     growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run),
     spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove,
   };
-  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus, undefined, run.clueBonus);
+  const live = liveOptsFromRun(run);
+  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus, undefined, run.clueBonus, run.starCrashBonus, live);
   // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
   if (def.spell) return base;
   // A granted MINION reads like a shop offer of itself: the full live-text chain, not the printed base.
-  const lt = liveCardText(cardId, offerLiveTextParams(false, liveOptsFromRun(run), cardId));
+  const lt = liveCardText(cardId, offerLiveTextParams(false, live, cardId));
   return { ...base, text: lt.text, ...conjuredStats(run, def) };
 }
 
@@ -877,6 +889,31 @@ interface ShopViewOpts {
   chooseBothState?: ChooseBothState;
   /** Set 4: the run's Whisper improvements (Runebind), so a Tolan offer prints its live Whisper value. */
   whisperImprove?: Record<string, number>;
+  /** Runes that change a card's printed RULE (the green note) — an offer wears it like the card in hand does. */
+  runeFlags?: LiveTextParams['runeFlags'];
+  /** Rune of the Mammoth owned (the Mammoth's text goes symmetric) — on an offer too. */
+  runeMammoth?: boolean;
+  /** The run's tier ceiling — the Discover spell's printed tier clamps to it on every surface. */
+  maxTier?: number;
+  /** Rune of Mastery's Improve repeats — Spirit Worgen's per-spell scaling prints the same on an offer as in hand. */
+  improveReps?: number;
+  /** Starpath Vendor / Sugarnova's banked next-Shop-spell bonus: `spellBonus` folds it, and a GIFT subtracts it back out
+   *  (it neither reads nor spends it) on every surface, not only in hand. */
+  nextSpellBonus?: { attack: number; health: number };
+}
+
+/**
+ * The HAND row's run-wide live-text inputs (`instView`'s `live`). Module level and exported so the live-text surface
+ * audit (`liveTextSurfaces.test.ts`) builds the hand exactly as the screen does.
+ */
+export function handLiveOf(run: RunState, cardBuffsLive: Record<string, { attack: number; health: number }>, sellState: SellTextState) {
+  return { grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, cardTribes: run.cardTribes /* Rune of Drakko: a re-typed card counts for its run tribes in hand too */, growthBonus: run.growthBonus /* Rune of Living Growth: the hand's Growth starved it (R-TEXT-SURFACES-01) */, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: spellEscalationLive(run).health, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: runeTextFlagsOf(run), chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ };
+}
+
+/** One HAND card's view, exactly as the hand row builds it (spells carry their cast count, minions the in-hand flag). */
+export function handCardView(run: RunState, m: BoardCard, live: ReturnType<typeof handLiveOf>, override?: { attack: number; health: number }): CardView {
+  const def = CARD_INDEX[m.cardId];
+  return instView(m, run.tier, override, spellAttackBonusLive(run), spellHealthBonusLive(run), run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, spellEscalationLive(run).attack, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, def?.spell || def?.ruby ? { ...live, castMult: spellCastCount(run, def!, m) } : { ...live, inHand: true });
 }
 
 /** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
@@ -905,6 +942,61 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
     tier: run.tier,
     chooseBothState: chooseBothStateOf(run),
     whisperImprove: run.whisperImprove, // Set 4: Tolan's live Runebind value on a Discover / fly-in
+    // The rule notes and run-level text switches the hand and Discover printed and the Shop did not (2026-10-14 audit,
+    // R-TEXT-SURFACES-01): every surface now reads them from this one builder.
+    juggler: getHero(run.heroId).power.kind === 'baldgecoin',
+    runeFlags: runeTextFlagsOf(run),
+    runeMammoth: !!run.questFlags?.runeMammoth,
+    maxTier: maxTierFor(run.rift),
+    improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1,
+    nextSpellBonus: run.nextSpellBonus,
+  };
+}
+
+/** A Discover option's live text: the offer chain (`liveOptsFromRun`, rune notes and the tier ceiling included). (Both):
+ *  a Discovered Choose One the run already makes do both reads as (Both) here too — the option row is where you decide
+ *  to take it, so it must not promise a choice it won't ask. Exported for the live-text surface audit. */
+export function discoverCardText(run: RunState, cardId: string, cardBuffsLive: Record<string, { attack: number; health: number }>): { text: string; goldenText: string | undefined } {
+  return liveCardText(cardId, {
+    ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
+    chooseBoth: chooseBothActive(run, undefined, CARD_INDEX[cardId]),
+  });
+}
+
+/** The runes that change a card's printed rule (`runeModifiedNote`), read off the run — one builder for every surface. */
+export function runeTextFlagsOf(run: RunState): NonNullable<LiveTextParams['runeFlags']> {
+  return { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper };
+}
+
+/** Per-dispatch extras of the Shop row that are not run fields (memoised in the component). */
+export interface ShopOfferExtras {
+  cardBuffsLive: Record<string, { attack: number; health: number }>;
+  /** End-of-Turn playback's running per-offer buff (`eotShopStats`), or null outside it. */
+  eotShopStats?: Record<string, { attack: number; health: number }> | null;
+}
+
+/**
+ * The opts EVERY Shop offer is built with: the minion row, a Spell Cart spell in the row, and the dedicated spell slot.
+ * The live-text half is `liveOptsFromRun` (the same builder Discover and the fly-ins use); the rest is what only a Shop
+ * offer has (price, the buy auras it previews, the cast count badge). The spell slot used to build its own literal and
+ * dropped `tier` (and a dozen more), so Lantern Light read "+1/+1 for each Tavern Tier" there while the copy in hand
+ * read its live total (owner report 2026-10-14, R-TEXT-SURFACES-01). Pass `base` to reuse one `liveOptsFromRun` across a row.
+ */
+export function shopOfferOpts(run: RunState, o: ShopCard, x: ShopOfferExtras, base: ShopViewOpts = liveOptsFromRun(run)): ShopViewOpts {
+  const def = CARD_INDEX[o.cardId];
+  return {
+    ...base,
+    cardBuffs: x.cardBuffsLive,
+    grimToast: grimToastFold(run),
+    freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !def?.spell,
+    tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources,
+    undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp,
+    spellCostMod: spellCostReduction(run, def) + ancientEnchantedSpellCut(run, o), // Ayse x Fortune: an Enchanted spell costs 2
+    // the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12;
+    // Darah x Ancient of Fortune: a swapped-away minion buys back for 0
+    minionCost: def?.spell ? undefined : o.held ? heldOfferPrice(run, o) : offerBuyPrice(run, o).cost,
+    castMult: def?.spell || def?.ruby ? spellCastCount(run, def) : undefined,
+    eotBuff: x.eotShopStats?.[o.uid],
   };
 }
 
@@ -930,6 +1022,10 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string):
     revelerX: o.revelerX, spiritDiscount: o.spiritDiscount, spiritsPlayed: o.spiritsPlayed, clueBonus: o.clueBonus, starCrashBonus: o.starCrashBonus, anySpellsThisTurn: o.anySpellsThisTurn,
     chooseBoth: cardId ? offerChoosesBoth(cardId, golden, o) : false,
     whisperImprove: o.whisperImprove, // Set 4: a Tolan offer prints its Whisper's live value
+    // The rest of the live inputs `ShopViewOpts` carries (R-TEXT-SURFACES-01, 2026-10-14): Growth's accrual, Front to
+    // Back's Health half, the rune rule notes, the Mammoth switch, the tier ceiling, Rune of Mastery's repeats.
+    growthBonus: o.growthBonus, frontToBackBonusH: o.frontToBackBonusH ?? o.frontToBackBonus ?? 0, juggler: o.juggler,
+    runeFlags: o.runeFlags, runeMammoth: o.runeMammoth, maxTier: o.maxTier, improveReps: o.improveReps, nextSpellBonus: o.nextSpellBonus,
   };
 }
 /**
@@ -988,7 +1084,11 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
       // A shop SPELL renders from `spellDisplayText`, not `liveCardText` — so the (Both) rendering has to be
       // applied here too, or a Facetwright under its rune would read "Choose One:" in the tavern and
       // (Both) everywhere else. Same predicate, same helper.
-      keywords: c.keywords, text: (offerChoosesBoth(c.id, false, opts) ? chooseBothText(c.id, false, opts.spellBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0) : null) ?? spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier, growthBonus: opts.growthBonus, juggler: opts.juggler, clueBonus: opts.clueBonus, anySpellsThisTurn: opts.anySpellsThisTurn /* the SHOP chain dropped these two while carrying them in `opts`, so a Stellar Chorus in the tavern read its base +2/+2 after spells were cast (owner report 2026-09-13) — pinned by shopSpellLiveText.test.ts */ }),
+      // THE ONE CHAIN (R-TEXT-SURFACES-01, 2026-10-14): a Shop spell prints through `liveCardText`, exactly as the same
+      // card in hand and on Discover — never a surface-local `spellDisplayText` extras object. That local object starved
+      // a live value four times (Veinstorm 2026-08-08, Growth 2026-08-27, Stellar Chorus 2026-09-13, and Star Crash's
+      // Falling Embers / Gamble's rune / the rule notes, found by the 2026-10-14 audit). (Both) rides the chain too.
+      keywords: c.keywords, text: liveCardText(c.id, offerLiveTextParams(false, opts, c.id)).text,
       cost, costChanged: cost < base, spell: true,
       chooseBothKey: offerChoosesBoth(c.id, false, opts) ? card.uid : undefined, // (Both) marker hook
       target: c.target, tier: c.tier, castMult: opts.castMult,
@@ -3680,21 +3780,8 @@ export function Recruit() {
   // `stabilize*` helpers reuse an object when its displayed content is unchanged, restoring the memo bailout so
   // only the card that actually changed re-renders. The returned map IS the next cache (current uids only, no
   // leak). See `cardViewEqual.ts`.
-  /**
-   * The run flags that decide (Both) — the ONE object every offer surface passes to `chooseBothActive`.
-   *
-   * The tavern row and the spell slot build their opts as long inline literals, and this field was simply not
-   * in either of them, so a shop Veinbreaker under Rune of the Unbroken Vein printed "Choose One:" and wore no
-   * marker while the copy in hand read (Both) (owner report 2026-08-28). Named and hoisted so a THIRD surface
-   * is a one-word addition rather than another thing to remember.
-   *
-   * A future global arm — "your next Choose One triggers both" — belongs in `chooseBothActive` alongside the
-   * two rune flags, and every surface reading this object lights up at once with no further wiring.
-   */
-  const bothState = useMemo(
-    () => chooseBothStateOf(run),
-    [run.runeFacetwright, run.runeUnbrokenVein, run.chooseBothCharges],
-  );
+  // (Both): every offer surface reads the run flags through `liveOptsFromRun` (`chooseBothState: chooseBothStateOf(run)`),
+  // the ONE builder, so a Shop row offer, the spell slot and Discover cannot disagree (owner report 2026-08-28).
   /* THE SHOP ROW, WITH LASSOED OFFERS STILL IN IT. A stolen offer is gone from `run.shop`, so every downstream
      read — the view builder, `displayShop`, `rowsKey`/`flipKey`, the drag's home-slot order — would drop it the
      instant the reducer resolved. Folding the holds back in HERE, above the view memo, is what lets the held
@@ -3716,7 +3803,10 @@ export function Recruit() {
     // built with, so a dispatch that left four of five offers untouched builds one view, not five — see
     // `shopViewCache.ts`. `stabilizeView` still value-compares a rebuilt view against its predecessor.
     () => perfMonitor.measure('view:shop', () => {
-      const optsFor = (o: ShopCard): ShopViewOpts => ({ cardTribes: run.cardTribes, grimToast: grimToastFold(run), freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]) + ancientEnchantedSpellCut(run, o) /* Ayse × Fortune: an Enchanted spell costs 2 */, spellBonus, spellBonusH, frontToBackBonus: ftbBonus, frontToBackBonusH: ftbBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? heldOfferPrice(run, o) /* Darah x Ancient of Fortune: a swapped-away minion buys back for 0 */ : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState, whisperImprove: run.whisperImprove });
+      // ONE opts builder for every Shop offer (`shopOfferOpts`), the spell slot included; the live-text half is built once
+      // per rebuild and shared across the row.
+      const base = liveOptsFromRun(run);
+      const optsFor = (o: ShopCard): ShopViewOpts => shopOfferOpts(run, o, { cardBuffsLive, eotShopStats }, base);
       const built = buildShopViews(shopWithHolds, optsFor, (o, opts) => shopView(o, opts), shopViewCache.current, (fresh, prev) => stabilizeView(fresh, prev) ?? fresh);
       shopViewCache.current = built.cache;
       return built.views;
@@ -3730,20 +3820,25 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [shopWithHolds, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, ftbBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, ftbBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn, run.ancients /* offerBuyPrice's Ancient caps: Frank's Time, Robin's Bonds */, run.whisperImprove /* Set 4: Tolan offers */],
+    // DEP COMPLETENESS BY CONSTRUCTION (2026-10-14): `shopOfferOpts` reads the run broadly (it is the same builder the
+    // spell slot and Discover use), so the memo keys on `run` itself; `buildShopViews`' per-offer signature keeps an
+    // unchanged offer's view (and its `Card` memo) when the rebuild finds nothing new.
+    [shopWithHolds, run, cardBuffsLive, eotShopStats],
   );
   const spellView = useMemo(
     () => {
-      const fresh = run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run, CARD_INDEX[run.spell.cardId]) + ancientEnchantedSpellCut(run, run.spell), spellBonus, spellBonusH, frontToBackBonus: ftbBonus, frontToBackBonusH: ftbBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run), playedThisTurn: run.playedThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell || CARD_INDEX[run.spell.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined, chooseBothState: bothState }) : null;
+      const fresh = run.spell ? shopView(run.spell, shopOfferOpts(run, run.spell, { cardBuffsLive, eotShopStats })) : null; // the SAME opts as the row (Lantern Light read base here: R-TEXT-SURFACES-01)
       spellViewCache.current = stabilizeView(fresh, spellViewCache.current);
       return spellViewCache.current;
     },
-    [run.spell, run.spellCostMod, run.cardDiscountWindow /* Thymepiece: the slot's coin greens and reverts with the window, no shop rebuild */, spellBonus, spellBonusH, ftbBonus, ftbBonusH, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.growthBonus, run.rubyBonus, run.clueBonus, run.revelerX, run.spiritDiscount, run.playedThisTurn, run.spellsThisTurn, run.rubyCastsThisTurn, run.runeSpellstone, run.tier, bothState, run.ancients /* Ayse × Fortune's Enchanted spell price */ /* every value the builder above READS (dep completeness, as the shop-row memo): the slot's live text must move with the any-spell tally / Clue value / Ruby bonus even when the reducer happens to keep `run.spell`'s identity */],
+    [run, cardBuffsLive, eotShopStats],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
   // recomputes when the board / shop / hand or the Fodder buff changes), so it preserves the memo.
   const refViewsByUid = useMemo(() => {
     const m = new Map<string, CardView[]>();
+    // The hover popup's referenced spells print through the one live chain (R-TEXT-SURFACES-01).
+    const refLive: ShopViewOpts = { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive };
     const add = (uid: string, cardId: string, owner?: { buffs?: { source: string; attack: number; health: number }[]; golden?: boolean }): void => {
       // The manual map first (Fodder/Imp cards whose references aren't effect params — e.g. Feed *consumes*
       // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
@@ -3759,7 +3854,7 @@ export function Recruit() {
       const or = owner?.buffs?.find((b) => b.source === 'Ruby');
       const ownerRuby = { attack: or?.attack ?? 0, health: or?.health ?? 0, golden: owner?.golden };
       const pool = relatedPickOneIds(cardId);
-      if (refs.length || pool.length) m.set(uid, [...refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus)), ...pool.map((id) => ({ ...tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus), refPick: true }))]);
+      if (refs.length || pool.length) m.set(uid, [...refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus, run.starCrashBonus, refLive)), ...pool.map((id) => ({ ...tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus, run.starCrashBonus, refLive), refPick: true }))]);
     };
     for (const c of run.board) add(c.uid, c.cardId, c);
     for (const c of run.hand) add(c.uid, c.cardId, c);
@@ -3768,7 +3863,7 @@ export function Recruit() {
     for (const o of run.shop) add(o.uid, o.cardId, o.held ? heldOfferLedger(o) : o);
     refViewCache.current = stabilizeRefMap(m, refViewCache.current); // reuse unchanged ref-popup arrays (memo bailout)
     return refViewCache.current;
-  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, ftbBonus, ftbBonusH, run.goldSpentThisTurn, run.rubyBonus, run.growthBonus]);
+  }, [run, cardBuffsLive]); // `refLive` reads the run broadly: keyed on it whole (`stabilizeRefMap` keeps unchanged popups)
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   // Frank × Ancient of Fortune's "Sells for N Gold." line: only what `sellValueOf` reads (the picked Ancient, not the
@@ -3778,12 +3873,12 @@ export function Recruit() {
     [run.runeBartering, run.runeStacks, run.ancientsEnabled, run.heroId, run.ancients?.picked],
   );
   const live = useMemo(
-    () => ({ grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: ftbBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper }, chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ }),
+    () => handLiveOf(run, cardBuffsLive, sellState),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.whisperImprove, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
+    [run.whisperImprove, run.cardTribes, run.growthBonus, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
@@ -3898,7 +3993,7 @@ export function Recruit() {
   };
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, handStatOverride(m), spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!, m) } : { ...live, inHand: true })] as const));
+      const fresh = new Map(run.hand.map((m) => [m.uid, handCardView(run, m, live, handStatOverride(m))] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
@@ -9480,15 +9575,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
             // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
             // dozen scaling cards read base only in Discover). Built by the same builders as every other
             // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
-            const lt = liveCardText(c.id, {
-              ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
-              runeMammoth: !!run.questFlags?.runeMammoth,
-              runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
-              // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
-              // the option row is where you decide to take it, so it must not promise a choice it won't ask.
-              chooseBoth: chooseBothActive(run, undefined, c),
-              maxTier: maxTierFor(run.rift),
-            });
+            const lt = discoverCardText(run, c.id, cardBuffsLive);
             // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
             // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
             // 0/1 here). Every other surface passes these through `instView`; this panel builds its

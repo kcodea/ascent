@@ -60,6 +60,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Combat stats now update the moment a buff lands. Card text shows the same live numbers in the Shop as in your hand.',
+        details: [
+          'Rubies played in combat now raise a minion\'s stats as the gem lands, not on the next beat.',
+          'A minion that Rises now shows the Health it gains right away.',
+          'Rune of Unity\'s Undead Aura now shows on your minions when the full house forms in a fight.',
+          'A Health buff that lands during a clash no longer shows twice on the minion.',
+          'A buff on a minion as it is summoned no longer shows twice.',
+          'Lantern Light in the Shop spell slot now shows its full value with your Tavern Tier and spell power.',
+          'Shop spells, Discover, card previews and cast previews now show the same values as your hand. Growth in hand now shows its full value too.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Improve no longer shows a definition pill when you hover a card. The word stays in card text.',
       },
       {

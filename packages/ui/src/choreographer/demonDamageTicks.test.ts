@@ -4,6 +4,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type
 import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import type { Moment } from '../choreo/compile';
 import { holdMs } from '../choreo/clock';
+import { computeFrame } from '../useCombatReplay';
 import {
   CHAIN_RIBBON_BUDGET, HIT_REACTION_LEAD_MS, HIT_REACTION_READ_MS, REACTION_CHAIN_CAP_MS, REACTION_TICK_MS,
   chainEligible, chainTendrilPlan, reactionChainMs, reactionTickStrideMs, reactionTicks,
@@ -182,5 +183,33 @@ describe('Dragonflame is the reference and does not change (owner 2026-10-13)', 
       expect(holdMs(moments[ai + 1]!, swing, 1)).toBe(690);
       expect(holdMs(moments[ai + 2]!, moments[ai + 1]!, 1)).toBe(500);
     }
+  });
+});
+
+describe('Fel Spikes: the row stays still between volleys (owner report 2026-10-13, "the minions dance around")', () => {
+  it('the dead sprayer keeps its slot through EVERY volley and every reaction beat, then leaves once', () => {
+    const r = fight([bm('dm_felspikes', 0, 1, { keywords: ['T'], golden: true }), bm('dm_radrachel', 0, 40), bm('dm_leech', 0, 40), bm('trainingdummy', 0, 40)],
+      [bm('trainingdummy', 5, 40), ...wall(4)], 3);
+    const order = replayOrder(r.events);
+    const moments = replayBeats(r.events);
+    const firstWave = moments.findIndex((m) => m.primary.wave !== undefined);
+    let lastWave = firstWave;
+    while (lastWave + 1 < moments.length && moments[lastWave + 1]!.primary.wave !== undefined) lastWave++;
+    expect(moments.slice(firstWave, lastWave + 1).filter((m) => m.hitReaction).length, 'reaction beats sit between the volleys').toBeGreaterThanOrEqual(2);
+    const rows = moments.slice(firstWave, lastWave + 1).map((m) => computeFrame(r.initial, order, m.end, m.start, new Map()).player.map((u) => u.uid).join(','));
+    expect(new Set(rows).size, `one row layout through the whole spray: ${rows.join(' | ')}`).toBe(1);
+    expect(rows[0]!.split(',')).toContain('m0');
+  });
+
+  it('a body a volley took below 0 shows the engine Health once the reactions buff it (no overkill drift)', () => {
+    // Echohorn 4/3 takes 4 (true -1), then Rachel +1 Health per landed hit: the badge must read the sim's number.
+    const r = fight([bm('dm_felspikes', 0, 1, { keywords: ['T'] }), bm('b2_echohorn', 0, 3), bm('dm_radrachel', 0, 40)],
+      [bm('trainingdummy', 5, 40), ...wall(3)], 3);
+    const order = replayOrder(r.events);
+    const moments = replayBeats(r.events);
+    const react = moments.find((m) => m.hitReaction)!;
+    const echo = computeFrame(r.initial, order, react.end, react.start, new Map()).player.find((u) => u.uid === 'm1')!;
+    const hits = order.slice(0, react.start).filter((e) => e.type === 'dmg' && e.wave === react.primary.wave).length;
+    expect(echo.health).toBe(3 - 4 + hits);
   });
 });

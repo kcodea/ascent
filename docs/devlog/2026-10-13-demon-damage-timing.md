@@ -226,3 +226,35 @@ Nothing here adds a layout read per frame or a looping paint animation; stepped 
 machinery. The `#2028` devlog's open item (a Rachel fight dropping to about 70 fps once stats climb, suspected per-frame
 badge restyling) is directly relevant: more badge steps means more restyles, so that trace should be done first or
 alongside.
+
+## Follow-up: the owner's test of #2074 (2026-10-13)
+
+> "looks good but fel spikes is doing a weird jank. the minions dance around as if it gets resummoned between volleys
+> or something. also check the logic here - i think the echohorn dies before getting the buff which is 'true' but it
+> shouldnt die, and should actually get the buffs from rachel."
+
+### 1. The dance between Fel Spikes volleys (presentation, existed since #2028)
+
+`computeFrame` keeps a dead Fel Spikes on the board as an invisible GHOST only while the CURRENT beat holds damage it
+deals, so its slot is held through the spray and the row reflows once at the end. Since #2028 a volley's reactions are
+their own beat between volleys, and that beat deals no damage: the ghost was dropped, the survivors slid into its slot,
+and slid back out when the next volley re-held it (rows `m0,m1,m2,m3 | m1,m2,m3 | m0,m1,m2,m3 | m1,m2,m3`). It existed
+on `main` whenever the split worked (Rachel without Todd); #2074 made it more visible by splitting in more cases and
+lengthening the reaction beat. Fix: a beat carrying one of the sprayer's wave ids keeps the ghost.
+
+### 2. Echohorn died before Rachel's buffs (engine, R-DEMON-DMG-DEATH-01)
+
+Each landed hit fired its reactions on the spot, and `living()` excludes bodies at 0 or below, so a minion the pass had
+already taken to 0 missed every Rachel buff from the rest of the pass and died, even when those buffs would have
+saved it. Fix (`simulate.ts`, side-neutral, no `types.ts` change): inside a wave the landed Demon hits are queued and
+flushed in hit order after the pass's damage (at the wave's end, or at its first death check), with bodies at 0 or below
+counting as living during the flush. Deaths are then checked on the true Health. The Shop spray already buffed every
+board card before its single death check, so it was left as it is. The replay's frame now carries the overkill debt
+(`remainingHp` is floored at 0), so the badge shows the sim's number after the buffs (3 - 4 + 5 = 4, not 5).
+
+Event order within a pass changes (all of the pass's `dmg`, then its reactions); the replay already presented it in
+that order, so nothing on screen moves except the corrected outcome. No golden or replay fixture changed.
+
+Tests: `packages/sim/src/demonDamageDeathOrder.test.ts` (7: Fel Spikes survive / still dies / order / mirrored sides,
+Gasket survive / no reactor still dies, the Shop), 5 fail on `main`; two more in `demonDamageTicks.test.ts` (the row
+stays still through the spray, the overkill debt), the first fails without the ghost fix.

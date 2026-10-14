@@ -362,13 +362,23 @@ export function computeFrame(
   // `count`, which the sim seeds with the player's run-lifetime total (and 0 for the enemy) — the run already
   // supplies that half, so the frame carries only the in-fight delta.
   const spellCasts: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
+  /** uid → how far below 0 its last hit took it (see the `dmg` branch). */
+  const overkill = new Map<string, number>();
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
     if (e.type === 'attack') attackCount++;
     if (e.type === 'spellcast') spellCasts[e.side]++;
     if (e.type === 'dmg') {
       const u = find(e.target);
-      if (u) u.health = e.remainingHp;
+      if (u) {
+        // OVERKILL DEBT (R-DEMON-DMG-DEATH-01): `remainingHp` is floored at 0, but a body a pass takes BELOW 0 is not
+        // dead yet: the pass's Demon-damage reactions (Rad Rachel) buff it before its death check, and the sim adds
+        // that Health to the true (negative) value. Remember how far under 0 it went, so those buffs pay the debt
+        // first and the badge reads the engine's number (3 - 4 + 5 = 4, not 0 + 5).
+        const under = e.remainingHp <= 0 ? Math.max(0, e.amount - Math.max(0, u.health)) : 0;
+        if (under > 0) overkill.set(u.uid, under); else overkill.delete(u.uid);
+        u.health = e.remainingHp;
+      }
       // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
       // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
       // `noteDamageDealt` added — on top of the seeded value (the run card's lifetime tally, so the badge picks
@@ -492,7 +502,12 @@ export function computeFrame(
       const u = find(e.target);
       if (u) {
         u.attack += e.attack;
-        u.health += e.health;
+        const debt = e.health > 0 ? overkill.get(u.uid) ?? 0 : 0;
+        if (debt > 0) {
+          const paid = Math.min(debt, e.health);
+          if (debt - paid > 0) overkill.set(u.uid, debt - paid); else overkill.delete(u.uid);
+          u.health += e.health - paid;
+        } else u.health += e.health;
         if (e.health > 0) maxHp.set(u.uid, (maxHp.get(u.uid) ?? u.health) + e.health); // Ashen Heir's max-Health track
         // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
         if (e.attack !== 0 || e.health !== 0) {
@@ -574,10 +589,24 @@ export function computeFrame(
   // counts, so the body lingers exactly for its own eruption and is gone the next beat. Sourceless damage (no
   // `source`) retains nothing, so ordinary trades and the resting end-frame (beatStart === upto → empty window)
   // are untouched.
+  //
+  // …AND THROUGH ITS SPRAY'S REACTION BEATS (owner report 2026-10-13, Fel Spikes "doing a weird jank. the minions dance
+  // around as if it gets resummoned between volleys"). Since a volley's Demon-damage reactions became their own beat
+  // (R-DEMON-DMG-BEATS-01/02), that beat sits BETWEEN two volleys and deals no damage, so the ghost was dropped for it:
+  // the survivors slid into the sprayer's slot, then slid back out when the next volley re-held it. A beat that belongs
+  // to one of the sprayer's waves (same wave id) keeps the ghost, so the row reflows ONCE, after the spray.
   const dealingSources = new Set<string>();
+  const beatWaves = new Set<number>();
   for (let i = beatStart; i < Math.min(upto, events.length); i++) {
     const e = events[i];
     if (e?.type === 'dmg' && typeof e.source === 'string') dealingSources.add(e.source);
+    if (e?.wave !== undefined) beatWaves.add(e.wave);
+  }
+  if (beatWaves.size > 0) {
+    for (let i = 0; i < Math.min(upto, events.length); i++) {
+      const e = events[i];
+      if (e?.type === 'dmg' && typeof e.source === 'string' && e.wave !== undefined && beatWaves.has(e.wave)) dealingSources.add(e.source);
+    }
   }
   const keep = (u: UnitFrame): boolean => {
     if (!gone.has(u.uid)) return true;

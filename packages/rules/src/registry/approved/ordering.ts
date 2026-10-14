@@ -202,4 +202,25 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13. Before, a Todd aura or a Rune of Ruins pulse folded the reactions into the pass (no tendril, the numbers snapped in at the next beat), and a pass\x27s reactions were one summed tendril and roll per minion.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-DEMON-DMG-DEATH-01',
+    title: 'A pass lands whole, then its Demon-damage reactions buff, THEN deaths are checked: a body is buffed before it can die to the pass',
+    statement:
+      'For a wave pass of Demon damage (each Gasket Rally pass, each Fel Spikes volley, either side), every hit of the '
+      + 'pass is dealt first, then every reaction those landed hits fire (Rad Rachel, Ruinous Lord, Impossible Todd, '
+      + 'Leech, Axeman, Rune of Ruins) resolves in hit order, and only then are deaths checked. A minion the pass took to 0 '
+      + 'or below is still on the board for those reactions and is buffed like any other: it dies only if the damage beat '
+      + 'its Health after the buffs (Echohorn 4/3 hit for 4 with Rachel paying +1 Health per landed hit survives; a hit '
+      + 'bigger than the buffs still kills). Echo, Rise and Avenge follow the corrected deaths. The Shop spray already '
+      + 'buffs every board minion before its single death check after the spray, so both phases agree. Side-neutral.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-13 (PR #2074 test)', quote: 'i think the echohorn dies before getting the buff which is \'true\' but it shouldnt die, and should actually get the buffs from rachel. if the damage is > the buff from rachel, then yea it dies, but i think it\'s bugged.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts withWave / flushDemonReactions / emitDemonDealtDamage / living (pendingCountsLiving) / resolveEchoDeath; packages/sim/src/recruit.ts shopSprayExceptTribe' },
+    ],
+    contentIds: ['dm_gasket', 'dm_felspikes', 'dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_leech', 'dm_chosenfiend', 'b2_echohorn'],
+    currentBehaviour: 'Conforms as of 2026-10-13. Before, each hit fired its reactions at once and a reactor buffed only bodies still above 0, so a minion the pass had already taken to 0 missed every buff and died.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/demonDamageDeathOrder.test.ts', 'packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

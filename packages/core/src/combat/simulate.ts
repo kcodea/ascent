@@ -265,10 +265,32 @@ export function simulate(
   // Opt-in via `ctx.wave(fn)`; `waveN` is undefined everywhere else, so untagged combat is byte-identical.
   let waveN: number | undefined;
   let waveSeq = 0;
+  // ── A PASS LANDS WHOLE, THEN ITS REACTIONS, THEN ITS DEATHS (R-DEMON-DMG-DEATH-01, owner 2026-10-13) ──────────
+  // *"i think the echohorn dies before getting the buff ... it shouldnt die, and should actually get the buffs from
+  // rachel. if the damage is > the buff from rachel, then yea it dies"*. Inside a wave (a Gasket Rally pass, a Fel
+  // Spikes volley) every landed Demon hit is QUEUED here instead of firing its `friendlyDemonDealtDamage` reactions
+  // on the spot; the queue flushes, in hit order, once the pass's damage is all dealt (`flushDemonReactions`: at the
+  // end of the wave, or the moment the pass asks for its first death check, whichever is first). While it flushes,
+  // a body the pass left at <=0 but has not killed yet still counts as living (`pendingCountsLiving`), so Rad Rachel
+  // and her kind buff it before its death is checked: it dies only if the damage beat its Health after the buffs.
+  // Side-neutral: both sides' passes queue and flush the same way. Outside a wave nothing is queued.
+  let demonReactQueue: Minion[] | null = null;
+  let pendingCountsLiving = false;
+  const flushDemonReactions = (): void => {
+    const q = demonReactQueue;
+    if (!q || q.length === 0) return;
+    demonReactQueue = null; // a reaction's own damage (none today) would fire on the spot, not re-queue
+    pendingCountsLiving = true;
+    try { for (const dealer of q) emitDemonDealtDamage(dealer); }
+    finally { pendingCountsLiving = false; demonReactQueue = []; }
+  };
   const withWave = <T,>(fn: () => T): T => {
     const prev = waveN;
+    const prevQueue = demonReactQueue;
     waveN = ++waveSeq;
-    try { return fn(); } finally { waveN = prev; }
+    demonReactQueue = [];
+    // The flush runs INSIDE the wave (before `waveN` resets), so the reactions keep the pass's wave tag.
+    try { return fn(); } finally { flushDemonReactions(); demonReactQueue = prevQueue; waveN = prev; }
   };
   // ── Multi-volley Echo: deferred-death scope ─────────────────────────────────────────────────────────
   // A Fel-Spikes-style Deathrattle (`deathrattleDamageAllExceptTribe`) that sprays the whole board can fire
@@ -1050,7 +1072,9 @@ export function simulate(
     buffs: m.buffs, // recruit-phase buff breakdown → the combat inspect panel (absent on summoned tokens)
   });
 
-  const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
+  // `pendingCountsLiving`: while a wave pass flushes its Demon-damage reactions, a body the pass left at <=0 but has
+  // not killed yet is still on the board and still gets buffed (R-DEMON-DMG-DEATH-01, see `flushDemonReactions`).
+  const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && (m.health > 0 || pendingCountsLiving));
   /** Set 3 rune batch 3: cast a Ruby on `n` DISTINCT random living friendly Kobolds (All-types bodies count) through
    *  `playRubyOn`, the one combat Ruby primitive, each Kobold its own source (the Gemstorm convention: a rune has no
    *  body). `permanent` = the Ruby carries back (Rune of Combatative Rubies). Fewer Kobolds = each gets one. */
@@ -1370,6 +1394,7 @@ export function simulate(
     // volley and its death is held for `resolveEchoDeath` at the end — see the CombatContext doc.
     damageDeferred: (target, amount, source) => applyDamage(target, amount, false, false, source, true),
     resolveEchoDeath: (target, source) => {
+      flushDemonReactions(); // the pass's reactions land BEFORE any death check (R-DEMON-DMG-DEATH-01)
       if (target.dead || target.health > 0) return;
       // Inside a multi-fire echo scope, HOLD the death — the outermost `withEchoDefer` flushes the whole set
       // at once after every volley + re-fire, so tokens (Void Cubs) land after all the damage and a low-HP
@@ -3919,6 +3944,21 @@ export function simulate(
    * land here; a victim left at ≤0 Health stays on the board (excluded from living()) until the caller
    * resolves it with killOrReborn.
    */
+  /** A friendly-relative Demon's hit LANDED: fire the `friendlyDemonDealtDamage` reactions and Rune of Ruins. Called at
+   *  the hit, or from `flushDemonReactions` once a wave pass's damage is all dealt (R-DEMON-DMG-DEATH-01). */
+  function emitDemonDealtDamage(poisoner: Minion): void {
+    bus.emit('friendlyDemonDealtDamage', { minion: poisoner, side: poisoner.side });
+    // RUNE OF RUINS: the same landed hit pumps that side's whole board. Run-wide (no minion source), so it
+    // rides the emit rather than a card effect. NOT permanent by itself — the gains carry back only for a
+    // body that is Engraved, which is the standing rule for every combat stat gain.
+    if (modsFor(poisoner.side).runeRuins) {
+      fireTrigger('runeRuins', poisoner.side);
+      // The buff lands once per copy held (boolean-flag family, owner 2026-08-27).
+      const rr = RUNE_RUINS_BUFF * flagCopiesOf(poisoner.side, 'runeRuins');
+      for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Rune of Ruins');
+    }
+  }
+
   function applyDamage(
     target: Minion,
     amount: number,
@@ -3984,16 +4024,9 @@ export function simulate(
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all
     // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
     if (amount > 0 && poisoner && isTribeOf(poisoner, 'demon', cards)) {
-      bus.emit('friendlyDemonDealtDamage', { minion: poisoner, side: poisoner.side });
-      // RUNE OF RUINS: the same landed hit pumps that side's whole board. Run-wide (no minion source), so it
-      // rides the emit rather than a card effect. NOT permanent by itself — the gains carry back only for a
-      // body that is Engraved, which is the standing rule for every combat stat gain.
-      if (modsFor(poisoner.side).runeRuins) {
-        fireTrigger('runeRuins', poisoner.side);
-        // The buff lands once per copy held (boolean-flag family, owner 2026-08-27).
-        const rr = RUNE_RUINS_BUFF * flagCopiesOf(poisoner.side, 'runeRuins');
-        for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Rune of Ruins');
-      }
+      // Inside a wave pass the reactions wait for the whole pass's damage (R-DEMON-DMG-DEATH-01).
+      if (demonReactQueue) demonReactQueue.push(poisoner);
+      else emitDemonDealtDamage(poisoner);
     }
     // Venomous: reaching here means the hit actually landed (Immune + Divine Shield already returned
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was

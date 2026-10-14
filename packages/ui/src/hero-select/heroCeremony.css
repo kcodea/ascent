@@ -11,7 +11,7 @@
    the screen, and a live scroll container behind it could still be wheeled — moving the cards the ceremony
    is animating from. `overflow: hidden` also drops any residual track. */
 .heroselect.hsc-active .hsrow.browse { overflow: hidden; }
-.heroselect.hsc-active .hslogo,
+.heroselect.hsc-active .hsprompt,
 .heroselect.hsc-active .hsline,
 .heroselect.hsc-active .riftpill {
   opacity: 0;
@@ -182,18 +182,42 @@
   left: calc(var(--hsc-btnx, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-btny, -198) * 1px * var(--scale, 1));
   zoom: calc(var(--hsc-btnscale, 1.55) * var(--scale, 1));
   margin-top: 16px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.12em;
-  text-transform: uppercase; color: #fff;
-  background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 5px 0 var(--acc-dk);
-  padding: 13px 42px; border-radius: 14px;
+  /* THE GEM PLATE (owner 2026-10-13). It was the flat tangerine Go button. The owner pointed at the End Combat pill
+     and said "i want this", so this IS that pill's paint: `--ui-plate` inside the thin painted gold edge
+     (`--ui-edge`), the shared sheen and bevel, cream body-font text in sentence case. Theme tokens only, so the UI
+     Theme tuner retunes it with the HUD pills. Hover lifts 1px onto the lit plate, the press drops 1px: `translate`,
+     because `hscRise` holds `transform` (fill forwards) and would swallow a transform here. Static paint. */
+  /* BIGGER, WITH SIDE DETAILS (owner, same day: "lets incrase the size and put some little details on the sides of
+     the button text", then "make the button larger though"). The label is 30px (19px originally, 24px after the first
+     ask) with padding and ornaments scaled to match, so the button is about 60% larger than it started. A small gold
+     flourish sits either side of the label (`.hsc-start-orn`, below). */
+  display: inline-flex; align-items: center; gap: 18px;
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 30px; line-height: 1.2; letter-spacing: normal;
+  text-transform: none; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  border: 2px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 5px 14px -4px rgba(0, 0, 0, 0.75);
+  padding: 19px 38px; border-radius: 14px;
+  transition: translate 0.1s ease;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   opacity: 0;
   animation: hscRise var(--hsc-ready-ms, 250ms) ease var(--hsc-ready-delay, 700ms) forwards;
 }
-/* Belongs to the hero moment, so it also gets an unmistakable keyboard focus ring (§16). */
+.hsc-start:hover:not(:disabled) { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.hsc-start:active:not(:disabled), .hsc-start:hover:active:not(:disabled) { translate: 0 1px; transition-duration: 0.05s; }
+@media (prefers-reduced-motion: reduce) { .hsc-start:is(:hover, :active) { translate: none; } }
+/* THE SIDE DETAILS: a fine gold line that fades away from the label and ends, nearest the text, in the theme's gold
+   stud (the 45-degree square the Compendium and the rune card use). The same idea as the painted name divider under
+   the title, at button scale. Theme tokens only; static; decorative (`aria-hidden` in the markup). The right one is
+   the left one mirrored. */
+.hsc-start-orn { position: relative; flex: none; width: 38px; height: 12px; }
+.hsc-start-orn::before { content: ''; position: absolute; left: 0; right: 14px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: linear-gradient(90deg, transparent, var(--ui-edge-main)); }
+.hsc-start-orn::after { content: ''; position: absolute; right: 1px; top: 50%; width: 9px; height: 9px; margin-top: -5.5px; background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); transform: rotate(45deg); }
+.hsc-start-orn-r { transform: scaleX(-1); }
+/* Belongs to the hero moment, so it also gets an unmistakable keyboard focus ring (§16). Gold, like the edge. */
 .hsc-start:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--acc) 65%, #fff);
-  outline-offset: 3px;
+  outline: 3px solid var(--ui-edge-hi);
+  outline-offset: 4px;
 }
 .hsc-start:disabled { cursor: default; }
 

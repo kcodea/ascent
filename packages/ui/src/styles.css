@@ -5569,46 +5569,60 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(calc(96 * var(--vw, 1vw)) / var(--hs-zoom)); }
 .hsbox:has(.hsrow.browse) { zoom: 1; max-width: calc(96 * var(--vw, 1vw)); }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
-/* Still live: `Title.tsx`'s mode-pick and Learn-pick views both use `.hsback`. Hero select no longer does —
-   its Back button was removed 2026-08-22 (owner ask), but the class is NOT dead. */
-.hsback { position: absolute; top: 24px; left: 30px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.22); padding: 10px 18px; border-radius: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.hsback:hover { border-color: var(--acc); color: var(--acc); }
+/* THE BACK BUTTON (restyled 2026-10-13). Hero select and the Practice options screen both wear it. The owner pointed
+   at the End Combat pill and said "i want this", so this IS that pill's paint, nothing invented: the Gem plate
+   (`--ui-plate`) inside the thin painted gold edge (`--ui-edge`), the shared sheen and bevel, cream body-font text
+   in sentence case. Every colour is a `--ui-*` theme token (uiTheme.css), so the UI Theme tuner retunes it with the
+   HUD pills and the tooltips. It behaves like the Compendium's buttons: a 1px lift and the lit plate on hover, a
+   1px press. `translate` (not `transform`) so the motion composes with anything else on the element. Static
+   paint; the hover swaps the plate once, nothing loops. */
+.hsback {
+  position: absolute; top: 24px; left: 30px; z-index: 2; display: inline-flex; align-items: center; gap: 8px;
+  height: 46px; padding: 0 20px; border-radius: 11px; border: 2px solid transparent; white-space: nowrap;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: normal; text-transform: none;
+  transition: translate 0.1s ease;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+.hsback:hover { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.hsback:active, .hsback:hover:active { translate: 0 1px; transition-duration: 0.05s; }
+.hsback:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .hsback:is(:hover, :active) { translate: none; } }
 /* Still live: the END SCREEN reuses `.hstitle` for its own headings ("Tutorial Complete", the result title).
    Hero select no longer does — it wears the brand lockup below. */
 .hstitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
-/* HERO SELECT's brand lockup (owner ask 2026-08-22) — the same mark + wordmark as the home screen, replacing
-   the old plain "THE ASCENT" text heading. Its own class, NOT `.titlelogo`: that one carries the 🏔️ tuner's
-   global offset/float/mark-size, so sharing it would make tuning the home screen silently drag this logo too.
-   `animation: none` is load-bearing for the same reason — `.titleword`/`.crest` default to `titlebob`, so the
-   wordmark would bob here without it. */
-/* (History: pinned to the top of the screen and shrunk ~30% on 2026-08-24, 92→64 mark, 60→42
-   word). Now a DIRECT child of `.heroselect`, so it carries its own `--hs-zoom` for scale parity with the
-   picker below (it used to inherit it from `.hsbox`). */
-.hslogo { display: flex; align-items: center; justify-content: center; gap: calc(10px * var(--hsc-logoscale, 1.7)); zoom: var(--hs-zoom); margin: 0 0 calc(var(--hsc-logogap, 14) * 1px); }
-.hslogo .crest { font-size: calc(64px * var(--hsc-logoscale, 1.7)); animation: none; }
-.hslogo .hsword { font-size: calc(42px * var(--hsc-logoscale, 1.7)); animation: none; }
-/* Larger, and dropped to sit just above the picker (owner ask 2026-09-25: "make the ascent text larger and drop
-   it so it is just above the choose your hero text"). The lockup and `.hsbox` now size to content and the PAIR
-   centres in the screen as one group, instead of the lockup pinned to row 1 over a 1fr picker row. `safe`
-   keeps the top reachable (scroll, not clip) if a window is ever too short for the group. Size and gap are the
-   hero-ceremony tuner's `logoScale` / `logoGap` dials (--hsc-logoscale / --hsc-logogap; the fallbacks above
-   mirror its defaults). Everything rides `--hs-zoom`, so the group shrinks with the stage height (1366x768,
-   1280x720) exactly as the cards do. Practice's browse grid keeps its own top-pinned layout below. */
-.heroselect:has(> .hslogo):not(:has(.hsrow.browse)) { grid-template-rows: auto auto; align-content: safe center; }
-/* Practice's browse grid is a taller screen (two rows + scroll), so the lockup stays a touch smaller. Scoped to
-   `.heroselect` now that the logo sits outside `.hsbox`. */
-.heroselect:has(.hsrow.browse) .hslogo { gap: 10px; margin: clamp(6px, calc(1.6 * var(--vh, 1vh)), 16px) 0 0; }
-.heroselect:has(.hsrow.browse) .hslogo .crest { font-size: clamp(30px, calc(4 * var(--vw, 1vw)), 50px); }
-.heroselect:has(.hsrow.browse) .hslogo .hsword { font-size: clamp(22px, calc(3.4 * var(--vw, 1vw)), 38px); }
-/* "Select Your Hero" — the picker prompt directly above the portraits (owner ask 2026-08-24). Static label,
-   nothing animated. Bigger and lifted toward the lockup (owner ask 2026-10-11): the negative top margin raises
-   it and the bottom margin gives the same amount back, so the lockup and the portraits do not move. */
-.hsprompt { margin: -18px 0 34px; font-family: var(--font-ui); font-weight: 800; font-size: 24px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.88); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
-/* A mode that shows a pill above the prompt (the Oath line, a Rift) keeps the old spacing: lifting the prompt
-   there would press it against the pill. */
-.hsline + .hsprompt, .riftpill + .hsprompt { margin: 0 0 16px; }
+/* (HERO SELECT wore the ASCENT brand lockup above the picker from 2026-08-22 to 2026-10-13, `.hslogo`, sized by the
+   ceremony tuner's `logoScale` / `logoGap` dials. The owner removed it: "can we remove the Ascent title from this
+   screen?" The dials and their `--hsc-logo*` vars went with it.)
+   THE LAYOUT NOW: `.hsbox` is the screen's only in-flow child (Back is absolute, the ceremony overlay is fixed), so
+   one auto row centred in the screen holds the whole group: the title, then the heroes. `safe` keeps the top
+   reachable (scroll, not clip) if a window is ever too short. Everything inside rides `--hs-zoom` with the cards.
+   Practice's browse grid uses the same single row; its title is smaller (below). */
+.heroselect:not(.endscreen) { grid-template-rows: auto; align-content: safe center; }
+/* "SELECT YOUR HERO" IS THE SCREEN TITLE (owner ask 2026-10-13: "give it the same treatment as we did for the
+   compendium ... the title text and the little underline icon underneath", and "move the choose your hero text up").
+   The Compendium's title, scaled up for a full screen: `--font-title` 800 caps at 0.16em, `--ui-title` gold with the
+   hard drop + soft halo, and the cards' own painted name divider beneath (`name-divider.webp`). `padding-left`
+   equals the tracking so the caps centre optically (tracking adds trailing space only). The generous gap under it
+   is what lifts it: the group is centred, so space under the title raises the title and seats the heroes lower.
+   Static: nothing here animates. An `<h1>`, since the lockup that used to be the heading is gone. */
+.hsprompt {
+  margin: 0 0 58px; padding-left: 0.16em; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: 46px; line-height: 1;
+  letter-spacing: 0.16em; text-transform: uppercase; text-wrap: balance; color: var(--ui-title);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.75), 0 0 22px color-mix(in srgb, var(--ui-title) 25%, transparent);
+}
+.hsprompt::after { content: ''; display: block; width: 400px; height: 22px; margin: 13px auto 0; background: url('/frames/name-divider.webp') 50% 50% / 100% 100% no-repeat; }
+/* A mode with run pills (the Oath line, a Rift) seats them under the title as its subtitle row: the title gives
+   up most of its gap to them and the last pill hands the rest on to the heroes. */
+.hsprompt:has(+ .hsline), .hsprompt:has(+ .riftpill) { margin-bottom: 22px; }
+.hsbox > :is(.hsline, .riftpill):has(+ .hsrow) { margin-bottom: 32px; }
+/* Practice's browse grid is a taller screen (two rows + scroll), so its title is smaller and tighter. */
+.hsbox:has(.hsrow.browse) .hsprompt { margin: clamp(6px, calc(1.6 * var(--vh, 1vh)), 16px) 0 20px; font-size: 32px; }
+.hsbox:has(.hsrow.browse) .hsprompt::after { width: 290px; height: 16px; margin-top: 9px; }
 /* Run-start Line telegraph on the hero picker (ascent only). */
-.hsline { display: inline-flex; align-items: center; gap: 10px; margin: -8px 0 20px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+.hsline { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 14px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
 .hsline-line { padding: 3px 12px; border-radius: 999px; background: var(--acc); color: #2a1c0c; }
 .hsline-note { color: rgba(255, 255, 255, 0.5); text-transform: none; letter-spacing: 0.02em; font-weight: 700; }
@@ -5618,7 +5632,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .riftpill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 .riftpill-tag { color: rgba(198, 160, 255, 0.85); }
 .riftpill-name { padding: 0.24em 0.9em; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
-.riftpill-hero { --ap-fs: 13px; margin: -8px 0 20px; }
+.riftpill-hero { --ap-fs: 13px; margin: 0 0 14px; }
 .riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
 /* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
    screen). Normal-case + normal tracking so the blurb reads as prose, not a label. */
@@ -5687,9 +5701,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 }
 .herocard.big:hover .hcmeta { opacity: 0; }
 .hcdiff {
-  display: inline-block; padding: 2px 13px 3px; border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.07em; text-transform: uppercase;
-  border: 2px solid currentColor; background: rgba(8, 6, 14, 0.55);
+  display: inline-block; padding: 3px 15px 4px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 2px solid currentColor; background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 78%, currentColor) 0%, var(--ui-chip-bg) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 3px 8px -3px rgba(0, 0, 0, 0.75); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
 /* Difficulty is a THREE-STEP scale, so it gets three unambiguous hues rather than one accent at three
    opacities — the pill has to be readable at a glance across a row of cards. */
@@ -8592,8 +8607,13 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 }
 /* THE RANKED HERO SELECT's Back (HeroSelect.tsx): one press arms it and the label names the cost; a second
    press abandons. Armed = the danger red, a static change (no looping paint animation). */
-.hsback.armed { border-color: #ff8a7a; color: #ffd9d2; background: rgba(140, 28, 20, 0.72); }
-.hsback.armed:hover { border-color: #ffb3a8; color: #fff; }
+/* The same plate, warmed to the theme's warning reds: the rim and edge are the warning tokens. */
+.hsback.armed, .hsback.armed:hover {
+  color: var(--ui-warn-hand);
+  background: var(--ui-sheen) padding-box, linear-gradient(180deg, color-mix(in srgb, var(--ui-warn-edge) 88%, #fff) 0%, var(--ui-warn-edge) 55%, color-mix(in srgb, var(--ui-warn-edge) 60%, #000) 100%) padding-box,
+    linear-gradient(180deg, var(--ui-warn-hand) 0%, var(--ui-warn-rim) 45%, var(--ui-warn-edge) 100%) border-box;
+}
+.hsback.armed:hover { color: #fff; }
 @media (prefers-reduced-motion: reduce) { .mcswirl { animation: none; } }
 
 /* ---- REFRESH CRYSTAL (RefreshButton.tsx) — the blue crystal pinned TOP-CENTRE of the board, replacing the

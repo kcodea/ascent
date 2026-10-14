@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-13',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Hero select has a new look: a gold Select Your Hero title, and blue buttons with gold trim.',
+        details: [
+          'The ASCENT logo no longer sits above the heroes on this screen.',
+          'Select Your Hero is the screen title now, in the same style as the Compendium title.',
+          'Start Game and Main Menu are blue with gold trim. The Practice options Back button matches.',
+        ],
+      },
       { category: 'Balance', text: 'Storm Chaser: Shout now gets a Veinstorm in your hand instead of casting it. Gilded gets 2.' },
       {
         category: 'Systems',

@@ -1,5 +1,4 @@
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
-import { AscentLogo } from './AscentLogo';
 import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { RiftPill } from './RiftPill';
@@ -141,23 +140,22 @@ export function HeroSelect() {
           the screen out from under the machine mid-choreography is not a state it handles. */}
       {!active && (ranked ? (
         <button
-          className={`hsback${abandonArmed ? ' armed' : ''}`}
+          className={`hsback pressable${abandonArmed ? ' armed' : ''}`}
           onPointerDown={() => { sfx.pulse(); if (abandonArmed) abandonRankedEntry(); else setAbandonArmed(true); }}
           onBlur={() => setAbandonArmed(false)}
           aria-description="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
         >
-          {abandonArmed ? 'Abandon? Counts as 8th place' : '← Main Menu'}
+          {abandonArmed ? 'Abandon? Counts as 8th place' : <><span className="hsback-arrow" aria-hidden="true">←</span> Main Menu</>}
         </button>
       ) : (
-        <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }}>← Main Menu</button>
+        <button className="hsback pressable" onPointerDown={() => { sfx.pulse(); openTitle(); }}><span className="hsback-arrow" aria-hidden="true">←</span> Main Menu</button>
       ))}
-      {/* The real brand lockup, not a text heading (owner ask 2026-08-22) — the same mark + wordmark the home
-          screen wears, so the two screens read as one product. It lives OUTSIDE `.hsbox` (`.heroselect` is a
-          two-row grid: this lockup, then the box) and the pair centres as ONE group, the lockup sitting just
-          above "Select Your Hero" (owner ask 2026-09-25). Size + gap are the ceremony tuner's `logoScale` /
-          `logoGap` dials; `.hslogo` owns its own sizing. */}
-      <AscentLogo className="hslogo" headingClass="disp titleword hsword" />
+      {/* THE TITLE (owner ask 2026-10-13): "Select Your Hero" IS the screen's heading now, in the Compendium's title
+          treatment (the gold caps title over the painted name divider). The ASCENT lockup that sat above it is gone
+          from this screen. It is the first thing in `.hsbox`, so it rides the picker's zoom and the title + heroes
+          centre as one group; the run pills (Oath, Rift) sit under it as its subtitle row. */}
       <div className="hsbox">
+        <h1 className="hsprompt">Select Your Hero</h1>
         {/* Run-start telegraph: your rating-derived Line — the wins this run is expected to cover. Shown for
             every SCORED mode, which is Ascent AND Rift (a rift run still takes damage, still records a
             result — every other mode check in the codebase is `!== 'practice'`, so this one matches). Only
@@ -176,8 +174,6 @@ export function HeroSelect() {
         {/* Active "rift" patch — a limited-time global run modifier (see CONFIG.rift). Telegraphed here so
             the player knows the rules are bent before they pick. */}
         {rift && <RiftPill rift={rift} variant="hero" />}
-        {/* Prompt directly above the portraits (owner ask 2026-08-24). */}
-        <div className="hsprompt">Select Your Hero</div>
         {/* Naming yourself now lives on the home screen (the account chip). Both modes use the SAME big card;
             Practice (every hero) adds `browse` — four across, two rows visible, scroll for the rest. */}
         <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>

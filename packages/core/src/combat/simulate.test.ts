@@ -1430,15 +1430,19 @@ describe('simulate (handoff A.3)', () => {
   it('a captured ENEMY Spear Warden re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
     // An enemy snapshot Warden carrying a +15/+10 Spear-Warden enchant on its buff breakdown (base 4/2 →
     // 19/12) with Rise. On death it Rises from base — applyAuras must re-fold its own enchant even for the
-    // enemy side: base attack 4 + 15 = 19, Rise Health 1 + 10 = 11 (NOT bare 4/1). The stack its own death
-    // banks is a carry-back for the enemy side (KNOWN ASYMMETRY), so it is not on the risen body.
-    const a = run(
-      [{ cardId: 'omen', attack: 30, health: 90, keywords: [] }],
-      [{ cardId: 'knit', attack: 19, health: 12, keywords: ['R'], buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }] }],
-      3,
-    );
-    const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([19, 11]);
+    // enemy side: base attack 4 + 15 = 19, Rise Health 1 + 10 = 11 (NOT bare 4/1) — PLUS the +4/+2 stack its own
+    // death just banked (R-SYMMETRY-01, 2026-10-13: the enemy's banked stacks are live, exactly like the player's;
+    // this used to pin 19/11 as a KNOWN ASYMMETRY). The same Warden fighting as the player returns identically.
+    const warden: BoardMinion = { cardId: 'knit', attack: 19, health: 12, keywords: ['R'], buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }] };
+    const omen: BoardMinion = { cardId: 'omen', attack: 30, health: 90, keywords: [] };
+    const asEnemy = run([{ ...omen }], [{ ...warden, keywords: ['R'] }], 3);
+    const asPlayer = run([{ ...warden, keywords: ['R'] }], [{ ...omen }], 3, 6, 1, []);
+    const rebornOf = (r: ReturnType<typeof run>): [number, number] | null => {
+      const e = r.events.find((ev) => ev.type === 'reborn');
+      return e && e.type === 'reborn' ? [e.attack, e.hp] : null;
+    };
+    expect(rebornOf(asEnemy)).toEqual([23, 13]);
+    expect(rebornOf(asPlayer)).toEqual(rebornOf(asEnemy));
   });
 
   it('Reborn fires the unit\'s Deathrattle on EVERY death — Twilight Whelp + Reborn leaves a Whelp per death', () => {

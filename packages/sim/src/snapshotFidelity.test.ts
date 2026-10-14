@@ -24,7 +24,7 @@ import { sideFromSnapshot } from './boardSide';
 /** Fields the snapshot deliberately does NOT reproduce — each with the reason it is player-only. */
 const EXCLUDED: Record<string, string> = {
   poolIds: 'both sides draw from the LIVE run\'s pinned pool by design (see sideFromSnapshot\'s doc)',
-  pendingQuests: 'mid-combat quest completion is the live player\'s own UI arc — a served board\'s quests are already-active mods',
+  // (pendingQuests left this list on 2026-10-13, R-SYMMETRY-01: a served board completes its quests mid-fight too.)
 };
 
 const staged = (): RunState => ({
@@ -64,6 +64,10 @@ const staged = (): RunState => ({
   cardBuffs: { whelpling: { attack: 2, health: 2 } },
   beastHuntExtra: 1,
   beastRitualExtra: 1,
+  // R-SYMMETRY-01 (2026-10-13): the context a served board used to lose.
+  firstSpellThisTurnId: 'growth', // Comet Conductor copies the owner's first spell
+  spellhidePending: [{ spellId: 'growth', uid: 'a' }], // Rune of Spellhide re-casts onto the run card `a`
+  activeQuests: [{ questId: 'q_foragers_trail', progress: 4, completed: false }], // a combat quest mid-way (attack x10)
 } as RunState);
 
 describe('a served snapshot reconstitutes the OWNER\'s full combat context', () => {
@@ -89,6 +93,19 @@ describe('a served snapshot reconstitutes the OWNER\'s full combat context', () 
       if (JSON.stringify(a) !== JSON.stringify(b)) mismatches.push(`${key}: player=${JSON.stringify(a)} rebuilt=${JSON.stringify(b)}`);
     }
     expect(mismatches, 'scalers dropped between capture and rebuild:\n' + mismatches.join('\n')).toEqual([]);
+  });
+
+  it('R-SYMMETRY-01: a served board keeps its run-card uids, so its uid-keyed mods (Spellhide, bonds) find their bodies', () => {
+    const snap = snapshotBoard(staged());
+    expect(snap.minions.map((m) => m.sourceUid)).toEqual(['a', 'b']);
+    expect(snap.spellhide).toEqual([{ spellId: 'growth', uid: 'a' }]);
+    expect(snap.pendingQuests?.map((q) => [q.questId, q.progress])).toEqual([['q_foragers_trail', 4]]);
+    // An OLD capture (no uids, no new fields) still loads, defaulting to "none".
+    const legacy = { ...snap, minions: snap.minions.map(({ sourceUid: _u, ...m }) => m), spellhide: undefined, pendingQuests: undefined, firstSpellThisTurnId: undefined };
+    const side = sideFromSnapshot(legacy, 4, []);
+    expect(side.spellhide ?? []).toEqual([]);
+    expect(side.pendingQuests ?? []).toEqual([]);
+    expect(side.firstSpellThisTurnId).toBeUndefined();
   });
 
   it('the reported case end-to-end: a +16/+16 run\'s Gemstorm Rubies survive the round trip', () => {

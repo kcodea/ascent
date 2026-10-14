@@ -314,11 +314,12 @@ export function prepareAndFightGhost(a: RunState, ghost: GhostSide, seed: number
  * are stripped first, so a new `player*` field can never leak across the table by default, and a new
  * `CombatCarryBacks` field is silently dropped here until it is mapped — the leak test names the contract).
  *
- * WHAT IS STILL NOT MIRRORED — the simulator's known, kept asymmetries (see `CombatCarryBacks`): Pack
- * Mentality's live growth, Blood Trail's mark, and the resolution-bearing live reads (an enemy Grim reads its
- * frozen tally this fight; enemy spell power / Imp aura / per-card stacks stay static this fight even though
- * their gains DO carry back). A result without `enemyCarry` (a hand-built fixture) mirrors damage, outcome,
- * deaths and survivors only — deathrattles recorded as 0, never estimated.
+ * Since R-SYMMETRY-01 (2026-10-13) the simulator has NO kept asymmetries: the enemy half is the same live
+ * computation (Pack Mentality grows, Blood Trail marks, Grim / spell power / Imp Aura / per-card stacks are live),
+ * so every carry-back below is the seat's real one. The event log keeps the fight's own labels (it is ONE fight,
+ * shared by both seats; `initial` is swapped so the seat's own board reads as `player`). A result without
+ * `enemyCarry` (a hand-built fixture) mirrors damage, outcome, deaths and survivors only — deathrattles recorded
+ * as 0, never estimated.
  */
 export function mirrorForEnemySeat(result: CombatResult): CombatResult {
   const clone = structuredClone(result);
@@ -339,6 +340,8 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
   const carried: Partial<CombatResult> = c ? defined({
     playerDeathrattles: c.deathrattles,
     playerRallies: c.rallies,
+    playerShoutFires: c.shoutFires,
+    playerShoutMeters: c.shoutMeters,
     playerImpsSummoned: c.impsSummoned,
     playerFirstKill: c.firstKill,
     playerLastKill: c.lastKill,
@@ -391,6 +394,15 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerBoardBuffGain: c.boardBuffGain,
     playerMagneticBuffGain: c.magneticBuffGain,
     playerFodderBuffGain: c.fodderBuffGain,
+    // The hero (Ancient) channels — either seat's hero rides its own fight since R-SYMMETRY-01.
+    playerWardBreaks: c.wardBreaks,
+    playerWardWindow: c.wardWindow,
+    playerRises: c.rises,
+    playerSummonsMade: c.summonsMade,
+    playerAncientPummelDealt: c.ancientPummelDealt,
+    playerAncientSpellImproved: c.ancientSpellImproved,
+    playerAncientClearanceStacks: c.ancientClearanceStacks,
+    playerAncientMaxGoldFires: c.ancientMaxGoldFires,
   }) : { playerDeathrattles: 0 }; // UNKNOWN without the symmetric surface — recorded as 0, never estimated
   return {
     ...clone,

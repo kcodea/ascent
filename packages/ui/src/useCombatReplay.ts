@@ -282,7 +282,8 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
  */
 export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
-  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
+  // YOUR hand only: since R-SYMMETRY-01 (2026-10-13) the foe's grants fly to ITS hand in the log too (side-tagged).
+  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' && e.side === 'player' ? [e.cardId] : []));
 }
 
 /**
@@ -642,15 +643,18 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'improve': { const d = e.display ?? e.amount; return d > 0 ? { text: `${n(e.target)}'s effect improves by ${d}.`, kind: 'buff' } : null; }
     case 'keyword': return { text: `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` from ${n(e.source)}` : ''}.`, kind: 'buff' };
     case 'keywordLost': return { text: `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` to ${n(e.source)}` : ''}.`, kind: 'dmg' };
-    case 'maxGold': return { text: `${n(e.target)}'s Avenge raises your max Gold by ${e.amount}.`, kind: 'buff' };
+    case 'maxGold': return { text: `${n(e.target)}'s Avenge raises ${whose(e.side)} max Gold by ${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
     case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s Shout.`, kind: 'sc' };
-    case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
-    case 'handBuff': return { text: `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`, kind: 'buff' };
+    case 'toHand': return { text: `${cardName(e.cardId)} is added to ${whose(e.side)} hand.`, kind: 'summon' };
+    case 'handBuff': return { text: `${cardName(e.cardId)} in ${whose(e.side)} hand grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'pummelTrigger': return { text: `${n(e.source)}'s Pummel triggers.`, kind: 'sc' };
     default: return null;
   }
 }
+
+/** The seat a hand / max-Gold line belongs to, from the viewer's chair (R-SYMMETRY-01: either side gets them). */
+const whose = (side: 'player' | 'enemy'): string => (side === 'player' ? 'your' : 'their');
 
 function narrate(e: CombatEvent, names: Map<string, string>): string | null {
   const n = (uid: string) => names.get(uid) ?? 'a minion';
@@ -667,11 +671,11 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'improve': { const d = e.display ?? e.amount; return d > 0 ? `${n(e.target)}'s effect improves (+${d}).` : null; }
     case 'keyword': return `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'keywordLost': return `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
-    case 'maxGold': return `${n(e.target)} raises your max Gold by ${e.amount}!`;
+    case 'maxGold': return `${n(e.target)} raises ${whose(e.side)} max Gold by ${e.amount}!`;
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
     case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s Shout!`;
-    case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
-    case 'handBuff': return `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`;
+    case 'toHand': return `${cardName(e.cardId)} is added to ${whose(e.side)} hand.`;
+    case 'handBuff': return `${cardName(e.cardId)} in ${whose(e.side)} hand grows +${e.attack}/+${e.health}.`;
     case 'pummelTrigger': return `${n(e.source)}'s Pummel triggers!`;
     default: return null;
   }
@@ -2056,7 +2060,8 @@ export function useCombatReplay(
   // Show the flying "→ hand" card only while its `toHand` beat is current; clear on any other beat.
   useEffect(() => {
     const beat = active ? beats[beatIdx] : undefined;
-    if (beat && beat.primary.type === 'toHand') setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
+    // YOUR hand only: a foe's grant (side-tagged since R-SYMMETRY-01) is logged, not flown into your hand.
+    if (beat && beat.primary.type === 'toHand' && beat.primary.side === 'player') setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
     else setHandGrant(null);
     // `seekNonce`: `resetTo` nulls the flying card, so without this a re-seek onto a `toHand` beat would
     // clear the grant and never restore it — that moment's animation just wouldn't replay.

@@ -403,7 +403,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
     grantMaxGold: (amount) => {
       ctx.grantMaxGold(amount, self.side);
-      if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount });
+      ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount }); // either side, side-tagged (R-SYMMETRY-01)
     },
     grantGoldNextTurn: (amount) => { ctx.grantBonusGold(amount, self.side); },
     isCelestial: (t) => !!ctx.getCard(t.cardId)?.celestial,
@@ -485,7 +485,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       }, spellId || undefined);
     },
     damageAll: (amount) => {
-      for (const sideKey of ['player', 'enemy'] as Side[]) {
+      for (const sideKey of ctx.sideOrder ?? (['player', 'enemy'] as Side[])) {
         for (const m of [...ctx.living(sideKey)]) ctx.damage(m, amount);
       }
     },
@@ -736,7 +736,7 @@ export function deferShopOnlyShout(ctx: CombatContext, m: Minion): void {
   for (const eff of m.effects) {
     if (eff.on !== 'onPlay' || COMBAT_REPLAYABLE_BATTLECRIES.has(eff.do)) continue;
     const only = SHOP_ONLY_SHOUTS[eff.do];
-    if (only && m.side === 'player') ctx.log({ type: 'sc', source: m.uid, text: `${m.name} ${only.line}` });
+    if (only) ctx.log({ type: 'sc', source: m.uid, text: `${m.name} ${only.line}`, side: m.side });
     shopOnly = true;
   }
   if (shopOnly) ctx.deferBattlecry(m.cardId, m.golden, m.side, m.sourceUid);
@@ -1102,7 +1102,7 @@ let scavversChainDepth = 0;
 function sprayDamageExceptFriendlyTribe(ctx: CombatContext, self: Minion, amount: number, exc: string, passes: number): void {
   if (amount <= 0) return;
   const victims: Minion[] = [];
-  for (const sideKey of ['player', 'enemy'] as Side[]) {
+  for (const sideKey of ctx.sideOrder ?? (['player', 'enemy'] as Side[])) {
     for (const m of ctx.onBoard(sideKey)) {
       if (sideKey === self.side && exc && (m.tribe === exc || m.tribe2 === exc || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe))) continue;
       victims.push(m);
@@ -1736,9 +1736,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryScoutSpread: (ctx, self, params) => {
     const step = num(params.step, 3) * mul(self) * ctx.improveRepsFor(self.side);
     ctx.grantScoutBuff(step, self.side);
-    // The improve, logged on the beat (R-TEXT-11): `scout` (player side only) is what the replay folds into
-    // Squirl Scout's printed grant, so every Squirl Scout's text moves the moment the value grows.
-    if (step !== 0) ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, ...(self.side === 'player' ? { scout: step } : {}) });
+    // The improve, logged on the beat (R-TEXT-11): `scout` + `side` is what the replay folds into that side's
+    // Squirl Scout printed grant, so every Squirl Scout's text moves the moment the value grows (either side).
+    if (step !== 0) ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, scout: step, side: self.side });
     const amount = ctx.scoutBuffFor(self.side);
     const arena = combatArena(ctx, self);
     const beasts = ctx.living(self.side).filter((m) => arena.isTribe(m, 'beast')).length;
@@ -1790,7 +1790,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 2) * mul(self), h = num(params.health, 2) * mul(self);
     if (a <= 0 && h <= 0) return;
     ctx.gainNextShopBuff?.(a, h, self.side);
-    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop` });
+    ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop`, side: self.side });
   },
 
   /** Rocket Power (Shout): "this shop +a/+h, repeat for every Shop spell you cast this turn", `1 + n` ticks, each
@@ -1800,7 +1800,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 3) * mul(self), h = num(params.health, 3) * mul(self);
     if (a <= 0 && h <= 0) return;
     for (let t = 0; t < ticks; t++) ctx.gainNextShopBuff?.(a, h, self.side);
-    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop${ticks > 1 ? ` (x${ticks})` : ''}` });
+    ctx.log({ type: 'sc', source: self.uid, text: `+${a}/+${h} next Shop${ticks > 1 ? ` (x${ticks})` : ''}`, side: self.side });
   },
 
   // ── The three TARGETED Shouts that name their target at PLAY (owner ruling 2026-09-26, R-TARGET-06: "yes they
@@ -1820,7 +1820,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const copy = (): EffectDef[] => def.effects.filter((e) => e.on === 'onDeath').map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) }));
     ctx.grantDeathrattle(self, copy());
     ctx.grantCopiedEcho?.(self, copy(), def.name);
-    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name} copies ${def.name}'s Echo` });
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} copies ${def.name}'s Echo`, side: self.side });
   },
 
   /** Auric Runemaster (Shout): Gild a random other friendly that is not already Gilded, for THIS fight (the
@@ -1874,12 +1874,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   battlecryGainGoldNextTurn: (ctx, self, params) => {
     const n = num(params.amount, 1) * mul(self);
     ctx.grantBonusGold(n, self.side);
-    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn` });
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn`, side: self.side });
   },
   battlecryBonusGoldNextTurn: (ctx, self, params) => {
     const n = num(params.gold, 1) * mul(self);
     ctx.grantBonusGold(n, self.side);
-    if (self.side === 'player') ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn` });
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name}: +${n} Gold next turn`, side: self.side });
   },
   battlecryBuffFodder: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffFodder(combatArena(ctx, self), params);
@@ -2966,7 +2966,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
     ARENA_EFFECTS.rallyGoldNextTurn(combatArena(ctx, self), params);
-    if (self.side === 'player') ctx.log({ type: 'questTrigger', flag: 'ancientRallyGold', side: self.side });
+    ctx.log({ type: 'questTrigger', flag: 'ancientRallyGold', side: self.side });
   },
   /** Rune of Aggressive Golems' graft (2026-09-25) — Rally: the minion to the right gains this minion's Attack. */
   rallyGiveAttackToRight: (ctx, self, params, payload) => {
@@ -3387,7 +3387,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (seen <= 0 || seen % x !== 0) return;
     const gain = mul(self);
     ctx.grantMaxGold(gain, self.side);
-    if (self.side === 'player') ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
+    ctx.log({ type: 'maxGold', target: self.uid, side: self.side, amount: gain });
   },
 
   /** Avenge (Bone Taxer): every `count` friendly deaths, grant `amount` one-time Gold into your next shop

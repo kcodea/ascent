@@ -10,13 +10,13 @@
  * replay re-runs byte-identically — so every round's board is reconstructable headlessly from a few KB,
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
-import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type Keyword, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
+import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type Keyword, type PendingCombatQuest, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
 import type { SetId } from '@game/content';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
-import { reduce, questCombatMods } from './reducer';
+import { reduce, playerCombatSideState } from './reducer';
 import { handCardLocked, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
 import type { ThreatId } from './threats';
 
@@ -56,9 +56,11 @@ export interface BoardSnapshot {
   /** Σ(attack + health) over the board — the strength index used to match opponents by wave + power. */
   power: number;
   /** The board it fought: cardId + final (recruit-buffed) stats + keywords (+ golden / summonBonus).
-   *  Run-specific instance refs (sourceUid, uid) are dropped — they don't transfer. One-combat spell/power
-   *  marks (bloodlust, partingCry, closedCasket, resummon) ARE carried since 2026-08-27: the snapshot is the
-   *  board that actually fought. */
+   *  One-combat spell/power marks (bloodlust, partingCry, closedCasket, resummon) ARE carried since 2026-08-27:
+   *  the snapshot is the board that actually fought. Since R-SYMMETRY-01 (2026-10-13) each minion also keeps its
+   *  run-card uid as `sourceUid`: the owner's uid-keyed combat mods (Sable's Soulbind, Xerox's bond, Undying,
+   *  Spellhide) name their bodies by it, and without it a served board's bond / Undying / re-cast matched nothing.
+   *  Absent on older captures (those mods then simply find no body, as before). */
   minions: BoardMinion[];
   /** TRUE for boards captured since the 2026-08-27 snapshot-carries change: the one-combat marks (resummon /
    *  partingCry / closedCasket) travel on the minions themselves. `opponentBoard` uses this to skip its legacy
@@ -128,9 +130,20 @@ export interface BoardSnapshot {
   undeadBuyAtk?: number; // Undead buy-time Attack slice (Deathswarmer / Forsaken Weaver / Karthus) — re-added to from-base Undead
   magneticAura?: { attack: number; health: number }; // Attachment/Magnetic aura (Scrap Herald / Banksly) — enemy from-base Magnetics
   fodderConsumed?: { attack: number; health: number }; // Fodder consumed this turn (enemy Abhorrent Horror's SC)
-  /** The owner's assembled quest/rune COMBAT modifiers (the `questCombatMods` output) — so a served board
-   *  reproduces its runes/quests at Start of Combat / on avenge / etc. Omitted when empty. */
+  /** The owner's assembled quest/rune COMBAT modifiers — so a served board reproduces its runes/quests at Start of
+   *  Combat / on avenge / etc. Omitted when empty. Since R-SYMMETRY-01 (2026-10-13) this is EXACTLY the mods the
+   *  owner's own fight used (`playerCombatSideState`): the hero's Ancient mods included (they used to be dropped,
+   *  so a served Ancient board fought without its hero). Pre-emptive Assault (`attackFirstNext`) is still never
+   *  captured (R-PREEMPTIVE-PLAYER-01). */
   questMods?: QuestCombatMods;
+  /** The owner's FIRST spell of the capture turn (Comet Conductor's Rally copies it). R-SYMMETRY-01. */
+  firstSpellThisTurnId?: string;
+  /** Rune of Spellhide's Start-of-Combat re-casts ({spellId, uid}: `uid` is the owner's run-card uid, which the
+   *  board's minions carry as `sourceUid`). R-SYMMETRY-01. */
+  spellhide?: { spellId: string; uid: string }[];
+  /** The owner's active quests that can complete MID-COMBAT (their objective counts combat events), with their
+   *  progress at capture — a served board completes them mid-fight exactly as its owner's fight did. R-SYMMETRY-01. */
+  pendingQuests?: PendingCombatQuest[];
   /** Set 2 — the run's Ruby STRENGTH at capture (`rubyBonus`): the +X/+X its Rubies carry on top of 1/1.
    *  Without it a served Rune of Gemstorm / Geode Guardian / Candle Conduit plays bare 1/1 Rubies — the
    *  owner-reported hole (2026-08-06: "the gems were +16/+16 and the rune only buffed +2/+2"). */
@@ -239,6 +252,7 @@ const sumPower = (b: BoardMinion[]): number => b.reduce((s, m) => s + m.attack +
 function cleanBoard(s: RunState): BoardMinion[] {
   return s.board.map((c) => ({
     cardId: c.cardId,
+    sourceUid: c.uid, // R-SYMMETRY-01: the owner's uid-keyed combat mods (Soulbind, Xerox bond, Undying, Spellhide) name bodies by it
     attack: c.attack,
     health: c.health,
     keywords: [...c.keywords],
@@ -377,12 +391,16 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   const handMinions = s.hand
     .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
     .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden, ...(handCardLocked(s, c) ? { locked: true as const } : {}) }));
-  // The assembled quest/rune combat modifiers — so a served board reproduces its runes/quests in combat.
+  // The assembled quest/rune/hero combat modifiers, EXACTLY as the owner's own fight assembles them (R-SYMMETRY-01:
+  // one builder, so a served board reproduces its runes, quests AND its hero's Ancient mods in combat).
   // Pre-emptive Assault is a PLAYER-ONLY carry (owner 2026-10-07: "pre-emptive assault is a player only carry. dont
   // let enemies cast this"; R-PREEMPTIVE-PLAYER-01): it is never captured, so no served board can hold it.
-  const { attackFirstNext: _playerOnly, ...qmods } = questCombatMods(s);
+  const own = playerCombatSideState(s);
+  const { attackFirstNext: _playerOnly, ...qmods } = own.questMods;
   void _playerOnly;
   const hasQmods = Object.keys(qmods).length > 0;
+  const pendingQuests = own.pendingQuests ?? [];
+  const spellhide = own.spellhide ?? [];
   return {
     v: 1,
     wave: s.wave,
@@ -414,6 +432,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.magneticBuyAtk || s.magneticBuyHp ? { magneticAura: { attack: s.magneticBuyAtk ?? 0, health: s.magneticBuyHp ?? 0 } } : {}),
     ...(s.fodderConsumedThisTurn?.attack || s.fodderConsumedThisTurn?.health ? { fodderConsumed: { attack: s.fodderConsumedThisTurn.attack, health: s.fodderConsumedThisTurn.health } } : {}),
     ...(hasQmods ? { questMods: qmods } : {}),
+    ...(s.firstSpellThisTurnId ? { firstSpellThisTurnId: s.firstSpellThisTurnId } : {}),
+    ...(spellhide.length ? { spellhide: spellhide.map((h) => ({ ...h })) } : {}),
+    ...(pendingQuests.length ? { pendingQuests: pendingQuests.map((p) => ({ ...p })) } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
     ...(s.rubyBonus?.attack || s.rubyBonus?.health ? { rubyBonus: { attack: s.rubyBonus.attack, health: s.rubyBonus.health } } : {}),

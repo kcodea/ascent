@@ -32,15 +32,17 @@ function recordRun(seed: number): { replay: { seed: number; heroId: string; acti
 }
 
 describe('board snapshot + replay', () => {
-  it('snapshotBoard captures the fought board (power = Σ atk+hp; run-specific refs dropped)', () => {
+  it('snapshotBoard captures the fought board (power = Σ atk+hp; each body keeps its run-card uid)', () => {
     const { live } = recordRun(7);
     expect(live.length).toBeGreaterThan(0);
     const snap = live[0]!;
     expect(snap.v).toBe(1);
     expect(snap.wave).toBe(1);
     expect(snap.power).toBe(snap.minions.reduce((s, m) => s + m.attack + m.health, 0));
-    // transferable board only — no run-specific instance refs leak into the snapshot
-    expect(snap.minions.every((m) => m.sourceUid === undefined)).toBe(true);
+    // R-SYMMETRY-01 (2026-10-13): each body keeps its run-card uid as `sourceUid`, so the owner's uid-keyed combat
+    // mods (Soulbind, Xerox bond, Undying, Spellhide) find their bodies on a served board. (It used to be dropped.)
+    expect(snap.minions.every((m) => typeof m.sourceUid === 'string' && m.sourceUid.length > 0)).toBe(true);
+    expect(new Set(snap.minions.map((m) => m.sourceUid)).size).toBe(snap.minions.length);
   });
 
   it("snapshotBoard retains per-minion accruals (Sergeant's Deathrattle HP-grant, Tara's ascend progress)", () => {

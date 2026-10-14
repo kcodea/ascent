@@ -3098,7 +3098,7 @@ export type CombatEvent = (
   // `spell-bounce` ribbon from `bounce.from` to `target`. Only stamped for CROSS-target hops (a same-target
   // recast — Mirrorwing, Resonance's extra Ruby — carries none; owner ruling 2026-09-15). Never read by the sim.
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
-  | { type: 'improve'; target: string; amount: number; display?: number; scout?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
+  | { type: 'improve'; target: string; amount: number; display?: number; scout?: number; side?: Side } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
@@ -3156,8 +3156,8 @@ export interface CombatSideState {
   wildHuntGrown?: number;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
-  /** The FIRST spell cast this recruit turn, by id — Comet Conductor's Rally hands the player a copy. Player-only
-   *  (a served enemy's hand grants no-op), so the snapshot does not carry it. */
+  /** The FIRST spell cast this recruit turn, by id — Comet Conductor's Rally hands its side a copy. Snapshot-
+   *  captured since R-SYMMETRY-01 (2026-10-13), so a served Comet Conductor copies its OWNER's first spell. */
   firstSpellThisTurnId?: string;
   /** Lifetime spells cast this run (Umbral Energy scales Dragons +N per spell; seeds the combat spell tally). */
   spellsCast: number;
@@ -3283,8 +3283,20 @@ export interface PendingCombatQuest {
 
 /** Combat-resolution flags that are genuinely player-only one-fight overrides (runes), not per-side run state. */
 export interface CombatConfig {
-  /** Rune Forthcoming / attack-first-next: the player's board strikes first this fight. */
+  /** Pre-emptive Assault (attack-first-next): the player's board strikes first this fight. PER SIDE since
+   *  R-SYMMETRY-01 (2026-10-13): `enemyAttacksFirst` is the same option for the enemy board. Both set = they cancel
+   *  and the normal first-attacker rule decides. (Whether a served snapshot may CARRY it is a separate, run-level
+   *  policy — R-PREEMPTIVE-PLAYER-01 keeps it off recorded boards.) */
   playerAttacksFirst?: boolean;
+  /** Pre-emptive Assault for the ENEMY side (see `playerAttacksFirst`). */
+  enemyAttacksFirst?: boolean;
+  /** THE TIE-BREAK SIDE (R-SYMMETRY-01, 2026-10-13). Combat is symmetric; the only thing the two labels decide is
+   *  the order of things that happen to both sides at once: which board mints its combat uids first, which side's
+   *  Start-of-Combat pass runs first, the order of a board-wide spray, which side's random hand grants draw from
+   *  the fight's main RNG stream, and which side "heads" names on the seeded first-attacker coin. Default
+   *  `player` — the order every recorded fight was resolved in. The mirror test resolves the swapped fight with
+   *  `firstSide: 'enemy'` and requires an identical fight up to the side swap. */
+  firstSide?: Side;
   /** Rallying Offensive: the player's Rally triggers fire twice this fight. LEGACY (2026-10-07): the live channel is
    *  the per-side `QuestCombatMods.rallyDouble`; this flag is still honoured (OR-ed in) for old callers. */
   playerRallyDouble?: boolean;
@@ -3326,12 +3338,11 @@ export interface EnemyScalers {
  * 2026-09-15 for eight-seat self-play, where BOTH sides of a pair are live runs and the `enemy` seat must
  * settle with what it earned. The shipped run loop keeps reading the `player*` fields; nothing there moved.
  *
- * THE ENEMY HALF IS A PURE ACCUMULATION: it never emits an event, never draws the fight's RNG and never
- * changes a live read the resolution consults, so every shipped fight is byte-identical. KNOWN, KEPT
- * ASYMMETRIES read as absent on the enemy side rather than estimated: Pack Mentality's live growth
- * (`beastScaleProgress` / its aura gains), Blood Trail (its Start-of-Combat mark exists only on the player
- * board), and the resolution-bearing live reads (enemy Grim reads its frozen tally, enemy spell power / Imp
- * aura / per-card stacks stay static this fight even though their gains ARE carried back).
+ * NO KEPT ASYMMETRIES (owner ruling 2026-10-13, R-SYMMETRY-01: "both sides are equal in what's captured,
+ * represented, buffed etc. they should be 1:1 exact"). Both halves are the same LIVE computation: Pack
+ * Mentality grows and ticks on either side, Blood Trail marks either side, an enemy Grim reads its live tally,
+ * enemy spell power / Imp Aura / per-card stacks grow mid-fight, and the enemy's grants emit their side-tagged
+ * events. The one ordering tie-break (`CombatConfig.firstSide`) is not an asymmetry of rules.
  */
 export interface CombatCarryBacks {
   /** Deathrattles this side fired this combat (doubler re-fires included) — `playerDeathrattles`. */
@@ -3359,7 +3370,7 @@ export interface CombatCarryBacks {
   questEvents?: CombatResult['playerQuestEvents'];
   beastBuyAtkGain?: number;
   beastBuyHpGain?: number;
-  /** Player-only by construction (Pack Mentality's live growth is player-side) — always absent for the enemy. */
+  /** Pack Mentality's progress toward its next step after this fight (either side; absent without the quest). */
   beastScaleProgress?: number;
   summonBonus: NonNullable<CombatResult['playerSummonBonus']>;
   hpGrantBonus?: CombatResult['playerHpGrantBonus'];
@@ -3806,12 +3817,17 @@ export interface CombatContext {
    *  `spellPowerFor(side)` for effects on either board; an ENEMY Taragosa/Watcher/Hoardbreaker must scale with
    *  the OPPONENT's captured spell power (`enemySpellPower`), not the current player's. */
   readonly spellPower: { attack: number; health: number };
-  /** The enemy board's spell power at combat start ({attack, health}), from its board snapshot — static
-   *  (enemies never gain spell power mid-fight). 0 for the procedural threat / legacy boards. */
+  /** The enemy side's LIVE spell power ({attack, health}) — seeded from its side state and grown in place by
+   *  `grantSpellPower`, exactly like the player's (R-SYMMETRY-01, 2026-10-13; it used to be frozen). 0 for the
+   *  procedural threat / legacy boards. Prefer `spellPowerFor(side)`. */
   readonly enemySpellPower: { attack: number; health: number };
-  /** Per-side spell power: the player's live value, or the enemy's captured value. Use this in any combat
-   *  effect that casts a spell / folds spell power, keyed on the acting minion's `side`. */
+  /** Per-side LIVE spell power. Use this in any combat effect that casts a spell / folds spell power, keyed on
+   *  the acting minion's `side`. */
   spellPowerFor(side: Side): { attack: number; health: number };
+  /** The order the two sides resolve in when something happens to both "at once" (the Start-of-Combat passes, a
+   *  board-wide spray): `[firstSide, other]` (`CombatConfig.firstSide`, the player by default). Optional so a
+   *  hand-built test context keeps the historical player-first order. */
+  readonly sideOrder?: readonly Side[];
   /** Per-side Ruby strength (set 2): the extra Attack/Health a combat-cast Ruby carries on top of its base
    *  1/1 (the run's `rubyBonus`). Player-authoritative today; the enemy side is zero. */
   rubyBonusFor(side: Side): { attack: number; health: number };

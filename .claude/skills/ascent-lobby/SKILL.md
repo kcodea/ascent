@@ -34,7 +34,10 @@ behaviour from a legacy symbol.**
 - `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`. The
   round cap is a **stalemate backstop**, not a course length.
 - **Resolve each paired encounter ONCE** and apply both `playerDamage` and `enemyDamage` from that single
-  result. Combat is not symmetric — re-running with sides swapped produces a different fight, not the mirror.
+  result. The RULES are symmetric (R-SYMMETRY-01, 2026-10-13: both sides read, grow, show and carry back the same
+  things), but the tie-break for simultaneous things (`CombatConfig.firstSide`) and the RNG draw order follow the
+  labels, so a naive re-run with sides swapped is a different fight; only a swap that also flips `firstSide` is
+  the mirror. Never re-resolve: take both damages from the one result (`enemyCarry` for the enemy seat).
   The run-end **fight-ledger play-out** (`lobby/fightLedger.ts playOutRunLobby`, 2026-09-22) does not break
   this: it resolves only the rounds the table never reached (after the player's elimination), on a CLONE, in
   the store's run-end path — never in the reducer and never against `run.lobby`. A reducer-side play-out

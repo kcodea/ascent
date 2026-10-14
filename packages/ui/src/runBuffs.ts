@@ -46,12 +46,14 @@ export function combatBuffDelta(events: readonly CombatEvent[], upto: number): C
     const e = events[i];
     if (e.type === 'sc') {
       const m = SPELL_POWER_RE.exec(e.text);
-      if (m) {
+      // Spell Power is side-tagged since R-SYMMETRY-01 (2026-10-13): the foe's grows live too. An untagged line is
+      // the player's (logs recorded before the tag).
+      if (m && e.side !== 'enemy') {
         spellAttack += Number(m[1]);
         spellHealth += Number(m[2]);
       }
       // Ruby Power is stamped with `side` because BOTH sides can gain it (an enemy Crownvein's Rally) —
-      // only the player's ticks the drawer. Spell Power needs no check: the sim never emits it for an enemy.
+      // only the player's ticks the drawer.
       const rb = RUBY_POWER_RE.exec(e.text);
       if (rb && e.side === 'player') {
         rubyAttack += Number(rb[1]);
@@ -108,7 +110,7 @@ export function combatPreviewFold(events: readonly CombatEvent[], upto: number):
     if (e.type === 'spellcast') { if (e.side === 'player') spellsCast++; }
     else if (e.type === 'death') { if (e.side === 'player' && !e.rise) friendlyDeaths++; }
     else if (e.type === 'questTrigger') { if (e.side === 'player' && e.flag === 'bladeMastery') bladeAttacks++; }
-    else if (e.type === 'improve') { if (e.scout) scout += e.scout; } // only the player's Squirl Scout stamps `scout`
+    else if (e.type === 'improve') { if (e.scout && e.side !== 'enemy') scout += e.scout; } // either side's Squirl Scout stamps `scout` + `side` (R-SYMMETRY-01); an untagged one is the player's (older logs)
     else if (e.type === 'sc' && e.side === 'player') {
       const m = ESCALATION_RE.exec(e.text);
       if (m) { escA += Number(m[1]); escH += Number(m[2]); }

@@ -854,6 +854,18 @@ returns an event log; the UI only replays it and never computes outcomes. Recrui
 (Shouts/Battlecries, buff-on-summon, Consume) bake into stats *before* combat; the simulator runs
 combat-time effects (Start of Combat, Echoes/Deathrattles, on-kill, etc.) and emits log events.
 
+**Both sides of a fight follow the same rules, 1:1** (owner ruling 2026-10-13, R-SYMMETRY-01: *"it's imperative that
+both sides are equal in what's captured, represented, buffed etc. they should be 1:1 exact"*). Whatever works for your
+board works identically for the opponent's: live spell power, auras (the Undead Aura from the first frame), tallies,
+per-card stacks, Pack Mentality growth, Blood Trail, quests completing mid-fight, Echo Warden, Rune of the Herald's
+Echo multipliers, bonds, cards gained or buffed in hand (logged for that side), rune and hero triggers, and every
+carry-back. Fighting A against B or B against A is the same fight with the sides swapped. The only thing that is not
+symmetric is a deterministic tie-break for things that happen to both sides at once (whose Start of Combat resolves
+first, a board-wide spray's order, which side's random hand grants draw from the fight's main seed): `firstSide`, the
+player by default. A recorded opponent board carries everything its owner's fight read (all its combat mods, its
+hero's included, its run-card ids, its first spell of the turn, Spellhide, its pending combat quests). Pre-emptive
+Assault is a per-side engine option; recorded boards still never carry it (R-PREEMPTIVE-PLAYER-01).
+
 **A Shout triggered again** (Resonance, Myra, Echoing Roar or an End-of-Turn replay in the Shop; Dawnclaw / Ryme,
 a Rally re-fire or an Ancient of Time in combat) resolves the moment it fires, in either phase (R-REALTIME-03). Its
 board stats in combat are combat gains that end with the fight (R-REALTIME-04); a Consume it causes waits for the
@@ -1486,9 +1498,10 @@ A card **arriving in your hand** is an event in its own right, and every effect 
   copy, a minted Ruby) fires these reactors **during the fight**, so the payout can affect the fight that
   earned it — not only afterwards when the card settles into the next shop.
 
-The one asymmetry, and it follows from the engine rather than from this rule: a **served enemy board has no
-hand**, so nothing ever reaches one and an enemy's watcher never fires. The event is scoped to the side whose
-hand actually received the card.
+**Either side** (R-SYMMETRY-01, 2026-10-13): a card reaching the opponent's hand mid-fight fires the opponent's own
+watchers too, and is logged for that side. The event is scoped to the side whose hand received the card. (It used
+to be player-only, on the grounds that a served board has no hand; a recorded board carries its owner's hand and a
+live opponent has one.)
 
 **How it is enforced.** Each phase supplies its own dispatcher — the shop diffs the hand by uid in `reduce`
 (so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies` /
@@ -1792,7 +1805,8 @@ Rune, Stolen Initiative, Bloodlust, Parting Cry, Closed Casket) travels with the
 **whichever side holds it** (*"these should carry over"*; *"rallying offensive and marked target should work for
 opponents"*). Marked Target gives the holder's **foe's** right-most minion Taunt. **Pre-emptive Assault** is the one
 exception: a **player-only carry** (owner 2026-10-07: *"pre-emptive assault is a player only carry. dont let enemies
-cast this"*, R-PREEMPTIVE-PLAYER-01). It is never captured on a snapshot, so no opponent ever casts or applies it.
+cast this"*, R-PREEMPTIVE-PLAYER-01). It is never captured on a snapshot, so no recorded opponent ever casts or applies it. (Since R-SYMMETRY-01 the
+engine itself treats strike-first as a per-side option, so this is a capture policy, not an engine asymmetry.)
 
 - **Spent on its own round only** (*"this is probably okay as long as they are spent on the turn the player played
   them"*): a snapshot's banks apply only in the fight for the round it was captured at (`snap.wave`). A recorded seat

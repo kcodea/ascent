@@ -62,7 +62,7 @@ export const AURAS_RULES: GameRule[] = [
       + '"+2 Attack. Avenge (3): Improve this." and each improvement adds +2, gilded +4 improving +4). Grim: "Echo: Give all Friendly and summoned '
       + 'Beasts +8/+8." (gilded +16/+16). The same pattern covers Armadiyo, Trophy Stalker, Rune of Beastial Swarm (a Shop '
       + 'Beast death also pays it; its Avenge level persists), Pack Mentality (a Start of Combat grant whose level '
-      + 'improves and persists; a served seat applies its snapshot level) and The Old Hunt. Every surface prints the '
+      + 'improves and persists; a served seat applies its snapshot level and, since R-SYMMETRY-01, grows it live in the fight exactly like yours) and The Old Hunt. Every surface prints the '
       + 'current value.',
     domain: 'auras',
     status: 'approved',
@@ -71,7 +71,7 @@ export const AURAS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner answer 1 on PR #1813, 2026-09-28 (wording + both phases)', quote: 'let\'s just make the effect say: "Echo: Give all your Beasts +8/+8." or "Start of Combat: Give all your Beasts +1 Attack. Avenge (4): Improve this." - this SHOULD work in recruit and combat phase. in a recruit scenario, any beast in the warband would get the stats from a destroyed or triggered grim.' },
       { kind: 'owner-chat', ref: 'Owner answer 2 on PR #1813, 2026-09-28 (Kennelmaster mid-fight improvement)', quote: 'No because the buff is granted mid fight, as built is right.' },
       { kind: 'owner-chat', ref: 'Owner ask 2026-09-29 (wording only: "all your Beasts" -> "all Friendly and summoned Beasts" on every R-AURA-03 item; behaviour unchanged)', quote: "another beast text change - change the same minions, grim armadiyo kennelmaster etc to: 'give all friendly and summoned beasts' so grim says 'Echo: Give all Friendly and summoned Beasts +8/+8.'" },
-      { kind: 'owner-chat', ref: 'Owner answer 3 on PR #1813, 2026-09-28 (Pack Mentality on a served seat: Start of Combat grant from its snapshot level, growth player-only)', quote: 'okay' },
+      { kind: 'owner-chat', ref: 'Owner answer 3 on PR #1813, 2026-09-28 (Pack Mentality on a served seat: Start of Combat grant from its snapshot level, growth player-only; the player-only growth is SUPERSEDED by R-SYMMETRY-01, owner 2026-10-13)', quote: 'okay' },
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts buffAllOfTribe (combat: addTribeAura + plain combat buffs; shop: permanent warband buff) via scBeastAura / deathrattleBuffTribe / rallyTribeAuraGrowing; packages/core/src/combat/simulate.ts Pack Mentality Start of Combat grant, Beastial Swarm + The Old Hunt (no beastBuy*Gain); packages/sim/src/recruit.ts fireOnFriendDeath (Beastial Swarm Shop half); packages/sim/src/reducer.ts scalingTribeAura (beast) + settle (level only)' },
     ],
     contentIds: ['kennel', 'grim', 'b2_armadiyo', 'trophystalker', 'rune_beastial_swarm', 'q_pack_mentality', 'q_the_old_hunt'],

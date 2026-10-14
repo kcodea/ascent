@@ -496,7 +496,9 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
             disabled={!ceremonyCanLaunch(state)}
             onClick={onStart}
           >
+            <span className="hsc-start-orn" aria-hidden="true" />
             Start Game
+            <span className="hsc-start-orn hsc-start-orn-r" aria-hidden="true" />
           </button>
         </div>
       )}

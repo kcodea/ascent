@@ -187,12 +187,16 @@
      (`--ui-edge`), the shared sheen and bevel, cream body-font text in sentence case. Theme tokens only, so the UI
      Theme tuner retunes it with the HUD pills. Hover lifts 1px onto the lit plate, the press drops 1px: `translate`,
      because `hscRise` holds `transform` (fill forwards) and would swallow a transform here. Static paint. */
-  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 19px; line-height: 1.2; letter-spacing: normal;
+  /* BIGGER, WITH SIDE DETAILS (owner, same day: "lets incrase the size and put some little details on the sides of
+     the button text"). The label is 24px (was 19px) with roomier padding, about a quarter larger overall, and a small
+     gold flourish sits either side of it (`.hsc-start-orn`, below). */
+  display: inline-flex; align-items: center; gap: 14px;
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 24px; line-height: 1.2; letter-spacing: normal;
   text-transform: none; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   border: 2px solid transparent;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 5px 14px -4px rgba(0, 0, 0, 0.75);
-  padding: 12px 34px; border-radius: 11px;
+  padding: 15px 30px; border-radius: 12px;
   transition: translate 0.1s ease;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   opacity: 0;
@@ -201,6 +205,14 @@
 .hsc-start:hover:not(:disabled) { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
 .hsc-start:active:not(:disabled), .hsc-start:hover:active:not(:disabled) { translate: 0 1px; transition-duration: 0.05s; }
 @media (prefers-reduced-motion: reduce) { .hsc-start:is(:hover, :active) { translate: none; } }
+/* THE SIDE DETAILS: a fine gold line that fades away from the label and ends, nearest the text, in the theme's gold
+   stud (the 45-degree square the Compendium and the rune card use). The same idea as the painted name divider under
+   the title, at button scale. Theme tokens only; static; decorative (`aria-hidden` in the markup). The right one is
+   the left one mirrored. */
+.hsc-start-orn { position: relative; flex: none; width: 30px; height: 10px; }
+.hsc-start-orn::before { content: ''; position: absolute; left: 0; right: 11px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: linear-gradient(90deg, transparent, var(--ui-edge-main)); }
+.hsc-start-orn::after { content: ''; position: absolute; right: 1px; top: 50%; width: 7px; height: 7px; margin-top: -4.5px; background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); transform: rotate(45deg); }
+.hsc-start-orn-r { transform: scaleX(-1); }
 /* Belongs to the hero moment, so it also gets an unmistakable keyboard focus ring (§16). Gold, like the edge. */
 .hsc-start:focus-visible {
   outline: 3px solid var(--ui-edge-hi);

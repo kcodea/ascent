@@ -105,7 +105,7 @@ export function PracticeOptions() {
 
   return (
     <div className="modepick practiceopts" role="dialog" aria-label="Practice options">
-      <button className="hsback pressable" onPointerDown={() => { sfx.pulse(); cancel(); }}><span className="hsback-arrow" aria-hidden="true">←</span> Back</button>
+      <button className="hsback" onPointerDown={() => { sfx.pulse(); cancel(); }}>← Back</button>
       <div className="mpbox pobox pomodes-box">
         <h1 className="disp mptitle">PRACTICE</h1>
         <div className="pomodes">

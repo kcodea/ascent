@@ -140,15 +140,15 @@ export function HeroSelect() {
           the screen out from under the machine mid-choreography is not a state it handles. */}
       {!active && (ranked ? (
         <button
-          className={`hsback pressable${abandonArmed ? ' armed' : ''}`}
+          className={`hsback${abandonArmed ? ' armed' : ''}`}
           onPointerDown={() => { sfx.pulse(); if (abandonArmed) abandonRankedEntry(); else setAbandonArmed(true); }}
           onBlur={() => setAbandonArmed(false)}
           aria-description="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
         >
-          {abandonArmed ? 'Abandon? Counts as 8th place' : <><span className="hsback-arrow" aria-hidden="true">←</span> Main Menu</>}
+          {abandonArmed ? 'Abandon? Counts as 8th place' : '← Main Menu'}
         </button>
       ) : (
-        <button className="hsback pressable" onPointerDown={() => { sfx.pulse(); openTitle(); }}><span className="hsback-arrow" aria-hidden="true">←</span> Main Menu</button>
+        <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }}>← Main Menu</button>
       ))}
       {/* THE TITLE (owner ask 2026-10-13): "Select Your Hero" IS the screen's heading now, in the Compendium's title
           treatment (the gold caps title over the painted name divider). The ASCENT lockup that sat above it is gone

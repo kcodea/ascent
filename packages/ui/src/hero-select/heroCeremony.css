@@ -182,33 +182,26 @@
   left: calc(var(--hsc-btnx, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-btny, -198) * 1px * var(--scale, 1));
   zoom: calc(var(--hsc-btnscale, 1.55) * var(--scale, 1));
   margin-top: 16px;
-  /* BLUE WITH GOLD TRIM (owner 2026-10-13: "the button needs to change and should look fancy and blue and gold
-     trim"). It was the flat tangerine Go button, the last control on this screen in the old chrome. Now the newer
-     UI's plate: the painted gold edge (`--ui-edge`, so the UI Theme tuner retunes it with everything else), the
-     shared sheen, an inner gold hairline, and a bright blue face in the title menu's Play family, flanked by two
-     gold studs (`.hsc-start-gem`). Thickness and the press are `.pressable`'s: the vars are on
-     `.hsc-start.pressable` below, and NO `box-shadow` is set here, so the primitive's resting and pressed
-     shadows are the only ones (a shadow here would tie `.pressable:active` and could hold the edge up). Static
-     paint; the hover swaps the plate once. */
-  display: inline-flex; align-items: center; gap: 14px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: #fff; text-shadow: 0 2px 0 rgba(8, 20, 44, 0.75);
+  /* THE GEM PLATE (owner 2026-10-13). It was the flat tangerine Go button. The owner pointed at the End Combat pill
+     and said "i want this", so this IS that pill's paint: `--ui-plate` inside the thin painted gold edge
+     (`--ui-edge`), the shared sheen and bevel, cream body-font text in sentence case. Theme tokens only, so the UI
+     Theme tuner retunes it with the HUD pills. Hover lifts 1px onto the lit plate, the press drops 1px: `translate`,
+     because `hscRise` holds `transform` (fill forwards) and would swallow a transform here. Static paint. */
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 19px; line-height: 1.2; letter-spacing: normal;
+  text-transform: none; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
   border: 2px solid transparent;
-  background: var(--ui-sheen) padding-box, linear-gradient(180deg, #4b8bd9 0%, #2f66b0 50%, #1d447e 100%) padding-box, var(--ui-edge) border-box;
-  padding: 13px 30px; border-radius: 12px;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 5px 14px -4px rgba(0, 0, 0, 0.75);
+  padding: 12px 34px; border-radius: 11px;
+  transition: translate 0.1s ease;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   opacity: 0;
   animation: hscRise var(--hsc-ready-ms, 250ms) ease var(--hsc-ready-delay, 700ms) forwards;
 }
-.hsc-start.pressable {
-  --pr-edge: 5px; --pr-edge-c: #102a52;
-  --pr-inset: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 0 0 1px rgba(6, 14, 32, 0.55), inset 0 0 0 2px color-mix(in srgb, var(--ui-title) 40%, transparent);
-  --pr-amb: 0 0 0 1px rgba(6, 10, 22, 0.6), 0 14px 26px -10px rgba(0, 0, 0, 0.8);
-}
-.hsc-start:hover:not(:disabled) { background: var(--ui-sheen) padding-box, linear-gradient(180deg, #5c9ced 0%, #3976c6 50%, #235192 100%) padding-box, var(--ui-hover-edge) border-box; }
-/* The gold studs either side of the label: the theme's stud (the Compendium's, the rune card's), a 45-degree square. */
-.hsc-start-gem { flex: none; width: 8px; height: 8px; background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); transform: rotate(45deg); }
-/* Belongs to the hero moment, so it also gets an unmistakable keyboard focus ring (§16). Gold, like the trim. */
+.hsc-start:hover:not(:disabled) { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.hsc-start:active:not(:disabled), .hsc-start:hover:active:not(:disabled) { translate: 0 1px; transition-duration: 0.05s; }
+@media (prefers-reduced-motion: reduce) { .hsc-start:is(:hover, :active) { translate: none; } }
+/* Belongs to the hero moment, so it also gets an unmistakable keyboard focus ring (§16). Gold, like the edge. */
 .hsc-start:focus-visible {
   outline: 3px solid var(--ui-edge-hi);
   outline-offset: 4px;

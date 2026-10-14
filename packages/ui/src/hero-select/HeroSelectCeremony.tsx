@@ -492,13 +492,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
           </div>
           <button
             ref={startBtnRef}
-            className="hsc-start pressable"
+            className="hsc-start"
             disabled={!ceremonyCanLaunch(state)}
             onClick={onStart}
           >
-            <span className="hsc-start-gem" aria-hidden="true" />
             Start Game
-            <span className="hsc-start-gem" aria-hidden="true" />
           </button>
         </div>
       )}

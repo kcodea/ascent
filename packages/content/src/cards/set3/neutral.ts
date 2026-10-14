@@ -19,7 +19,7 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     id: 'blaster',
     name: 'Blaster',
     tribe: 'neutral',
-    tier: 4,
+    tier: 3, // T4 until 2026-10-13 (owner Set 3 batch)
     attack: 8,
     health: 2,
     keywords: ['T'],
@@ -128,11 +128,12 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     goldenText: '**Choose One:** give a friendly minion **+12/+12**, or give adjacent minions **+6/+6**.',
   },
   {
-    // Owner handoff 2026-09-18. End of Turn: the left-most and right-most minions each gain +4/+4 for EVERY
-    // Equipment the player holds whose charge was NOT spent this turn (`unusedEquipmentCount` — the per-turn
-    // `usedThisTurn` mark Rune of Amplification also reads, taken BEFORE `expireEquipmentTurn` clears it). A
-    // one-minion board is both ends and is buffed once. Permanent shop buff; golden +8/+8 per Equipment. The
-    // live text prints the current total (`shredderText`) on every surface.
+    // Owner handoff 2026-09-18, reworked 2026-10-13 (owner Set 3 batch; was "your left-most and right-most minions
+    // +4/+4"). End of Turn: EVERY friendly minion gains +2/+3 for EVERY Equipment the player holds whose charge was
+    // NOT spent this turn (`unusedEquipmentCount` — the per-turn `usedThisTurn` mark Rune of Amplification also
+    // reads, taken BEFORE `expireEquipmentTurn` clears it). `scope: 'all'` widens the shared factory from the two
+    // ends to the whole board. Permanent shop buff; golden +4/+6 per Equipment. The live text prints the current
+    // total (`shredderText`) on every surface.
     id: 'n3_shredder',
     name: 'Shredder',
     tribe: 'neutral',
@@ -140,9 +141,9 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     attack: 8,
     health: 4,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsPerUnusedEquipment', params: { attack: 4, health: 4 } }],
-    text: '**End of Turn:** give your left-most and right-most minions **+4/+4** for every **Equipment** unused this turn.',
-    goldenText: '**End of Turn:** give your left-most and right-most minions **+8/+8** for every **Equipment** unused this turn.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsPerUnusedEquipment', params: { attack: 2, health: 3, scope: 'all' } }],
+    text: '**End of Turn:** give your minions **+2/+3** for every **Equipment** unused this turn.',
+    goldenText: '**End of Turn:** give your minions **+4/+6** for every **Equipment** unused this turn.',
   },
   {
     // Owner handoff 2026-09-18. Equip minion: the Calibration Wrench (1 Gold) arms the run so the NEXT Equipment
@@ -152,9 +153,9 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     id: 'n3_calibration',
     name: 'Calibration Master',
     tribe: 'neutral',
-    tier: 5,
-    attack: 9,
-    health: 6,
+    tier: 4, // T5 9/6 until 2026-10-13 (owner Set 3 batch)
+    attack: 6,
+    health: 4,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'calibration_wrench' } }],
     text: '**Equip Calibration Wrench (1):** your next **Equipment** activation is **Amplified**.',
@@ -177,20 +178,53 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     goldenText: 'When you use **Equipment**, this gains **+8/+8**.',
   },
   {
-    // Owner handoff 2026-09-19. A 0/12 wall: the FIRST time it takes damage each combat, the same amount is dealt
-    // to 2 distinct random enemies (one enemy → just that one) through the normal damage path (Ward pops, Immune
-    // shrugs, kills resolve with the standing Echo-before-Rise order). The once-per-combat latch lives on the
-    // combat instance (`reflectFired`), so a Risen / Reborn Yeti does not re-arm. Nothing scales, nothing gilds:
-    // the owner's text carries no gilded rider, so the gilded card is the same rule on the doubled body.
-    id: 'n3_yeti',
-    name: 'Yeti',
+    // Owner Set 3 batch 2026-10-13. A roll meter that pays out in the SHOP: every 5th Shop refresh while this is on
+    // the board adds a Golden Monkey to the Shop (gilded: 2). The meter is Hellrider's: a per-instance tally on
+    // `eotTick`, counted by the `shopRefreshed` trigger (every refresh that rebuilds the row, the turn's fresh row
+    // included), cumulative since this body arrived and repeating every 5. The board badge counts down the
+    // refreshes left (`stepProgress`). Named after the hero Indy on purpose (owner); the id is distinct.
+    id: 'n3_indy',
+    name: 'Indy',
     tribe: 'neutral',
-    tier: 6,
-    attack: 0,
-    health: 12,
+    tier: 4,
+    attack: 5,
+    health: 5,
     keywords: [],
-    effects: [{ on: 'onDamaged', do: 'onDamagedReflectRandomEnemies', params: { count: 2 } }],
-    text: 'When this minion takes damage, deal it to **2 random enemies**. (Once per combat)',
-    goldenText: 'When this minion takes damage, deal it to **2 random enemies**. (Once per combat)',
+    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshAddToShop', params: { every: 5, cardId: 'n3_goldenmonkey', count: 1 } }],
+    text: 'When you roll **5** times, add a **Golden Monkey** to the Shop.',
+    goldenText: 'When you roll **5** times, add **2 Golden Monkeys** to the Shop.',
+  },
+  {
+    // Owner Set 3 batch 2026-10-13. Indy's TOKEN: never drawn (`token: true`), only added to the Shop by Indy. Sell:
+    // Discover a minion from the tier ABOVE your current Shop tier, capped at Tier 7 (owner: "one above your current
+    // Shop tier, capped at 7"); a fixed-tier offer like Salvatore's (`onSellDiscover`, `tierOffset`). Gilded: the
+    // offered minions are gilded.
+    id: 'n3_goldenmonkey',
+    name: 'Golden Monkey',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 6,
+    health: 6,
+    keywords: ['T'],
+    token: true,
+    effects: [{ on: 'onSell', do: 'onSellDiscover', params: { tierOffset: 1, count: 1 } }],
+    text: '**Taunt. Sell:** Discover a minion from the Tier above yours (up to Tier 7).',
+    goldenText: '**Taunt. Sell:** Discover a **gilded** minion from the Tier above yours (up to Tier 7).',
+  },
+  {
+    // Owner Set 3 batch 2026-10-13. A PASSIVE marker (never dispatched): while this is on your board, EVERY Equipment
+    // activation resolves Amplified (triggers twice), read at activation by `equipmentAmplifiedByAura`. Nothing is
+    // spent: a banked Amplified stack or a pending Calibration stays for later. Only while on the board (owner).
+    // Amplified is ×2 at most, so a gilded copy cannot do more: the gilded card is the same rule on a doubled body.
+    id: 'n3_agnus',
+    name: 'Amplification Agnus',
+    tribe: 'neutral',
+    tier: 7,
+    attack: 10,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'passive', do: 'equipmentAmplifyAll' }],
+    text: 'All **Equipment** is **Amplified**.',
+    goldenText: 'All **Equipment** is **Amplified**.',
   },
 ];

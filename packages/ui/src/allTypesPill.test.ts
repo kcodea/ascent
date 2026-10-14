@@ -80,6 +80,8 @@ const ART_PENDING = new Set<string>([
   // a hand or the Shop, and no master was named for it (owner rule: wire only the art named in the batch).
   'rubyblast',
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
+  // Owner Set 3 batch (2026-10-13): Indy, the Golden Monkey and Amplification Agnus shipped with no art yet.
+  'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
 ]);
 
 describe('art coverage for live cards', () => {

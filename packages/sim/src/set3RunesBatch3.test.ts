@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, SETS, poolFor } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, SETS, poolFor } from '@game/content';
 import { BODY_COUNTING_DEATHS, COMBATATIVE_RUBIES_ATTACKS, type Tribe } from '@game/core';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { questCombatMods, runeforgePool } from './reducer';
@@ -41,11 +41,12 @@ const nextTurn = (s: RunState): RunState => {
 // ── roster ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const BASIC: [string, number, Tribe][] = [
   // Rubywire was CUT FROM SET 3 on 2026-09-27 (owner, design pass tranche 0): it is now `sets: []`, pinned in set3RuneDesignT0.test.ts.
-  ['rune_gemmed_decisions', 3, 'kobold'], ['rune_echoing_kobolds', 3, 'kobold'], ['rune_red_storm', 4, 'kobold'],
+  // Red Storm + Storming Veins ARCHIVED 2026-10-13 (owner Set 3 batch: Veinstorm left set 3); pinned below.
+  ['rune_gemmed_decisions', 3, 'kobold'], ['rune_echoing_kobolds', 3, 'kobold'],
   ['rune_choices', 3, 'kobold'], ['rune_combatative_rubies', 3, 'kobold'], ['rune_body_counting', 3, 'undead'],
 ];
 const EPIC: [string, number, Tribe][] = [
-  ['rune_storming_veins', 4, 'kobold'], ['rune_sold_choices', 5, 'kobold'], ['rune_aggressive_golems', 5, 'kobold'], ['rune_ruptured_rubies', 6, 'kobold'],
+  ['rune_sold_choices', 5, 'kobold'], ['rune_aggressive_golems', 5, 'kobold'], ['rune_ruptured_rubies', 6, 'kobold'],
 ];
 
 describe('batch 3 roster — pool, cost, Set 3 only, tribe gate', () => {
@@ -67,6 +68,13 @@ describe('batch 3 roster — pool, cost, Set 3 only, tribe gate', () => {
     expect(r.sets).toEqual(['set3']);
     expect(r.tribes).toEqual([tribe]);
     expect(r.text).not.toMatch(/—|--/);
+  });
+  it('Red Storm (Basic) and Storming Veins (Epic) are ARCHIVED: in no forge stock, still resolvable', () => {
+    for (const id of ['rune_red_storm', 'rune_storming_veins']) {
+      expect(ARCHIVED_RUNES.some((x) => x.id === id), id).toBe(true);
+      expect([...RUNES, ...EPIC_RUNES].some((x) => x.id === id), id).toBe(false);
+      expect(RUNE_INDEX[id]!.sets).toEqual([]);
+    }
   });
   it('the Runeforge offers each only in a Set 3 run that rolled its tribe', () => {
     const forge = (setId: 'set2' | 'set3', tribes: Tribe[], epic: boolean): string[] =>

@@ -221,8 +221,9 @@ describe('Whiplass-o — steal the highest-Tier Shop minion', () => {
     g = reduce(g, { type: 'play', uid: 'h', toIndex: 0 } as Action);
     g = reduce(g, { type: 'activateEquipment' } as Action);
     // (a golden card in hand also carries the gilding's Discover token — not part of the theft)
-    expect(g.hand.map((c) => c.cardId).filter((id) => id !== 'discoverspell')).toEqual(['jenkins', 'blaster']); // T5, then the left-most T4
-    expect(g.shop.map((o) => o.cardId)).toEqual(['venom', 'wayfinder']);
+    // T5, then the T4 (Blaster is Tier 3 since 2026-10-13, owner Set 3 batch)
+    expect(g.hand.map((c) => c.cardId).filter((id) => id !== 'discoverspell')).toEqual(['jenkins', 'wayfinder']);
+    expect(g.shop.map((o) => o.cardId)).toEqual(['venom', 'blaster']);
   });
 });
 
@@ -278,12 +279,12 @@ describe('Yeti — the first hit each combat is thrown back at 2 random enemies'
     return r.events.filter((e): e is Extract<typeof e, { type: 'dmg' }> => e.type === 'dmg' && (e as { source?: string }).source === uid);
   };
 
-  it('the card: T6 0/12 Neutral, one onDamaged effect, the owner text, in set 3', () => {
+  it('the card: T6 0/12 Neutral, one onDamaged effect, the owner text; ARCHIVED 2026-10-13 (owner Set 3 batch)', () => {
     const d = CARD_INDEX['n3_yeti']!;
     expect([d.tier, d.attack, d.health, d.tribe]).toEqual([6, 0, 12, 'neutral']);
     expect(d.effects).toEqual([{ on: 'onDamaged', do: 'onDamagedReflectRandomEnemies', params: { count: 2 } }]);
     expect(d.text).toBe('When this minion takes damage, deal it to **2 random enemies**. (Once per combat)');
-    expect(poolFor('set3').all.some((c) => c.id === 'n3_yeti')).toBe(true);
+    expect(poolFor('set3').all.some((c) => c.id === 'n3_yeti')).toBe(false);
   });
 
   it('takes 5 → two DISTINCT enemies each take 5, credited to Yeti; nothing more for the rest of the fight', () => {

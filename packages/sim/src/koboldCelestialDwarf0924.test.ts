@@ -98,11 +98,11 @@ describe('Jewel: "Choose One: Get a random Kobold or increase your max Gold by 1
 });
 
 describe('Delver: T2 4/3 (owner 2026-09-24), text unchanged', () => {
-  it('is a Tier 2 4/3 Kobold, still "Echo: get a Veinstorm", sold at Tier 2 in set 3', () => {
+  it('is a Tier 2 4/3 Kobold, still "Echo: get a Veinstorm"; ARCHIVED 2026-10-13 (owner Set 3 batch), so no longer sold in set 3', () => {
     const c = CARD_INDEX['k3_veinchant']!;
     expect([c.tribe, c.tier, c.attack, c.health]).toEqual(['kobold', 2, 4, 3]);
     expect(c.text).toBe('**Echo:** get a **Veinstorm**.');
-    expect(poolFor('set3').buyable.find((x) => x.id === 'k3_veinchant')?.tier).toBe(2);
+    expect(poolFor('set3').buyable.some((x) => x.id === 'k3_veinchant')).toBe(false);
   });
 });
 

@@ -153,7 +153,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // clause the grammar has no rule for yet: Vaultkeeper's "Play 3 Dragons or Dwarves to improve this." and Brisbane's
 // "Spend 30 Gold to improve this." behind a three-trigger header ("Shout, Echo and Rally:"). Both rows are unresolved
 // now; the net move is +1.
-const UNRESOLVED_CAP = 123;
+// 2026-10-13 (owner Set 3 batch): 123 -> 124, CONSCIOUSLY. Three new texts have no grammar rule yet: Indy's roll
+// counter ("When you roll 5 times, add a Golden Monkey to the Shop."), Amplification Agnus's Equipment aura ("All
+// Equipment is Amplified.") and Solburn's Sell-Collapse ("Sell: Collapse your Starform."). The six archives offset
+// two of them; the net move is +1.
+const UNRESOLVED_CAP = 124;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

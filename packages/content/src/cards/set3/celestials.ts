@@ -15,20 +15,6 @@ import type { CardDef } from '@game/core';
  */
 export const SET3_CELESTIALS: readonly CardDef[] = [
   {
-    // T1: an Echo that pays a spell. Dies in the shop (Consume, a sell with a Sacrifice) or in combat — the Echo
-    // grants through the same channel either way (`deathrattleGrantRandomSpell`, Sporebat's factory).
-    id: 'ce3_courier',
-    name: 'Cosmo Express', // 'Horizon Courier' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'celestial',
-    tier: 1,
-    attack: 2,
-    health: 1,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
-    text: '**Echo:** get a random Shop spell.',
-    goldenText: '**Echo:** get **2** random Shop spells.',
-  },
-  {
     // T2 4/2 (owner handoff 2026-09-18; was 2/4 +2/+2): banks +4/+4 for the NEXT Shop spell (`nextSpellBonus`), a
     // run field — so it CARRIES through End Turn → combat → the next shop unspent (pinned in set3Celestials.test.ts).
     // Folded into spell power's read (`spellAttackBonus` / `spellHealthBonus`) so every Shop spell offer, hand
@@ -296,7 +282,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     // T4 (rules v2 2026-09-13; 3 hits since 2026-09-18): COLLAPSE — the token leaves; 3 UNIQUE random friendly Celestials each gain HALF its
     // stats (rounded up, base included, rule 7), plus the extras Nova Herald adds (with replacement). One Celestial
     // → it takes the one original + every extra; a Starform but NO Celestial → the token still collapses and the
-    // stats go nowhere; no Starform → nothing happens. The Devotee itself is eligible. Gilded: each hit gains its
+    // stats go nowhere; no Starform → nothing happens. (Sold since 2026-10-13, so it has left the board.) Gilded: each hit gains its
     // FULL stats (double the half). (Its old Shout — Consume for 100% — is now the token's BUY.)
     id: 'ce3_coronadevotee',
     name: 'Solburn', // 'Corona Devotee' until 2026-09-14 (owner rename handoff; id + art unchanged)
@@ -305,9 +291,11 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryCollapseStarform' }],
-    text: '**Shout:** Collapse your **Starform**.',
-    goldenText: '**Shout:** Collapse your **Starform**. Each gains its **full** stats.',
+    // Owner Set 3 batch 2026-10-13: a SELL, not a Shout ("Sell: Collapse your Starform."). Same collapse body; the
+    // sold Solburn has already left the board when the sale fires, so it never receives a hit. Stats kept (4/5).
+    effects: [{ on: 'onSell', do: 'battlecryCollapseStarform' }],
+    text: '**Sell:** Collapse your **Starform**.',
+    goldenText: '**Sell:** Collapse your **Starform**. Each gains its **full** stats.',
   },
   {
     // T4 (owner 2026-09-24, was "Shout: Discover a Celestial"): "Pummel (12): Get a random Celestial. (Once per
@@ -406,21 +394,5 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     ],
     text: 'Whenever you cast a spell, give your **Starform +3/+3**. When your Starform Collapses or is Consumed, create a new one with half its stats.',
     goldenText: 'Whenever you cast a spell, give your **Starform +6/+6**. When your Starform Collapses or is Consumed, create a new one with **all** its stats.',
-  },
-  {
-    // T7: the passive is read by Star Crash's own factory (`primeExtraPrimaryLands`, the Yazzus id-read shape):
-    // every Star Crash's PRIMARY +5/+7 lands one extra time on the chosen Celestial; the secondary random-friendly
-    // half still fires once per cast (owner 2026-09-12). Stacks with Comet / Nimbus per cast: every multiplied
-    // cast re-lands the primary too. Gilded: the primary lands 2 extra times, and the Shout mints 4.
-    id: 'ce3_constellationprime',
-    name: 'Constellation Prime',
-    tribe: 'celestial',
-    tier: 7,
-    attack: 9,
-    health: 9,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'starcrash', count: 2 } }],
-    text: '**Star Crashes** you cast from hand cast an additional time. **Shout:** get **2 Star Crashes**.',
-    goldenText: '**Star Crashes** you cast from hand cast **2** additional times. **Shout:** get **4 Star Crashes**.',
   },
 ];

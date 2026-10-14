@@ -64,24 +64,6 @@ export const SET3_KOBOLDS: CardDef[] = [
     goldenText: '**Choose One:** Get **6 Rubies** or **2 Facetwrights**.',
   },
   {
-    // Echo (a death trigger) hands back the Veinstorm spell.
-    //
-    // `cardId`, NOT `spellId`, and NO `count` — the factory reads `params.cardId` and grants `mul(self)`
-    // copies, so golden's "2 Veinstorms" is automatic. Set 2's Staff of Guel carries the same warning after
-    // the wrong key granted the empty string and crashed the hand-grant preview (owner report 2026-07-25);
-    // the content schema catches it now, which is how this one was caught.
-    id: 'k3_veinchant',
-    name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'kobold',
-    tier: 2, // T3 5/3 → T2 4/3 (owner 2026-09-24)
-    attack: 4,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'veinstorm' } }],
-    text: '**Echo:** get a **Veinstorm**.',
-    goldenText: '**Echo:** get **2 Veinstorms**.',
-  },
-  {
     // Owner 2026-09-24: a random Kobold (the shared `battlecryGainRandomMinion` pick — the run's pool, ≤ the
     // shop tier, ×2 gilded) against +1 max Gold (`gainMaxMana` — Gold Font's permanent `maxGoldBonus` route,
     // above the natural cap, ×2 gilded). Was a Kobold Discover / Shop-spell Discover fork.
@@ -117,28 +99,6 @@ export const SET3_KOBOLDS: CardDef[] = [
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'blast_pump' } }],
     text: '**Equip Blast Pump (2):** Cast a **Ruby** on all of your minions.',
     goldenText: '**Equip Blast Pump (2):** Cast **2 Rubies** on all of your minions.',
-  },
-  {
-    // Owner Ruby batch 2026-09-24 (T5 5/4 -> T6 8/5): the left branch plays 3 PLAIN Rubies, EACH on a random
-    // OTHER friendly Kobold (`battlecryPlayRubiesRandomTribe` — dual-tribe and All-types bodies count; never itself, R-TARGET-03);
-    // the right branch casts Veinstorm 3 times through the REAL Shop-spell pipeline, so each cast counts as a
-    // Shop spell cast and wakes every cast-watcher. Gilded: 6 Rubies / 6 Veinstorms.
-    id: 'k3_facetbound',
-    name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'kobold',
-    tier: 6,
-    attack: 8,
-    health: 5,
-    keywords: [],
-    effects: [],
-    chooseOne: [
-      { text: 'Play **3 Rubies** on your **Kobolds**.', goldenText: 'Play **6 Rubies** on your **Kobolds**.',
-        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesRandomTribe', params: { count: 3, tribe: 'kobold' } }] },
-      { text: 'Cast **Veinstorm** 3 times.', goldenText: 'Cast **Veinstorm** 6 times.',
-        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 3 } }] },
-    ],
-    text: '**Choose One:** Play **3 Rubies** on your **Kobolds** or cast **Veinstorm** 3 times.',
-    goldenText: '**Choose One:** Play **6 Rubies** on your **Kobolds** or cast **Veinstorm** 6 times.',
   },
   {
     /**

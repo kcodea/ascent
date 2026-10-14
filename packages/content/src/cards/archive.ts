@@ -12,6 +12,114 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-13 owner Set 3 batch: Delver, Shardluck, Dreaming Deep, Cosmo Express, Constellation Prime and Yeti archived
+  //    (set-3-own cards). The set-2 / set-1 carry-overs on the same list left SET 3 only (`sets.ts`); set 2 keeps them. --
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/kobolds.ts; belongs to no set now.
+    // Echo (a death trigger) hands back the Veinstorm spell.
+    //
+    // `cardId`, NOT `spellId`, and NO `count` — the factory reads `params.cardId` and grants `mul(self)`
+    // copies, so golden's "2 Veinstorms" is automatic. Set 2's Staff of Guel carries the same warning after
+    // the wrong key granted the empty string and crashed the hand-grant preview (owner report 2026-07-25);
+    // the content schema catches it now, which is how this one was caught.
+    id: 'k3_veinchant',
+    name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
+    tribe: 'kobold',
+    tier: 2, // T3 5/3 → T2 4/3 (owner 2026-09-24)
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'veinstorm' } }],
+    text: '**Echo:** get a **Veinstorm**.',
+    goldenText: '**Echo:** get **2 Veinstorms**.',
+  },
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/kobolds.ts; belongs to no set now.
+    // Owner Ruby batch 2026-09-24 (T5 5/4 -> T6 8/5): the left branch plays 3 PLAIN Rubies, EACH on a random
+    // OTHER friendly Kobold (`battlecryPlayRubiesRandomTribe` — dual-tribe and All-types bodies count; never itself, R-TARGET-03);
+    // the right branch casts Veinstorm 3 times through the REAL Shop-spell pipeline, so each cast counts as a
+    // Shop spell cast and wakes every cast-watcher. Gilded: 6 Rubies / 6 Veinstorms.
+    id: 'k3_facetbound',
+    name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
+    tribe: 'kobold',
+    tier: 6,
+    attack: 8,
+    health: 5,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Play **3 Rubies** on your **Kobolds**.', goldenText: 'Play **6 Rubies** on your **Kobolds**.',
+        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesRandomTribe', params: { count: 3, tribe: 'kobold' } }] },
+      { text: 'Cast **Veinstorm** 3 times.', goldenText: 'Cast **Veinstorm** 6 times.',
+        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 3 } }] },
+    ],
+    text: '**Choose One:** Play **3 Rubies** on your **Kobolds** or cast **Veinstorm** 3 times.',
+    goldenText: '**Choose One:** Play **6 Rubies** on your **Kobolds** or cast **Veinstorm** 6 times.',
+  },
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/spirits.ts; belongs to no set now.
+    // Echo: summon a COPY of the highest-Health minion in your hand and give it Ward.
+    id: 'sp3_dreamingdeep',
+    name: 'Dreaming Deep',
+    tribe: 'spirit',
+    tier: 7,
+    attack: 8,
+    health: 14,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonHighestHealthFromHand', params: { ward: true } }],
+    text: '**Echo:** summon the highest-Health minion from your hand and give it **Ward**.',
+    goldenText: '**Echo:** summon the **2** highest-Health minions from your hand and give them **Ward**.',
+  },
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/celestials.ts; belongs to no set now.
+    // T1: an Echo that pays a spell. Dies in the shop (Consume, a sell with a Sacrifice) or in combat — the Echo
+    // grants through the same channel either way (`deathrattleGrantRandomSpell`, Sporebat's factory).
+    id: 'ce3_courier',
+    name: 'Cosmo Express', // 'Horizon Courier' until 2026-09-14 (owner rename handoff; id + art unchanged)
+    tribe: 'celestial',
+    tier: 1,
+    attack: 2,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
+    text: '**Echo:** get a random Shop spell.',
+    goldenText: '**Echo:** get **2** random Shop spells.',
+  },
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/celestials.ts; belongs to no set now.
+    // T7: the passive is read by Star Crash's own factory (`primeExtraPrimaryLands`, the Yazzus id-read shape):
+    // every Star Crash's PRIMARY +5/+7 lands one extra time on the chosen Celestial; the secondary random-friendly
+    // half still fires once per cast (owner 2026-09-12). Stacks with Comet / Nimbus per cast: every multiplied
+    // cast re-lands the primary too. Gilded: the primary lands 2 extra times, and the Shout mints 4.
+    id: 'ce3_constellationprime',
+    name: 'Constellation Prime',
+    tribe: 'celestial',
+    tier: 7,
+    attack: 9,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'starcrash', count: 2 } }],
+    text: '**Star Crashes** you cast from hand cast an additional time. **Shout:** get **2 Star Crashes**.',
+    goldenText: '**Star Crashes** you cast from hand cast **2** additional times. **Shout:** get **4 Star Crashes**.',
+  },
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/neutral.ts; belongs to no set now.
+    // Owner handoff 2026-09-19. A 0/12 wall: the FIRST time it takes damage each combat, the same amount is dealt
+    // to 2 distinct random enemies (one enemy → just that one) through the normal damage path (Ward pops, Immune
+    // shrugs, kills resolve with the standing Echo-before-Rise order). The once-per-combat latch lives on the
+    // combat instance (`reflectFired`), so a Risen / Reborn Yeti does not re-arm. Nothing scales, nothing gilds:
+    // the owner's text carries no gilded rider, so the gilded card is the same rule on the doubled body.
+    id: 'n3_yeti',
+    name: 'Yeti',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 12,
+    keywords: [],
+    effects: [{ on: 'onDamaged', do: 'onDamagedReflectRandomEnemies', params: { count: 2 } }],
+    text: 'When this minion takes damage, deal it to **2 random enemies**. (Once per combat)',
+    goldenText: 'When this minion takes damage, deal it to **2 random enemies**. (Once per combat)',
+  },
   // -- 2026-10-13 owner balance call: Mineral Master archived from EVERY set ("archive mineral master"). --
   {
     // ARCHIVED 2026-10-13 (owner: "archive mineral master"). Moved verbatim from set2/kobolds.ts; belongs to no set now.

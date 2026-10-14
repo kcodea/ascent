@@ -29,9 +29,8 @@ describe('set 3 scaffold', () => {
     expect(p.buyable.map((c) => c.id)).toEqual([
       'e3_frank', 'e3_sculptor',
       // Set 3's OWN Kobolds (the 2026-08-30 roster), appended in declaration order…
-      'k3_korn', 'k3_splitpick', 'k3_veinchant', 'k3_jeweler', // Gem Bus (k3_forkroad) archived 2026-09-09; Gemsmith (k3_forkvein) 2026-09-24
-      'k3_blastsurveyor',
-      'k3_facetbound',
+      'k3_korn', 'k3_splitpick', 'k3_jeweler', // Delver (k3_veinchant) archived 2026-10-13; // Gem Bus (k3_forkroad) archived 2026-09-09; Gemsmith (k3_forkvein) 2026-09-24
+      'k3_blastsurveyor', // Shardluck (k3_facetbound) archived 2026-10-13
       'k3_doubletrouble',
       'k3_forksong', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura', // Double Dealer (k3_forkedcrown) archived 2026-09-24
       'k3_kurse', // appended 2026-09-19 (owner handoff 2026-09-18)
@@ -39,15 +38,16 @@ describe('set 3 scaffold', () => {
       'k3_legionnaire', // appended 2026-09-24 (owner Ruby batch)
       'k3_dealski', // appended 2026-09-24 (owner Ruby batch)
       // …then the six set-2 Kobolds it keeps (Chipwick Prospector left 2026-09-19 — owner handoff; still a set-2 card).
-      'k_gemheart', 'k_geode', 'k_kobabyboldies',
-      'k_kobe', 'k_boulderdash', 'k_beggy', 'k_blazer', // Beggy back in set 3 (owner 2026-09-24), at its set-2 position
+      'k_gemheart', 'k_kobabyboldies',
+      'k_kobe', 'k_boulderdash', 'k_blazer', // Geode Guardian + Beggy left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
       // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
       // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
       'dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
       'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover', // Han Gover appended 2026-09-18
       'dw3_goldilox', // Goldilox appended 2026-09-24 (owner batch)
-      'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
-      'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
+      // Kringle, Blade Thrower, Pimm, Mountainbond and Gangplank left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
+      'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_brewer', 'dw_tapkeeper',
+      'dw_thane', 'dw_edward', 'dw_billings',
       // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones (+ Bicycle Bob, 2026-09-18), then the ten set-1 Undead it keeps
       // (shared definitions; four re-specced in place because set 1 is disabled). Ossuary Colossus was pulled.
       // Wolves Den joined 2026-09-10 (owner ask). Pillager left set 3 on 2026-09-18 (owner balance pass; it stays
@@ -56,26 +56,27 @@ describe('set 3 scaffold', () => {
       'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant',
       'u3_bicyclebob', // the twelfth new Undead (owner handoff 2026-09-18), appended after the file's token
       'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'mumi', 'sergeant',
-      'forsakenweaver', 'wolvesden', 'soulsman', 'anubis',
+      'forsakenweaver', 'wolvesden', 'soulsman', // Anubis left set 3 2026-10-13 (owner Set 3 batch)
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
       // Splitboon Adept — then Yazzus (the ONE shared Yazzus since 2026-09-16, pinned to the slot its set-3 fork
       // held) — then the carried set-1 and set-2 neutrals (shared definitions). Shredder, Calibration Master and
       // Rig joined the own list 2026-09-18 (owner handoff); Tauntbreaker left the carry-over the same day. Yeti
       // joined 2026-09-19 (owner handoff).
-      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_shredder', 'n3_calibration', 'n3_rig', 'n3_yeti', 'yazzus',
+      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_shredder', 'n3_calibration', 'n3_rig', 'n3_indy', 'n3_agnus', 'yazzus', // Yeti archived, Indy + Agnus added 2026-10-13
       'drummer', 'sylus', 'chronos', 'joker', 'venom', 'blackbelt', 'jenkins', 'stewardofspells',
       'arenaheckler', 'wayfinder', 'salvatore',
       'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',
       // …then the SPIRITS (owner roster 2026-09-09) — a brand-new tribe, all set 3's own: the seven hand-summon cards
       // (tranche 2, declared first in the file), then tranche 1.
-      'sp3_hearthwhisperer', 'sp3_seedling', 'sp3_slumbering', 'sp3_dreamtide', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
+      'sp3_hearthwhisperer', 'sp3_seedling', 'sp3_slumbering', 'sp3_dreamtide', 'sp3_flamebanner', 'sp3_handboundtitan', // Dreaming Deep archived 2026-10-13
       'sp3_kindled', 'sp3_tidebud', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler', 'sp3_bondweaver',
       'sp3_festivalkeeper', 'sp3_nurturer', 'sp3_dreamcurrent', 'sp3_paradeartificer', 'sp3_gatheringguide', 'sp3_aspect',
       'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
       // …then the reworked Celestials (owner roster 2026-09-11), appended in declaration order.
-      'ce3_courier', 'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
+      // Cosmo Express (ce3_courier) archived 2026-10-13
+      'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
       // …then the Starform roster (owner spec 2026-09-12), appended after the token def in declaration order.
-      'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar', 'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar', 'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith', 'ce3_constellationprime',
+      'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar', 'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar', 'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith', // Constellation Prime archived 2026-10-13
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {
@@ -92,7 +93,7 @@ describe('set 3 scaffold', () => {
     }
     // Dropped from set 3, and the ONLY thing that changed is set membership — leaving a set is not archiving.
     // Beggy came BACK on 2026-09-24 (owner kobold/dwarf batch) as a shared set-2 definition; Brisbane stays out.
-    expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy is back in set 3').toBe(true);
+    expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy left set 3 again 2026-10-13').toBe(false);
     expect(poolFor('set2').all.some((c) => c.id === 'k_beggy'), '…and still a set-2 card').toBe(true);
     expect(p.all.some((c) => c.id === 'k_alchemist'), 'Brisbane left set 3').toBe(false);
     expect(CARD_INDEX['k_alchemist'], 'but still resolves by id').toBeTruthy();
@@ -123,7 +124,7 @@ describe('set 3 scaffold', () => {
     }
     // 58 + Power Shifter (2026-08-22) + the five Dwarven Ales (2026-09-09). The Ales are drawable set-2 spells,
     // not tokens, so — unlike the Ruby — the Dwarves' Ale engine DOES need them opted in.
-    expect(p.spells.length).toBe(60); // Turnabout archived everywhere 2026-10-10, spell batch (-1); Dissipate + Rival's Reflection archived everywhere 2026-10-10 (-2); Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
+    expect(p.spells.length).toBe(59); // Veinstorm left set 3 2026-10-13 (-1); Turnabout archived everywhere 2026-10-10, spell batch (-1); Dissipate + Rival's Reflection archived everywhere 2026-10-10 (-2); Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
     expect(p.spells.filter((c) => c.name.includes('Ale')).map((c) => c.id).sort()).toEqual(['wo_attack', 'wo_champion', 'wo_health', 'wo_mine', 'wo_reinforcement']);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift

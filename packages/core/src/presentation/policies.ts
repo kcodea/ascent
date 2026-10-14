@@ -64,8 +64,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:buffThisShop:onPlay': { policy: 'ownBeat', family: 'shout' }, // Wishing Star (Shout half)
   'factory:battlecryStarformConsumeShop:onPlay': { policy: 'ownBeat', family: 'shout' }, // Accretion Warden
   'factory:battlecryBuffThisShopPerSpellsThisTurn:onPlay': { policy: 'ownBeat', family: 'shout' }, // Rocket Power (was Shooting Star)
-  'factory:battlecryCollapseStarform:onPlay': { policy: 'ownBeat', family: 'shout' }, // Corona Devotee (rules v2 2026-09-13: it Collapses)
   'factory:collapseExtraTargets:passive': { policy: 'passive', family: 'passive' }, // Nova Herald — a marker read at Collapse time, never a beat
+  'factory:equipmentAmplifyAll:passive': { policy: 'passive', family: 'passive' }, // Amplification Agnus — a marker read at Equipment activation, never a beat
+  'factory:battlecryCollapseStarform:onSell': { policy: 'ownBeat', family: 'economy' }, // Solburn (2026-10-13): Sell, Collapse your Starform
   'factory:deathrattleGiveMaxStatsRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Lodestar
   'factory:onStarformGainedBuffSelf:starformGained': { policy: 'foldedCue', family: 'react' }, // Twin Star
   'factory:spellCastBuffStarform:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Zenith (cast half)
@@ -291,6 +292,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSellDiscover:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:onSellGainGold:onSell': { policy: 'foldedCue', family: 'economyReact' },
   'factory:onShopRefreshGainRightmostShopStats:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Hellrider (2026-08-14)
+  'factory:onShopRefreshAddToShop:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Indy (2026-10-13): a Golden Monkey joins the Shop
   'factory:onSpellCastBuffOnePerTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastBuffRandomTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
   'factory:onSpellCastFirstBuffSelf:spellCast': { policy: 'foldedCue', family: 'castReact' },
@@ -893,12 +895,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── Set 3 rune batch 3 (owner 2026-09-25) ──
   'rune:rune_gemmed_decisions:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_echoing_kobolds:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_red_storm:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_rubywire:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_choices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_combatative_rubies:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_body_counting:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_storming_veins:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_sold_choices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_aggressive_golems:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_ruptured_rubies:combat': { policy: 'foldedCue', family: 'combatModifier' },

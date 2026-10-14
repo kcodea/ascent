@@ -179,3 +179,11 @@ the Spell medallion, plus the rim drop-shadows). The arch frame and the Spell cr
 spell. Kept: full-colour art, the one arrival shimmer and the one-shot hover ripple. The accents (name ink, the
 "Whisper" kind line, the art rim, shimmer, ripple) moved from teal 178 to blue-violet `--whisper-hue: 250`, so they
 sit with the painted plate instead of clashing with it.
+
+## Whisper arch frame (owner 2026-10-14: "add this to the whisper spell frames")
+
+The owner's blue-violet painted arch (`whisperspellframe.png`, 705x862) is the Whisper version of the spell arch around
+the art window. Its size, transparent window (0.125-0.877 x 0.223-0.943) and gem/name-plate positions measure
+identical to `spell-frame-arch.webp`, so `Card.tsx` swaps the src (`WHISPER_SPELL_FRAME_SRC`, also on the grounding
+shadow copy) for any Whisper with no CSS change. Shipped as `frames/whisper-spell-frame.webp` (628x768, alpha), named
+outside `spell-*` so the preload plan keeps it off the chrome lane while Set 4 is disabled.

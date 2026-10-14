@@ -247,6 +247,10 @@ const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
 };
 const plateSrcFor = (tribe: Tribe | undefined): string =>
   (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;
+// SET 4 WHISPER plate (owner 2026-10-14: "use this as the whisper frame instead"): the owner's painted blue-violet
+// plate, the same body geometry as every cardplate (951x1478 master, aspect matches 800x1244, overlay-checked), so
+// the art window, name, text and spell crystal sit exactly where they do on a Shop spell. Shipped at 768 px tall.
+const WHISPER_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper.webp`;
 const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATES[tribe]);
 let cardPlateAvailable = true;
 
@@ -858,6 +862,9 @@ export const Card = memo(function Card({
   // A WHISPER (Set 4) wears the plain SPELL medallion and colour, not the Gift crystal (owner 2026-10-13: "replace the
   // purple gift icon with the normal spell icon"); its kind line still names it (below).
   const isWhisper = !!CARD_INDEX[card.cardId]?.whisper;
+  // The Whisper LOOK is read off the def, like `universalTribe`, so every surface (hand, Compendium, Scene Builder,
+  // cast preview) wears the Whisper plate, not only a hand instance that carries `whisperKey`.
+  const whisperLook = !!card.whisperKey || isWhisper;
   const spellKindAttr = card.heroPowerOf ? 'power' : card.ruby ? 'ruby' : isWhisper ? 'spell' : CARD_INDEX[card.cardId]?.gift ? 'gift' : 'spell';
   const spellKind = spellKindAttr === 'power' ? card.heroPowerOf! : spellKindAttr === 'ruby' ? 'Ruby' : spellKindAttr === 'gift' ? 'Gift' : isWhisper ? 'Whisper' : 'Shop Spell';
   const useSpellFrame = spellLike && pframeOk;
@@ -869,10 +876,11 @@ export const Card = memo(function Card({
     ? (frameOk ? tauntFrameSrcFor(card.tribe, !!card.golden) : undefined)
     : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? SPELL_FRAME_SRC : undefined;
   const frameFade = useArtFade(frameSrc);
-  const plateFade = useArtFade(usePlate ? plateSrcFor(card.tribe) : undefined);
+  const plateSrc = whisperLook ? WHISPER_PLATE_SRC : plateSrcFor(card.tribe);
+  const plateFade = useArtFade(usePlate ? plateSrc : undefined);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${card.whisperKey ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -906,9 +914,9 @@ export const Card = memo(function Card({
       } : undefined}
       // Mouse only: a finger tap opens the full Inspect overlay instead (touchInput.ts), and the compatibility
       // mouseenter a tap fires would otherwise stack this reveal under it.
-      onMouseEnter={(hasPopup || card.whisperKey) && !dragging ? (e) => {
+      onMouseEnter={(hasPopup || whisperLook) && !dragging ? (e) => {
         if (lastPointerWasTouch()) return;
-        if (card.whisperKey) whisperRipple(e.currentTarget); // Set 4: the Whisper's hover ripple (one-shot, throttled)
+        if (whisperLook) whisperRipple(e.currentTarget); // Set 4: the Whisper's hover ripple (one-shot, throttled)
         if (hasPopup) { const el = e.currentTarget; perfMonitor.measure('input:pointerenter', () => showRefTip(el)); }
       } : undefined}
       onMouseLeave={hasPopup ? () => perfMonitor.measure('input:pointerleave', hideRefTip) : undefined}
@@ -947,10 +955,10 @@ export const Card = memo(function Card({
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
-          <img decoding="sync" className={`plateglow${plateFade.cls}`} src={plateSrcFor(card.tribe)} alt="" aria-hidden="true" draggable={false} />
+          <img decoding="sync" className={`plateglow${plateFade.cls}`} src={plateSrc} alt="" aria-hidden="true" draggable={false} />
           <img decoding="sync"
             className={`cardplate${plateFade.cls}`}
-            src={plateSrcFor(card.tribe)}
+            src={plateSrc}
             alt=""
             aria-hidden="true"
             draggable={false}

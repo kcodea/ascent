@@ -164,3 +164,18 @@ body whose Rise death has a `reborn` LATER in the log, from that death until the
 nothing. Beat order now reads: death, the clash reactions, Echo hits, reaction ticks (the #2074 stride), +Health
 (twice each, Gilded), Rise, and every frame in between keeps Hawg | (Eatah) | Apua | Alan. The row test fails on the old
 code (the row closed at the first beat after the death).
+
+## Whisper painted plate replaces the hue tint (owner 2026-10-14: "use this as the whisper frame instead")
+
+The owner's painted blue-violet frame (`C:\Game Assets\Ascent Art\whisperFrame.png`, 951x1478 RGBA) is a hand PLATE:
+its aspect (0.643) and body geometry match `cardplate*.webp` (800x1244), confirmed with a 50% overlay against
+`cardplate-neutral.webp` (rims, side clasps, inner window and bottom gem coincide). Shipped as
+`apps/web/public/frames/cardplate-whisper.webp` (494x768, alpha kept, webp q88), and `Card.tsx` picks it as the plate
+src (`WHISPER_PLATE_SRC`) for any Whisper card. The Whisper look is now read off the DEF (`whisperLook = whisperKey ||
+def.whisper`), so the Compendium, Scene Builder and cast previews wear it too, not only a hand instance.
+
+Removed: the whole CSS hue tint (`--wh-filter` sepia + hue-rotate on the plate, the arch frame via `--frame-tone`, and
+the Spell medallion, plus the rim drop-shadows). The arch frame and the Spell crystal now render exactly as on a Shop
+spell. Kept: full-colour art, the one arrival shimmer and the one-shot hover ripple. The accents (name ink, the
+"Whisper" kind line, the art rim, shimmer, ripple) moved from teal 178 to blue-violet `--whisper-hue: 250`, so they
+sit with the painted plate instead of clashing with it.

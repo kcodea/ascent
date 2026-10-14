@@ -1936,6 +1936,28 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   copies). Whisp: "When you cast a Whisper on a Dragon, also cast it on this." (Gilded: twice). Whisp's cast is a
   full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again.
 
+### Set 3 Dragons: Whaloo, Falx, Queen Morro, Shush (owner 2026-10-14; R-WHISPER-03..07, R-SPELL-MORRO-01)
+
+- **Whaloo** (T6 9/10): "When a Dragon attacks, cast **Runebind** on it. (3 times per combat)". Every friendly Dragon
+  swing (Whaloo's own too) casts a real Runebind on the attacker, at most 3 triggers per Whaloo per fight; the cap counts
+  down live on the card. The stats are combat-only; Runebind's improve is permanent and real time (the next cast this
+  fight reads it, settle keeps it). Each cast counts as a spell cast. Whisp is cast on too when it lands on a Dragon; a
+  Tamby target hands a copy to hand (once per fight). Gilded: a Gilded Runebind (double value and improve).
+- **Falx** (T5 6/5): "**Whisper:** Trigger a friendly minion's **Shout**." Its Whisper, **Ripple**, re-fires the target's
+  Shout through the shared Shout-replay path. A target with no Shout refuses the cast and Ripple stays in hand (the
+  Resonance rule). A Gilded Falx's Ripple triggers the Shout twice.
+- **Queen Morro** (T5 7/8): "Your spells cast an additional time in combat." (Gilded: 2.) Every spell her side casts in
+  combat (Shop spells cast by effects, rune and minion casts, Whispers, a Ruby played outside a spell) resolves once
+  more, each a real counted cast. Added to Runebloom Matriarch and the Ancient of War; live (a dead Morro stops). Shop
+  casts are untouched.
+- **Shush** (T4 5/4): "**Equip Jar of Secrets (2):** Get **3** random **Whispers**." "(2)" is the Gold cost (the Equip
+  convention). The draws come from every Whisper (Tome, Runebind, Ripple, and any future one) and follow every Whisper
+  rule. A Gilded Shush's Jar gets 3 Gilded Whispers.
+- **Gilded Whispers:** a Whisper from a Gilded source doubles its effect (and Runebind's improve) on every surface.
+- **Buffs panel:** a Whisper's grant is its own row under the Whisper's name, marked "until your next turn".
+- **Runebind's effect** (the owner's FX def `runebind`) plays on the target of every Runebind cast, from every source, in
+  both phases.
+
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 
 The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:

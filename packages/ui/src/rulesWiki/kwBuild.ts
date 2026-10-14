@@ -406,6 +406,24 @@ export const ENTRIES: readonly WikiEntry[] = [
     seeAlso: ['gift', 'discover'],
   },
 
+  // ── Whisper (Set 4, owner 2026-10-13) ─────────────────────────────────────────────────────────────────
+  {
+    id: 'whisper',
+    topic: 'keywords',
+    q: 'What is a Whisper?',
+    a: "A spell a minion gives you. **Galas** gives you a Tome and **Tolan** gives you a Runebind: one the moment you play them, and a new one at the start of every turn they are still on your board. **Drag it onto a friendly minion** to cast it. If you do not cast it, it **fades at End of Turn**. It counts as a spell cast, but it is not a Shop spell.",
+    aliases: ['whispers', 'tome', 'runebind'],
+    seeAlso: ['whisper-stats'],
+    covers: [{ keyword: 'whisper', fp: '3321e86f' }],
+  },
+  {
+    id: 'whisper-stats',
+    topic: 'keywords',
+    q: 'Do the stats from a Whisper last?',
+    a: "**No.** A Whisper's stats stay on the minion for the rest of the turn and through that turn's fight, then come off at the start of your next turn. Engraved does not keep them: it only keeps stats gained in combat.",
+    aliases: ['whisper buff', 'temporary stats'],
+    seeAlso: ['whisper'],
+  },
   // ── Clue ──────────────────────────────────────────────────────────────────────────────────────────────
   {
     id: 'clue',

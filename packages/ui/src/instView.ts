@@ -7,7 +7,7 @@ import {
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -139,6 +139,10 @@ export interface LiveTextParams {
   /** This instance's CURRENT keywords (board / hand / offer / combat body). A Rise the printed card lacks (granted
    *  by Undying, Last Stand, …) leads the text as "**Rise.**" (owner 2026-09-26). Absent for a plain preview. */
   keywords?: readonly string[];
+  /** Set 4 WHISPERS: the run's per-Whisper improvement (Runebind), and the held Whisper copy's multiplier (a Gilded
+   *  granter's copy is worth double). With `spellsCast` + `rubyCasts`, everything a Whisper's live value reads. */
+  whisperImprove?: Record<string, number>;
+  whisperMult?: number;
 }
 
 /** A Ruby's printed sentence with its "+A/+H" grant swapped for `grant` (already `{{…}}`-wrapped when it is above
@@ -205,8 +209,9 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling })
-        : transformProgressText(c.id, p.spellProgress ?? 0) ??
+        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult })
+        : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove }) ?? // Set 4: Galas / Tolan print their Whisper's live value
+            transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
             rallySpreadText(c.id, p.golden, p.rallySpreadAtk) ?? // Sunmane: the rally's CURRENT (doubled) grant
@@ -329,7 +334,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState },
+  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState; /** Set 4: the run's Whisper improvements (Runebind), by Whisper id. */ whisperImprove?: Record<string, number> },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -369,6 +374,7 @@ export function instView(
     grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
     clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
+    whisperImprove: live?.whisperImprove, whisperMult: inst.whisperMult, // Set 4: a Whisper's / a granter's live value
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -406,6 +412,8 @@ export function instView(
     // bound to this key). The body that lands on the board for its Echo is already resolving, so it carries none;
     // the sim clears `borrowed` at the next turn.
     onLoanKey: inst.borrowed && !live?.onBoard ? inst.uid : undefined,
+    // SET 4 WHISPER: a Whisper waiting in hand wears the Whisper look + text (it fades at End of Turn if not cast).
+    whisperKey: c.whisper && !live?.onBoard ? inst.uid : undefined,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes || !!(inst as { unityTribes?: boolean }).unityTribes, // + Rune of Unity's full house (Set 3 design pass)
     attack: shownAtk, health: shownHp,
     keywords: shownKeywords, text: shownText + tempTags,
@@ -473,6 +481,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
+      whisperImprove: run.whisperImprove, // Set 4: Tolan's live Runebind value on the final warband
     },
   );
 }

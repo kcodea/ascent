@@ -2140,6 +2140,70 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    (see HAND CARD BACKPLATE), because the plate is wider than the card box and starts above it.
    PERF: nothing here animates; the shadow is static paint. */
 .cardloan { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
+/* SET 4 WHISPER: ITS OWN COLOUR IDENTITY (owner 2026-10-14: "can we make them even more distinct?", directions chosen:
+   "own colour identity" + "keep in hand"). The WHOLE Whisper card shifts to one spectral hue, so it reads apart from a
+   Shop spell (the normal spell colour) at a glance: the painted frame and hand plate are re-tinted to the hue, the spell
+   medallion is tinted to match, the name and the kind line take the hue's light ink, and a rim of the same hue sits on
+   the card edge. The art window stays at FULL colour (owner 2026-10-14); the one arrival shimmer is kept, in the hue,
+   and a one-shot ripple plays on hover (below).
+
+   THE ONE SWITCH: `--whisper-hue` (an HSL hue, degrees as a number). 178 = spectral teal (the live default),
+   272 = ghost violet, 140 = pale spirit-green. Every Whisper colour below derives from it.
+
+   How the tint works: a STATIC filter on each painted image, `sepia(1)` first (which normalises any source colour to
+   one warm hue, about 38 degrees), then `hue-rotate` from there to the target hue, then saturation + brightness. So a
+   single number re-colours art painted in any colour. PERF: every layer is static paint, nothing loops; the only
+   animation is the one arrival shimmer (transform + opacity, runs once). No drawn props: the painted frame, plate and
+   medallion are the same assets, re-coloured. */
+:root { --whisper-hue: 178; }
+.card.whispercard {
+  --wh: var(--whisper-hue);
+  --wh-filter: sepia(1) hue-rotate(calc((var(--wh) - 38) * 1deg)) saturate(2.1) brightness(1.02);
+  --wh-ink: hsl(var(--wh) 85% 84%);
+  --wh-kind: hsl(var(--wh) 90% 70%);
+  --wh-rim: hsl(var(--wh) 85% 62%);
+}
+/* The spell medallion: the same Spell crystal, re-tinted to the hue, keeping its own drop shadow and glow. */
+.card.whispercard .ctype.spell.spellmed .spellmed-img { filter: var(--wh-filter) drop-shadow(var(--m-sx) var(--m-sy) var(--m-sblur) var(--m-scolor)) drop-shadow(0 0 calc(var(--ccw, 140px) * 0.03) hsl(var(--wh) 90% 62% / 0.85)); }
+.card.whispercard .art { box-shadow: inset 0 0 0 1px hsl(var(--wh) 80% 75% / 0.7); }
+/* THE HOVER RIPPLE (owner 2026-10-14): `whisperRipple` (Card.tsx) adds `.wripple` to the art window on mouse enter,
+   throttled to one per 400 ms and never while one is running. Two rings of the hue, painted ONCE (static gradients on a
+   pseudo-element), scale out from the centre and fade: transform + opacity only, 0.7 s, then the class comes off. The
+   art itself is untouched (full colour, owner 2026-10-14: "make the art not faded"). */
+.card.whispercard .art.wripple::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 140%; aspect-ratio: 1; pointer-events: none; z-index: 2;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 54%, hsl(var(--wh) 95% 78% / 0.75) 58%, transparent 63%),
+    radial-gradient(circle, transparent 30%, hsl(var(--wh) 95% 85% / 0.55) 34%, transparent 39%);
+  transform: translate(-50%, -50%) scale(0.15); opacity: 0;
+  animation: whisperripple 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) 1;
+}
+@keyframes whisperripple {
+  0% { transform: translate(-50%, -50%) scale(0.15); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+.card.whispercard .art::before {
+  content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 45%; pointer-events: none; z-index: 3;
+  background: linear-gradient(100deg, transparent 0%, hsl(var(--wh) 90% 92% / 0.6) 50%, transparent 100%);
+  opacity: 0; transform: translateX(-120%) skewX(-12deg);
+  animation: whispershimmer 0.9s ease-out 0.15s 1 both;
+}
+@keyframes whispershimmer {
+  0% { opacity: 0; transform: translateX(-120%) skewX(-12deg); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(260%) skewX(-12deg); }
+}
+/* The name and the kind line in the hue's light ink (dark outline kept for contrast on the plate). */
+.card.whispercard .cn, .card.whispercard .cn-t, .card.compact.showtext.whispercard .drawer .cn { color: var(--wh-ink); }
+.card.plated.whispercard .plate-tribe.spellkind, .card.compact.showtext.whispercard .drawer .dtribe.spellkind { color: var(--wh-kind); }
+/* The rim: a static glow of the hue hugging the painted frame and plate (a drop-shadow inside the same static filter;
+   the card's own ::after is the hand's hover bridge, so the rim does not use it). */
+.card.whispercard .cardplate { filter: var(--wh-filter) drop-shadow(0 0 calc(var(--ccw, 140px) * 0.025) hsl(var(--wh) 90% 60% / 0.85)); }
+/* The painted spell frame takes the hue through the frame's own tone hook (`.card.compact.spellframe .cframe` applies
+   `var(--frame-tone) drop-shadow(...)`), so its drop shadow and the `cshadow` copy are untouched. */
+.card.compact.whispercard { --frame-tone: var(--wh-filter) drop-shadow(0 0 calc(var(--ccw, 140px) * 0.02) hsl(var(--wh) 90% 60% / 0.8)); }
 .cardloan-tag {
   position: absolute; left: 50%; bottom: calc(100% + var(--ccw) * 0.03); transform: translateX(-50%);
   white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1); line-height: 1;

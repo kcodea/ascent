@@ -1393,6 +1393,13 @@ export function simulate(
     // Multi-volley Echo: apply WITHOUT resolving death (overkill), so a captured target keeps reading each
     // volley and its death is held for `resolveEchoDeath` at the end — see the CombatContext doc.
     damageDeferred: (target, amount, source) => applyDamage(target, amount, false, false, source, true),
+    woundHits: (fn) => {
+      const outer = heldDamaged;
+      const mine: { minion: Minion; side: Side; amount: number }[] = [];
+      heldDamaged = mine;
+      try { fn(); } finally { heldDamaged = outer; }
+      return mine.map((hit) => () => { bus.emit('onDamaged', hit); });
+    },
     resolveEchoDeath: (target, source) => {
       flushDemonReactions(); // the pass's reactions land BEFORE any death check (R-DEMON-DMG-DEATH-01)
       if (target.dead || target.health > 0) return;
@@ -3959,6 +3966,8 @@ export function simulate(
     }
   }
 
+  /** Set 4 `woundHits`: the `onDamaged` emits held during a self-damage hit beat (null = emit at once). */
+  let heldDamaged: { minion: Minion; side: Side; amount: number }[] | null = null;
   function applyDamage(
     target: Minion,
     amount: number,
@@ -4018,7 +4027,11 @@ export function simulate(
     emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health), ...(poisoner ? { source: poisoner.uid } : {}) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     // `amount` rides the payload for reactors that echo the hit (Yeti); the older watchers ignore it.
-    if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side, amount });
+    // Set 4 (R-WOUND-01): inside a `woundHits` beat the reaction is HELD and released after the hits (its own wave).
+    if (amount > 0) {
+      const hit = { minion: target, side: target.side, amount };
+      if (heldDamaged) heldDamaged.push(hit); else bus.emit('onDamaged', hit);
+    }
     // Pummel (Han Gover, Goldvein): the dealer's running damage tally (see `noteDamageDealt`).
     if (amount > 0 && poisoner) noteDamageDealt(poisoner, amount);
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all

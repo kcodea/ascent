@@ -107,6 +107,8 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     triggerEchoOn: () => {},
     graftEffect: () => {},
     improveAttachments: () => {},
+    woundAll: () => {},
+    tick: (fn: () => void) => fn(),
     rng: () => rng,
   };
   return { arena, granted };

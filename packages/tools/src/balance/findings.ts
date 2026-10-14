@@ -298,7 +298,7 @@ export function computeFindings(records: readonly LobbyRecord[], opts: FindingsO
   const spellRow = new Map(agg.spells.map((s) => [s.cardId, s]));
   const poolMinions = (pool?.buyable ?? []).map((c) => c.id);
   const poolSpells = (pool?.spells ?? []).map((c) => c.id);
-  const eligibleRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || (setId && r.sets.includes(setId as 'set1' | 'set2' | 'set3'))).map((r) => r.id);
+  const eligibleRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || (setId && r.sets.includes(setId as 'set1' | 'set2' | 'set3' | 'set4'))).map((r) => r.id);
   const runeRow = new Map(agg.runes.map((r) => [r.runeId, r]));
   const seated = new Set(allRuns.map((r) => r.heroId));
   const unexercised: Findings['unexercised'] = {

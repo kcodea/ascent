@@ -26,7 +26,7 @@ console.log('set2 buyable:', poolFor('set2').buyable.length);"
 
 ## Where content actually lives
 
-- **Cards** — `packages/content/src/cards/<set>/` (`set1`, `set2`, `set3`), split by tribe plus `spells.ts`,
+- **Cards** — `packages/content/src/cards/<set>/` (`set1`, `set2`, `set3`, `set4`), split by tribe plus `spells.ts`,
   `tokens.ts`, `neutral.ts`. Shared: `cards/archive.ts` (retired), `cards/henchmen.ts`.
 - **Set manifests** — `packages/content/src/sets.ts`. A set declares its `tribes` and which card arrays it
   `own`s. `activeSet()` is first-enabled-wins; a run **pins** its set at creation.

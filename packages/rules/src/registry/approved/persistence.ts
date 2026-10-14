@@ -788,4 +788,23 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-11 for Ruinous Lord and Rad Rachel (combat, Engraved and Shop cases each tested for both).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ruinousRune1010.test.ts', 'packages/sim/src/radRachel.test.ts'], lastVerifiedAt: '2026-10-11' },
   },
+  {
+    id: 'R-WHISPER-02',
+    title: 'A Whisper buff lasts through that turn and its combat, then comes off at the next Start of Turn; Engraved does not keep it',
+    statement:
+      'The stats a Whisper gives are TEMPORARY unless a card says otherwise: applied in the Shop, kept for the rest of the '
+      + 'turn and through that turn\'s combat, and removed at the start of the next turn (stats and their inspect-ledger '
+      + 'share both come off; Attack never below 0, Health never below 1). Engraved does not keep them, because Engraved '
+      + 'keeps stats gained IN combat only. The grant is recorded per body (`whisperBuffs`) so a future card can make a '
+      + 'Whisper\'s stats permanent by clearing that record (`keepWhisperBuffs`); no card does yet.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner handoff 2026-10-13 (Set 4 placeholder, Whisper buffs)', quote: 'Whisper buffs are NOT permanent unless stated: applied in recruit, kept through that turn\'s combat, removed at the start of the next turn. Engraved does NOT keep them (Engraved only keeps stats gained IN combat).' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyWhisperBuff; packages/sim/src/whisper.ts expireWhisperBuffs / keepWhisperBuffs / mergeWhisperBuffs; packages/sim/src/reducer.ts advanceCombat (the strip before the turn reads the board)' },
+    ],
+    contentIds: ['w4_tome', 'w4_runebind'],
+    currentBehaviour: 'Conforms as of 2026-10-13. A triple keeps the kept copies\' marks, so the golden sheds them too.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set4.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

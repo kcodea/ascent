@@ -620,6 +620,15 @@ export const EffectFactoryIdSchema = z.enum([
   'dealtDamageGetRandomRuby',     // Kobe (2026-09-24): Pummel (15) — the same meter, a random-Ruby body
   'dealtDamageGrantRandomTribe',  // Maestro Lux (2026-09-24): Pummel (N) — the same meter, a random-tribe-minion body
   'dealtDamageGoldNextTurn',      // Goldvein: Pummel (N) — Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
+  // ── Set 4 (owner 2026-10-13): the Whisper mechanic + the self-damage Beasts ──
+  'grantWhisper',                 // Galas / Tolan: grants a Whisper to hand (on play + every Start of Turn while on board)
+  'whisperBuffTarget',            // Tome / Runebind: a Whisper's temporary stat grant (+ Runebind's improve)
+  'whisperCastOnThisCopy',        // Tamby: a Whisper cast on this hands back a copy (once per turn)
+  'whisperEchoOnDragon',          // Whisp: a Whisper cast on a Dragon is also cast on this
+  'shoutWoundSelfMendTribe',      // Hawg: Shout: 1 damage to this, your Beasts +1 Health (never lethal)
+  'deathrattleWoundMendTribe',    // Eatah: Echo: 1 damage to your Beasts, then +1 Health (never lethal)
+  'onTribeDamagedBuffSelf',       // Apua: a friendly Beast took damage -> this +1/+1 permanently
+  'onTribeDamagedBuffRandomTribe',// Alan: a friendly Beast took damage -> a random friendly Beast +1/+2 permanently
 ]);
 
 export const EffectDefSchema = z.object({
@@ -690,6 +699,7 @@ export const CardDefSchema = z.object({
   spell: z.boolean().optional(),
   gift: z.boolean().optional(),
   giftMulticast: z.boolean().optional(),
+  whisper: z.boolean().optional(), // Set 4: a Whisper (see CardDef.whisper)
   ruby: z.boolean().optional(),
   rubyGrantKeyword: KeywordSchema.optional(),
   rubyRider: z.enum(['gold', 'bounce', 'ripple', 'devour']).optional(),
@@ -1048,7 +1058,7 @@ export const RuneDefSchema = z.object({
   text: z.string().min(1),
   reward: QuestRewardSchema,
   epic: z.boolean().optional(),
-  sets: z.array(z.enum(['set1', 'set2', 'set3'])).readonly().optional(), // set3 joined 2026-09-14 (the Set 3 rune roster handoff)
+  sets: z.array(z.enum(['set1', 'set2', 'set3', 'set4'])).readonly().optional(), // set3 joined 2026-09-14 (the Set 3 rune roster handoff)
   requiresDoublePower: z.boolean().optional(),
   previewCards: z.array(z.string().min(1)).optional(),
   tribes: z.array(TribeSchema).readonly().optional(),
@@ -1056,7 +1066,7 @@ export const RuneDefSchema = z.object({
 }).strict();
 
 export const QuestDefSchema = z.object({
-  sets: z.array(z.enum(['set1', 'set2', 'set3'])).readonly().optional(),
+  sets: z.array(z.enum(['set1', 'set2', 'set3', 'set4'])).readonly().optional(),
   id: z.string().min(1),
   name: z.string().min(1),
   tribe: TribeSchema,

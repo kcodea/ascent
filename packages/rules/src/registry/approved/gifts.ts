@@ -54,4 +54,26 @@ export const GIFTS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-10). Christmas offered a Gift every Start of Turn and Birthday paid every 2 turns, with no countdown.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts', 'packages/ui/src/tallyCoverage.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-WHISPER-01',
+    title: 'A Whisper is granted on play and every Start of Turn, fades at End of Turn uncast, and counts as a spell cast (never a Shop spell)',
+    statement:
+      'A card that grants a Whisper (Galas: Tome, Tolan: Runebind) gives you a copy in hand the moment it is played from '
+      + 'hand, and a fresh copy at every Start of Turn while it is still on your board (each granter its own copy, its own '
+      + 'Start-of-Turn beat; a Gilded granter grants a copy worth double). A Whisper that is not cast vanishes at End of '
+      + 'Turn and counts as nothing. Casting one is a spell cast (every spell tally and watcher sees it, a Yazzus repeat '
+      + 'is a real second cast) but it is a Gift-class spell, never a Shop spell: never offered, never copy food for the '
+      + 'spell-copy effects. Tamby copies a Whisper cast on it (once per turn); Whisp is cast on too when a Whisper lands '
+      + 'on a Dragon (a full cast, never echoing again).',
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner handoff 2026-10-13 (Set 4 placeholder, the Whisper mechanic)', quote: 'A card that grants a Whisper (minion, spell, rune, etc.) gives you a copy in hand. If unused, it vanishes at End of Turn and does not count as cast. At the start of your next turn you get a fresh copy again, as long as the granting card is still active/on your board.' },
+      { kind: 'owner-chat', ref: 'Owner handoff 2026-10-13 (Set 4 placeholder)', quote: 'Whispers are SPELLS and count as spells cast (like Rubies), but are NOT Shop spells.' },
+      { kind: 'code', ref: 'packages/sim/src/whisper.ts (grantWhispersOnPlay, vanishWhispers), packages/sim/src/recruit.ts (grantWhisper, mintWhisper, whisperBuffTarget, whisperCastOnThisCopy, whisperEchoOnDragons), packages/sim/src/reducer.ts (the Whisper cast branch, endRecruitTurn)' },
+    ],
+    contentIds: ['d4_galas', 'd4_tolan', 'd4_tamby', 'd4_whisp', 'w4_tome', 'w4_runebind'],
+    currentBehaviour: 'Conforms as of 2026-10-13 (Set 4 is disabled; play it in the Scene Builder).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set4.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

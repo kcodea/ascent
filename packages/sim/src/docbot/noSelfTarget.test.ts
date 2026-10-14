@@ -52,6 +52,7 @@ const ARENA_PICKERS: Record<string, Record<string, unknown>> = {
   battlecryGrantKeyword: { keywords: ['DS'] },
   battlecryPlayRubiesRandomTribe: { count: 3, tribe: 'dwarf' }, // Shardluck (Ruby batch 2026-09-24) — the fake arena's bodies are Dwarves
   rallyGrantKeywordRandomTribe: { keyword: 'V' }, // Raven / Tort (2026-09-24)
+  onTribeDamagedBuffRandomTribe: { tribe: 'dwarf', attack: 1, health: 2 }, // Alan (Set 4, 2026-10-13): "another friendly Beast" — the fake bodies are Dwarves
 };
 
 /** Arena bodies whose pool is an IDENTITY or POSITIONAL membership, not a choice — named with the reason. */

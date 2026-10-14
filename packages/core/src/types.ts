@@ -995,6 +995,15 @@ export type EffectFactoryId =
   | 'onDamagedReflectRandomEnemies' // Yeti: the FIRST time this takes damage each combat, deal that amount to N distinct random enemies (combat)
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
   | 'dealtDamageGrantRandomTribe' // Maestro Lux (Set 3 Celestial, owner 2026-09-24): "Pummel (12): Get a random Celestial. (Once per combat.)" — the shared damage meter (`noteDamageDealt`) with a random-`params.tribe`-minion body (`grantRandomMinion`, ×2 gilded), capped by `params.maxPerCombat` (default 1)
+  // ── Set 4 (owner 2026-10-13): the WHISPER mechanic + the self-damage Beasts ──
+  | 'grantWhisper' // Galas / Tolan (passive marker, never dispatched): this minion GRANTS the Whisper `params.cardId` — a copy in hand when it is played from hand and again at every Start of Turn while it is on the board (`sim/whisper.ts`)
+  | 'whisperBuffTarget' // a Whisper's cast (Tome / Runebind): give the target a TEMPORARY +V/+V (expires at the next Start of Turn) where V = `attack` + the per-`perSpells` step (Tome) or the run's Runebind improvement (Runebind), then improve when `improve` is set (recruit)
+  | 'whisperCastOnThisCopy' // Tamby: when a Whisper is cast on this, get a copy of it (once per turn, x golden copies) (recruit)
+  | 'whisperEchoOnDragon' // Whisp (passive marker read by the cast path): when you cast a Whisper on a Dragon, also cast it on this (x golden) (recruit)
+  | 'shoutWoundSelfMendTribe' // Hawg: Shout: deal `damage` to this and give your `tribe` minions +`health` Health (x golden ticks; never lethal) (both phases)
+  | 'deathrattleWoundMendTribe' // Eatah: Echo: deal `damage` to your `tribe` minions and give them +`health` Health (x golden ticks; never lethal) (both phases)
+  | 'onTribeDamagedBuffSelf' // Apua: when a friendly `tribe` minion takes damage, this gains +a/+h PERMANENTLY (both phases)
+  | 'onTribeDamagedBuffRandomTribe' // Alan: when a friendly `tribe` minion takes damage, give a random friendly `tribe` minion +a/+h PERMANENTLY (both phases)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {
@@ -1126,6 +1135,12 @@ export interface CardDef {
    *  cast an additional time"). Every other cast multiplier still leaves a Gift alone. Only meaningful with
    *  `gift: true` and a `target`. */
   giftMulticast?: boolean;
+  /** A WHISPER (Set 4, owner 2026-10-13): a Gift-class hand spell (`gift: true`) that a card GRANTS rather than
+   *  hands over once. It counts as a spell cast (never a Shop spell), vanishes from hand at End of Turn if it was
+   *  not cast (and then counts as nothing), and comes back at the next Start of Turn while its granting card is
+   *  still on your board. Its stat grant is TEMPORARY: kept through that turn's combat, removed at the next Start
+   *  of Turn (`BoardCard.whisperBuffs`). See `sim/whisper.ts`. */
+  whisper?: boolean;
   /** Warding Ruby (set 2): a Ruby that ALSO grants this keyword (Ward = `DS`) to the minion it's played on —
    *  permanent when cast in the shop phase (the reducer's play-Ruby branch bakes it onto the board card). */
   rubyGrantKeyword?: Keyword;
@@ -2625,7 +2640,7 @@ export interface QuestDef {
    * the set-1 and set-2 quest lists are DIFFERENT (owner 2026-07-29), and a quest whose objective names another
    * set's mechanics — Fodder, Attachments, Rubies, Ales — can never be completed in this run.
    */
-  sets?: readonly ('set1' | 'set2' | 'set3')[];
+  sets?: readonly ('set1' | 'set2' | 'set3' | 'set4')[];
   reward: QuestReward;
   /** Which quest turn this quest is offered on (owner's two-bucket table). Absent = derived from `tier`
    *  (Capstone → turn 11, else → turn 5); set explicitly only when a quest's bucket differs from that default
@@ -2678,7 +2693,7 @@ export interface RuneDef {
    * one of the forge's few offer slots on something the run can never use (owner report 2026-07-29).
    */
   /** Mirrors `SetId` in `@game/content`, spelled out because content depends on core and not the reverse. */
-  sets?: readonly ('set1' | 'set2' | 'set3')[];
+  sets?: readonly ('set1' | 'set2' | 'set3' | 'set4')[];
   /**
    * TRIBE GATE (owner 2026-09-10: "tribe-gated runes and heroes are important"): the forge offers this rune only
    * when at least one of these is one of the RUN's rolled tribes. Absent = tribe-agnostic. Distinct from `sets`
@@ -4165,6 +4180,9 @@ export interface CombatContext {
    *  cubs) is created after all the damage, not caught by a later volley, and a low-HP victim reads each volley's
    *  number and procs the per-volley reactors instead of vanishing after the first. */
   damageDeferred(target: Minion, amount: number, source?: Minion): void;
+  /** Set 4 (R-WOUND-01): run `fn` (a beat of hits) with every `onDamaged` emit HELD; returns one thunk per held emit,
+   *  in hit order, so the caller can release each reaction on its own wave AFTER the hit beat. Nests safely. */
+  woundHits(fn: () => void): (() => void)[];
   /** Resolve a death that `damageDeferred` left pending: if `target` is at ≤0 and not yet dead, kill it now
    *  (firing its Deathrattle / Rise). Call after the LAST volley so consequences land once, after the damage. */
   resolveEchoDeath(target: Minion, source?: Minion): void;

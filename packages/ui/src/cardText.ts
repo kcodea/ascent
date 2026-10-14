@@ -1,6 +1,6 @@
 import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { chooseOneBranchText } from '@game/sim';
+import { chooseOneBranchText, whisperSpellsToNext, whisperValue } from '@game/sim';
 
 /** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
  *  annotation below. `deathrattleSummon` / `onFriendDeathSummon` are generic summoners, so they only count when
@@ -1537,4 +1537,32 @@ export function withGrantedRise(cardId: string, text: string, keywords: readonly
   // At the END (owner 2026-09-26): "show it at the end so it doesn't replace the minion's main mechanic pill ...
   // it is a granted effect". The card's own mechanic keeps the lead (and its glossary pill).
   return text.trim() ? `${text.trimEnd()} **Rise.**` : '**Rise.**';
+}
+
+/**
+ * SET 4 — a WHISPER GRANTER (Galas, Tolan) prints its Whisper's CURRENT value in place (the live-text rule, owner
+ * 2026-10-13: "played on turn 10 it shows the current value, e.g. +16/+16"): the same `whisperValue` the cast reads,
+ * x2 when Gilded, green when it moved off the printed base; a stepping Whisper (Tome) adds its countdown. Null for any
+ * other card. Player-scoped run tallies: an enemy body (no run) passes nothing and so reads its printed base.
+ */
+export function whisperGranterText(cardId: string, golden: boolean, run: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number> }): string | null {
+  const def = CARD_INDEX[cardId];
+  const grant = def?.effects.find((e) => e.do === 'grantWhisper');
+  const wid = typeof grant?.params?.cardId === 'string' ? grant.params.cardId : '';
+  const w = wid ? CARD_INDEX[wid] : undefined;
+  if (!def || !w) return null;
+  const eff = w.effects.find((e) => e.do === 'whisperBuffTarget');
+  const p = (eff?.params ?? {}) as { attack?: number; health?: number; perSpells?: number };
+  const g = golden ? 2 : 1;
+  const baseA = Number(p.attack ?? 1) * g, baseH = Number(p.health ?? 1) * g;
+  const tallies = { spellsCast: run.spellsCast ?? 0, rubyCasts: run.rubyCasts ?? 0, whisperImprove: run.whisperImprove };
+  const v = whisperValue(tallies, w);
+  const a = v.attack * g, h = v.health * g;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  // The live value is the plain green `{{…}}` marker, never nested in bold: a bold span wears the keyword glow, which
+  // washes the green out (owner 2026-10-13: "the green text is clear / green from being buffed").
+  let text = a !== baseA || h !== baseH ? src.replace(`**+${baseA}/+${baseH}**`, `{{+${a}/+${h}}}`) : src;
+  const toNext = whisperSpellsToNext(tallies, w);
+  if (toNext !== undefined) text = text.replace(/spells cast this game\.$/, `spells cast this game, {{${toNext} to go}}.`);
+  return text;
 }

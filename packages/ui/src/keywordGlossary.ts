@@ -141,6 +141,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'ale', name: 'Dwarven Ale', aliases: ['Ale', 'Ales'], section: 'tokens', icon: 'flame', def: 'A set of Dwarf spells that provide various benefits. Count as shop spells.' },
   // Gifts (owner design 2026-08-26): a spell class of its own — see `cards/gifts.ts`.
   { id: 'gift', name: 'Gift', aliases: ['Gifts'], section: 'tokens', icon: 'gift', def: 'A free spell put into your hand by a rune, hero or card. It casts like any spell but is never a Shop spell: never in the Shop and never copied, and only a rune that says so can Discover one.' },
+  // Set 4 (owner 2026-10-13): a spell a minion GRANTS, temporary in hand and in what it gives. See `sim/whisper.ts`.
+  { id: 'whisper', name: 'Whisper', aliases: ['Whispers'], section: 'tokens', icon: 'gift', def: 'A spell a minion gives you while it is on your board. Cast it on a friendly minion. Its stats last until your next turn. If you do not cast it, it fades at End of Turn and a new one comes next turn. It counts as a spell cast, but it is not a Shop spell.' },
   { id: 'clue', name: 'Clue', aliases: ['Clues'], section: 'tokens', icon: 'gift', def: 'A free hand spell: give a friendly minion +1/+1, then every later Clue gives +1/+1 more.' },
   // Set 3's Celestial token + its cash-out verb (owner ask 2026-09-12: "Collapse" gets its own pill and the Starform
   // itself is a noun the cards reference, so it is explained on the side too). Neither is a schema badge — the

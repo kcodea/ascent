@@ -120,6 +120,7 @@ const richBag = (id: string): LiveTextParams => ({
   impBank: { attack: 2, health: 3 }, firstSpellThisTurnName: 'Growth', lastSpellThisTurnName: 'Spirit Fire',
   keeperFirstSpellName: 'Growth',
   runeFlags: { matriarch: true, brokerage: true, livingTreasure: true },
+  whisperImprove: { w4_runebind: 4 }, /* Set 4: Tolan's Runebind improved twice (2026-10-13) */
 });
 
 /** Per-card additions the generic bags must not set globally: `taughtSpellId` early-returns for ANY card, so

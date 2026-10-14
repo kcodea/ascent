@@ -209,7 +209,7 @@ function bandStudy(band: Band, runs: readonly RunTrajectory[], horizon: number, 
 }
 
 export interface StudyOptions {
-  setId?: 'set2' | 'set3' | 'set1';
+  setId?: 'set2' | 'set3' | 'set1' | 'set4';
   horizon?: number;
   bands?: readonly Band[];
   /** A card / pair needs at least this many boards in a band to be listed. */

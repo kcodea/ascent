@@ -337,6 +337,11 @@ export interface CardView {
    *  ONLY contract the looping smoke binds to (`useOnLoanFx` follows it), and what makes the card print its
    *  "On Loan" text (`OnLoanMark`). The sim clears the loan at the next turn. Never set on a board body. */
   onLoanKey?: string;
+  /** SET 4 WHISPER (owner 2026-10-13): this hand card is a Whisper, a TEMPORARY spell that fades at End of Turn if it
+   *  is not cast (and comes back next turn while its granter stays). A stable key (the card uid), stamped on the card
+   *  root as `data-whisper`; it makes the card wear the ethereal Whisper look (`whispercard`, styles.css). Never set
+   *  on anything but a Whisper (in hand, or its drag copy). */
+  whisperKey?: string;
   /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).
    *  The footer prints ALL instead of the primary tribe, since every tribal effect counts it. */
   universalTribe?: boolean;
@@ -850,8 +855,11 @@ export const Card = memo(function Card({
   // and the Triple Reward included — reads Shop Spell. Gift is read off the DEF, like `universalTribe`, so no
   // CardView builder has to remember to carry it.
   // A HERO POWER card (the hero-power Discover) is a fourth kind: its line names the hero it belongs to.
-  const spellKindAttr = card.heroPowerOf ? 'power' : card.ruby ? 'ruby' : CARD_INDEX[card.cardId]?.gift ? 'gift' : 'spell';
-  const spellKind = spellKindAttr === 'power' ? card.heroPowerOf! : spellKindAttr === 'ruby' ? 'Ruby' : spellKindAttr === 'gift' ? 'Gift' : 'Shop Spell';
+  // A WHISPER (Set 4) wears the plain SPELL medallion and colour, not the Gift crystal (owner 2026-10-13: "replace the
+  // purple gift icon with the normal spell icon"); its kind line still names it (below).
+  const isWhisper = !!CARD_INDEX[card.cardId]?.whisper;
+  const spellKindAttr = card.heroPowerOf ? 'power' : card.ruby ? 'ruby' : isWhisper ? 'spell' : CARD_INDEX[card.cardId]?.gift ? 'gift' : 'spell';
+  const spellKind = spellKindAttr === 'power' ? card.heroPowerOf! : spellKindAttr === 'ruby' ? 'Ruby' : spellKindAttr === 'gift' ? 'Gift' : isWhisper ? 'Whisper' : 'Shop Spell';
   const useSpellFrame = spellLike && pframeOk;
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   // The FRAME and the hand PLATE obey the same rule as the art (art pop-in fix 2026-09-29): until decoded they are
@@ -864,7 +872,7 @@ export const Card = memo(function Card({
   const plateFade = useArtFade(usePlate ? plateSrcFor(card.tribe) : undefined);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${card.whisperKey ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -872,6 +880,7 @@ export const Card = memo(function Card({
       data-triple-reward={card.cardId === 'discoverspell' ? '' : undefined}
       data-choose-both={card.chooseBothKey}
       data-on-loan={card.onLoanKey}
+      data-whisper={card.whisperKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
@@ -897,7 +906,11 @@ export const Card = memo(function Card({
       } : undefined}
       // Mouse only: a finger tap opens the full Inspect overlay instead (touchInput.ts), and the compatibility
       // mouseenter a tap fires would otherwise stack this reveal under it.
-      onMouseEnter={hasPopup && !dragging ? (e) => { if (!lastPointerWasTouch()) perfMonitor.measure('input:pointerenter', () => showRefTip(e.currentTarget)); } : undefined}
+      onMouseEnter={(hasPopup || card.whisperKey) && !dragging ? (e) => {
+        if (lastPointerWasTouch()) return;
+        if (card.whisperKey) whisperRipple(e.currentTarget); // Set 4: the Whisper's hover ripple (one-shot, throttled)
+        if (hasPopup) { const el = e.currentTarget; perfMonitor.measure('input:pointerenter', () => showRefTip(el)); }
+      } : undefined}
       onMouseLeave={hasPopup ? () => perfMonitor.measure('input:pointerleave', hideRefTip) : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -1465,6 +1478,30 @@ const OnLoanMark = memo(function OnLoanMark() {
     </span>
   );
 });
+
+/**
+ * SET 4 WHISPER HOVER RIPPLE (owner 2026-10-14: "can you give it some sort of ripple effect when moused over"). On a
+ * mouse ENTER (never per move) the card's art window gets the `wripple` class, which plays ONE spectral ripple (rings
+ * of the Whisper hue scaling out and fading: transform + opacity only, `styles.css`), and the class comes off when that
+ * animation ends. Throttled: a card that rippled less than `WHISPER_RIPPLE_GAP_MS` ago, or is still rippling, does not
+ * restart. No layout read, no timer, nothing runs when nothing is hovered.
+ */
+const WHISPER_RIPPLE_GAP_MS = 400;
+const lastWhisperRipple = new WeakMap<Element, number>();
+function whisperRipple(card: Element): void {
+  const art = card.querySelector('.art');
+  if (!art || art.classList.contains('wripple')) return;
+  const now = performance.now();
+  if (now - (lastWhisperRipple.get(art) ?? -Infinity) < WHISPER_RIPPLE_GAP_MS) return;
+  lastWhisperRipple.set(art, now);
+  art.classList.add('wripple');
+  const done = (ev: Event): void => {
+    if ((ev as AnimationEvent).animationName !== 'whisperripple') return;
+    art.classList.remove('wripple');
+    art.removeEventListener('animationend', done);
+  };
+  art.addEventListener('animationend', done);
+}
 
 const ExecuteAura = memo(function ExecuteAura() {
   const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);

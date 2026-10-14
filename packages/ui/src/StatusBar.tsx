@@ -38,7 +38,8 @@ import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
-import { rectToStage, stageHost, stageViewport } from './stage';
+import { rectToStage, stageHost, stageViewport, toStage } from './stage';
+import { openEmoteMenu } from './emotes/emoteRuntime';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 
@@ -810,6 +811,13 @@ export function StatusBar() {
           <div
             className={`f${buffRows.length ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
             onClick={() => { if (buffRows.length) setBuffsOpen((o) => !o); }}
+            // EMOTES (owner 2026-10-13): right-click YOUR portrait for the emote menu. The browser menu is suppressed
+            // here only; the left click (Buffs) and the hero power button are untouched. One rect read per open.
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const r = e.currentTarget.getBoundingClientRect();
+              openEmoteMenu({ x: toStage(r.left + r.width / 2), y: toStage(r.top) });
+            }}
             role={buffRows.length ? 'button' : undefined}
             aria-expanded={buffRows.length ? buffsOpen : undefined}
             aria-label={buffRows.length ? (buffsOpen ? 'Hide run buffs' : 'Show run buffs') : undefined}

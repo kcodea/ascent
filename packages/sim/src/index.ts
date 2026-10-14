@@ -19,6 +19,7 @@ export * from './beatProbe';
 export { currentCollector, withActiveCollector } from './activeCollector';
 export * from './odds';
 export * from './snapshot';
+export * from './emotes';
 export * from './boardSide';
 export * from './boardElo';
 export * from './boardFeatures';

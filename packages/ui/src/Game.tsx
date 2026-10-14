@@ -28,6 +28,7 @@ import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { AccountPanel } from './AccountPanel';
+import { EmoteLayer } from './emotes/EmoteLayer';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
@@ -499,6 +500,9 @@ export function Game() {
           `heroPicking` is no longer read here. */}
       <PixiFxLayer />
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
+      {/* EMOTES (owner 2026-10-13): the right-click menu on your portrait, the bubbles, and the served seats' recorded
+          emotes. One per run (keyed like the StatusBar), no per-frame work. */}
+      {!preRun && <EmoteLayer key={`em:${runKey}`} />}
       {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one
           fixed, input-transparent layer serving the shop and the combat replay alike. */}
       {!preRun && <CastPreviewLayer />}

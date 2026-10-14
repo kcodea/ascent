@@ -229,6 +229,7 @@ export function snapshotSeat(run: PlayerRun, _policy: SeatPolicy = 'hard'): Seat
   const lastRecordedWave = recorded.lastWave;
   return {
     kind: 'recorded',
+    realPlayer: true,
     label,
     heroId: run.heroId,
     lastRecordedWave,

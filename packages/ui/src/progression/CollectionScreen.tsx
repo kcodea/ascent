@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine, isMasterTitle, levelProgress,
+  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, EMOTE_SLOT_COUNT, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine, isMasterTitle, levelProgress, withStarterCosmetics,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
@@ -26,6 +26,9 @@ import { CrateSignInGate } from './CrateSignInGate';
 import { TitleBadge } from '../titles/TitleBadge';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
 import { announcerPackOf } from './announcerPack';
+import { emoteSrc } from '../emotes/emoteArt';
+import { clearLocalEmotes, equipEmoteLocally, useEquippedEmotes } from '../emotes/emoteLoadout';
+import '../emotes/emotes.css';
 import './collection.css';
 
 /**
@@ -89,7 +92,11 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const userId = useGame((s) => s.account.userId);
   const playerName = useGame((s) => s.playerName);
   const me = mirrorFor(userId, mirror);
-  const ownedList = me ? ownedIds(me) : EMPTY;
+  // The STARTER items (the first four emotes, 2026-10-13) are everyone's, signed in or not.
+  const ownedList = useMemo(() => withStarterCosmetics(me ? ownedIds(me) : EMPTY), [me]);
+  // The emote menu as the game will show it (the server's rows, this device's layer, the starters filling in).
+  const emoteMenu = useEquippedEmotes();
+  const worn = useCallback((c: CosmeticDef): boolean => (c.category === 'emote' ? emoteMenu.includes(c.id) : isEquipped(c, me)), [emoteMenu, me]);
   const owned = useMemo(() => new Set(ownedList), [ownedList]);
   // The server's kill switch can retire an item or a category while the page is open: every list re-derives.
   const catalogEpoch = useProgression((s) => s.catalogEpoch);
@@ -138,7 +145,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const everything = useMemo(() => collectibleItems(undefined, owned), [catalogEpoch, owned]);
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
   const album = useMemo(() => albumOf(category, undefined, owned), [category, catalogEpoch, owned]);
-  const wornId = album.find((c) => isEquipped(c, me))?.id ?? null;
+  const wornId = album.find((c) => worn(c))?.id ?? null;
   const shown = useMemo(() => filterAlbum(album, owned, show, rarity), [album, owned, show, rarity]);
   const byRarity = useMemo(() => rarityCounts(album, owned), [album, owned]);
   const albumCount = useMemo(() => countOf(album, owned), [album, owned]);
@@ -203,6 +210,19 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     if (!ok) setError(voice ? 'Could not change your announcer. Try again.' : attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
+  /** EMOTES (owner 2026-10-13: "Players equip up to 4 in Collections"): put an emote in a menu position (1 to 4 on
+   *  screen, 0 to 3 in the loadout). The server takes it when it can; when it cannot (signed out, offline, or the
+   *  emote SQL not run yet) the position is kept on this device, so it always works. The same emote leaves any other
+   *  position (a swap). */
+  const onPlaceEmote = async (item: CosmeticDef, position: number): Promise<void> => {
+    sfx.pulse();
+    setBusy(true);
+    setError(null);
+    const ok = await equipCosmetic('emote', String(position), item.id);
+    if (ok) clearLocalEmotes(); else equipEmoteLocally(position, item.id);
+    setBusy(false);
+  };
+
   /** EVERY player-facing crate open comes through here (the bay's Open / Open all, the New rewards pop-up). A guest
    *  gets the sign-in gate instead (owner 2026-09-29); `anonymous` is read fresh each render, so the first Open
    *  after the account is created goes straight through. */
@@ -222,7 +242,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const name = playerName || tempHandle(userId);
   const live = categoryLive(category);
   /** NEW: owned, not seen yet (on this device or, per the account, on any other), and not the item you are wearing. */
-  const fresh = (c: CosmeticDef): boolean => seenReady && isNew(c.id, owned, seen) && !known?.has(c.id) && !isEquipped(c, me);
+  const fresh = (c: CosmeticDef): boolean => seenReady && isNew(c.id, owned, seen) && !known?.has(c.id) && !worn(c);
   const newIn = (c: CosmeticCategory): number => albumOf(c, undefined, owned).filter(fresh).length;
   const anyNew = everything.some(fresh);
   /** MARK ALL AS SEEN (owner 2026-10-11: "when a player clicks that, all 'new' pills go away"): everything you own,
@@ -321,8 +341,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                     {shown.map((c) => (
                       <li key={c.id}>
                         <ItemTile
-                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : skinArtOf(c)} ring={c.category === 'portrait_frame'} target={skinTargetName(c) ?? undefined}
-                          owned={owned.has(c.id)} equipped={isEquipped(c, me)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
+                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : skinArtOf(c)} ring={c.category === 'portrait_frame'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
+                          owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
                           onPick={onPick} onHover={c.target?.type === 'card' ? onHover : undefined}
                         />
                       </li>
@@ -343,9 +363,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           />
           {live && selected && (
             <DetailPanel
-              item={selected} owned={owned.has(selected.id)} equipped={isEquipped(selected, me)} busy={busy} error={error} playerName={name}
+              item={selected} owned={owned.has(selected.id)} equipped={worn(selected)} busy={busy} error={error} playerName={name}
               reducedMotion={reducedMotion} showDefault={defaultShown === selected.id && (busy || !isEquipped(selected, me))}
-              onHover={onHover}
+              onHover={onHover} emotePosition={selected.category === 'emote' ? emoteMenu.indexOf(selected.id) : -1}
+              onPlaceEmote={(pos) => { void onPlaceEmote(selected, pos); }}
               onEquip={() => { void onEquip(selected, true); }} onTakeOff={() => { void onEquip(selected, false); }}
             />
           )}
@@ -395,14 +416,16 @@ interface TileProps {
   ring?: boolean;
   /** A CARD skin: hovering the tile floats the in-game card wearing it (null clears it). */
   onHover?: (id: string | null, el?: HTMLElement) => void;
+  /** An emote: `art` is the whole painted bubble, contained. */
+  emote?: boolean;
 }
 
-const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover, ring }: TileProps): JSX.Element {
+const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover, ring, emote }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
       type="button"
-      className={`colls-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' skin' : ''}${ring ? ' ring' : ''}`}
+      className={`colls-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' skin' : ''}${ring ? ' ring' : ''}${emote ? ' emote' : ''}`}
       aria-pressed={selected}
       aria-label={`${name}${target ? `, for ${target}` : ''}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
       onClick={() => onPick(id)}
@@ -429,12 +452,15 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
 
 // ── The detail panel ───────────────────────────────────────────────────────────────────────────────────────
 
-function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, showDefault, onHover, onEquip, onTakeOff }: {
+function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, showDefault, onHover, onEquip, onTakeOff, emotePosition = -1, onPlaceEmote }: {
   item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; reducedMotion?: boolean;
   /** "Use default art" was just pressed for this skin: preview the target's DEFAULT art (owner 2026-09-30). */
   showDefault?: boolean;
   onHover?: (id: string | null, el?: HTMLElement, asDefault?: boolean) => void;
   onEquip: () => void; onTakeOff: () => void;
+  /** An emote: its menu position (0 to 3), or -1 when it is not in the menu; and how to put it in one. */
+  emotePosition?: number;
+  onPlaceEmote?: (position: number) => void;
 }): JSX.Element {
   const skinArt = skinArtOf(item);
   const art = showDefault ? defaultArtOf(item) ?? skinArt : skinArt;
@@ -444,11 +470,18 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   const attack = item.category === 'hero_attack';
   const frame = item.category === 'portrait_frame';
   const voice = item.category === 'announcer';
+  const emote = item.category === 'emote';
   // An announcer's sample stops when you look at another item or leave the screen.
   useEffect(() => (voice ? stopAnnouncerPreview : undefined), [voice, item.id]);
   return (
     <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin || frame ? ' skin' : ''}`} aria-label="Details">
-      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : voice ? 'Announcer' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : voice ? 'Announcer' : emote ? 'Emote' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+      {/* An emote's bubble, large: the painted art as it pops up in a game. */}
+      {emote && emoteSrc(item.id) && (
+        <div className="colls-skinart colls-emoteart" aria-label="Preview">
+          <img src={emoteSrc(item.id)} alt="" draggable={false} decoding="sync" />
+        </div>
+      )}
       {frame && <FramePreview item={item} owned={owned} showDefault={!!showDefault} />}
       {/* A hero attack plays in place (the Blast tuner's own runner, in a sandbox box): owned or not, so you can
           see what a crate might give. Keyed by item so switching items starts a fresh stage. */}
@@ -485,6 +518,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {frame && <div className="colls-fact"><span>For</span><b>Your hero portrait, seen by the players you meet</b></div>}
         {frame && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Default frame</b></div>}
         {voice && <div className="colls-fact"><span>For</span><b>The voice calling your games. Only you hear it</b></div>}
+        {emote && <div className="colls-fact"><span>For</span><b>Your hero. Right-click your portrait in a game to say it</b></div>}
+        {emote && emotePosition >= 0 && <div className="colls-fact"><span>In your menu</span><b>Slot {emotePosition + 1}</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
@@ -504,7 +539,17 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         </div>
       )}
       <div className="colls-detail-actions">
-        {!owned ? (
+        {emote && owned ? (
+          <div className="colls-emote-slots" role="group" aria-label="Menu slot">
+            {Array.from({ length: EMOTE_SLOT_COUNT }, (_, i) => (
+              <button
+                key={i} type="button" className={`colls-chip${emotePosition === i ? ' on' : ''}`} aria-pressed={emotePosition === i}
+                disabled={busy || emotePosition === i} onClick={() => onPlaceEmote?.(i)}
+                aria-label={emotePosition === i ? `${item.name} is in slot ${i + 1}` : `Put ${item.name} in slot ${i + 1}`}
+              >Slot {i + 1}</button>
+            ))}
+          </div>
+        ) : !owned ? (
           <div className="colls-hint">{missingHint(item)}</div>
         ) : equipped ? (
           <>
@@ -614,6 +659,7 @@ const CAT_PATHS: Readonly<Record<CosmeticCategory, string>> = {
   board: 'M3 4h18v16H3V4zm2 2v5h6V6H5zm8 0v5h6V6h-6zm-8 7v5h6v-5H5zm8 0v5h6v-5h-6z',
   music: 'M9 4l11-2v13.5a3 3 0 1 1-2-2.8V6.3l-7 1.3v9.9a3 3 0 1 1-2-2.8V4z',
   portrait_frame: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8z',
+  emote: 'M5 3h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-8l-5 4v-4H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm3 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
 };
 
 function CategoryIcon({ category }: { category: CosmeticCategory }): JSX.Element {

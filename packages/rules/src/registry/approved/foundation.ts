@@ -5344,4 +5344,96 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'later shudder and open on your placement. Round 3 with a full table: the usual sweep back to the shop.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rankedGate/endGameGate.test.tsx', 'packages/ui/src/rankedGate/rankedGate.test.tsx'], lastVerifiedAt: '2026-10-13' },
   },
+  // ── Emotes: the four-slot menu, and recorded emotes in the snapshot lobby (owner spec 2026-10-13) ─────────────
+  {
+    id: 'R-PROG-EMOTE-01',
+    title: 'Emotes are a cosmetic with a four-slot menu: four STARTER emotes are everyone\x27s and fill the menu by default; a 20 second cooldown between emotes, no cap',
+    statement:
+      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Angry Mushy, Flirty Midas, '
+      + 'Nervous Jensen and Zen Brian are STARTER items (acquisition \x27starter\x27): every player owns them from the start, '
+      + 'signed in or not, with no ownership row, and they never drop from a crate (later emotes may come from crates on '
+      + 'the ordinary path). The in-game menu holds FOUR emotes, one cosmetic_loadouts row per position (slot \x27emote\x27, '
+      + 'target \x270\x27..\x273\x27); equip_cosmetic puts an owned or starter, live emote in a position and the same emote '
+      + 'leaves any other position (a move). The menu reads explicit positions first and fills every empty one with its own '
+      + 'starter, else a starter pushed out of its position (a swap), else any starter not shown; retired or unknown ids '
+      + 'are skipped. An equip the server cannot take (signed out, offline, the SQL not run) is kept on the device, so the '
+      + 'feature always works. In a game the player right-clicks THEIR hero portrait (only there is the browser menu '
+      + 'suppressed) in a shop turn or a combat, never in a replay, and picks an emote: its bubble pops beside the portrait. '
+      + 'At least 20 seconds pass between two emotes (the menu shows the wait); there is no per-turn cap and no muting. The '
+      + 'menu is LIVE LOADOUT ONLY: a run records the emotes USED (R-EMOTE-01), never the menu.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players right-click THEIR hero\x27s portrait (in game) to open an emote menu showing their 4 equipped emotes; clicking one plays it.' },
+      { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Cooldown: 20 seconds between emotes (show the cooldown state on the menu). No per-turn cap. No muting for now.' },
+      { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players equip up to 4 in Collections. Unlock source: crates, plus starter emotes everyone owns.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (emote(), STARTER_EMOTE_IDS, EMOTE_SLOT_COUNT, emoteLoadoutOf, withEmoteAt, withStarterCosmetics); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-13-emotes.sql (the starter check, equip_cosmetic); packages/sim/src/emotes.ts (EMOTE_COOLDOWN_MS, emoteCooldownLeft); packages/ui/src/emotes/ (emoteRuntime.ts, emoteLoadout.ts, EmoteLayer.tsx); packages/ui/src/StatusBar.tsx (the right-click); packages/ui/src/progression/CollectionScreen.tsx (the slot buttons)' },
+    ],
+    currentBehaviour:
+      'Conforms in the client from 2026-10-13. PARTIAL on the live server until the owner runs '
+      + 'supabase/migrations/2026-10-13-emotes.sql and then deploys progression-inventory: before that the database has no '
+      + 'emote category or items and equip_cosmetic refuses the emote slot, so a Collection slot change is kept on the '
+      + 'device only. The emotes themselves (menu, bubbles, recording) need no server change.',
+    example:
+      'A fresh account right-clicks its portrait in round 3: Angry Mushy, Flirty Midas, Nervous Jensen, Zen Brian. It '
+      + 'says Zen Brian at 0:05; Angry Mushy at 0:15 is refused (cooling, "Ready in 10s"); at 0:25 it goes. Putting '
+      + 'Nervous Jensen in slot 1 in the Collection makes the menu Nervous Jensen, Flirty Midas, Angry Mushy, Zen Brian.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/progression/src/emotes.test.ts',
+        'packages/progression/src/emotes.db.test.ts',
+        'packages/progression/src/sqlParity.test.ts',
+        'packages/ui/src/emotes/emotes.test.tsx',
+      ],
+      lastVerifiedAt: '2026-10-13',
+    },
+  },
+  {
+    id: 'R-EMOTE-01',
+    title: 'Snapshot lobby: an emote is recorded on its round\x27s board with its offset into the phase, and a served recording replays it at the same offset beside that seat; bots never emote',
+    statement:
+      'Every emote the player uses in a LOBBY run is recorded on the board captured for that round (BoardSnapshot.emotes: '
+      + '{ id, phase, at }), where phase is shop or combat and at is the milliseconds since that phase started (the shop '
+      + 'turn starting = the run entering recruit for the wave; the combat starting = the run entering combat). A shop emote '
+      + 'is held until the round\x27s board is captured at the end of the turn; a combat emote is written onto the board '
+      + 'already captured for the round. The board uploads verbatim (boards.snapshot jsonb), so no SQL change is needed. '
+      + 'snapshotBoard never writes the field (it stays pure); a board without it, every board from before emotes, has '
+      + 'no emotes and loads unchanged. A board\x27s emotes are parsed tolerantly (junk dropped, at most 24, offsets 0 to 10 '
+      + 'minutes; an id this client does not know is kept and simply shows nothing). When a recorded seat is served, at '
+      + 'the start of each of the player\x27s phases its recorded emotes of that phase play at the SAME offset into the '
+      + 'player\x27s phase, beside that seat\x27s rail portrait (an emote whose moment has already passed is dropped, never '
+      + 'played late). Only a seat driven by a real player\x27s recording can emote, only while it stands, and only from '
+      + 'the board recorded FOR that round (a recording served past its end stays quiet). Bots, generated, hybrid and '
+      + 'authored seats never emote. In combat the rail is slid away, so only the foe being fought can be seen emoting, '
+      + 'beside its combat portrait. The event is one transport-agnostic message { emoteId, seat, phase, offsetMs, round } '
+      + 'through one seam (emoteTransport.ts), so a later real-time Versus transport can carry it unchanged. Display only: '
+      + 'it never touches combat, matchmaking, the reducer or any RNG. Practice, the tutorial, the Gauntlet and sandbox runs '
+      + 'show the bubble but record nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'record each emote the player uses with its time offset from the start of that turn (shop) / combat start (combat), store it with the seat\x27s recorded snapshot for that round' },
+      { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'when that recorded seat is served to other players, replay the emote at that same offset beside that seat\x27s rail portrait (as close as possible). Bots/generated seats: no emotes.' },
+      { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'design the emote event as a small transport-agnostic message ({emoteId, seat, phase, offsetMs, round}) with a clean seam so a later Supabase Realtime broadcast can send/receive it live' },
+      { kind: 'code', ref: 'packages/sim/src/emotes.ts (EmoteMessage, RecordedEmote, parseRecordedEmotes, withRecordedEmotes, recordEmoteOnBoards, emoteScheduleOf, emoteReplayDelays); packages/sim/src/snapshot.ts (BoardSnapshot.emotes); packages/sim/src/lobby/runLobby.ts seatEmoteSchedule; packages/sim/src/lobby/snapshotSeats.ts (realPlayer); packages/ui/src/store.ts (the faceOmen capture folds the held shop emotes); packages/ui/src/emotes/emoteRecording.ts, emoteRuntime.ts, emoteTransport.ts, emoteBubble.ts, EmoteLayer.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-13. Two stated limits: a shop emote said before a save and resumed after it is lost (held '
+      + 'in memory until the board is captured; combat emotes ride the saved boards), and replay v2 recordings do not carry '
+      + 'emotes yet (not cheap: the per-round draft chunks, the resume offsets and the viewer would all need them).',
+    example:
+      'Sam says Zen Brian 4.2 s into round 1\x27s shop and Angry Mushy 1.5 s into round 1\x27s fight. Their wave-1 board '
+      + 'uploads with both. Days later Alex is seated against Sam\x27s run: 4.2 s into Alex\x27s round 1 shop, Zen Brian '
+      + 'pops beside Sam\x27s seat on the rail; if Alex fights Sam in round 1, Angry Mushy pops beside Sam\x27s combat '
+      + 'portrait 1.5 s into the fight. A bot seat beside Sam never says anything.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/lobby/seatEmotes.test.ts',
+        'packages/ui/src/emotes/emotes.test.tsx',
+      ],
+      lastVerifiedAt: '2026-10-13',
+    },
+  },
 ];

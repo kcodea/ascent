@@ -1,6 +1,7 @@
 import type { BoardMinion, CombatOutcome, CombatResult, Tribe } from '@game/core';
 import { activeSet, poolFor, type GauntletBuffs, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
+import { emoteScheduleOf, type EmotePhase, type RecordedEmote } from '../emotes';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { makeRng, simulate } from '@game/core';
 import { seatCombatSide } from '../boardSide';
@@ -673,6 +674,21 @@ export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: 
 function seatBoardThisRound(lobby: RunLobby, seat: LobbySeatState): PreparedBoard | null {
   const d = driverFor(seat, lobby.setId);
   return d?.prepare(lobby.round) ?? d?.finalBoard?.() ?? null;
+}
+
+/**
+ * THE EMOTES A SEAT REPLAYS THIS ROUND (owner 2026-10-13): the recorded emotes of `phase` on the board this seat
+ * fields this round, in time order, each with its offset into the phase. Only a seat driven by a REAL player's
+ * recording can say anything (bots, generated, hybrid and authored seats never emote), only while it stands, and only
+ * from the board recorded FOR this round (a recording served past its end stays quiet, `emoteScheduleOf`). Never asks
+ * a non-player driver for a board, so it is cheap: a snapshot seat's board is a lookup into its recording.
+ */
+export function seatEmoteSchedule(lobby: RunLobby, seatId: string, phase: EmotePhase): RecordedEmote[] {
+  const seat = lobby.seats.find((s) => s.id === seatId);
+  if (!seat || seat.kind !== 'snapshot' || !seat.alive) return [];
+  const d = driverFor(seat, lobby.setId);
+  if (!d?.realPlayer) return [];
+  return emoteScheduleOf(d.prepare(lobby.round)?.snapshot, lobby.round, phase);
 }
 
 /** Apply damage through Armor then Resolve. Exported as `hitSeat` so the balance bot's self-play lobby charges

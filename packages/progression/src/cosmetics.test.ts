@@ -53,14 +53,15 @@ describe('the launch catalog', () => {
   });
 
   it('every handoff category exists with its weight; announcers, title, the two skin slots, hero attacks and portrait frames are switched on', () => {
-    expect([...COSMETIC_CATEGORIES].sort()).toEqual(['announcer', 'board', 'hero_attack', 'hero_skin', 'minion_skin', 'music', 'portrait_frame', 'title']);
+    expect([...COSMETIC_CATEGORIES].sort()).toEqual(['announcer', 'board', 'emote', 'hero_attack', 'hero_skin', 'minion_skin', 'music', 'portrait_frame', 'title']);
     expect(COSMETIC_CATEGORIES.map((c) => [c, COSMETIC_CATEGORY_DEFS[c].weight])).toEqual([
-      ['announcer', 10], ['hero_skin', 20], ['minion_skin', 35], ['title', 10], ['hero_attack', 15], ['board', 5], ['music', 5], ['portrait_frame', 10],
+      ['announcer', 10], ['hero_skin', 20], ['minion_skin', 35], ['title', 10], ['hero_attack', 15], ['board', 5], ['music', 5], ['portrait_frame', 10], ['emote', 10],
     ]);
     // Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default" (hero_attack on).
     // Owner 2026-10-01: "we're adding portrait skins" (portrait_frame on, account-wide like the hero attack).
     // Owner 2026-10-11: "i want to create a new announcer voice ... offered as a reward in collections" (announcer on).
-    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'portrait_frame']);
+    // Owner 2026-10-13: "Emotes are a new COSMETIC type in Collections" (emote on, account-wide, four menu positions).
+    expect(COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled)).toEqual(['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'portrait_frame', 'emote']);
     expect(COSMETIC_CATEGORY_DEFS.announcer).toEqual({ id: 'announcer', label: 'Announcers', weight: 10, enabled: true, target: 'global' });
     expect(COSMETIC_CATEGORY_DEFS.portrait_frame).toEqual({ id: 'portrait_frame', label: 'Portrait Frames', weight: 10, enabled: true, target: 'global' });
     // Owner 2026-10-02: Ancient ("these will be a 3% drop rate") above Legendary; the odds moved 50/30/15/5 -> 35/31/22/9/3.

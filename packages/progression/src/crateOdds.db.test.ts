@@ -28,6 +28,8 @@ const ODDS = read('2026-09-29-crate-fixed-rarity-odds.sql');
 const UNIFORM = read('2026-09-29-crate-uniform-within-rarity.sql');
 // 2026-10-02: the Ancient rarity (five rarities at 35/31/22/9/3, roll version 4) supersedes UNIFORM's pick + open_crate.
 const ANCIENT = read('2026-10-02-ancient-rarity.sql');
+/** The emote file's starter-acquisition check only (2026-10-13): the code catalog holds STARTER emotes. */
+const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(read('2026-10-13-emotes.sql'));
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -91,7 +93,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, ODDS, UNIFORM, ANCIENT]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, ODDS, UNIFORM, ANCIENT, STARTER_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });

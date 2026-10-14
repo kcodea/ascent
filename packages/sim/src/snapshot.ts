@@ -19,6 +19,7 @@ import { createRun, type Action, type RunState, type ShopCard, type RunMode } fr
 import { reduce, playerCombatSideState } from './reducer';
 import { handCardLocked, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
 import type { ThreatId } from './threats';
+import type { RecordedEmote } from './emotes';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
  *  'house' = a board shipped with the game (seeded bot runs); 'synthetic' = computer-generated within a
@@ -96,6 +97,12 @@ export interface BoardSnapshot {
    *  hero and cards (handoff §13: only what the payload can show). Display only, never read by combat or
    *  matchmaking. Absent on every board from before skins = default art. */
   cosmetics?: RunCosmeticSnapshot;
+  /** The EMOTES its owner used this round (owner 2026-10-13), each with its phase and its offset into that phase (ms
+   *  since the shop turn / the combat started). Folded in by the UI capture layer (never by the pure `snapshotBoard`,
+   *  which stays deterministic), and replayed at the same offsets beside the seat's rail portrait whenever this board
+   *  is served (`emoteScheduleOf`). Display only. Absent on every board from before emotes, and on any board whose
+   *  owner did not emote. Read through `parseRecordedEmotes` (the shared pool is untrusted). */
+  emotes?: RecordedEmote[];
   /** Display name of the board's author — you or a friend. Shown on the opponent frame ("by Sam"). */
   author?: string;
   /** ISO date (YYYY-MM-DD) the board was captured or generated. Wall-clock, so it's stamped by the UI/tool

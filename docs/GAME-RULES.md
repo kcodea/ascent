@@ -503,10 +503,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
   voice, owned or not.
+- **Emotes (2026-10-13, R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your hero says in a game.
+  Right-click YOUR hero portrait (shop or combat) for a menu of your four equipped emotes; pick one and it pops up beside
+  your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet. The first four
+  (**Angry Mushy**, **Flirty Midas**, **Nervous Jensen**, **Zen Brian**) are STARTER emotes: every player owns them and
+  has them equipped from the start, signed in or not. Later emotes come from crates (none yet). The Collection's Emotes
+  tab puts an emote in menu slot 1 to 4 (the one already there swaps places). **In the snapshot lobby** each emote you
+  use is recorded on that round's board with its time into the phase (since the shop turn started, or since the combat
+  started), and whenever that recorded run is served to another player, the emote plays at the same time into THEIR
+  shop turn / combat beside that seat's rail portrait (in combat the rail is away, so only the foe you fight can be
+  seen emoting, beside its combat portrait). Bots, generated and authored seats never emote; a recording served past its
+  end does not repeat its last round's emotes. Display only: an emote never touches combat, matchmaking or the RNG.
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
-  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame). Switched on:
+  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame, emote). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal

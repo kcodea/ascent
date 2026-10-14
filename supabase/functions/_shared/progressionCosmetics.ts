@@ -40,7 +40,7 @@
 
 // ── Categories, rarities, weights ─────────────────────────────────────────────────────────────────────────
 
-export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame'] as const;
+export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame', 'emote'] as const;
 export type CosmeticCategory = typeof COSMETIC_CATEGORIES[number];
 
 export const COSMETIC_RARITIES = ['common', 'rare', 'epic', 'legendary', 'ancient'] as const;
@@ -86,6 +86,10 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
   // applied." The ring around YOUR hero portrait, account-wide (any hero). Weight 10 like titles (kept for later: the
   // roll has ignored category weights since roll version 3).
   portrait_frame: { id: 'portrait_frame', label: 'Portrait Frames', weight: 10, enabled: true, target: 'global' },
+  // Owner 2026-10-13: "Emotes are a new COSMETIC type in Collections". A painted speech bubble your hero says in a game,
+  // seen by you and by the players who meet your recorded run. Account-wide (no hero or card target); the loadout
+  // holds FOUR of them, one row per menu position (`EMOTE_SLOT_COUNT`). Weight 10 like titles (kept for later).
+  emote:       { id: 'emote',       label: 'Emotes',            weight: 10, enabled: true,  target: 'global' },
 });
 
 /**
@@ -99,9 +103,12 @@ export const CRATE_ROLL_VERSION = 4;
 
 // ── The catalog ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** How an item is acquired. Exactly one source per item (handoff §5.2); only `crate` items ever drop. */
+/** How an item is acquired. Exactly one source per item (handoff §5.2); only `crate` items ever drop. A `starter`
+ *  item (owner 2026-10-13, the first four emotes) is owned by EVERY player from the start, signed in or not: it is
+ *  never stored as an ownership row, never drops, and the equip SQL treats it as owned (`isStarterCosmetic`). */
 export type CosmeticAcquisition =
   | { type: 'crate' }
+  | { type: 'starter' }
   | { type: 'level_milestone'; level: number }
   | { type: 'achievement'; id: string }
   | { type: 'event'; id: string };
@@ -164,6 +171,17 @@ const portraitFrame = (id: string, name: string, rarity: CosmeticRarity, master:
  */
 const announcer = (id: string, name: string, rarity: CosmeticRarity, pack: string): CosmeticDef =>
   ({ id, category: 'announcer', name, rarity, acquisition: { type: 'crate' }, assets: { pack }, active: true });
+
+/**
+ * AN EMOTE (owner 2026-10-13: "Emotes are a new COSMETIC type in Collections ... Unlock source: crates, plus starter
+ * emotes everyone owns"). One account-wide item: a painted speech bubble that pops beside your hero portrait when you
+ * use it in a game (right-click your portrait). `assets.art` is the key of the in-repo bubble
+ * (`packages/ui/src/art/emotes/<key>.webp`); `assets.master` is the owner's master under
+ * `C:/Game Assets/Ascent Art/Emotes/`. A STARTER emote is everyone's from the start; a crate emote (none yet) drops
+ * like any other item once it is added here with `acquisition: { type: 'crate' }`.
+ */
+const emote = (id: string, name: string, rarity: CosmeticRarity, master: string, acquisition: CosmeticAcquisition = { type: 'crate' }): CosmeticDef =>
+  ({ id, category: 'emote', name, rarity, acquisition, assets: { art: id, master }, active: true });
 
 /**
  * HERO TITLES (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is
@@ -565,6 +583,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // call her Little Inu"; "legendary for both".
   announcer('announcer_underdweller', 'Underdweller', 'legendary', 'underdweller'),
   announcer('announcer_little_inu', 'Little Inu', 'legendary', 'little-inu'),
+  // EMOTES (owner 2026-10-13): the four painted bubbles in C:/Game Assets/Ascent Art/Emotes/ are the STARTER set, owned
+  // and equipped by everyone (EmoteTemplate.png there is the blank template, not an emote). Placeholder art: the owner
+  // has not settled the final look. Names come from the filenames.
+  emote('emote_angry_mushy', 'Angry Mushy', 'common', 'AngryMushy.png', { type: 'starter' }),
+  emote('emote_flirty_midas', 'Flirty Midas', 'common', 'FlirtyMidas.png', { type: 'starter' }),
+  emote('emote_nervous_jensen', 'Nervous Jensen', 'common', 'NervousJensen.png', { type: 'starter' }),
+  emote('emote_zen_brian', 'Zen Brian', 'common', 'ZenBrian.png', { type: 'starter' }),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);
@@ -819,10 +844,10 @@ export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): Cosm
 
 export type SkinSlot = 'hero_skin' | 'minion_skin';
 export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
-/** Every slot `equip_cosmetic` accepts: the two per-target skin slots and the account-wide hero attack, portrait
- *  frame and announcer (target ''). */
-export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame' | 'announcer';
-export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame', 'announcer'];
+/** Every slot `equip_cosmetic` accepts: the two per-target skin slots, the account-wide hero attack, portrait
+ *  frame and announcer (target ''), and the EMOTE slot (2026-10-13), whose target is the menu position '0'..'3'. */
+export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame' | 'announcer' | 'emote';
+export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame', 'announcer', 'emote'];
 /** The account-wide slots: one row each, target ''. */
 export const GLOBAL_EQUIP_SLOTS: readonly EquipSlot[] = ['hero_attack', 'portrait_frame', 'announcer'];
 
@@ -846,6 +871,11 @@ export interface RunCosmeticSnapshot {
   /** The equipped ANNOUNCER (account-wide, owner 2026-10-11). LIVE LOADOUT ONLY: only the wearer hears it, so
    *  `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent = the default announcer. */
   announcer?: string;
+  /** The EMOTES placed in the menu (owner 2026-10-13), keyed by menu position '0'..'3' (`EMOTE_SLOT_COUNT`). LIVE
+   *  LOADOUT ONLY: a run records the emotes its player actually USED, on each round's board (`BoardSnapshot.emotes`),
+   *  never this menu, so `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent or partial = the
+   *  starter emotes fill the empty positions (`emoteLoadoutOf`). */
+  emotes?: Readonly<Record<string, string>>;
 }
 
 /** Hard caps on what a snapshot may carry, so a hostile or corrupt payload stays tiny. */
@@ -895,6 +925,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
   let attack: string | undefined;
   let frame: string | undefined;
   let voice: string | undefined;
+  const emotes: Record<string, string> = {};
   if (Array.isArray(rows)) {
     for (const r of rows) {
       if (!r || typeof r !== 'object') continue;
@@ -907,6 +938,8 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
       if (slot === 'portrait_frame') { if (target === '' || target === undefined) frame = id; continue; }
       // And the announcer (2026-10-11).
       if (slot === 'announcer') { if (target === '' || target === undefined) voice = id; continue; }
+      // The emote slot (2026-10-13) keys by menu position.
+      if (slot === 'emote') { if (typeof target === 'string' && EMOTE_POSITION_RE.test(target)) emotes[target] = id; continue; }
       if (typeof target !== 'string' || !ID_RE.test(target)) continue;
       if (slot === 'hero_skin') hero[target] = id;
       else if (slot === 'minion_skin') minion[target] = id;
@@ -918,6 +951,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
     ...(attack ? { heroAttack: attack } : {}),
     ...(frame ? { portraitFrame: frame } : {}),
     ...(voice ? { announcer: voice } : {}),
+    ...(Object.keys(emotes).length ? { emotes } : {}),
   };
 }
 
@@ -975,6 +1009,73 @@ export function portraitFrameOf(snapshot: RunCosmeticSnapshot | null | undefined
 export function announcerOf(loadout: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
   const c = cosmeticOf(loadout?.announcer);
   return c && c.category === 'announcer' && isCosmeticLive(c.id) ? c : null;
+}
+
+// ── Emotes: the four-position menu (owner 2026-10-13) ─────────────────────────────────────────────────────
+
+/** How many emotes the in-game menu holds (owner 2026-10-13: "showing their 4 equipped emotes"). */
+export const EMOTE_SLOT_COUNT = 4;
+/** A menu position, as the loadout row's target: '0'..'3'. */
+export const EMOTE_POSITION_RE = /^[0-3]$/;
+
+/** Is this item a STARTER (every player owns it from the start, no ownership row)? */
+export const isStarterCosmetic = (id: string | null | undefined): boolean => cosmeticOf(id)?.acquisition.type === 'starter';
+
+/** The starter emotes in catalog order: the default menu, position 0 first. */
+export const STARTER_EMOTE_IDS: readonly string[] = Object.freeze(COSMETICS.filter((c) => c.category === 'emote' && c.acquisition.type === 'starter').map((c) => c.id));
+
+/** Every owned id, plus the starter items everyone owns (a guest and an offline player included). */
+export function withStarterCosmetics(owned: readonly string[] | null | undefined): string[] {
+  const out = [...(owned ?? [])];
+  for (const c of COSMETICS) if (c.acquisition.type === 'starter' && !out.includes(c.id)) out.push(c.id);
+  return out;
+}
+
+/** A LIVE emote item, or null (unknown, retired, another category). */
+export function emoteOf(id: string | null | undefined): CosmeticDef | null {
+  const c = cosmeticOf(id);
+  return c && c.category === 'emote' && isCosmeticLive(c.id) ? c : null;
+}
+
+/**
+ * THE MENU A LOADOUT SHOWS: up to `EMOTE_SLOT_COUNT` live emote ids, position 0 first. An explicit row wins its
+ * position (a duplicate keeps only its lowest position; a retired or unknown id is dropped); every empty position takes
+ * its own starter emote when that is not already shown, else a starter pushed out of its own position, else the first
+ * starter not shown yet. So a fresh account shows
+ * the four starters, and putting a starter in another position SWAPS it with the one that was there (rows {0: C} over
+ * the default [A, B, C, D] read [C, B, A, D]). A position nothing can fill is left out (the result can be shorter).
+ */
+export function emoteLoadoutOf(loadout: RunCosmeticSnapshot | null | undefined): string[] {
+  const slots: (string | null)[] = Array.from({ length: EMOTE_SLOT_COUNT }, () => null);
+  const used = new Set<string>();
+  for (let i = 0; i < EMOTE_SLOT_COUNT; i++) {
+    const id = loadout?.emotes?.[String(i)];
+    if (id && !used.has(id) && emoteOf(id)) { slots[i] = id; used.add(id); }
+  }
+  const starters = STARTER_EMOTE_IDS.filter((id) => emoteOf(id));
+  // The starters pushed out of their own position by an explicit emote go first into the gaps (the swap).
+  const displaced = starters.filter((id) => !used.has(id) && slots[STARTER_EMOTE_IDS.indexOf(id)] !== null);
+  for (let i = 0; i < EMOTE_SLOT_COUNT; i++) {
+    if (slots[i]) continue;
+    const own = STARTER_EMOTE_IDS[i];
+    const pick = own && starters.includes(own) && !used.has(own) ? own : displaced.find((id) => !used.has(id)) ?? starters.find((id) => !used.has(id));
+    if (pick) { slots[i] = pick; used.add(pick); }
+  }
+  return slots.filter((x): x is string => !!x);
+}
+
+/** The menu position an emote sits in under this loadout, or -1. */
+export const emotePositionOf = (loadout: RunCosmeticSnapshot | null | undefined, id: string): number => emoteLoadoutOf(loadout).indexOf(id);
+
+/** A loadout with one emote put in `position` (the SQL's move: the same emote leaves any other position). Pure. */
+export function withEmoteAt(loadout: RunCosmeticSnapshot | null | undefined, position: number, id: string | null): RunCosmeticSnapshot {
+  const map: Record<string, string> = {};
+  for (const [k, v] of Object.entries(loadout?.emotes ?? {})) if (v !== id) map[k] = v;
+  if (id) map[String(position)] = id; else delete map[String(position)];
+  const out: RunCosmeticSnapshot = { ...(loadout ?? {}) };
+  if (Object.keys(map).length) (out as { emotes?: Record<string, string> }).emotes = map;
+  else delete (out as { emotes?: Record<string, string> }).emotes;
+  return out;
 }
 
 /** A loadout with the profile's equipped title folded in (the loadout rows never carry it; the profile does). */

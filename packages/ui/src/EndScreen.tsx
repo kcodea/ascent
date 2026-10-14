@@ -175,15 +175,31 @@ function TutorialGraduationScreen({ run, onDone }: { run: RunState; onDone: () =
 
 export function EndScreen({ won }: { won: boolean }) {
   const run = useGame((s) => s.run);
+  const openTitle = useGame((s) => s.openTitle);
+  // Pick the screen FIRST (owner 2026-10-14, R-ENDSCREEN-01): "there are remnants of the old wave based mode
+  // that you can outright remove". The retired course screen's derivations (build tags, the Line verdict, and a
+  // full `replayRun` re-simulation of the action log for its round pips) used to run as hooks ABOVE these
+  // returns, so every lobby, tutorial and Gauntlet end screen paid for a screen it never showed. They now live
+  // in `CourseEndScreen`, which only mounts for a lobby-less run (none in live play).
+  // Tutorial graduates to its own screen (checked before the lobby branch — a tutorial run also carries a
+  // lobby, but a placement/verdict is the wrong frame for a course you just LEARNED).
+  if (run.mode === 'tutorial') return <TutorialGraduationScreen run={run} onDone={openTitle} />;
+  // Gauntlet: a stage verdict (cleared / defeated at round R), never a placement or a rating. Before the lobby
+  // branch for the same reason as the tutorial: a Gauntlet run carries a two-seat lobby.
+  if (run.mode === 'gauntlet') return <GauntletEndScreen run={run} />;
+  if (run.lobby) return <LobbyEndScreen lobby={run.lobby} run={run} onPlayAgain={openTitle} />;
+  return <CourseEndScreen won={won} run={run} />;
+}
+
+/** The retired scored-course end screen (a lobby-less run). No live mode reaches it; kept until the course UI is
+ *  deleted (docs/devlog/2026-10-14-remove-wave-mode-plan.md, PR 2). */
+function CourseEndScreen({ won, run }: { won: boolean; run: RunState }) {
   const runSkins = useRunSkins();
   // The portrait frame recorded on this run (owner 2026-10-01), else the portrait-frames tuner's ring (null = today's
   // CSS border). Before the early returns below.
   const frame = usePortraitFrame('self', frameIdOf(runSkins));
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
-  // A lobby result is a placement, not a graded course — its own screen, before any of the scored-run
-  // derivations below (record, verdict, rating, pips) which have no meaning in that mode.
-  const lobby = run.lobby;
   // The rating change for this scored run (computed on run-end, a tick after the phase flips). null for
   // Practice or until it lands.
   const lastRating = useGame((s) => s.lastRating);
@@ -226,13 +242,6 @@ export function EndScreen({ won }: { won: boolean }) {
   // The win/loss verdict still comes from `metLine` (mechanics unchanged), but the target itself is no longer
   // printed: the "Oath N · Fulfilled" row is gone, and the headline never names it (owner 2026-10-14, R-TERM-01).
   const ratingSign = lastRating && lastRating.ratingDelta >= 0 ? '+' : '';
-  // Tutorial graduates to its own screen (checked before the lobby branch — a tutorial run also carries a
-  // lobby, but a placement/verdict is the wrong frame for a course you just LEARNED).
-  if (run.mode === 'tutorial') return <TutorialGraduationScreen run={run} onDone={openTitle} />;
-  // Gauntlet: a stage verdict (cleared / defeated at round R), never a placement or a rating. Before the lobby
-  // branch for the same reason as the tutorial: a Gauntlet run carries a two-seat lobby.
-  if (run.mode === 'gauntlet') return <GauntletEndScreen run={run} />;
-  if (lobby) return <LobbyEndScreen lobby={lobby} run={run} onPlayAgain={openTitle} />;
   return (
     <div className={`heroselect endscreen${wonPar ? ' won' : ''}`}>
       <div className="hsbox endbox">

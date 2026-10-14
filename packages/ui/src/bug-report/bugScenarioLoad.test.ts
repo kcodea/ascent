@@ -21,13 +21,12 @@ vi.mock('../remoteBoards', async (importOriginal) => {
     uploadRunTelemetry: vi.fn(async () => {}),
     uploadRunHistory: vi.fn(async () => {}),
     uploadPlayerProfile: vi.fn(async () => {}),
-    recordFightResult: vi.fn(async () => {}),
     refreshOpponentPoolAndRecords: vi.fn(),
   };
 });
 
 import { useGame } from '../store';
-import { uploadBoards, uploadRunHistory, uploadRunTelemetry, uploadVictory, recordFightResult } from '../remoteBoards';
+import { uploadBoards, uploadRunHistory, uploadRunTelemetry, uploadVictory } from '../remoteBoards';
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -147,7 +146,6 @@ describe('loadBugScenario', () => {
     expect(useGame.getState().run.phase).toBe('gameover'); // the run-end block's condition WAS reached…
 
     await sleep(30); // …its uploads are deferred a tick — let any (wrongly) scheduled work run
-    expect(vi.mocked(recordFightResult)).not.toHaveBeenCalled();
     expect(vi.mocked(uploadBoards)).not.toHaveBeenCalled();
     expect(vi.mocked(uploadVictory)).not.toHaveBeenCalled();
     expect(vi.mocked(uploadRunTelemetry)).not.toHaveBeenCalled();

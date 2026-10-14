@@ -549,6 +549,38 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/continueNoLegacyCourse.test.ts'], lastVerifiedAt: '2026-09-30' },
   },
   {
+    id: 'R-LEDGER-01',
+    title: 'A lobby fight never records a result against a board the player did not fight',
+    statement:
+      'The retired course mode kept a per-board fight ledger (board_results) keyed on the wave-first opponent-pool '
+      + 'pick. No live mode fights that pick: a lobby (and the tutorial) fights the seat it is paired with. So no '
+      + 'fight writes a board_results row; the real per-fight record of a lobby is the fight ledger written at run end.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-14 (remove the old wave mode)', quote: 'there are remnants of the old wave based mode that you can outright remove. we do not use that mode ever anymore and dont need it anywhere. make sure it doesnt break our lobby/versus modes though' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts dispatch (the faceOmen recordFightResult call removed); remoteBoards.ts recordFightResult deleted, queued fight items dropped' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-14. Before, every lobby and tutorial round wrote one row crediting the unfought pool pin (nextOpponent).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/waveModeLiveBugs.test.tsx'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-ENDSCREEN-01',
+    title: 'A lobby, tutorial or Gauntlet end screen does none of the work of the retired course screen',
+    statement:
+      'The end screen picks its screen first (tutorial, Gauntlet, lobby). The derivations of the retired course screen '
+      + '(build tags, the Line verdict and a full replay of the action log for its round pips) run only when that '
+      + 'screen itself is shown, which no live mode does.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-14 (remove the old wave mode)', quote: 'there are remnants of the old wave based mode that you can outright remove. we do not use that mode ever anymore and dont need it anywhere. make sure it doesnt break our lobby/versus modes though' },
+      { kind: 'code', ref: 'packages/ui/src/EndScreen.tsx EndScreen (dispatch) + CourseEndScreen' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-14. Before, every non-practice end screen ran replayRun, buildTags and lineResult above its early returns.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/waveModeLiveBugs.test.tsx'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
     id: 'R-PERSIST-CLOUD-01',
     title: 'A signed-in player can continue a saved game on any device they are signed in on',
     statement:

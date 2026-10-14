@@ -205,3 +205,6 @@ A Gilded granter's Whisper (`whisperMult` 2+; spells are never `golden`) now wea
 `frames/cardplate-whisper-gilded.webp` (494x768, alpha). The view carries `whisperGilded` (instView, compared in
 `cardViewEqual`); only the plate swaps. The blue-violet arch, the Whisper medallion, labels, art and ripple stay.
 `cardplate-whisper-*` is off the chrome preload lane because "whisper" is not a live tribe.
+
+Then (owner 2026-10-14: "reduce the whisper medallion size by 20%"): `--m-size` 1 -> 0.8 on `data-med="whisper"`, so the
+arcs render at 80% of the shard-matched size, centred on the same anchor (normal and Gilded Whispers alike).

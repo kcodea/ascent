@@ -55,4 +55,18 @@ describe('spell kind: medallion + tribe-line label', () => {
       expect(el.querySelector('.spellkind')!.textContent).toBe('Whisper');
     }
   });
+
+  // Owner 2026-10-14: "add the whispergilded frame for gilded whispers - keep the spellframe and the whisper badge etc as
+  // is". A Gilded granter's Whisper (`whisperMult` 2) swaps ONLY the hand plate to the gold one.
+  it('a Gilded Whisper wears the gold Whisper plate; the arch and the medallion stay the Whisper ones', () => {
+    for (const mult of [1, 2]) {
+      const inst = { ...handCard('w4_tome', `u-g${mult}`), ...(mult > 1 ? { whisperMult: mult } : {}) } as BoardCard;
+      const view = instView(inst, 3, undefined, 0, 0, 0, 0, 0, 0, 0, 1, 0, undefined, undefined, { inHand: true });
+      m.render(<Card card={view} uid={`u-g${mult}`} plated forceFull />);
+      const el = m.container.querySelector('.card')!;
+      expect(el.querySelector('img.cardplate')?.getAttribute('src')).toContain(mult > 1 ? 'frames/cardplate-whisper-gilded.webp' : 'frames/cardplate-whisper.webp');
+      expect(el.querySelector('.cframe-img:not(.cshadow)')?.getAttribute('src')).toContain('frames/whisper-spell-frame.webp');
+      expect(el.querySelector('.spellmed img')?.getAttribute('src')).toContain('frames/whisper-medallion.webp');
+    }
+  });
 });

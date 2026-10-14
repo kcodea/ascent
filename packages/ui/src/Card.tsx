@@ -256,6 +256,10 @@ const plateSrcFor = (tribe: Tribe | undefined): string =>
 // plate, the same body geometry as every cardplate (951x1478 master, aspect matches 800x1244, overlay-checked), so
 // the art window, name, text and spell crystal sit exactly where they do on a Shop spell. Shipped at 768 px tall.
 const WHISPER_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper.webp`;
+// The GILDED Whisper plate (owner 2026-10-14: "add the whispergilded frame for gilded whispers"): the gold version of
+// the same painted plate (951x1478 master, overlay-checked identical to whisperFrame.png). `cardplate-whisper-*` keeps
+// it off the preload chrome lane ("whisper" is not a live tribe) while Set 4 is disabled.
+const WHISPER_GILDED_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper-gilded.webp`;
 const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATES[tribe]);
 let cardPlateAvailable = true;
 
@@ -351,6 +355,9 @@ export interface CardView {
    *  root as `data-whisper`; it makes the card wear the ethereal Whisper look (`whispercard`, styles.css). Never set
    *  on anything but a Whisper (in hand, or its drag copy). */
   whisperKey?: string;
+  /** SET 4: a GILDED Whisper (its granter was Gilded, so it is worth double). Swaps the hand plate to the gold Whisper
+   *  plate; everything else (arch, medallion, labels, ripple) stays the Whisper look. */
+  whisperGilded?: boolean;
   /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).
    *  The footer prints ALL instead of the primary tribe, since every tribal effect counts it. */
   universalTribe?: boolean;
@@ -882,7 +889,7 @@ export const Card = memo(function Card({
     ? (frameOk ? tauntFrameSrcFor(card.tribe, !!card.golden) : undefined)
     : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? spellFrameSrc : undefined;
   const frameFade = useArtFade(frameSrc);
-  const plateSrc = whisperLook ? WHISPER_PLATE_SRC : plateSrcFor(card.tribe);
+  const plateSrc = whisperLook ? (card.whisperGilded ? WHISPER_GILDED_PLATE_SRC : WHISPER_PLATE_SRC) : plateSrcFor(card.tribe);
   const plateFade = useArtFade(usePlate ? plateSrc : undefined);
   return (
     <div

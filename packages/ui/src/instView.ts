@@ -414,6 +414,8 @@ export function instView(
     onLoanKey: inst.borrowed && !live?.onBoard ? inst.uid : undefined,
     // SET 4 WHISPER: a Whisper waiting in hand wears the Whisper look + text (it fades at End of Turn if not cast).
     whisperKey: c.whisper && !live?.onBoard ? inst.uid : undefined,
+    // A GILDED Whisper (minted by a Gilded granter, `whisperMult` 2+; spells are never `golden`) wears the gold plate.
+    whisperGilded: c.whisper && (inst.whisperMult ?? 1) > 1 ? true : undefined,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes || !!(inst as { unityTribes?: boolean }).unityTribes, // + Rune of Unity's full house (Set 3 design pass)
     attack: shownAtk, health: shownHp,
     keywords: shownKeywords, text: shownText + tempTags,

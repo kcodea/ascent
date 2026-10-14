@@ -197,3 +197,11 @@ are right-heavy, so a bbox centre read off-centre), and shipped at 320x320 like 
 `frames/whisper-medallion.webp`: under `frames/`, not `medallions/`, because the preload plan puts `medallions/` on the
 chrome lane and Set 4 is disabled. Same box, anchor and shadow as the shard (`--m-dx 4px`, size 1 = the shard's 0.94
 after the canvas padding).
+
+## Gilded Whisper plate (owner 2026-10-14: "add the whispergilded frame for gilded whispers - keep the spellframe and the whisper badge etc as is")
+
+A Gilded granter's Whisper (`whisperMult` 2+; spells are never `golden`) now wears the owner's gold Whisper plate
+(`whipergilded.png`, 951x1478, overlay-checked identical to `whisperFrame.png`), shipped as
+`frames/cardplate-whisper-gilded.webp` (494x768, alpha). The view carries `whisperGilded` (instView, compared in
+`cardViewEqual`); only the plate swaps. The blue-violet arch, the Whisper medallion, labels, art and ripple stay.
+`cardplate-whisper-*` is off the chrome preload lane because "whisper" is not a live tribe.

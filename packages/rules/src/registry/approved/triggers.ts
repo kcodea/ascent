@@ -1064,26 +1064,28 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-STORMCHASER-01',
-    title: 'Storm Chaser in combat casts Veinstorm in real time: any minion half lands now, the Shop half at settle',
+    title: 'A "Cast Veinstorm" Shout in combat casts in real time: any minion half lands now, the Shop half at settle',
     statement:
-      'When the Storm Chaser Shout ("Cast Veinstorm") is triggered during combat, the cast is a real combat cast on its '
-      + 'own beat, SPLIT by what the spell does. Whatever the spell casts on friendly minions resolves instantly: a Ruby on '
-      + 'every living friendly minion in the fight, worth 1 + your Ruby strength + spell power, temporary like every combat '
-      + 'Ruby. Its Shop half (Shop minions get Ruby stats, banked for future Shops) is applied once per cast when the fight '
-      + 'settles, through the Shop spell body, folding spell power the same way. Gilded casts twice. It is not a Shop-only '
-      + 'Shout (R-REALTIME-03). Since 2026-10-13 Veinstorm casts on the Shop ONLY, so today the combat cast announces itself '
-      + 'and banks its Shop half, and no Ruby lands on the fighting minions; in the Shop (a played Storm Chaser, the Shrieker '
-      + 'End of Turn, Gemling) Veinstorm likewise gems the Shop and never the board.',
+      'When a Shout that says "Cast Veinstorm" (the Shardluck branch; Storm Chaser from 2026-10-10 to 2026-10-13) is '
+      + 'triggered during combat, the cast is a real combat cast on its own beat, SPLIT by what the spell does. Whatever '
+      + 'the spell casts on friendly minions resolves instantly: a Ruby on every living friendly minion in the fight, worth '
+      + '1 + your Ruby strength + spell power, temporary like every combat Ruby. Its Shop half (Shop minions get Ruby stats, '
+      + 'banked for future Shops) is applied once per cast when the fight settles, through the Shop spell body, folding '
+      + 'spell power the same way. Gilded doubles the casts. It is not a Shop-only Shout (R-REALTIME-03). Since 2026-10-13 '
+      + 'Veinstorm casts on the Shop ONLY, so today the combat cast announces itself and banks its Shop half, and no Ruby '
+      + 'lands on the fighting minions. Storm Chaser is no longer covered by this rule: its Shout GETS a Veinstorm (to hand) '
+      + 'and casts nothing, in the Shop and in combat alike.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-10 (Storm Chaser in combat, follow-up to #2016)', quote: 'Split (real time)' },
       { kind: 'owner-chat', ref: 'Owner balance 2026-10-13 (second Kobold nerf batch)', quote: 'the veinstorm effect should only cast on shop, not friendly minions' },
+      { kind: 'owner-chat', ref: 'Owner balance 2026-10-13 (Storm Chaser)', quote: 'storm chaser needs to change from: Cast a Veinstorm to Get a Veinstorm. So it should add a veinstorm to hand instead of casting it directly' },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts FACTORIES.battlecryCastNamedSpell + playRubyOn (extra); packages/core/src/combat/simulate.ts deferShopSpellHalf; packages/sim/src/recruit.ts applyShopSpellHalf; packages/sim/src/reducer.ts settle (shopSpellHalves)' },
     ],
-    contentIds: ['k_stormchaser', 'veinstorm'],
-    currentBehaviour: 'Conforms. 2026-10-10: Storm Chaser stopped being a SHOP_ONLY_SHOUTS entry (#2016 had deferred the whole cast to settle) and the minion half landed live. 2026-10-13: Veinstorm dropped its `minions` param, so the live half is dormant (the factory and the combat split still honour the param; a probe spell pins that) and only the Shop half remains.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1013.test.ts', 'packages/sim/src/koboldBalance1010.test.ts'], lastVerifiedAt: '2026-10-13' },
+    contentIds: ['k3_facetbound', 'veinstorm'],
+    currentBehaviour: 'Conforms. 2026-10-10: the cast-Veinstorm Shout stopped being a SHOP_ONLY_SHOUTS entry and its minion half landed live. 2026-10-13: Veinstorm dropped its `minions` param, so the live half is dormant (the factory and the combat split still honour the param; a probe spell pins that). Later on 2026-10-13 Storm Chaser went back to Get a Veinstorm (battlecryGrantSpell, pinned in stormChaser1013.test.ts), leaving the Shardluck branch as the only card on battlecryCastNamedSpell; the split is pinned through a probe def that is the 10-10 Storm Chaser.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/koboldBalance1013.test.ts', 'packages/sim/src/koboldBalance1010.test.ts', 'packages/sim/src/stormChaser1013.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
   {
     id: 'R-GASKET-RALLY-01',

@@ -17313,7 +17313,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "battlecryCastNamedSpell",
+        "kind": "battlecryGrantSpell",
         "amount": {
           "kind": "const",
           "plain": {

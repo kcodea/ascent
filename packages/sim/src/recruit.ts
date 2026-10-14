@@ -167,6 +167,9 @@ type RecruitFn = (
   /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
   clockSeconds?: number;
+  /** `shopRefreshed`: the refresh was the PLAYER pressing Refresh (the reducer's `roll` action, free rerolls
+   *  included), not a turn-start row, a rune, a spell or a hero power. Indy counts only these (owner 2026-10-13). */
+  playerRoll?: boolean;
   /** EQUIPMENT activation: this activation is AMPLIFIED (its own stack, Rune of Empty Hands, or a Calibration
    *  Wrench charge). Most effects express that by firing twice; a clock-window Equipment doubles its window
    *  instead — an Amplified Thymepiece runs 16 seconds (owner 2026-09-22). Absent = not Amplified. */
@@ -6573,11 +6576,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  stats WITHOUT eating it. Same per-instance `eotTick` meter `onShopRefreshConsume` uses ("four refreshes
    *  since this arrived", not since the run began) wrapped around Bob Blart's copy-don't-eat body, so the two
    *  cards stay one primitive apart. Golden doubles the stats gained, not the frequency. */
-  /** Indy (set 3 Neutrals, owner Set 3 batch 2026-10-13): every `every` refreshes, add `count` copies of `cardId`
-   *  (a token, the Golden Monkey) to the Shop. Hellrider's meter exactly: a per-instance `eotTick` tally counted by
-   *  the `shopRefreshed` trigger, cumulative since this body arrived, repeating every N. Golden doubles the count. The
-   *  Shop never grows past its slots (`addCardToShop`). */
-  onShopRefreshAddToShop: (ctx, self, params) => {
+  /** Indy (set 3 Neutrals, owner Set 3 batch 2026-10-13): every `every` ROLLS, add `count` copies of `cardId`
+   *  (a token, the Golden Monkey) to the Shop. Owner 2026-10-13: "this should only count hitting the refresh
+   *  button" — only a `shopRefreshed` carrying `playerRoll` (the reducer's `roll` action, a free reroll banked by a
+   *  card or rune included: it is still the player pressing Refresh) ticks the per-instance `eotTick` meter; the
+   *  turn-start row and rune / spell / hero-power refreshes do not. Cumulative since this body arrived, repeating
+   *  every N. Golden doubles the count. The Shop never grows past its slots (`addCardToShop`). */
+  onShopRefreshAddToShop: (ctx, self, params, payload) => {
+    if (!payload.playerRoll) return;
     const every = Math.max(1, num(params.every, 5));
     const tick = (self.eotTick ?? 0) + 1;
     self.eotTick = tick;
@@ -12366,7 +12372,7 @@ export function applySpellBought(state: RunState, spellId: string): void {
  * should mean four since that body arrived, so a Maw bought on turn 8 doesn't immediately fire off refreshes it
  * was never present for. A dedicated loop rather than the generic `fire`, whose payload is minion-shaped.
  */
-export function applyShopRefreshed(state: RunState): void {
+export function applyShopRefreshed(state: RunState, opts: { playerRoll?: boolean } = {}): void {
   applyShopRefreshQuestBuff(state);
   // Market Tormentor's SLOT buff lands on the fresh row's right-most minion, BEFORE the watchers below — the
   // ordering is load-bearing (owner ruling 2026-07-25): a Hellrider that eats the right-most must eat the
@@ -12408,7 +12414,7 @@ export function applyShopRefreshed(state: RunState): void {
     const ctx = makeContext(state);
     for (const eff of def.effects) {
       if (eff.on !== 'shopRefreshed') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, playerRoll: opts.playerRoll === true });
     }
   }
 }

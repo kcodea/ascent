@@ -5,7 +5,9 @@ import {
   createStarform, buffStarform, hasStarform,
   type Action, type BoardCard, type RunState, type ShopCard,
 } from './index';
-import { addCardToShop } from './recruit';
+import { addCardToShop, applyShopRefreshed } from './recruit';
+import { RUNE_INDEX, RUNES, EPIC_RUNES } from '@game/content';
+const runePool = (setId: string): string[] => [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || r.sets.includes(setId as never)).map((r) => r.id);
 import { equipmentAmplifiedByAura } from './equipment';
 import { sellDiscoverTierText } from '../../ui/src/cardText';
 
@@ -135,6 +137,26 @@ describe('Indy: every 5 rolls, add a Golden Monkey to the Shop', () => {
     expect(monkeys(s).length).toBe(1);
   });
 
+  it('ONLY the player pressing Refresh counts (owner 2026-10-13): turn-start / rune / spell refreshes do not; a free reroll does', () => {
+    let s = run({ board: [body('i', 'n3_indy')] });
+    for (let r = 0; r < 10; r++) applyShopRefreshed(s); // non-player refreshes (turn-start row, runes, spells, hero powers)
+    expect(s.board[0]!.eotTick ?? 0, 'a non-player refresh never ticks the meter').toBe(0);
+    expect(monkeys(s).length).toBe(0);
+    s = { ...s, freeRolls: 5, embers: 0 };
+    for (let r = 0; r < 5; r++) s = roll(s);
+    expect(s.freeRolls, 'all five were free rerolls').toBe(0);
+    expect(monkeys(s).length, 'free rerolls are still the player pressing Refresh').toBe(1);
+  });
+
+  it('a full turn boundary does not tick it (the fresh turn-start Shop is not a roll)', () => {
+    let s = run({ board: [body('i', 'n3_indy')] });
+    for (let r = 0; r < 4; r++) s = roll(s);
+    expect(s.board[0]!.eotTick).toBe(4);
+    s = act(act(act(s, { type: 'faceOmen' } as Action), { type: 'settleCombat' } as Action), { type: 'resolveCombat' } as Action);
+    expect(s.phase).toBe('recruit');
+    expect(s.board.find((c) => c.cardId === 'n3_indy')!.eotTick, 'the new turn Shop did not count').toBe(4);
+  });
+
   it('addCardToShop: a short row takes it in a free slot; a full row replaces the right-most minion, never the Starform', () => {
     const s = run({ shop: [] });
     s.shop = [{ uid: 'x1', cardId: 'n3_rig' }];
@@ -149,6 +171,19 @@ describe('Indy: every 5 rolls, add a Golden Monkey to the Shop', () => {
     expect(full.shop.length).toBe(slots);
     expect(full.shop.some((o) => o.starform), 'the Starform keeps its slot').toBe(true);
     expect(monkeys(full).length).toBe(1);
+  });
+});
+
+describe('runes tied to the cards that left set 3 (owner 2026-10-13: "archive them")', () => {
+  it('Red Storm + Storming Veins (Set-3-only) are archived; Living Geode left set 3 but stays in Set 2', () => {
+    const set3 = runePool('set3');
+    const set2 = runePool('set2');
+    for (const id of ['rune_red_storm', 'rune_storming_veins', 'rune_living_geode']) {
+      expect(set3, id).not.toContain(id);
+      expect(RUNE_INDEX[id], id + ' still resolves').toBeTruthy();
+    }
+    expect(set2).toContain('rune_living_geode');
+    expect(set2).not.toContain('rune_red_storm');
   });
 });
 

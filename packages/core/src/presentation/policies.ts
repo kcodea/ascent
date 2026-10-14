@@ -895,12 +895,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── Set 3 rune batch 3 (owner 2026-09-25) ──
   'rune:rune_gemmed_decisions:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_echoing_kobolds:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_red_storm:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_rubywire:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_choices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_combatative_rubies:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_body_counting:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_storming_veins:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_sold_choices:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_aggressive_golems:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_ruptured_rubies:combat': { policy: 'foldedCue', family: 'combatModifier' },

@@ -2680,8 +2680,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // — one binned refresh per copy held (owner 2026-08-27, unique-engine doubling).
       if (s.runeBargainBin && gateUses(s.bargainBinUsedThisTurn) < runeStacksOf(s, 'rune_bargain_bin') && bargainBinPool(s).length > 0) { s.bargainBinUsedThisTurn = gateUses(s.bargainBinUsedThisTurn) + 1; procRuneId(s, 'rune_bargain_bin'); fillBargainBin(s); }
       // Set 2 — tell the board a refresh happened (Hellrider counts them). Fired AFTER `refreshTavern`, so a
-      // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away.
-      applyShopRefreshed(s);
+      // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away. `playerRoll`:
+      // this is the player pressing Refresh (Indy counts only these, owner 2026-10-13).
+      applyShopRefreshed(s, { playerRoll: true });
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type per copy held
       // (owner 2026-08-27, unique-engine doubling).
       if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); for (let k = 0; k < runeStacksOf(s, 'rune_open_enrollment'); k++) appendDominantTypeOffer(s); }

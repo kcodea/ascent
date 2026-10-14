@@ -848,7 +848,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Geode Guardian**. **Gemheart Golems** summoned by your **Geode Guardians** have **Ward**.',
     previewCards: ['k_geode', 'gemheart-shard'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_geode'] }, { kind: 'combatFlag', flag: 'runeLivingGeode' }] },
-    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 2026-10-13 (owner Set 3 batch: Geode Guardian left set 3); keeps Set 2, never archived
   },
   // ── Aug-11 economy runes (Basic) ──
   {
@@ -1569,18 +1569,6 @@ export const RUNES: RuneDef[] = [
     text: 'Give your **Kobolds** "**Echo:** get a **Ruby**."',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeEchoingKobolds' },
-    sets: ['set3'],
-  },
-  {
-    // A Veinstorm on pickup, then every Veinstorm CAST (any caster; hooked in `castSpell`, once per resolution)
-    // also casts a Ruby on 2 random friendly Kobolds. Veinstorm has no combat cast, so this is a Shop rune.
-    id: 'rune_red_storm',
-    tribes: ['kobold'],
-    name: 'Rune of the Red Storm',
-    cost: 4,
-    text: 'Get a **Veinstorm**. **Veinstorms** also cast a **Ruby** on **2** friendly **Kobolds**.',
-    previewCards: ['veinstorm', 'ruby'],
-    reward: { kind: 'runeRedStorm' },
     sets: ['set3'],
   },
   {
@@ -3656,19 +3644,6 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   // ── Set 3 rune batch 3 (owner 2026-09-25): Epic ────────────────────────────────────────────────────────────
   {
-    // A Veinstorm on pickup; a Veinstorm cast FROM HAND casts 2 additional times (added like every "additional
-    // time" multiplier, R-MULT-06: a cast by a minion, rune or Equipment resolves once). +2 per copy held.
-    id: 'rune_storming_veins',
-    tribes: ['kobold'],
-    name: 'Rune of Storming Veins',
-    cost: 4,
-    epic: true,
-    text: 'Get a **Veinstorm**. **Veinstorms** cast **2 additional** times from hand.',
-    previewCards: ['veinstorm'],
-    reward: { kind: 'runeStormingVeins', extra: 2 },
-    sets: ['set3'],
-  },
-  {
     // Owner ruling 2026-09-25: selling repeats THE OPTION CHOSEN when the minion was played (`chosenOption`, or
     // every option when it resolved both: `chosenBoth`). Minions only; a body that never chose does nothing.
     id: 'rune_sold_choices',
@@ -3973,6 +3948,35 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-10-13 owner Set 3 batch: Rune of the Red Storm and Rune of Storming Veins archived (both Set-3-only; their
+  //    Veinstorm left set 3). Rune of the Living Geode is shared with live Set 2, so it only left Set 3 (`sets`). ──
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive them"). Was a Basic rune. Moved verbatim apart from `sets: []`.
+    // A Veinstorm on pickup, then every Veinstorm CAST (any caster; hooked in `castSpell`, once per resolution)
+    // also casts a Ruby on 2 random friendly Kobolds. Veinstorm has no combat cast, so this is a Shop rune.
+    id: 'rune_red_storm',
+    tribes: ['kobold'],
+    name: 'Rune of the Red Storm',
+    cost: 4,
+    text: 'Get a **Veinstorm**. **Veinstorms** also cast a **Ruby** on **2** friendly **Kobolds**.',
+    previewCards: ['veinstorm', 'ruby'],
+    reward: { kind: 'runeRedStorm' },
+    sets: [], // history: was ['set3'] (Set 3 only); archived 2026-10-13
+  },
+  {
+    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive them"). Was an Epic rune. Moved verbatim apart from `sets: []`.
+    // A Veinstorm on pickup; a Veinstorm cast FROM HAND casts 2 additional times (added like every "additional
+    // time" multiplier, R-MULT-06: a cast by a minion, rune or Equipment resolves once). +2 per copy held.
+    id: 'rune_storming_veins',
+    tribes: ['kobold'],
+    name: 'Rune of Storming Veins',
+    cost: 4,
+    epic: true,
+    text: 'Get a **Veinstorm**. **Veinstorms** cast **2 additional** times from hand.',
+    previewCards: ['veinstorm'],
+    reward: { kind: 'runeStormingVeins', extra: 2 },
+    sets: [], // history: was ['set3'] (Set 3 only); archived 2026-10-13
+  },
   // ── 2026-10-07 owner balance batch: fourteen runes archived from EVERY set (owner: "archive everywhere"). Defs
   //    verbatim apart from `sets: []` (the old tag is kept in the comment as history), so a saved run or replay that
   //    holds one keeps its badge, text and reward machinery through `RUNE_INDEX`. ──

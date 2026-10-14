@@ -185,6 +185,7 @@ import { planShoutChain } from './choreo/shoutChain';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
 import { releaseSotRuneProcs, sotRunKey } from './sotRuneHold';
 import { resolveBuffSource } from './choreo/buffSource';
+import { reactionTickStrideMs } from './choreo/hitReactions';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
@@ -206,6 +207,10 @@ import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
+/** Set 4 self-damage in the Shop: how long a hit's dip holds when no +Health follows it on screen, and how long the
+ *  Health badge takes to roll back up (owner 2026-10-13: down, a beat, then back up). */
+const SELF_DAMAGE_HOLD_MS = 450;
+const SELF_DAMAGE_ROLL_MS = 320;
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed, getFloatConfig, splashImgSrc } from './floatConfig';
 import gsap from 'gsap';
@@ -673,7 +678,7 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
   id: string,
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
-  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number; growthBonus?: number; anySpellsThisTurn?: number },
+  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number; growthBonus?: number; anySpellsThisTurn?: number; /** Set 4: what a previewed Whisper (Galas's Tome on hover) reads. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number> },
   rubyBonus?: { attack: number; health: number },
   /** The Rubies on the minion whose popup this is (+ its gild) — sizes the Gemheart Golem preview. */
   ownerRuby?: { attack: number; health: number; golden?: boolean },
@@ -724,7 +729,7 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
       // `growthBonus` rides along too, so Mushy's referenced-Growth popup (and the combat fly-in) prints the
       // Rune of Living Growth-improved value — this chain starved it while the shop/spell-slot chains threaded
       // it, so the popup promised the base +1/+1 (player report 2026-08-27, bug 86340900).
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, clueBonus, anySpellsThisTurn: spellLive.anySpellsThisTurn, growthBonus: spellLive.growthBonus }),
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, clueBonus, anySpellsThisTurn: spellLive.anySpellsThisTurn, growthBonus: spellLive.growthBonus, spellsCast: spellLive.spellsCast, rubyCasts: spellLive.rubyCasts, whisperImprove: spellLive.whisperImprove }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };
@@ -762,6 +767,7 @@ export function conjuredView(cardId: string, run: RunState): CardView | null { /
     ftb: spellEscalationLive(run).attack, ftbH: spellEscalationLive(run).health,
     goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
     growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run),
+    spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove,
   };
   const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus, undefined, run.clueBonus);
   // Spells carry no stats to aura — with `spellLive` threaded, tokenRefView's view is now right for them.
@@ -869,6 +875,8 @@ interface ShopViewOpts {
    *  `chooseBothStateOf`: every field is required there precisely so a surface cannot drop one, which is how
    *  the Prismatic Pick's charge went unpainted (owner report 2026-08-31). */
   chooseBothState?: ChooseBothState;
+  /** Set 4: the run's Whisper improvements (Runebind), so a Tolan offer prints its live Whisper value. */
+  whisperImprove?: Record<string, number>;
 }
 
 /** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
@@ -896,6 +904,7 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
     topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
     tier: run.tier,
     chooseBothState: chooseBothStateOf(run),
+    whisperImprove: run.whisperImprove, // Set 4: Tolan's live Runebind value on a Discover / fly-in
   };
 }
 
@@ -920,6 +929,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string):
     // fly-in (owner report 2026-09-10: "Revelers' text needs to show their buff anywhere you find them").
     revelerX: o.revelerX, spiritDiscount: o.spiritDiscount, spiritsPlayed: o.spiritsPlayed, clueBonus: o.clueBonus, starCrashBonus: o.starCrashBonus, anySpellsThisTurn: o.anySpellsThisTurn,
     chooseBoth: cardId ? offerChoosesBoth(cardId, golden, o) : false,
+    whisperImprove: o.whisperImprove, // Set 4: a Tolan offer prints its Whisper's live value
   };
 }
 /**
@@ -3706,7 +3716,7 @@ export function Recruit() {
     // built with, so a dispatch that left four of five offers untouched builds one view, not five — see
     // `shopViewCache.ts`. `stabilizeView` still value-compares a rebuilt view against its predecessor.
     () => perfMonitor.measure('view:shop', () => {
-      const optsFor = (o: ShopCard): ShopViewOpts => ({ cardTribes: run.cardTribes, grimToast: grimToastFold(run), freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]) + ancientEnchantedSpellCut(run, o) /* Ayse × Fortune: an Enchanted spell costs 2 */, spellBonus, spellBonusH, frontToBackBonus: ftbBonus, frontToBackBonusH: ftbBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? heldOfferPrice(run, o) /* Darah x Ancient of Fortune: a swapped-away minion buys back for 0 */ : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState });
+      const optsFor = (o: ShopCard): ShopViewOpts => ({ cardTribes: run.cardTribes, grimToast: grimToastFold(run), freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]) + ancientEnchantedSpellCut(run, o) /* Ayse × Fortune: an Enchanted spell costs 2 */, spellBonus, spellBonusH, frontToBackBonus: ftbBonus, frontToBackBonusH: ftbBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? heldOfferPrice(run, o) /* Darah x Ancient of Fortune: a swapped-away minion buys back for 0 */ : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState, whisperImprove: run.whisperImprove });
       const built = buildShopViews(shopWithHolds, optsFor, (o, opts) => shopView(o, opts), shopViewCache.current, (fresh, prev) => stabilizeView(fresh, prev) ?? fresh);
       shopViewCache.current = built.cache;
       return built.views;
@@ -3720,7 +3730,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [shopWithHolds, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, ftbBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, ftbBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn, run.ancients /* offerBuyPrice's Ancient caps: Frank's Time, Robin's Bonds */],
+    [shopWithHolds, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, ftbBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, ftbBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn, run.ancients /* offerBuyPrice's Ancient caps: Frank's Time, Robin's Bonds */, run.whisperImprove /* Set 4: Tolan offers */],
   );
   const spellView = useMemo(
     () => {
@@ -3741,7 +3751,7 @@ export function Recruit() {
       // The manual map + every effect-named card + the derived Ruby rule — ONE rule, shared with the Compendium
       // (`cardRefs.ts`), so a card previews the same things in the shop and in the book.
       const refs = relatedCardIds(cardId);
-      const spellLive = { a: spellBonus, h: spellBonusH, ftb: ftbBonus, ftbH: ftbBonusH, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run) };
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: ftbBonus, ftbH: ftbBonusH, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run), spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
@@ -3768,12 +3778,12 @@ export function Recruit() {
     [run.runeBartering, run.runeStacks, run.ancientsEnabled, run.heroId, run.ancients?.picked],
   );
   const live = useMemo(
-    () => ({ grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: ftbBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper }, chooseBothState: chooseBothStateOf(run), sellState }),
+    () => ({ grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: ftbBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper }, chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
+    [run.whisperImprove, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.alesCastThisTurn, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
@@ -5028,6 +5038,23 @@ export function Recruit() {
       //
       // Keyed on the SOURCE card and `minionBuffed` — exactly the pair `runRecruitMomentCues` resolves for
       // this event (see its `bindingCard`), so the two can never disagree about whether a def is playing.
+      // SET 4 SELF-DAMAGE (owner 2026-10-13): a HIT record (`damage`), not a buff. It plays the dealer's bound `damage`
+      // def, the same binding combat resolves for that card: Eatah's ribbon from where it stood to each Beast it hit,
+      // Hawg's burst on itself. Paced like every other record (its own `fxWave`, before the Health that follows).
+      if (ev.damage) {
+        const hit = bindingFor(ev.sourceCardId, 'damage');
+        if (!hit || !canPlayDefs()) return;
+        const hEl = findEl(ev.targetUid);
+        const at = hEl ? restingCenterOf(hEl as HTMLElement) : null;
+        if (!at) return;
+        const from = ev.sourceUid === ev.targetUid ? at : resolveBuffSource({
+          label: false,
+          live: () => { const el = ev.sourceUid ? findEl(ev.sourceUid) : null; return el ? restingCenterOf(el as HTMLElement) : null; },
+          lastSlot: () => { const d = ev.sourceUid ? departedAtReplay.get(ev.sourceUid) : undefined; return d ? { x: d.x, y: d.y } : null; },
+        }).center ?? at;
+        playDef(hit.def, { source: from, target: at, cursor: at }, { uids: { source: ev.sourceUid ?? null, target: ev.targetUid } });
+        return;
+      }
       if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
       // A SPELL'S OWN EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
       // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
@@ -5112,14 +5139,35 @@ export function Recruit() {
     // played the later one twice and dropped the other.
     const keyOf = new Map(coalesced.map((ev, i) => [ev, String(i)]));
     const byKey = new Map(coalesced.map((ev, i) => [String(i), ev]));
-    for (const land of scheduleLands(
+    const lands = scheduleLands(
       asWaves(ordered.map((wave) => wave.map((ev) => ({ uid: keyOf.get(ev)! })))),
       { gap: staggerMs, maxGroups: getBuffFxConfig().waveMaxCount },
-    )) {
+    );
+    // SET 4 SELF-DAMAGE (owner 2026-10-13: "it should show the health value like go down and stuff then back up"): a
+    // HIT record withholds its damage on the target's Health badge the moment it lands (the badge drops), and rolls it
+    // back up when that target's own +Health lands, one or more waves later. The committed board already holds the
+    // net value, so the hold IS the dip: "show `damage` less than you are", released on the mend's schedule.
+    const atOf = new Map<RunState['recruitBuffFx'][number], number>();
+    for (const land of lands) { const ev = byKey.get(land.uid); if (ev) atOf.set(ev, land.at); }
+    const mendAfterHit = (hit: RunState['recruitBuffFx'][number]): number => {
+      const hitAt = atOf.get(hit) ?? 0;
+      let best = Infinity;
+      for (const [ev, at] of atOf) {
+        if (ev.damage || ev.targetUid !== hit.targetUid || ev.health <= 0 || at <= hitAt) continue;
+        if (ev.sourceCardId !== hit.sourceCardId && ev.sourceUid !== hit.sourceUid) continue;
+        best = Math.min(best, at);
+      }
+      return Number.isFinite(best) ? best - hitAt : SELF_DAMAGE_HOLD_MS;
+    };
+    for (const land of lands) {
       const ev = byKey.get(land.uid);
       if (!ev) continue;
-      if (land.at <= 0) fireOne(ev);
-      else window.setTimeout(() => fireOne(ev), land.at);
+      const fire = (): void => {
+        if (ev.damage) holdStat(ev.targetUid, { health: ev.damage }, { origin: 'cue', startAt: mendAfterHit(ev), rollMs: SELF_DAMAGE_ROLL_MS });
+        fireOne(ev);
+      };
+      if (land.at <= 0) fire();
+      else window.setTimeout(fire, land.at);
     }
   }, [findEl]);
 
@@ -5176,7 +5224,10 @@ export function Recruit() {
     }
     if (rest.length === 0) return;
     const taggedWaves = new Set(rest.filter((e) => e.fxWave !== undefined).map((e) => e.fxWave)).size;
-    replayBuffFxEvents(rest, taggedWaves > 1 ? waveGapFor(Math.min(taggedWaves, getBuffFxConfig().waveMaxCount)) : 0);
+    // Set 4 self-damage waves (a HIT record present) pace on the shared reaction-tick stride (#2074: 160 ms, the chain
+    // capped at 1.6 s), so a Shop Hawg / Eatah reads at the same rhythm as every combat damage reaction.
+    const selfDamage = rest.some((e) => e.damage);
+    replayBuffFxEvents(rest, taggedWaves > 1 ? (selfDamage ? reactionTickStrideMs(taggedWaves) : waveGapFor(Math.min(taggedWaves, getBuffFxConfig().waveMaxCount))) : 0);
   }, [run.recruitFxSeq]);
   // …and the chain's LINKS: the trigger-er's tribe tendril (Dawnclaw's beast ribbon, Mykel's dwarf ribbon) to each
   // Shout's owner, one per fire, `SHOP_CHAIN_SLOT_MS` apart, left neighbour first. Skipped under the arena or the

@@ -1902,6 +1902,55 @@ rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All
   Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
 - The special Rubies are only ever cast from the hand in the Shop today; no combat effect casts one.
 
+### Whisper: a spell a card grants, temporary in hand and in what it gives (Set 4, owner 2026-10-13; R-WHISPER-01, R-WHISPER-02)
+
+> Set 4 is **disabled** (a scaffold). Its cards play only in the Scene Builder until the owner flips it on.
+
+A **Whisper** is a spell a card **grants**. The minion's text prints what it does after "**Whisper:**" (Galas: "Give
+a friendly minion +1/+1. Improves every 4 spells cast this game.", its Whisper is **Tome**; Tolan: "Give a friendly
+minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover preview shows the Whisper card itself.
+
+- **Granted on play, and again every turn.** Playing the granter from hand puts a copy in your hand at once. At every
+  Start of Turn while the granter is still on your board you get a fresh copy (each granter its own copy and its
+  own Start-of-Turn beat). A Gilded granter's copy is worth double ("double the value and the improve").
+- **Fades if unused.** A Whisper you did not cast vanishes at End of Turn and counts as nothing.
+- **A spell cast, never a Shop spell.** Casting one counts as a spell cast for every tally and watcher (like a Ruby,
+  a Clue or a Gift) and a Yazzus repeat is a real second cast. It is never a Shop spell: never offered, never in a
+  pool, and never copied by the spell-copy effects. It aims at a friendly minion.
+- **Its stats are temporary** unless a card says otherwise: kept for the rest of the turn and through that turn's
+  combat, removed at the start of your next turn. **Engraved does not keep them** (it keeps stats gained in combat).
+  No card keeps Whisper stats yet; the grant is recorded per body so one can.
+- **Live values.** Tome grants +1/+1 plus +1/+1 for every 4 spells cast this game, counted retroactively (60 spells
+  by turn 10 makes it +16/+16). Runebind grants +2/+2 and then improves EVERY Runebind for the rest of the run by
+  +2/+2 (each cast, each repeat; a later Tolan's Runebind starts at the improved value). The Whisper in hand, its
+  granter's text and the hover preview all print the current value.
+- **Whisper reactors.** Tamby: "When you cast a Whisper on this, get a copy of it. (Once per turn)" (Gilded: 2
+  copies). Whisp: "When you cast a Whisper on a Dragon, also cast it on this." (Gilded: twice). Whisp's cast is a
+  full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again.
+
+### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
+
+The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:
+each hit lands together with the Health the same effect grants, so a 1-Health Beast takes the hit (its
+damage-taken triggers fire) and ends net neutral.
+
+| Card | Text | Gilded |
+| --- | --- | --- |
+| Hawg (T1 1/2) | Shout: Deal 1 damage to this and give your Beasts +1 Health. | the whole effect twice |
+| Apua (T2 3/3) | When your Beasts take damage, this gains +1/+1 permanently. | +2/+2 |
+| Eatah (T3 4/5) | Taunt. Rise. Echo: Deal 1 damage to your Beasts and give them +1 Health. | the whole Echo twice |
+| Alan (T5 5/6) | When a friendly Beast takes damage, give another friendly Beast +1/+2 permanently. | +2/+4 |
+
+- **Damage-taken triggers fire in both phases**, for a landed hit from any source: an attack, a splash, Eatah's Echo,
+  a Blaster or Fel Spikes Echo fired in the Shop. A Ward absorbs a combat hit (no trigger; the Health still lands).
+- **"Permanently" means permanently.** Apua's and Alan's combat gains carry back to the run. A Beast killed by a real
+  lethal hit is not saved by its own Apua gain.
+- Alan never picks itself (R-TARGET-03), so its text reads "another friendly Beast".
+- Each repeat (a Gilded Hawg or Eatah) is its own tick and its own wave, so the hits read one after another.
+- **Beat order** (owner 2026-10-13): every hit lands first on its own beat (each Health visibly drops), then the
+  damage-taken reactions one tick per fire, then each +Health one tick each. Never merged into one beat, in combat
+  and in the Shop.
+
 ---
 
 ## Unverified / confirm

@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -335,6 +335,16 @@ interface MinionPayload {
   side?: Side;
 }
 
+/** Set 4 damage-taken watchers (Apua / Alan): did a FRIENDLY `params.tribe` minion (default Beast) just take a hit,
+ *  and can this watcher answer? A dead watcher never does; one at 0 Health answers only mid-wound (R-WOUND-01). */
+function friendlyTribeHit(ctx: CombatContext, self: Minion, params: Record<string, unknown>, payload: unknown): boolean {
+  if (self.dead || (self.health <= 0 && !woundActive())) return false;
+  const p = payload as MinionPayload & { amount?: number };
+  if (!p?.minion || p.minion.side !== self.side || (p.amount ?? 1) <= 0) return false;
+  const tribe = str(params.tribe) || 'beast';
+  return combatArena(ctx, self).isTribe(p.minion, tribe);
+}
+
 /** Grant a Divine Shield to a living minion (Mechs). Idempotent; logs a `shieldUp`. */
 /** The combat-side `EffectArena` adapter (Step 1 spike). Bodies pass through UNWRAPPED — `Minion` satisfies
  *  `ArenaBody` structurally — and the verbs close over the `CombatContext`, so an arena effect emits the same
@@ -648,6 +658,28 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     echoEffectsOf: (t) => (t as Minion).effects
       .filter((e) => e.on === 'onDeath')
       .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
+
+    // SET 4 SELF-DAMAGE (R-WOUND-01, owner 2026-10-13 ordering): BEAT 1 every hit (`damageDeferred` — dmg events, a
+    // Ward pop, no death mid-step), with the `onDamaged` emits HELD by `woundHits`; then each held reaction on its own
+    // wave (one tick per fire: Apua, Alan); then each body's Health on its own wave; then `alsoMend`; then the deferred
+    // death checks (no-ops: Health >= damage). Everything that may answer a body at 0 Health runs under `withWound`.
+    woundAll: (targets, damage, health, alsoMend) => {
+      const live = (targets as Minion[]).filter((m) => !m.dead);
+      if (live.length === 0) return;
+      // ONE wave for the hits AND their held reactions, hits first: the replay's hit-reaction split (#2074,
+      // `hitReactionStart` / `reactionTicks`) gives the hits their own beat, then plays each reaction fire as its own
+      // tick on the shared 160 ms stride, so every damage reaction in the game paces the same. Then the Health.
+      withWound(() => {
+        ctx.wave(() => {
+          const reactions = ctx.woundHits(() => { for (const m of live) ctx.damageDeferred(m, damage, self); });
+          for (const fire of reactions) fire();
+        });
+      });
+      if (health > 0) ctx.wave(() => { for (const m of live) ctx.buff(m, 0, health, self.uid); });
+      if (alsoMend) ctx.wave(alsoMend);
+      for (const m of live) ctx.resolveEchoDeath(m, self);
+    },
+    tick: (fn) => { ctx.wave(fn); },
 
     rng: () => ctx.rng,
   };
@@ -2193,6 +2225,33 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffRandomTribe: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleBuffRandomTribe(combatArena(ctx, self), params);
+  },
+
+  // ── SET 4 BEASTS (owner 2026-10-13, R-WOUND-01): one arena body per card, both phases ──
+  /** Whisp (passive marker): a COMBAT STUB, like `rubyStatMultiplier`. Whispers are hand spells cast in the Shop only;
+   *  the Shop reads the marker in `castSpell` (recruit.ts `whisperEchoOnDragons`). Nothing to do in a fight. */
+  whisperEchoOnDragon: () => {},
+  /** Hawg (Shout, a combat re-fire): 1 damage to this, your Beasts +1 Health (never lethal). */
+  shoutWoundSelfMendTribe: (ctx, self, params) => {
+    if (self.dead) return;
+    ARENA_EFFECTS.shoutWoundSelfMendTribe(combatArena(ctx, self), params);
+  },
+  /** Eatah (Echo): 1 damage to your Beasts and +1 Health to each (never lethal). */
+  deathrattleWoundMendTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleWoundMendTribe(combatArena(ctx, self), params);
+  },
+  /** Apua: a FRIENDLY `tribe` minion took a landed hit (any source: an attack, a splash, a self-damage Beast) → this
+   *  gains +a/+h PERMANENTLY. A body at 0 Health answers only inside a non-lethal wound (R-WOUND-01); otherwise a
+   *  lethal hit on Apua itself must not resurrect it with its own gain. */
+  onTribeDamagedBuffSelf: (ctx, self, params, payload) => {
+    if (!friendlyTribeHit(ctx, self, params, payload)) return;
+    ARENA_EFFECTS.onTribeDamagedBuffSelf(combatArena(ctx, self), params);
+  },
+  /** Alan: a friendly `tribe` minion took a landed hit → a random other friendly `tribe` minion +a/+h PERMANENTLY. */
+  onTribeDamagedBuffRandomTribe: (ctx, self, params, payload) => {
+    if (!friendlyTribeHit(ctx, self, params, payload)) return;
+    ARENA_EFFECTS.onTribeDamagedBuffRandomTribe(combatArena(ctx, self), params);
   },
 
   /** Lodestar (set 3 Celestials) — Echo: a random other friendly `tribe` gains this body's MAX stats (arena body). */

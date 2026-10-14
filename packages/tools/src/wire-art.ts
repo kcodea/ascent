@@ -332,6 +332,13 @@ const SKIN_RARITY_DIRS = ['Minion Skins', 'Hero Skins'].flatMap((c) => ['Common'
 
 const JOBS: Job[] = [
   {
+    // SET-4 minions (owner 2026-10-13: "art for set 4 minions here"). The disabled Set 4 scaffold's two tribe folders;
+    // the `nothing` folder is deliberately not a dir. Unmatched files (a UUID export, a name with no card) are reported.
+    label: 'set-4 minions', src: 'C:/Game Assets/Ascent Art/Set 4 Minions',
+    dirs: ['Beasts', 'Dragons'],
+    dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
     // SET-3 minions (2026-08-28). Scoped like the set-1 job and placed FIRST for the same reason: if a name
     // ever exists in two sets, the later job wins the slot, and set 3 is the least established. Today it is
     // the Equipment reference card; the Celestial folders are here for the rework.
@@ -423,6 +430,11 @@ const JOBS: Job[] = [
     // every Gift by name — the folder just had never been a job: the 2026-08-26/27 Gift batches were wired by
     // hand, which is exactly the "hand-rolled script beside the pipeline" this file's header warns against.
     label: 'gifts', src: 'C:/Game Assets/Ascent Art/Gifts',
+    dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: {},
+  },
+  {
+    // SET 4 WHISPERS (owner 2026-10-13: the Tome and Runebind masters). Spell-class art, so the spells folder.
+    label: 'whispers', src: 'C:/Game Assets/Ascent Art/Whispers',
     dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: {},
   },
   {

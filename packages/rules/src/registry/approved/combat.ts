@@ -163,4 +163,29 @@ export const COMBAT_RULES: GameRule[] = [
       + 'policy only (the engine option is per side).',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/sideSymmetry.test.ts', 'packages/core/src/combat/enemySideLive.test.ts', 'packages/core/src/combat/symmetricCarry.test.ts', 'packages/sim/src/snapshotFidelity.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-WOUND-01',
+    title: 'Set 4 Beast self-damage never kills: the hit lands, fires damage-taken triggers, and its Health lands with it (Shop and combat)',
+    statement:
+      'When a Set 4 Beast damages your own Beasts (Hawg: 1 to itself, Eatah: 1 to each), every hit is paired with the Health '
+      + 'the same effect grants, as one step that cannot kill: a 1-Health Beast takes the hit (its damage-taken triggers fire, '
+      + 'Apua and Alan included) and ends net neutral. In combat the hit is real (a Ward absorbs it; the Health still lands). '
+      + 'It works in the Shop and in combat alike. Damage-taken triggers fire in both phases for a landed hit from any '
+      + 'source (an attack, a splash, a Blaster in the Shop). Apua and Alan print "permanently", so their combat gains carry '
+      + 'back; a Beast killed by a real lethal hit is not saved by its own Apua gain. Gilded Hawg / Eatah repeat the effect '
+      + '(a second tick, its own wave), so the watchers answer twice. PRESENTATION ORDER (owner 2026-10-13): every hit lands '
+      + 'first on its own beat (each Health visibly drops), then the damage-taken reactions one tick per fire, then each '
+      + '+Health one tick each; never merged into the hit beat, in combat and in the Shop.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner handoff 2026-10-13 (Set 4 Beasts, self-damage rule)', quote: 'Self-damage effects from these Beasts never kill a Beast: e.g. Eatah deals 1 then grants +1 Health, so a 1-Health Beast takes the damage (firing damage-taken triggers like Apua/Alan) and ends net neutral. Works in recruit AND combat (cross-phase by default).' },
+      { kind: 'owner-chat', ref: 'Owner review 2026-10-13 (Set 4 self-damage beats)', quote: 'the hits should go out first on its own beat, then the buffs following the hits should roll out after. right now it’s all in one immediate beat. fix it' },
+      { kind: 'owner-chat', ref: 'Owner handoff 2026-10-13 (Set 4 Beasts)', quote: 'Damage-taken triggers fire in both phases. Buffs from Apua/Alan in combat are combat-only unless the text says "permanently" (it does: these are permanent, so combat gains carry back).' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts (woundAll, withWound, the four Set 4 Beast bodies); packages/core/src/effects/factories.ts (combat woundAll, friendlyTribeHit); packages/sim/src/recruit.ts (shop woundAll, fireShopDamaged)' },
+    ],
+    contentIds: ['b4_hawg', 'b4_apua', 'b4_eatah', 'b4_alan'],
+    currentBehaviour: 'Conforms as of 2026-10-13 (Set 4 is disabled; play it in the Scene Builder).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set4.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

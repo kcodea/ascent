@@ -82,6 +82,7 @@ const ART_PENDING = new Set<string>([
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
   // Owner Set 3 batch (2026-10-13): Indy, the Golden Monkey and Amplification Agnus shipped with no art yet.
   'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
+  // SET 4: NONE LEFT (owner 2026-10-13: the eight minions and the two Whispers, Tome + Runebind, are arted).
 ]);
 
 describe('art coverage for live cards', () => {

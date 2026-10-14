@@ -15,6 +15,7 @@ import { SET2_DRAGONS, SET2_DRAGON_RUNE_MINIONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
 import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS, SET3_SPELLS, SET3_CELESTIALS } from './cards/set3';
+import { SET4_CARDS } from './cards/set4';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -48,6 +49,32 @@ const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
 const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {
   const def = SET3_SPELL_SOURCES.find((c) => c.id === id);
   if (!def) throw new Error(`SET3_SHARED_SPELL_IDS names '${id}', which no spell list provides`);
+  return def;
+});
+
+/**
+ * SET 4's SHARED SPELL POOL (owner 2026-10-14: "can you add the generic neutral spells to set 4 from set 3 so i can
+ * compare"): Set 3's generic NEUTRAL Shop spells, BY REFERENCE (the same ids and defs; Set 3 is unchanged), resolved
+ * against Set 3's own spell lists so a rename there breaks loudly here. Left OUT, because Set 4 does not field their
+ * tribe or mechanic: the Dwarven Ales (`wo_*`, Rush Order, On the House), the Ruby / Kobold toolkit (Ruby Shipment,
+ * Facetwright, Veinstorm, Ruby Transfer), the Undead pair (Lantern of Souls, Undead Army), the Celestial / Starform
+ * spells (Star Crash, Accretion) and the Spirit spell (Crescendo). Order follows Set 3's manifest; appended after
+ * Set 4's minions, so no minion position moves.
+ */
+const SET4_SHARED_SPELL_IDS: readonly string[] = [
+  'apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone',
+  'manafont', 'growth', 'refreshtexts', 'tribeschoice',
+  'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal',
+  'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy',
+  'devour', 'chronostaff', 'corpseboard', 'resonance', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter',
+  'displacement', 'aresmar', 'perfectvision', 'sparkplug',
+  'sp_gamble', 'sp_picnic',
+  // Set 3's own neutral spells:
+  'stellarchorus', 'splitdecision', 'aspectsblessing', 'sharedspirit', 'graverobbery', 'handsoap',
+];
+const SET4_SHARED_SPELLS: readonly CardDef[] = SET4_SHARED_SPELL_IDS.map((id) => {
+  const def = [...SET3_SHARED_SPELLS, ...SET3_SPELLS].find((c) => c.id === id);
+  if (!def) throw new Error(`SET4_SHARED_SPELL_IDS names '${id}', which Set 3's spell lists do not provide`);
   return def;
 });
 
@@ -266,7 +293,7 @@ const SET2_NEUTRALS_IN_SET3: readonly CardDef[] = SET2_NEUTRAL.filter((c) =>
  * Quests, runes and heroes are NOT set-scoped yet — they have their own toggles. `SetDef` has room to grow
  * those fields when a set needs its own.
  */
-export type SetId = 'set1' | 'set2' | 'set3';
+export type SetId = 'set1' | 'set2' | 'set3' | 'set4';
 
 export interface SetDef {
   id: SetId;
@@ -356,6 +383,19 @@ export const SETS: Record<SetId, SetDef> = {
     // then the carried set-1 and set-2 ones.
     // Then the SPIRITS (2026-09-09): a brand-new tribe, all set 3's own — appended after the Neutrals.
     own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_CELESTIALS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // Celestials appended 2026-09-11; set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
+  },
+  set4: {
+    id: 'set4',
+    name: 'Set 4',
+    blurb: 'In development.',
+    // A SCAFFOLD (owner 2026-10-13), started the way Set 3 was: selectable in the Scene Builder's set picker (which
+    // offers disabled sets on purpose), NEVER the active set. `activeSet()` is first-enabled-wins in declaration
+    // order, so flipping this on would move every NEW run onto an eight-card pool.
+    enabled: false,
+    // Its first two tribes: the Whisper Dragons and the self-damage Beasts. More join as their rosters land.
+    tribes: ['dragon', 'beast'],
+    // Opts cards IN, the manifest pattern sets 2 and 3 use. Append new cards; never insert (pool order seeds the shop).
+    own: [...SET4_CARDS, ...SET4_SHARED_SPELLS], // → packages/content/src/cards/set4/*.ts (the Whispers stay OUT: granted, never drawable), then Set 3's generic neutral spells by reference (owner 2026-10-14)
   },
 };
 

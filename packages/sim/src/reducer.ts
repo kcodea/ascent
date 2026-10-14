@@ -39,6 +39,8 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
+import { withWhisperMult } from './recruit';
+import { expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, vanishWhispers } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -2123,6 +2125,26 @@ function reduceCore(state: RunState, action: Action): RunState {
         // spell it PAYS THE CAST BOOKKEEPING via `noteSpellCast`, so it counts as a spell cast for tallies,
         // thresholds, the Ruby+Spell umbrella and every `spellCast` watcher. `noteSpellCast` itself skips the
         // copy-memory writes for a Gift (see there), which is what makes a Gift uncopyable.
+        // A WHISPER (Set 4, owner 2026-10-13): the Gift class, cast THROUGH `castSpell` once per cast, so each cast is a
+        // real spell cast (counted, watcher-visible) and a cast landing on a minion reaches its `spellCastOnThis`
+        // reactors (Tamby) and Whisp's echo. Yazzus repeats it like any targeted hand spell (`giftCastCount`); every
+        // repeat reads the Whisper's value afresh (Runebind improves between them). Its multiplier rides the cast.
+        if (def.whisper) {
+          const whisperTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
+          if (def.target && !whisperTarget) return state; // aimed with no friendly target -> fizzle, kept in hand
+          const whisperCasts = giftCastCount(s, def, !!whisperTarget);
+          s.hand.splice(i, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+          withWhisperMult(card.whisperMult ?? 1, () => {
+            for (let n = 0; n < whisperCasts; n++) {
+              if (whisperTarget && !s.board.includes(whisperTarget)) break;
+              castSpell(s, def, whisperTarget);
+            }
+          });
+          if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
+          checkTriples(s);
+          return s;
+        }
         if (def.gift) {
           const giftTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
           if (def.target && !giftTarget) return state; // aimed gift with no valid friendly target → fizzle, kept
@@ -2345,6 +2367,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
       }
       playCard(s, card);
+      // SET 4 WHISPERS (owner 2026-10-13): a granting minion played from hand hands over its Whisper at once.
+      grantWhispersOnPlay(s, card);
       // A STANDALONE Magnetic play (no host — it took a board slot) is still "playing an Attachment": the
       // first each turn gets Tempering's Ward on itself, and Replication still copies it onto the leftmost
       // Mech (the standalone body itself qualifies if it's the leftmost Mech-tribe minion... it welds a copy).
@@ -4270,6 +4294,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
     fodderAuraBonus: absorbedFodderAura.attack > 0 || absorbedFodderAura.health > 0 ? absorbedFodderAura : undefined,
     buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
+    whisperBuffs: mergeWhisperBuffs(kept), // Set 4: a kept copy's temporary Whisper grant still expires next turn
     spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
     damageDealt: goldenDamageDealt > 0 ? goldenDamageDealt : undefined,
@@ -4365,6 +4390,9 @@ function endRecruitTurn(s: RunState): void {
   }
   // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
   applyEndOfTurn(s);
+  // SET 4 WHISPERS (owner 2026-10-13): an unused Whisper vanishes at End of Turn and never counts as cast. After the
+  // End-of-Turn triggers, so the turn's last word is theirs; before Re-Pete's Second Hand, so it copies a real card.
+  vanishWhispers(s);
   // RUNE OF AMPLIFICATION (set 3 batch 2, 2026-09-16): every Equipment you did NOT activate this turn becomes
   // Amplified — read BEFORE the expiry below clears the per-turn activation marks. One proc per Equipment amplified.
   // END OF TURN BEAT (owner 2026-10-03, R-EOT-AMPLIFY-01: "i think it should get an end of turn beat"): the rune
@@ -5466,6 +5494,9 @@ function advanceCombat(s: RunState): void {
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
   if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, heroSource(), () => payCommission(s, due)); }
+  // SET 4 WHISPERS (owner 2026-10-13, R-WHISPER-02): last turn's Whisper grants come off now — kept through the fight
+  // that just resolved, gone before anything this turn reads the board. Engraved never kept them (combat gains only).
+  expireWhisperBuffs(s);
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   // PER-TURN-RESET BEGIN — Doc Bot's carry-over scan (docbot/carryOverScan.ts) parses the `s.<field> = …`
@@ -5482,6 +5513,7 @@ function advanceCombat(s: RunState): void {
     if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
     if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
     if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
+    if (c.whisperCopiedThisTurn) c.whisperCopiedThisTurn = false; // Tamby: "(Once per turn)" re-arms
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;

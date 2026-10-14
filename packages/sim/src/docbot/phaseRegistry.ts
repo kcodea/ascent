@@ -150,6 +150,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
 
   // ── implemented outside the map on the RECRUIT side ──
   gainEmbers: { phase: 'recruit', kind: 'outside-map', why: 'special-cased in castSpell (recruit.ts ~8405: the gainEmbers override) so the printed value can fold in bonuses' },
+  whisperEchoOnDragon: { phase: 'recruit', kind: 'outside-map', why: 'Set 4 Whisp: a passive MARKER the Shop cast path reads (recruit.ts castSpell -> whisperEchoOnDragons); the combat map holds a stub because a Whisper is never cast in combat' },
   rubyStatMultiplier: { phase: 'recruit', kind: 'outside-map', why: 'a passive MARKER — both phases read it with direct effects.some() scans; the combat map holds a stub, the shop scans directly' },
 
   // ── more onSummon-family gaps surfaced by this test's own first run (2026-08-26) ──

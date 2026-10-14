@@ -335,9 +335,38 @@ export interface EffectArena {
    *  instance list; the shop reads the printed def plus its grants. */
   echoEffectsOf(t: ArenaBody): EffectDef[];
 
+  /** SET 4 SELF-DAMAGE (owner 2026-10-13, R-WOUND-01): deal `damage` to every body in `targets`, then give each
+   *  +`health` Health, never lethally (every caller passes `health >= damage`). THE ORDER IS THE PRESENTATION (owner
+   *  2026-10-13: "the hits should go out first on its own beat, then the buffs following the hits should roll out
+   *  after"): BEAT 1 is every hit at once (each Health visibly drops); then each hit's damage-taken reactions (Apua,
+   *  Alan), one tick per fire; then each body's +Health, one tick each; then `alsoMend` (Hawg's Health for the other
+   *  Beasts) on its own tick. A Ward absorbs a combat hit (the Health still lands). Combat: `woundHits` defers the
+   *  `onDamaged` emits past the hit beat, `damageDeferred` holds every death until the Health has landed. Shop: the
+   *  Health loss + a HIT FX record, the Shop's damage watchers per hit, then permanent Health buffs. */
+  woundAll(targets: ArenaBody[], damage: number, health: number, alsoMend?: () => void): void;
+  /** One presentation TICK around a whole effect (a Gilded repeat is a second tick): combat stamps what `fn` logs that
+   *  is not already in a narrower wave with one wave id; the Shop tags its untagged buff-FX records with a fresh wave.
+   *  Presentation only: it changes no resolution order. */
+  tick(fn: () => void): void;
+
   /** The phase's own random stream. See the RNG contract above. */
   rng(): Rng;
 }
+
+/**
+ * R-WOUND-01 — while a NON-LETHAL self-damage step (`woundAll`) is resolving, the damaged body may sit at 0
+ * Health for the instant between the hit and its Health; its own damage-taken watchers must still answer that hit
+ * (owner: "a 1-Health Beast takes the damage (firing damage-taken triggers like Apua/Alan) and ends net neutral").
+ * Combat watchers that would normally ignore a body at 0 read this to tell "mid-wound" from "about to die".
+ * Module-scoped and synchronous, always unwound in `finally`.
+ */
+let woundDepth = 0;
+export function withWound<T>(run: () => T): T {
+  woundDepth += 1;
+  try { return run(); } finally { woundDepth -= 1; }
+}
+/** True while a non-lethal self-damage step resolves (see `withWound`). */
+export const woundActive = (): boolean => woundDepth > 0;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -2294,6 +2323,55 @@ export const ARENA_EFFECTS = {
     const lead = arena.friends().find((m) => m.uid !== arena.self.uid && arena.hasEcho(m));
     if (!lead) return;
     for (const e of arena.echoEffectsOf(lead)) arena.graftEffect(arena.self, e);
+  },
+
+  // ── SET 4 BEASTS: SELF-DAMAGE (owner 2026-10-13, R-WOUND-01) ────────────────────────────────────────────
+  // "Set 4 Beast theme = self damage in BOTH recruit and combat." Every hit here is non-lethal by construction:
+  // the Health grant is applied to the body the hit landed on, inside the same `woundAll` step. Gilded repeats
+  // the whole effect (a second TICK, its own beat), so the damage-taken watchers answer twice.
+
+  /** Hawg — "Shout: Deal 1 damage to this and give your Beasts +1 Health." Hawg is one of "your Beasts", so its own
+   *  +Health heals the hit it just took (net neutral on itself); every OTHER friendly `tribe` minion gains +Health. */
+  shoutWoundSelfMendTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'beast';
+    const dmg = num(params.damage, 1);
+    const hp = num(params.health, 1);
+    for (let k = 0; k < gold(arena); k++) {
+      arena.tick(() => {
+        // Never lethal: the body heals at least what it took, even if something stripped its tribe.
+        arena.woundAll([arena.self], dmg, Math.max(dmg, arena.isTribe(arena.self, tribe) ? hp : 0), () => {
+          for (const f of arena.friends()) {
+            if (f.uid === arena.self.uid || !arena.isTribe(f, tribe)) continue;
+            arena.buff(f, 0, hp);
+          }
+        });
+      });
+    }
+  },
+
+  /** Eatah — "Echo: Deal 1 damage to your Beasts and give them +1 Health." Every friendly `tribe` minion (in the Shop a
+   *  borrowed / forced Echo on a living Eatah includes itself) takes the hit, then the Health, never lethally. */
+  deathrattleWoundMendTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'beast';
+    const dmg = num(params.damage, 1);
+    const hp = Math.max(dmg, num(params.health, 1));
+    for (let k = 0; k < gold(arena); k++) {
+      arena.tick(() => arena.woundAll(arena.friends().filter((f) => arena.isTribe(f, tribe)), dmg, hp));
+    }
+  },
+
+  /** Apua — "When your Beasts take damage, this gains +1/+1 permanently." The wrappers gate on the payload (a
+   *  friendly `tribe` minion took a landed hit); the body is the permanent gain (combat records the carry-back). */
+  onTribeDamagedBuffSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    arena.buffPermanent(arena.self, num(params.attack, 1) * gold(arena), num(params.health, 1) * gold(arena));
+  },
+
+  /** Alan — "When a friendly Beast takes damage, give a friendly Beast +1/+2 permanently." A random OTHER friendly
+   *  `tribe` minion (R-TARGET-03: never itself), one seeded draw per hit. No other Beast: nothing. */
+  onTribeDamagedBuffRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe) || 'beast';
+    const pick = pickAutoTarget(arena.rng(), others(arena, (m) => arena.isTribe(m, tribe)));
+    if (pick) arena.buffPermanent(pick, num(params.attack, 1) * gold(arena), num(params.health, 2) * gold(arena));
   },
 } as const;
 

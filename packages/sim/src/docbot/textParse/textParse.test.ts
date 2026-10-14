@@ -157,7 +157,12 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // counter ("When you roll 5 times, add a Golden Monkey to the Shop."), Amplification Agnus's Equipment aura ("All
 // Equipment is Amplified.") and Solburn's Sell-Collapse ("Sell: Collapse your Starform."). The six archives offset
 // two of them; the net move is +1.
-const UNRESOLVED_CAP = 124;
+// 2026-10-13 (the Set 4 scaffold): 124 -> 130, CONSCIOUSLY (rebased onto the owner Set 3 batch). Six new texts the grammar has no rule for yet: the
+// "Whisper:" header (on Galas and on Tolan, whose gilded "Improve this twice."
+// is also new), the Whisper tokens' "until your next turn." duration tail (Tome, Runebind), and the friendly-tribe
+// damage-taken watcher ("When your Beasts take damage" on Apua, "When a friendly Beast takes damage" on Alan).
+// Hawg and Eatah parse fully.
+const UNRESOLVED_CAP = 130;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

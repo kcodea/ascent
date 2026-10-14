@@ -325,6 +325,18 @@ export interface BoardCard {
    *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
    *  re-cast from re-triggering the same effect forever. Absent = 0. */
   spellsOnThisTurn?: number;
+  /** Set 4 WHISPERS (owner 2026-10-13) — the TEMPORARY stat grants Whispers put on this body, one entry per
+   *  source label (Tome, Runebind). Applied in the Shop, kept through that turn's combat, and stripped at the next
+   *  Start of Turn (`expireWhisperBuffs`): the stats come off and so does the matching `buffs` ledger share.
+   *  Engraved does not keep them (it keeps COMBAT gains only). A future card that makes a Whisper's stats permanent
+   *  simply clears the entry (`keepWhisperBuffs` in `sim/whisper.ts`), leaving the stats and the ledger in place. */
+  whisperBuffs?: CardBuff[];
+  /** Set 4 — on a WHISPER card in hand: how many times its printed value it grants (a Gilded granter's Whisper is
+   *  worth double, "Gilded = double the value and the improve"). Absent = 1. */
+  whisperMult?: number;
+  /** Set 4 — Tamby: its once-per-turn "get a copy of the Whisper cast on this" has fired this turn. Cleared at the
+   *  turn flip with the other per-turn counters. */
+  whisperCopiedThisTurn?: boolean;
   /** Crash Course: its "first Star Crash on this each turn" named-spell re-cast has fired this turn (was the Adept's spread). Cleared with the other
    *  per-turn counters at Start of Turn. */
   namedSpreadUsedThisTurn?: boolean;
@@ -521,6 +533,10 @@ export interface BuffFxEvent {
   /** A HERO POWER's grant with no body to leave from (Ancient of Bonds × Hunch): the presentation streams the generic
    *  tendril from the hero-power button instead of descending sourceless. Absent for every other buff. */
   fromHeroPower?: true;
+  /** Set 4 — a HIT, not a buff: `damage` was dealt to the target by the source (a self-damaging Beast). The UI plays
+   *  the owner's damage defs for it (a ribbon from the source when it hit another body, a burst on the source when it
+   *  hit itself) instead of a tendril. `attack`/`health` are 0 on a hit record. Absent on every buff. */
+  damage?: number;
 }
 
 /** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded
@@ -934,6 +950,10 @@ export interface RunState {
   /** Set 2 — the run's Ruby STRENGTH: the extra Attack/Health every NEW Ruby is minted with, on top of the
    *  base 1/1 (raised by "Your Rubies gain +X"; future Rubies only, never retroactive). Absent = base 1/1. */
   rubyBonus?: { attack: number; health: number };
+  /** Set 4 WHISPERS — each improving Whisper's run-wide improvement, by Whisper card id (Runebind: "+2/+2. Improve
+   *  this." raises its entry by the improve every cast, shared by EVERY copy, held, future or granted by a later
+   *  Tolan). Read at cast, so a Whisper in hand is live by construction. Absent = 0. */
+  whisperImprove?: Record<string, number>;
   /** Set 3 — the run's CLUE value above the base 1/1: every Clue cast grants `1 + clueBonus`, then raises it by
    *  one ("Improve your Clues by +1/+1"). Read at cast, so Clues in hand are live by construction. Absent = 0. */
   clueBonus?: number;

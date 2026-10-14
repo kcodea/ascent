@@ -107,6 +107,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // carry-back only lands on `run.spellsCast` at settle — owner report 2026-09-18).
         spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally, echoIncludesSelf: !foe,
         rubyCasts: foe ? (enemyScalers?.rubyCasts ?? 0) : run.rubyCasts, // the Vaultkeeper umbrella — was never passed in combat, either side
+        whisperImprove: foe ? undefined : run.whisperImprove, // Set 4: Tolan's live Runebind value (player-only: an enemy carries no run)
         clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,
         fodderConsumed: foe ? enemyScalers?.fodderConsumed : run.fodderConsumedThisTurn,
         undeadBuyAtk: foe ? (enemyScalers?.undeadBuyAtk ?? 0) : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),

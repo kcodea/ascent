@@ -223,4 +223,25 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13. Before, each hit fired its reactions at once and a reactor buffed only bodies still above 0, so a minion the pass had already taken to 0 missed every buff and died.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/demonDamageDeathOrder.test.ts', 'packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-RISE-ROW-01',
+    title: 'A Rising body holds its slot through its Echo: death, Echo hits, reaction ticks, +Health, then the Rise, with no row reflow',
+    statement:
+      'When a minion with Rise dies and its Echo fires before it returns (Eatah: "Echo: Deal 1 damage to your Beasts and '
+      + 'give them +1 Health"), the replay plays its death beat, then the clash reactions to the blow that killed it, then '
+      + 'the Echo: every hit on its own beat, then each reaction fire as its own tick on the shared reaction stride, then '
+      + 'the +Health; then the Rise. The dead body\'s slot is HELD (an invisible ghost) from its Rise death until its '
+      + 'Rise returns, so no other minion slides into it and back out. A Rise that finds no room (the body stays dead) '
+      + 'holds nothing and its slot closes as before. Presentation only: the engine order (Echo first, then the Rise, '
+      + 'R-WOUND-01 for the self-damage) is unchanged.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-14 (Eatah in combat)', quote: 'eatah is doing really janky stuff in combat. the timing of everything is bad and it janks the board around when it rises and plays the animation etc. can you clean this up' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts computeFrame (risingHeld: the ghost slot from a rise death to its reborn); packages/core/src/effects/factories.ts woundAll (hits + held reactions in one wave, then the Health wave)' },
+    ],
+    contentIds: ['b4_eatah'],
+    currentBehaviour: 'Conforms from 2026-10-14. Before, the dead body left the row on the first beat that was not its own damage (the clash reactions, then the +Health beat), the survivors slid into its slot, and slid back out when it rose.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eatahRiseRow.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

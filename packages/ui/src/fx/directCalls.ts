@@ -176,7 +176,7 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // TWO of them since 2026-08-31: a Choose One Equipment plays its def when the PROMPT OPENS rather than when
   // the activation resolves (owner ask), so the same `eq.useFxId` is fired from a second site. Both are the
   // same data-resolved id; both go away together when the moment moves into `recruitCues.ts`.
-  'Recruit.tsx': 2,
+  'Recruit.tsx': 3, // + the Set 4 shop HIT record (2026-10-13): the dealer's bound `damage` def, resolved via bindingFor
   // A THIRD site for the same data-resolved id since 2026-09-22 (owner ruling "spiritbinder one beam per fire"):
   // the beam cascade plays `playDef(beam.fxId, …)` once PER FIRE for an Equipment flagged `useFxTargetsBuffed`,
   // where `beam.fxId` is that Equipment's own `useFxId` (Spiritbinder's `spiritbinder`). Same debt, same fix —

@@ -25,6 +25,11 @@ the right question when starting a new run. Everything else wants `poolOf(state)
 > its `enabled` while it's empty — `activeSet()` is first-enabled-wins in declaration order, so an enabled empty
 > set ahead of a real one would put every new run on an empty pool.
 
+> **Set 4 is a scaffold too** (owner 2026-10-13): `enabled: false`, `cards/set4/index.ts`, its first eight minions plus Set 3's generic neutral Shop spells by reference (2026-10-14),
+> (the Whisper Dragons and the self-damage Beasts) in `SETS.set4.own`, tribes `['dragon', 'beast']`. Same rules as
+> set 3: append to `cards/set4/`, never flip `enabled` until it is ready to ship, play it in the Scene Builder. Its
+> two Whispers (Tome, Runebind) are granted spells and stay OUT of the manifest, like every Gift.
+
 1. Put its cards in `packages/content/src/cards/set3/*.ts`. **Its own directory** — that's what keeps two
    people authoring different sets out of the same file. (Before sets, everyone appended to the tail of the
    same tribe array, which is the worst possible shape for git.)

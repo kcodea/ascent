@@ -120,8 +120,6 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // Card text spells this lower-case ("When you spend 5 Gold, …"), never as the capitalised term, so the name
   // match never fires — `detectRe` is the only hit (Coinfire Forewoman, Tapkeeper, and the other gold-sink cards).
   { id: 'spend', name: 'Spend', aliases: [], section: 'build', mechanic: 'spend', detectRe: /\bspend\b/i, def: 'Triggers an effect based on how much Gold you spend. The Gold you spend adds up across turns.' },
-  // LG-IMPROVE-01: "Improve(s) this by +X/+X per N" — the raised number is run-permanent and printed live.
-  { id: 'improve', name: 'Improve', aliases: ['Improves', 'Improving'], section: 'build', icon: 'up', detectRe: /\bimprov(?:e|es|ing)\b/, def: 'Raises the number this effect uses for the rest of the run. The card always shows the current value.' },
   // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura". Wording is the owner's
   // verbatim (2026-09-21).
   { id: 'aura', name: 'Aura', aliases: ['Auras'], section: 'build', icon: 'up', def: 'A run wide bonus for every minion that it suits. Carries through shop and combat phases.' },
@@ -141,6 +139,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'ale', name: 'Dwarven Ale', aliases: ['Ale', 'Ales'], section: 'tokens', icon: 'flame', def: 'A set of Dwarf spells that provide various benefits. Count as shop spells.' },
   // Gifts (owner design 2026-08-26): a spell class of its own — see `cards/gifts.ts`.
   { id: 'gift', name: 'Gift', aliases: ['Gifts'], section: 'tokens', icon: 'gift', def: 'A free spell put into your hand by a rune, hero or card. It casts like any spell but is never a Shop spell: never in the Shop and never copied, and only a rune that says so can Discover one.' },
+  // Set 4 (owner 2026-10-13): a spell a minion GRANTS, temporary in hand and in what it gives. See `sim/whisper.ts`.
+  { id: 'whisper', name: 'Whisper', aliases: ['Whispers'], section: 'tokens', icon: 'gift', def: 'A temporary spell that disappears if not used. Stats and effects granted to your warband are not permanent.' },
   { id: 'clue', name: 'Clue', aliases: ['Clues'], section: 'tokens', icon: 'gift', def: 'A free hand spell: give a friendly minion +1/+1, then every later Clue gives +1/+1 more.' },
   // Set 3's Celestial token + its cash-out verb (owner ask 2026-09-12: "Collapse" gets its own pill and the Starform
   // itself is a noun the cards reference, so it is explained on the side too). Neither is a schema badge — the

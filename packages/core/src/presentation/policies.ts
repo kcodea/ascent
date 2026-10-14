@@ -107,6 +107,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:equipmentActivatedBuffSelf:equipmentActivated': { policy: 'ownBeat', family: 'react' }, // Rig — cf. onGainStatsBuffRandomHand
   // Yeti (2026-09-19): the reflected hits are `dmg` events of their own, so the reaction owns its beat.
   'factory:onDamagedReflectRandomEnemies:onDamaged': { policy: 'ownBeat', family: 'react' },
+  // ── Set 4 (owner 2026-10-13): the Whisper mechanic + the self-damage Beasts ──
+  'factory:grantWhisper:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Galas / Tolan: a fresh Whisper each Start of Turn (the on-play grant rides the play)
+  'factory:whisperEchoOnDragon:passive': { policy: 'passive', family: 'passive' }, // Whisp: read by the Whisper cast path, which casts again on it
+  'factory:whisperBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' }, // Tome / Runebind
+  'factory:whisperCastOnThisCopy:spellCastOnThis': { policy: 'ownBeat', family: 'economy' }, // Tamby
+  'factory:shoutWoundSelfMendTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Hawg
+  'factory:deathrattleWoundMendTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Eatah
+  'factory:onTribeDamagedBuffSelf:onDamaged': { policy: 'ownBeat', family: 'react' }, // Apua: its own reaction tick after the hits (the #2074 hit-reaction split)
+  'factory:onTribeDamagedBuffRandomTribe:onDamaged': { policy: 'ownBeat', family: 'react' }, // Alan: its own reaction tick after the hits (the #2074 hit-reaction split)
   // set 3 Spirits (tranche 1)
   'factory:rallyGainAttackPerSpiritsPlayed:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:battlecryBuffRandomTribeBoardAndHand:onPlay': { policy: 'ownBeat', family: 'shout' },

@@ -152,7 +152,6 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Improve **raises the number an effect uses, for the rest of the run**. For example, \"give it +2/+2, and improve this by +2/+2\" gives +2/+2 now and +4/+4 next time.",
     aliases: ['improves', 'improving', 'scaling', 'grows', 'ramps up', 'improve', 'scales', 'escalate'],
     seeAlso: ['improve-current-value'],
-    covers: [{ keyword: 'improve', fp: '0b5fe611' }],
   },
   {
     id: 'improve-current-value',
@@ -161,7 +160,6 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Just read the card. It **always shows the current value**, not the starting one, and where it improves every few times it also shows how many to go.",
     aliases: ['current number', 'live value', 'card text updates', 'countdown'],
     seeAlso: ['improve', 'inspect-a-card'],
-    covers: [{ keyword: 'improve', fp: '0b5fe611' }],
   },
 
   // ── Aura ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -406,6 +404,24 @@ export const ENTRIES: readonly WikiEntry[] = [
     seeAlso: ['gift', 'discover'],
   },
 
+  // ── Whisper (Set 4, owner 2026-10-13) ─────────────────────────────────────────────────────────────────
+  {
+    id: 'whisper',
+    topic: 'keywords',
+    q: 'What is a Whisper?',
+    a: "A spell a minion gives you. **Galas** gives you a Tome and **Tolan** gives you a Runebind: one the moment you play them, and a new one at the start of every turn they are still on your board. **Drag it onto a friendly minion** to cast it. If you do not cast it, it **fades at End of Turn**. It counts as a spell cast, but it is not a Shop spell.",
+    aliases: ['whispers', 'tome', 'runebind'],
+    seeAlso: ['whisper-stats'],
+    covers: [{ keyword: 'whisper', fp: '51461a06' }],
+  },
+  {
+    id: 'whisper-stats',
+    topic: 'keywords',
+    q: 'Do the stats from a Whisper last?',
+    a: "**No.** A Whisper's stats stay on the minion for the rest of the turn and through that turn's fight, then come off at the start of your next turn. Engraved does not keep them: it only keeps stats gained in combat.",
+    aliases: ['whisper buff', 'temporary stats'],
+    seeAlso: ['whisper'],
+  },
   // ── Clue ──────────────────────────────────────────────────────────────────────────────────────────────
   {
     id: 'clue',

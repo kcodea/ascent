@@ -181,7 +181,9 @@ type RecruitFn = (
    *  `projectEndOfTurnSteps`) dispatch one call PER TICK, each under its own root trigger / projection beat, so
    *  every repeat is its own state delta, its own buff signal and its own beat. Absent = resolve EVERY tick in
    *  one call (Djinn's replay and any other single-shot caller keep the full total). Read `eotTickCount`. */
-  tick?: number },
+  tick?: number;
+  /** Set 4 `onDamaged` (Shop): the size of the landed hit on `minion`. */
+  amount?: number },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
@@ -200,6 +202,47 @@ const isCelestialCard = (c: BoardCard): boolean => {
  *  passes through unwrapped. `rng()` wraps the run's cursor with per-call write-back: mulberry32's state
  *  round-trips exactly, so create→draw→store per call is the SAME stream as one long-lived instance — the
  *  legacy bodies' draw sequences are preserved bit-for-bit (the Step-1 hash probe is the proof). */
+/** Set 4 Shop presentation waves start here, after the small-integer waves other effects use and clear of the
+ *  Demon-damage band (1000+). */
+const SHOP_TICK_WAVE_BASE = 2000;
+/** The next free buff-FX wave this action (one past every wave already used, never below the Set 4 base), so a second
+ *  fire (a Gilded repeat, a Drakko-doubled Shout) lands after the first instead of merging with it. */
+function nextShopWave(state: RunState): number {
+  return Math.max(SHOP_TICK_WAVE_BASE - 1, ...state.recruitBuffFx.map((e) => e.fxWave ?? -1)) + 1;
+}
+
+/**
+ * SET 4 — a friendly body took a LANDED HIT in the Shop (R-WOUND-01; owner 2026-10-13: "Damage-taken triggers fire in
+ * both phases"). The recruit twin of combat's `onDamaged` emit: every board body's `onDamaged` effect that HAS a Shop
+ * body runs (today: Apua's `onTribeDamagedBuffSelf`, Alan's `onTribeDamagedBuffRandomTribe`; the older combat-only
+ * reactors such as Gryphon and Target Dummy have no Shop body and stay combat-only). Each reaction is its own nested
+ * trigger under whatever dealt the hit, with the registry identity combat uses, opened AFTER the hit, so the batch
+ * places it at the hit. A board SNAPSHOT, so a watcher hit by the same spray still answers.
+ */
+export function fireShopDamaged(state: RunState, victim: BoardCard, amount: number): void {
+  if (amount <= 0) return;
+  const ctx = makeContext(state);
+  const phase: PresentationPhase = endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit';
+  for (const card of [...state.board]) {
+    for (const effect of instanceEffects(card)) {
+      if (effect.on !== 'onDamaged') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (!fn) continue;
+      withRecruitTrigger(
+        ctx,
+        {
+          phase,
+          source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+          trigger: 'onDamaged',
+          ...beatIdentity(`factory:${effect.do}:onDamaged`),
+        },
+        () => captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: victim, amount })),
+        { discardIfEmpty: true },
+      );
+    }
+  }
+}
+
 function shopArena(state: RunState, self: BoardCard): EffectArena {
   const cursorRng: Rng = {
     next: () => { const r = makeRng(state.rngCursor); const v = r.next(); state.rngCursor = r.state(); return v; },
@@ -348,7 +391,12 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     damageAll: (amount) => {
       // The shop has no enemy: YOUR board takes it (owner ruling 2026-08-04). A body taken to 0 dies here
       // too — removed, its own Echo firing, the same cascade combat runs.
-      for (const c of [...state.board]) c.health -= amount;
+      for (const c of [...state.board]) {
+        c.health -= amount;
+        // A landed hit on a friendly body: the Shop's damage-taken watchers answer it (Apua / Alan, R-WOUND-01's
+        // "damage-taken triggers fire in both phases"). Only effects with a Shop body run, so nothing older moves.
+        if (amount > 0) fireShopDamaged(state, c, amount);
+      }
       const dead = state.board.filter((c) => c.health <= 0);
       for (const d of dead) {
         const idx = state.board.indexOf(d);
@@ -480,6 +528,55 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       .filter((e) => e.on === 'onDeath')
       .map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })),
 
+    // SET 4 SELF-DAMAGE, the Shop half (R-WOUND-01, owner 2026-10-13 ordering): the same beats as combat, as buff-FX
+    // WAVES: every hit first (the Health loss + a HIT record each, one wave), then each hit's damage-taken reactions
+    // (Apua / Alan, each their own nested beat, one wave per hit), then each body's Health (a permanent Shop buff, one
+    // wave each), then `alsoMend` (Hawg's Health for the other Beasts). Never lethal: nothing reads the board as dead
+    // before its Health is back.
+    woundAll: (targets, damage, health, alsoMend) => {
+      const live = (targets as BoardCard[]).filter((c) => state.board.includes(c));
+      if (live.length === 0) return;
+      const kind: BuffFxEvent['kind'] = state.board.includes(self) ? 'minion' : 'deathrattle';
+      const tagNew = (from: number, wave: number): void => {
+        for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave ??= wave;
+      };
+      if (damage > 0) {
+        const hitWave = nextShopWave(state);
+        for (const c of live) {
+          c.health -= damage;
+          state.recruitBuffFx.push({
+            sourceUid: self.uid, targetUid: c.uid, attack: 0, health: 0, damage,
+            sourceCardId: self.cardId, sourceTribe: self.tribe, kind, fxWave: hitWave,
+          });
+        }
+        for (const c of live) {
+          const from = state.recruitBuffFx.length;
+          fireShopDamaged(state, c, damage);
+          if (state.recruitBuffFx.length > from) tagNew(from, nextShopWave(state));
+        }
+      }
+      if (health > 0) {
+        for (const c of live) {
+          const from = state.recruitBuffFx.length;
+          captureBuffFx(state, self, kind, () => addBuff(c, nameOf(self), 0, health));
+          tagNew(from, nextShopWave(state));
+        }
+      }
+      if (alsoMend) {
+        const from = state.recruitBuffFx.length;
+        captureBuffFx(state, self, kind, alsoMend);
+        tagNew(from, nextShopWave(state));
+      }
+    },
+    tick: (fn) => {
+      const from = state.recruitBuffFx.length;
+      fn();
+      // Anything the tick produced outside the woundAll waves rides one fresh wave after them.
+      if (state.recruitBuffFx.slice(from).some((e) => e.fxWave === undefined)) {
+        const w = nextShopWave(state);
+        for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave ??= w;
+      }
+    },
     rng: () => cursorRng,
   };
 }
@@ -2860,6 +2957,118 @@ export function mintHandSpells(state: RunState, cardId: string, count: number): 
   }
 }
 
+/**
+ * SET 4 — mint `count` copies of a WHISPER into hand at multiplier `mult` (a Gilded granter's Whisper is worth double),
+ * honouring the hand cap. The `mintHandSpells` shape: a Whisper is a card arriving in hand, so the `onGainCard` round
+ * fires per copy (Gangplank) under the same ledger contract. Only a `whisper` def mints this way.
+ */
+export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1): void {
+  const def = CARD_INDEX[cardId];
+  if (!def?.whisper) return;
+  let minted = 0;
+  for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
+    state.hand.push({
+      uid: `b${state.uidSeq++}`,
+      cardId,
+      tribe: def.tribe,
+      attack: def.attack,
+      health: def.health,
+      keywords: [...def.keywords],
+      golden: false,
+      ...(mult > 1 ? { whisperMult: mult } : {}),
+    });
+    minted++;
+  }
+  for (let i = 0; i < minted; i++) {
+    const arrived = state.hand[state.hand.length - minted + i];
+    if (arrived) (state.gainCardFiredUids ??= []).push(arrived.uid);
+    fireOnGainCard(state, cardId);
+  }
+}
+
+/** The Whisper being cast right now carries its multiplier here (set by the reducer's Whisper branch around the
+ *  cast), so the cast factory and Tamby's copy read it. 1 outside a Whisper cast. Module-scoped like the cast stacks. */
+const whisperMultStack: number[] = [];
+export function withWhisperMult<T>(mult: number, fn: () => T): T {
+  whisperMultStack.push(Math.max(1, mult));
+  try { return fn(); } finally { whisperMultStack.pop(); }
+}
+const currentWhisperMult = (): number => whisperMultStack[whisperMultStack.length - 1] ?? 1;
+
+/** Every spell cast this game, of every kind (Shop spells, Gifts, Whispers, Rubies): the Vaultkeeper umbrella. */
+export function allSpellsCastThisGame(state: Pick<RunState, 'spellsCast' | 'rubyCasts'>): number {
+  return (state.spellsCast ?? 0) + (state.rubyCasts ?? 0);
+}
+
+/**
+ * A Whisper's CURRENT value per cast, before its card multiplier: the printed +A/+H, plus one printed step for every
+ * `perSpells` spells cast this game (Tome: "Improves every 4 spells cast this game", retroactive), plus the run's
+ * accrued improvement for this Whisper (Runebind's "Improve this", `whisperImprove`). The ONE formula the cast and
+ * every live text read, so a Whisper in hand always prints what it will grant.
+ */
+export function whisperValue(state: Pick<RunState, 'spellsCast' | 'rubyCasts' | 'whisperImprove'>, def: CardDef): { attack: number; health: number } {
+  const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
+  const p = (eff?.params ?? {}) as { attack?: number; health?: number; perSpells?: number };
+  const a = num(p.attack, 1), h = num(p.health, 1);
+  const per = num(p.perSpells, 0);
+  const steps = per > 0 ? Math.floor(allSpellsCastThisGame(state) / per) : 0;
+  const imp = state.whisperImprove?.[def.id] ?? 0;
+  return { attack: a + steps * a + imp, health: h + steps * h + imp };
+}
+
+/** Spells still to cast before a stepping Whisper (Tome) improves again; undefined for one that does not step. */
+export function whisperSpellsToNext(state: Pick<RunState, 'spellsCast' | 'rubyCasts'>, def: CardDef): number | undefined {
+  const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
+  const per = num((eff?.params as { perSpells?: number } | undefined)?.perSpells, 0);
+  if (per <= 0) return undefined;
+  return per - (allSpellsCastThisGame(state) % per);
+}
+
+/** Apply a Whisper's TEMPORARY grant: a normal Shop buff (so the ledger and every watcher see it) that is ALSO
+ *  recorded on `whisperBuffs`, which the next Start of Turn strips (`expireWhisperBuffs`). */
+export function applyWhisperBuff(target: BoardCard, source: string, attack: number, health: number): void {
+  if (attack === 0 && health === 0) return;
+  const before = { a: target.attack, h: target.health };
+  addBuff(target, source, attack, health);
+  // What actually landed (Attack never drops below 0), so the strip takes off exactly what was given.
+  const da = target.attack - before.a, dh = target.health - before.h;
+  const list = (target.whisperBuffs ??= []);
+  const row = list.find((b) => b.source === source);
+  if (row) { row.attack += da; row.health += dh; row.count += 1; } else list.push({ source, attack: da, health: dh, count: 1 });
+}
+
+/** Set 4 Beasts (Shop): did a friendly `params.tribe` body (default Beast) take a landed hit? */
+function shopTribeHit(state: RunState, self: BoardCard, params: Record<string, unknown>, payload: unknown): boolean {
+  const p = payload as { minion?: BoardCard; amount?: number } | undefined;
+  if (!p?.minion || (p.amount ?? 1) <= 0) return false;
+  if (!state.board.includes(self) || !state.board.includes(p.minion)) return false;
+  return isTribe(p.minion, (str(params.tribe) || 'beast') as Tribe);
+}
+
+/**
+ * WHISP — "When you cast a Whisper on a Dragon, also cast it on this." A FULL cast of the same Whisper (at the same
+ * multiplier) on every Whisp on the board other than the target, x golden (the Mirrorwing ruling: a re-cast is a real
+ * cast, so Runebind improves again and the cast counts). The echo casts never echo again (`WHISP_ECHOING`), so two
+ * Whisps cannot feed each other.
+ */
+let WHISP_ECHOING = false;
+function whisperEchoOnDragons(state: RunState, def: CardDef, target: BoardCard): void {
+  if (WHISP_ECHOING || !isTribe(target, 'dragon')) return;
+  const whisps = state.board.filter((c) => c !== target && instanceEffects(c).some((e) => e.do === 'whisperEchoOnDragon'));
+  if (whisps.length === 0) return;
+  WHISP_ECHOING = true;
+  try {
+    for (const w of whisps) {
+      const eff = instanceEffects(w).find((e) => e.do === 'whisperEchoOnDragon');
+      const n = num(eff?.params?.count, 1) * gold(w);
+      for (let i = 0; i < n && state.board.includes(w); i++) {
+        recordBounceFx(state, 'spell', target.uid, w.uid); // the hop: the Dragon it landed on -> Whisp
+        castSpell(state, def, w);
+      }
+    }
+  } finally { WHISP_ECHOING = false; }
+}
+
 /** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained, plus the
  *  run-level Motherlode reward, which is the same rule with no minion source. */
 function fireOnRubyGained(state: RunState): void {
@@ -4610,6 +4819,64 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const v = 1 + (ctx.state.clueBonus ?? 0);
     addBuff(self, str(params._source) || 'Clue', v, v);
     ctx.state.clueBonus = (ctx.state.clueBonus ?? 0) + 1;
+  },
+
+  // ── SET 4 WHISPERS (owner 2026-10-13) ─────────────────────────────────────────────────────────────────────
+  /** A Whisper's cast (Tome / Runebind): the target gets the Whisper's CURRENT value as a TEMPORARY buff (expires at
+   *  the next Start of Turn, R-WHISPER-02), x the cast Whisper's own multiplier (a Gilded granter's Whisper is worth
+   *  double). Runebind then improves EVERY Runebind for the run (`whisperImprove`), x the same multiplier ("Gilded =
+   *  double the value and the improve"). Read-then-improve, so a Yazzus repeat pays the improved value on its second
+   *  cast, exactly as a Clue does. No spell power (the Gift rule). `self` is the TARGET (the spell-cast convention). */
+  whisperBuffTarget: (ctx, self, params) => {
+    const spellId = str(params._spellId);
+    const def = CARD_INDEX[spellId];
+    if (!def) return;
+    const m = currentWhisperMult();
+    const v = whisperValue(ctx.state, def);
+    applyWhisperBuff(self, str(params._source) || def.name, v.attack * m, v.health * m);
+    const imp = num(params.improve, 0);
+    if (imp > 0) {
+      const map = (ctx.state.whisperImprove ??= {});
+      map[spellId] = (map[spellId] ?? 0) + imp * m;
+    }
+  },
+
+  /** Tamby: when a WHISPER is cast on this, get a copy of it (x golden copies), once per turn. The copy is that same
+   *  Whisper at the same multiplier, so it vanishes at End of Turn like any Whisper. A re-cast landing on this again
+   *  cannot pay twice: the once-per-turn latch is set before the copy is minted. */
+  whisperCastOnThisCopy: (ctx, self, params, payload) => {
+    const def = (payload as { spellDef?: CardDef } | undefined)?.spellDef;
+    if (!def?.whisper || self.whisperCopiedThisTurn) return;
+    if (!ctx.state.board.includes(self)) return;
+    self.whisperCopiedThisTurn = true;
+    mintWhisper(ctx.state, def.id, num(params.count, 1) * gold(self), currentWhisperMult());
+  },
+
+  /** Galas / Tolan (Start of Turn): every granter still on the board hands over a fresh copy of its Whisper, each its
+   *  own Start-of-Turn beat (the dispatcher wraps it, R-SOT-BEAT-01). A Gilded granter's copy is worth double. The
+   *  on-play grant reads the same marker from the reducer (`grantWhispersOnPlay`). */
+  grantWhisper: (ctx, self, params) => {
+    mintWhisper(ctx.state, str(params.cardId), 1, gold(self));
+  },
+
+  // ── SET 4 BEASTS (owner 2026-10-13, R-WOUND-01): the Shop halves of the arena bodies ──
+  /** Hawg (Shout): 1 damage to this, your Beasts +1 Health (never lethal), x golden ticks. */
+  shoutWoundSelfMendTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.shoutWoundSelfMendTribe(shopArena(ctx.state, self), params);
+  },
+  /** Eatah (Echo, a Shop death or a forced Echo): 1 damage to your Beasts and +1 Health each (never lethal). */
+  deathrattleWoundMendTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleWoundMendTribe(shopArena(ctx.state, self), params);
+  },
+  /** Apua (Shop): a friendly `tribe` body on the board took a landed hit -> this +a/+h (a Shop buff is permanent). */
+  onTribeDamagedBuffSelf: (ctx, self, params, payload) => {
+    if (!shopTribeHit(ctx.state, self, params, payload)) return;
+    ARENA_EFFECTS.onTribeDamagedBuffSelf(shopArena(ctx.state, self), params);
+  },
+  /** Alan (Shop): a friendly `tribe` body took a landed hit -> a random OTHER friendly `tribe` minion +a/+h. */
+  onTribeDamagedBuffRandomTribe: (ctx, self, params, payload) => {
+    if (!shopTribeHit(ctx.state, self, params, payload)) return;
+    ARENA_EFFECTS.onTribeDamagedBuffRandomTribe(shopArena(ctx.state, self), params);
   },
 
   /** Set 2 — Frenzied Excavator (Shout): play `rubies` Rubies on EVERY friendly minion (× golden).
@@ -10521,9 +10788,35 @@ export function spellEscalationLive(state: RunState): { attack: number; health: 
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]> }): string {
+/**
+ * SET 4 — a Whisper's printed text with its CURRENT value IN PLACE (the live-text rule): the value per cast
+ * (`whisperValue`) x the held copy's multiplier, green when it differs from the printed base; a stepping Whisper
+ * (Tome) appends the countdown to its next step; an improving one (Runebind) names how much each cast improves it.
+ */
+export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
+  const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
+  const p = (eff?.params ?? {}) as { attack?: number; health?: number; perSpells?: number; improve?: number };
+  const baseA = num(p.attack, 1), baseH = num(p.health, 1);
+  const m = Math.max(1, extra?.whisperMult ?? 1);
+  const v = whisperValue({ spellsCast: extra?.spellsCast ?? 0, rubyCasts: extra?.rubyCasts ?? 0, whisperImprove: extra?.whisperImprove }, def);
+  const a = v.attack * m, h = v.health * m;
+  let text = a !== baseA || h !== baseH ? def.text.replace(`**+${baseA}/+${baseH}**`, `{{+${a}/+${h}}}`) : def.text;
+  const per = num(p.perSpells, 0);
+  if (per > 0) {
+    const toNext = per - (allSpellsCastThisGame({ spellsCast: extra?.spellsCast ?? 0, rubyCasts: extra?.rubyCasts ?? 0 }) % per);
+    text = text.replace(`every ${per} spells cast this game.`, `every ${per} spells cast this game${m > 1 ? ` (by **+${baseA * m}/+${baseH * m}**)` : ''}, {{${toNext} to go}}.`);
+  }
+  const imp = num(p.improve, 0);
+  if (imp > 0) text = text.replace('Improve this.', `Improve this by **+${imp * m}/+${imp * m}**.`);
+  return text;
+}
+
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // Set 4 — a WHISPER reads live (R-TEXT live rule): its CURRENT value per cast, x the held copy's multiplier, with the
+  // countdown to its next step when it steps (Tome). Checked before the flat-Gift early return below.
+  if (def.whisper) return whisperLiveText(def, extra);
   // Set 3 — a FLAT hand spell (Tower Shield: every cast effect opts out of spell power via `flat`) prints exactly
   // its base — folding the run's spell power into the text would promise a value the cast never grants.
   if (def.gift && def.effects.length > 0 && def.effects.every((e) => e.on !== 'cast' || e.params?.flat === true)) return def.text;
@@ -11192,6 +11485,7 @@ function shopSprayExceptTribe(state: RunState, amount: number, exc: string, sour
       if (c.health <= 0 || !state.board.includes(c)) continue;
       c.health -= amount;
       if (demonSource) fireShopDemonDealtDamage(state, source!, p);
+      fireShopDamaged(state, c, amount); // Set 4: a landed hit wakes the Shop's damage-taken watchers (Apua / Alan)
     }
   }
   const dead = state.board.filter((c) => c.health <= 0);
@@ -13225,7 +13519,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       // Beast AGAIN at Start of Combat. Stored as {spellId, uid} rather than as stats, so the re-cast runs the
       // real spell in combat — a spell whose value scales with run state pays its live value, not this one.
       const def = CARD_INDEX[target.cardId];
-      if (state.runeSpellhide && !state.spellhideUsedThisTurn && (def?.tribe === 'beast' || def?.tribe2 === 'beast' || hasRunTribe(ctx.state, def?.id ?? '', 'beast'))) {
+      // A WHISPER is never banked (Set 4): its grant is a temporary Shop buff, not a spell combat can re-cast.
+      if (!spellDef.whisper && state.runeSpellhide && !state.spellhideUsedThisTurn && (def?.tribe === 'beast' || def?.tribe2 === 'beast' || hasRunTribe(ctx.state, def?.id ?? '', 'beast'))) {
         state.spellhideUsedThisTurn = true;
         (state.spellhidePending ??= []).push({ spellId: spellDef.id, uid: target.uid });
       }
@@ -13237,6 +13532,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
   // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.
   if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
+  // SET 4 — WHISP: a Whisper cast on a Dragon is also cast on every Whisp (a full cast each, never re-echoing).
+  if (spellDef.whisper && target && state.board.includes(target)) whisperEchoOnDragons(state, spellDef, target);
   // Rune of Lorekeeping (balance 9/23: "when you cast a spell on a minion, give it an additional +3/+3" — owner:
   // "works with all spells, rubies, clues etc"): ANY spell cast ON a friendly minion — Shop spells and Gifts
   // (a Clue is a Gift) here; a Ruby is not a `castSpell` and pays from its landing site (`fireOnRubyPlayed`).

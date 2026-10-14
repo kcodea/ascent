@@ -1889,6 +1889,18 @@
         "def": "gasket",
         "fanOut": "struck"
       }
+    },
+    "b4_hawg": {
+      "damage": {
+        "def": "beast-self-damage"
+      }
+    },
+    "b4_eatah": {
+      "damage": {
+        "def": "beast-damage-dealt",
+        "fanOut": "struck",
+        "launchOnDeath": true
+      }
     }
   }
 }

@@ -249,6 +249,9 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Gasket (owner FX 2026-10-10): the blast plays ON every unit a Rally pass struck, on the pass's beat. `shieldPop`
   // too, since a pass whose first victim has a Ward compiles to a shieldPop-led moment.
   dm_gasket: { damage: { def: 'gasket', fanOut: 'struck' }, shieldPop: { def: 'gasket', fanOut: 'struck' } },
+  // Set 4 Beasts (owner Workbench exports 2026-10-13): Hawg's self-hit burst; Eatah's Echo ribbon on every Beast it hits.
+  b4_hawg: { damage: { def: 'beast-self-damage' } },
+  b4_eatah: { damage: { def: 'beast-damage-dealt', fanOut: 'struck', launchOnDeath: true } }, // the Fel Spikes delivery: the ribbon leaves the dying body
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true }, minionPlayed: { def: 'sfx-vo-dm-felspikes', gain: 0.3 }, death: { def: 'sfx-vo-dm-felspikes-death', gain: 0.3 } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' }, minionPlayed: { def: 'sfx-vo-dm-tormentor', gain: 0.3 }, death: { def: 'sfx-vo-dm-tormentor-death', gain: 0.3 } },
   dw_pimm: { shout: { def: 'coin-shout', sfx: 'maxGold' }, death: { def: 'sfx-vo-dw-pimm-death', gain: 0.3 } }, // On Play is the coin Shout, so no line (owner 2026-09-27)

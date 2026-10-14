@@ -2140,6 +2140,56 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    (see HAND CARD BACKPLATE), because the plate is wider than the card box and starts above it.
    PERF: nothing here animates; the shadow is static paint. */
 .cardloan { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
+/* SET 4 WHISPER: ITS OWN PAINTED PLATE (owner 2026-10-14: "use this as the whisper frame instead"). A Whisper wears the
+   owner's painted blue-violet plate (`frames/cardplate-whisper.webp`, picked in Card.tsx `WHISPER_PLATE_SRC`), which
+   shares the cardplate geometry, so the art window, name, text and spell crystal sit exactly where a Shop spell's do.
+   The art window stays at FULL colour (owner 2026-10-14). The old CSS hue tint (a sepia + hue-rotate filter on the
+   plate, the arch frame and the medallion) is GONE: the painted plate carries the identity, the arch frame and the
+   spell crystal render untinted, exactly as on a Shop spell.
+
+   The ACCENTS (name ink, the kind line on the bottom gem, the art rim, the arrival shimmer and the hover ripple) take
+   one hue that matches the plate's blue-violet: `--whisper-hue` (an HSL hue, degrees as a number), 250 by default.
+   PERF: every layer is static paint; the only animations are the one arrival shimmer and the one-shot hover ripple
+   (transform + opacity, run once each). No drawn props: the plate is painted art. */
+:root { --whisper-hue: 250; }
+.card.whispercard {
+  --wh: var(--whisper-hue);
+  --wh-ink: hsl(var(--wh) 90% 88%);
+  --wh-kind: hsl(var(--wh) 95% 80%);
+}
+.card.whispercard .art { box-shadow: inset 0 0 0 1px hsl(var(--wh) 80% 78% / 0.7); }
+/* THE HOVER RIPPLE (owner 2026-10-14): `whisperRipple` (Card.tsx) adds `.wripple` to the art window on mouse enter,
+   throttled to one per 400 ms and never while one is running. Two rings of the hue, painted ONCE (static gradients on a
+   pseudo-element), scale out from the centre and fade: transform + opacity only, 0.7 s, then the class comes off. The
+   art itself is untouched (full colour, owner 2026-10-14: "make the art not faded"). */
+.card.whispercard .art.wripple::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 140%; aspect-ratio: 1; pointer-events: none; z-index: 2;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 54%, hsl(var(--wh) 95% 80% / 0.75) 58%, transparent 63%),
+    radial-gradient(circle, transparent 30%, hsl(var(--wh) 95% 87% / 0.55) 34%, transparent 39%);
+  transform: translate(-50%, -50%) scale(0.15); opacity: 0;
+  animation: whisperripple 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) 1;
+}
+@keyframes whisperripple {
+  0% { transform: translate(-50%, -50%) scale(0.15); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+.card.whispercard .art::before {
+  content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 45%; pointer-events: none; z-index: 3;
+  background: linear-gradient(100deg, transparent 0%, hsl(var(--wh) 90% 92% / 0.6) 50%, transparent 100%);
+  opacity: 0; transform: translateX(-120%) skewX(-12deg);
+  animation: whispershimmer 0.9s ease-out 0.15s 1 both;
+}
+@keyframes whispershimmer {
+  0% { opacity: 0; transform: translateX(-120%) skewX(-12deg); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(260%) skewX(-12deg); }
+}
+/* The name and the kind line in the hue's light ink (dark outline kept for contrast on the plate). */
+.card.whispercard .cn, .card.whispercard .cn-t, .card.compact.showtext.whispercard .drawer .cn { color: var(--wh-ink); }
+.card.plated.whispercard .plate-tribe.spellkind, .card.compact.showtext.whispercard .drawer .dtribe.spellkind { color: var(--wh-kind); }
 .cardloan-tag {
   position: absolute; left: 50%; bottom: calc(100% + var(--ccw) * 0.03); transform: translateX(-50%);
   white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1); line-height: 1;

@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Improve no longer shows a definition pill when you hover a card. The word stays in card text.',
+      },
+      {
+        category: 'Systems',
         text: 'Removed the old win target number and some outdated story words.',
         details: [
           'The round plaque, the hero picker and the end screen no longer show the old win target.',

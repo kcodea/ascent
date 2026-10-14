@@ -608,9 +608,28 @@ export function computeFrame(
       if (e?.type === 'dmg' && typeof e.source === 'string' && e.wave !== undefined && beatWaves.has(e.wave)) dealingSources.add(e.source);
     }
   }
+  // A RISING body's slot is HELD from its (rise-flagged) death until its `reborn` lands (owner report 2026-10-14, Eatah:
+  // "it janks the board around when it rises"). Between the two the sim fires its Echo (Eatah's hits, the reactions,
+  // the +Health), and without the hold the survivors slid into the empty slot on the first beat that was not the body's
+  // own damage, then slid back out when it rose. Only a death whose Rise really returns LATER in the log holds (a Rise
+  // that found no room stays dead, and its slot closes as before); the held body is a ghost, invisible.
+  const risingHeld = new Set<string>();
+  if (gone.size > 0) {
+    const pending = new Set<string>();
+    for (let i = 0; i < Math.min(upto, events.length); i++) {
+      const e = events[i];
+      if (e?.type === 'death' && e.rise && gone.has(e.target)) pending.add(e.target);
+      else if (e?.type === 'reborn') pending.delete(e.target);
+    }
+    for (let i = Math.min(upto, events.length); i < events.length && pending.size > 0; i++) {
+      const e = events[i];
+      if (e?.type === 'reborn' && pending.has(e.target)) { risingHeld.add(e.target); pending.delete(e.target); }
+      else if (e?.type === 'death' && pending.has(e.target)) pending.delete(e.target);
+    }
+  }
   const keep = (u: UnitFrame): boolean => {
     if (!gone.has(u.uid)) return true;
-    if (dealingSources.has(u.uid)) { u.ghost = true; return true; } // kept ONLY to anchor its own FX → invisible
+    if (dealingSources.has(u.uid) || risingHeld.has(u.uid)) { u.ghost = true; return true; } // kept ONLY to hold its slot / anchor its FX → invisible
     return false;
   };
   return { player: player.filter(keep), enemy: enemy.filter(keep) };

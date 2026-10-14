@@ -150,3 +150,17 @@ the replay's hit-reaction split (`hitReactionStart` / `reactionTicks`) gives the
 reaction fire as its own tick on the shared stride (`REACTION_TICK_MS` 160 ms, chain capped at 1.6 s). Apua and Alan
 are `ownBeat` reactions for that split. The +Health is one later wave. In the Shop, a self-damage action paces its
 waves on `reactionTickStrideMs`. Pinned by `packages/ui/src/choreo/set4WoundBeats.test.ts`.
+
+## Eatah in combat: no row reflow, clean beat order (owner 2026-10-14, R-RISE-ROW-01)
+
+Owner: "eatah is doing really janky stuff in combat ... it janks the board around when it rises". Reproduced with
+Hawg | Eatah | Apua | Alan against a sandbag (`packages/ui/src/choreographer/eatahRiseRow.test.ts`). The beat schedule
+was already in the right ENGINE order (death, Echo hits, reactions, +Health, Rise; R-WOUND-01 and "Echo first, then the
+Rise"). The jank was the ROW: the replay keeps a dead body only on beats where it is still dealing damage, so after the
+Rise death the dead Eatah left the row on the clash-reaction beat (Apua / Alan answering the lethal hit), came back as a
+ghost for its Echo hits and their reaction ticks, left again on the +Health beat, and reappeared on the Rise: the
+survivors slid left and right three times. Fix (presentation only): `computeFrame` holds a ghost in the slot of any
+body whose Rise death has a `reborn` LATER in the log, from that death until the return; a Rise that finds no room holds
+nothing. Beat order now reads: death, the clash reactions, Echo hits, reaction ticks (the #2074 stride), +Health
+(twice each, Gilded), Rise, and every frame in between keeps Hawg | (Eatah) | Apua | Alan. The row test fails on the old
+code (the row closed at the first beat after the death).

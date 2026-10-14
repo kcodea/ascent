@@ -4557,6 +4557,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   --m-scolor: var(--smed-gift-shadow-color, rgba(0, 0, 0, 1));
   --m-gsize: var(--smed-gift-glow-size, 9px); --m-gcolor: var(--smed-gift-glow-color, rgba(196, 91, 255, 0.68));
 }
+/* WHISPER (Set 4, the three cyan arcs, owner art 2026-10-14): sits in the spell shard's exact box and anchor (same size,
+   offset and shadow as `spell`), so the layout never shifts. The art is trimmed and seated on a square canvas with its
+   visual mass (alpha centroid) at the centre, so the right-heavy arcs do not read off-centre; size 1 = the shard's
+   0.94 once the canvas padding is allowed for. No tuner
+   vars of its own yet. */
+.spellmed[data-med='whisper'] {
+  --m-size: 1; --m-dx: 4px; --m-dy: 0px;
+  --m-sx: 0px; --m-sy: 4.5px; --m-sblur: 6.5px; --m-scolor: rgba(0, 0, 0, 1);
+  --m-gsize: 3px; --m-gcolor: rgba(77, 243, 255, 0.45);
+}
 /* HERO POWER (the emerald helm, owner art 2026-10-12): the medallion a hero power wears when it is drawn as a card. */
 .spellmed[data-med='power'], .smedprev-cell[data-med='power'] {
   --m-size: var(--smed-power-size, 0.72); --m-dx: var(--smed-power-dx, 0px); --m-dy: var(--smed-power-dy, 3px);

@@ -187,3 +187,13 @@ the art window. Its size, transparent window (0.125-0.877 x 0.223-0.943) and gem
 identical to `spell-frame-arch.webp`, so `Card.tsx` swaps the src (`WHISPER_SPELL_FRAME_SRC`, also on the grounding
 shadow copy) for any Whisper with no CSS change. Shipped as `frames/whisper-spell-frame.webp` (628x768, alpha), named
 outside `spell-*` so the preload plan keeps it off the chrome lane while Set 4 is disabled.
+
+## Whisper medallion (owner 2026-10-14: "change the whisper spell medallion from the spell shard to whispermedallion")
+
+Whisper cards wear the owner's three cyan crystal arcs (`whispermedallion.png`, 1334x1179) where a Shop spell wears
+the spell shard, on every surface (`data-med="whisper"`; the kind attr stays `spell`, so the kind line's seat and
+colour are unchanged). The art is trimmed, seated on a square canvas with its alpha centroid at the centre (the arcs
+are right-heavy, so a bbox centre read off-centre), and shipped at 320x320 like the other medallions as
+`frames/whisper-medallion.webp`: under `frames/`, not `medallions/`, because the preload plan puts `medallions/` on the
+chrome lane and Set 4 is disabled. Same box, anchor and shadow as the shard (`--m-dx 4px`, size 1 = the shard's 0.94
+after the canvas padding).

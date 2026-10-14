@@ -42,4 +42,17 @@ describe('spell kind: medallion + tribe-line label', () => {
       expect(el.textContent).not.toMatch(/✦ Spell|◆ Ruby/);
     }
   });
+
+  // Set 4 (owner 2026-10-14): a Whisper wears its own medallion (the three cyan arcs) in the spell shard's box, and its
+  // kind line reads Whisper (the kind attr stays 'spell', so its colour and seat match a Shop spell).
+  it('a Whisper wears the whisper medallion and reads "Whisper" (plated and unplated)', () => {
+    for (const plated of [true, false]) {
+      const el = render('w4_tome', { plated });
+      const medallion = el.querySelector('.ctype.spell.spellmed')!;
+      expect(medallion.getAttribute('data-med')).toBe('whisper');
+      expect(medallion.getAttribute('aria-label')).toBe('Whisper');
+      expect(medallion.querySelector('img')?.getAttribute('src')).toContain('frames/whisper-medallion.webp');
+      expect(el.querySelector('.spellkind')!.textContent).toBe('Whisper');
+    }
+  });
 });

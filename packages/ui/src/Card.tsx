@@ -86,7 +86,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 // load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
 // without this, any non-identity default baked into that file would silently never apply to players.
 import './cardPillsConfig';
-import { GIFT_MEDALLION_SRC, POWER_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC } from './spellMedallion';
+import { GIFT_MEDALLION_SRC, POWER_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC, WHISPER_MEDALLION_SRC } from './spellMedallion';
 import { artFor, artVariantKey } from './art';
 import { useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
@@ -1255,8 +1255,8 @@ export const Card = memo(function Card({
             the gold arch frame so a tripled minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><FadeImg className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
         {spellLike ? (
-          <span className="ctype spell spellmed" data-med={spellKindAttr} role="img" aria-label={spellKind}>
-            <FadeImg className="spellmed-img" src={spellKindAttr === 'power' ? POWER_MEDALLION_SRC : spellKindAttr === 'ruby' ? RUBY_MEDALLION_SRC : spellKindAttr === 'gift' ? GIFT_MEDALLION_SRC : SPELL_MEDALLION_SRC} alt="" aria-hidden="true" draggable={false} />
+          <span className="ctype spell spellmed" data-med={whisperLook && spellKindAttr === 'spell' ? 'whisper' : spellKindAttr} role="img" aria-label={spellKind}>
+            <FadeImg className="spellmed-img" src={spellKindAttr === 'power' ? POWER_MEDALLION_SRC : spellKindAttr === 'ruby' ? RUBY_MEDALLION_SRC : spellKindAttr === 'gift' ? GIFT_MEDALLION_SRC : whisperLook ? WHISPER_MEDALLION_SRC : SPELL_MEDALLION_SRC} alt="" aria-hidden="true" draggable={false} />
           </span>
         ) : (
           <>

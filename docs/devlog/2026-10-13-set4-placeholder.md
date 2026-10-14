@@ -142,3 +142,11 @@ ONE switch: `:root { --whisper-hue: 178; }` in `styles.css` (178 spectral teal, 
   the Dwarven Ales (`wo_*`, Rush Order, On the House), the Ruby / Kobold spells (Ruby Shipment, Facetwright,
   Veinstorm, Ruby Transfer), the Undead pair (Lantern of Souls, Undead Army), the Celestial / Starform spells (Star
   Crash, Accretion) and the Spirit spell (Crescendo). The Scene Builder reads "Set 4 · 8 minions · 44 spells".
+
+## Aligned with #2074's reaction ticks (2026-10-14)
+
+After #2074 merged, the combat self-damage step puts the hits AND their held reactions in ONE wave (hits first), so
+the replay's hit-reaction split (`hitReactionStart` / `reactionTicks`) gives the hits their own beat and plays each
+reaction fire as its own tick on the shared stride (`REACTION_TICK_MS` 160 ms, chain capped at 1.6 s). Apua and Alan
+are `ownBeat` reactions for that split. The +Health is one later wave. In the Shop, a self-damage action paces its
+waves on `reactionTickStrideMs`. Pinned by `packages/ui/src/choreo/set4WoundBeats.test.ts`.

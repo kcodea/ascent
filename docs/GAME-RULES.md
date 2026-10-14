@@ -880,8 +880,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
 - **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP,
   achievements and match history are intended (match history = the server's match and round rows; XP/achievements
   await the progression server change, see R-VERSUS-RANK-01).
-- **Spectators** receive a live keyframe + delta stream of both players' full visible shop state; the viewer UI is
-  Phase 2.
+- **Spectators** watch live (Phase 2). From the shop onwards a spectator sees ONE player's full game screen at a time,
+  the real shop and combat screens from that player's side (shop, hand, board, Gold, tier, hero and power, runes,
+  quests, Equipment, open choices, the clock, hearts, every fight and its recap), and switches players instantly from
+  the bar at the top left (click a player, or press 1 / 2); in a fight it picks whose side the fight is shown from. It
+  is view only: no action, no aim and no emote goes through, but a right-click inspect of what is on screen works.
+  Joining mid-match lands on the current moment; Leave (or the Esc menu) returns to the room, and Watch goes back. The
+  room shows how many are watching (of 20). A spectator never changes the players' timing: with no one watching a
+  player's client publishes nothing at all.
 
 ## Health & economy
 

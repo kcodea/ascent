@@ -98,6 +98,8 @@
 .vsseatbtns { position: relative; z-index: 1; display: flex; flex-direction: column; gap: calc(8 * var(--u)); align-items: center; }
 .vsroomtop { position: absolute; top: calc(var(--bar-y, 0px) + 20 * var(--u)); left: calc(var(--bar-x, 0px) + 24 * var(--u)); display: flex; align-items: center; gap: calc(16 * var(--u)); }
 .vsroomtitle { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(30 * var(--u)); color: #f7ecd2; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
+/* The stands' count beside the room name (Versus phase 2). */
+.vsroomwatch { font-family: var(--font-ui); font-weight: 700; font-size: calc(16 * var(--u)); color: rgba(247, 236, 210, 0.75); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
 .vsroomctl { position: absolute; bottom: calc(var(--bar-y, 0px) + 20 * var(--u)); left: calc(var(--bar-x, 0px) + 24 * var(--u)); display: flex; gap: calc(12 * var(--u)); }
 .vsroomerror { position: absolute; top: calc(var(--bar-y, 0px) + 80 * var(--u)); left: 50%; translate: -50% 0; }
 
@@ -300,3 +302,26 @@
 
 /* The match stats overlay's card inspect opens ABOVE it (the overlay is z560): its own boards are inspectable. */
 body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
+
+/* ── VERSUS SPECTATOR BAR (SpectatorBar.tsx, phase 2): top left of the stage, clear of the Tier stone. Both players as
+   name-pill plates (seat portrait, name, hearts, the 1 / 2 hotkey), the watched one lit on the Gem hover plate. Static;
+   the plates are BUTTONS (the global gauntlet cursor paints them). ── */
+.vsspec { position: fixed; z-index: 70; left: calc(var(--bar-x, 0px) + 22 * var(--u)); top: calc(var(--bar-y, 0px) + 16 * var(--u));
+  display: flex; align-items: center; gap: calc(10 * var(--u)); pointer-events: auto; }
+.vsspec-label { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ui-title, #ffd98a); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+.vsspec-seats { display: flex; gap: calc(8 * var(--u)); }
+.vsspec-seat { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(12 * var(--u)) calc(4 * var(--u)) calc(4 * var(--u));
+  border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); line-height: 1.1; white-space: nowrap;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); opacity: 0.72;
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); transition: opacity 0.12s ease, transform 0.12s ease; }
+.vsspec-seat:hover { opacity: 1; transform: translateY(-1px); }
+.vsspec-seat.on { opacity: 1; }
+:root[data-hp-look="gem"] .vsspec-seat.hudpill-name.on { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.vsspec-seat .mds-portrait { --ring: calc(38 * var(--u)); }
+.vsspec-name { max-width: calc(150 * var(--u)); overflow: hidden; text-overflow: ellipsis; }
+.vsspec-hearts { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: #ff9db0; }
+.vsspec-hearts svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--threat); }
+.vsspec-key { font-family: var(--font-ui); font-weight: 800; font-size: calc(10 * var(--u)); padding: 0 calc(5 * var(--u)); border-radius: calc(4 * var(--u));
+  border: 1px solid currentColor; opacity: 0.55; }
+.vsspec-leave { font-size: calc(13 * var(--u)); }

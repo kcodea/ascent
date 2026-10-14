@@ -32,6 +32,7 @@ import { installVersusEmotes, receiveVersusEmote, uninstallVersusEmotes, VERSUS_
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
+import { installSpectateIo, receiveSpectate, resetSpectate, SPECTATE_KEY_EVENT, spectateSync } from './spectate';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -232,6 +233,12 @@ function enterRoom(room: VersusRoom): void {
   stopSession();
   set({ room, screen: 'room', error: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
   session = { roomId: room.id, matchId: null, channel: null, beat: 0, tick: 0, wake: null, lastFinalize: 0, candidateSeq: 0, publisher: null, unsubRun: null, unsubGates: useVersus.subscribe(driveGates) };
+  installSpectateIo({
+    latestFrames: (id) => versusRemote.latestFrames(id),
+    requestKey: () => session?.channel?.send(SPECTATE_KEY_EVENT, {}),
+    loadRounds: () => { const m = get().match; if (m) void loadRounds(m).then(() => spectateSync(get().match, get().rounds)); },
+    lobbyFor: spectatorLobbyFor,
+  });
   subscribe(room.current_match_id);
   session.beat = window.setInterval(() => void heartbeat(), 4000);
   session.tick = window.setInterval(onTick, 500);
@@ -250,6 +257,8 @@ function stopSession(): void {
   if (entryGate) { entryGate.cancelled = true; cancelRankedGate(); entryGate = null; }
   uninstallVersusEmotes();
   installVersusHandlers(null);
+  installSpectateIo(null);
+  resetSpectate();
   session = null;
 }
 
@@ -264,6 +273,9 @@ function subscribe(matchId: string | null): void {
     scheduleRefresh(what);
   }, (event, payload) => {
     if (event === VERSUS_EMOTE_EVENT) receiveVersusEmote(payload);
+    else if (event === 'spectate') { if (!mySeat()) receiveSpectate(payload); }
+    // A spectator lost its place: the next deferred publish sends a keyframe (coalesced, never per spectator).
+    else if (event === SPECTATE_KEY_EVENT) { if (mySeat() && session?.matchId) { keyWanted = true; frames.schedule({ matchId: session.matchId, forceKey: true }); } }
   });
   // A channel swap mid-match keeps the emote transport on the live channel.
   const seat = mySeat();
@@ -304,6 +316,8 @@ async function refreshRoom(): Promise<void> {
     const room = await versusRemote.room(session.roomId);
     if (!room) { await leaveRoom(); return; }
     set({ room });
+    // A new spectator in the stands while I play: the next deferred publish sends them a keyframe.
+    if (mySeat() && session.matchId && useGame.getState().run.mode === 'versus') frames.schedule({ matchId: session.matchId, forceKey: false });
     if (room.current_match_id && room.current_match_id !== session.matchId) {
       subscribe(room.current_match_id);
       await refreshMatch(room.current_match_id);
@@ -379,7 +393,12 @@ async function onMatch(match: VersusMatch): Promise<void> {
   }
   set({ match });
   const seat = mySeat(match);
-  if (!seat) return; // a spectator: nothing to drive
+  if (!seat) {
+    // A SPECTATOR (Versus phase 2): nothing to drive. The committed rounds feed the fights it watches.
+    if (match.round > 0) await loadRounds(match);
+    spectateSync(match, get().rounds);
+    return;
+  }
 
   if (!get().priv || get().priv!.match_id !== match.id) {
     const priv = await versusRemote.myPrivate(match.id).catch(() => null);
@@ -451,6 +470,10 @@ function versusLobbyInput(): VersusLobbyInput | null {
   const seat = mySeat(match);
   const run = useGame.getState().run;
   if (!match || !seat || run.mode !== 'versus' || builtFor !== match.id) return null;
+  return lobbyInputFor(match, seat, run);
+}
+/** The two-seat lobby input from `seat`'s side (a spectator builds it for the player it watches, too). */
+function lobbyInputFor(match: VersusMatch, seat: VersusSeat, run: Pick<RunState, 'wave' | 'phase' | 'combatSettled' | 'heroId' | 'cosmetics'>): VersusLobbyInput {
   const other: VersusSeat = seat === 'p1' ? 'p2' : 'p1';
   const foeUser = other === 'p1' ? match.p1_user : match.p2_user;
   const foeProfile = get().room?.members.find((m) => m.userId === foeUser)?.profile;
@@ -470,6 +493,15 @@ function versusLobbyInput(): VersusLobbyInput | null {
     })),
   };
 }
+/** A SPECTATOR's two-seat lobby for the player it watches, when that player's view carries none (a test bot). */
+export function spectatorLobbyFor(seat: VersusSeat, run: RunState): RunState['lobby'] {
+  const match = get().match;
+  if (!match) return undefined;
+  const lobby = versusLobby(lobbyInputFor(match, seat, run));
+  resetLobbyDrivers(lobby.seats);
+  return lobby;
+}
+
 export function syncVersusLobby(): void {
   const input = versusLobbyInput();
   if (!input) return;
@@ -640,11 +672,21 @@ const candidates = createDeferredWriter<{ matchId: string; seat: VersusSeat }>((
   void versusRemote.submit(matchId, match.round, session.candidateSeq, side, false, null, versusScoutOf(run)).catch(() => undefined);
 }, 600);
 
+/** How many spectators were in the room at the last publish: a new arrival gets a keyframe. */
+let watchersSeen = 0;
+/** A spectator asked for a keyframe: sticky until the next publish, whatever else was scheduled meanwhile. */
+let keyWanted = false;
 const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ matchId, forceKey }) => {
   const pub = session?.publisher;
   const run = useGame.getState().run;
   if (!session || !pub || run.mode !== 'versus') return;
-  const msg = nextSpectatorMessage(pub, run, run.wave, forceKey);
+  // No one watching: no projection work at all (a spectator never costs a player anything it does not need).
+  const watchers = get().room?.members.filter((m) => m.role === 'spectator').length ?? 0;
+  const arrived = watchers > watchersSeen;
+  watchersSeen = watchers;
+  if (watchers === 0) return;
+  const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted);
+  keyWanted = false;
   if (!msg) return;
   session.channel?.send('spectate', msg);
   if (msg.kind === 'key') void versusRemote.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);

@@ -12,7 +12,7 @@
  * stage scale. Static image, no looping paint; the gauntlet cursor comes from the global button rule.
  */
 import { useEffect, useState, type CSSProperties } from 'react';
-import { VERSUS_HEARTS } from '@game/sim';
+import { VERSUS_HEARTS, VERSUS_SPECTATOR_CAP } from '@game/sim';
 import { avatarSrc } from '../art';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
@@ -23,6 +23,7 @@ import { displaySeconds } from './versusClock';
 import { VersusMatchStats } from './VersusMatchStats';
 import { setVersusBotDisconnected, startVersusBot, stopVersusBot, useVersusBot } from './versusBot';
 import { versusTestToolsEnabled } from './versusFlag';
+import { resumeSpectating } from './spectate';
 import { leaveRoom, myRole, setVersusStatsOpen, startGame, takeSeat, useVersus, versusRemainingMs, type VersusState } from './versusStore';
 import type { VersusMember } from './versusRemote';
 import './versus.css';
@@ -106,7 +107,7 @@ export function VersusRoom() {
   if (room.status === 'sealed') status = isPlayer ? null : `The players are getting ready. ${gateLeft}s left.`;
   else if (open && !host && isPlayer) status = 'Waiting for the host to start.';
   else if (running && match!.phase === 'hero_select' && !isPlayer) status = 'The players are choosing heroes.';
-  else if (running && match!.phase !== 'hero_select' && !isPlayer) status = `Round ${match!.round}. The live view is coming soon.`;
+  else if (running && match!.phase !== 'hero_select' && !isPlayer) status = `Round ${match!.round} is live.`;
 
   return (
     <div className="vsroomstage" role="dialog" aria-label={`Versus room ${room.name}`} style={{ '--vs-seat-mask': `url(${seatMask})`, '--vs-arena': `url(${arenaArt})` } as CSSProperties}>
@@ -121,6 +122,10 @@ export function VersusRoom() {
             <button className="vsplate vsstartbtn" disabled={!seat('p1') || !seat('p2')} onClick={() => { sfx.pulse(); void startGame(); }}>Start game</button>
           )}
           {status && <div className="vsstatus">{status}</div>}
+          {/* VERSUS PHASE 2: a spectator who stepped back to the room watches again from here. */}
+          {running && !isPlayer && match!.phase !== 'hero_select' && (
+            <button className="vsplate vsstartbtn" onClick={() => { sfx.pulse(); resumeSpectating(); }}>Watch</button>
+          )}
         </div>
 
         {shown.map((m, i) => (
@@ -139,6 +144,8 @@ export function VersusRoom() {
       <div className="vsroomtop">
         <button className="vsplate" onClick={() => { sfx.pulse(); setTitleView('modes'); }}>Back</button>
         <span className="vsroomtitle">{room.name}</span>
+        {/* The stands: how many are watching, of the 20 seats (ruling 8). */}
+        <span className="vsroomwatch">{spectators.length > 0 ? `${spectators.length} / ${VERSUS_SPECTATOR_CAP} watching` : 'No one watching'}</span>
       </div>
       <div className="vsroomctl">
         {open && isPlayer && <button className="vsplate" onClick={() => { sfx.pulse(); void takeSeat('spectator'); }}>Move to the stands</button>}

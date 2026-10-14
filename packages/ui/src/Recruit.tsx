@@ -3665,7 +3665,8 @@ export function Recruit() {
    * `disabled` being threaded through two dozen controls — one gate cannot be forgotten by the next control
    * somebody adds. HOVER is deliberately left alive: reading a card mid-replay is the point of watching one.
    */
-  const viewing = useGame((st) => !!st.replaySession);
+  // A Versus SPECTATOR watches the same way (`replaying` with no replay session, versus/spectate.ts).
+  const viewing = useGame((st) => !!st.replaySession || st.replaying);
 
   const timeUp = useTurnTimeUp(); // turn timer expired: lock everything but End Turn (flips once/turn — see turnClock)
 

@@ -27,6 +27,7 @@ import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { perfThresholds } from './perfMonitor';
 import { endReplay } from './replay/replayPlayer';
 import { forfeitMatch } from './versus/versusStore';
+import { leaveSpectating, useSpectate } from './versus/spectate';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -53,7 +54,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // VERSUS (owner 2026-10-14): the match's only exit is CONCEDE, here, with the same two-tap confirm. From Hero Select
   // or the match itself; there is nothing to save (the match server owns it).
   const versusPlay = useGame((s) => !s.showTitle && (s.run.mode === 'versus' || (s.heroChoices !== null && s.pendingMode === 'versus')));
-  const primary: 'replay' | 'menu' | 'none' | 'abandon' | 'run' | 'concede' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : versusPlay ? 'concede' : rankedPick ? 'abandon' : 'run';
+  // A VERSUS SPECTATOR (`replaying` with no replay session): the only exit is back to the room.
+  const watching = useSpectate((s) => s.active);
+  const primary: 'replay' | 'watch' | 'menu' | 'none' | 'abandon' | 'run' | 'concede' = watching ? 'watch' : replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : versusPlay ? 'concede' : rankedPick ? 'abandon' : 'run';
   // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
   const godMode = useGame((s) => s.run.godMode === true);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
@@ -95,12 +98,20 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
-        {primary !== 'none' && <div className="escsec">{primary === 'replay' ? 'Replay' : primary === 'menu' ? 'Menu' : primary === 'concede' ? 'Match' : 'Run'}</div>}
+        {primary !== 'none' && <div className="escsec">{primary === 'watch' ? 'Watching' : primary === 'replay' ? 'Replay' : primary === 'menu' ? 'Menu' : primary === 'concede' ? 'Match' : 'Run'}</div>}
         {/* SAVE & QUIT — promoted to the top and styled as the primary action (owner ask 2026-08-24). The
             run is already saved continuously; this button makes that explicit and one obvious tap. During a
             REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting left the replay
             HUD floating over the title) — endReplay restores the snapshot, then opening the title wins. From a
             ladder page / the picker there is nothing to save: the same openTitle, labelled for what it does. */}
+        {primary === 'watch' && (
+          <ActionButton
+            label="Leave match"
+            note="Back to the room. The match goes on."
+            primary
+            onPress={() => { leaveSpectating(); onClose(); }}
+          />
+        )}
         {primary === 'replay' && (
           <ActionButton
             label="Leave replay"

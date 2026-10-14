@@ -5623,4 +5623,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The opponent drops and the reconnect veil is up: pressing your hero power hotkey, or clicking it, does nothing; after the 3-2-1 it works.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusPauseGate.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-VERSUS-SPECTATE-01',
+    title: 'A Versus spectator watches one player at a time, live, view only, and switches instantly',
+    statement:
+      'A seatless room member watches a live match (shop onwards) on the real game screens from the side of one player, fed '
+      + 'from the view that player publishes, and switches to the other player at once (the bar, or 1 / 2); in a fight '
+      + 'it plays the committed result of that player. Every action is refused (the render-only mode of the replay viewer), '
+      + 'aims never arm, emotes never open; a right-click inspect is allowed. A sequence gap re-reads the keyframes and '
+      + 'asks the players for a fresh one. Leave restores the screen it came from and returns to the room until Watch. '
+      + 'A player client publishes nothing while no one watches.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-14 (Versus phase 2)', quote: 'spectators should be able to change the player they are spectating within a spectator ui' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts; packages/ui/src/versus/SpectatorBar.tsx; packages/ui/src/versus/versusStore.ts (frames writer, spectator branch of onMatch)' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-14.',
+    example: 'Joining the stands in round 4 shows the shop of player one as it is; pressing 2 shows player two; in the fight, pressing 1 replays it from the side of player one.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectate.test.ts', 'packages/ui/src/versus/spectatorView.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

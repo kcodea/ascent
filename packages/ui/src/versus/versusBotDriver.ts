@@ -81,6 +81,9 @@ export class VersusBotDriver {
   disconnected = false;
   /** Matches this bot finished (for the host / tests). */
   finished: string[] = [];
+  /** The current match and the bot's seat in it (the browser host publishes the bot's spectator frames). */
+  get currentMatchId(): string | null { return this.matchId; }
+  get currentSeat(): VersusSeat | null { return this.seat; }
 
   constructor(private api: VersusBotApi, private roomId: string, private opts: VersusBotOptions) {
     this.rng = makeRng(opts.seed ?? 0x5eed);
@@ -143,6 +146,7 @@ export class VersusBotDriver {
       case 'complete':
         if (!this.finished.includes(m.id)) {
           await this.landRound(m); // the deciding fight lands on the bot's run too (no ack: the match is over)
+          this.leaveFight();
           this.finished.push(m.id);
         }
         return 'done';
@@ -257,29 +261,38 @@ export class VersusBotDriver {
     return null;
   }
 
-  /** Land round `m.round`'s committed fight on the bot's run (End Turn, land, settle, back to the shop). */
-  private async landRound(m: VersusMatch): Promise<void> {
+  /** Land round `m.round`'s committed fight on the bot's run (End Turn, land): its run shows the fight, as a player's
+   *  does while they watch it (a spectator watching the bot sees the fight, Versus phase 2). False: not in yet. */
+  private async landRound(m: VersusMatch): Promise<boolean> {
     const run = this.run;
-    if (run && run.phase === 'recruit' && run.wave === m.round) {
-      const rows = await this.api.rounds(m.id, m.round);
-      const row = rows.find((x) => x.round === m.round);
-      if (!row) return;
-      const fight = (this.seat === 'p1' ? row.p1_result : row.p2_result) as CombatResult;
-      let s = reduce(versusAutoResolve(run, this.rng), { type: 'faceOmen', deferFight: true });
-      s = reduce(s, { type: 'landCombat', fight: { result: fight, damageTaken: 0 } });
-      s = reduce(s, { type: 'settleCombat' });
-      s = reduce(s, { type: 'resolveCombat' });
-      this.run = s;
-    }
+    if (!run || run.phase !== 'recruit' || run.wave !== m.round) return true; // already landed (or past it)
+    const rows = await this.api.rounds(m.id, m.round);
+    const row = rows.find((x) => x.round === m.round);
+    if (!row) return false;
+    const fight = (this.seat === 'p1' ? row.p1_result : row.p2_result) as CombatResult;
+    const s = reduce(versusAutoResolve(run, this.rng), { type: 'faceOmen', deferFight: true });
+    this.run = reduce(s, { type: 'landCombat', fight: { result: fight, damageTaken: 0 } });
+    return true;
+  }
+
+  /** Done watching: settle the fight and go back to the shop. */
+  private leaveFight(): void {
+    const run = this.run;
+    if (!run || run.phase !== 'combat') return;
+    this.run = reduce(reduce(run, { type: 'settleCombat' }), { type: 'resolveCombat' });
   }
 
   private async combat(m: VersusMatch, now: number): Promise<BotStepResult> {
     const run = await this.ensureRun(m);
     if (!run || this.readyRound === m.round) return 'idle';
     // It "watches" the fight for a while, like a player, before it is back.
-    if (this.watchingRound !== m.round) { this.watchingRound = m.round; this.watchUntil = now + (this.opts.watchMs ?? 0); }
+    if (this.watchingRound !== m.round) {
+      if (!(await this.landRound(m))) return 'idle';
+      this.watchingRound = m.round;
+      this.watchUntil = now + (this.opts.watchMs ?? 0);
+    }
     if (now < this.watchUntil) return 'idle';
-    await this.landRound(m);
+    this.leaveFight();
     this.readyRound = m.round;
     await this.api.combatReady(m.id, m.round);
     this.match = (await this.api.match(m.id)) ?? m;

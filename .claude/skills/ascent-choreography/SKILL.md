@@ -56,6 +56,13 @@ Two failures worth knowing because both shipped here:
   objects). `sotPlaying` gates the Shop's overlays (NOT the turn timer, owner 2026-09-27; the clock waits only for the wipe) until the last tail; a turn
   with no beats starts the clock at the wipe's rest. Input is not blocked while they play.
 
+- **Every withheld number needs a deliverer on its own beat** (R-REALTIME-STATS-01). The replay holds each buffed
+  unit's pre-beat number for the FX to roll in; a cue that plays an effect but carries no number (the Ruby gem) left it
+  snapping in on the NEXT beat. `choreo/buffDelivery.ts` rolls whatever no cue delivers, and
+  `realtimeStatsAudit.test.ts` sweeps every set through a `simulate` probe so the screen always equals the engine after
+  each step. A replay reorder that slides a buff past an event carrying ABSOLUTE stats (a `dmg`'s `remainingHp`, a
+  `summon` snapshot) must tag it (`prefoldedShareOf`) or the gain prints twice.
+
 Other rules:
 
 - Separate trigger presentation from consequences: a source may pulse first, with buffs/summons/casts landing

@@ -536,4 +536,28 @@ export const TEXT_RULES: GameRule[] = [
       + 'The smoke hides while the card is being dragged (the words stay on the drag copy).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/onLoanMark.test.tsx'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-TEXT-SURFACES-01',
+    title: 'A card prints the same live text on every surface: Shop row, spell slot, hand, Discover, hover preview, cast preview',
+    statement:
+      'Wherever a card can be read during a run (a Shop offer, the Shop spell slot, the hand, a Discover option, the '
+      + 'hover preview of a card that references it, a cast preview or a card flying to hand), its printed numbers fold the '
+      + 'same live run state and read the same. Every surface builds its live inputs through one builder '
+      + '(`liveOptsFromRun`, plus `shopOfferOpts` for a Shop offer and `handLiveOf` for the hand) and prints through '
+      + '`liveCardText`; no surface keeps its own partial list of inputs. The Compendium outside a run prints the base text.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (Lantern Light in the Shop)', quote: "also lantern light doesnt show updated spell power related affects if it's in shop, only in hand. make sure we fix all of this" },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx liveOptsFromRun / shopOfferOpts / handLiveOf / handCardView / discoverCardText / tokenRefView (live) + shopView (spells through liveCardText); packages/ui/src/instView.ts (growthBonus)' },
+    ],
+    contentIds: ['lanternlight', 'growth', 'starcrash', 'sp_gamble'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-14. The Shop spell slot built its own opts and dropped the Tavern Tier (Lantern Light read '
+      + '"+1/+1 for each Tavern Tier" there and its live total in hand), the Shop spell branch built its own extras (no '
+      + 'Falling Embers on Star Crash, no Rune of Gambling note), the hover preview passed a partial subset, the Shop row '
+      + 'dropped the rune rule notes and the run-wide Gold spent, and the hand dropped Rune of Living Growth on a Growth.',
+    example: 'At Tavern Tier 4 with +2/+3 spell power, Lantern Light reads "Give a minion +6/+7." in the Shop spell slot, the Shop row, hand and Discover.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/liveTextAudit.test.ts', 'packages/ui/src/shopSpellLiveText.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

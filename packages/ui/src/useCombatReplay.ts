@@ -21,6 +21,8 @@ import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from '.
 import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
 import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
+import { undeliveredRollPlan } from './choreo/buffDelivery';
+import { prefoldedShareOf } from './choreo/clashOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
 import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, showCombatCastPreviews } from './castPreview';
@@ -416,6 +418,11 @@ export function computeFrame(
       if (u) {
         u.health = e.hp;
         u.attack = e.attack;
+        // The returned body is a fresh one: the overkill debt of the blow that killed it is spent (the sim set its
+        // Health outright), and its max-Health track restarts. A stale debt swallowed the first Health buffs the
+        // risen body took, so they never showed (owner report 2026-10-14, R-REALTIME-STATS-01).
+        overkill.delete(u.uid);
+        maxHp.set(u.uid, e.hp);
         u.keywords = [...e.keywords];
         u.riseTint = undefined; // the tinted Rise is spent by this return (a regained one re-tints on its `keyword` beat)
         u.divineShield = e.keywords.includes('DS');
@@ -500,14 +507,18 @@ export function computeFrame(
       if (i < beatStart) gone.add(e.target);
     } else if (e.type === 'buff') {
       const u = find(e.target);
-      if (u) {
+      // A buff the replay slid past an event that already CARRIES its stats (a later hit's absolute `remainingHp`, its
+      // own body's `summon` snapshot) folds only the share that event does not hold (`prefoldedShareOf`, R-REALTIME-STATS-01).
+      const pre = prefoldedShareOf(e);
+      if (u && pre !== 'all') {
         u.attack += e.attack;
-        const debt = e.health > 0 ? overkill.get(u.uid) ?? 0 : 0;
+        const gainHp = pre === 'health' ? 0 : e.health;
+        const debt = gainHp > 0 ? overkill.get(u.uid) ?? 0 : 0;
         if (debt > 0) {
-          const paid = Math.min(debt, e.health);
+          const paid = Math.min(debt, gainHp);
           if (debt - paid > 0) overkill.set(u.uid, debt - paid); else overkill.delete(u.uid);
-          u.health += e.health - paid;
-        } else u.health += e.health;
+          u.health += gainHp - paid;
+        } else u.health += gainHp;
         if (e.health > 0) maxHp.set(u.uid, (maxHp.get(u.uid) ?? u.health) + e.health); // Ashen Heir's max-Health track
         // Itemize the buff under its source for the inspect panel (combat buffs merge alongside recruit ones).
         if (e.attack !== 0 || e.health !== 0) {
@@ -2765,6 +2776,10 @@ export function useCombatReplay(
         }
       },
     });
+    // EVERY HELD NUMBER GETS A DELIVERER (R-REALTIME-STATS-01, owner 2026-10-14): a stat change no cue rolls in (a
+    // Ruby in a buff wave or a Shout: its gem carries no number) was withheld until the NEXT beat snapped it in. Roll
+    // it on this moment's own clock instead, a Ruby as its gem lands. Arithmetic over this beat's events only.
+    for (const r of undeliveredRollPlan(beat, events, combatSpeedRef.current, AUTHORED_BUFF_ROLL_MS)) scheduleRoll(r.uid, r.atMs);
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —
     // the runner skips rise deaths, and the engine's runRiseReturn only handles the pulled-home ATTACKER.
@@ -2911,7 +2926,7 @@ export function useCombatReplay(
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
-  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs, fireBuffChain]);
+  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs, fireBuffChain, scheduleRoll]);
 
   // No verdict sting when the replay finishes (the round won / lost chimes were removed 2026-09-23 with the
   // lobby background music, owner ask): the music carries the verdict through uninterrupted.

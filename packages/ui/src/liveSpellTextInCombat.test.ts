@@ -239,7 +239,15 @@ describe('no card-text surface may go back to the raw run counters', () => {
     // `ftbBonus` / `ftbBonusH` are values, not run fields, so a dep array that dropped them would simply
     // never recompute. Count the uses against the dep mentions rather than trusting review.
     const src = read('Recruit.tsx');
-    expect((src.match(/\bftbBonus\b/g) ?? []).length).toBeGreaterThanOrEqual(6);
-    expect((src.match(/\bftbBonusH\b/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect((src.match(/\bftbBonus\b/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect((src.match(/\bftbBonusH\b/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    // Since R-TEXT-SURFACES-01 (2026-10-14) the Shop row, the spell slot and the hover popups build their opts through
+    // `liveOptsFromRun` (which reads the …Live escalation) and their memos key on the whole `run`, so they cannot miss
+    // an escalation change; the hand's builder reads the Live Health half itself.
+    expect(src).toMatch(/frontToBackBonus: spellEscalationLive\(run\)\.attack/);
+    expect(src).toContain('frontToBackBonusH: spellEscalationLive(run).health');
+    expect(src).toContain('[shopWithHolds, run, cardBuffsLive, eotShopStats');
+    expect(src).toContain('[run, cardBuffsLive, eotShopStats');
+    expect(src).toContain('}, [run, cardBuffsLive]);');
   });
 });

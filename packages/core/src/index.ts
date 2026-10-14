@@ -7,6 +7,7 @@ export * from './combat/minion';
 export * from './combat/side';
 export * from './combat/simulate';
 export * from './combat/bankedOpeners';
+export * from './combat/fuzz';
 export * from './presentation/types';
 export * from './presentation/policies';
 export * from './presentation/events';

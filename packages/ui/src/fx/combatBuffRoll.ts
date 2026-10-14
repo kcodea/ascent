@@ -1,5 +1,6 @@
 import type { CombatEvent } from '@game/core';
 import { revealStat } from './statHold';
+import { prefoldedShareOf } from '../choreo/clashOrder';
 
 /**
  * The per-unit shape this needs off the live frame — kept local rather than importing `UnitFrame` from
@@ -35,8 +36,12 @@ export function combatBuffDeltas(
   for (let i = beat.start; i < beat.end; i++) {
     const e = events[i];
     if (!e || e.type !== 'buff') continue;
+    // Hold only what the fold ADDS on this beat: a moved buff whose stats a later event already carries (R-REALTIME-STATS-01)
+    // is on the badge already, and holding it back would dip the number below the truth.
+    const pre = prefoldedShareOf(e);
+    if (pre === 'all') continue;
     const t = totals.get(e.target) ?? { attack: 0, health: 0 };
-    totals.set(e.target, { attack: t.attack + e.attack, health: t.health + e.health });
+    totals.set(e.target, { attack: t.attack + e.attack, health: t.health + (pre === 'health' ? 0 : e.health) });
   }
   const out: { uid: string; attack: number; health: number }[] = [];
   for (const [uid, t] of totals) {

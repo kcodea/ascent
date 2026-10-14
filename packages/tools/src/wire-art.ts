@@ -113,6 +113,9 @@ const ALIASES: Record<string, string> = {
   starcharter: 'ce3_starcharter',      // now Maestro Lux
   novaherald: 'ce3_novaherald',        // now Fuse Aldrin
   dreamcurrentmystic: 'sp3_dreamcurrent', // now Lullaby Lou
+  // Owner 2026-10-14 ("wire amplified agnus art for set 3"): the master is filed as AmplifiedAgnus.png, the
+  // card is named Amplification Agnus.
+  amplifiedagnus: 'n3_agnus',
   gatheringguide: 'sp3_gatheringguide', // now Branch Manager
   festivalkeeper: 'sp3_festivalkeeper', // now Tally
   bondweavershaman: 'sp3_bondweaver',  // now Knot

@@ -380,6 +380,11 @@ export function computeFrame(
         const src = find(e.source);
         if (src && damageMeterOf(CARD_INDEX[src.cardId])) src.damageDealt = (src.damageDealt ?? 0) + e.amount;
       }
+    } else if (e.type === 'sc' && e.setHealth !== undefined) {
+      // A cast that SETS a body's Health (Weaken -> 1): absolute, like a `dmg`'s `remainingHp`. Without this fold
+      // the card kept its full Health on screen until the next hit (owner report 2026-10-13).
+      const u = find(e.source);
+      if (u) { u.health = e.setHealth; maxHp.set(u.uid, e.setHealth); }
     } else if (e.type === 'shield') {
       const u = find(e.target);
       if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS' && k !== 'RW'); }

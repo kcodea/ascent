@@ -110,4 +110,24 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-07). PR #1969 captured it on the snapshot but kept it inert for opponents; it is no longer captured at all.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/nextCombatSpells.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-WEAKEN-01',
+    title: 'Weaken sets a random enemy\'s Health to exactly 1 at the next Start of Combat, and the screen shows it',
+    statement:
+      'Weaken, cast in the Shop, arms the next combat. At that fight\'s Start of Combat it shows its cast, then sets a '
+      + 'random living enemy above 1 Health to exactly 1 Health (one target per cast; casts stack). The weakened card '
+      + 'shows 1 Health from that beat on, not its old Health until the next hit. It works the same when an opponent\'s '
+      + 'board cast it, aimed at your minions.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-13 (Set 2 fixes)', quote: "weaken is simply not working, please fix this. it should SET an enemy minion's health to 1 at start of combat." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the Weaken pass emits `sc` with setHealth: 1); packages/core/src/types.ts CombatEvent sc.setHealth; packages/ui/src/useCombatReplay.ts computeFrame (folds setHealth); packages/sim/src/snapshot.ts socBoard' },
+    ],
+    contentIds: ['weaken'],
+    currentBehaviour:
+      'Conforms from 2026-10-13. Before, the engine set the Health but emitted only a narration `sc`, which the replay '
+      + 'never folded, so the weakened card kept its full Health on screen until it was hit and the spell looked dead.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/weakenSetsHealth.test.ts', 'packages/core/src/combat/nextCombatSpells.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

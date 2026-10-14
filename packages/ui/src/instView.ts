@@ -430,6 +430,8 @@ export function instView(
             // prints progress toward the NEXT payout (`total mod X`: 47 → 7/40), the same value the next fight
             // seeds from (carry-over ruling 2026-09-21).
             damageDealt: inst.damageDealt,
+            // ROPE WRANGLER: the turn's Gold spent toward its next Lasso repeat (owner ask 2026-10-13).
+            goldSpentTurn: live?.goldSpent ?? 0,
           });
           // Normally a fresh 0/N is hidden as noise (owner ruling). Two deliberate exceptions: the Living
           // Grimoire — 0/3 is the whole point there, it's how you see the card is SPENT and how far the recharge

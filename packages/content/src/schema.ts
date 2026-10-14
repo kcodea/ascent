@@ -126,6 +126,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleGiveMaxStatsRandomTribe',
   'onStarformGainedBuffSelf',
   'battlecryCollapseStarform',
+  'equipmentAmplifyAll', // Amplification Agnus (passive marker, never dispatched): every Equipment activation is Amplified while on board — read by `equipmentAmplifiedByAura`
   'collapseExtraTargets', // Nova Herald (passive marker, never dispatched): +N extra Collapse hits while on board — read by `collapseExtraTargetsOf`
   'equipmentRemoveStarform', // Star Destroyer (the Starform's own Equipment): the silent exit — the token leaves the Shop, nothing else fires
   'spellCastBuffStarform',
@@ -180,6 +181,7 @@ export const EffectFactoryIdSchema = z.enum([
   'buffRightmostSlotPermanent',
   'endOfTurnGainRightmostShopStats',
   'onShopRefreshGainRightmostShopStats', // Hellrider (2026-08-14): every N refreshes, copy the right-most offer's stats
+  'onShopRefreshAddToShop', // Indy (2026-10-13): every N refreshes, add a named card (Golden Monkey) to the Shop
   'avengeGrantRandomTribeMinion',        // Grobbus (2026-08-14): Avenge (X) — get a random Demon
   'scBuffTribe',                         // Transcendant (2026-08-17): SoC buff your Dragons (Engrave is a live aura)
   'scBuffRandomTribePerAle',             // Drunken Oaf (2026-08-14): SoC buff a random Dwarf, once per Ale + 1

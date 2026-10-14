@@ -186,13 +186,21 @@ export function equipmentPermanentlyAmplified(run: Pick<RunState, 'equipment' | 
   return !!g?.sourceCardIds?.some((c) => amp.includes(c));
 }
 
+/** AMPLIFICATION AGNUS (set 3 Neutrals, owner Set 3 batch 2026-10-13): "All Equipment is Amplified." — only while
+ *  the card is ON YOUR BOARD (owner). A `passive` marker read here, never dispatched. Like Empty Hands it spends
+ *  nothing: a banked stack or a pending Calibration waits for an activation Agnus is not around for. */
+export function equipmentAmplifiedByAura(run: Pick<RunState, 'board'>): boolean {
+  return (run.board ?? []).some((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'passive' && e.do === 'equipmentAmplifyAll'));
+}
+
 /** Will an activation of `equipmentId` RIGHT NOW resolve Amplified — its own stack, Empty Hands' permanent
- *  Amplification, or a pending Calibration it can spend? The slot paints the charge indicator BLUE
- *  (`data-fx="equipment-amplified"`) off this, so the Wrench's pending charge shows on every held Equipment it
- *  would apply to, never on the Wrench itself. */
-export function equipmentWillAmplify(run: Pick<RunState, 'equipment' | 'equipmentAmplifiedCards'>, equipmentId: string): boolean {
+ *  Amplification, Amplification Agnus on the board, or a pending Calibration it can spend? The slot paints the
+ *  charge indicator BLUE (`data-fx="equipment-amplified"`) off this, so the Wrench's pending charge shows on every
+ *  held Equipment it would apply to, never on the Wrench itself. */
+export function equipmentWillAmplify(run: Pick<RunState, 'equipment' | 'equipmentAmplifiedCards' | 'board'>, equipmentId: string): boolean {
   if (equipmentAmplifiedOf(run, equipmentId) > 0) return true;
   if (equipmentPermanentlyAmplified(run, equipmentId)) return true;
+  if (equipmentAmplifiedByAura(run)) return true;
   return equipmentId !== CALIBRATION_WRENCH.id && calibrationPendingOf(run) > 0;
 }
 

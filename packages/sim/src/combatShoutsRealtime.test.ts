@@ -64,9 +64,10 @@ describe('R-REALTIME-03 — every Shout id is combat-live or an explicit Shop-on
   // GROWN 2026-10-10 (deliberately): Roomworks' Shout triggers an End of Turn effect, which only resolves in the Shop
   // (Dragon batch). battlecryCastNamedSpell (Storm Chaser) joined and LEFT the same day: owner ruling "Split (real
   // time)" gave it a combat factory (the minion Rubies land live, the Shop half at settle).
-  it('the Shop-only exceptions are the ten the ruling was reviewed against (grow this deliberately)', () => {
+  // SHRUNK 2026-10-13: Solburn's Collapse became a Sell (owner Set 3 batch), so battlecryCollapseStarform is no Shout.
+  it('the Shop-only exceptions are the nine the ruling was reviewed against (grow this deliberately)', () => {
     expect(Object.keys(SHOP_ONLY_SHOUTS).sort()).toEqual([
-      'armChooseBoth', 'battlecryAllDemonsConsume', 'battlecryCollapseStarform', 'battlecryConsumeShopRandom',
+      'armChooseBoth', 'battlecryAllDemonsConsume', 'battlecryConsumeShopRandom',
       'battlecryCreateStarformOrBuff', 'battlecryReplayTargetEndOfTurn', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
       'buffRightmostSlotPermanent', 'triggerAdjacentOrbits',
     ]);

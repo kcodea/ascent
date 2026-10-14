@@ -94,6 +94,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   avengeGrantSpell: 'cardId',
   avengeSummon: 'cardId', // Dunkey summons an Armadiyo
   deathrattleBuffCardTypeRunWide: 'cardId',
+  onShopRefreshAddToShop: 'cardId', // Indy adds a Golden Monkey to the Shop (2026-10-13)
   // Minions that CAST a named spell — surface that spell on hover so its live (spell-power-aware) value is
   // readable there instead of restated on the minion. Taragosa/Watcher cast a fixed spell with no `spellId`
   // in their factory, so they carry a reference-only `spellId` param purely for this map (the factory ignores it).

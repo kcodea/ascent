@@ -39,7 +39,7 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   'displacement', 'aresmar', 'perfectvision', 'sparkplug',
   'sp_gamble', // owner add 2026-09-17: the die-roll tier pull joins set 3 (rolls the real die, like the Gambler)
   // …the tribe spells (set 2's Ruby toolkit, set 1's Undead pair, the Dwarves' On the House):
-  'rubyshipment', 'facetwright', 'veinstorm', 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
+  'rubyshipment', 'facetwright', /* veinstorm: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 spell */ 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
   // Appended AFTER the tribe spells so no existing position moves (owner add 2026-09-18):
   /* sp_dissipate: archived everywhere 2026-10-10 (owner balance batch); it was the owner add of 2026-09-18 */
   'sp_picnic', // owner add 2026-09-23: right-most Shop minion +8/+8 permanently (set 2's own spell, shared here)
@@ -141,9 +141,9 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
  */
 const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
   [
-    'k_geode', 'k_blazer', 'k_gemheart', 'k_kobe',
+    /* k_geode: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 card */ 'k_blazer', 'k_gemheart', 'k_kobe',
     'k_boulderdash', 'k_kobabyboldies', // Chipwick Prospector left 2026-09-19 (owner handoff); it stays in set 2
-    'k_beggy', // back in set 3 (owner 2026-09-24); still a set-2 card too — shared, not forked
+    /* k_beggy: back in set 3 2026-09-24, left again 2026-10-13 (owner Set 3 batch); still a set-2 card */
   ].includes(c.id),
 );
 
@@ -159,8 +159,10 @@ const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
  */
 const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
   [
-    'dw_pimm', 'dw_brunni', 'dw_coinfire', 'dw_gangplank', 'dw_dorrin', 'dw_bladethrower', 'dw_brakka',
-    'dw_billings', 'dw_brewer', 'dw_edward', 'dw_foreman', 'dw_mountainbond', 'dw_thane', 'dw_tapkeeper',
+    // Paymaster Pimm, Gangplank, Blade Thrower, Kringle (dw_foreman) and Mountainbond left set 3 on 2026-10-13 (owner
+    // Set 3 batch); all five stay set-2 cards.
+    'dw_brunni', 'dw_coinfire', 'dw_dorrin', 'dw_brakka',
+    'dw_billings', 'dw_brewer', 'dw_edward', 'dw_thane', 'dw_tapkeeper',
   ].includes(c.id),
 );
 
@@ -180,14 +182,14 @@ const SET2_ALES_IN_SET3: readonly CardDef[] = SET2_SPELLS.filter((c) => ALE_IDS.
  * The set-1 Undead NOT on the roster (Sporeling, Karthus, Ryme, Grave Body, Cratering Hulk, Steadfast Champion,
  * Gravewarden, Crypt Scribe, Watcher, Graverobber, Bone Taxer, Crypt Broker, Gravetwin) stay out by owner
  * confirmation. Wolves Den joined on 2026-09-10 (owner ask) — its Crypt Wolves are tokens, so they resolve from the
- * global index without a manifest entry. Anubis lives in set 1's TIER7 list, hence the second filter.
+ * global index without a manifest entry. Anubis (set 1's TIER7 list) was on the roster until 2026-10-13 (owner Set 3 batch).
  */
 const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
   ...UNDEAD.filter((c) => [
     'deathswarmer', 'knit', 'deathlesshand', 'mumi', 'soulsman', 'deathsayer', 'profgreg',
     'sergeant', 'forsakenweaver', 'wolvesden',
   ].includes(c.id)),
-  ...TIER7.filter((c) => c.id === 'anubis'),
+  // Anubis, Last Gate left set 3 on 2026-10-13 (owner Set 3 batch); it stays a set-1 Tier 7 and resolves globally.
 ];
 
 /**

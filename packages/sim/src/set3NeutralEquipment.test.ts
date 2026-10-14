@@ -9,8 +9,9 @@ import { shredderText } from '../../ui/src/cardText';
 
 /**
  * SET 3 — NEUTRALS, the Equipment trio (owner handoff 2026-09-18):
- *  - Shredder: End of Turn, the left-most + right-most minions gain +4/+4 per held Equipment whose charge went
- *    UNUSED this turn (`usedThisTurn`, read before `expireEquipmentTurn` clears it). Golden doubles. Live text.
+ *  - Shredder: End of Turn, EVERY friendly minion gains +2/+3 per held Equipment whose charge went UNUSED this turn
+ *    (`usedThisTurn`, read before `expireEquipmentTurn` clears it). Golden doubles. Live text. (Owner Set 3 batch
+ *    2026-10-13; was the left-most + right-most minions +4/+4.)
  *  - Calibration Master → the Calibration Wrench: the NEXT Equipment activation (never the Wrench's own) is
  *    Amplified — a pending count beside the per-id Amplified stack, carried across the turn like the stack.
  *  - Rig: whenever you ACTIVATE an Equipment (the Wrench included), each Rig on the BOARD gains +4/+4.
@@ -41,14 +42,14 @@ describe('roster', () => {
     expect(poolFor('set2').buyable.map((c) => c.id), 'set 2 keeps it').toContain('tauntbreaker');
     expect(CARD_INDEX['tauntbreaker']).toBeTruthy();
     expect(CARD_INDEX['n3_shredder']).toMatchObject({ tier: 4, attack: 8, health: 4, tribe: 'neutral' });
-    expect(CARD_INDEX['n3_calibration']).toMatchObject({ tier: 5, attack: 9, health: 6, tribe: 'neutral' });
+    expect(CARD_INDEX['n3_calibration']).toMatchObject({ tier: 4, attack: 6, health: 4, tribe: 'neutral' }); // T5 9/6 until 2026-10-13
     expect(CARD_INDEX['n3_rig']).toMatchObject({ tier: 3, attack: 4, health: 4, tribe: 'neutral' });
     expect(EQUIPMENT_INDEX['calibration_wrench']).toBe(CALIBRATION_WRENCH);
     expect(CALIBRATION_WRENCH).toMatchObject({ baseCost: 1, targetMode: 'none', effectId: 'equipmentCalibrate' });
   });
 });
 
-describe('Shredder — End of Turn: the ends gain +4/+4 per Equipment UNUSED this turn', () => {
+describe('Shredder — End of Turn: your minions gain +2/+3 per Equipment UNUSED this turn', () => {
   /** Frank (Bloodpot) + Sculptor (Titan Hammer) on the board with a Shredder between them: two held Equipment. */
   const armed = (golden = false): RunState => {
     let s = run({ hand: [body('f', 'e3_frank', { health: 400 }), body('g', 'e3_sculptor', { health: 400 })], board: [body('sh', 'n3_shredder', { golden })] });
@@ -66,35 +67,35 @@ describe('Shredder — End of Turn: the ends gain +4/+4 per Equipment UNUSED thi
     expect([statsOf(s, 'a'), statsOf(s, 'sh')]).toEqual(before);
   });
 
-  it('two unused → +8/+8 on both ends; the middle body untouched', () => {
+  it('two unused → +4/+6 on EVERY minion, the middle (Shredder itself) included', () => {
     const s = armed();
     expect(unusedEquipmentCount(s)).toBe(2);
-    const [fa, fh] = statsOf(s, 'f'), [ga, gh] = statsOf(s, 'g'), mid = statsOf(s, 'sh');
+    const [fa, fh] = statsOf(s, 'f'), [ga, gh] = statsOf(s, 'g'), [ma, mh] = statsOf(s, 'sh');
     applyEndOfTurn(s);
-    expect(statsOf(s, 'f')).toEqual([fa + 8, fh + 8]);
-    expect(statsOf(s, 'g')).toEqual([ga + 8, gh + 8]);
-    expect(statsOf(s, 'sh'), 'the middle is neither end').toEqual(mid);
+    expect(statsOf(s, 'f')).toEqual([fa + 4, fh + 6]);
+    expect(statsOf(s, 'g')).toEqual([ga + 4, gh + 6]);
+    expect(statsOf(s, 'sh'), 'the whole board, not just the ends').toEqual([ma + 4, mh + 6]);
   });
 
-  it('using one before End of Turn → +4/+4 (only the unused one counts)', () => {
+  it('using one before End of Turn → +2/+3 (only the unused one counts)', () => {
     let s = armed();
     s = select(s, 'bloodpot');
     s = activate(s, 'g'); // Frank cannot Bloodpot himself (R-TARGET-03); the Sculptor is a fine target
     expect(unusedEquipmentCount(s)).toBe(1);
     const [fa, fh] = statsOf(s, 'f'), [ga, gh] = statsOf(s, 'g');
     applyEndOfTurn(s);
-    expect(statsOf(s, 'f')).toEqual([fa + 4, fh + 4]);
-    expect(statsOf(s, 'g')).toEqual([ga + 4, gh + 4]);
+    expect(statsOf(s, 'f')).toEqual([fa + 2, fh + 3]);
+    expect(statsOf(s, 'g')).toEqual([ga + 2, gh + 3]);
   });
 
-  it('gilded doubles: two unused → +16/+16', () => {
+  it('gilded doubles: two unused → +8/+12', () => {
     const s = armed(true);
     const [fa, fh] = statsOf(s, 'f');
     applyEndOfTurn(s);
-    expect(statsOf(s, 'f')).toEqual([fa + 16, fh + 16]);
+    expect(statsOf(s, 'f')).toEqual([fa + 8, fh + 12]);
   });
 
-  it('a one-minion board is both ends and is buffed ONCE', () => {
+  it('a one-minion board is buffed ONCE per unused Equipment', () => {
     let s = run({ hand: [body('f', 'e3_frank', { health: 400 })], board: [] });
     s = play(s, 'f', 0);
     // Frank alone holds Bloodpot; give him Shredder's ability by putting Shredder alone instead: sell Frank's
@@ -102,20 +103,21 @@ describe('Shredder — End of Turn: the ends gain +4/+4 per Equipment UNUSED thi
     s.board = [body('sh', 'n3_shredder')];
     expect(unusedEquipmentCount(s), 'the grant outlives its source within the turn').toBe(1);
     applyEndOfTurn(s);
-    expect(statsOf(s, 'sh')).toEqual([8 + 4, 4 + 4]);
+    expect(statsOf(s, 'sh')).toEqual([8 + 2, 4 + 3]);
   });
 
   it('the real turn boundary: End of Turn reads the marks BEFORE they expire, and the buff is permanent', () => {
     let s = armed();
     const [fa, fh] = statsOf(s, 'f');
     s = nextTurn(s);
-    expect(statsOf(s, 'f')).toEqual([fa + 8, fh + 8]);
+    expect(statsOf(s, 'f')).toEqual([fa + 4, fh + 6]);
   });
 
   it('live text prints the current total on the card, both variants', () => {
     expect(shredderText('n3_shredder', false, 0)).toContain('{{+0/+0}}');
-    expect(shredderText('n3_shredder', false, 2)).toContain('{{+8/+8}}');
-    expect(shredderText('n3_shredder', true, 2)).toContain('{{+16/+16}}');
+    expect(shredderText('n3_shredder', false, 2)).toContain('{{+4/+6}}');
+    expect(shredderText('n3_shredder', true, 2)).toContain('{{+8/+12}}');
+    expect(shredderText('n3_shredder', false, 2)).toContain('give your minions');
     expect(shredderText('n3_shredder', false, 2)).toContain('**2**');
     expect(shredderText('n3_defender', false, 2), 'only Shredder').toBeNull();
   });

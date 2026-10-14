@@ -502,6 +502,7 @@ export type EffectFactoryId =
   | 'buffShopPermanent' // Set 2 — Contract Butcher / Soul Defiler: permanent buff to minions bought from the Shop
   | 'buffRightmostSlotPermanent' // Set 2 — Market Tormentor (Shout): the right-most Shop SLOT is buffed for the run
   | 'endOfTurnGainRightmostShopStats' // Set 2 — (legacy Bob Blart) gain the right-most shop minion's stats (no consume)
+  | 'onShopRefreshAddToShop' // Set 3 — Indy: every N refreshes (per-instance meter), add a named card (the Golden Monkey token) to the Shop (recruit)
   | 'onShopRefreshGainRightmostShopStats' // Set 2 — Hellrider: every N refreshes, gain the right-most Shop minion's stats (no consume)
   | 'avengeGrantRandomTribeMinion' // Set 2 — Grobbus: Avenge (X) — get a random minion of a tribe
   | 'scBuffTribe' // Set 2 — Transcendant: Start of Combat, buff every friendly minion of a tribe
@@ -873,11 +874,12 @@ export type EffectFactoryId =
   | 'battlecryStarformConsumeShop' // Accretion Warden: Shout — the Starform eats the highest-Tier Shop minion, ties right-most (recruit)
   | 'battlecryBuffThisShopPerSpellsThisTurn' // Shooting Star: Shout — this shop +A/+H per Shop spell cast this turn (recruit; live text)
   | 'endOfTurnBuffStarform' // Orbit Keeper: End of Turn — the Starform gains +A/+H (recruit)
+  | 'equipmentAmplifyAll' // Amplification Agnus: a PASSIVE marker (never dispatched) — while on board every Equipment activation is Amplified (recruit reads it: `equipmentAmplifiedByAura`)
   | 'collapseExtraTargets' // Nova Herald: a PASSIVE marker (never dispatched) — while on board every Collapse hits N extra random friendly Celestials, with replacement (recruit reads it: `collapseExtraTargetsOf`)
   | 'equipmentRemoveStarform' // Star Destroyer (the Starform's own Equipment, granted by the offer): the token leaves the Shop silently — no consume / collapse / watcher / buy (recruit)
   | 'deathrattleGiveMaxStatsRandomTribe' // Lodestar: Echo — a random other friendly `tribe` gains this body's MAX stats (both phases, arena body)
   | 'onStarformGainedBuffSelf' // Twin Star: whenever the Starform gains stats, this gains the same (recruit)
-  | 'battlecryCollapseStarform' // Corona Devotee: Shout — collapse the Starform: 3 unique random friendly Celestials + the extras (Nova Herald) each gain half (recruit)
+  | 'battlecryCollapseStarform' // Solburn (Corona Devotee): Sell since 2026-10-13 (was a Shout) — collapse the Starform: 3 unique random friendly Celestials + the extras (Nova Herald) each gain half (recruit)
   | 'spellCastBuffStarform' // Zenith: whenever you cast a spell (Rubies too), the Starform gains +A/+H (recruit)
   | 'onStarformRemovedRecreateHalf' // Zenith: when the Starform is consumed / collapses, create a new one with half its stats (recruit)
   | 'spellStarformConsumeShop' // Black Hole (spell): the Starform eats `count` random Shop minions (pick: random | highestHealth | highestTier) (recruit)

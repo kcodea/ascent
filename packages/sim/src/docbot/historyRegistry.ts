@@ -68,8 +68,7 @@ export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
   sp3_tidebud: 'buffs a random OTHER Spirit on board and one in hand; the clean-token board and hand hold no Spirit',
   sp3_gatheringguide: 'Discovers only if you control ANOTHER Spirit; the clean-token board has none',
   sp3_luminary: 'buffs 3 random OTHER Spirits; the clean-token board has none',
-  // Set 3 Celestials — THE STARFORM ROSTER (2026-09-12): the token is a shop offer nothing in the clean fixture creates.
-  ce3_coronadevotee: 'collapses the STARFORM; the clean fixture holds no Starform',
+  // (Solburn, ce3_coronadevotee, left this list 2026-10-13: its Collapse is a Sell now, not a Shout.)
 };
 
 /** LANE `playDifferential.watchers` — silent onSummon watchers, with the reading that keeps them silent legitimately. */

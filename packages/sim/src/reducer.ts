@@ -37,7 +37,7 @@ import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacks
 import { spellFizzles } from './spellFizzle';
 import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
-import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
+import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -2839,11 +2839,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Wrench itself (`consumeCalibration` refuses its id). Either way it is ONE Amplification: ×2 at most.
       // RUNE OF EMPTY HANDS (owner 2026-09-18): its pick's Equipment is PERMANENTLY Amplified — nothing to spend, so
       // it is read first and a Calibration is never wasted on it.
+      // AMPLIFICATION AGNUS (owner Set 3 batch 2026-10-13): on the board, EVERY activation is Amplified and nothing is
+      // spent — read after Empty Hands (so that rune is still credited) and before any stack or Calibration.
       const permanent = equipmentPermanentlyAmplified(s, def.id);
-      const ownStack = permanent || consumeAmplified(s, def.id);
+      const aura = !permanent && equipmentAmplifiedByAura(s);
+      const ownStack = permanent || aura || consumeAmplified(s, def.id);
       const amplified = ownStack || consumeCalibration(s, def.id);
       if (permanent) procRuneId(s, 'rune_empty_hands');
-      else if (ownStack) {
+      else if (ownStack && !aura) {
         if (s.runeAmplification) procRuneId(s, 'rune_amplification');
         if (s.runeGrandWorkshop) procRuneId(s, 'rune_grand_workshop');
       }

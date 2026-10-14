@@ -24,6 +24,7 @@ export interface RenderExcuse {
 /** Card ids the arming sweep may skip, each with a verifiable reason. Keep this SHORT — an entry here is
  *  a card whose rendered text the harness does NOT reconcile. */
 export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
+  salvatore: { kind: 'accurate-at-any-value', why: 'a FIXED Tier 6 Sell Discover (onSellDiscover, no tierOffset): the printed tier is the real one at any Shop tier; only the Golden Monkey (tierOffset) reads the live tier (sellDiscoverTierText)' },
   // King Oona doubles a summon's stats — the rule carries no printed magnitude that could go stale, and the
   // live surface is the Avenge meter on the card plate, not the rules text. Same exemption, same reason, as
   // liveTextAudit.test.ts's EXEMPT entry for b2_oona.

@@ -38,8 +38,8 @@ describe('archives and set membership (owner 2026-09-24)', () => {
     for (const set of ['set1', 'set2', 'set3'] as const) expect(poolFor(set).all.some((c) => c.id === id), `${name} not in ${set}`).toBe(false);
     expect(CARD_INDEX[id]?.name, 'saved runs and replays still resolve it').toBe(name);
   });
-  it('Beggy is drawable in Set 3 again and still in Set 2', () => {
-    expect(poolFor('set3').buyable.some((c) => c.id === 'k_beggy')).toBe(true);
+  it('Beggy left Set 3 again (owner Set 3 batch 2026-10-13) and is still in Set 2', () => {
+    expect(poolFor('set3').buyable.some((c) => c.id === 'k_beggy')).toBe(false);
     expect(poolFor('set2').buyable.some((c) => c.id === 'k_beggy')).toBe(true);
   });
 });

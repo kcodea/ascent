@@ -17,7 +17,7 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
-import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
+import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots } from './shop';
 import { runeStacksOf } from './runeDup';
 
 /**
@@ -6083,8 +6083,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
    *  (golden: the offered cards are GILDED). Only one Discover overlay can be open at a time, so the extras
    *  queue through the standard `pendingDiscovers` channel the same way multi-Discover heroes do. */
+  //  `tierOffset` (Golden Monkey, owner Set 3 batch 2026-10-13): the tier ABOVE the current Shop tier instead of a
+  //  fixed one, capped at Tier 7 (owner: "one above your current Shop tier, capped at 7"). A fixed-tier offer, so
+  //  Tier 7 is honoured with no rift, exactly like Salvatore's and the Summit rune's.
   onSellDiscover: (ctx, self, params) => {
-    const tier = num(params.tier, 6);
+    const offset = num(params.tierOffset, 0);
+    const tier = offset > 0 ? Math.min(7, ctx.state.tier + offset) : num(params.tier, 6);
     const count = num(params.count, 2);
     const spec = { kind: 'minion' as const, tier, exactTier: tier, golden: !!self.golden };
     for (let i = 0; i < count; i++) queueDiscover(ctx.state, spec);
@@ -6569,6 +6573,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  stats WITHOUT eating it. Same per-instance `eotTick` meter `onShopRefreshConsume` uses ("four refreshes
    *  since this arrived", not since the run began) wrapped around Bob Blart's copy-don't-eat body, so the two
    *  cards stay one primitive apart. Golden doubles the stats gained, not the frequency. */
+  /** Indy (set 3 Neutrals, owner Set 3 batch 2026-10-13): every `every` refreshes, add `count` copies of `cardId`
+   *  (a token, the Golden Monkey) to the Shop. Hellrider's meter exactly: a per-instance `eotTick` tally counted by
+   *  the `shopRefreshed` trigger, cumulative since this body arrived, repeating every N. Golden doubles the count. The
+   *  Shop never grows past its slots (`addCardToShop`). */
+  onShopRefreshAddToShop: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 5));
+    const tick = (self.eotTick ?? 0) + 1;
+    self.eotTick = tick;
+    if (tick % every !== 0) return;
+    const cardId = str(params.cardId);
+    if (!CARD_INDEX[cardId]) return;
+    const n = num(params.count, 1) * gold(self);
+    for (let i = 0; i < n; i++) addCardToShop(ctx.state, cardId);
+  },
+
   onShopRefreshGainRightmostShopStats: (ctx, self, params) => {
     const every = Math.max(1, num(params.every, 4));
     const tick = (self.eotTick ?? 0) + 1;
@@ -6995,11 +7014,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  clears the marks). One minion is both ends and is buffed once. One capture per unused Equipment so it reads
    *  as N hits landing (the "+x/+y per z" End-of-Turn rule, owner 2026-07-17), and the live text prints the same
    *  total (`shredderText`). Golden doubles the per-Equipment grant. */
+  //  `scope: 'all'` (Shredder rework, owner Set 3 batch 2026-10-13): EVERY friendly minion is a target instead of the
+  //  two ends; the per-Equipment waves, captures and gain-Attack notifications are unchanged.
   endOfTurnBuffEndsPerUnusedEquipment: (ctx, self, params) => {
     const unused = unusedEquipmentCount(ctx.state);
     const board = ctx.state.board;
     if (unused <= 0 || board.length === 0) return;
-    const ends = board.length === 1 ? [board[0]!] : [board[0]!, board[board.length - 1]!];
+    const ends = str(params.scope) === 'all'
+      ? [...board]
+      : board.length === 1 ? [board[0]!] : [board[0]!, board[board.length - 1]!];
     const a = num(params.attack, 4) * gold(self);
     const h = num(params.health, 4) * gold(self);
     for (let wave = 0; wave < unused; wave++) {
@@ -7186,6 +7209,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  effect off the card at Collapse time (+`extra` hits per Herald, doubled gilded). The body is a stub so the
    *  factory × phase lane sees the recruit side implemented; a re-trigger path that does fire it is harmless. */
   collapseExtraTargets: () => {},
+
+  /** Amplification Agnus's `passive` MARKER (owner Set 3 batch 2026-10-13): never dispatched — the Equipment
+   *  activation reads it off the board (`equipmentAmplifiedByAura`). A stub so the factory x phase lane sees it. */
+  equipmentAmplifyAll: () => {},
 
   /** STAR DESTROYER (the Starform's own Equipment, rule 9): the silent exit — the token leaves the Shop and nothing
    *  else fires. No consume, no collapse, no `starformRemoved` (Zenith stays quiet), no `starformGained`, not a
@@ -12742,6 +12769,34 @@ export function rightmostShopMinion(state: RunState): number {
     if (d && !d.spell && !d.ruby) return i;
   }
   return -1;
+}
+
+/**
+ * ADD a specific card to the Shop (Indy's Golden Monkey, owner Set 3 batch 2026-10-13). THE SHOP NEVER GROWS (owner
+ * ruling 2026-08-31, the Open Enrollment shape): a short row takes it in a free slot; a full row REPLACES the
+ * right-most minion offer, never the Starform (rule 3), never a spell or Ruby, and never another copy of the card
+ * being added (a gilded Indy's second Monkey must not eat its first). The displaced offer returns to the pool like a
+ * reroll; a pooled card is taken from the pool (a token is not pooled, so both are no-ops for it). Returns the new
+ * offer's uid, or null when there was no room.
+ */
+export function addCardToShop(state: RunState, cardId: string): string | null {
+  const offer: ShopCard = { uid: `s${state.uidSeq++}`, cardId };
+  if (state.shop.length < tierSlots(state.tier)) {
+    takeFromPool(state, cardId);
+    state.shop.push(offer);
+    return offer.uid;
+  }
+  let idx = -1;
+  for (let i = state.shop.length - 1; i >= 0; i--) {
+    const o = state.shop[i]!;
+    const d = CARD_INDEX[o.cardId];
+    if (d && !d.spell && !d.ruby && !o.starform && !o.held && o.cardId !== cardId) { idx = i; break; }
+  }
+  if (idx < 0) return null;
+  returnToPool(state, state.shop[idx]!.cardId);
+  takeFromPool(state, cardId);
+  state.shop[idx] = offer;
+  return offer.uid;
 }
 
 /** STARFORM ROSTER — the Shop minion a Starform consume picks: the highest TIER (Accretion Warden) or the highest

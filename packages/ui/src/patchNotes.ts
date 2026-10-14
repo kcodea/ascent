@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-13',
     changes: [
       {
+        category: 'Balance',
+        text: 'Set 3 update: fifteen cards leave Set 3, four are reworked or moved, and three new Neutral cards arrive.',
+        details: [
+          'Leaving Set 3: Beggy, Geode Guardian, Delver, Shardluck, Veinstorm, Mountainbond, Paymaster Pimm, Kringle, Blade Thrower, Gangplank, Anubis, Dreaming Deep, Constellation Prime, Cosmo Express and Yeti. The Set 2 cards among them stay in Set 2.',
+          'Solburn now Collapses your Starform when you sell it, not when you play it.',
+          'Shredder now gives all your minions +2/+3 for every Equipment you did not use this turn.',
+          'Blaster moves to Tier 3. Calibration Master moves to Tier 4 and is now 6/4.',
+          'New: Indy (Tier 4). Every 5 rolls, it adds a Golden Monkey to the Shop.',
+          'New: Golden Monkey, a 6/6 Taunt. Sell it to Discover a minion from the Tier above yours.',
+          'New: Amplification Agnus (Tier 7). While it is on your board, all your Equipment is Amplified.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The end of a game now closes with the gate: the doors slam shut over your last fight and open on the results.',
         details: [

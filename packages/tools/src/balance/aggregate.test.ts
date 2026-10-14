@@ -35,14 +35,14 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-10-10: the owner spell batch (costs, Growth / Spirit Fire / Staff numbers, two archives) moves them again.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:4.07",
-        "fibbsy:30:3.87",
-        "gorr:30:4.90",
-        "harlan:30:5.33",
-        "midas:30:4.07",
+        "drakko:30:4.60",
+        "fibbsy:30:3.50",
+        "gorr:30:4.63",
+        "harlan:30:4.83",
+        "midas:30:4.67",
         "nadja:30:4.00",
-        "pete:30:4.60",
-        "warden:30:5.17",
+        "pete:30:5.07",
+        "warden:30:4.70",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);
@@ -84,7 +84,10 @@ describe('aggregate (synthetic fixture)', () => {
   });
 
   it('funnels are consistent: bought ≤ offered sightings, played ≤ bought + generated, casts by route sum', () => {
-    for (const m of agg.minions) { expect(m.bought).toBeLessThanOrEqual(m.offered); expect(m.finalBoard).toBeLessThanOrEqual(m.runsHeld + 8); }
+    // finalBoard counts COPIES on final boards, so the hard bound is the 7-slot board per run that held it. The old
+    // `runsHeld + 8` was a slack, not an invariant: the 2026-10-13 Set 3 batch reseeded the fixture and Kindled Sprite
+    // ended on 39 boards-worth of copies across 30 runs (several runs with two copies), which is legal.
+    for (const m of agg.minions) { expect(m.bought).toBeLessThanOrEqual(m.offered); expect(m.finalBoard).toBeLessThanOrEqual(m.runsHeld * 7); }
     for (const s of agg.spells) expect(s.castShop + s.castGenerated + s.castOther + s.repeats).toBe(s.cast);
     for (const r of agg.runes) expect(r.picked).toBeLessThanOrEqual(r.offered);
   });

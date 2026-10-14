@@ -137,11 +137,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 65 cards",
-    "statement": "All 65 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 62 cards",
+    "statement": "All 62 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "47 effect factories across 65 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Wooly · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 53 more",
+    "currentBehaviour": "47 effect factories across 62 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Wooly · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 50 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -159,7 +159,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "brood",
       "broodmother",
       "burialimp",
-      "ce3_courier",
       "ce3_dawnsentinel",
       "ce3_herald",
       "ce3_lodestar",
@@ -180,7 +179,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "impoverseer",
       "jenkins",
       "junk",
-      "k3_veinchant",
       "k_alchemist",
       "k_faultline",
       "k_gemheart",
@@ -200,7 +198,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "scrapvendor",
       "selfless",
       "sergeant",
-      "sp3_dreamingdeep",
       "sp3_dreamtide",
       "spore",
       "trickster",
@@ -323,17 +320,18 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-passive",
-    "title": "'passive' family · 4 cards",
-    "statement": "All 4 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'passive' family · 5 cards",
+    "statement": "All 5 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Delvey · Spear Warden · Ancient Wanderer",
+    "currentBehaviour": "5 effect factories across 5 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Delvey · Spear Warden · Ancient Wanderer · Amplification Agnus",
     "example": "Fuse Aldrin follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_novaherald",
       "k_deepdelve",
       "knit",
-      "n2_wanderer"
+      "n2_wanderer",
+      "n3_agnus"
     ]
   },
   {
@@ -423,11 +421,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "'shout' family · 67 cards",
-    "statement": "All 67 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shout' family · 65 cards",
+    "statement": "All 65 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "60 effect factories across 67 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · The Great Attractor · Constellation Prime · Solburn · Plummet · Rocket Power · Star Seed · Sugarnova · Wishing Star · … and 55 more",
+    "currentBehaviour": "59 effect factories across 65 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · The Great Attractor · Plummet · Rocket Power · Star Seed · Sugarnova · Wishing Star · Cinderwing Matron · Hoard Cleric · … and 53 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -435,8 +433,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "blackbelt",
       "buddy",
       "ce3_accretionwarden",
-      "ce3_constellationprime",
-      "ce3_coronadevotee",
       "ce3_herald",
       "ce3_shootingstar",
       "ce3_starseed",
@@ -895,7 +891,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "370 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "367 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -1499,11 +1495,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-t",
-    "title": "Taunt [T] · 21 carriers",
+    "title": "Taunt [T] · 22 carriers",
     "statement": "Taunt means: enemies must attack your Taunt minions before anything else — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Taunt for all 21 carriers.",
-    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: Give all Friendly and summoned Beasts +2/+4.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Dawn Sentinel · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · … and 9 more",
+    "currentBehaviour": "One shared engine path implements Taunt for all 22 carriers.",
+    "cardText": "Exemplar — Armadiyo: \"Taunt. Echo: Give all Friendly and summoned Beasts +2/+4.\" · Carriers: Armadiyo · Dawnclaw · Wolvie · Blaster · Dawn Sentinel · Fel Spikes · Chipper · Knocked · Big Huggies · Brunni · Twilight Emissary · Gryphon · … and 10 more",
     "example": "Armadiyo carries Taunt — in play, enemies must attack your Taunt minions before anything else.",
     "contentIds": [
       "b2_armadiyo",
@@ -1521,6 +1517,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "k_geode",
       "k_kobe",
       "maw",
+      "n3_goldenmonkey",
       "ryme",
       "sabercub",
       "sandbag",
@@ -2251,11 +2248,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-damaged",
-    "title": "Trigger: a friendly minion takes or deals damage · 9 cards",
-    "statement": "All 9 of these fire on one trigger: a friendly minion takes or deals damage. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a friendly minion takes or deals damage · 8 cards",
+    "statement": "All 8 of these fire on one trigger: a friendly minion takes or deals damage. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "7 effect factories across 9 cards dispatch on 'friendlyDemonDealtDamage', 'onDamaged' (combat) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Axeman: \"Critical Strike (50%). When a friendly Demon deals damage, gain +3/+3 permanently.\" · Members: Axeman · Leech · Rad Rachel · Ruinous Lord · Impossible Todd · Gryphon · Yeti · Target Dummy · Hearth Whisperer",
+    "currentBehaviour": "7 effect factories across 8 cards dispatch on 'friendlyDemonDealtDamage', 'onDamaged' (combat) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Axeman: \"Critical Strike (50%). When a friendly Demon deals damage, gain +3/+3 permanently.\" · Members: Axeman · Leech · Rad Rachel · Ruinous Lord · Impossible Todd · Gryphon · Target Dummy · Hearth Whisperer",
     "example": "Axeman fires when a friendly minion takes or deals damage, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_chosenfiend",
@@ -2264,7 +2261,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dm_ruinouslord",
       "dm_todd",
       "gryphon",
-      "n3_yeti",
       "sandbag",
       "sp3_hearthwhisperer"
     ]
@@ -2430,13 +2426,14 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-sell",
-    "title": "Trigger: you sell a card · 15 cards",
-    "statement": "All 15 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: you sell a card · 17 cards",
+    "statement": "All 17 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "14 effect factories across 15 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Riverback: \"Sell: get a Dragonflame.\" · Members: Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
-    "example": "Riverback fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
+    "currentBehaviour": "15 effect factories across 17 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Solburn: \"Sell: Collapse your Starform.\" · Members: Solburn · Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Golden Monkey · Salvatore McKlusky · … and 5 more",
+    "example": "Solburn fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
+      "ce3_coronadevotee",
       "d2_riverdrake",
       "d2_voicekeeper",
       "dm_behemoth",
@@ -2446,6 +2443,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "k_beggy",
       "k_pouchpincher",
       "n2_salesman",
+      "n3_goldenmonkey",
       "salvatore",
       "sp3_flamereveler",
       "sp3_grandprocession",
@@ -2470,12 +2468,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-shopRefresh",
-    "title": "Trigger: you refresh the Shop · 0 cards",
-    "statement": "All 0 of these fire on one trigger: you refresh the Shop. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: you refresh the Shop · 1 card",
+    "statement": "The 1 card here fires on one trigger: you refresh the Shop. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "1 effect factories across 0 cards dispatch on 'shopRefreshed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "(no live card currently fires on you refresh the Shop)",
-    "example": "any future card that fires when you refresh the Shop inherits this convention."
+    "currentBehaviour": "2 effect factories across 1 card dispatch on 'shopRefreshed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Indy: \"When you roll 5 times, add a Golden Monkey to the Shop.\" · Members: Indy",
+    "example": "Indy fires when you refresh the Shop, like every other card here. its printed numbers double when the card is gilded.",
+    "contentIds": [
+      "n3_indy"
+    ]
   },
   {
     "status": "needs-ruling",

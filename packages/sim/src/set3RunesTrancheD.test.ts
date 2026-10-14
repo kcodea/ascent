@@ -166,10 +166,9 @@ describe('Rune of Soul Script — Undead consume the Starform and are Collapse r
     let s = buyRune(run({ board: [body('u1', 'u3_poochy', { keywords: [] })] }), 'rune_soul_script');
     createStarform(s, SRC);
     starformOf(s)!.atk = 8; starformOf(s)!.hp = 6; // a 9/7 token → halves 5/4
-    s = { ...s, hand: [body('d', 'ce3_coronadevotee')] };
-    s = play(s, 'd');
+    s = { ...s, board: [...s.board, body('d', 'ce3_coronadevotee')] };
+    s = act(s, { type: 'sell', uid: 'd' }); // Solburn's Sell (2026-10-13): the sold body has left, so the Pup is the receiver
     expect(starformOf(s), 'collapsed').toBeUndefined();
-    // Two receivers on board (the Devotee + the Pup): both are originals — the Undead took its half.
     expect(stats(at(s, 'u1'))).toEqual([2 + 5, 1 + 4]);
   });
 });

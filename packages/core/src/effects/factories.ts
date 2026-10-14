@@ -710,7 +710,6 @@ export function fireShout(ctx: CombatContext, source: Minion, target: Minion): v
 export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: string }>> = {
   armChooseBoth: { why: "Double Dealer arms her 'first Choose One card you play' latch on her own card; Choose One cards are only played in the Shop (and Start of Turn re-arms her anyway)", line: 'arms for the next Choose One' },
   battlecryAllDemonsConsume: { why: 'Consume is a Shop action: each friendly Demon eats a created Fodder PERMANENTLY through the onConsume pipeline and the Fodder tally, which only run in the Shop', line: 'feeds your Demons when the Shop opens' },
-  battlecryCollapseStarform: { why: 'the Starform is a Shop token; the collapse happens when the Shop opens', line: 'collapses the Starform when the Shop opens' },
   battlecryConsumeShopRandom: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'eats from the Shop when it opens' },
   battlecryCreateStarformOrBuff: { why: 'the Starform is a Shop token (created in, and fed from, the Shop row)', line: 'feeds the Starform when the Shop opens' },
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },

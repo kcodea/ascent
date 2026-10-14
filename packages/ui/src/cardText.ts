@@ -493,7 +493,23 @@ export function shredderText(cardId: string, golden: boolean, unusedEquipment: n
   const mult = golden ? 2 : 1;
   const a = Number((eff.params as { attack?: number })?.attack ?? 4) * mult;
   const h = Number((eff.params as { health?: number })?.health ?? 4) * mult;
-  return `**End of Turn:** give your left-most and right-most minions **{{+${a * n}/+${h * n}}}** (+${a}/+${h} for each Equipment unused this turn: **${n}**).`;
+  // `scope: 'all'` (owner Set 3 batch 2026-10-13): the whole board, not the two ends.
+  const who = (eff.params as { scope?: string })?.scope === 'all' ? 'your minions' : 'your left-most and right-most minions';
+  return `**End of Turn:** give ${who} **{{+${a * n}/+${h * n}}}** (+${a}/+${h} for each Equipment unused this turn: **${n}**).`;
+}
+
+/**
+ * GOLDEN MONKEY (`onSellDiscover` with `tierOffset`, owner Set 3 batch 2026-10-13): "Discover a minion from the Tier
+ * above yours (up to Tier 7)" — the tier it will ACTUALLY offer depends on the live Shop tier, so the printed text
+ * names it: the current Shop tier + the offset, capped at 7 (the same cap the factory applies).
+ */
+export function sellDiscoverTierText(cardId: string, golden: boolean, tier: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.on === 'onSell' && e.do === 'onSellDiscover' && typeof e.params?.tierOffset === 'number');
+  if (!def || !eff || tier === undefined) return null;
+  const at = Math.min(7, tier + Number(eff.params?.tierOffset));
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/ \(up to Tier 7\)/, '').replace(/\.$/, ` {{(Tier ${at})}}.`);
 }
 
 /**

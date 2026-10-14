@@ -11,7 +11,9 @@ describe('runSpells — the one tribe-gated spell pool', () => {
   it('a Kobold spell is absent without Kobolds and present with them; neutral spells are always there', () => {
     const without = runSpells(set3(['dwarf', 'undead', 'spirit']));
     const withK = runSpells(set3(['kobold', 'undead', 'spirit']));
-    for (const id of ['rubyshipment', 'facetwright', 'veinstorm', 'rubytransfer']) {
+    // Veinstorm left set 3 on 2026-10-13 (owner Set 3 batch; still a set-2 spell), so it is absent either way.
+    expect(withK.some((c) => c.id === 'veinstorm'), 'Veinstorm left set 3').toBe(false);
+    for (const id of ['rubyshipment', 'facetwright', 'rubytransfer']) {
       expect(without.some((c) => c.id === id), `${id} leaked into a Kobold-less run`).toBe(false);
       expect(withK.some((c) => c.id === id), `${id} missing with Kobolds active`).toBe(true);
     }

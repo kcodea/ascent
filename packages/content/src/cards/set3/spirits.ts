@@ -101,19 +101,6 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     goldenText: '**Start of Combat:** gain **twice** the stats of the highest-Health minion in your hand this combat.',
   },
   {
-    // Echo: summon a COPY of the highest-Health minion in your hand and give it Ward.
-    id: 'sp3_dreamingdeep',
-    name: 'Dreaming Deep',
-    tribe: 'spirit',
-    tier: 7,
-    attack: 8,
-    health: 14,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonHighestHealthFromHand', params: { ward: true } }],
-    text: '**Echo:** summon the highest-Health minion from your hand and give it **Ward**.',
-    goldenText: '**Echo:** summon the **2** highest-Health minions from your hand and give them **Ward**.',
-  },
-  {
     // Rally: +1 Attack PERMANENTLY per Spirit played this turn (owner handoff 2026-09-18 — was combat-only, 3/1).
     // Combat reads the tally frozen at combat start (`spiritsPlayedFor`) and books the gain as `permaGain` so it
     // carries back to the run card (Target Dummy's channel); a shop-triggered Rally reads the live count and is

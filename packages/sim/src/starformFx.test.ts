@@ -98,9 +98,9 @@ describe('starformFx — the per-action pull channel', () => {
   });
 
   it('(3) COLLAPSE (Corona Devotee): one record from the token naming EVERY hit — three unique (since 2026-09-18), two, one, or the Devotee alone; Herald extras repeat uids', () => {
-    let s = withStarform({ board: [body('a', 'ce3_seer'), body('b', 'ce3_courier'), body('c', 'ce3_vendor'), body('n', 'sandbag')], hand: [body('d', 'ce3_coronadevotee')] });
+    let s = withStarform({ board: [body('d', 'ce3_seer'), body('a', 'ce3_seer'), body('b', 'ce3_courier'), body('c', 'ce3_vendor'), body('n', 'sandbag'), body('sb', 'ce3_coronadevotee')] });
     const token = starformOf(s)!.uid;
-    s = play(s, 'd');
+    s = act(s, { type: 'sell', uid: 'sb' } as Action);
     expect(s.starformFx).toHaveLength(1);
     const fx = s.starformFx![0]!;
     expect([fx.kind, fx.fromUid]).toEqual(['collapse', token]);
@@ -111,25 +111,25 @@ describe('starformFx — the per-action pull channel', () => {
     const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Solburn')).map((c) => c.uid);
     expect([...fx.toUids].sort()).toEqual(gained.sort());
 
-    let two = withStarform({ board: [body('a', 'ce3_seer')], hand: [body('d', 'ce3_coronadevotee')] });
-    two = play(two, 'd');
+    let two = withStarform({ board: [body('d', 'ce3_seer'), body('a', 'ce3_seer'), body('sb', 'ce3_coronadevotee')] });
+    two = act(two, { type: 'sell', uid: 'sb' } as Action);
     expect([...two.starformFx![0]!.toUids].sort()).toEqual(['a', 'd']);
 
-    let one = withStarform({ board: [body('n', 'sandbag')], hand: [body('d', 'ce3_coronadevotee')] });
-    one = play(one, 'd');
+    let one = withStarform({ board: [body('d', 'ce3_seer'), body('n', 'sandbag'), body('sb', 'ce3_coronadevotee')] });
+    one = act(one, { type: 'sell', uid: 'sb' } as Action);
     expect(one.starformFx![0]!.toUids).toEqual(['d']);
 
     // A Nova Herald's 2 extras land with replacement: 4 entries over 2 bodies — the FX plays once per hit.
-    let h = withStarform({ board: [body('h', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
-    h = play(h, 'd');
+    let h = withStarform({ board: [body('d', 'ce3_seer'), body('h', 'ce3_novaherald'), body('sb', 'ce3_coronadevotee')] });
+    h = act(h, { type: 'sell', uid: 'sb' } as Action);
     const hits = h.starformFx![0]!.toUids;
     expect(hits).toHaveLength(4);
     expect(new Set(hits).size).toBe(2);
   });
 
   it('no Starform → Corona Devotee records nothing', () => {
-    let s = run({ hand: [body('d', 'ce3_coronadevotee')] });
-    s = play(s, 'd');
+    let s = run({ board: [body('sb', 'ce3_coronadevotee')] });
+    s = act(s, { type: 'sell', uid: 'sb' } as Action);
     expect(s.starformFx).toEqual([]);
     expect(s.starformFxSeq).toBe(0);
   });

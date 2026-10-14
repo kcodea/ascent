@@ -1190,4 +1190,62 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13. The improvements ride the copy (summonBonus), so they go into combat with it and a re-fired Shout, the Echo and every Rally all read them. Rune of Mastery doubles each improvement earned, like every other improve. A Brisbane in hand earns nothing: the Gold meter runs on board bodies only.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultBrisbane1013.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-INDY-01',
+    title: 'Indy adds a Golden Monkey to the Shop every 5 rolls; the Golden Monkey sells into a Discover from the Tier above',
+    statement:
+      'Indy: "When you roll 5 times, add a Golden Monkey to the Shop." Indy counts every Shop refresh that rebuilds the '
+      + 'row while it is on your board (the shopRefreshed trigger, the same meter Hellrider used), from when that copy '
+      + 'arrived, and pays on every 5th: 5, 10, 15. Gilded adds 2. The Shop never grows: a short row takes the Monkey in a '
+      + 'free slot, a full row swaps out its right-most minion (never the Starform, a spell or another Golden Monkey). '
+      + 'The Golden Monkey is a 6/6 Taunt token: "Sell: Discover a minion from the Tier above yours (up to Tier 7)." The '
+      + 'offer is exactly your Shop tier + 1, capped at 7; gilded offers gilded minions.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 batch 2026-10-13 (Indy)', quote: 'When you roll 5 times, add a Golden Monkey to the Shop.' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 batch 2026-10-13 (Golden Monkey)', quote: 'one above your current Shop tier, capped at 7' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts onShopRefreshAddToShop + addCardToShop + onSellDiscover (tierOffset); packages/content/src/cards/set3/neutral.ts n3_indy + n3_goldenmonkey; packages/ui/src/cardText.ts sellDiscoverTierText' },
+    ],
+    contentIds: ['n3_indy', 'n3_goldenmonkey'],
+    currentBehaviour: 'Conforms as of 2026-10-13. Lead assumption, not an owner ruling: the meter matches Hellrider, so the turn-start fresh row counts as a roll and the tally is cumulative per copy rather than per turn. The countdown rides the board badge (the shared refresh meter), not the text.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Batch1013.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-AGNUS-01',
+    title: 'Amplification Agnus Amplifies every Equipment activation while it is on your board, spending nothing',
+    statement:
+      'Amplification Agnus: "All Equipment is Amplified." While Agnus is on your board, every Equipment you activate '
+      + 'from the slot triggers twice. It spends nothing: an Amplified stack banked by Rune of Amplification or the Grand '
+      + 'Workshop, and a pending Calibration Wrench charge, stay for a later activation. Amplified is twice at most, so '
+      + 'two Agnus, a gilded Agnus, or Agnus plus a stack still trigger twice. Off the board (sold, or still in hand) it '
+      + 'does nothing. Rune of Dismantling and Counterrotation re-fires are not activations and are not Amplified.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 batch 2026-10-13 (Amplification Agnus)', quote: 'All Equipment is Amplified.' },
+      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (when it applies)', quote: 'Only while on your board' },
+      { kind: 'code', ref: 'packages/sim/src/equipment.ts equipmentAmplifiedByAura + equipmentWillAmplify; packages/sim/src/reducer.ts activateEquipment; packages/content/src/cards/set3/neutral.ts n3_agnus' },
+    ],
+    contentIds: ['n3_agnus'],
+    currentBehaviour: 'Conforms as of 2026-10-13. The slot paints the charge blue off equipmentWillAmplify, which reads Agnus too.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Batch1013.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-SOLBURN-01',
+    title: 'Solburn collapses your Starform when it is SOLD, and never receives a hit itself',
+    statement:
+      'Solburn: "Sell: Collapse your Starform." Selling Solburn collapses the Starform exactly as before (3 unique random '
+      + 'friendly Celestials, plus Nova Herald extras, each gain half its stats; gilded gives the full stats). Solburn has '
+      + 'already left the board when the sale fires, so it is never one of the hits. Playing Solburn does nothing.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 batch 2026-10-13 (Solburn)', quote: 'Sell: Collapse your Starform.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts battlecryCollapseStarform (fired by fireOnSell); packages/content/src/cards/set3/celestials.ts ce3_coronadevotee' },
+    ],
+    contentIds: ['ce3_coronadevotee'],
+    currentBehaviour: 'Conforms as of 2026-10-13. Stats kept at 4/5 (the owner gave none).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Batch1013.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
 ];

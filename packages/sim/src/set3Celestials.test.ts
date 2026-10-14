@@ -45,10 +45,12 @@ const toHand = (events: readonly CombatEvent[]): string[] =>
   events.filter((e) => e.type === 'toHand' && (e as { side: string }).side === 'player').map((e) => (e as { cardId: string }).cardId);
 
 describe('the roster', () => {
-  it('all eight are set-3 Celestials with the sheet tier / stats, appended after the Spirits', () => {
+  it('the seven left are set-3 Celestials with the sheet tier / stats, appended after the Spirits (Cosmo Express archived 2026-10-13)', () => {
+    expect(poolFor('set3').buyable.some((c) => c.id === 'ce3_courier'), 'Cosmo Express archived').toBe(false);
+    expect(CARD_INDEX['ce3_courier']).toMatchObject({ tier: 1, attack: 2, health: 1 });
     const rows: [string, number, number, number][] = [
-      // Cosmo Express 1/1 → 2/1 and Gravestar Seer 3/3 → 0/8 (owner stat pass 2026-09-18); Sugarnova 4/2 (rework 2026-09-18)
-      ['ce3_courier', 1, 2, 1], ['ce3_vendor', 2, 4, 2], ['ce3_seer', 3, 0, 8], ['ce3_conductor', 4, 4, 5],
+      // Gravestar Seer 3/3 → 0/8 (owner stat pass 2026-09-18); Sugarnova 4/2 (rework 2026-09-18)
+      ['ce3_vendor', 2, 4, 2], ['ce3_seer', 3, 0, 8], ['ce3_conductor', 4, 4, 5],
       ['ce3_herald', 4, 4, 6], ['ce3_adept', 5, 5, 8], ['ce3_spellcore', 6, 7, 9], ['ce3_artificer', 6, 6, 10],
     ];
     const ids = poolFor('set3').buyable.map((c) => c.id);

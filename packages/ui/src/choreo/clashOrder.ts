@@ -1,5 +1,6 @@
 import type { CombatEvent } from '@game/core';
 import { RESULT_TYPES } from '../combatBeats';
+import { isReactionTailEvent } from './hitReactions';
 
 /**
  * Presentation-only event normalization: within a CLASH (a contiguous run of result events), slide any
@@ -25,7 +26,27 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
   let changed = false;
   let i = 0;
   while (i < events.length) {
-    if (RESULT_TYPES.has(events[i]!.type)) {
+    const wave = events[i]!.wave;
+    if (wave !== undefined && RESULT_TYPES.has(events[i]!.type)) {
+      // A WAVE PASS (Gasket's Rally, a Fel Spikes volley): the whole same-wave slice is partitioned in one go, the
+      // volley's own events (damage, Ward pops, deaths, the bodies they summon) first, then EVERYTHING its hits'
+      // reactions emitted, stable on both sides (R-DEMON-DMG-BEATS-02, 2026-10-13). Not only the buffs: Impossible
+      // Todd's Imp aura (`tribeAura`) and Rune of Ruins' pulse (`questTrigger`) fire on every hit too, and leaving them
+      // between the hits kept the reactions from ever reaching the tail, so `hitReactionStart` could not split them
+      // off and they folded back into the pass with no tendril and no roll. Same commuting argument as below: the pass
+      // folds to the same frame at its end, only the beat split moves.
+      let j = i;
+      while (j < events.length && events[j]!.wave === wave) j++;
+      const hits: CombatEvent[] = [];
+      const reactions: CombatEvent[] = [];
+      for (let k = i; k < j; k++) {
+        const e = events[k]!;
+        if (isReactionTailEvent(e)) reactions.push(e);
+        else { if (reactions.length > 0) changed = true; hits.push(e); }
+      }
+      out.push(...hits, ...reactions);
+      i = j;
+    } else if (RESULT_TYPES.has(events[i]!.type)) {
       // A clash: a maximal contiguous run of results (+ interleaved buffs). Emit the non-buffs in order,
       // then the buffs — so a buff that sat between two results moves past them.
       const nonBuff: CombatEvent[] = [];

@@ -156,8 +156,8 @@ export const ORDERING_RULES: GameRule[] = [
     statement:
       'When a friendly Demon\x27s landed hit fires a reaction that buffs (Rad Rachel, Ruinous Lord, Impossible Todd, Leech, '
       + 'Axeman), that reaction presents in real time, at the hit: a tendril of the source\x27s tribe flies from the source to '
-      + 'each minion it buffs (one per buffed minion per source per hit, merged when one hit or one pass fires it many '
-      + 'times), and the number lands with it. For a wave pass (Gasket\x27s Rally, a Fel Spikes volley) the pass lands, '
+      + 'each minion it buffs, and the number lands with it (a pass that fires it many times plays one tick per '
+      + 'fire: R-DEMON-DMG-BEATS-02). For a wave pass (Gasket\x27s Rally, a Fel Spikes volley) the pass lands, '
       + 'then its reactions play as their own beat, then the next pass or the parked swing\x27s strike: Gilded Gasket is '
       + 'pass, reactions, pass, reactions, strike. A melee hit\x27s reactions play right after the clash, before the next '
       + 'attack. The Shop presents the same reactions as their own nested beats under the hit, one tendril per (pass, '
@@ -172,5 +172,55 @@ export const ORDERING_RULES: GameRule[] = [
     contentIds: ['dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_gasket', 'dm_felspikes'],
     currentBehaviour: 'Conforms as of 2026-10-11. Before, a pass folded its reactions into the hit: no tendril, and the numbers appeared when the stat hold timed out.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/demonDamageBeats.test.ts'], lastVerifiedAt: '2026-10-11' },
+  },
+  {
+    id: 'R-DEMON-DMG-BEATS-02',
+    title: 'Every trigger fire is its own tick: a pass lands whole, then its reactions step in one fire at a time; no reactor ever folds into the pass',
+    statement:
+      'Every trigger fire of a reaction gets its own tick. A wave pass (each Gasket Rally pass, each Fel Spikes volley) is '
+      + 'its own beat and lands whole (every hit at once, no left-to-right sweep). Its reactions then play as one tick per '
+      + 'landed hit: every reactor that hit fired (Rad Rachel, Ruinous Lord, Impossible Todd, Leech, Axeman, Rune of Ruins) '
+      + 'plays in that tick, and every buffed minion\x27s number steps up by that one fire, never the summed lump. Ticks are '
+      + 'REACTION_TICK_MS (160 ms) apart, the chain compressed to at most REACTION_CHAIN_CAP_MS (1.6 s), both one tunable '
+      + 'constant in choreo/hitReactions.ts; the beat clock, the Fel Spikes spike schedule and the volley hold all wait '
+      + 'reactionChainMs(ticks). The reaction beat exists whatever else the reactors emit (a Todd Imp aura, a Rune of Ruins '
+      + 'pulse): those ride the reaction beat and never fold the reactions back into the pass. The same per-fire stepping '
+      + 'applies to a stand-alone buff wave of several fires (a cleaving Demon\x27s hits) and a multiplied Rally (Gilded '
+      + 'Echohorn\x27s procs). A spell\x27s buffs (Dragonflame) are never chained: its presentation is the reference. Tendrils '
+      + 'draw on every tick while the ribbons alive at once fit CHAIN_RIBBON_BUDGET, else the full fan on the first tick '
+      + 'and the later ticks are told by their number steps. Presentation only.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-13 (Demon-damage timing)', quote: 'The demon damage animation timings feel off and go off in instant chunks instead of feeling smooth like our dragonflame triggering minions' },
+      { kind: 'owner-chat', ref: 'Owner answers 2026-10-13', quote: 'every trigger of the effect should get its own beat, like every volley from fel spikes, every rally trigger from gasket. the buffs should per tick if possible.' },
+      { kind: 'owner-chat', ref: 'Owner answers 2026-10-13 (keep the pass whole)', quote: 'the whole pass i think so it doesnt take forever to show and look kinda goofy' },
+      { kind: 'owner-chat', ref: 'Owner answers 2026-10-13 (Dragonflame is the reference)', quote: 'the dragonflame animation seems like it\x27s perfect already assuming it is working correctly.' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/hitReactions.ts (reactionTicks, reactionChainMs, chainTendrilPlan, REACTION_TICK_MS); packages/ui/src/choreo/clashOrder.ts (the wave partition); packages/ui/src/choreo/compile.ts (Moment.ticks); packages/ui/src/choreo/clock.ts; packages/ui/src/useCombatReplay.ts fireBuffChain / scheduleEchoVolleys / echoDeliveryLead' },
+    ],
+    contentIds: ['dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_leech', 'dm_chosenfiend', 'dm_gasket', 'dm_felspikes', 'b2_echohorn', 'd2_flamebeat', 'd2_warflame'],
+    currentBehaviour: 'Conforms as of 2026-10-13. Before, a Todd aura or a Rune of Ruins pulse folded the reactions into the pass (no tendril, the numbers snapped in at the next beat), and a pass\x27s reactions were one summed tendril and roll per minion.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-DEMON-DMG-DEATH-01',
+    title: 'A pass lands whole, then its Demon-damage reactions buff, THEN deaths are checked: a body is buffed before it can die to the pass',
+    statement:
+      'For a wave pass of Demon damage (each Gasket Rally pass, each Fel Spikes volley, either side), every hit of the '
+      + 'pass is dealt first, then every reaction those landed hits fire (Rad Rachel, Ruinous Lord, Impossible Todd, '
+      + 'Leech, Axeman, Rune of Ruins) resolves in hit order, and only then are deaths checked. A minion the pass took to 0 '
+      + 'or below is still on the board for those reactions and is buffed like any other: it dies only if the damage beat '
+      + 'its Health after the buffs (Echohorn 4/3 hit for 4 with Rachel paying +1 Health per landed hit survives; a hit '
+      + 'bigger than the buffs still kills). Echo, Rise and Avenge follow the corrected deaths. The Shop spray already '
+      + 'buffs every board minion before its single death check after the spray, so both phases agree. Side-neutral.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-13 (PR #2074 test)', quote: 'i think the echohorn dies before getting the buff which is \'true\' but it shouldnt die, and should actually get the buffs from rachel. if the damage is > the buff from rachel, then yea it dies, but i think it\'s bugged.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts withWave / flushDemonReactions / emitDemonDealtDamage / living (pendingCountsLiving) / resolveEchoDeath; packages/sim/src/recruit.ts shopSprayExceptTribe' },
+    ],
+    contentIds: ['dm_gasket', 'dm_felspikes', 'dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_leech', 'dm_chosenfiend', 'b2_echohorn'],
+    currentBehaviour: 'Conforms as of 2026-10-13. Before, each hit fired its reactions at once and a reactor buffed only bodies still above 0, so a minion the pass had already taken to 0 missed every buff and died.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/demonDamageDeathOrder.test.ts', 'packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
 ];

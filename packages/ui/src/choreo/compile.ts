@@ -1,7 +1,7 @@
 import type { CombatEvent } from '@game/core';
 import { RESULT_TYPES, type Beat } from '../combatBeats';
 import { momentKind, type MomentKind } from './kinds';
-import { hitReactionStart } from './hitReactions';
+import { chainTickCount, hitReactionStart } from './hitReactions';
 
 /**
  * The Moment Compiler — phase 1 of the combat choreographer (spec: docs/superpowers/specs/
@@ -97,6 +97,10 @@ export interface Moment extends Beat {
   /** Set on a wave pass's REACTION beat, split off the pass's tail (`hitReactions.ts`, R-DEMON-DMG-BEATS-01): the
    *  clock starts it right after the pass lands and holds it until its tendrils have read. */
   hitReaction?: true;
+  /** How many trigger-fire TICKS this moment's buffs play as (R-DEMON-DMG-BEATS-02): set on a hit-reaction beat
+   *  (always, 1 included) and on a stand-alone buff wave whose buffs are more than one fire. The beat clock holds the
+   *  moment for `reactionChainMs(ticks)` and the `buffCast` cue plays one tick per fire. Absent = one ordinary wave. */
+  ticks?: number;
 }
 
 /** Split a moment's index range into contiguous runs sharing a DEFINED `step` tag. */
@@ -169,7 +173,8 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
       const split = hitReactionStart(events, start, i);
       if (split > start) {
         moments.push({ start, end: split, primary: events[start]!, stepGroups: groupBySteps(events, start, split), kind: momentKind(events[start]!) });
-        moments.push({ start: split, end: i, primary: events[split]!, stepGroups: groupBySteps(events, split, i), kind: momentKind(events[split]!), hitReaction: true });
+        // Scored as a buff wave whatever its first event is (a Todd aura can lead it), so its tendrils play.
+        moments.push({ start: split, end: i, primary: events[split]!, stepGroups: groupBySteps(events, split, i), kind: 'buffWave', hitReaction: true, ticks: chainTickCount(events, split, i) });
         continue;
       }
     } else if (rules.collapse.has(t)) {
@@ -195,11 +200,18 @@ export function compileMoments(events: CombatEvent[], rules: GroupingRules = DEF
     } else {
       i++;
     }
-    moments.push({
+    const m: Moment = {
       start, end: i, primary: events[start]!,
       stepGroups: groupBySteps(events, start, i),
       kind: momentKind(events[start]!),
-    });
+    };
+    // A stand-alone buff wave that is more than one trigger fire (a cleaving Demon's hits each firing Rad Rachel, an
+    // Echo fired twice) plays one tick per fire too (R-DEMON-DMG-BEATS-02).
+    if (m.kind === 'buffWave') {
+      const n = chainTickCount(events, start, i);
+      if (n > 1) m.ticks = n;
+    }
+    moments.push(m);
   }
   return moments;
 }

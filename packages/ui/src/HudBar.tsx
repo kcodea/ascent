@@ -13,7 +13,7 @@ export const HudBar = memo(function HudBar() {
   // Your record over every round of the run. Draws print as the third number (a fight where both boards wipe
   // is a draw, and dropping it made a 14-round run read as 8-3; owner report 2026-09-22).
   const record = runRecord(run);
-  // Practice runs the SAME course as Ascent, so the plaque reads identically (round count, dashes, Setup, Line).
+  // Practice runs the SAME course as Ascent, so the plaque reads identically (round count, dashes, Setup, record).
   // The one difference the HUD reflects is invulnerability: the "Max −X" loss row is hidden (no Resolve at risk).
   const practice = run.mode === 'practice';
   const calibration = isCalibrationRound(run.wave);
@@ -39,7 +39,7 @@ export const HudBar = memo(function HudBar() {
         </span>
         {/* Per-round track: one dash per course round — a win prints a green ✓, a loss a red ✕, rounds not yet
             played stay a faint dash, and the current round is lit orange. Setup rounds (1–2) read a touch
-            quieter with a small gap after (where the scored climb begins). Shown in Practice too (same course). */}
+            quieter with a small gap after (where the scored rounds begin). Shown in Practice too (same course). */}
         {!lobby && (
           <span className="rounds" role="img" aria-label={`Round ${run.wave} of ${CONFIG.courseRounds}`}>
             {Array.from({ length: CONFIG.courseRounds }, (_, i) => {
@@ -69,7 +69,6 @@ export const HudBar = memo(function HudBar() {
             <Icon name="crown" />{recordText(record)}
           </span>
         )}
-        <span className="lbl line" aria-description={`Your Oath for this run. Fulfill it with ${run.line} wins.`}>Oath {run.line}</span>
       </div>
       )}
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow

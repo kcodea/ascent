@@ -144,7 +144,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'rank-medals',
     topic: 'lobby',
     q: 'What are the ranks?',
-    a: "There are six medals: **Bronze, Silver, Gold, Platinum, Diamond** and **Ascendant**. Each has three divisions that go **I, II, III** from low to high, so you climb Bronze I, Bronze II, Bronze III, then Silver I. Each division is **100 points**, except **Ascendant III** at the very top, where points keep climbing with no cap.",
+    a: "There are six medals: **Bronze, Silver, Gold, Platinum, Diamond** and **Ascendant**. Each has three divisions that go **I, II, III** from low to high, so you go up Bronze I, Bronze II, Bronze III, then Silver I. Each division is **100 points**, except **Ascendant III** at the very top, where points keep rising with no cap.",
     aliases: ['medals', 'divisions', 'tiers', 'rank names', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'ascendant'],
     seeAlso: ['placement-and-rating', 'promotion-game'],
     covers: [{ rule: 'R-RANK-03', fp: '7f57de63' }],

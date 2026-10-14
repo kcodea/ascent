@@ -605,8 +605,6 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .alt .lbl.record svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
 /* Calibration marker — the opening rounds that don't count toward the record. */
 .alt .lbl.calib { color: var(--ink3); font-size: calc(11 * var(--u)); opacity: 0.85; }
-/* Par / line — the run's target wins. */
-.alt .lbl.line { color: var(--ink2); }
 /* Next-opponent intel frame — hangs under the top bar's right edge (below the tribes). Portrait + HP
    visible; tavern tier / triples / top tribe on hover. The raspberry ring marks it as the threat. */
 /* Top-right column: next-enemy frame + the run-buffs window stacked under it. */
@@ -685,7 +683,7 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 .alt .w { color: var(--acc); }
 .alt .maxdmg { color: #ff9db0; }
 .alt .lbl, .alt .lbl.calib { color: #b7a98f; }
-.alt .lbl.record, .alt .lbl.line { color: #f4ecdb; }
+.alt .lbl.record { color: #f4ecdb; }
 .alt .lbl.record svg { color: var(--acc); }
 .rd-future::before, .rd-draw::before { background: #c9bca3; opacity: 0.5; }
 .rd-draw::before { background: #e6dcc8; opacity: 0.85; }
@@ -5614,7 +5612,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   text-shadow: 0 3px 0 rgba(0, 0, 0, 0.75), 0 0 22px color-mix(in srgb, var(--ui-title) 25%, transparent);
 }
 .hsprompt::after { content: ''; display: block; width: 400px; height: 22px; margin: 13px auto 0; background: url('/frames/name-divider.webp') 50% 50% / 100% 100% no-repeat; }
-/* A mode with run pills (the Oath line, a Rift) seats them under the title as its subtitle row: the title gives
+/* A mode with run pills (the Rating line, a Rift) seats them under the title as its subtitle row: the title gives
    up most of its gap to them and the last pill hands the rest on to the heroes. */
 .hsprompt:has(+ .hsline), .hsprompt:has(+ .riftpill) { margin-bottom: 22px; }
 .hsbox > :is(.hsline, .riftpill):has(+ .hsrow) { margin-bottom: 32px; }
@@ -5624,7 +5622,6 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Run-start Line telegraph on the hero picker (ascent only). */
 .hsline { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 14px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
-.hsline-line { padding: 3px 12px; border-radius: 999px; background: var(--acc); color: #2a1c0c; }
 .hsline-note { color: rgba(255, 255, 255, 0.5); text-transform: none; letter-spacing: 0.02em; font-weight: 700; }
 /* Rift-patch telegraph — a glowing pill ("Rift: <name>") with the game's standard clean floating
    tooltip (mirrors .questbadge-tip). Shared by hero select (`-hero`, big) + the in-game HUD (`-hud`, compact).
@@ -5824,11 +5821,6 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .tutgrad .endboard { margin-top: 6px; }
 .endsub { font-family: var(--font-ui); font-weight: 800; font-size: 32px; letter-spacing: 0.18em; text-transform: uppercase; color: #f2ead9; margin-top: 16px; }
 /* Par / line verdict (A2): the run's target + how it graded (covered / exceeded / missed / …). */
-.endline { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
-.endline-par { color: #b9ad97; }
-.endline-verdict { padding: 4px 14px; border-radius: 10px; color: #fff; }
-.endline.flawless .endline-verdict, .endline.exceeded .endline-verdict, .endline.covered .endline-verdict { background: #3b9e57; }
-.endline.missed .endline-verdict, .endline.failed .endline-verdict { background: var(--threat); }
 /* Rating change (career): the summit bonus, the delta, and the new rating, with a promo/demo tag. */
 .endrating { display: inline-flex; align-items: center; gap: 10px; margin-top: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
 .endrating-bonus { color: #c9a23a; }
@@ -10932,7 +10924,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* ── LOBBY END SCREEN ────────────────────────────────────────────────────────
    A lobby result is one number — where you finished — so it gets the whole headline, with the final warband
-   underneath as the only supporting detail. No Oath verdict, Rating delta, record, pips, tags or run stats:
+   underneath as the only supporting detail. No verdict, Rating delta, record, pips, tags or run stats:
    none of them exist in a mode with no course and no rating (owner ask 2026-07-29). */
 .endscreen.lobbyend .endbox { gap: calc(14 * var(--u-base)); }
 /* Lobby post-game rating — the BIG number (current rating) with the placement's ± delta beside it. Static

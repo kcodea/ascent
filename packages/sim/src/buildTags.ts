@@ -45,7 +45,7 @@ export const TAG_INFO: Record<string, string> = {
   'Menagerie': 'Four or more tribes sharing the board.',
   'Triple Hunter': 'Chased triples and golden upgrades.',
   'Scaling Engine': 'Big permanent, run-wide stat growth.',
-  'Tempo Climber': 'Strong early, faded late.',
+  'Fast Starter': 'Strong early, faded late.',
   'Late Bloom': 'Slow start, powered up late.',
   'Underdog Line': 'A bad start, but still covered par.',
   'Low Roll Survivor': 'Covered par without triples or goldens.',
@@ -166,7 +166,7 @@ export function buildTags(state: RunState): string[] {
     const winRate = (arr: string[]): number => (arr.length ? arr.filter((r) => r === 'win').length / arr.length : 0);
     const early = winRate(scoredResults.slice(0, half));
     const late = winRate(scoredResults.slice(half));
-    if (early - late >= 0.34) add('Tempo Climber', 4);
+    if (early - late >= 0.34) add('Fast Starter', 4);
     else if (late - early >= 0.34) add('Late Bloom', 5);
     const lr = lineResult(state);
     if (metLine(lr.status) && early <= 0.34) add('Underdog Line', 6); // bad start, still covered the line

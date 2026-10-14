@@ -361,7 +361,7 @@ export const HEROES: HeroDef[] = [
     // the run has spent 70 Gold. High armour prices in the tempo you give up sitting on a dead card.
     id: 'brackus',
     name: 'Brackus',
-    blurb: 'He shows you the summit on day one. Climbing it is your problem.',
+    blurb: 'He shows you the summit on day one. Getting there is your problem.',
     resolve: 30,
     armor: 11,
     power: {
@@ -392,7 +392,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'hermithank', // id kept stable (saves / art file); display name is Tradesman
     name: 'Tradesman',
-    blurb: 'Cheap to shop, dear to climb. The trader hoards his tiers.',
+    blurb: 'Cheap to shop, dear to tier up. The trader hoards his tiers.',
     resolve: 30,
     armor: 9,
     power: {
@@ -438,7 +438,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'runesmith',
     name: 'Runesmith',
-    blurb: 'The forge fires once. Spend well, for its rune lasts the whole climb.',
+    blurb: 'The forge fires once. Spend well, for its rune lasts the whole game.',
     resolve: 30,
     armor: 8, // owner balance 2026-08-17,
     power: {
@@ -500,7 +500,7 @@ export const HEROES: HeroDef[] = [
     id: 'jenkins',
     wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Jensen',
-    blurb: 'Every dig turns up something, for a price that only ever climbs.',
+    blurb: 'Every dig turns up something, for a price that only ever rises.',
     resolve: 30,
     armor: 15, // re-enabled by the owner 2026-08-17
     power: {
@@ -999,7 +999,7 @@ export const HEROES: HeroDef[] = [
     // the course (blueprint §6.2). Its power is deliberately simple: an active, targeted, fixed +1/+1.
     id: 'aster',
     name: 'Aster, the Guide',
-    blurb: 'Steady hands for a first climb. A little help, right where it’s needed.',
+    blurb: 'Steady hands for a first game. A little help, right where it’s needed.',
     resolve: 30,
     armor: 15,
     wip: true,

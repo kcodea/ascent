@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * GAUNTLET HERO PICKER — a Gauntlet stage is not a scored ladder run: it has no Oath and never moves your Rating, so
- * the picker must not telegraph the "Rating X · Oath Y" line it shows for Ascent and Rift. Ascent keeps it
- * (regression).
+ * GAUNTLET HERO PICKER — a Gauntlet stage is not a scored ladder run: it never moves your Rating, so the picker
+ * must not telegraph the "Rating X" line it shows for Ascent and Rift. Ascent keeps it (regression), and since
+ * 2026-10-14 (R-TERM-01) that line no longer carries the retired Oath pill.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
@@ -20,7 +20,7 @@ const open = (pendingMode: 'gauntlet' | 'ascent'): HTMLElement => {
 };
 
 describe('HeroSelect in a Gauntlet', () => {
-  it('shows no Rating / Oath line', () => {
+  it('shows no Rating line', () => {
     const el = open('gauntlet');
     expect(el.querySelector('.hsprompt')).not.toBeNull();
     expect(el.querySelector('.hsline')).toBeNull();
@@ -30,5 +30,6 @@ describe('HeroSelect in a Gauntlet', () => {
   it('an Ascent run still shows it (regression)', () => {
     const el = open('ascent');
     expect(el.querySelector('.hsline')).not.toBeNull();
+    expect(el.textContent).not.toMatch(/oath/i);
   });
 });

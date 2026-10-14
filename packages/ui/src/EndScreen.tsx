@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion } from '@game/core';
-import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type LineStatus, playerLobbySeat, lobbyIsUnrated, type RunState } from '@game/sim';
+import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, playerLobbySeat, lobbyIsUnrated, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
 import { heroPortrait, useRunSkins } from './skins/skins';
@@ -46,8 +46,8 @@ function ordinal(n: number): string {
 /**
  * The LOBBY end screen (owner ask 2026-07-29: "literally only show your placement and final board").
  *
- * The ordinary end screen is built entirely around the scored climb — Oath verdict, Rating delta, W–L record,
- * per-round pips, build tags, run stats. None of that exists in a lobby: there is no Oath, no course record and
+ * The ordinary end screen is built entirely around the retired scored course — Rating delta, W–L record,
+ * per-round pips, build tags, run stats. None of that exists in a lobby: there is no course record and
  * no rating, and a per-round pip strip implies a fixed length the mode doesn't have. Rather than hide nine
  * sections one by one and leave the reader guessing which numbers still mean something, a lobby gets its own
  * screen with the two things that do: where you finished, and what you finished with.
@@ -181,8 +181,8 @@ export function EndScreen({ won }: { won: boolean }) {
   const frame = usePortraitFrame('self', frameIdOf(runSkins));
   const openTitle = useGame((s) => s.openTitle);
   const actions = useGame((s) => s.replayActions);
-  // A lobby result is a placement, not a graded climb — its own screen, before any of the scored-run
-  // derivations below (record, Oath verdict, rating, pips) which have no meaning in that mode.
+  // A lobby result is a placement, not a graded course — its own screen, before any of the scored-run
+  // derivations below (record, verdict, rating, pips) which have no meaning in that mode.
   const lobby = run.lobby;
   // The rating change for this scored run (computed on run-end, a tick after the phase flips). null for
   // Practice or until it lands.
@@ -223,16 +223,8 @@ export function EndScreen({ won }: { won: boolean }) {
   // round. The `won` prop only tells us whether the course was *completed* (survived to the end).
   const completedCourse = won;
   const wonPar = metLine(line.status);
-  // Verdict text sits after "Oath N", so it doesn't repeat the word — reads "Oath 9 · Fulfilled",
-  // "Oath 9 · Surpassed +2", "Oath 9 · Fell Short -2". (Vocab pass 2026-07-16: Line→Oath, Covered→Fulfilled,
-  // Exceeded→Surpassed, Missed→Fell Short; a death before round 17 reads "Fallen" in the headline.)
-  const LINE_VERDICT: Record<LineStatus, string> = {
-    flawless: 'Flawless',
-    exceeded: `Surpassed +${line.delta}`,
-    covered: 'Fulfilled',
-    missed: `Fell Short ${line.delta}`,
-    failed: `Fell Short ${line.delta}`,
-  };
+  // The win/loss verdict still comes from `metLine` (mechanics unchanged), but the target itself is no longer
+  // printed: the "Oath N · Fulfilled" row is gone, and the headline never names it (owner 2026-10-14, R-TERM-01).
   const ratingSign = lastRating && lastRating.ratingDelta >= 0 ? '+' : '';
   // Tutorial graduates to its own screen (checked before the lobby branch — a tutorial run also carries a
   // lobby, but a placement/verdict is the wrong frame for a course you just LEARNED).
@@ -256,10 +248,10 @@ export function EndScreen({ won }: { won: boolean }) {
           <div className="endhero-name">{hero.name}</div>
         </div>
         <div className="eyebrow">
-          {practice ? 'Practice complete' : wonPar ? (completedCourse ? 'The climb is complete' : 'You fulfilled your Oath') : ''}
+          {practice ? 'Practice complete' : wonPar ? (completedCourse ? 'You reached the final round' : 'You won the run') : ''}
         </div>
         <h1 className="disp hstitle">
-          {practice ? 'PRACTICE' : wonPar ? (completedCourse ? 'ASCENDED' : 'OATH FULFILLED') : 'FALLEN'}
+          {practice ? 'PRACTICE' : wonPar ? (completedCourse ? 'ASCENDED' : 'VICTORY') : 'FALLEN'}
         </h1>
         <div className="endsub">
           {practice
@@ -268,12 +260,6 @@ export function EndScreen({ won }: { won: boolean }) {
               ? `Record ${rec.wins}–${rec.losses}${rec.draws ? ` · ${rec.draws}D` : ''}`
               : `Record ${rec.wins}–${rec.losses} · fell on round ${run.wave} of ${CONFIG.courseRounds}`}
         </div>
-        {!practice && (
-          <div className={`endline ${line.status}`}>
-            <span className="endline-par">Oath {line.line}</span>
-            <span className="endline-verdict">{LINE_VERDICT[line.status]}</span>
-          </div>
-        )}
 
         {!practice && lastRating && (
           <div className={`endrating${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">
@@ -288,8 +274,8 @@ export function EndScreen({ won }: { won: boolean }) {
             )}
             <span className="endrating-delta">Rating {ratingSign}{lastRating.ratingDelta}</span>
             <span className="endrating-now">{lastRating.ratingAfter}</span>
-            {lastRating.promoted && <span className="endrating-move promo">Promoted → Oath {lastRating.lineAfter}</span>}
-            {lastRating.demoted && <span className="endrating-move demo">Demoted → Oath {lastRating.lineAfter}</span>}
+            {lastRating.promoted && <span className="endrating-move promo">Promoted</span>}
+            {lastRating.demoted && <span className="endrating-move demo">Demoted</span>}
           </div>
         )}
 

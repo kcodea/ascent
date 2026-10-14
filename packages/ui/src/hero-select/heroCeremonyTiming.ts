@@ -10,7 +10,7 @@
 export interface HeroCeremonyTiming {
   /** The selected card's press-into-the-surface acknowledgment. */
   pressMs: number;
-  /** Header / Oath / Back begin fading. */
+  /** Header / Rating / Back begin fading. */
   headerExitDelayMs: number;
   /** Unselected cards begin leaving. */
   optionExitDelayMs: number;

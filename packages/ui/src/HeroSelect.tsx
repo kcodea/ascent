@@ -153,22 +153,16 @@ export function HeroSelect() {
       {/* THE TITLE (owner ask 2026-10-13): "Select Your Hero" IS the screen's heading now, in the Compendium's title
           treatment (the gold caps title over the painted name divider). The ASCENT lockup that sat above it is gone
           from this screen. It is the first thing in `.hsbox`, so it rides the picker's zoom and the title + heroes
-          centre as one group; the run pills (Oath, Rift) sit under it as its subtitle row. */}
+          centre as one group; the run pills (Rating, Rift) sit under it as its subtitle row. */}
       <div className="hsbox">
         <h1 className="hsprompt">Select Your Hero</h1>
-        {/* Run-start telegraph: your rating-derived Line — the wins this run is expected to cover. Shown for
-            every SCORED mode, which is Ascent AND Rift (a rift run still takes damage, still records a
-            result — every other mode check in the codebase is `!== 'practice'`, so this one matches). Only
-            Practice is unscored. */}
-        {/* A LOBBY has no Oath and no rating — it is won by outlasting seven other seats — so it telegraphs the
-            table instead. Practice stays unscored and shows neither. */}
-        {/* A LOBBY telegraphs nothing here any more (owner ask 2026-08-22 — the format pill is gone); the
-            Rating/Oath line stays for the scored non-lobby modes. A GAUNTLET stage has no Oath and never moves
-            your Rating, so it shows neither. */}
+        {/* Run-start telegraph for the scored non-lobby modes (Ascent, Rift): your Rating. A LOBBY telegraphs
+            nothing here (owner ask 2026-08-22), Practice is unscored, and a GAUNTLET stage never moves your
+            Rating, so none of them show it. The "Oath N" pill that sat beside the Rating is gone: Oath is a
+            retired term (owner 2026-10-14, R-TERM-01). `profile.currentLine` is still computed, just not shown. */}
         {mode !== 'lobby' && mode !== 'practice' && mode !== 'gauntlet' && (
-          <div className="hsline" aria-label="Your Oath for this run">
+          <div className="hsline" aria-label="Your Rating">
             <span className="hsline-rat">Rating {profile.rating}</span>
-            <span className="hsline-line">Oath {profile.currentLine}</span>
           </div>
         )}
         {/* Active "rift" patch — a limited-time global run modifier (see CONFIG.rift). Telegraphed here so

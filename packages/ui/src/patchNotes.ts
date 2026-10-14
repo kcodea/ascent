@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-14',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Removed the old win target number and some outdated story words.',
+        details: [
+          'The round plaque, the hero picker and the end screen no longer show the old win target.',
+          'A few hero bios, menu lines and one achievement name were reworded to match the game as it is now.',
+          'The 10 promotion games achievement is now called Rising Star.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-13',
     changes: [
       {

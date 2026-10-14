@@ -22,7 +22,7 @@ const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): Board
   return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...over };
 };
 const run = (over: Partial<RunState> = {}): RunState =>
-  ({ ...createRun(7), setId: 'set3', phase: 'recruit', embers: 20, tier: 6, ...over } as RunState);
+  ({ ...createRun(7), setId: 'set4', phase: 'recruit', embers: 20, tier: 6, ...over } as RunState);
 const act = (s: RunState, a: Action): RunState => reduce(s, a);
 const play = (s: RunState, uid: string): RunState => act(s, { type: 'play', uid, toIndex: 0 } as Action);
 const offer = (s: RunState, cardId: string, over: Partial<ShopCard> = {}): ShopCard => ({ uid: `s${s.uidSeq++}`, cardId, ...over });

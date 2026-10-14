@@ -4,7 +4,7 @@ import { instanceEffects, mintWhisper } from './recruit';
 import type { BoardCard, RunState } from './state';
 
 /**
- * ── SET 4 WHISPERS — the lifecycle (owner 2026-10-13) ──────────────────────────────────────────────────────
+ * ── WHISPERS (Set 3 since 2026-10-14) — the lifecycle (owner 2026-10-13) ──────────────────────────────────────────────────────
  *
  * A WHISPER is a spell a card GRANTS (`grantWhisper` on the granting minion, naming the Whisper's card id). The owner's rules, verbatim intent:
  *

@@ -14,8 +14,8 @@ import { SET2_NEUTRAL } from './cards/set2/neutral';
 import { SET2_DRAGONS, SET2_DRAGON_RUNE_MINIONS } from './cards/set2/dragons';
 import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
-import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS, SET3_SPELLS, SET3_CELESTIALS } from './cards/set3';
-import { SET4_CARDS } from './cards/set4';
+import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS, SET3_SPELLS, SET3_DRAGONS } from './cards/set3';
+import { SET4_CARDS, SET4_SPELLS } from './cards/set4';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -57,9 +57,10 @@ const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) =>
  * compare"): Set 3's generic NEUTRAL Shop spells, BY REFERENCE (the same ids and defs; Set 3 is unchanged), resolved
  * against Set 3's own spell lists so a rename there breaks loudly here. Left OUT, because Set 4 does not field their
  * tribe or mechanic: the Dwarven Ales (`wo_*`, Rush Order, On the House), the Ruby / Kobold toolkit (Ruby Shipment,
- * Facetwright, Veinstorm, Ruby Transfer), the Undead pair (Lantern of Souls, Undead Army), the Celestial / Starform
- * spells (Star Crash, Accretion) and the Spirit spell (Crescendo). Order follows Set 3's manifest; appended after
- * Set 4's minions, so no minion position moves.
+ * Facetwright, Veinstorm, Ruby Transfer), the Undead pair (Lantern of Souls, Undead Army) and the Spirit spell (Crescendo). The Celestial / Starform
+ * spells (Star Crash, Black Hole) are no longer Set 3's: they moved here with the Celestials on 2026-10-14 and are
+ * Set 4's OWN spells (`SET4_SPELLS`). Order follows Set 3's manifest; appended after Set 4's minions, so no minion
+ * position moves.
  */
 const SET4_SHARED_SPELL_IDS: readonly string[] = [
   'apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone',
@@ -365,9 +366,11 @@ export const SETS: Record<SetId, SetDef> = {
     // `selectRunTribes` picks a run's active tribes from this list, so a tribe absent here can never be a
     // run's tribe no matter how many of its cards the pool holds — which is why adding the Kobolds (2026-08-28)
     // meant adding 'kobold' in the same breath.
-    // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack"); Undead the same day (Rise / Echo / overflow). Spirit +
-    // Celestial are set 3's BRAND-NEW tribes (owner 2026-09-09) — space reserved here; their rosters follow.
-    tribes: ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'],
+    // Dwarves joined 2026-09-09 (Gold / Ale / "gains Attack"); Undead the same day (Rise / Echo / overflow). Spirit is
+    // set 3's BRAND-NEW tribe (owner 2026-09-09). Celestial was too, until the 2026-10-14 swap (owner: "move celestials
+    // to set 4 along with their runes etc. remove them from set 3. move our current set 4 dragons to set 3."): the
+    // Celestials left for Set 4 and the Whisper Dragons arrived from it.
+    tribes: ['kobold', 'dwarf', 'undead', 'spirit', 'dragon'],
     // Starts EMPTY and opts cards IN, the same manifest pattern set 2 uses. Add `inherits: 'set2'` (+
     // `excludes`) instead if set 3 should start from set 2's pool and trim; both compose, and `own` always
     // appends last so adding cards never disturbs an inherited prefix.
@@ -382,7 +385,10 @@ export const SETS: Record<SetId, SetDef> = {
     // (2026-09-16) sits exactly where its set-3 fork used to, so set-3 pool order (seeded picks) never moved —
     // then the carried set-1 and set-2 ones.
     // Then the SPIRITS (2026-09-09): a brand-new tribe, all set 3's own — appended after the Neutrals.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_CELESTIALS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // Celestials appended 2026-09-11; set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
+    // Then the WHISPER DRAGONS (2026-10-14, from Set 4), in the slot the Celestials held (appended 2026-09-11, moved to
+    // Set 4 the same day the Dragons arrived), so every earlier minion keeps its position. Their Whispers (Tome,
+    // Runebind) are granted Gift-class spells and stay OUT of the manifest.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
   },
   set4: {
     id: 'set4',
@@ -390,12 +396,13 @@ export const SETS: Record<SetId, SetDef> = {
     blurb: 'In development.',
     // A SCAFFOLD (owner 2026-10-13), started the way Set 3 was: selectable in the Scene Builder's set picker (which
     // offers disabled sets on purpose), NEVER the active set. `activeSet()` is first-enabled-wins in declaration
-    // order, so flipping this on would move every NEW run onto an eight-card pool.
+    // order, so flipping this on would move every NEW run onto an unfinished pool.
     enabled: false,
-    // Its first two tribes: the Whisper Dragons and the self-damage Beasts. More join as their rosters land.
-    tribes: ['dragon', 'beast'],
+    // The self-damage Beasts and, since the 2026-10-14 swap, the Celestials (from Set 3). The Whisper Dragons it started
+    // with moved to Set 3 in the same swap. More join as their rosters land.
+    tribes: ['beast', 'celestial'],
     // Opts cards IN, the manifest pattern sets 2 and 3 use. Append new cards; never insert (pool order seeds the shop).
-    own: [...SET4_CARDS, ...SET4_SHARED_SPELLS], // → packages/content/src/cards/set4/*.ts (the Whispers stay OUT: granted, never drawable), then Set 3's generic neutral spells by reference (owner 2026-10-14)
+    own: [...SET4_CARDS, ...SET4_SHARED_SPELLS, ...SET4_SPELLS], // → packages/content/src/cards/set4/*.ts (Beasts, then the Celestials + Starform), then Set 3's generic neutral spells by reference (owner 2026-10-14), then Set 4's own Celestial spells
   },
 };
 

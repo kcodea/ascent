@@ -1,10 +1,14 @@
 import type { CardDef } from '@game/core';
 
 /**
- * ── SET 3 — THE CELESTIALS (owner roster 2026-09-11) ────────────────────────────────────────────────────
+ * ── SET 4 — THE CELESTIALS (owner roster 2026-09-11; authored for Set 3, MOVED to Set 4 2026-10-14) ──────
+ *
+ * Owner 2026-10-14: "move celestials to set 4 along with their runes etc. remove them from set 3." The file moved from
+ * `cards/set3/` with the tribe; every id is unchanged (art, saves, replays and contracts key on them), so the `ce3_`
+ * prefix now records where the tribe was first authored, not the set it lives in.
  *
  * The SPELL tribe: every body here feeds, multiplies, copies or is fed by spells — Shop spells first, and the
- * tribe's own Star Crash (`starcrash`, a Celestial-only spell in `set3/spells.ts`). Nothing here uses Orbit or
+ * tribe's own Star Crash (`starcrash`, a Celestial-only spell in `set4/spells.ts`). Nothing here uses Orbit or
  * Alignment: those two mechanics (the 2026-08-05 roster, archived 2026-08-28 into `cards/archive.ts`) stay
  * implemented and PARKED in `@game/rules/parked` until the owner picks them back up. The `celestial` flag
  * (the alignment HUD) is deliberately absent on every card below.
@@ -13,7 +17,7 @@ import type { CardDef } from '@game/core';
  * Two names are reused from that roster (Horizon Courier, Starpath Vendor); the archived defs were renamed
  * with an "(Orbit)" suffix so the two never share a display name.
  */
-export const SET3_CELESTIALS: readonly CardDef[] = [
+export const SET4_CELESTIALS: readonly CardDef[] = [
   {
     // T2 4/2 (owner handoff 2026-09-18; was 2/4 +2/+2): banks +4/+4 for the NEXT Shop spell (`nextSpellBonus`), a
     // run field — so it CARRIES through End Turn → combat → the next shop unspent (pinned in set3Celestials.test.ts).

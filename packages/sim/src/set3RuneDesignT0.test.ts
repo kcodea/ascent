@@ -48,10 +48,14 @@ describe('tranche 0: cuts and restores', () => {
       expect(!r.sets || r.sets.includes('set3'), `${id} stays in Set 3`).toBe(true);
     }
   });
-  it('the 5 restores are offered in Set 3 again', () => {
-    for (const id of ['rune_open_constellation', 'rune_festival_circuit', 'rune_five_banners', 'rune_strange_caravan', 'rune_wishbone']) {
+  it('the 5 restores are offered in Set 3 again (two of them since moved by the 2026-10-14 Celestial swap)', () => {
+    for (const id of ['rune_five_banners', 'rune_strange_caravan', 'rune_wishbone']) {
       expect(RUNE_INDEX[id]!.sets, id).toContain('set3');
     }
+    // The 2026-10-14 swap (owner: Celestials to Set 4): the Open Constellation went with them; the Festival Circuit
+    // (Spirit + Celestial) works in neither set alone, so it is parked (offered nowhere, never archived) for an owner call.
+    expect(RUNE_INDEX['rune_open_constellation']!.sets).toEqual(['set4']);
+    expect(RUNE_INDEX['rune_festival_circuit']!.sets).toEqual([]);
     expect([...RUNE_INDEX['rune_festival_circuit']!.tribes!].sort()).toEqual(['celestial', 'spirit']);
   });
   it('the Strange Caravan (Start of Turn) grants a minion of a Set 3 tribe the board does not hold', () => {

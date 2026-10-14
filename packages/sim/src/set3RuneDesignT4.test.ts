@@ -55,7 +55,9 @@ describe('the tranche 4 roster (owner 2026-09-27)', () => {
     ];
     for (const [id, cost, epic, tribes] of want) {
       const r = RUNE_INDEX[id]!;
-      expect([r.cost, !!r.epic, r.sets, r.tribes], id).toEqual([cost, epic, ['set3'], tribes]);
+      // The two Celestial hybrids are PARKED (offered nowhere) since the 2026-10-14 swap split their tribes across sets.
+      const sets = tribes.includes('celestial') ? [] : ['set3'];
+      expect([r.cost, !!r.epic, r.sets, r.tribes], id).toEqual([cost, epic, sets, tribes]);
       expect(r.text, `${id}: no em dash`).not.toMatch(/—|--/);
     }
     expect(RUNE_INDEX['rune_tavern_tab']).toBeUndefined();

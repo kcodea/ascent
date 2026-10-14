@@ -7,8 +7,7 @@ import type { CardDef } from '@game/core';
  * Split Decision follow in their own tranche.
  *
  * Owner answers (2026-09-10): Aspect's Blessing / Shared Spirit pick RANDOM hand (and board) minions; Hand Soap
- * is the left-most MINION in hand (spells skipped); a tribe spell (Rush Order → Dwarf, Star Crash → Celestial,
- * Crescendo → Spirit) is offered only when that tribe is a run tribe (`runSpells`).
+ * is the left-most MINION in hand (spells skipped); a tribe spell (Rush Order → Dwarf, Crescendo → Spirit) is offered only when that tribe is a run tribe (`runSpells`).
  */
 export const SET3_SPELLS: readonly CardDef[] = [
   {
@@ -100,23 +99,6 @@ export const SET3_SPELLS: readonly CardDef[] = [
     text: 'Give a random minion on your board and a random minion in your hand **+3/+2**.',
   },
   {
-    // T3 (Celestial), aimed at a friendly Celestial: +5/+7 to it, and the same to a random friendly minion — "a random
-    // friendly minion" includes the target (R-TARGET-01: no "other" printed, so the whole side is eligible).
-    id: 'starcrash',
-    name: 'Star Crash',
-    tribe: 'celestial',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    target: 'friendly',
-    targetTribe: 'celestial',
-    effects: [{ on: 'cast', do: 'spellBuffTargetAndRandomFriendly', params: { attack: 5, health: 7 } }],
-    text: 'Give a **Celestial +5/+7**. It also casts on a random friendly minion.',
-  },
-  {
     // T3, aimed: DESTROY a friendly minion (the two-step death Graverobber uses — its Echo, departure and Rise get
     // their beats), then get a random Shop spell (tier-eligible, never an Ale — the "random spell" grant shape).
     id: 'graverobbery',
@@ -160,24 +142,5 @@ export const SET3_SPELLS: readonly CardDef[] = [
     cost: 3,
     effects: [{ on: 'cast', do: 'spellBuffAllPerTribePlayed', params: { tribe: 'spirit', attack: 2, health: 2 } }], // +1/+1 until 2026-09-14
     text: 'Give your minions **+2/+2** for every **Spirit** you played this turn.',
-  },
-  {
-    // T3 (Celestial, offered only while Celestial is a run tribe): the Starform eats the highest-HEALTH Shop minion
-    // (ties -> the right-most, like Accretion Warden's tier pick; no Starform -> the consume is skipped) and you
-    // get a Star Crash EITHER WAY (owner spec 2026-09-12 left the no-Starform case open; assumed: the grant is
-    // unconditional, only the consume needs the token). Untargeted, so no cast multiplier reaches it (Yazzus);
-    // a Comet / Nimbus charge repeats the whole cast (another consume + another Star Crash), as for any spell.
-    id: 'accretion',
-    name: 'Black Hole', // 'Accretion' until 2026-09-14 (owner rename; id + art unchanged)
-    tribe: 'celestial',
-    tier: 3,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    cost: 2,
-    // 2026-09-14 (owner): three RANDOM Shop minions; the Star Crash grant is gone with the rename.
-    effects: [{ on: 'cast', do: 'spellStarformConsumeShop', params: { pick: 'random', count: 3 } }],
-    text: 'Your **Starform** consumes **3** random Shop minions.',
   },
 ];

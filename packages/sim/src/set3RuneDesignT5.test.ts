@@ -19,10 +19,10 @@ const K = probe('dbg_t5s_k', {});
 const D = probe('dbg_t5s_d', { tribe: 'dwarf' });
 const U = probe('dbg_t5s_u', { tribe: 'undead' });
 const S = probe('dbg_t5s_s', { tribe: 'spirit' });
-const C = probe('dbg_t5s_c', { tribe: 'celestial' });
+const C = probe('dbg_t5s_c', { tribe: 'dragon' }); // Dragon replaced Celestial in Set 3 (owner swap 2026-10-14)
 const N = probe('dbg_t5s_n', { tribe: 'neutral' });
 for (const c of [K, D, U, S, C, N]) CARD_INDEX[c.id] = c;
-const SET3: Tribe[] = ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'];
+const SET3: Tribe[] = ['kobold', 'dwarf', 'undead', 'spirit', 'dragon'];
 
 const card = (id: string, uid: string): BoardCard => {
   const c = CARD_INDEX[id]!;
@@ -40,6 +40,7 @@ describe('the tranche 5 roster (owner 2026-09-27)', () => {
   it('the Set 3 Menagerie, Unity and the Heavy Hand at the doc costs, Set 3 only; the Wishbone stays restored', () => {
     const m = RUNE_INDEX['rune_menagerie_set3']!;
     expect([m.cost, !!m.epic, m.sets, m.tribes, m.name]).toEqual([5, false, ['set3'], SET3, 'Rune of the Menagerie']);
+    expect(m.text).toBe('Get a random **Kobold, Dwarf, Undead, Spirit, and Dragon**.'); // Celestial -> Dragon with the 2026-10-14 swap
     const u = RUNE_INDEX['rune_unity']!;
     expect([u.cost, !!u.epic, u.sets, u.tribes ?? []]).toEqual([6, true, ['set3'], []]);
     expect(u.text).toBe('While you control all **5** minion types, your minions count as **every type**.');
@@ -72,13 +73,13 @@ describe('Rune of Unity — Shop (prototype)', () => {
     expect(isTribe(at(s, 'h'), 'spirit'), 'a hand card is not "your minions"').toBe(false);
     expect(questCombatMods(s).runeUnity).toBe(true);
   });
-  it('it cannot hold itself up: sell the only Celestial and the grant is withdrawn at once', () => {
+  it('it cannot hold itself up: sell the only Dragon and the grant is withdrawn at once', () => {
     let s = run(fullHouse(), ['rune_unity']);
-    expect(isTribe(at(s, 'k'), 'celestial')).toBe(true);
+    expect(isTribe(at(s, 'k'), 'dragon')).toBe(true);
     s = reduce(s, { type: 'sell', uid: 'c' });
     expect(unityHolds(s)).toBe(false);
     for (const c of s.board) expect(c.unityTribes, c.uid).toBeUndefined();
-    expect(isTribe(at(s, 'k'), 'celestial')).toBe(false);
+    expect(isTribe(at(s, 'k'), 'dragon')).toBe(false);
   });
   it('without the rune a full house counts as nothing extra', () => {
     const s = run(fullHouse(), []);

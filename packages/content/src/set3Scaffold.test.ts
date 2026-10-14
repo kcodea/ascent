@@ -72,11 +72,9 @@ describe('set 3 scaffold', () => {
       'sp3_kindled', 'sp3_tidebud', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler', 'sp3_bondweaver',
       'sp3_festivalkeeper', 'sp3_nurturer', 'sp3_dreamcurrent', 'sp3_paradeartificer', 'sp3_gatheringguide', 'sp3_aspect',
       'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
-      // …then the reworked Celestials (owner roster 2026-09-11), appended in declaration order.
-      // Cosmo Express (ce3_courier) archived 2026-10-13
-      'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
-      // …then the Starform roster (owner spec 2026-09-12), appended after the token def in declaration order.
-      'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar', 'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar', 'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith', // Constellation Prime archived 2026-10-13
+      // …then the WHISPER DRAGONS (from Set 4, owner swap 2026-10-14), in the slot the Celestials held until they moved
+      // to Set 4 the same day. Every earlier minion keeps its position.
+      'd4_galas', 'd4_tolan', 'd4_tamby', 'd4_whisp',
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {
@@ -104,7 +102,7 @@ describe('set 3 scaffold', () => {
     }
     // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
     // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
-    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf', 'undead', 'spirit', 'celestial']);
+    expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf', 'undead', 'spirit', 'dragon']); // Celestial -> Set 4, Dragon <- Set 4 (owner swap 2026-10-14)
     // Their Ruby engine needs no set membership — `ruby` and the Gemheart Golem are tokens, global by the
     // same doctrine as the gift spells above, reachable only through a card that names them.
     expect(p.all.some((c) => c.id === 'ruby'), 'a token is never a set member').toBe(false);
@@ -124,11 +122,19 @@ describe('set 3 scaffold', () => {
     }
     // 58 + Power Shifter (2026-08-22) + the five Dwarven Ales (2026-09-09). The Ales are drawable set-2 spells,
     // not tokens, so — unlike the Ruby — the Dwarves' Ale engine DOES need them opted in.
-    expect(p.spells.length).toBe(59); // Veinstorm left set 3 2026-10-13 (-1); Turnabout archived everywhere 2026-10-10, spell batch (-1); Dissipate + Rival's Reflection archived everywhere 2026-10-10 (-2); Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
+    expect(p.spells.length).toBe(57); // Star Crash + Black Hole moved to Set 4 with the Celestials 2026-10-14 (-2); Veinstorm left set 3 2026-10-13 (-1); Turnabout archived everywhere 2026-10-10, spell batch (-1); Dissipate + Rival's Reflection archived everywhere 2026-10-10 (-2); Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
     expect(p.spells.filter((c) => c.name.includes('Ale')).map((c) => c.id).sort()).toEqual(['wo_attack', 'wo_champion', 'wo_health', 'wo_mine', 'wo_reinforcement']);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift
     expect(p.spells.some((c) => c.id === 'copycat'), 'gift spells stay out of the pool').toBe(false);
+    // The 2026-10-14 swap: NOTHING Celestial is left in Set 3 — no Celestial card, no Starform token, no Celestial spell.
+    expect(p.all.filter((c) => c.tribe === 'celestial' || c.id.startsWith('ce3_')).map((c) => c.id)).toEqual([]);
+    expect(p.spells.some((c) => c.id === 'starcrash' || c.id === 'accretion')).toBe(false);
+    // …and the Whispers stay Gift-class: granted by the Dragons, resolvable, never set members.
+    for (const id of ['w4_tome', 'w4_runebind']) {
+      expect(p.all.some((c) => c.id === id), id + ' is not a set member').toBe(false);
+      expect(CARD_INDEX[id]?.whisper, id + ' resolves as a Whisper').toBe(true);
+    }
   });
 
   it('is DISABLED, so no real run can land on an empty pool', () => {

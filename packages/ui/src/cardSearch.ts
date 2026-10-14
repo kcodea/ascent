@@ -52,12 +52,12 @@ export function cardRowsFor(setId: SetId): CardRow[] {
 /** SET SCOPING (owner ask 2026-09-16): only the runes THIS set can forge — the same `sets` rule the Runeforge
  *  applies (`runeforgePool`: absent = every set). The tribe gate is deliberately NOT applied: a tribe-gated rune of
  *  the set is exactly what you come to test without rolling the tribe first. `isNew` marks the Set 3-original batch
- *  (`sets: ['set3']` alone) with a NEW tag; searching "new" lists them. Basic runes first, then epic; by name. */
+ *  (`sets: ['set3']` alone, or `['set4']` alone for the Celestial runes that moved there 2026-10-14) with a NEW tag; searching "new" lists them. Basic runes first, then epic; by name. */
 export function runeRowsFor(setId: SetId): RuneRow[] {
   return [...RUNES, ...EPIC_RUNES]
     .filter((r) => !r.sets || r.sets.includes(setId))
     .map((r) => {
-      const isNew = !!r.sets && r.sets.length === 1 && r.sets[0] === 'set3';
+      const isNew = !!r.sets && r.sets.length === 1 && (r.sets[0] === 'set3' || r.sets[0] === 'set4'); // set4: the Celestial runes moved there 2026-10-14
       return {
         id: r.id, name: r.name, cost: r.cost, epic: !!r.epic, isNew,
         hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic', isNew ? 'new' : ''),

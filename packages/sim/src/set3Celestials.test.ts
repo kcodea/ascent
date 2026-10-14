@@ -28,8 +28,8 @@ const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): Board
 };
 const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false } as BoardCard);
 const run = (over: Partial<RunState> = {}): RunState =>
-  ({ ...createRun(3), setId: 'set3', phase: 'recruit', embers: 30, tier: 6, tribes: ['celestial', 'undead', 'kobold'], shop: [],
-    pool: Object.fromEntries(poolFor('set3').buyable.map((c) => [c.id, 5])), ...over } as RunState);
+  ({ ...createRun(3), setId: 'set4', phase: 'recruit', embers: 30, tier: 6, tribes: ['celestial', 'beast'], shop: [],
+    pool: Object.fromEntries(poolFor('set4').buyable.map((c) => [c.id, 5])), ...over } as RunState);
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const play = (s: RunState, uid: string, extra: Partial<Action> = {}): RunState => reduce(s, { type: 'play', uid, ...extra } as Action);
 const stats = (c: BoardCard): [number, number] => [c.attack, c.health];
@@ -45,19 +45,20 @@ const toHand = (events: readonly CombatEvent[]): string[] =>
   events.filter((e) => e.type === 'toHand' && (e as { side: string }).side === 'player').map((e) => (e as { cardId: string }).cardId);
 
 describe('the roster', () => {
-  it('the seven left are set-3 Celestials with the sheet tier / stats, appended after the Spirits (Cosmo Express archived 2026-10-13)', () => {
-    expect(poolFor('set3').buyable.some((c) => c.id === 'ce3_courier'), 'Cosmo Express archived').toBe(false);
+  it('the seven left are Celestials with the sheet tier / stats, in Set 4 after the Beasts since the 2026-10-14 swap (Cosmo Express archived 2026-10-13)', () => {
+    expect(poolFor('set4').buyable.some((c) => c.id === 'ce3_courier'), 'Cosmo Express archived').toBe(false);
     expect(CARD_INDEX['ce3_courier']).toMatchObject({ tier: 1, attack: 2, health: 1 });
     const rows: [string, number, number, number][] = [
       // Gravestar Seer 3/3 → 0/8 (owner stat pass 2026-09-18); Sugarnova 4/2 (rework 2026-09-18)
       ['ce3_vendor', 2, 4, 2], ['ce3_seer', 3, 0, 8], ['ce3_conductor', 4, 4, 5],
       ['ce3_herald', 4, 4, 6], ['ce3_adept', 5, 5, 8], ['ce3_spellcore', 6, 7, 9], ['ce3_artificer', 6, 6, 10],
     ];
-    const ids = poolFor('set3').buyable.map((c) => c.id);
+    const ids = poolFor('set4').buyable.map((c) => c.id);
     for (const [id, tier, a, h] of rows) {
       const d = CARD_INDEX[id]!;
       expect([d.tribe, d.tier, d.attack, d.health], id).toEqual(['celestial', tier, a, h]);
-      expect(ids.indexOf(id), id + ' is in set 3 after the Spirits').toBeGreaterThan(ids.indexOf('sp3_grandprocession'));
+      expect(ids.indexOf(id), id + ' is in set 4 after the Beasts').toBeGreaterThan(ids.indexOf('b4_alan'));
+      expect(poolFor('set3').all.some((c) => c.id === id), id + ' left set 3').toBe(false);
     }
     expect(CARD_INDEX['ce3_seer']!.tribe2).toBe('undead');
     expect(poolFor('set2').buyable.some((c) => c.tribe === 'celestial'), 'set 2 has none').toBe(false);
@@ -91,7 +92,7 @@ describe('Horizon Courier — Echo: a random Shop spell', () => {
   it('dying in combat hands the player a spell; golden hands two', () => {
     for (const golden of [false, true]) {
       const r = simulate([bm('ce3_courier', { golden })], [foe(10, 10)], makeRng(7), CARD_INDEX,
-        combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 1 }));
+        combatSide({ tier: 6, poolIds: poolFor('set4').all.map((c) => c.id) }), combatSide({ tier: 1 }));
       const got = toHand(r.events);
       expect(got, `golden=${golden}`).toHaveLength(golden ? 2 : 1);
       for (const id of got) expect(CARD_INDEX[id]?.spell, id + ' is a spell').toBe(true);
@@ -184,7 +185,7 @@ describe('Gravestar Seer — +4 Attack per spell of any kind, permanently', () =
 describe('Comet Conductor — Rally: a copy of the first spell you cast this turn, once per combat', () => {
   const fight = (golden: boolean, firstSpellThisTurnId?: string) =>
     simulate([bm('ce3_conductor', { golden, health: 40 })], [foe(1, 1), foe(1, 1), foe(1, 1)], makeRng(11), CARD_INDEX,
-      combatSide({ tier: 6, firstSpellThisTurnId, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 1 }));
+      combatSide({ tier: 6, firstSpellThisTurnId, poolIds: poolFor('set4').all.map((c) => c.id) }), combatSide({ tier: 1 }));
   it('pays exactly once across several attacks; golden pays two copies', () => {
     expect(toHand(fight(false, 'starcrash').events)).toEqual(['starcrash']);
     expect(toHand(fight(true, 'starcrash').events)).toEqual(['starcrash', 'starcrash']);

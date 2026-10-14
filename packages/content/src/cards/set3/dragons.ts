@@ -1,11 +1,12 @@
 import type { CardDef } from '@game/core';
 
 /**
- * SET 4 — DRAGONS (owner 2026-10-13): the WHISPER Dragons. Galas and Tolan GRANT a Whisper (`grantWhisper`: a Start of
+ * SET 3 — DRAGONS (owner 2026-10-13, authored for Set 4; MOVED to Set 3 2026-10-14, owner: "move our current set 4
+ * dragons to set 3"): the WHISPER Dragons. Ids unchanged (`d4_*` records where they were first authored). Galas and Tolan GRANT a Whisper (`grantWhisper`: a Start of
  * Turn effect while on the board, and the reducer's minion play reads the same marker to hand one over the moment
  * the minion is played from hand, see `sim/whisper.ts`); Tamby and Whisp react to Whispers being cast on minions. No art yet (missing-art convention).
  */
-export const SET4_DRAGONS: readonly CardDef[] = [
+export const SET3_DRAGONS: readonly CardDef[] = [
   {
     // T1 3/1. Whisper: Tome. Gilded: its Tome is worth double (+2/+2, improving by +2/+2 every 4 spells).
     id: 'd4_galas',

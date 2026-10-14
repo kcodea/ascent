@@ -395,17 +395,18 @@ export const RUNES: RuneDef[] = [
     // The set-3 twin of the Menagerie (Set 3 rune design pass, owner 2026-09-27, tranche 5): same shape and cost, this
     // set's five tribes. Its own id, so `ownedRunes` stays unambiguous.
     id: 'rune_menagerie_set3',
-    tribes: ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'], // five tribe grants: worth a slot if any is in the run
+    // 2026-10-14 swap (owner: Celestials to Set 4, Set 4's Dragons to Set 3): "this set's five tribes" now ends in Dragon.
+    tribes: ['kobold', 'dwarf', 'undead', 'spirit', 'dragon'], // five tribe grants: worth a slot if any is in the run
     name: 'Rune of the Menagerie',
     cost: 5,
-    text: 'Get a random **Kobold, Dwarf, Undead, Spirit, and Celestial**.',
+    text: 'Get a random **Kobold, Dwarf, Undead, Spirit, and Dragon**.',
     sets: ['set3'],
     reward: { kind: 'multi', rewards: [
       { kind: 'grant', randomTribe: 'kobold', randomCount: 1 },
       { kind: 'grant', randomTribe: 'dwarf', randomCount: 1 },
       { kind: 'grant', randomTribe: 'undead', randomCount: 1 },
       { kind: 'grant', randomTribe: 'spirit', randomCount: 1 },
-      { kind: 'grant', randomTribe: 'celestial', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'dragon', randomCount: 1 },
     ] },
   },
   // ── Set 2 rune batch (owner roster 2026-07-29) — the GRANT-shaped ones, which need no new reward kind. ──
@@ -1334,7 +1335,7 @@ export const RUNES: RuneDef[] = [
     text: '**Starforms** count as **Undead** and can be **Consumed** by Undead.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'runeSoulScript' },
-    sets: ['set3'],
+    sets: [], // PARKED 2026-10-14: was ['set3']. Its Celestial half moved to Set 4 (owner swap) and its other tribe stayed in Set 3, so it works in neither set; offered nowhere (never archived) pending an owner call
   },
 
   // ── Set 3 batch 2 (2026-09-16) — tranche A ──────────────────────────────────────────────────────────────
@@ -1357,7 +1358,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Get a **Celestial**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'celestial', count: 1 },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     id: 'rune_basic_undead',
@@ -1431,7 +1432,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Get a **Star Crash**. Repeat every **Start of Turn**. Your Star Crashes give an additional **+2/+2**.',
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['starcrash'] }, { kind: 'runeStarCrashBonus', attack: 2, health: 2 }] },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // "Your next card costs 0": the next minion OR spell bought from the Shop (either row) is free. Owner rework
@@ -1461,7 +1462,7 @@ export const RUNES: RuneDef[] = [
     text: 'Create a **Starform**. Starforms you create this game start with **+8/+8**. **Start of Turn:** if you do not have one, create one.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'runeFirstLight' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // The Starform's own Shop consumes (Black Hole, the Attractor, Roundabout, the full-row creation meal) land
@@ -1473,7 +1474,7 @@ export const RUNES: RuneDef[] = [
     text: 'Minions **Consumed** by your **Starform** grant it **twice** their stats.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeAccretion' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Hooked on `fireStarformRemoved` — the one exit every consume (the buy, a Demon, a card) and collapse rides —
@@ -1486,7 +1487,7 @@ export const RUNES: RuneDef[] = [
     text: 'After you **Consume** or **Collapse** a **Starform**, give your **Shop spells +1/+1**. (Once per turn)',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeEventide' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Read by `equipmentCostOf` (the same helper the rail prints), so the discounted price is what the slot shows.
@@ -1682,7 +1683,7 @@ export const RUNES: RuneDef[] = [
     text: 'After a friendly **Celestial** triggers its **Shout**, give your **Starform +3/+3**.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'combatFlag', flag: 'runeHeraldingStar' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // An aura-style GRAFT (the Echoing Kobolds shape): every friendly Celestial, now and later, combat summons
@@ -1694,7 +1695,7 @@ export const RUNES: RuneDef[] = [
     text: 'Give your **Celestials** "**Echo:** give your **Starform +2/+2**."',
     previewCards: ['ce3_starform'],
     reward: { kind: 'combatFlag', flag: 'runeStellarEchoes' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Buying the Starform runs the Collapse (half its stats, rounded up, to 3 unique random Celestials + the extras)
@@ -1706,7 +1707,7 @@ export const RUNES: RuneDef[] = [
     text: 'When you buy your **Starform**, it **Collapses** instead.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'combatFlag', flag: 'runeScatteredLight' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Every minion the STARFORM consumes (`consumeShopOffer` with the token as the eater: Accretion, a full-row
@@ -1719,7 +1720,7 @@ export const RUNES: RuneDef[] = [
     text: 'When your **Starform** Consumes a minion, give your **Celestials +2/+2**.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'combatFlag', flag: 'runeGravity' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // The Starform leaving the Shop (a buy, a Collapse, a card's consume: `fireStarformRemoved`, the one exit) gets a
@@ -1731,7 +1732,7 @@ export const RUNES: RuneDef[] = [
     text: 'When your **Starform** leaves the **Shop**, get a **Star Crash**.',
     previewCards: ['ce3_starform', 'starcrash'],
     reward: { kind: 'combatFlag', flag: 'runeAfterglow' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 3: Spirit + Dwarf Basics. All Set-3-only, tribe-gated.
   //    No Beckoning (owner); its Spirit Basic slot is filled by the owner's pick, the Kindred Hand. ──
@@ -1837,7 +1838,7 @@ export const RUNES: RuneDef[] = [
     text: 'When you cast a **Dwarven Ale**, give your **Starform +3/+3**.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'combatFlag', flag: 'runeStarTap' },
-    sets: ['set3'],
+    sets: [], // PARKED 2026-10-14: was ['set3']. Its Celestial half moved to Set 4 (owner swap) and its other tribe stayed in Set 3, so it works in neither set; offered nowhere (never archived) pending an owner call
   },
   {
     // Dwarf + Spirit. Owner pick 2026-09-27 ("last call is good"), replacing the Tavern Tab. RENAMED from the owner's
@@ -3280,7 +3281,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Starform** has a **50%** chance to also **Consume** Shop spells. When it does, get a copy of that spell and give your Starform **+8/+8**.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'runeRedGiant' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Printed bodies, drawn at random (without replacement) from this combat's Undead death list; once per fight.
@@ -3317,7 +3318,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get **2 Celestials**. Repeat every **Start of Turn**.',
     reward: { kind: 'runeTribeDrip', tribe: 'celestial', count: 2 },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     id: 'rune_epic_spirit',
@@ -3348,7 +3349,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'After you cast your first **Star Crash** each turn, get another **Star Crash**.',
     previewCards: ['starcrash'],
     reward: { kind: 'runeMeteorShower' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Owner rework 2026-09-18: EVERY spell counts (Shop spells, Rubies, Clues, Gifts — the same `spellIdsThisTurn`
@@ -3437,7 +3438,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'After you sell **3 Revelers**, get a random **Celestial**. Your **Revelers** buff **Celestials**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalCircuit', count: 3 },
-    sets: ['set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
+    sets: [], // PARKED 2026-10-14: was ['set3']. Its Celestial half moved to Set 4 (owner swap) and its other tribe stayed in Set 3, so it works in neither set; offered nowhere (never archived) pending an owner call
   },
   {
     // RENAMED from the owner's "Rune of the Crown" (2026-09-16) — Rune of the Crown already exists (the Epic
@@ -3477,7 +3478,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: "After you **Consume** your first Starform each turn, create another Starform with the consumed Starform's stats.",
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeOpenConstellation' },
-    sets: ['set3'], // RESTORED to Set 3 (owner 2026-09-27, Set 3 rune design pass)
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // `collapseHits`: the "2 unique originals" become EVERY friendly Celestial; Nova Herald's extras still land
@@ -3490,7 +3491,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When you **Collapse** a Starform, grant half its stats to **all** your Celestials instead of three.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeSupernova' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Every Starform Shop consume (Black Hole's three, the Attractor, Roundabout, the creation meal) hands a
@@ -3503,7 +3504,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever your Starform **Consumes** a minion, get a plain copy of that minion.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeStolenConstellations' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Measured at the cast (`castSpell`): the DELTA a stat spell actually granted its board target (spell power
@@ -3516,7 +3517,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first **3** stat-granting Shop spells you cast each turn also give their stats to your Starform.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeSpellweaving', count: 3 },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // `equipmentCostOf` prices the first activation at 0 and the reducer skips `spendEquipmentCharge` for it.
@@ -3730,7 +3731,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'After a friendly **Celestial** triggers its **Shout**, give your **Celestials +2/+2**.',
     reward: { kind: 'combatFlag', flag: 'runeStarsong' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Owner ruling 2026-09-27 ("meteor shower is fine"): fills the Celestial Epic slot the Event Horizon left. RENAMED
@@ -3745,7 +3746,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever you cast a **Star Crash**, cast it again on a different friendly **Celestial**.',
     previewCards: ['starcrash'],
     reward: { kind: 'combatFlag', flag: 'runeMeteorStorm' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   {
     // Every friendly Celestial Echo TRIGGER (both Echo chokepoints) casts a Star Crash on a random friendly Celestial,
@@ -3758,7 +3759,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Whenever a friendly **Celestial** triggers its **Echo**, cast a **Star Crash** on a random friendly **Celestial**.',
     previewCards: ['starcrash'],
     reward: { kind: 'combatFlag', flag: 'runeGuidingStar' },
-    sets: ['set3'],
+    sets: ['set4'], // MOVED from Set 3 with the Celestials (owner 2026-10-14: "move celestials to set 4 along with their runes etc.")
   },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 3: Dwarf Epics. All Set-3-only, Dwarf-gated. ──
   {
@@ -3811,7 +3812,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first **4 Rubies** you cast each turn also give your **Starform** their stats.',
     previewCards: ['ce3_starform'],
     reward: { kind: 'combatFlag', flag: 'runeGemStar' },
-    sets: ['set3'],
+    sets: [], // PARKED 2026-10-14: was ['set3']. Its Celestial half moved to Set 4 (owner swap) and its other tribe stayed in Set 3, so it works in neither set; offered nowhere (never archived) pending an owner call
   },
   {
     // Kobold + Spirit. Owner 2026-09-27: "do keepsake gem made stronger" — EVERY Ruby (not the first each turn) and

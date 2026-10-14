@@ -107,7 +107,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 3,
     "tribes": [
@@ -3097,7 +3097,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 3,
     "tribes": [
@@ -3154,7 +3154,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 5,
     "tribes": [
@@ -3207,7 +3207,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 6,
     "tribes": [
@@ -3249,7 +3249,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 4,
     "tribes": [
@@ -3291,7 +3291,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 4,
     "tribes": [
@@ -3335,7 +3335,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 1,
     "tribes": [
@@ -3387,7 +3387,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 3,
     "tribes": [
@@ -3432,7 +3432,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 4,
     "tribes": [
@@ -3490,7 +3490,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 4,
     "tribes": [
@@ -3535,7 +3535,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 5,
     "tribes": [
@@ -3577,7 +3577,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 6,
     "tribes": [
@@ -3626,7 +3626,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 5,
     "tribes": [
@@ -3675,7 +3675,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 2,
     "tribes": [
@@ -3728,7 +3728,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 3,
     "tribes": [
@@ -3778,7 +3778,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 3,
     "tribes": [
@@ -3830,7 +3830,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 6,
     "tribes": [
@@ -3883,7 +3883,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 4,
     "tribes": [
@@ -3931,7 +3931,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 1,
     "tribes": [
@@ -3960,7 +3960,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 1,
     "tribes": [
@@ -4010,7 +4010,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 5,
     "tribes": [
@@ -4051,7 +4051,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 2,
     "tribes": [
@@ -4100,7 +4100,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 2,
     "tribes": [
@@ -4152,7 +4152,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 7,
     "tribes": [
@@ -6408,7 +6408,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set4"
+      "set3"
     ],
     "tier": 1,
     "tribes": [
@@ -6452,7 +6452,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set4"
+      "set3"
     ],
     "tier": 3,
     "tribes": [
@@ -6499,7 +6499,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set4"
+      "set3"
     ],
     "tier": 2,
     "tribes": [
@@ -6543,7 +6543,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set4"
+      "set3"
     ],
     "tier": 6,
     "tribes": [
@@ -25809,7 +25809,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -25928,7 +25928,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -26716,7 +26716,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -29518,7 +29518,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -29807,7 +29807,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -29938,7 +29938,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -30009,9 +30009,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
-    "setIds": [
-      "set3"
-    ],
+    "setIds": [],
     "tribes": [
       "spirit",
       "celestial"
@@ -30174,7 +30172,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -30662,9 +30660,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
-    "setIds": [
-      "set3"
-    ],
+    "setIds": [],
     "tribes": [
       "kobold",
       "celestial"
@@ -31019,7 +31015,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -31147,7 +31143,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -31377,7 +31373,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -32512,7 +32508,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "dwarf",
       "undead",
       "spirit",
-      "celestial"
+      "dragon"
     ],
     "tags": [
       "runeforge:basic",
@@ -32639,7 +32635,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -32670,7 +32666,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -33046,7 +33042,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -33785,7 +33781,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -34575,7 +34571,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -35098,9 +35094,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
-    "setIds": [
-      "set3"
-    ],
+    "setIds": [],
     "tribes": [
       "undead",
       "celestial"
@@ -35356,7 +35350,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -35480,9 +35474,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
-    "setIds": [
-      "set3"
-    ],
+    "setIds": [],
     "tribes": [
       "dwarf",
       "celestial"
@@ -35513,7 +35505,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -35544,7 +35536,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -35597,7 +35589,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -35807,7 +35799,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tribes": [
       "celestial"
@@ -40166,7 +40158,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set3"
+      "set4"
     ],
     "tier": 3,
     "tribes": [

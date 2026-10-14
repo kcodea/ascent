@@ -56,13 +56,19 @@ const EPIC: [string, number][] = [
   ['rune_last_tool', 5], ['rune_endless_march', 5], ['rune_grave_orbit', 5],
 ];
 
+/** The 2026-10-14 swap (owner: "move celestials to set 4 along with their runes etc."): Celestial runes are Set 4 only,
+ *  and the Celestial hybrids whose other tribe stayed in Set 3 are parked (offered nowhere, never archived). */
+const TO_SET4 = new Set(['rune_basic_celestial', 'rune_falling_embers', 'rune_first_light', 'rune_accretion', 'rune_eventide', 'rune_heralding_star', 'rune_stellar_echoes', 'rune_scattered_light', 'rune_gravity', 'rune_afterglow', 'rune_red_giant', 'rune_epic_celestial', 'rune_meteor_shower', 'rune_open_constellation', 'rune_supernova', 'rune_stolen_constellations', 'rune_spellweaving', 'rune_starsong', 'rune_meteor_storm', 'rune_guiding_star']);
+const PARKED = new Set(['rune_soul_script', 'rune_star_tap', 'rune_gem_star', 'rune_festival_circuit']);
+const afterSwap = (id: string, otherwise: readonly string[]): readonly string[] => (TO_SET4.has(id) ? ['set4'] : PARKED.has(id) ? [] : otherwise);
+
 describe('tranche B — the roster', () => {
   it('8 Basic in RUNES, 11 Epic in EPIC_RUNES, at the sheet costs, every one set-3 only', () => {
     for (const [id, cost] of BASIC) {
       const r = RUNE_INDEX[id]!;
       expect(RUNES.some((x) => x.id === id), `${id} lives in RUNES`).toBe(true);
       // Quick Release CUT FROM SET 3 2026-09-27 (owner, design pass tranche 0): offered in no set
-      expect([r.cost, r.epic ?? false, r.sets], id).toEqual([cost, false, id === 'rune_quick_release' ? [] : ['set3']]);
+      expect([r.cost, r.epic ?? false, r.sets], id).toEqual([cost, false, afterSwap(id, id === 'rune_quick_release' ? [] : ['set3'])]);
     }
     for (const [id, cost] of EPIC) {
       const r = RUNE_INDEX[id]!;
@@ -70,7 +76,7 @@ describe('tranche B — the roster', () => {
       expect(EPIC_RUNES.some((x) => x.id === id), `${id} lives in EPIC_RUNES`).toBe(id !== 'rune_grave_orbit');
       // the Grave Orbit CUT FROM SET 3 2026-09-24 (owner): offered in no set; the Open Constellation CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
       // (the Open Constellation was RESTORED to Set 3 on 2026-09-27, design pass tranche 0)
-      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' ? [] : ['set3']]);
+      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, afterSwap(id, id === 'rune_grave_orbit' ? [] : ['set3'])]);
     }
   });
   it('tribe-gates exactly the runes whose text names a tribe on the board', () => {

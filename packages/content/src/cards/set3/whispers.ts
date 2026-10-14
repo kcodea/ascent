@@ -1,7 +1,8 @@
 import type { CardDef } from '@game/core';
 
 /**
- * SET 4 — THE WHISPERS (owner 2026-10-13). A Whisper is a SPELL a card GRANTS: a copy lands in hand when the
+ * SET 3 — THE WHISPERS (owner 2026-10-13, authored for Set 4; MOVED to Set 3 with the Whisper Dragons 2026-10-14;
+ * ids unchanged). A Whisper is a SPELL a card GRANTS: a copy lands in hand when the
  * granting minion is played from hand, and again at every Start of Turn while that minion is on your board. An
  * unused Whisper vanishes at End of Turn (and so never counts as cast). Whispers are the Gift class (`gift: true`):
  * every cast counts as a spell cast, but a Whisper is never a Shop spell, never offered, never copy food for the
@@ -15,7 +16,7 @@ import type { CardDef } from '@game/core';
  * `target: 'friendly'` (judgement call, flagged in the devlog): a temporary grant needs a real body to expire from.
  * `attack`/`health` are the schema's required stat fields; a spell's are inert.
  */
-export const SET4_WHISPERS: CardDef[] = [
+export const SET3_WHISPERS: CardDef[] = [
   {
     // Galas's Whisper: +1/+1, plus +1/+1 for every 4 spells cast this game (retroactive, read at cast).
     id: 'w4_tome',

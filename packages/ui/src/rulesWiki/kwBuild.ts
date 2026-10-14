@@ -404,7 +404,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     seeAlso: ['gift', 'discover'],
   },
 
-  // ── Whisper (Set 4, owner 2026-10-13) ─────────────────────────────────────────────────────────────────
+  // ── Whisper (Set 3 since 2026-10-14; owner 2026-10-13) ─────────────────────────────────────────────────────────────────
   {
     id: 'whisper',
     topic: 'keywords',

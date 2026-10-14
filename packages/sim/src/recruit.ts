@@ -7,7 +7,7 @@ import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
-import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, WHISPER_IDS, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -2986,6 +2986,19 @@ export function mintWhisper(state: RunState, cardId: string, count: number, mult
   }
 }
 
+/** Get `count` RANDOM Whispers (Jar of Secrets, Shush's Equipment; owner 2026-10-14) from the whole Whisper pool
+ *  (`WHISPER_IDS`: Tome, Runebind, Ripple and any future one), one seeded draw each, at multiplier `mult` (a Gilded
+ *  source's copies are gilded Whispers). Each follows every Whisper rule: it fades at End of Turn if unused, prints its
+ *  live value, counts as a spell cast. The hand cap applies, as for every Whisper. */
+export function mintRandomWhispers(state: RunState, count: number, mult = 1): void {
+  if (WHISPER_IDS.length === 0 || count <= 0) return;
+  const rng = makeRng(state.rngCursor);
+  const picks: string[] = [];
+  for (let i = 0; i < count; i++) picks.push(WHISPER_IDS[rng.int(WHISPER_IDS.length)]!);
+  state.rngCursor = rng.state();
+  for (const id of picks) mintWhisper(state, id, 1, mult);
+}
+
 /** The Whisper being cast right now carries its multiplier here (set by the reducer's Whisper branch around the
  *  cast), so the cast factory and Tamby's copy read it. 1 outside a Whisper cast. Module-scoped like the cast stacks. */
 const whisperMultStack: number[] = [];
@@ -4850,6 +4863,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!ctx.state.board.includes(self)) return;
     self.whisperCopiedThisTurn = true;
     mintWhisper(ctx.state, def.id, num(params.count, 1) * gold(self), currentWhisperMult());
+  },
+
+  /** RIPPLE (Falx's Whisper, owner 2026-10-14): "Trigger a minion's Shout." The target's Shout fires through the shared
+   *  `replayBattlecry` path (Resonance's), so every Shout multiplier and tally sees it; once per the cast Whisper's
+   *  multiplier (a gilded Ripple from a Gilded Falx triggers it TWICE, each its own replay). A target with no Shout is
+   *  refused before the cast (reducer, the Resonance precedent), so a cast that reaches here always has one; a Whisp
+   *  echo landing on a Shout-less Whisp simply triggers nothing. */
+  /** Jar of Secrets (Shush's Equipment): get `count` random Whispers, x `mult` (gilded copies). */
+  grantRandomWhispers: (ctx, _self, params) => {
+    mintRandomWhispers(ctx.state, num(params.count, 1), Math.max(1, num(params.mult, 1)));
+  },
+
+  whisperReplayShout: (ctx, self) => {
+    if (!self || !ctx.state.board.includes(self)) return;
+    const n = currentWhisperMult();
+    for (let i = 0; i < n && ctx.state.board.includes(self); i++) replayBattlecry(ctx.state, self);
   },
 
   /** Galas / Tolan (Start of Turn): every granter still on the board hands over a fresh copy of its Whisper, each its
@@ -10795,9 +10824,12 @@ export function spellEscalationLive(state: RunState): { attack: number; health: 
  */
 export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
   const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
+  const m = Math.max(1, extra?.whisperMult ?? 1);
+  // A Whisper with no stat grant (Ripple, Falx 2026-10-14): its multiplier repeats the whole effect, so a gilded copy
+  // prints "twice" (live, green).
+  if (!eff) return m > 1 ? def.text.replace(/\.$/, m === 2 ? ' {{twice}}.' : ` {{${m} times}}.`) : def.text;
   const p = (eff?.params ?? {}) as { attack?: number; health?: number; perSpells?: number; improve?: number };
   const baseA = num(p.attack, 1), baseH = num(p.health, 1);
-  const m = Math.max(1, extra?.whisperMult ?? 1);
   const v = whisperValue({ spellsCast: extra?.spellsCast ?? 0, rubyCasts: extra?.rubyCasts ?? 0, whisperImprove: extra?.whisperImprove }, def);
   const a = v.attack * m, h = v.health * m;
   let text = a !== baseA || h !== baseH ? def.text.replace(`**+${baseA}/+${baseH}**`, `{{+${a}/+${h}}}`) : def.text;

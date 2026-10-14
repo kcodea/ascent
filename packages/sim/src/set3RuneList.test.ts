@@ -51,7 +51,7 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
     },
   },
   undead: {
-    basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', 'soul script': 'rune_soul_script', 'body counting': 'rune_body_counting' /* batch 3, 2026-09-25 */,
+    basic: { 'basic undead': 'rune_basic_undead', 'last rites': 'rune_last_rites', 'spear warden': 'rune_warden', /* 'soul script': PARKED 2026-10-14 (Celestial swap) */ 'body counting': 'rune_body_counting' /* batch 3, 2026-09-25 */,
       'crowded crypt': 'rune_crowded_crypt' /* re-tagged Neutral -> Undead, 2026-09-27 design pass */,
       // Design pass tranche 1 (owner 2026-09-27): Soul Toll replaces the doc's Unquiet.
       'lantern keeper': 'rune_lantern_keeper', wake: 'rune_wake', 'second wind': 'rune_second_wind', 'soul toll': 'rune_soul_toll', gravedigger: 'rune_gravedigger' },
@@ -72,29 +72,16 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
       'dreamed graves': 'rune_dreamed_graves', // re-tagged Neutral -> Spirit (2026-09-27 design pass)
     },
   },
-  celestial: {
-    basic: {
-      'basic celestial': 'rune_basic_celestial', accretion: 'rune_accretion', eventide: 'rune_eventide', 'falling embers': 'rune_falling_embers', 'first light': 'rune_first_light',
-      // Design pass tranche 2 (owner 2026-09-27).
-      'heralding star': 'rune_heralding_star', 'stellar echoes': 'rune_stellar_echoes', 'scattered light': 'rune_scattered_light', gravity: 'rune_gravity', afterglow: 'rune_afterglow',
-    },
-    epic: {
-      'epic celestial': 'rune_epic_celestial', spellweaving: 'rune_spellweaving', 'stolen constellations': 'rune_stolen_constellations',
-      'meteor shower': 'rune_meteor_shower', 'red giant': 'rune_red_giant', supernova: 'rune_supernova',
-      'open constellation': 'rune_open_constellation', // RESTORED (2026-09-27 design pass)
-      // Design pass tranche 2 (owner 2026-09-27). No Event Horizon; its slot went to the owner's pick the same day, the
-      // Meteor Storm (the owner named it "Meteor Shower", which is already this list's `rune_meteor_shower`).
-      starsong: 'rune_starsong', 'guiding star': 'rune_guiding_star', 'meteor storm': 'rune_meteor_storm',
-    },
-  },
+  // CELESTIAL: the whole group MOVED to Set 4 with the tribe on 2026-10-14 (owner swap) — see CELESTIAL_TO_SET4 below.
   // HYBRIDS (2026-09-27 design pass): one per natural tribe pair, each gated to BOTH its tribes (HYBRID_TRIBES).
   // Soul Script predates the group and stays listed under Undead (owner 2026-09-25).
   hybrid: {
     // Design pass tranche 4 (owner 2026-09-27). No Tavern Tab: its Dwarf + Spirit slot is the owner's pick, the Last
     // Call, shipped as "Rune of Closing Time" (the Set 2 Dwarf rune `rune_last_call` already owns "Rune of Last Call").
-    basic: { 'minted gems': 'rune_minted_gems', 'gem crypt': 'rune_gem_crypt', pallbearer: 'rune_pallbearer', 'star tap': 'rune_star_tap', 'closing time': 'rune_closing_time' },
-    epic: { 'festival circuit': 'rune_festival_circuit' /* RESTORED */, 'grim toast': 'rune_grim_toast', 'gem star': 'rune_gem_star', 'keepsake gem': 'rune_keepsake_gem',
-      // Owner add 2026-10-03: Rune of Drakko (Set 2 + Set 3, Epic), "categorize it as a dragon and/or spirit rune".
+    basic: { 'minted gems': 'rune_minted_gems', 'gem crypt': 'rune_gem_crypt', pallbearer: 'rune_pallbearer', /* 'star tap': PARKED 2026-10-14 */ 'closing time': 'rune_closing_time' },
+    epic: { /* 'festival circuit' + 'gem star': PARKED 2026-10-14 (Celestial swap) */ 'grim toast': 'rune_grim_toast', 'keepsake gem': 'rune_keepsake_gem',
+      // Owner add 2026-10-03: Rune of Drakko (Set 2 + Set 3, Epic), "categorize it as a dragon and/or spirit rune". Both
+      // of its tribes are Set 3 tribes since the 2026-10-14 swap brought the Dragons in.
       drakko: 'rune_drakko' },
   },
   // MENAGERIE (2026-09-27 design pass, tranche 5): the Set 3 Menagerie (gated to all five tribes, MENAGERIE_TRIBES) and
@@ -132,6 +119,14 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
   },
 };
 
+/** The Celestial group of the owner's list, MOVED to Set 4 with the tribe (owner 2026-10-14: "move celestials to set 4
+ *  along with their runes etc. remove them from set 3"). Each is `sets: ['set4']`, still gated to Celestial. */
+const CELESTIAL_TO_SET4: readonly string[] = [
+  'rune_basic_celestial', 'rune_accretion', 'rune_eventide', 'rune_falling_embers', 'rune_first_light', 'rune_heralding_star', 'rune_stellar_echoes', 'rune_scattered_light', 'rune_gravity', 'rune_afterglow', 'rune_epic_celestial', 'rune_spellweaving', 'rune_stolen_constellations', 'rune_meteor_shower', 'rune_red_giant', 'rune_supernova', 'rune_open_constellation', 'rune_starsong', 'rune_guiding_star', 'rune_meteor_storm',
+];
+/** Celestial hybrids whose other tribe stayed in Set 3: parked (`sets: []`) by the same swap, pending an owner call. */
+const PARKED_BY_SWAP: readonly string[] = ['rune_soul_script', 'rune_star_tap', 'rune_gem_star', 'rune_festival_circuit'];
+
 const LISTED: string[] = Object.values(OWNER_LIST).flatMap((g) => [...Object.values(g.basic), ...Object.values(g.epic)]);
 const LIVE = [...RUNES, ...EPIC_RUNES];
 const inSet3 = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes('set3');
@@ -141,29 +136,31 @@ const inSet3 = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.i
 const NOWHERE = ['rune_charted_skies',
   // Set-3-only runes cut on 2026-09-27 (design pass): now offered in no set. (Festival Circuit and Open
   // Constellation left this list the same day: restored to Set 3.)
-  'rune_rubywire', 'rune_astral_draft', 'rune_quick_release'];
+  'rune_rubywire', 'rune_astral_draft', 'rune_quick_release',
+  // The 2026-10-14 Celestial swap: Celestial hybrids whose other tribe stayed in Set 3 work in neither set, so they are
+  // PARKED (offered in no set, never archived) pending an owner call.
+  ...PARKED_BY_SWAP];
 
 /** The menagerie group's tribe gates (2026-09-27 design pass, tranche 5). */
 const MENAGERIE_TRIBES: Record<string, readonly Tribe[]> = {
-  rune_menagerie_set3: ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'],
+  rune_menagerie_set3: ['kobold', 'dwarf', 'undead', 'spirit', 'dragon'], // Celestial -> Dragon with the 2026-10-14 swap
   rune_unity: [],
 };
 
 /** The hybrid group's tribe gates (2026-09-27 design pass). */
 const HYBRID_TRIBES: Record<string, readonly Tribe[]> = {
-  rune_festival_circuit: ['spirit', 'celestial'],
   // tranche 4 (2026-09-27)
   rune_minted_gems: ['kobold', 'dwarf'], rune_gem_crypt: ['kobold', 'undead'], rune_pallbearer: ['undead', 'spirit'],
-  rune_star_tap: ['dwarf', 'celestial'], rune_closing_time: ['dwarf', 'spirit'], rune_grim_toast: ['dwarf', 'undead'],
-  rune_gem_star: ['kobold', 'celestial'], rune_keepsake_gem: ['kobold', 'spirit'],
-  rune_drakko: ['dragon', 'spirit'], // owner 2026-10-03 (Set 3 fields no Dragons; the Spirit half gates it here)
+  rune_closing_time: ['dwarf', 'spirit'], rune_grim_toast: ['dwarf', 'undead'],
+  rune_keepsake_gem: ['kobold', 'spirit'],
+  rune_drakko: ['dragon', 'spirit'], // owner 2026-10-03 (both halves are Set 3 tribes since the 2026-10-14 swap)
 };
 
 describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
     // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
-    expect(LISTED).toHaveLength(200); // 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
+    expect(LISTED).toHaveLength(176); // 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -188,8 +185,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(107); // 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(93); // 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(95); // 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(81); // 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {
@@ -200,6 +197,20 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
       if (!NOWHERE.includes(r.id)) expect(r.sets!.length, `${r.id} keeps another set`).toBeGreaterThan(0);
     }
     for (const id of NOWHERE) expect(RUNE_INDEX[id]!.sets, `${id} was Set-3-only: now offered in no set`).toEqual([]);
+  });
+
+  it('the 2026-10-14 swap: the Celestial runes are Set 4 only and still Celestial-gated; the hybrids are parked', () => {
+    for (const id of CELESTIAL_TO_SET4) {
+      expect(RUNE_INDEX[id]!.sets, id).toEqual(['set4']);
+      expect(RUNE_INDEX[id]!.tribes, id).toEqual(['celestial']);
+    }
+    for (const id of PARKED_BY_SWAP) expect(RUNE_INDEX[id]!.sets, id).toEqual([]);
+    const set4Forge = new Set<string>();
+    for (const epic of [false, true]) {
+      const s = { ...createRun(7, 'warden', 'ascent', undefined, 'set4'), tribes: [...SETS.set4.tribes] as Tribe[], ownedRunes: [], runeforgeEpic: epic || undefined } as RunState;
+      for (const id of runeforgePool(s)) set4Forge.add(id);
+    }
+    for (const id of CELESTIAL_TO_SET4) expect(set4Forge.has(id), `${id} at a Set 4 forge`).toBe(true);
   });
 
   it('RARITY: every rune sits in the pool its Basic / Epic heading names (zero mismatches)', () => {
@@ -216,8 +227,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('TRIBE: a tribe-listed rune carries that tribe gate, a Neutral-listed rune carries none (zero mismatches)', () => {
-    // The only owner-ruled extra tribe: Soul Script ("Starforms count as Undead") keeps Celestial beside Undead.
-    const EXTRA: Record<string, readonly Tribe[]> = { rune_soul_script: ['celestial'] };
+    // The only owner-ruled extra tribe was Soul Script's Celestial; it is parked since the 2026-10-14 swap.
+    const EXTRA: Record<string, readonly Tribe[]> = {};
     for (const [group, g] of Object.entries(OWNER_LIST)) {
       for (const id of [...Object.values(g.basic), ...Object.values(g.epic)]) {
         const tribes = [...(RUNE_INDEX[id]!.tribes ?? [])].sort();

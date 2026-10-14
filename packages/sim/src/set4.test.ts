@@ -35,16 +35,28 @@ const nextTurn = (s: RunState): RunState => {
 const cast = (s: RunState, whisperUid: string, targetUid: string): RunState => act(s, { type: 'play', uid: whisperUid, targetUid } as Action);
 
 describe('Set 4 placeholder', () => {
-  it('is registered, disabled, never the active set, and holds exactly its eight minions in order', () => {
+  it('is registered, disabled, never the active set, and holds the Beasts then the Celestials, in order', () => {
     expect(SETS.set4).toBeDefined();
     expect(SETS.set4.enabled).toBe(false);
     expect(activeSet().id).not.toBe('set4');
+    // The 2026-10-14 swap (owner): the Whisper Dragons left for Set 3 and the Celestials arrived from it, ids unchanged.
     expect(poolFor('set4').buyable.map((c) => c.id)).toEqual([
-      'd4_galas', 'd4_tolan', 'd4_tamby', 'd4_whisp', 'b4_hawg', 'b4_apua', 'b4_eatah', 'b4_alan',
+      'b4_hawg', 'b4_apua', 'b4_eatah', 'b4_alan',
+      'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
+      'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar',
+      'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar',
+      'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith',
     ]);
+    expect(SETS.set4.tribes).toEqual(['beast', 'celestial']);
+    // The Starform shop token rides along as a set member (never drawable: a token), exactly as it did in Set 3.
+    expect(poolFor('set4').all.some((c) => c.id === 'ce3_starform')).toBe(true);
+    expect(poolFor('set4').buyable.some((c) => c.id === 'ce3_starform')).toBe(false);
+    // No Dragon is left in Set 4.
+    expect(poolFor('set4').all.filter((c) => c.tribe === 'dragon').map((c) => c.id)).toEqual([]);
     // Set 3's generic neutral Shop spells, by reference (owner 2026-10-14), after the minions.
-    expect(poolFor('set4').spells.map((c) => c.id)).toEqual(['apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone', 'manafont', 'growth', 'refreshtexts', 'tribeschoice', 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy', 'devour', 'chronostaff', 'corpseboard', 'resonance', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter', 'displacement', 'aresmar', 'perfectvision', 'sparkplug', 'sp_gamble', 'sp_picnic', 'stellarchorus', 'splitdecision', 'aspectsblessing', 'sharedspirit', 'graverobbery', 'handsoap']);
-    expect(poolFor('set4').spells.every((c) => c.tribe === 'neutral')).toBe(true);
+    expect(poolFor('set4').spells.map((c) => c.id)).toEqual(['apples', 'bulwark', 'emberpouch', 'depositbox', 'sprout', 'summonstone', 'manafont', 'growth', 'refreshtexts', 'tribeschoice', 'funeralonloan', 'lasso', 'riftsunkcodex', 'shatter', 'staffofguel', 'tribeportal', 'beyondsummit', 'decoysigil', 'fronttoback', 'goldentouch', 'helpwanted', 'insurancepolicy', 'quickstudy', 'devour', 'chronostaff', 'corpseboard', 'resonance', 'sigilkinship', 'spellcart', 'strangerevision', 'weaken', 'powershifter', 'displacement', 'aresmar', 'perfectvision', 'sparkplug', 'sp_gamble', 'sp_picnic', 'stellarchorus', 'splitdecision', 'aspectsblessing', 'sharedspirit', 'graverobbery', 'handsoap', 'starcrash', 'accretion']);
+    // Every shared spell is neutral; Set 4's OWN two (Star Crash, Black Hole) are the Celestials' tribe spells.
+    expect(poolFor('set4').spells.filter((c) => c.tribe !== 'neutral').map((c) => c.id)).toEqual(['starcrash', 'accretion']);
     // The Whispers are granted, never drawable: in the global index, out of every set's pool.
     for (const id of ['w4_tome', 'w4_runebind']) {
       expect(CARD_INDEX[id]?.whisper).toBe(true);
@@ -52,7 +64,7 @@ describe('Set 4 placeholder', () => {
     }
     const r = createRun(3, undefined, 'ascent', CONFIG.defaultLine, 'set4');
     expect(r.setId).toBe('set4');
-    expect(r.tribes.every((t) => t === 'dragon' || t === 'beast')).toBe(true);
+    expect(r.tribes.every((t) => t === 'beast' || t === 'celestial')).toBe(true);
   });
 
   it('stats and tiers match the owner sheet', () => {

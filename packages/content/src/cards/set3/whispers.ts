@@ -1,7 +1,8 @@
 import type { CardDef } from '@game/core';
 
 /**
- * SET 4 — THE WHISPERS (owner 2026-10-13). A Whisper is a SPELL a card GRANTS: a copy lands in hand when the
+ * SET 3 — THE WHISPERS (owner 2026-10-13, authored for Set 4; MOVED to Set 3 with the Whisper Dragons 2026-10-14;
+ * ids unchanged). A Whisper is a SPELL a card GRANTS: a copy lands in hand when the
  * granting minion is played from hand, and again at every Start of Turn while that minion is on your board. An
  * unused Whisper vanishes at End of Turn (and so never counts as cast). Whispers are the Gift class (`gift: true`):
  * every cast counts as a spell cast, but a Whisper is never a Shop spell, never offered, never copy food for the
@@ -15,7 +16,7 @@ import type { CardDef } from '@game/core';
  * `target: 'friendly'` (judgement call, flagged in the devlog): a temporary grant needs a real body to expire from.
  * `attack`/`health` are the schema's required stat fields; a spell's are inert.
  */
-export const SET4_WHISPERS: CardDef[] = [
+export const SET3_WHISPERS: CardDef[] = [
   {
     // Galas's Whisper: +1/+1, plus +1/+1 for every 4 spells cast this game (retroactive, read at cast).
     id: 'w4_tome',
@@ -51,5 +52,25 @@ export const SET4_WHISPERS: CardDef[] = [
     target: 'friendly',
     effects: [{ on: 'cast', do: 'whisperBuffTarget', params: { attack: 2, health: 2, improve: 2 } }],
     text: 'Give a friendly minion **+2/+2** until your next turn. Improve this.',
+  },
+  {
+    // Falx's Whisper (owner 2026-10-14): trigger the target's Shout (the shared `replayBattlecry` path Resonance uses,
+    // so every Shout multiplier and tally sees it). A target with no Shout REFUSES the cast (kept in hand), the
+    // Resonance precedent. A gilded Ripple (from a Gilded Falx) triggers it twice.
+    id: 'w3_ripple',
+    name: 'Ripple',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    gift: true,
+    whisper: true,
+    giftMulticast: true,
+    cost: 0,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'whisperReplayShout' }],
+    text: "Trigger a friendly minion's **Shout**.",
   },
 ];

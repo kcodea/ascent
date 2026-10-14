@@ -246,6 +246,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Picnic's cast plays the Butcher's shop-buff def ON the right-most Shop minion it buffed, every source (owner 2026-09-24).
   sp_picnic: { spellCast: { def: 'shop-buff-shout' } },
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
+  w4_runebind: { spellCast: { def: 'runebind', fanOut: 'buffedOn' }, buffWave: { def: 'runebind', fanOut: 'buffedOn' } }, // owner FX export 2026-10-14: on the target of every Runebind cast
   // Gasket (owner FX 2026-10-10): the blast plays ON every unit a Rally pass struck, on the pass's beat. `shieldPop`
   // too, since a pass whose first victim has a Ward compiles to a shieldPop-led moment.
   dm_gasket: { damage: { def: 'gasket', fanOut: 'struck' }, shieldPop: { def: 'gasket', fanOut: 'struck' } },

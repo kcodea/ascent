@@ -292,6 +292,7 @@ export type StageOutcome =
   | { ok: false; reason: string };
 
 const CAST_TARGET = 'fix0'; // the play fixture's left-most board body
+const SHOUT_AIM = 'b4_hawg'; // a plain Shout body, the aim of last resort for a cast that needs a Shout (Ripple)
 
 function handHas(s: RunState, id: string): BoardCard | undefined { return s.hand.find((c) => c.cardId === id); }
 
@@ -370,10 +371,24 @@ export type CastVerdict = 'effectful' | 'inert' | 'refused';
 
 /** Cast the arrived card and compare against the post-arrival state — both out of `reduce`. */
 export function castDifferential(arrived: RunState, uid: string): CastVerdict {
-  let after = reduce(arrived, { type: 'play', uid, targetUid: CAST_TARGET });
-  if (after.chooseOne) after = reduce(after, { type: 'chooseOne', index: 0 });
+  // The left-most body first; a cast that needs a particular KIND of target (Ripple, Falx 2026-10-14: a minion with a
+  // Shout) tries the fixture's other bodies before it counts as refused.
+  const aims = [CAST_TARGET, ...arrived.board.map((c) => c.uid).filter((u) => u !== CAST_TARGET)];
+  let after = arrived;
+  for (const targetUid of aims) {
+    after = reduce(arrived, { type: 'play', uid, targetUid });
+    if (after.chooseOne) after = reduce(after, { type: 'chooseOne', index: 0 });
+    if (!after.hand.some((c) => c.uid === uid)) break;
+  }
+  // Still refused: one more aim, a plain Shout body (Hawg) joined to the board, for a cast that wants a Shout.
+  let base = arrived;
+  if (after.hand.some((c) => c.uid === uid) && arrived.board.length < 7 && CARD_INDEX[SHOUT_AIM]) {
+    const d = CARD_INDEX[SHOUT_AIM]!;
+    base = { ...arrived, board: [...arrived.board, { uid: 'fixShout', cardId: d.id, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false }] } as RunState;
+    after = reduce(base, { type: 'play', uid, targetUid: 'fixShout' });
+  }
   if (after.hand.some((c) => c.uid === uid)) return 'refused';
-  return castProjection(after) === castProjection(arrived) ? 'inert' : 'effectful';
+  return castProjection(after) === castProjection(base) ? 'inert' : 'effectful';
 }
 
 export interface EntryScanResult {

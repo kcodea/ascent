@@ -91,13 +91,14 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
     spellEscalation: e.spellEscalation ?? { attack: 0, health: 0 },
     growthBonus: e.growthBonus ?? 0,
     rubyBonus: e.rubyBonus ?? { attack: 0, health: 0 },
+    ...(e.whisperImprove && Object.keys(e.whisperImprove).length > 0 ? { whisperImprove: { ...e.whisperImprove } } : {}),
   };
   const pair = (p: { attack: number; health: number }): boolean => !!(p.attack || p.health);
   const any = pair(out.spellPower) || out.spellsThisTurn > 0 || out.beastsPlayed > 0 || out.deathrattles > 0 || out.conductorBuff > 0
     || out.spellsCast > 0 || out.rubyCasts > 0 || out.spiritsPlayed > 0 || out.revelerX > 0 || Object.values(out.tribesPlayed).some((n) => (n ?? 0) > 0)
     || pair(out.impAura) || pair(out.fodderConsumed) || out.undeadBuyAtk > 0 || Object.keys(out.cardBuffs).length > 0
     || out.alesLastTurn > 0 || !!out.lastSpellCastId || out.rememberedSpellIds.length > 0 || pair(out.spellEscalation)
-    || out.growthBonus > 0 || pair(out.rubyBonus);
+    || out.growthBonus > 0 || pair(out.rubyBonus) || !!out.whisperImprove;
   return any ? out : undefined;
 }
 
@@ -142,6 +143,16 @@ export function simulate(
   enemyState = { ...enemyState, questMods: { ...enemyState.questMods }, handMinions: cloneHand(enemyState) };
   /** This side's run-level combat context (the per-side struct). */
   const stateOf = (side: Side): CombatSideState => (side === 'player' ? playerState : enemyState);
+  /** Queen Morro's live extra combat casts for `side`: +`extra` per living Morro, x2 Gilded. Declared via `boards`
+   *  lazily (called only once the fight is running). */
+  const combatSpellsExtra = (side: Side): number => {
+    let n = 0;
+    for (const m of boards[side]) {
+      if (m.dead || m.health <= 0) continue;
+      for (const e of m.effects) if (e.do === 'combatSpellsCastExtra') n += (typeof e.params?.extra === 'number' ? e.params.extra : 1) * (m.golden ? 2 : 1);
+    }
+    return n;
+  };
   // NEXT-COMBAT SPELL BANKS, FOR WHICHEVER SIDE HOLDS THEM (Fleeting Vigor, the banked keywords, Open the Gates'
   // Imps, Marked Target): the reducer's historical player pre-bake, run here on copies, before anything reads the
   // boards (so `startCount` and every Start-of-Combat effect see them exactly as they did). See `bankedOpeners.ts`.
@@ -1642,6 +1653,20 @@ export function simulate(
     deferShopSpellHalf: (spellId, side) => {
       (shoutCarry[side].shopSpellHalves ??= []).push(spellId);
     },
+    // SET 3 WHISPERS (Whaloo, 2026-10-14): the side's per-Whisper improvement, LIVE (seeded from its run, raised by every
+    // combat Runebind). The running totals ride `shoutCarry.whisperImprove` so settle can raise the run to them; the
+    // enemy's are tracked the same way (R-SYMMETRY-01) and simply have no run to land on.
+    whisperImproveFor: (side, whisperId) => shoutCarry[side].whisperImprove?.[whisperId] ?? stateOf(side).whisperImprove?.[whisperId] ?? 0,
+    addWhisperImprove: (side, whisperId, n) => {
+      const map = (shoutCarry[side].whisperImprove ??= { ...(stateOf(side).whisperImprove ?? {}) });
+      map[whisperId] = (map[whisperId] ?? 0) + n;
+      return map[whisperId]!;
+    },
+    grantWhisperToHand: (whisperId, side, mult, sourceUid) => {
+      const idx = handGrants[side].length;
+      ctx.grantToHand(whisperId, side, sourceUid);
+      if (mult > 1 && handGrants[side].length > idx) (shoutCarry[side].handWhisperMults ??= []).push({ idx, mult });
+    },
     grantToHandThenEcho: (cardId, side, sourceUid) => {
       const idx = handGrants[side].length;
       ctx.grantToHand(cardId, side, sourceUid);
@@ -1883,7 +1908,10 @@ export function simulate(
     onRubyCast: (side, caster, target, per, attack, health) => runeRubyCastCombat(side, caster, target, per, attack, health),
     alesLastTurnFor: (side) => (side === 'player' ? playerState : enemyState).alesLastTurn ?? 0,
     crit: (sourceUid, mult) => emit({ type: 'proccrit', source: sourceUid, mult }),
-    spellCastRepsFor: (side) => 1 + spellCastExtra[side],
+    // QUEEN MORRO (Set 3, owner 2026-10-14): "Your spells cast an additional time in combat" (Gilded 2), read LIVE (a
+    // dead Morro stops paying) and ADDED to the other extras (Runebloom, Ancient of War), the additive convention.
+    spellCastRepsFor: (side) => 1 + spellCastExtra[side] + combatSpellsExtra(side),
+    combatSpellsExtraFor: (side) => combatSpellsExtra(side),
     grantSpellCastExtra: (side, n) => { spellCastExtra[side] += n; },
     lastSpellCastFor: (side) => (side === 'player' ? playerState : enemyState).lastSpellCastId,
     rememberedSpellsFor: (side) => (side === 'player' ? playerState : enemyState).rememberedSpellIds ?? [],

@@ -25,10 +25,19 @@ the right question when starting a new run. Everything else wants `poolOf(state)
 > its `enabled` while it's empty — `activeSet()` is first-enabled-wins in declaration order, so an enabled empty
 > set ahead of a real one would put every new run on an empty pool.
 
-> **Set 4 is a scaffold too** (owner 2026-10-13): `enabled: false`, `cards/set4/index.ts`, its first eight minions plus Set 3's generic neutral Shop spells by reference (2026-10-14),
-> (the Whisper Dragons and the self-damage Beasts) in `SETS.set4.own`, tribes `['dragon', 'beast']`. Same rules as
-> set 3: append to `cards/set4/`, never flip `enabled` until it is ready to ship, play it in the Scene Builder. Its
-> two Whispers (Tome, Runebind) are granted spells and stay OUT of the manifest, like every Gift.
+> **Set 4 is a scaffold too** (owner 2026-10-13): `enabled: false`, `cards/set4/index.ts`, tribes `['beast',
+> 'celestial']`: the self-damage Beasts, then the Celestials + the Starform token, then Set 3's generic neutral Shop
+> spells by reference, then the Celestials' own two spells (Star Crash, Black Hole). Same rules as set 3: append to
+> `cards/set4/`, never flip `enabled` until it is ready to ship, play it in the Scene Builder.
+>
+> **The 2026-10-14 swap** (owner: "move celestials to set 4 along with their runes etc. remove them from set 3. move
+> our current set 4 dragons to set 3."): the Celestial files MOVED from `cards/set3/` to `cards/set4/`
+> (`celestials.ts`, and Star Crash + Black Hole into `set4/spells.ts`), the Whisper Dragons' files MOVED the other way
+> (`set3/dragons.ts`, `set3/whispers.ts`), and Set 3's tribes are now `['kobold', 'dwarf', 'undead', 'spirit',
+> 'dragon']`. **Convention: a card's source file lives in its home set's directory, so a set move is a `git mv`;
+> ids never change** (the `ce3_` / `d4_` / `w4_` prefixes now record where a card was first authored). A rune or
+> quest follows its tribe through its `sets` field. The Whispers (Tome, Runebind) are granted spells and stay OUT of
+> every manifest, like every Gift.
 
 1. Put its cards in `packages/content/src/cards/set3/*.ts`. **Its own directory** — that's what keeps two
    people authoring different sets out of the same file. (Before sets, everyone appended to the tail of the

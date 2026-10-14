@@ -5,7 +5,7 @@ import { TOKENS } from './cards/set1/tokens';
 import { HENCHMEN } from './cards/henchmen';
 import { GIFTS } from './cards/gifts';
 import { SET3_HAND_SPELLS } from './cards/set3/handSpells';
-import { SET4_WHISPERS } from './cards/set4/whispers';
+import { SET3_WHISPERS } from './cards/set3/whispers';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
@@ -15,7 +15,10 @@ export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
 export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
 export { SET3_HAND_SPELLS } from './cards/set3/handSpells';
-export { SET4_WHISPERS } from './cards/set4/whispers'; // Set 4 Whispers (Tome, Runebind) — granted Gift-class spells, member of no set
+/** Every Whisper, in declaration order: the pool "get a random Whisper" draws from (Jar of Secrets, Shush's Equipment).
+ *  A new Whisper joins it by being added to `SET3_WHISPERS`. */
+export const WHISPER_IDS: readonly string[] = SET3_WHISPERS.filter((c) => c.whisper).map((c) => c.id);
+export { SET3_WHISPERS } from './cards/set3/whispers'; // Set 3 Whispers (Tome, Runebind; Set 4 until 2026-10-14) — granted Gift-class spells, member of no set
 export { REVELER_IDS } from './cards/set3/spirits'; // the Reveler class (Flame / Tide / Grove) other Spirits name // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
@@ -43,9 +46,9 @@ export const ALL_CARDS: CardDef[] = [
   ...SET3_HAND_SPELLS,
   ...ENEMY,
   ...ARCHIVED_CARDS, // resolvable by id (saved runs / replays), member of NO set — never drawable
-  // Set 4 WHISPERS (Tome, Runebind): Gift-class spells a card GRANTS, reachable only through that card. Appended
+  // Set 3 WHISPERS (Tome, Runebind; authored for Set 4, moved 2026-10-14): Gift-class spells a card GRANTS, reachable only through that card. Appended
   // last so no earlier position in this list moves.
-  ...SET4_WHISPERS,
+  ...SET3_WHISPERS,
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 
 export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
@@ -132,6 +135,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)
   battlecryGetHandSpell: 'cardId',             // Defender -> Tower Shield; Magnifying Glass -> Clue (set-3 hand spells)
   grantWhisper: 'cardId',                      // Set 4: Galas -> Tome; Tolan -> Runebind (the granted Whisper previews on hover)
+  onDragonAttackCastWhisper: 'cardId',         // Set 3: Whaloo -> Runebind (the Whisper it casts previews on hover)
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
   getRubies: 'rubyId',                         // Facetbound Martyr -> Warding Ruby (Shout half of the same mint)
   onSummonCardPlayRubiesSelf: 'cardId',        // Gemheart Legionnaire -> Gemheart Golem (Ruby batch 2026-09-24)

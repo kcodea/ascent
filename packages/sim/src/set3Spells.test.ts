@@ -19,8 +19,11 @@ const stats = (c: BoardCard): [number, number] => [c.attack, c.health];
 describe('the roster', () => {
   it('all seven are set-3 spells with the sheet tier / cost / tribe, and the tribe spells are gated', () => {
     const p = poolFor('set3');
+    // Star Crash moved to Set 4 with the Celestials (owner swap 2026-10-14).
+    expect(p.spells.some((c) => c.id === 'starcrash'), 'Star Crash left set 3').toBe(false);
+    expect(poolFor('set4').spells.some((c) => c.id === 'starcrash'), 'Star Crash is a set-4 spell').toBe(true);
     const rows: [string, number, number, string][] = [
-      ['aspectsblessing', 1, 1, 'neutral'], ['rushorder', 2, 1, 'dwarf'], ['sharedspirit', 2, 2, 'neutral'], ['starcrash', 3, 2, 'celestial'],
+      ['aspectsblessing', 1, 1, 'neutral'], ['rushorder', 2, 1, 'dwarf'], ['sharedspirit', 2, 2, 'neutral'],
       ['graverobbery', 3, 2, 'neutral'], ['handsoap', 4, 2, 'neutral'], ['crescendo', 6, 3, 'spirit'],
       ['stellarchorus', 4, 2, 'neutral'], ['splitdecision', 5, 2, 'neutral'],
     ];
@@ -80,7 +83,7 @@ describe('Shared Spirit — a random board minion AND a random hand minion +3/+2
 describe('Star Crash — a Celestial +5/+7, and the same on a random friendly minion', () => {
   it('the target gets +5/+7, and one random friendly (the target included — no "other" printed) gets it too', () => {
     // A Celestial body: any card carries `universalTribe`? Use an all-types minion so the tribe aim passes.
-    const cel = poolFor('set3').buyable.find((c) => c.tribe === 'celestial' || c.tribe2 === 'celestial') ?? CARD_INDEX['n2_paragon']!;
+    const cel = poolFor('set4').buyable.find((c) => c.tribe === 'celestial' || c.tribe2 === 'celestial') ?? CARD_INDEX['n2_paragon']!;
     let s = run({ board: [body('c', cel.id), body('x', 'stray')], hand: [spell('sp', 'starcrash')] });
     s = play(s, 'sp', { targetUid: 'c' } as Partial<Action>);
     const total = s.board.reduce((n, c) => n + c.attack + c.health, 0);

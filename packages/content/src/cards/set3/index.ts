@@ -1,5 +1,4 @@
 import type { CardDef } from '@game/core';
-import { SET3_CELESTIALS } from './celestials';
 import { SET3_EQUIPMENT } from './equipment';
 import { SET3_KOBOLDS } from './kobolds';
 import { SET3_NEUTRAL } from './neutral';
@@ -7,6 +6,8 @@ import { SET3_SPIRITS, REVELER_IDS } from './spirits';
 export { SET3_SPELLS } from './spells';
 export { SET3_DWARVES } from './dwarves';
 export { SET3_UNDEAD } from './undead';
+export { SET3_DRAGONS } from './dragons';
+export { SET3_WHISPERS } from './whispers';
 
 /**
  * ── SET 3 — scaffold only ───────────────────────────────────────────────────────────────────────────────
@@ -14,9 +15,8 @@ export { SET3_UNDEAD } from './undead';
  * Registered in `sets.ts` and selectable in the Scene Builder's set picker, so content can be played the
  * moment it exists — without flipping the global `enabled` switch and moving real runs onto it.
  *
- * Currently holds the EQUIP minions only. The Celestial tribe that lived here was archived on 2026-08-28
- * ("extremely and completely re-worked — leaving set 3 empty of minions now"), so `celestials.ts` is an empty
- * roster waiting for the rework, and `equipment.ts` carries the Equipment vertical slice.
+ * The Celestial tribe (`celestials.ts`, reworked 2026-09-11) MOVED to Set 4 on 2026-10-14 (owner), and Set 4's
+ * Whisper Dragons (`dragons.ts`) and their Whispers (`whispers.ts`) moved here in the same swap. Ids never changed.
  *
  * When cards arrive, they go in SIBLING FILES here (`kobolds.ts`, `beasts.ts`, …) and get opted into
  * `SETS.set3.own` in declaration order, exactly as set 2 does. Two rules from `sets.ts` that matter most:
@@ -33,10 +33,9 @@ export { SET3_UNDEAD } from './undead';
 // The Dwarves (`dwarves.ts`, 2026-09-09) are deliberately NOT folded in here: `SETS.set3.own` places them AFTER
 // the carried-over set-2 Kobolds, because appending to this list would insert them ahead of those Kobolds and
 // reseed every set-3 shop. The manifest spells the order out; this list stays the pre-Dwarf prefix.
-// The reworked Celestials (2026-09-11) are NOT spread here: `SET3_CARDS` opens `SETS.set3.own`, and prepending a
+// The Whisper Dragons (2026-10-14) are NOT spread here either: `SET3_CARDS` opens `SETS.set3.own`, and prepending a
 // roster there reseeds every set-3 shop. They are appended in `sets.ts` like the Dwarves / Undead / Spirits.
 export const SET3_CARDS: readonly CardDef[] = [...SET3_EQUIPMENT, ...SET3_KOBOLDS];
-export { SET3_CELESTIALS };
 
 /** Set 3's own NEUTRALS (2026-09-09) — appended after the Undead in `SETS.set3.own`, never folded into
  *  `SET3_CARDS`, for the same positions-never-move reason as the Dwarves and Undead. */

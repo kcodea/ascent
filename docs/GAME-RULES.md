@@ -959,6 +959,12 @@ collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.
 
 ### The Starform — the Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13)
 
+> **Set 4 since 2026-10-14.** The Celestials, the Starform, their two spells (Star Crash, Black Hole) and their runes
+> were authored for Set 3 and MOVED to Set 4 by the owner ("move celestials to set 4 along with their runes etc.
+> remove them from set 3"); Set 3 offers none of it. Ids are unchanged (`ce3_*`). The Celestial + Set 3 tribe hybrid
+> runes (Soul Script, Star Tap, Gem Star, Festival Circuit) are parked, offered in no set, pending an owner call.
+> References below to "Set 3" describe where a rule was first made.
+
 The **Starform** is a **1/1 Celestial token that lives IN THE SHOP** as an ordinary shop offer (normal unit
 frame, no rules text — **its printed stats are the counter**). Celestial cards create it, grow it and cash it
 in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule below is pinned in
@@ -1284,7 +1290,7 @@ carries that tribe gate (offered only when the tribe is in the run, in every set
 none, and a rune listed Basic / Epic lives in that pool. This overrides the "text names a tribe" derivation where they
 differ: **Seller's Market** is Dwarf, **Spearline** Undead, and **Dream Mirror**, **Open Hand**, **Waking Reserve** and
 **Waking Dreams** Spirit, though none names its tribe; **Lazarus** is Neutral, though it grants an Undead body; **Soul
-Script** keeps both Undead and Celestial. **Engraving Gems** moved Epic → Basic (cost 2, unchanged), taking set 3 to
+Script** keeps both Undead and Celestial (parked, offered in no set, since the 2026-10-14 Celestial swap). **Engraving Gems** moved Epic → Basic (cost 2, unchanged), taking set 3 to
 84 Basic / 79 Epic. Every Set 3 rune's tribe and rarity is pinned against the list in `set3RuneList.test.ts`; the
 exceptions to the text rule are listed in `tribeGate.test.ts`.
 
@@ -1902,9 +1908,11 @@ rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All
   Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
 - The special Rubies are only ever cast from the hand in the Shop today; no combat effect casts one.
 
-### Whisper: a spell a card grants, temporary in hand and in what it gives (Set 4, owner 2026-10-13; R-WHISPER-01, R-WHISPER-02)
+### Whisper: a spell a card grants, temporary in hand and in what it gives (Set 3 since 2026-10-14; owner 2026-10-13; R-WHISPER-01, R-WHISPER-02)
 
-> Set 4 is **disabled** (a scaffold). Its cards play only in the Scene Builder until the owner flips it on.
+> The Whisper Dragons (Galas, Tolan, Tamby, Whisp) and their Whispers were authored for Set 4 and MOVED to **Set 3**
+> on 2026-10-14 (owner: "move our current set 4 dragons to set 3"); Dragon is now a Set 3 tribe. Ids are unchanged
+> (`d4_*`, `w4_*`). Set 3 is **disabled**: these play only in the Scene Builder until the owner flips it on.
 
 A **Whisper** is a spell a card **grants**. The minion's text prints what it does after "**Whisper:**" (Galas: "Give
 a friendly minion +1/+1. Improves every 4 spells cast this game.", its Whisper is **Tome**; Tolan: "Give a friendly
@@ -1927,6 +1935,28 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
 - **Whisper reactors.** Tamby: "When you cast a Whisper on this, get a copy of it. (Once per turn)" (Gilded: 2
   copies). Whisp: "When you cast a Whisper on a Dragon, also cast it on this." (Gilded: twice). Whisp's cast is a
   full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again.
+
+### Set 3 Dragons: Whaloo, Falx, Queen Morro, Shush (owner 2026-10-14; R-WHISPER-03..07, R-SPELL-MORRO-01)
+
+- **Whaloo** (T6 9/10): "When a Dragon attacks, cast **Runebind** on it. (3 times per combat)". Every friendly Dragon
+  swing (Whaloo's own too) casts a real Runebind on the attacker, at most 3 triggers per Whaloo per fight; the cap counts
+  down live on the card. The stats are combat-only; Runebind's improve is permanent and real time (the next cast this
+  fight reads it, settle keeps it). Each cast counts as a spell cast. Whisp is cast on too when it lands on a Dragon; a
+  Tamby target hands a copy to hand (once per fight). Gilded: a Gilded Runebind (double value and improve).
+- **Falx** (T5 6/5): "**Whisper:** Trigger a friendly minion's **Shout**." Its Whisper, **Ripple**, re-fires the target's
+  Shout through the shared Shout-replay path. A target with no Shout refuses the cast and Ripple stays in hand (the
+  Resonance rule). A Gilded Falx's Ripple triggers the Shout twice.
+- **Queen Morro** (T5 7/8): "Your spells cast an additional time in combat." (Gilded: 2.) Every spell her side casts in
+  combat (Shop spells cast by effects, rune and minion casts, Whispers, a Ruby played outside a spell) resolves once
+  more, each a real counted cast. Added to Runebloom Matriarch and the Ancient of War; live (a dead Morro stops). Shop
+  casts are untouched.
+- **Shush** (T4 5/4): "**Equip Jar of Secrets (2):** Get **3** random **Whispers**." "(2)" is the Gold cost (the Equip
+  convention). The draws come from every Whisper (Tome, Runebind, Ripple, and any future one) and follow every Whisper
+  rule. A Gilded Shush's Jar gets 3 Gilded Whispers.
+- **Gilded Whispers:** a Whisper from a Gilded source doubles its effect (and Runebind's improve) on every surface.
+- **Buffs panel:** a Whisper's grant is its own row under the Whisper's name, marked "until your next turn".
+- **Runebind's effect** (the owner's FX def `runebind`) plays on the target of every Runebind cast, from every source, in
+  both phases.
 
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 

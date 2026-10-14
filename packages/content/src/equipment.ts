@@ -546,7 +546,24 @@ export const SPELL_GENERATOR: EquipmentDefinition = {
   useFxId: 'spell-generator-activate',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR];
+/** JAR OF SECRETS — Shush's Equipment (Set 3 Dragons, owner 2026-10-14): "Equip: Jar of Secrets (2): Get 3 random
+ *  Whispers." The "(2)" is the Gold cost (`baseCost`), the convention every Equip card prints; one use per turn, like
+ *  every Equipment. Three seeded draws from the whole Whisper pool (`grantRandomWhispers` over `WHISPER_IDS`), each a
+ *  normal Whisper (fades at End of Turn, live value). Gilded (judgement call, flagged): the same three draws, as GILDED
+ *  Whispers (double value and improve), the Whisper convention for a Gilded source, carried through `gildedParams`. */
+export const JAR_OF_SECRETS: EquipmentDefinition = {
+  id: 'jar_of_secrets',
+  name: 'Jar of Secrets',
+  text: 'Get **3** random **Whispers**.',
+  goldenText: 'Get **3** random **Gilded Whispers**.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'grantRandomWhispers',
+  params: { count: 3, mult: 1 },
+  gildedParams: { count: 3, mult: 2 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR, JAR_OF_SECRETS];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

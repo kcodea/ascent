@@ -3,6 +3,7 @@ import { Card } from './Card';
 import { KeywordDefs } from './KeywordDefs';
 import { resolveMech } from './mechIcon';
 import { useGame } from './store';
+import { buffExpiryNote } from './buffExpiry';
 
 /**
  * Right-click "inspect": the card floats to the centre of the screen, enlarged, over
@@ -40,7 +41,7 @@ export function Inspect() {
             <div className="ib-title">Buffs</div>
             {inspect.buffs.map((b, i) => (
               <div className="ib-row" key={`${b.source}-${i}`}>
-                <span className="ib-src">{b.source} <em>×{b.count}</em></span>
+                <span className="ib-src">{b.source} <em>×{b.count}</em>{buffExpiryNote(b.source) && <em className="ib-exp"> {buffExpiryNote(b.source)}</em>}</span>
                 <span className="ib-amt">+{b.attack}/+{b.health}</span>
               </div>
             ))}

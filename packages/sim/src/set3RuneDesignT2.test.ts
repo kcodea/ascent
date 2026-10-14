@@ -34,14 +34,14 @@ const sf = (s: RunState): [number, number] | null => { const st = starformStats(
 const at = (s: RunState, uid: string) => s.board.find((c) => c.uid === uid)!;
 
 describe('the tranche 2 roster (owner 2026-09-27)', () => {
-  it('seven Celestial runes at the doc costs, Set 3 only, Celestial-gated; no Event Horizon', () => {
+  it('seven Celestial runes at the doc costs, Set 4 only since the 2026-10-14 swap (were Set 3 only), Celestial-gated; no Event Horizon', () => {
     const want: [string, number, boolean][] = [
       ['rune_heralding_star', 3, false], ['rune_stellar_echoes', 3, false], ['rune_scattered_light', 3, false], ['rune_gravity', 4, false],
       ['rune_afterglow', 3, false], ['rune_starsong', 4, true], ['rune_guiding_star', 5, true],
     ];
     for (const [id, cost, epic] of want) {
       const r = RUNE_INDEX[id]!;
-      expect([r.cost, !!r.epic, r.sets, r.tribes], id).toEqual([cost, epic, ['set3'], ['celestial']]);
+      expect([r.cost, !!r.epic, r.sets, r.tribes], id).toEqual([cost, epic, ['set4'], ['celestial']]);
       expect(r.text, `${id}: no em dash`).not.toMatch(/—|--/);
     }
     expect(RUNE_INDEX['rune_event_horizon']).toBeUndefined();

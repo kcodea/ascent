@@ -107,7 +107,12 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // carry-back only lands on `run.spellsCast` at settle — owner report 2026-09-18).
         spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally, echoIncludesSelf: !foe,
         rubyCasts: foe ? (enemyScalers?.rubyCasts ?? 0) : run.rubyCasts, // the Vaultkeeper umbrella — was never passed in combat, either side
-        whisperImprove: foe ? undefined : run.whisperImprove, // Set 4: Tolan's live Runebind value (player-only: an enemy carries no run)
+        // Set 3 Whispers: Tolan's / Whaloo's live Runebind value, per side (the foe's from its snapshot), raised LIVE by
+        // every combat Runebind landed so far (`whisperImproveLive`, the side's running totals).
+        whisperImprove: u.whisperImproveLive
+          ? { ...(foe ? enemyScalers?.whisperImprove : run.whisperImprove), ...u.whisperImproveLive }
+          : (foe ? enemyScalers?.whisperImprove : run.whisperImprove),
+        whisperCastsUsed: u.whisperCastsUsed, // Whaloo: "(3 times per combat)" counts down live
         clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,
         fodderConsumed: foe ? enemyScalers?.fodderConsumed : run.fodderConsumedThisTurn,
         undeadBuyAtk: foe ? (enemyScalers?.undeadBuyAtk ?? 0) : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
@@ -230,6 +235,16 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
  * (×2 in dev StrictMode). Floats are no longer part of this at all — they render board-level, so a spawning
  * or expiring number costs the units nothing.
  */
+/** Value-equality of two small id -> number maps (a side's live Whisper improvements). */
+function sameNumRecord(a: Readonly<Record<string, number>> | undefined, b: Readonly<Record<string, number>> | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  for (const k of ka) if (a[k] !== b[k]) return false;
+  return true;
+}
+
 export const Unit = memo(UnitInner, (a, b) =>
   a.side === b.side &&
   a.anim === b.anim &&
@@ -256,6 +271,8 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
   a.u.spellProgress === b.u.spellProgress &&
   a.u.spellsCastCombat === b.u.spellsCastCombat && // ticks only on a spellcast beat (rare) — Vaultkeeper's live umbrella
+  a.u.whisperCastsUsed === b.u.whisperCastsUsed && // Whaloo's live cap (only its own casts move it)
+  sameNumRecord(a.u.whisperImproveLive, b.u.whisperImproveLive) && // a combat Runebind landed: compared BY VALUE (the frame rebuilds the map every beat)
   a.u.spiritTally === b.u.spiritTally &&
   a.u.soldProgress === b.u.soldProgress &&
   a.u.boardFirstSpellId === b.u.boardFirstSpellId &&

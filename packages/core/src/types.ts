@@ -999,7 +999,11 @@ export type EffectFactoryId =
   | 'grantWhisper' // Galas / Tolan (passive marker, never dispatched): this minion GRANTS the Whisper `params.cardId` — a copy in hand when it is played from hand and again at every Start of Turn while it is on the board (`sim/whisper.ts`)
   | 'whisperBuffTarget' // a Whisper's cast (Tome / Runebind): give the target a TEMPORARY +V/+V (expires at the next Start of Turn) where V = `attack` + the per-`perSpells` step (Tome) or the run's Runebind improvement (Runebind), then improve when `improve` is set (recruit)
   | 'whisperCastOnThisCopy' // Tamby: when a Whisper is cast on this, get a copy of it (once per turn, x golden copies) (recruit)
-  | 'whisperEchoOnDragon' // Whisp (passive marker read by the cast path): when you cast a Whisper on a Dragon, also cast it on this (x golden) (recruit)
+  | 'whisperEchoOnDragon' // Whisp (passive marker read by the cast path): when you cast a Whisper on a Dragon, also cast it on this (x golden) (recruit + combat)
+  | 'onDragonAttackCastWhisper' // Whaloo (Set 3, 2026-10-14): when a friendly Dragon attacks, cast the Whisper `params.cardId` (Runebind) on it, `perCombat` times per combat; Gilded casts a gilded copy (combat)
+  | 'grantRandomWhispers' // Jar of Secrets, Shush's Equipment (Set 3, 2026-10-14): get `count` random Whispers at multiplier `mult` (recruit)
+  | 'combatSpellsCastExtra' // Queen Morro (Set 3, 2026-10-14): passive marker, read live by the combat cast path: every combat spell cast repeats +`extra` (x golden) (combat)
+  | 'whisperReplayShout' // Ripple (Falx's Whisper, Set 3, 2026-10-14): trigger the target's Shout, x the cast Whisper's multiplier (recruit)
   | 'shoutWoundSelfMendTribe' // Hawg: Shout: deal `damage` to this and give your `tribe` minions +`health` Health (x golden ticks; never lethal) (both phases)
   | 'deathrattleWoundMendTribe' // Eatah: Echo: deal `damage` to your `tribe` minions and give them +`health` Health (x golden ticks; never lethal) (both phases)
   | 'onTribeDamagedBuffSelf' // Apua: when a friendly `tribe` minion takes damage, this gains +a/+h PERMANENTLY (both phases)
@@ -3000,6 +3004,10 @@ export interface Minion {
   ascendProgress?: number;
   /** Brood Matron: how many Imps it has bred this combat — caps its friend-death summons. Absent = 0. */
   bredCount?: number;
+  /** Whaloo (Set 3): how many Whispers it has cast this combat (its "3 times per combat" cap). Absent = 0. */
+  whisperCastsUsed?: number;
+  /** Tamby (Set 3) in combat: it already copied a Whisper cast on it this fight (its once-per-turn latch, combat half). */
+  whisperCopiedThisCombat?: boolean;
   /** The Reclaimer's mark (see BoardMinion.resummon) — processed once at the start of combat. */
   resummon?: boolean;
   /** Parting Cry (spell): when this body dies next combat, its SHOUT fires. One-shot, spent on the death. */
@@ -3080,7 +3088,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string; rune?: string; heroPower?: true; setHealth?: number } // `setHealth` = this cast SET `source`'s Health to that absolute value (Weaken: 1; owner 2026-10-13). The replay folds it the way it folds a `dmg`'s `remainingHp`, so the card's Health drops on this beat instead of staying full until the next hit. `rune` = the RUNE that cast `spellId` (Rune of Spellhide's Start-of-Combat re-cast, the Flooded Vault's free cast), when a rune is the caster: `source` is then the body the cast resolved through, and the presentation stems the spell's effect from the rune's node on the rail (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune if there needs to be a source position"). `heroPower` = the grant came from the HERO's power (an Ancient: Hunch × Death's Avenge), so the presentation anchors it on the hero-power button, never on `source`'s body.
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string; rune?: string; heroPower?: true; setHealth?: number; target?: string; whisperImprove?: number } // `target` + `whisperImprove` (Set 3 Whispers, 2026-10-14): a combat WHISPER cast (Whaloo's Runebind, Whisp's echo) names the body it landed on, and the side's improvement for that Whisper AFTER it, so the replay's live texts (Tolan, the Whisper) read the improved value on that beat. `setHealth` = this cast SET `source`'s Health to that absolute value (Weaken: 1; owner 2026-10-13). The replay folds it the way it folds a `dmg`'s `remainingHp`, so the card's Health drops on this beat instead of staying full until the next hit. `rune` = the RUNE that cast `spellId` (Rune of Spellhide's Start-of-Combat re-cast, the Flooded Vault's free cast), when a rune is the caster: `source` is then the body the cast resolved through, and the presentation stems the spell's effect from the rune's node on the rail (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune if there needs to be a source position"). `heroPower` = the grant came from the HERO's power (an Ancient: Hunch × Death's Avenge), so the presentation anchors it on the hero-power button, never on `source`'s body.
   // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. (`grantsEcho`, the old Rune of Rebirth marker, retired 2026-09-16 — the rune grants the Rebirth KEYWORD now, a plain `keyword` event.) `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
   // A NEXT-COMBAT SPELL resolving at Start of Combat (owner ask 2026-10-07: "we need to show these spells being cast
   // in a start of combat beat"): `side` cast `spellId` last shop (×`count` when it was cast more than once). A
@@ -3171,6 +3179,10 @@ export interface CombatSideState {
    *  PERMANENTLY" but the counter used to start at 0 every combat (owner report 2026-08-01) — this seeds the
    *  fight with what earlier combats grew, and `playerWildHuntGrown` on the result carries it back out. */
   wildHuntGrown?: number;
+  /** Set 3 WHISPERS: this side's run-wide per-Whisper improvement (Runebind's "Improve this"), by Whisper id. Seeds a
+   *  combat Whisper cast (Whaloo) with the improved value; a combat cast's further improvement carries back through
+   *  `ShoutCarry.whisperImprove`. Snapshot-captured, so a served Whaloo casts ITS run's Runebind. */
+  whisperImprove?: Record<string, number>;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
   /** The FIRST spell cast this recruit turn, by id — Comet Conductor's Rally hands its side a copy. Snapshot-
@@ -3351,6 +3363,8 @@ export interface EnemyScalers {
   rememberedSpellIds: readonly string[];
   spellEscalation: { attack: number; health: number };
   growthBonus: number;
+  /** Set 3 Whispers: the served board's run-wide Whisper improvement (its Tolan / Whaloo print its own Runebind). */
+  whisperImprove?: Record<string, number>;
   rubyBonus: { attack: number; health: number };
 }
 
@@ -3801,6 +3815,11 @@ export interface ShoutCarry {
   /** Storm Chaser (owner ruling 2026-10-10, "Split (real time)"): one entry per combat cast of a Shop-Ruby spell
    *  (Veinstorm) whose MINION half already resolved live; settle applies the SHOP half once per entry. */
   shopSpellHalves?: string[];
+  /** Set 3 WHISPERS (Whaloo, 2026-10-14): the side's per-Whisper improvement as the fight ENDED it (Runebind cast in
+   *  combat improves permanently). Settle raises the run's `whisperImprove` to these totals. */
+  whisperImprove?: Record<string, number>;
+  /** Tamby in combat: indices into `handGrants` whose arrived Whisper keeps a multiplier (a gilded copy). */
+  handWhisperMults?: { idx: number; mult: number }[];
 }
 
 export interface CombatContext {
@@ -4092,6 +4111,9 @@ export interface CombatContext {
   /** How many times ONE Shop Spell cast by `side` resolves in combat — 1 normally, more when something has
    *  granted extra casts (Runebloom Matriarch). Read by `castInCombat`, the single combat cast path. */
   spellCastRepsFor?(side: Side): number;
+  /** Queen Morro (Set 3): this side's LIVE extra combat casts (0 = none). The combat Ruby primitive reads it for a Ruby
+   *  played outside any spell cast (a cast's own Rubies already repeat with the cast). */
+  combatSpellsExtraFor?(side: Side): number;
   /** Grant `side` N extra combat casts of every Shop Spell (Runebloom Matriarch's Start of Combat). */
   grantSpellCastExtra?(side: Side, n: number): void;
   /** The card id of the LAST Shop spell this side's owner cast, if any (Sporebat's stored spell). */
@@ -4108,6 +4130,12 @@ export interface CombatContext {
   rubyRuptureBouncesFor?(side: Side): number;
   /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
   growthBonusFor?(side: Side): number;
+  /** Set 3 WHISPERS: this side's LIVE per-Whisper improvement (seeded from `CombatSideState.whisperImprove`, raised by
+   *  each combat Runebind), and the raise itself. Absent = no Whisper support (a bare harness). */
+  whisperImproveFor?(side: Side, whisperId: string): number;
+  addWhisperImprove?(side: Side, whisperId: string, n: number): number;
+  /** Tamby in combat: a Whisper copy to `side`'s hand at multiplier `mult` (a gilded copy keeps its doubling). */
+  grantWhisperToHand?(whisperId: string, side: Side, mult: number, sourceUid?: string): void;
   /** Rune of Falling Embers' "your Star Crashes give an additional +A/+H" for this side (Set 3 design pass: Star Crash
    *  resolves in combat now, so the bonus folds in there too, as in the Shop). Absent = none. */
   starCrashBonusFor?(side: Side): { attack: number; health: number };

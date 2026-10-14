@@ -116,6 +116,8 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   armChooseBoth: { phase: 'combat', kind: 'no-surface', why: "SHOP_ONLY_SHOUTS: Double Dealer arms her own 'first Choose One "
     + "this turn' latch; Choose One is played from HAND in the SHOP. A combat re-fire logs its line live; settle arms "
     + 'her run card once (Start of Turn re-arms her anyway)' },
+  combatSpellsCastExtra: { phase: 'recruit', kind: 'no-surface', why: 'Queen Morro (Set 3, 2026-10-14): "Your spells cast an additional time IN COMBAT"; a passive read by the combat cast path, and by its own text never in the Shop' },
+  onDragonAttackCastWhisper: { phase: 'recruit', kind: 'no-surface', why: 'Whaloo (Set 3, 2026-10-14) answers a Dragon ATTACKING; no attack happens in the Shop (a shop-side Rally pass is not an attack), and "3 times per combat" is a fight cap' },
   rallyGrantFirstSpellCopy: { phase: 'recruit', kind: 'no-surface', why: 'Comet Conductor is "once per COMBAT" by its text; a shop Rally pass (Rune of the Chef) is not a fight, and the copy is the payout of the fight' },
   // ── Set 3 Celestials, THE STARFORM ROSTER (2026-09-12): the token lives IN THE SHOP; no shop exists mid-fight ──
   battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Star Seed creates / feeds the Starform, a SHOP token (starform.ts). A combat re-fire logs its line live; settle feeds the token once' },

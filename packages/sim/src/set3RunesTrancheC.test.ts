@@ -43,6 +43,12 @@ const bm = (cardId: string, over: Partial<BoardMinion> = {}): BoardMinion => {
   return { cardId, attack: d.attack, health: d.health, keywords: [...d.keywords], ...over } as unknown as BoardMinion;
 };
 
+/** The 2026-10-14 swap (owner: "move celestials to set 4 along with their runes etc."): Celestial runes are Set 4 only,
+ *  and the Celestial hybrids whose other tribe stayed in Set 3 are parked (offered nowhere, never archived). */
+const TO_SET4 = new Set(['rune_basic_celestial', 'rune_falling_embers', 'rune_first_light', 'rune_accretion', 'rune_eventide', 'rune_heralding_star', 'rune_stellar_echoes', 'rune_scattered_light', 'rune_gravity', 'rune_afterglow', 'rune_red_giant', 'rune_epic_celestial', 'rune_meteor_shower', 'rune_open_constellation', 'rune_supernova', 'rune_stolen_constellations', 'rune_spellweaving', 'rune_starsong', 'rune_meteor_storm', 'rune_guiding_star']);
+const PARKED = new Set(['rune_soul_script', 'rune_star_tap', 'rune_gem_star', 'rune_festival_circuit']);
+const afterSwap = (id: string, otherwise: readonly string[]): readonly string[] => (TO_SET4.has(id) ? ['set4'] : PARKED.has(id) ? [] : otherwise);
+
 describe('the six defs ship as specced', () => {
   it('ids, pools, costs, set gate, tribe gates', () => {
     const basic = ['rune_amplification', 'rune_soul_script'];
@@ -50,7 +56,7 @@ describe('the six defs ship as specced', () => {
     for (const id of basic) { expect(RUNES.some((r) => r.id === id), `${id} is Basic`).toBe(true); expect(RUNE_INDEX[id]!.epic).toBeFalsy(); }
     for (const id of epic) { expect(EPIC_RUNES.some((r) => r.id === id), `${id} is Epic`).toBe(true); expect(RUNE_INDEX[id]!.epic).toBe(true); }
     const costs: Record<string, number> = { rune_amplification: 4, rune_soul_script: 5, rune_grand_workshop: 6, rune_red_giant: 5, rune_final_gate: 6, rune_dreamed_graves: 4 };
-    for (const [id, c] of Object.entries(costs)) { expect(RUNE_INDEX[id]!.cost, id).toBe(c); expect(RUNE_INDEX[id]!.sets, `${id} is set 3 only`).toEqual(['set3']); }
+    for (const [id, c] of Object.entries(costs)) { expect(RUNE_INDEX[id]!.cost, id).toBe(c); expect(RUNE_INDEX[id]!.sets, `${id} is set 3 only (Celestial ones: set 4 since 2026-10-14)`).toEqual(afterSwap(id, ['set3'])); }
     expect(RUNE_INDEX['rune_amplification']!.tribes, 'Universal').toBeUndefined();
     expect(RUNE_INDEX['rune_grand_workshop']!.tribes, 'Universal').toBeUndefined();
     expect(RUNE_INDEX['rune_soul_script']!.tribes).toEqual(['undead', 'celestial']);

@@ -176,6 +176,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Goth Rayse, Lord of Death, Midas and Melon, Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja
     // Sweeney, Rayse Sweeney; +7 frame webps in `art/frames/skins/`, carried as above: Cream, Crystal, Disco, Econ, Snare,
     // Chromatic Scale, Reflective; owner-named: "ive also added many skins to the game's collections").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1423);
+    // → 1429: the Set 3 Dragon batch 2026-10-14 (+5 owner-named: Whaloo, Falx, Queen Morro, Shush portraits + the Jar of
+    // Secrets Equipment icon; measured 1423 with them, so the old budget had one file of slack).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1429);
   });
 });

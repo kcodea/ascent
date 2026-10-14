@@ -24,8 +24,8 @@ const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): Board
 };
 const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false } as BoardCard);
 const run = (over: Partial<RunState> = {}): RunState =>
-  ({ ...createRun(3), setId: 'set3', phase: 'recruit', embers: 30, tier: 6, tribes: ['celestial', 'undead', 'kobold'], shop: [],
-    pool: Object.fromEntries(poolFor('set3').buyable.map((c) => [c.id, 5])), ...over } as RunState);
+  ({ ...createRun(3), setId: 'set4', phase: 'recruit', embers: 30, tier: 6, tribes: ['celestial', 'beast'], shop: [],
+    pool: Object.fromEntries(poolFor('set4').buyable.map((c) => [c.id, 5])), ...over } as RunState);
 const offer = (s: RunState, cardId: string, over: Partial<ShopCard> = {}): ShopCard => ({ uid: `s${s.uidSeq++}`, cardId, ...over });
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const play = (s: RunState, uid: string, extra: Partial<Action> = {}): RunState => reduce(s, { type: 'play', uid, ...extra } as Action);
@@ -53,7 +53,7 @@ const toHand = (events: readonly CombatEvent[]): string[] =>
 const buffsFrom = (events: readonly CombatEvent[], source: string) =>
   events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === source);
 const fight = (player: BoardMinion[], enemy: BoardMinion[], seed = 7) =>
-  simulate(player, enemy, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 1 }));
+  simulate(player, enemy, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, poolIds: poolFor('set4').all.map((c) => c.id) }), combatSide({ tier: 1 }));
 
 // ── probes: plain bodies with one known effect, so a scenario has no second moving part ──────────────────
 const PROBES: CardDef[] = [
@@ -80,12 +80,14 @@ const ROSTER: [string, string, number, number, number][] = [
 ];
 
 describe('the roster', () => {
-  it('the set-3 Celestials with the spec tier / stats, all in the set-3 pool; the two Tier 7s sit at the Summit tier', () => {
-    const ids = poolFor('set3').buyable.map((c) => c.id);
+  it('the Celestials (Set 4 since the 2026-10-14 swap) with the spec tier / stats, all in the set-4 pool, none in set 3; the two Tier 7s sit at the Summit tier', () => {
+    const ids = poolFor('set4').buyable.map((c) => c.id);
+    const set3 = poolFor('set3').all.map((c) => c.id);
     for (const [id, name, tier, a, h] of ROSTER) {
       const d = CARD_INDEX[id]!;
       expect([d.name, d.tribe, d.tier, d.attack, d.health], id).toEqual([name, 'celestial', tier, a, h]);
-      expect(ids, id + ' is drawable in set 3').toContain(id);
+      expect(ids, id + ' is drawable in set 4').toContain(id);
+      expect(set3, id + ' left set 3 (owner swap 2026-10-14)').not.toContain(id);
       expect(d.goldenText, id + ' states its gilded reading').toBeTruthy();
     }
     expect(CARD_INDEX['ce3_dawnsentinel']!.keywords).toEqual(['T']);
@@ -94,11 +96,12 @@ describe('the roster', () => {
     expect(ids, 'Constellation Prime archived 2026-10-13').not.toContain('ce3_constellationprime');
     expect(poolFor('set2').buyable.some((c) => c.id.startsWith('ce3_')), 'set 2 has none').toBe(false);
   });
-  it('Black Hole (was Accretion) is a set-3 Celestial spell offered only while Celestial is a run tribe; the Stellar Lens is registered', () => {
+  it('Black Hole (was Accretion) is a Celestial spell (Set 4 since 2026-10-14) offered only while Celestial is a run tribe; the Stellar Lens is registered', () => {
     const d = CARD_INDEX['accretion']!;
     expect([d.name, d.spell, d.tribe, d.tier, d.cost]).toEqual(['Black Hole', true, 'celestial', 3, 2]);
-    expect(runSpells({ setId: 'set3', tribes: ['celestial', 'undead'] }).some((c) => c.id === 'accretion')).toBe(true);
-    expect(runSpells({ setId: 'set3', tribes: ['undead', 'kobold'] }).some((c) => c.id === 'accretion')).toBe(false);
+    expect(runSpells({ setId: 'set4', tribes: ['celestial', 'beast'] }).some((c) => c.id === 'accretion')).toBe(true);
+    expect(runSpells({ setId: 'set4', tribes: ['beast'] }).some((c) => c.id === 'accretion')).toBe(false);
+    expect(runSpells({ setId: 'set3', tribes: ['undead', 'kobold', 'spirit', 'dwarf', 'dragon'] }).some((c) => c.id === 'accretion'), 'Set 3 never offers it').toBe(false);
     expect(EQUIPMENT_INDEX['stellar_lens']).toMatchObject({ baseCost: 2, targetMode: 'none', effectId: 'equipmentCreateStarformThenBuffThisShop', params: { attack: 5, health: 5 }, gildedParams: { attack: 10, health: 10 } }); // +5/+5 (gilded +10/+10) since the owner balance 2026-10-07
   });
 });

@@ -73,6 +73,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     lastSpellCastId: snap.lastSpellCastId, // enemy Sporebat's stored spell
     rememberedSpellIds: snap.rememberedSpellIds ?? [], // enemy Runesnout Archivist's journal
     growthBonus: snap.growthBonus ?? 0, // enemy Rune of Living Growth
+    whisperImprove: snap.whisperImprove ? { ...snap.whisperImprove } : undefined, // enemy Whaloo casts its own run's Runebind
     goldSpentThisTurn: snap.goldSpentThisTurn ?? 0, // enemy Baby Gastrid re-fired mid-fight (R-REALTIME-03)
     lastSpellThisTurnId: snap.lastSpellThisTurnId, // enemy Recaller re-fired mid-fight
     squirlScoutBuff: snap.squirlScoutBuff ?? 0, // enemy Squirl Scout re-fired mid-fight

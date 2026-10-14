@@ -40,6 +40,12 @@ const nextTurn = (s: RunState): RunState => {
   return next;
 };
 
+/** The 2026-10-14 swap (owner: "move celestials to set 4 along with their runes etc."): the Celestial runes are Set 4
+ *  only now, and the Spirit + Celestial Festival Circuit is parked (offered nowhere, never archived). */
+const TO_SET4 = new Set(['rune_basic_celestial', 'rune_falling_embers', 'rune_first_light', 'rune_accretion', 'rune_eventide', 'rune_epic_celestial', 'rune_meteor_shower', 'rune_red_giant', 'rune_supernova', 'rune_stolen_constellations', 'rune_spellweaving', 'rune_open_constellation']);
+const setsAfterSwap = (id: string, otherwise: readonly string[]): readonly string[] =>
+  TO_SET4.has(id) ? ['set4'] : id === 'rune_festival_circuit' ? [] : otherwise;
+
 // ── the roster ───────────────────────────────────────────────────────────────────────────────────────────
 // tribes: undefined = no gate — the text names no tribe (owner rule: gate only where the text names a tribe on the board)
 const BASIC: [string, number, string[] | undefined][] = [
@@ -70,7 +76,7 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(EPIC_RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBeFalsy();
     expect(r.cost).toBe(cost);
-    expect(r.sets).toEqual(id === 'rune_full_hand' || id === 'rune_charted_skies' ? [] : ['set3']); // Charted Skies CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list) // the Full Hand CUT FROM SET 3 2026-09-24 (owner): offered in no set
+    expect(r.sets).toEqual(setsAfterSwap(id, id === 'rune_full_hand' || id === 'rune_charted_skies' ? [] : ['set3'])); // Charted Skies CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list) // the Full Hand CUT FROM SET 3 2026-09-24 (owner): offered in no set
     expect(r.tribes).toEqual(tribes);
     expect(CARD_INDEX[id]).toBeUndefined();
   });
@@ -82,7 +88,7 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(r.cost).toBe(cost);
     // Astral Draft CUT FROM SET 3 2026-09-27 (owner, design pass tranche 0): offered in no set. (The Festival Circuit and the
     // Open Constellation were cut 2026-09-25 and RESTORED 2026-09-27.)
-    expect(r.sets).toEqual(id === 'rune_astral_draft' ? [] : ['set3']);
+    expect(r.sets).toEqual(setsAfterSwap(id, id === 'rune_astral_draft' ? [] : ['set3']));
     expect(r.tribes).toEqual(tribes);
   });
   it('the Crown rename: the sheet\'s "Rune of the Crown" ships as Rune of the Spirit Crown beside the existing Crown', () => {
@@ -103,7 +109,10 @@ describe('Rune of Basic / Epic Spirits, Celestials, Undead', () => {
     ['rune_basic_spirit', 'spirit', 1], ['rune_basic_celestial', 'celestial', 1], ['rune_basic_undead', 'undead', 1],
     ['rune_epic_spirit', 'spirit', 2], ['rune_epic_celestial', 'celestial', 2], ['rune_epic_undead', 'undead', 2],
   ] as const)('%s pays %s ×%i now and again at the next turn setup', (id, tribe, n) => {
-    let s = armed(id);
+    // A Celestial drip pays from the pinned set's pool: Set 4 since the 2026-10-14 swap.
+    let s = tribe === 'celestial'
+      ? armed(id, { setId: 'set4', tribes: ['celestial', 'beast'], pool: Object.fromEntries(poolFor('set4').buyable.map((c) => [c.id, 5])) })
+      : armed(id);
     expect(s.hand).toHaveLength(n);
     for (const c of s.hand) expect(isTribeId(c.cardId, tribe), `${c.cardId} is a ${tribe}`).toBe(true);
     expect(s.runeProcs?.[id]).toBe(1);

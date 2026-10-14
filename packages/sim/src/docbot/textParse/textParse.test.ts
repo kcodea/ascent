@@ -162,7 +162,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // is also new), the Whisper tokens' "until your next turn." duration tail (Tome, Runebind), and the friendly-tribe
 // damage-taken watcher ("When your Beasts take damage" on Apua, "When a friendly Beast takes damage" on Alan).
 // Hawg and Eatah parse fully.
-const UNRESOLVED_CAP = 130;
+// 2026-10-14 (the Set 3 Dragon batch): 130 -> 132, CONSCIOUSLY. Five new cards (Whaloo, Falx + its Whisper Ripple,
+// Queen Morro, Shush); two of their texts have no grammar rule yet (an ally-attack Whisper cast with a per-combat cap,
+// and a combat cast-count aura).
+const UNRESOLVED_CAP = 132;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

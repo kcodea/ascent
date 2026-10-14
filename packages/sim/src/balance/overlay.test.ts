@@ -10,7 +10,7 @@ import { contentDigestFor } from './identity';
 
 describe('content overlays (balance:compare candidates)', () => {
   it('patches stats and per-effect params on the LIVE def, and the content digest moves', () => {
-    const before = contentDigestFor('set3');
+    const before = contentDigestFor('set4');
     const d = CARD_INDEX['ce3_starseed']!;
     const p0 = d.effects[0]!.params as { attack: number; health: number };
     expect([p0.attack, p0.health]).toEqual([4, 4]);
@@ -18,7 +18,7 @@ describe('content overlays (balance:compare candidates)', () => {
     expect(diff).toHaveLength(1);
     expect(CARD_INDEX['ce3_starseed']!.health).toBe(2);
     expect((CARD_INDEX['ce3_starseed']!.effects[0]!.params as { attack: number }).attack).toBe(2);
-    expect(contentDigestFor('set3')).not.toBe(before);
+    expect(contentDigestFor('set4')).not.toBe(before);
     expect(diff[0]!.after).toContain('"attack":2');
   });
   it('refuses an unknown card, a bad effect index, an invalid result, and a second application', () => {

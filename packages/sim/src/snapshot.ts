@@ -177,6 +177,8 @@ export interface BoardSnapshot {
   rememberedSpellIds?: string[];
   /** Rune of Living Growth: the run's Growth improvement, so a served board's Growth casts at its own value. */
   growthBonus?: number;
+  /** Set 3 Whispers: the run's per-Whisper improvement (Runebind), so a served Whaloo casts its OWN run's Runebind. */
+  whisperImprove?: Record<string, number>;
   /** Shouts re-fired on a served board mid-fight read their OWN run (R-REALTIME-03): Baby Gastrid's Gold spent,
    *  Recaller's last spell, Squirl Scout's snowball. Absent in older captures = 0 / none. */
   goldSpentThisTurn?: number;
@@ -455,6 +457,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.lastSpellCastId ? { lastSpellCastId: s.lastSpellCastId } : {}),
     ...(s.rememberedSpellIds?.length ? { rememberedSpellIds: [...s.rememberedSpellIds] } : {}),
     ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
+    ...(s.whisperImprove && Object.keys(s.whisperImprove).length ? { whisperImprove: { ...s.whisperImprove } } : {}),
     ...(s.goldSpentThisTurn ? { goldSpentThisTurn: s.goldSpentThisTurn } : {}),
     ...(s.lastSpellThisTurnId ? { lastSpellThisTurnId: s.lastSpellThisTurnId } : {}),
     ...(s.squirlScoutBuff ? { squirlScoutBuff: s.squirlScoutBuff } : {}),

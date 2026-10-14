@@ -83,6 +83,9 @@ const ART_PENDING = new Set<string>([
   // Owner Set 3 batch (2026-10-13): Indy, the Golden Monkey and Amplification Agnus shipped with no art yet.
   'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
   // SET 4: NONE LEFT (owner 2026-10-13: the eight minions and the two Whispers, Tome + Runebind, are arted).
+  // SET 3 DRAGONS (owner batch 2026-10-14): Whaloo, Falx, Queen Morro and Shush are arted; Falx's Whisper Ripple has
+  // no master named yet.
+  'w3_ripple',
 ]);
 
 describe('art coverage for live cards', () => {

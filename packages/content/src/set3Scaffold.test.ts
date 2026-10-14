@@ -75,6 +75,7 @@ describe('set 3 scaffold', () => {
       // …then the WHISPER DRAGONS (from Set 4, owner swap 2026-10-14), in the slot the Celestials held until they moved
       // to Set 4 the same day. Every earlier minion keeps its position.
       'd4_galas', 'd4_tolan', 'd4_tamby', 'd4_whisp',
+      'd3_whaloo', 'd3_falx', 'd3_morro', 'd3_shush', // the first Set 3-authored Dragons (owner 2026-10-14), appended after the swapped-in four
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {

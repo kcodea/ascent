@@ -15,6 +15,9 @@ export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
 export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
 export { SET3_HAND_SPELLS } from './cards/set3/handSpells';
+/** Every Whisper, in declaration order: the pool "get a random Whisper" draws from (Jar of Secrets, Shush's Equipment).
+ *  A new Whisper joins it by being added to `SET3_WHISPERS`. */
+export const WHISPER_IDS: readonly string[] = SET3_WHISPERS.filter((c) => c.whisper).map((c) => c.id);
 export { SET3_WHISPERS } from './cards/set3/whispers'; // Set 3 Whispers (Tome, Runebind; Set 4 until 2026-10-14) — granted Gift-class spells, member of no set
 export { REVELER_IDS } from './cards/set3/spirits'; // the Reveler class (Flame / Tide / Grove) other Spirits name // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
@@ -132,6 +135,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)
   battlecryGetHandSpell: 'cardId',             // Defender -> Tower Shield; Magnifying Glass -> Clue (set-3 hand spells)
   grantWhisper: 'cardId',                      // Set 4: Galas -> Tome; Tolan -> Runebind (the granted Whisper previews on hover)
+  onDragonAttackCastWhisper: 'cardId',         // Set 3: Whaloo -> Runebind (the Whisper it casts previews on hover)
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
   getRubies: 'rubyId',                         // Facetbound Martyr -> Warding Ruby (Shout half of the same mint)
   onSummonCardPlayRubiesSelf: 'cardId',        // Gemheart Legionnaire -> Gemheart Golem (Ruby batch 2026-09-24)

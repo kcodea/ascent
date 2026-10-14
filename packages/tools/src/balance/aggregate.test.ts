@@ -33,16 +33,17 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-09-24: the Kobold/Celestial/Dwarf batch (Pickles, Jewel, Delver, Kurse, Maestro Lux, Han Gover)
     // plays through the synthetic set-3 lobbies, so the per-hero placements move.
     // Regenerated 2026-10-10: the owner spell batch (costs, Growth / Spirit Fire / Staff numbers, two archives) moves them again.
-    // Regenerated 2026-10-14: the Celestial / Dragon set swap (Celestials to Set 4, the Whisper Dragons into Set 3).
+    // Regenerated 2026-10-14: the Celestial / Dragon set swap (Celestials to Set 4, the Whisper Dragons into Set 3), then
+    // the Set 3 Dragon batch the same day (Whaloo, Falx, Queen Morro, Shush).
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:4.90",
-        "fibbsy:30:4.00",
-        "gorr:30:4.17",
+        "drakko:30:4.83",
+        "fibbsy:30:3.87",
+        "gorr:30:4.37",
         "harlan:30:4.87",
         "midas:30:4.63",
-        "nadja:30:3.77",
-        "pete:30:4.40",
+        "nadja:30:3.70",
+        "pete:30:4.47",
         "warden:30:5.27",
       ]
     `);

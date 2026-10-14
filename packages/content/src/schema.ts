@@ -625,6 +625,10 @@ export const EffectFactoryIdSchema = z.enum([
   'whisperBuffTarget',            // Tome / Runebind: a Whisper's temporary stat grant (+ Runebind's improve)
   'whisperCastOnThisCopy',        // Tamby: a Whisper cast on this hands back a copy (once per turn)
   'whisperEchoOnDragon',          // Whisp: a Whisper cast on a Dragon is also cast on this
+  'onDragonAttackCastWhisper',    // Whaloo (Set 3, 2026-10-14): when a Dragon attacks, cast a Whisper (Runebind) on it, N times per combat
+  'grantRandomWhispers',          // Jar of Secrets, Shush's Equipment (Set 3, 2026-10-14): get N random Whispers (x mult)
+  'combatSpellsCastExtra',        // Queen Morro (Set 3, 2026-10-14): passive, your spells cast +extra times in combat (live)
+  'whisperReplayShout',           // Ripple (Falx's Whisper, Set 3, 2026-10-14): trigger the target's Shout, x the Whisper's multiplier
   'shoutWoundSelfMendTribe',      // Hawg: Shout: 1 damage to this, your Beasts +1 Health (never lethal)
   'deathrattleWoundMendTribe',    // Eatah: Echo: 1 damage to your Beasts, then +1 Health (never lethal)
   'onTribeDamagedBuffSelf',       // Apua: a friendly Beast took damage -> this +1/+1 permanently

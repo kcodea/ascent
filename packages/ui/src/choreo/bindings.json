@@ -324,6 +324,16 @@
         "sfx": "dragonflame"
       }
     },
+    "w4_runebind": {
+      "buffWave": {
+        "def": "runebind",
+        "fanOut": "buffedOn"
+      },
+      "spellCast": {
+        "def": "runebind",
+        "fanOut": "buffedOn"
+      }
+    },
     "sp_picnic": {
       "spellCast": {
         "def": "shop-buff-shout"

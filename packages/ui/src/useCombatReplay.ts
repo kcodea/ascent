@@ -5,6 +5,7 @@ import { toScreen } from './stage';
 import gsap from 'gsap';
 import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { whisperCombatBuffLabel } from './buffExpiry';
 import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
@@ -186,6 +187,11 @@ export interface UnitFrame {
    *  "N spells to next step" tick AS the casts land (owner report 2026-09-18: "Vaultkeeper's text doesn't update
    *  in real time in combat") — the run's counter only takes the carry-back at settle. */
   spellsCastCombat?: number;
+  /** Whaloo (Set 3): Whispers it has cast so far THIS fight (its "3 times per combat" cap, printed live). */
+  whisperCastsUsed?: number;
+  /** Set 3 Whispers: this unit's SIDE's per-Whisper improvement as the fight has raised it so far (a combat Runebind),
+   *  stamped on every unit of that side once one lands. Tolan / a Whisper print it live; absent = the run's value. */
+  whisperImproveLive?: Readonly<Record<string, number>>;
   /** Set 3 Spirits: the body's per-instance tally (Forest Colossus / Festival Keeper / Aspect live text). */
   spiritTally?: number;
   /** Pummel (Han Gover, Goldvein): total damage this body has dealt this fight (the seeded snapshot value, undefined for a once-per-combat meter, plus its landed hits). */
@@ -364,12 +370,24 @@ export function computeFrame(
   // `count`, which the sim seeds with the player's run-lifetime total (and 0 for the enemy) — the run already
   // supplies that half, so the frame carries only the in-fight delta.
   const spellCasts: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
+  // Set 3 Whispers: each side's live per-Whisper improvement (the `sc.whisperImprove` totals) and each caster's Whisper
+  // cast count (Whaloo's cap), folded from the combat Whisper casts so far.
+  const whisperImp: Record<'player' | 'enemy', Record<string, number> | undefined> = { player: undefined, enemy: undefined };
+  const whisperCasts = new Map<string, number>();
+  const whisperTriggerSeen = new Set<string>();
   /** uid → how far below 0 its last hit took it (see the `dmg` branch). */
   const overkill = new Map<string, number>();
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
     if (e.type === 'attack') attackCount++;
     if (e.type === 'spellcast') spellCasts[e.side]++;
+    if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
+      // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
+      // "3 times per combat" counts its triggers, never the extra casts.
+      const key = `${e.source}@${(e as { step?: number }).step ?? i}`;
+      if (!whisperTriggerSeen.has(key)) { whisperTriggerSeen.add(key); whisperCasts.set(e.source, (whisperCasts.get(e.source) ?? 0) + 1); }
+      if (e.whisperImprove !== undefined && e.side) whisperImp[e.side] = { ...(whisperImp[e.side] ?? {}), [e.spellId]: e.whisperImprove };
+    }
     if (e.type === 'dmg') {
       const u = find(e.target);
       if (u) {
@@ -528,7 +546,9 @@ export function computeFrame(
           // rune buff read as anonymous in the inspect panel. Combat uids are `m<n>` / `e<n>`, so anything
           // that doesn't match that shape is a label and is kept verbatim.
           const isUid = /^[me]\d+$/.test(e.source ?? '');
-          recordBuff(u.buffs, names.get(e.source) ?? (!isUid && e.source ? e.source : 'Combat'), e.attack, e.health);
+          // A combat WHISPER cast (Whaloo's Runebind, a Whisp echo) is its own named row, "Runebind" (owner 2026-10-14:
+          // Runebind is a tracked buff, and "doesnt need to say 'this combat'"), not the caster's name.
+          recordBuff(u.buffs, whisperCombatBuffLabel(e.spellId) ?? names.get(e.source) ?? (!isUid && e.source ? e.source : 'Combat'), e.attack, e.health);
         }
         // Tara: tally stat-grants on minions with ascendAt toward their ascend threshold.
         if ((e.attack !== 0 || e.health !== 0) && CARD_INDEX[u.cardId]?.ascendAt) {
@@ -594,6 +614,9 @@ export function computeFrame(
   // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
   for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.player; }
   for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.enemy; }
+  if (whisperCasts.size > 0) for (const u of [...player, ...enemy]) { const n = whisperCasts.get(u.uid); if (n) u.whisperCastsUsed = n; }
+  if (whisperImp.player) for (const u of player) u.whisperImproveLive = whisperImp.player;
+  if (whisperImp.enemy) for (const u of enemy) u.whisperImproveLive = whisperImp.enemy;
   // Keep a DEAD unit on screen for the beat in which it is still DEALING damage — a Deathrattle whose Echo
   // sprays the board (Fel Spikes) fires its volley one beat AFTER its body would have left, and a source→target
   // FX anchored to that body needs it present to launch from. Only the CURRENT beat's damage ([beatStart, upto))

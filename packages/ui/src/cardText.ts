@@ -1545,6 +1545,22 @@ export function withGrantedRise(cardId: string, text: string, keywords: readonly
  * x2 when Gilded, green when it moved off the printed base; a stepping Whisper (Tome) adds its countdown. Null for any
  * other card. Player-scoped run tallies: an enemy body (no run) passes nothing and so reads its printed base.
  */
+/**
+ * WHALOO (Set 3, owner 2026-10-14): "When a Dragon attacks, cast Runebind on it. (3 times per combat)". It names the
+ * Whisper it casts (the sanctioned named-spell exception: Runebind's hover preview prints its live value), and its cap
+ * counts DOWN live in combat ("(2 left this combat)", green) once it has cast. In the Shop (no `used`) it prints as
+ * written. Null for any other card.
+ */
+export function whisperCasterText(cardId: string, golden: boolean, used: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onDragonAttackCastWhisper');
+  if (!def || !eff) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  if (!used) return src;
+  const cap = Number(eff.params?.perCombat ?? 3);
+  return src.replace(`**(${cap} times per combat)**`, `{{(${Math.max(0, cap - used)} left this combat)}}`);
+}
+
 export function whisperGranterText(cardId: string, golden: boolean, run: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number> }): string | null {
   const def = CARD_INDEX[cardId];
   const grant = def?.effects.find((e) => e.do === 'grantWhisper');

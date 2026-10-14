@@ -166,6 +166,10 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   // combat Ruby source (Candle Conduit, Geode Guardian, Distillation) refracts identically — and since the
   // repeats ride the SAME call, there is no recursion to guard.
   per += ctx.battleRefractionRepsFor?.(self.side) ?? 0;
+  // QUEEN MORRO (owner 2026-10-14: "counts all spells, rubies"): a Ruby is a spell, so one played in combat casts
+  // +extra more times while Morro lives. Only OUTSIDE a spell cast (`castProbe` unset): a Ruby a spell produces already
+  // repeats with that spell's own extra casts (`castInCombat`), so folding it here too would square it.
+  if (!ctx.castProbe) per *= 1 + Math.max(0, ctx.combatSpellsExtraFor?.(self.side) ?? 0);
   const rb = ctx.rubyBonusFor(self.side);
   const mult = rubyMultiplierFor(ctx, self.side); // Deepdelve Paragon
   // `extra` folds a flat per-Ruby bonus into each Ruby (Veinstorm's spell power, owner ruling 2026-08-26), so a
@@ -1100,6 +1104,63 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
       ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
     }
   });
+}
+
+/**
+ * ONE COMBAT CAST OF A WHISPER (Set 3, owner 2026-10-14) on `target`, by `caster`, at multiplier `mult` (a gilded copy is
+ * worth double). The combat twin of the Shop's Whisper cast (`castSpell` -> `whisperBuffTarget`):
+ *
+ *  - It is a real spell cast (`castInCombat`: the side's spell tally, `spellCast` watchers, the run's `spellsCast` at
+ *    settle), announced by an `sc` stamped with the spell, the target and the side's improvement after it.
+ *  - Its stat grant is COMBAT-ONLY (a plain combat buff; R-BUFF-PERM: triggered buffs in combat are combat-only).
+ *  - Runebind's "Improve this" is PERMANENT: the side's live improvement rises now (the next cast this fight reads it,
+ *    real time) and settle raises the run to it (`ShoutCarry.whisperImprove`).
+ *  - Whisp: cast on a DRAGON, every other living friendly Whisp gets the same cast (x its golden), never echoing again.
+ *  - Tamby: cast on a Tamby, it hands a copy of the Whisper to hand (x its golden copies), once per fight.
+ */
+let WHISP_COMBAT_ECHOING = false;
+export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: Minion, def: CardDef, mult: number, text?: string): void {
+  const side = caster.side;
+  const m = Math.max(1, mult);
+  // The multiplier is the Whisper's own (a gilded copy), never a repeat: cast through an ungilded stand-in.
+  const shim = { ...caster, golden: false } as Minion;
+  castInCombat(ctx, shim, () => {
+    if (target.dead || target.health <= 0) return;
+    withCastingSpell(ctx, def.id, () => {
+      const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
+      const p = (eff?.params ?? {}) as Record<string, unknown>;
+      const imp = ctx.whisperImproveFor?.(side, def.id) ?? 0;
+      const a = (num(p.attack, 1) + imp) * m;
+      const h = (num(p.health, 1) + imp) * m;
+      if (eff) ctx.buff(target, a, h, caster.uid);
+      const step = num(p.improve, 0);
+      const total = step > 0 ? ctx.addWhisperImprove?.(side, def.id, step * m) : undefined;
+      ctx.log({ type: 'sc', source: caster.uid, side, text: text ?? `${caster.name} casts ${def.name}`, spellId: def.id, target: target.uid, ...(total !== undefined ? { whisperImprove: total } : {}) });
+    });
+  }, def.id);
+  // Tamby: a Whisper cast on THIS hands back a copy, once per fight (its "(Once per turn)", combat half).
+  if (!target.dead && !target.whisperCopiedThisCombat) {
+    const tamby = target.effects.find((e) => e.do === 'whisperCastOnThisCopy');
+    if (tamby) {
+      target.whisperCopiedThisCombat = true;
+      const n = num(tamby.params?.count, 1) * (target.golden ? 2 : 1);
+      for (let i = 0; i < n; i++) ctx.grantWhisperToHand?.(def.id, side, m, target.uid);
+    }
+  }
+  // Whisp: "When you cast a Whisper on a Dragon, also cast it on this." Every OTHER living friendly Whisp, x golden.
+  if (WHISP_COMBAT_ECHOING || !combatArena(ctx, caster).isTribe(target, 'dragon')) return;
+  const whisps = ctx.living(side).filter((w) => w !== target && w.effects.some((e) => e.do === 'whisperEchoOnDragon'));
+  if (whisps.length === 0) return;
+  WHISP_COMBAT_ECHOING = true;
+  try {
+    for (const w of whisps) {
+      const eff = w.effects.find((e) => e.do === 'whisperEchoOnDragon');
+      const n = num(eff?.params?.count, 1) * (w.golden ? 2 : 1);
+      // The echo is Whisp's OWN cast on itself ("also cast it on this"), so a caster's cast count (Whaloo's cap, its
+      // live text) only ever counts its own casts.
+      for (let i = 0; i < n && !w.dead && w.health > 0; i++) castWhisperInCombat(ctx, w, w, def, m, `${w.name} also casts ${def.name} on itself`);
+    }
+  } finally { WHISP_COMBAT_ECHOING = false; }
 }
 
 /** Scavvers ↔ Echohorn recursion guard — see `deathrattleTriggerAdjacentRally`. */
@@ -2228,9 +2289,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   // ── SET 4 BEASTS (owner 2026-10-13, R-WOUND-01): one arena body per card, both phases ──
-  /** Whisp (passive marker): a COMBAT STUB, like `rubyStatMultiplier`. Whispers are hand spells cast in the Shop only;
-   *  the Shop reads the marker in `castSpell` (recruit.ts `whisperEchoOnDragons`). Nothing to do in a fight. */
+  /** Whisp (passive marker). Nothing fires on its own: the Shop reads it in `castSpell` (recruit.ts
+   *  `whisperEchoOnDragons`) and a COMBAT Whisper cast (Whaloo) reads it in `castWhisperInCombat` below. */
   whisperEchoOnDragon: () => {},
+  /** Queen Morro (passive marker): read LIVE by the combat cast path (`spellCastRepsFor`) and the Ruby primitive. */
+  combatSpellsCastExtra: () => {},
+  /** WHALOO (Set 3, owner 2026-10-14): "When a Dragon attacks, cast Runebind on it. (3 times per combat)". Any friendly
+   *  Dragon's swing (Whaloo's own included), up to `perCombat` casts per Whaloo per fight (`whisperCastsUsed`). Each is
+   *  a real combat cast of the Whisper (`castWhisperInCombat`): counted, Whisp-echoed, Tamby-copied, and Runebind's
+   *  improve is permanent. Gilded: the cast Whisper is a GILDED copy (double value and improve); the cap stays. */
+  onDragonAttackCastWhisper: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || self.health <= 0 || !minion || minion.side !== self.side) return;
+    if (minion.dead || minion.health <= 0) return;
+    if (!combatArena(ctx, self).isTribe(minion, 'dragon')) return;
+    const cap = Math.max(1, num(params.perCombat, 3));
+    if ((self.whisperCastsUsed ?? 0) >= cap) return;
+    const def = ctx.getCard(typeof params.cardId === 'string' ? params.cardId : '');
+    if (!def?.whisper) return;
+    self.whisperCastsUsed = (self.whisperCastsUsed ?? 0) + 1;
+    castWhisperInCombat(ctx, self, minion, def, self.golden ? 2 : 1);
+  },
   /** Hawg (Shout, a combat re-fire): 1 damage to this, your Beasts +1 Health (never lethal). */
   shoutWoundSelfMendTribe: (ctx, self, params) => {
     if (self.dead) return;

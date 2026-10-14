@@ -84,7 +84,9 @@ describe('Doc Bot — play differential', () => {
     // 14 → 19 on 2026-09-10: five Set 3 spells the fixture cannot cast — Aspect's Blessing, Rush Order and Split
     // Decision (Choose One, like Apples / Crest of the Climb), Star Crash (needs a Celestial target) and Crescendo
     // (needs a Spirit played this turn). Each is driven by its own scenario lane (set3Spells.test.ts).
-    const PIN = 19;
+    // 19 → 20 on 2026-10-14: Ripple (Falx's Whisper) needs a Shout target, exactly like Resonance; its cast is driven in
+    // whaloo.test.ts, and the entry-path lane reaches it with a Shout aim (entryPaths.ts `SHOUT_AIM`).
+    const PIN = 20;
     expect(scan.refusedSpells.length, `${scan.refusedSpells.length} spell(s) the fixture cannot cast (pin ${PIN}): ${scan.refusedSpells.join(', ')} — above the pin: a NEW spell the differential can't reach; extend playFixture so it can, or the spell ships untested by this lane.`).toBeLessThanOrEqual(PIN);
     expect(scan.refusedSpells.length, `only ${scan.refusedSpells.length} refused now (pin ${PIN}) — the fixture improved; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

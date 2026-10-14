@@ -7,7 +7,7 @@ import {
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -143,6 +143,8 @@ export interface LiveTextParams {
    *  granter's copy is worth double). With `spellsCast` + `rubyCasts`, everything a Whisper's live value reads. */
   whisperImprove?: Record<string, number>;
   whisperMult?: number;
+  /** Whaloo (combat): Whispers this body has cast so far this fight, for its live "(N left this combat)". */
+  whisperCastsUsed?: number;
 }
 
 /** A Ruby's printed sentence with its "+A/+H" grant swapped for `grant` (already `{{…}}`-wrapped when it is above
@@ -211,6 +213,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
       : c.spell
         ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult })
         : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove }) ?? // Set 4: Galas / Tolan print their Whisper's live value
+            whisperCasterText(c.id, p.golden, p.whisperCastsUsed) ?? // Whaloo: its per-combat cap counts down live in combat
             transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown

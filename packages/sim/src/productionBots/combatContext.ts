@@ -122,6 +122,7 @@ function friendlySideOf(s: RunState): Omit<CombatSideState, 'poolIds'> {
     rememberedSpellIds: s.rememberedSpellIds ?? [],
     spellhide: s.spellhidePending ?? [],
     growthBonus: s.growthBonus ?? 0,
+    whisperImprove: s.whisperImprove && Object.keys(s.whisperImprove).length > 0 ? { ...s.whisperImprove } : undefined,
     goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
     lastSpellThisTurnId: s.lastSpellThisTurnId,
     squirlScoutBuff: s.squirlScoutBuff ?? 0,
@@ -158,5 +159,5 @@ export const MIRRORED_SIDE_KEYS: readonly string[] = [
   'conductorBuff', 'impHp', 'fodderConsumedAtk', 'fodderConsumedHp', 'beastBuyAtk', 'beastsPlayed',
   'spiritsPlayed', 'cardsBoughtThisTurn', 'magneticAtk', 'magneticHp', 'rubyBonus', 'tier', 'tribes',
   'cardBuffs', 'handSpellIds', 'alesLastTurn', 'spellEscalation', 'lastSpellCastId', 'rememberedSpellIds',
-  'spellhide', 'growthBonus', 'goldSpentThisTurn', 'lastSpellThisTurnId', 'squirlScoutBuff', 'handMinions', 'beastHuntExtra', 'beastRitualExtra', 'questMods', 'pendingQuests',
+  'spellhide', 'growthBonus', 'whisperImprove', 'goldSpentThisTurn', 'lastSpellThisTurnId', 'squirlScoutBuff', 'handMinions', 'beastHuntExtra', 'beastRitualExtra', 'questMods', 'pendingQuests',
 ];

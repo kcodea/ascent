@@ -53,4 +53,24 @@ export const SET3_WHISPERS: CardDef[] = [
     effects: [{ on: 'cast', do: 'whisperBuffTarget', params: { attack: 2, health: 2, improve: 2 } }],
     text: 'Give a friendly minion **+2/+2** until your next turn. Improve this.',
   },
+  {
+    // Falx's Whisper (owner 2026-10-14): trigger the target's Shout (the shared `replayBattlecry` path Resonance uses,
+    // so every Shout multiplier and tally sees it). A target with no Shout REFUSES the cast (kept in hand), the
+    // Resonance precedent. A gilded Ripple (from a Gilded Falx) triggers it twice.
+    id: 'w3_ripple',
+    name: 'Ripple',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    gift: true,
+    whisper: true,
+    giftMulticast: true,
+    cost: 0,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'whisperReplayShout' }],
+    text: "Trigger a friendly minion's **Shout**.",
+  },
 ];

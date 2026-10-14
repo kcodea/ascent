@@ -9,7 +9,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 ## playDifferential.refused (1)
 
-- **q-policy-refused-spells** — 19 spells refuse to cast on a plain board — confirm the refusal guards
+- **q-policy-refused-spells** — 20 spells refuse to cast on a plain board — confirm the refusal guards
 
 ## playDifferential.watchers (1)
 

@@ -40,7 +40,7 @@ import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starfor
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
 import { withWhisperMult } from './recruit';
-import { expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, vanishWhispers } from './whisper';
+import { expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -2132,6 +2132,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (def.whisper) {
           const whisperTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
           if (def.target && !whisperTarget) return state; // aimed with no friendly target -> fizzle, kept in hand
+          // Ripple (Falx, 2026-10-14) only fires on a minion with a Shout: any other target is refused, kept in hand (the
+          // Resonance precedent above, and the aim UI's `whisperTargetLegal`).
+          if (whisperTarget && !whisperTargetLegal(def, whisperTarget)) return state;
           const whisperCasts = giftCastCount(s, def, !!whisperTarget);
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
@@ -4676,6 +4679,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     rememberedSpellIds: s.rememberedSpellIds ?? [], // Runesnout Archivist's journal
     spellhide: s.spellhidePending ?? [], // Rune of Spellhide's Start-of-Combat re-casts
     growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
+    whisperImprove: s.whisperImprove && Object.keys(s.whisperImprove).length > 0 ? { ...s.whisperImprove } : undefined, // Set 3 Whispers: a combat Runebind (Whaloo) casts at the run's improved value
     // SHOUTS IN REAL TIME (R-REALTIME-03): what a Shout re-fired mid-fight reads. Built BEFORE the per-turn reset,
     // so these are the Shop turn that just ended (Baby Gastrid's Gold, Recaller's last spell).
     goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
@@ -4956,6 +4960,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
     const gildAt = new Set(result.playerShoutCarry?.handGilds ?? []);
     // ANCIENT OF BONDS × Flash: the grants at these indices are EXACT copies (the body's stats, keywords and Gilded).
     const exactAt = new Map((result.playerShoutCarry?.handExact ?? []).map((x) => [x.idx, x]));
+    // Tamby in combat (Set 3 Whispers): a copied gilded Whisper keeps its multiplier.
+    const whisperMultAt = new Map((result.playerShoutCarry?.handWhisperMults ?? []).map((x) => [x.idx, x.mult]));
     result.playerHandGrants.forEach((cardId, i) => {
       const def = CARD_INDEX[cardId];
       if (!def || s.hand.length >= handCap(s)) return;
@@ -4974,6 +4980,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
       const exact = exactAt.get(i);
       if (exact && !def.spell) Object.assign(card, { attack: exact.attack, health: exact.health, keywords: [...exact.keywords], golden: exact.golden });
       if (echoAt.has(i)) fireHandCardEcho(s, card);
+      const wm = whisperMultAt.get(i);
+      if (wm && wm > 1 && def.whisper) card.whisperMult = wm;
     });
   }
   // R-HAND-02 (owner 2026-09-09): "cards buffed in hand are always permanent" — a hand card a combat effect
@@ -5058,6 +5066,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
     if (c.squirlScoutBuff) s.squirlScoutBuff = (s.squirlScoutBuff ?? 0) + c.squirlScoutBuff; // Squirl Scout
     for (const b of c.runShopBuffs ?? []) applyRunShopBuff(s, b.attack, b.health, b.source, b.cardId); // Contract Butcher / Malphas
     for (const id of c.shopSpellHalves ?? []) applyShopSpellHalf(s, id); // Storm Chaser's split Veinstorm (owner 2026-10-10)
+    // Set 3 Whispers (Whaloo, 2026-10-14): Runebind cast in combat improved PERMANENTLY. The carry holds the fight's END
+    // totals (seeded from this run), so the run rises to them; never lowered.
+    for (const [id, total] of Object.entries(c.whisperImprove ?? {})) {
+      const map = (s.whisperImprove ??= {});
+      if (total > (map[id] ?? 0)) map[id] = total;
+    }
     for (const e of c.copiedEchoes ?? []) { // Gravetwin re-fired in combat (R-TARGET-06): the copy lands on its run card
       const gt = s.board.find((b) => b.uid === e.uid);
       if (!gt) continue;

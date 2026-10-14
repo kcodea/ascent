@@ -30,6 +30,13 @@ export function whisperGrantsOf(card: BoardCard): string[] {
     .map((e) => e.params!.cardId as string);
 }
 
+/** May this Whisper be cast on `target`? Every Whisper aims at any friendly minion except RIPPLE (Falx, 2026-10-14),
+ *  which needs a minion with a Shout (the Resonance precedent: a Shout-less target refuses the cast, kept in hand). */
+export function whisperTargetLegal(def: CardDef, target: BoardCard): boolean {
+  if (!def.effects.some((e) => e.do === 'whisperReplayShout')) return true;
+  return !!CARD_INDEX[target.cardId]?.effects.some((e) => e.on === 'onPlay');
+}
+
 /** Is this card definition a Whisper granter? (A def-level read for text and pickers.) */
 export function defGrantsWhisper(def: CardDef | undefined): boolean {
   return !!def?.effects.some((e) => e.do === 'grantWhisper');

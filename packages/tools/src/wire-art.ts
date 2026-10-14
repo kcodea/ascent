@@ -338,7 +338,7 @@ const JOBS: Job[] = [
     // SET-4 minions (owner 2026-10-13: "art for set 4 minions here"). The disabled Set 4 scaffold's two tribe folders;
     // the `nothing` folder is deliberately not a dir. Unmatched files (a UUID export, a name with no card) are reported.
     label: 'set-4 minions', src: 'C:/Game Assets/Ascent Art/Set 4 Minions',
-    dirs: ['Beasts', 'Dragons'],
+    dirs: ['Beasts', 'Celestials', 'Dragons'], // Celestials moved here with the tribe (2026-10-14)
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
   },
   {
@@ -352,7 +352,9 @@ const JOBS: Job[] = [
     // was held back while it only held art for the sixteen archived cards. Anything in these folders that does
     // not name a CURRENT card (the archived Celestials' files, `none*.png` scraps, UUID exports) is reported
     // unmatched and never wired, so widening the list ships nothing for out-of-play cards.
-    dirs: ['Celestials', 'Dwarves', 'Kobolds', 'Neutrals', 'Spirits', 'Undead'],
+    // 2026-10-14 (the Celestial / Dragon set swap): the owner moved the Celestial folder to Set 4 Minions and added a
+    // Dragons folder here (Whaloo first, owner-named). An absent folder is simply skipped.
+    dirs: ['Dragons', 'Dwarves', 'Kobolds', 'Neutrals', 'Spirits', 'Undead'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
   },
   {
@@ -362,6 +364,14 @@ const JOBS: Job[] = [
     // `dualrubettas`: the Equipment is renamed Dual Rubetta's in #1433; the file already carries the new
     // name. Once the rename lands the exact match wins and this alias is a no-op (alias loses to exact).
     dirs: ['.'], dest: 'packages/ui/src/art/equipment', index: equipmentByName, aliases: { dualrubettas: 'dueling_rubettas' },
+  },
+  {
+    // JAR OF SECRETS (owner 2026-10-14: "wire art for ... the jar of secrets"): Shush's Equipment, whose master sits in the
+    // SPELLS folder (it was specced as a spell the same morning). One explicit file, by the `only` allow-list, into the
+    // Equipment slot, matched by the Equipment's name like the job above. Nothing else in Spells/ is read here.
+    label: 'equipment (from Spells)', src: 'C:/Game Assets/Ascent Art/Spells',
+    dirs: ['.'], dest: 'packages/ui/src/art/equipment', index: equipmentByName, aliases: {},
+    only: new Set(['jarofsecrets']),
   },
   {
     // SET-1 minions (owner ask 2026-08-03: "I refreshed some set 1 demons"). This folder had never been a

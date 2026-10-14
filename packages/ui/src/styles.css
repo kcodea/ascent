@@ -3246,6 +3246,7 @@ body.modalup .app { z-index: auto; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ib-src em { font-style: normal; font-weight: 600; font-size: 8.5px; }
+.ib-src em.ib-exp { opacity: 0.75; } /* a Whisper row's expiry note ("until your next turn") */
 .ib-amt { font-family: var(--font-ui); font-weight: 800; color: #3fd68f; flex: 0 0 auto; } /* buff green, lightened for the dark fill */
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45) translateY(-15%); } to { opacity: 1; transform: scale(1.9) translateY(-15%); } }
 

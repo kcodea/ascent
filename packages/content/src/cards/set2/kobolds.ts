@@ -266,9 +266,13 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: [],
     // Owner balance 2026-10-10: "Shout: Cast Veinstorm" (was: get one). The real Shop-spell cast pipeline
     // (`battlecryCastNamedSpell`, Shardluck's branch); gilded casts twice.
-    effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 1 } }],
-    text: '**Shout:** Cast **Veinstorm**.',
-    goldenText: '**Shout:** Cast **Veinstorm** twice.',
+    // Owner 2026-10-13 ("storm chaser needs to change from: Cast a Veinstorm to Get a Veinstorm ... add a veinstorm to
+    // hand instead of casting it directly"): back to the pre-10-10 `battlecryGrantSpell`. The Veinstorm goes to HAND
+    // (Gilded: 2), and a combat re-fire of the Shout grants it through the combat hand channel, so it is waiting in
+    // hand after the fight. Shardluck's branch is the only card left on `battlecryCastNamedSpell`.
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'veinstorm', count: 1 } }],
+    text: '**Shout:** Get a **Veinstorm**.',
+    goldenText: '**Shout:** Get **2 Veinstorms**.',
   },
   {
     // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the

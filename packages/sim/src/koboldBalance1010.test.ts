@@ -24,6 +24,17 @@ const rubyBuff = (c: { buffs?: { source: string; attack: number; health: number;
 const rubiesInHand = (s: RunState): BoardCard[] => s.hand.filter((c) => !!CARD_INDEX[c.cardId]?.ruby);
 const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
+// "Shout: Cast Veinstorm" was Storm Chaser from 2026-10-10 until the owner made it "Get a Veinstorm" again on
+// 2026-10-13 (stormChaser1013.test.ts). Shardluck's Choose One branch is the card left on `battlecryCastNamedSpell`,
+// so the factory, its Shop cast and its real-time combat split (R-STORMCHASER-01) are pinned here through a probe def
+// that IS the 10-10 Storm Chaser: same body, one cast, Gilded two.
+const CAST = 'dbg_1010_stormchaser_cast';
+CARD_INDEX[CAST] = {
+  ...CARD_INDEX['k_stormchaser']!, id: CAST,
+  effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 1 } }],
+  text: '**Shout:** Cast **Veinstorm**.', goldenText: '**Shout:** Cast **Veinstorm** twice.',
+};
+
 // Veinstorm's "on your minions AND the Shop" half (this batch) was REMOVED on 2026-10-13: it gems the Shop only again.
 // Its tests, Storm Chaser's minion-half pins and Gemling's cast counts moved to `koboldBalance1013.test.ts`. What
 // stays here is what is still true: the Shop half, and Storm Chaser's combat cast banking that half for settle.
@@ -44,10 +55,10 @@ describe('Facetwright: both options are +2', () => {
   });
 });
 
-describe('Storm Chaser: "Shout: Cast Veinstorm"', () => {
+describe('the "Shout: Cast Veinstorm" body (Storm Chaser 10-10 to 10-13; probe)', () => {
   it('playing it casts Veinstorm (the Shop is gemmed), no Veinstorm in hand; Gilded casts twice', () => {
     for (const golden of [false, true]) {
-      const s0 = run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', 'k_stormchaser', { golden })] });
+      const s0 = run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', CAST, { golden })] });
       const s = act(s0, { type: 'play', uid: 'sc' });
       const casts = golden ? 2 : 1;
       expect(s.hand.some((c) => c.cardId === 'veinstorm')).toBe(false);
@@ -56,10 +67,10 @@ describe('Storm Chaser: "Shout: Cast Veinstorm"', () => {
   });
 });
 
-describe('Storm Chaser in combat: "Split (real time)" (owner ruling 2026-10-10)', () => {
+describe('"Shout: Cast Veinstorm" in combat: "Split (real time)" (owner ruling 2026-10-10; probe)', () => {
   // Ryme (5 Attack, 1 Health) re-fires its neighbour's Shout in combat; the omen wall never dies.
   const refire = (golden: boolean, side = combatSide({ tier: 6 })) => simulate(
-    [{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: 'k_stormchaser', attack: 0, health: 100, golden, sourceUid: 'SC' } as BoardMinion],
+    [{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: CAST, attack: 0, health: 100, golden, sourceUid: 'SC' } as BoardMinion],
     [{ cardId: 'omen', attack: 50, health: 2000 } as BoardMinion], makeRng(1), CARD_INDEX, side, combatSide({ tier: 1 }));
 
   it('the cast is live in combat (its own line / beat) and banks ONE Shop half; nothing defers as a Shout', () => {
@@ -76,14 +87,14 @@ describe('Storm Chaser in combat: "Split (real time)" (owner ruling 2026-10-10)'
 
   it('settle applies the Shop half ONCE per cast; the run board gets no second Ruby', () => {
     const r = refire(false);
-    const s0 = run({ phase: 'combat', lastCombat: r, board: [body('SC', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] } as Partial<RunState>);
+    const s0 = run({ phase: 'combat', lastCombat: r, board: [body('SC', CAST)], shop: [{ uid: 'o1', cardId: 'sandbag' }] } as Partial<RunState>);
     const s = act(s0, { type: 'resolveCombat' });
     expect(s.veinstormRubies, 'the Shop bank grew by one Veinstorm').toEqual({ atk: 1, hp: 1 });
     expect(rubyBuff(s.board.find((c) => c.uid === 'SC')) ?? { attack: 0, health: 0 }, 'combat Rubies are temporary; settle adds none to the board').toEqual({ attack: 0, health: 0 });
   });
 
   it('Shrieker (End of Turn: trigger Shouts) runs in the Shop: its Storm Chaser re-fire casts Veinstorm', () => {
-    const s = run({ board: [body('sh', 'd2_shrieker'), body('sc', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
+    const s = run({ board: [body('sh', 'd2_shrieker'), body('sc', CAST)], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
     applyEndOfTurn(s);
     expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
   });

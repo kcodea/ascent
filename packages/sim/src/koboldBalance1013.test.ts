@@ -28,6 +28,17 @@ const NONE = { attack: 0, health: 0 };
 const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 const offer = (s: RunState, uid: string) => s.shop.find((o) => o.uid === uid);
 
+// "Shout: Cast Veinstorm" was Storm Chaser from 2026-10-10 until the owner made it "Get a Veinstorm" again on
+// 2026-10-13 (stormChaser1013.test.ts). Shardluck's Choose One branch is the card left on `battlecryCastNamedSpell`,
+// so the factory, its Shop cast and its real-time combat split (R-STORMCHASER-01) are pinned here through a probe def
+// that IS the 10-10 Storm Chaser: same body, one cast, Gilded two.
+const CAST = 'dbg_1013_stormchaser_cast';
+CARD_INDEX[CAST] = {
+  ...CARD_INDEX['k_stormchaser']!, id: CAST,
+  effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 1 } }],
+  text: '**Shout:** Cast **Veinstorm**.', goldenText: '**Shout:** Cast **Veinstorm** twice.',
+};
+
 describe('Veinstorm: the Shop only, not friendly minions', () => {
   it('a cast gems the Shop and banks it; friendly minions get no Ruby', () => {
     const s0 = run({ board: [body('a', 'sandbag'), body('k', 'k_beggy')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [spell('vs', 'veinstorm')] });
@@ -67,9 +78,9 @@ describe('Veinstorm: the Shop only, not friendly minions', () => {
   });
 });
 
-describe('everything that casts Veinstorm follows it', () => {
+describe('everything that casts Veinstorm follows it (the cast-Veinstorm Shout rides a probe since 2026-10-13)', () => {
   it.each([[false, 1], [true, 2]] as const)('Storm Chaser (golden=%s): the Shout gems the Shop %i time(s), no Ruby on your minions', (golden, casts) => {
-    const s0 = run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', 'k_stormchaser', { golden })] });
+    const s0 = run({ board: [body('a', 'sandbag')], shop: [{ uid: 'o1', cardId: 'sandbag' }], hand: [body('sc', CAST, { golden })] });
     const s = act(s0, { type: 'play', uid: 'sc' });
     expect(s.veinstormRubies).toEqual({ atk: casts, hp: casts });
     expect(rubyBuff(at(s, 'a'))).toEqual(NONE);
@@ -78,7 +89,7 @@ describe('everything that casts Veinstorm follows it', () => {
 
   // Ryme (5 Attack, 1 Health) re-fires its neighbour's Shout in combat; the omen wall never dies.
   const refire = (golden: boolean) => simulate(
-    [{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: 'k_stormchaser', attack: 0, health: 100, golden, sourceUid: 'SC' } as BoardMinion],
+    [{ cardId: 'ryme', attack: 5, health: 1 } as BoardMinion, { cardId: CAST, attack: 0, health: 100, golden, sourceUid: 'SC' } as BoardMinion],
     [{ cardId: 'omen', attack: 50, health: 2000 } as BoardMinion], makeRng(1), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
 
   it.each([[false, 1], [true, 2]] as const)('Storm Chaser in combat (golden=%s): the cast is announced, no live Ruby lands, %i Shop half banked', (golden, casts) => {
@@ -91,14 +102,14 @@ describe('everything that casts Veinstorm follows it', () => {
 
   it('settle applies the banked Shop half once per cast', () => {
     const r = refire(false);
-    const s0 = run({ phase: 'combat', lastCombat: r, board: [body('SC', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] } as Partial<RunState>);
+    const s0 = run({ phase: 'combat', lastCombat: r, board: [body('SC', CAST)], shop: [{ uid: 'o1', cardId: 'sandbag' }] } as Partial<RunState>);
     const s = act(s0, { type: 'resolveCombat' });
     expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
     expect(rubyBuff(s.board.find((c) => c.uid === 'SC'))).toEqual(NONE);
   });
 
   it('Shrieker (End of Turn: trigger Shouts): its Storm Chaser re-fire gems the Shop only', () => {
-    const s = run({ board: [body('sh', 'd2_shrieker'), body('sc', 'k_stormchaser')], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
+    const s = run({ board: [body('sh', 'd2_shrieker'), body('sc', CAST)], shop: [{ uid: 'o1', cardId: 'sandbag' }] });
     applyEndOfTurn(s);
     expect(s.veinstormRubies).toEqual({ atk: 1, hp: 1 });
     expect(rubyBuff(at(s, 'sh'))).toEqual(NONE);

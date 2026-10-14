@@ -629,11 +629,12 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
   });
 
   // Re-pin 2026-10-10 (Kobold balance batch): "Shout: Cast Veinstorm" (was: get one).
-  it('Storm Chaser casts a Veinstorm (none in hand; the Shop bank grows)', () => {
+  // Re-pin 2026-10-13 (owner): back to "Shout: Get a Veinstorm". It lands in hand and nothing is cast.
+  it('Storm Chaser gets a Veinstorm (one in hand; the Shop bank does not move)', () => {
     const s: RunState = { ...createRun(3), phase: 'recruit', embers: 60, board: [], hand: [minion('sc', 'k_stormchaser', 'kobold', 2, 2)] };
     const after = reduce(s, { type: 'play', uid: 'sc' });
-    expect(after.hand.map((c) => c.cardId)).not.toContain('veinstorm');
-    expect(after.veinstormRubies).toEqual({ atk: 1, hp: 1 });
+    expect(after.hand.map((c) => c.cardId)).toEqual(['veinstorm']);
+    expect(after.veinstormRubies ?? { atk: 0, hp: 0 }).toEqual({ atk: 0, hp: 0 });
   });
 
   it('Pouchpincher is a NEUTRAL minion now', () => {

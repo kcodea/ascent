@@ -5643,4 +5643,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Joining the stands in round 4 shows the shop of player one as it is; pressing 2 shows player two; in the fight, pressing 1 replays it from the side of player one.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectate.test.ts', 'packages/ui/src/versus/spectatorView.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-VERSUS-SPECTATE-02',
+    title: 'A Versus spectator sees the watched player act: the same animations, cues and live hand',
+    statement:
+      'While someone watches, each committed shop action rides the next spectator update as a tag, and the spectator '
+      + 'plays them in order: a dragged card flies the path the player dragged it and lands, a button action replays the '
+      + 'press visual of that button, and each plays its sound; more than two queued land without flights and a seat '
+      + 'switch drops them. The player cursor and the card in hand stream at about 15 Hz as window fractions, drawn '
+      + 'about 100 ms behind and interpolated; a hidden or idle tab hides it. With nobody watching the player client '
+      + 'tags nothing, listens to nothing and sends nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-14 (spectator upgrades)', quote: 'play the SAME animation and FX the player saw' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectateTap.ts; packages/ui/src/versus/spectate.ts (the action queue, the cursor feed); packages/ui/src/versus/SpectatorCursor.tsx; packages/ui/src/pressCue.ts' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-14.',
+    example: 'The player drags a minion from the shop to the hand: the spectator sees the card follow the gauntlet and land in the hand, with the buy sound.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateLive.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

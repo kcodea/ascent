@@ -24,6 +24,7 @@ import { VersusMatchStats } from './VersusMatchStats';
 import { setVersusBotDisconnected, startVersusBot, stopVersusBot, useVersusBot } from './versusBot';
 import { versusTestToolsEnabled } from './versusFlag';
 import { resumeSpectating } from './spectate';
+import { MemberRing } from './MemberRing';
 import { leaveRoom, myRole, setVersusStatsOpen, startGame, takeSeat, useVersus, versusRemainingMs, type VersusState } from './versusStore';
 import type { VersusMember } from './versusRemote';
 import './versus.css';
@@ -130,7 +131,8 @@ export function VersusRoom() {
 
         {shown.map((m, i) => (
           <div key={m.userId} className="vsbenchslot" style={{ left: `${BENCH_LEFT[i]}%` }}>
-            <Portrait m={m} className="vsbench-art" />
+            {/* The spectator's face as everywhere else: their avatar (or initial) in the portrait ring, in their frame. */}
+            <MemberRing name={m.displayName} profile={m.profile} className="vsbench-ring" />
             <span className="vsbench-name">{m.displayName}</span>
           </div>
         ))}

@@ -21,7 +21,10 @@
 import { create } from 'zustand';
 import type { CombatResult } from '@game/core';
 import type { RunState, VersusSeat } from '@game/sim';
-import { useGame } from '../store';
+import { actionSfx, useGame } from '../store';
+import { emitPressCue, type PressCue } from '../pressCue';
+import { ghostCardView, holdGhostCard, playableDragPath, releaseGhostHold } from '../replay/replayPlayer';
+import type { CursorSample, SpectatorAct } from './spectateTap';
 import { applySpectatorMessage, newReceiver, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 
@@ -101,7 +104,110 @@ export function receiveSpectate(payload: unknown): void {
   const { rx: next, needKeyframe } = applySpectatorMessage(rx[msg.seat], msg);
   rx[msg.seat] = next;
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
-  if (msg.seat === useSpectate.getState().seat) schedule();
+  if (msg.seat !== useSpectate.getState().seat) return;
+  // The watched player's ACTIONS: their screen moves one action at a time, each with the animation and cue the
+  // player saw (`playActs`). A message with no actions just renders (coalesced).
+  if (msg.acts?.length || queue.length || busy) {
+    queue.push({ view: next.view!, acts: msg.acts ?? [] });
+    pump();
+  } else schedule();
+}
+
+// ── the watched player's actions, replayed in order ────────────────────────────────────────────────────────
+
+interface Pending { view: VersusSpectatorView; acts: SpectatorAct[] }
+let queue: Pending[] = [];
+/** The view on screen while the queue plays (null: the latest received). */
+let shownView: VersusSpectatorView | null = null;
+let busy: number | null = null;
+let ghostKey = 0;
+/** A drag flight is at most this long (the player's real drag duration, capped), halved when behind. */
+const MAX_FLIGHT_MS = 900;
+/** The pause between two queued actions. */
+const ACT_GAP_MS = 60;
+/** Queued actions past this many are compressed: they land without a flight, so the screen never falls behind. */
+const BEHIND = 2;
+
+/** The press cue a button action replays (its own press visual, `pressCue.ts`). */
+const PRESS: Partial<Record<string, PressCue>> = { roll: 'refresh', freeze: 'freeze', upgrade: 'upgrade', heroPower: 'heroPower' };
+
+function pump(): void {
+  if (busy != null) return;
+  const item = queue.shift();
+  if (!item) { shownView = null; schedule(); return; }
+  const prevRun = useGame.getState().run;
+  const behind = queue.length >= BEHIND;
+  const flight = behind ? null : item.acts.find((a) => a.drag && playableDragPath(a.drag) && !(a.uid && liveDragShown(a.uid)));
+  if (flight?.drag) {
+    // The card flies the player's own drag path over the screen as it was, then lands (the replay viewer's ghost).
+    const drag = flight.drag;
+    const view = ghostCardView(prevRun as never, drag.cardId);
+    const durMs = Math.min(drag.durMs, MAX_FLIGHT_MS) / (queue.length ? 2 : 1);
+    ghostKey += 1;
+    useGame.setState({ replayDragGhost: { ...drag, durMs, key: ghostKey, view } });
+    holdGhostCard(prevRun as never, item.view as never, flight.t as never, drag, view);
+    busy = window.setTimeout(() => land(item, prevRun), durMs);
+    return;
+  }
+  land(item, prevRun);
+}
+
+function land(item: Pending, prevRun: RunState): void {
+  releaseGhostHold();
+  if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
+  shownView = item.view;
+  render();
+  const nextRun = useGame.getState().run;
+  for (const a of item.acts) {
+    const cue = PRESS[a.t];
+    if (cue) emitPressCue(cue);
+    if (a.t !== 'heroPower') { try { actionSfx({ type: a.t, ...(a.uid ? { uid: a.uid } : {}), ...(a.index != null ? { index: a.index } : {}) } as never, prevRun, nextRun); } catch { /* a cue never breaks the view */ } }
+  }
+  busy = window.setTimeout(() => { busy = null; pump(); }, item.acts.length ? ACT_GAP_MS : 0);
+}
+
+/** Drop whatever is queued or flying (a seat switch, Leave): the screen jumps to the latest view. */
+function clearQueue(): void {
+  if (busy != null) { window.clearTimeout(busy); busy = null; }
+  queue = [];
+  shownView = null;
+  releaseGhostHold();
+  if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
+}
+
+// ── the watched player's cursor ────────────────────────────────────────────────────────────────────────────
+
+export interface CursorPoint { t: number; x: number; y: number }
+/** The live cursor the overlay draws (`SpectatorCursor`): a short buffer of samples, the card in hand, hidden. */
+export const cursorFeed: { pts: CursorPoint[]; drag: CursorSample['drag']; hidden: boolean; version: number } = { pts: [], drag: null, hidden: true, version: 0 };
+const dragSeen = new Map<string, number>();
+const liveDragShown = (uid: string): boolean => performance.now() - (dragSeen.get(uid) ?? -1e9) < 2500;
+const cursorListeners = new Set<() => void>();
+export function onCursorFeed(fn: () => void): () => void { cursorListeners.add(fn); return () => { cursorListeners.delete(fn); }; }
+
+/** A cursor sample from a player (only the watched player's is drawn). */
+export function receiveSpectatorCursor(payload: unknown): void {
+  const c = payload as CursorSample;
+  if (!c || c.seat !== useSpectate.getState().seat || !useSpectate.getState().active) return;
+  if (c.hide) {
+    cursorFeed.hidden = true;
+  } else {
+    cursorFeed.hidden = false;
+    cursorFeed.pts.push({ t: performance.now(), x: c.x, y: c.y });
+    if (cursorFeed.pts.length > 12) cursorFeed.pts.splice(0, cursorFeed.pts.length - 12);
+    cursorFeed.drag = c.drag ?? null;
+    if (c.drag) dragSeen.set(c.drag.uid, performance.now());
+  }
+  cursorFeed.version += 1;
+  for (const fn of cursorListeners) fn();
+}
+
+function resetCursor(): void {
+  cursorFeed.pts = [];
+  cursorFeed.drag = null;
+  cursorFeed.hidden = true;
+  cursorFeed.version += 1;
+  for (const fn of cursorListeners) fn();
 }
 
 function askForKey(): void {
@@ -134,7 +240,7 @@ function schedule(): void {
 function render(): void {
   if (!matchId || useSpectate.getState().optedOut === matchId) return;
   const seat = useSpectate.getState().seat;
-  const view = rx[seat].view;
+  const view = shownView ?? rx[seat].view;
   if (!view) return; // nothing to show for this seat yet: the keyframe is on its way
   const round = rounds[view.wave];
   const fight = round ? (seat === 'p1' ? round.p1_result : round.p2_result) : undefined;
@@ -167,6 +273,8 @@ function enter(): void {
 export function watchSeat(seat: VersusSeat): void {
   if (useSpectate.getState().seat === seat) return;
   useGame.setState({ inspect: null });
+  clearQueue();
+  resetCursor();
   useSpectate.setState({ seat });
   schedule();
 }
@@ -185,6 +293,8 @@ export function resumeSpectating(): void {
 
 export function stopSpectating(): void {
   if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  clearQueue();
+  resetCursor();
   const snap = snapshot;
   snapshot = null;
   last = null;

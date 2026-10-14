@@ -40,3 +40,27 @@ shop on both seats, 1 / 2 switching, fights from both sides, input inert, Leave 
 (dev build, D3D11): 8 s of the watch screen, combat p50 0.3 ms / p99 1.2 ms, shop p50 0.3 ms / p99 1.3 ms, with one
 158 ms frame at a shop opening (the round's new run mounting). Tests: `versus/spectate.test.ts`. Oracle:
 R-VERSUS-SPECTATE-01.
+
+## Follow-up: the player's actions and live hand (2026-10-14)
+
+Owner-approved upgrades:
+
+- **Action animations.** Each committed shop action becomes a small tag on the next spectator delta
+  (`spectateTap.ts`: `{ t, uid, index, drag }`; a drag-driven action carries the replay recorder's own drag path).
+  The spectator plays the watched player's actions one at a time (`spectate.ts`): a dragged buy, play, sell or move
+  flies the player's own path over the screen as it was (the replay viewer's drag ghost and card hold) and lands; the
+  button actions replay the button's own press visual through `pressCue.ts` (Refresh, Freeze, Tavern Up, the hero
+  power), which the buttons now share with their own click; every action plays its live sound (`actionSfx`). More
+  than two queued actions land without flights, so the screen never falls behind; switching players drops the queue.
+- **Live hand.** While someone watches, the player's client sends its pointer as window fractions plus the card in
+  hand, about 15 Hz, coalesced, from a passive move listener and a timer (no layout read); a backgrounded or idle tab
+  sends one hide. The spectator draws the game's gauntlet about 100 ms behind, interpolated (`SpectatorCursor.tsx`),
+  with the held card under the closed fist and lifted out of its zone. A drag the spectator watched live is not flown
+  again when it lands.
+- **Polish.** The spectator bar's players and the stands' bench use the portrait ring with the member's frame
+  cosmetic (`MemberRing.tsx`), the opponent block's name and heart pills, and a lit state for the watched player.
+
+Measured (dev build, headless with the GPU, uncapped, steady shop): the player with one spectator p95 0.4 ms, p99
+0.6 ms, 1 frame over 6.25 ms in 6 s, and with none p99 0.3 ms, 0 over; the spectator with the cursor streaming p95
+0.8 ms, p99 0.9 ms, 0 over. Spikes above that came only at the round's lock and fight start. Tests:
+`versus/spectateLive.test.ts`. Oracle: R-VERSUS-SPECTATE-02.

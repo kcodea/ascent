@@ -16,14 +16,16 @@
  * A receiver that sees `seq !== last + 1` asks for the latest keyframe and resumes after it.
  */
 import { SHOP_VIEW_EXCLUDED_KEYS, type RunState, type VersusSeat } from '@game/sim';
+import type { SpectatorAct } from './spectateTap';
 
 /** RunState keys never sent to spectators: RNG internals and identity, on top of the replay exclusions. */
 export const VERSUS_SPECTATOR_SECRET_KEYS = ['seed', 'rngCursor', 'pool', 'runId', 'servedBoards', 'pendingTavern', 'fodderSchedule', 'discoverQueue'] as const;
 
 export type VersusSpectatorView = Record<string, unknown> & { wave: number; heroId: string };
 
-export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView }
-export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[] }
+/** `acts`: the player's actions since the previous message (`spectateTap.ts`), for the spectator to replay. */
+export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[] }
+export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[] }
 export type SpectatorMessage = SpectatorKeyframe | SpectatorDelta;
 
 /** A keyframe at least this often, so a receiver that missed one never drifts far. */

@@ -1,4 +1,5 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
+import { onPressCue } from './pressCue';
 import { Icon } from './Icon';
 import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
@@ -55,7 +56,8 @@ export const RefreshButton = memo(function RefreshButton({
   const wrapRef = useRef<HTMLButtonElement>(null);
   const [shining, setShining] = useState(false); // the one-shot click shine is playing
 
-  const click = (): void => {
+  /** The press visual (dust, blast, shine): on a click, and on a spectator's replay of one (`pressCue.ts`). */
+  const playPress = (): void => {
     const cfg = getRefreshConfig();
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
@@ -78,6 +80,10 @@ export const RefreshButton = memo(function RefreshButton({
       setShining(true);
       window.setTimeout(() => setShining(false), cfg.shineMs + 60);
     }
+  };
+  useEffect(() => onPressCue('refresh', playPress));
+  const click = (): void => {
+    playPress();
     onRefresh();
   };
 

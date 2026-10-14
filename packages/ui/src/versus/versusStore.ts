@@ -32,7 +32,8 @@ import { installVersusEmotes, receiveVersusEmote, uninstallVersusEmotes, VERSUS_
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
-import { installSpectateIo, receiveSpectate, resetSpectate, SPECTATE_KEY_EVENT, spectateSync } from './spectate';
+import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync } from './spectate';
+import { setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -259,6 +260,7 @@ function stopSession(): void {
   installVersusHandlers(null);
   installSpectateIo(null);
   resetSpectate();
+  setSpectatorTap(false, null, null);
   session = null;
 }
 
@@ -274,6 +276,7 @@ function subscribe(matchId: string | null): void {
   }, (event, payload) => {
     if (event === VERSUS_EMOTE_EVENT) receiveVersusEmote(payload);
     else if (event === 'spectate') { if (!mySeat()) receiveSpectate(payload); }
+    else if (event === SPECTATE_CURSOR_EVENT) { if (!mySeat()) receiveSpectatorCursor(payload); }
     // A spectator lost its place: the next deferred publish sends a keyframe (coalesced, never per spectator).
     else if (event === SPECTATE_KEY_EVENT) { if (mySeat() && session?.matchId) { keyWanted = true; frames.schedule({ matchId: session.matchId, forceKey: true }); } }
   });
@@ -641,6 +644,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
     },
     freeze: (run) => versusFreezeOf(get(), run),
     afterCommit: (action: Action, prev: RunState, next: RunState) => {
+      tapAct(action); // the stands replay it (a no-op with nobody watching)
       if (action.type === 'resolveCombat' && prev.phase === 'combat' && next.phase === 'recruit') {
         set({ endTurnWave: null });
         void versusRemote.combatReady(matchId, prev.wave).then((m) => onMatch(m)).catch(() => undefined);
@@ -684,10 +688,13 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const watchers = get().room?.members.filter((m) => m.role === 'spectator').length ?? 0;
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
+  setSpectatorTap(watchers > 0, mySeat(), session.channel?.send ?? null);
   if (watchers === 0) return;
   const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted);
   keyWanted = false;
   if (!msg) return;
+  const acts = takeActs();
+  if (acts.length) msg.acts = acts;
   session.channel?.send('spectate', msg);
   if (msg.kind === 'key') void versusRemote.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
 }, 250);

@@ -58,6 +58,23 @@ describe('resolveMech', () => {
     // Enigma — "When you consume a minion, …" (on: 'onConsume'): watches the consume, so it is a Watcher.
     expect(resolveMech(view('dm_jumbo'))?.id).toBe('watcher');
   });
+  // Owner 2026-10-15: "eye should win > echo" (R-MEDAL-EYE-01). A body with both a Watcher trigger and an Echo wears
+  // the eye, whatever the text order; the eye takes Echo's place, so a badge that beat the Echo (a leading Shout) still wins.
+  it('Watcher (eye) outranks Echo: the printed cards with both wear the eye', () => {
+    expect(resolveMech(view('spore'))?.id).toBe('watcher');      // Sporeling: "Deathrattle: ... Triggers each time you play a Battlecry."
+    expect(resolveMech(view('sergeant'))?.id).toBe('watcher');   // Sergey: "Echo: ... Improve this whenever Sergey gains Attack."
+    expect(resolveMech(view('ashen_heir'))?.id).toBe('watcher'); // Ashen Heir: "Whenever an Imp dies, ..."
+    expect(resolveMech(view('k_alchemist'))?.id).toBe('shout');  // Alchemist Brisbane: its Shout leads the text, ahead of the Echo
+  });
+  it('no printed minion that has both a Watcher trigger and an Echo resolves to Echo', () => {
+    const echo = MECHANICS.find((m) => m.id === 'echo')!, watcher = MECHANICS.find((m) => m.id === 'watcher')!;
+    const both = ALL_CARDS.filter((d) => {
+      const input = { keywords: d.keywords, effects: d.effects ?? [], chooseOne: d.chooseOne, text: d.text ?? '' };
+      return echo.detect(input) && watcher.detect(input);
+    });
+    expect(both.length).toBeGreaterThan(0);
+    for (const d of both) expect(resolveMech(view(d.id))?.id, d.id).not.toBe('echo');
+  });
   it('Choose One → choose1; Engraved → engrave', () => {
     expect(resolveMech(view('shaper'))?.glyph).toBe('choose1');
     expect(resolveMech(view('thundeer'))?.glyph).toBe('engrave');

@@ -133,7 +133,7 @@ describe('the Collection screen: the album', () => {
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
     // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
     // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; the Epics Card Shark and Storm Call (2026-09-29), 83; skins batch 3 (2026-09-29, +4 minion skins and a Frantic Frank hero skin) +5; skins batch 4 (2026-09-30, +16 minion and +16 hero skins) +32; skins batch 5 (2026-09-30, +11 minion skins and Influencer Indy) +12; skins batch 6 (2026-10-01, +9 minion skins) +9; skins + frames batch 3 (2026-10-01, +3 hero skins and +10 portrait frames) +13; frames batch 4 (2026-10-01, +5 portrait frames) +5; frames batch 5 (2026-10-02, Simple Ring and Void) +2; frames batch 6 (2026-10-02, Cherry Blossom) +1; Rayse's hero title (2026-10-02, un-archived) +1; the six Ancient frames (2026-10-02) +6; skins batch 8 + frames batch 7 (2026-10-03, +11 hero skins and +7 portrait frames) +18; frames batch 8 (2026-10-06, Cosmic Glass) +1; skins batch 9 (2026-10-07, Canyon Drake and Thunderchorus Drake) +2; frames batch 9 (2026-10-07, Blossom, Neonpunk, Solar Flare, Color Doodle, Neon Ring) +5
-    expect(text('.colls-meter-num')).toBe('3 / 267'); // 2026-10-15: thirteen more card plates made it 267. 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
+    expect(text('.colls-meter-num')).toBe('3 / 266'); // 2026-10-15: Sad Wrangler retired made it 266. 2026-10-15: thirteen more card plates made it 267. 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/58');
     clean();
   });
@@ -179,7 +179,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(warded.className).toMatch(/\bworn\b/);
     expect(tileNames()).toHaveLength(58); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('3 / 267'); // Alpha Tester + Warded (the master stands for both tiers) + Zen Brian, the one starter emote (2026-10-15)
+    expect(text('.colls-meter-num')).toBe('3 / 266'); // Alpha Tester + Warded (the master stands for both tiers) + Zen Brian, the one starter emote (2026-10-15)
     // the detail panel's nameplate and the preview under your name are the plate too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
@@ -389,14 +389,16 @@ describe('the Collection screen: NEW', () => {
 
   // Owner 2026-10-15: "remove the angry mushy emote", then "remove all emotes as 'given' and put them in various loot
   // tiers between rare and legendary", then "all emotes are crate only except give all players the zen brian emote and
-  // show the empty emote slots". The Emotes tab lists the thirteen, rarest first; only owned ones are bright.
-  it('the Emotes tab: thirteen emotes, rarest first; Zen Brian owned by everyone; Angry Mushy gone', () => {
-    open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester'] });
+  // show the empty emote slots", then "remove the sad wrangler". The Emotes tab lists the twelve, rarest first; only owned
+  // ones are bright. A retired emote the player OWNS (Sad Wrangler here) is hidden and left out of the counts.
+  it('the Emotes tab: twelve emotes, rarest first; Zen Brian owned by everyone; Angry Mushy and an owned Sad Wrangler gone', () => {
+    open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'emote_sad_wrangler'] });
     act(() => tab('Emotes').click());
-    expect(tileNames()).toHaveLength(13);
+    expect(tileNames()).toHaveLength(12);
     expect(tileNames()).not.toContain('Angry Mushy');
+    expect(tileNames()).not.toContain('Sad Wrangler');
     expect(tileNames().slice(0, 3)).toEqual(['Rich Pimm', 'Baby Rubies', 'Mad Tormentor']);
-    expect(text('.colls-tab.on .colls-tab-count')).toBe('1/13');
+    expect(text('.colls-tab.on .colls-tab-count')).toBe('1/12');
     expect(tile('Zen Brian').className).toMatch(/\bowned\b/);
     expect(tile('Flirty Midas').className).toMatch(/\bmissing\b/);
   });

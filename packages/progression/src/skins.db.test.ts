@@ -105,7 +105,8 @@ async function poolIds(u: string): Promise<string[]> {
 
 const SKIN_IDS = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin').map((c) => c.id).sort();
 /** Every crate item that is not a title: the skins, plus the hero attacks since 2026-09-28. */
-const NON_TITLE_CRATE_IDS = COSMETICS.filter((c) => c.category !== 'title' && c.acquisition.type === 'crate').map((c) => c.id).sort();
+// Live items only: a retired crate item (Sad Wrangler, 2026-10-15) never drops.
+const NON_TITLE_CRATE_IDS = COSMETICS.filter((c) => c.category !== 'title' && c.acquisition.type === 'crate' && c.active).map((c) => c.id).sort();
 const TITLE_CRATE_IDS = COSMETICS.filter((c) => c.category === 'title' && c.acquisition.type === 'crate').map((c) => c.id);
 
 beforeAll(async () => {

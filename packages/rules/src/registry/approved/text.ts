@@ -344,7 +344,8 @@ export const TEXT_RULES: GameRule[] = [
       'The medallion at the base of a minion\'s portrait is chosen from its printed mechanics PLUS the triggers that '
       + 'body was granted (a Seed\'s Drake Pup Echo, temporary or kept by Hum; a copied Echo; a Shop, rune or Start of '
       + 'Combat graft; the Auctioneer\'s Rally), under the same precedence as printed ones. A minion whose printed badge '
-      + 'outranks the grant keeps it; a minion with no badge wears the granted one. It holds on every surface (Shop, '
+      + 'outranks the grant keeps it (a Watcher eye always outranks an Echo, R-MEDAL-EYE-01); a minion with no badge wears '
+      + 'the granted one. It holds on every surface (Shop, '
       + 'board, hand, combat, inspect, stored and scouted boards, Versus) and drops the moment the grant expires.',
     domain: 'text',
     status: 'approved',
@@ -364,6 +365,34 @@ export const TEXT_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/grantedMedallion.test.tsx'],
+      lastVerifiedAt: '2026-10-15',
+    },
+  },
+  {
+    id: 'R-MEDAL-EYE-01',
+    title: 'The Watcher eye outranks Echo on the medallion, printed or granted',
+    statement:
+      'When one body has both a Watcher trigger (the eye: it reacts to other minions or your actions) and an Echo, '
+      + 'printed or granted, the medallion shows the eye, whatever the text order. The eye takes the Echo\'s place in '
+      + 'the usual precedence (text order, then keyword order, then the global order), so a badge that already beat the '
+      + 'Echo, such as a Shout that leads the text, still wins. A Watcher given an Echo (a Seed, a copied Echo, a graft) '
+      + 'keeps its eye (amends R-MEDAL-GRANTED-01, under which the granted Echo took the gem).',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-10-15 (after #2104: a Watcher given an Echo switched to the Echo badge)', quote: 'eye should win > echo' },
+      { kind: 'code', ref: 'packages/ui/src/mechIcon.ts (MEDALLION_OUTRANKS in resolveMech)' },
+    ],
+    contentIds: ['spore', 'sergeant', 'ashen_heir', 'k_alchemist', 'dm_jumbo'],
+    currentBehaviour:
+      'Conforms as of 2026-10-15. Printed cards whose badge changed from Echo to the eye: Sporeling, Sergey, Ashen Heir. '
+      + 'Alchemist Brisbane (Shout, Echo and Rally, plus a Gold-spent watch) keeps its Shout.',
+    example:
+      'Sergey ("Echo: give your minions +2 Health. Improve this whenever Sergey gains Attack.") shows the eye, not the '
+      + 'Echo. Enigma given a Seed\'s Echo keeps its eye.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/mechIcon.test.ts', 'packages/ui/src/grantedMedallion.test.tsx'],
       lastVerifiedAt: '2026-10-15',
     },
   },

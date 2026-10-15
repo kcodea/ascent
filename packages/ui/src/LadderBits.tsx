@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import type { PortraitSide } from './portraitFrame/portraitFrameConfig';
 import { medalOf } from './leaderboardData';
+import { MinionSkins, useOpponentSkins } from './skins/skins';
 
 /**
  * LADDER BITS (owner polish 2026-09-20) — the presentational pieces the three ladder pages share (the ranked
@@ -48,9 +49,13 @@ export const LB_BOARD_SLOTS = 7;
 /** The final team — exactly 7 slots, the real `Card` at a small scale (a transform, compositor-only), empty
  *  slots blank. `board` null → a labelled empty plate instead of seven blanks (the row has nothing stored). */
 export function LbTeam({ board, empty = 'No board recorded' }: { board: BoardSnapshot | null; empty?: string }) {
+  // The team wears the skins RECORDED with it, through "Show opponent skins" (a ladder row carries no account id,
+  // so it cannot exempt your own, the same rule as the row's title). It had no scope: default art (R-PROG-SKINS-17).
+  const skins = useOpponentSkins(board?.cosmetics);
   if (!board || board.minions.length === 0) return <div className="lb-team-none">{empty}</div>;
   const minions = board.minions.slice(0, LB_BOARD_SLOTS);
   return (
+    <MinionSkins snapshot={skins}>
     <div className="lb-team" aria-label="Final team">
       {Array.from({ length: LB_BOARD_SLOTS }, (_, i) => {
         const m = minions[i];
@@ -59,6 +64,7 @@ export function LbTeam({ board, empty = 'No board recorded' }: { board: BoardSna
           : <div className="lb-tile empty" key={i} aria-hidden="true" />;
       })}
     </div>
+    </MinionSkins>
   );
 }
 

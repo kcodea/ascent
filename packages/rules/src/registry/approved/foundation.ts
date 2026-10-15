@@ -5821,6 +5821,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skinIntern.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
   {
+    id: 'R-PROG-SKINS-17',
+    title: 'A skinned minion wears its skin on every surface that draws it, held cards included',
+    statement:
+      'Every surface that draws a minion card resolves its skin through the same skin scope the board uses: the shop offer, '
+      + 'the hand, the card being dragged (from the shop, the hand or the board), the Discover offer, hover previews, the end '
+      + 'screen, and the held card a spectator or a replay viewer sees. A layer mounted outside the board scope opens the '
+      + 'scope of the run on screen. Right-click Inspect shows the skin the card wore where it was clicked, so a card of a foe '
+      + 'keeps that foe skin (or its default art) and never wears yours. The final teams on the ladder wear the skins recorded '
+      + 'with the board, through Show opponent skins.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (skins on held minions)', quote: 'skins work but when a player grabs a minion with a skin, the minion shows default art until played' },
+      { kind: 'fix-pr', ref: 'fix/skin-art-held-minion: RunSkins around the replay drag ghost and the live-watch cursor (Game.tsx), Card carries skinArt into Inspect, LbTeam scoped' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. Before, the replay drag ghost and the held card under the live-watch cursor were mounted outside every skin scope, so a held card showed default art until it was played onto the board; Inspect always used your own skins; the ladder teams had no skins at all.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/heldSkin.test.tsx'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
     id: 'R-SPECTATE-AV-01',
     title: 'A spectator sees and hears every card action exactly as the player did, through the same presentation hooks',
     statement:

@@ -332,6 +332,12 @@ export interface CardView {
    *  options are drawn as the Equipment wearing each branch's own art. Everything else leaves it unset and
    *  resolves art the usual way. */
   artUrl?: string;
+  /** The SKIN the card was wearing where it was right-clicked, carried into the Inspect overlay (owner report
+   *  2026-10-15: a skinned minion showed default art off the board). Inspect renders under YOUR skin scope, so a
+   *  foe's card would otherwise wear your skin, or lose its own. A url = that skin; '' = explicitly unskinned
+   *  (default art even if you own a skin for it); absent = resolve from the scope as usual. Set ONLY by `Card`'s
+   *  inspect open (`inspectViewOf`); never recorded into a replay (store.ts strips it). R-PROG-SKINS-17. */
+  skinArt?: string;
   /** (BOTH) FX HOOK: a stable key stamped on the card root as `data-choose-both` when this card's Choose One
    *  will resolve as BOTH branches (see `chooseBothActive`). It is the ONLY contract the looping marker FX
    *  binds to (`useChooseBothFx` follows `[data-choose-both="<key>"]`), so the effect can be re-authored,
@@ -425,6 +431,11 @@ const statCls = (cur: number, base?: number, floor?: number): string => {
  *  Memoized: during a drag the parent re-renders on every pointermove, but a card whose
  *  props are unchanged skips re-render (the recruit screen stabilises the view objects +
  *  the pointer-down handler so this actually fires). Only the floating drag-card updates. */
+/** The view Inspect opens for a card: the card as it is, plus the skin its OWN scope paints it with (or '' for none),
+ *  so the overlay shows the art the card was wearing whoever's card it is. Built on the click, never per render. */
+export const inspectViewOf = (card: CardView, scopeSkin: string | undefined): CardView =>
+  card.artUrl !== undefined || card.skinArt !== undefined ? card : { ...card, skinArt: scopeSkin ?? '' };
+
 export const Card = memo(function Card({
   card,
   uid,
@@ -832,7 +843,7 @@ export const Card = memo(function Card({
   // memo comparators (Card's and Unit's) are untouched. The Gilded frame + effects still paint on top: gilding is
   // the frame, never the illustration. A token has its own card id, so it never matches a parent's skin.
   const skinArtUrl = useMinionSkinMap().get(card.cardId);
-  const artUrl = card.artUrl ?? skinArtUrl ?? artFor(card.cardId, uid, card.chosenOption);
+  const artUrl = card.artUrl ?? (card.skinArt !== undefined ? card.skinArt || undefined : skinArtUrl) ?? artFor(card.cardId, uid, card.chosenOption);
   // NEVER SHOW UNDECODED ART (art pop-in fix 2026-09-29): until the illustration is fetched AND decoded the image
   // stays invisible over the `.art-wait` placeholder and fades in once ready; art already decoded (the preload's
   // normal case) renders exactly as before, with no fade. See artPreload.ts.
@@ -929,7 +940,7 @@ export const Card = memo(function Card({
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
       /* TOUCH: with no click action of its own, a finger tap opens the Inspect overlay (touchInput.ts). */
-      onClick={onClick ?? ((e) => { if (tapInspectAllowed(e.currentTarget)) inspectCard(card); })}
+      onClick={onClick ?? ((e) => { if (tapInspectAllowed(e.currentTarget)) inspectCard(inspectViewOf(card, skinArtUrl)); })}
       /* Card Art tuner: double-click targets this card. Only while that panel is open (`isPickingCardArt`),
          so normal play never has a hidden double-click meaning. `onDoubleClick` rather than `onClick`
          deliberately - a single click is already play/drag, and stealing it would break the board. */
@@ -951,7 +962,7 @@ export const Card = memo(function Card({
       onMouseLeave={hasPopup ? () => perfMonitor.measure('input:pointerleave', hideRefTip) : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
-        inspectCard(card);
+        inspectCard(inspectViewOf(card, skinArtUrl));
       }}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}

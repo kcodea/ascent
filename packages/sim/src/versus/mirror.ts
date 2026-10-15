@@ -58,8 +58,16 @@ function swapSideLabels<T>(x: T): T {
  * perspective-free, and a `summon`'s `index` is a slot within its own side's row, so it stays valid. Never mutates.
  */
 export function flipEventSides(events: CombatResult['events']): CombatResult['events'] {
-  return swapSideLabels(events);
+  return swapSideLabels(events).map((e) => {
+    // The one narration worded per seat (R-SYMMETRY-01's exception): the simulator words it from the player chair.
+    const t = (e as { text?: unknown }).text;
+    if (typeof t !== 'string') return e;
+    const swapped = t.startsWith(VIGOR_OURS) ? VIGOR_THEIRS + t.slice(VIGOR_OURS.length) : t.startsWith(VIGOR_THEIRS) ? VIGOR_OURS + t.slice(VIGOR_THEIRS.length) : t;
+    return swapped === t ? e : ({ ...e, text: swapped } as typeof e);
+  });
 }
+const VIGOR_OURS = 'Fleeting Vigor — your minions surge';
+const VIGOR_THEIRS = 'Fleeting Vigor: their minions surge';
 
 /**
  * The p2 seat's result in its OWN perspective, whatever produced it: a result from the fixed mirror (stamped

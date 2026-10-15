@@ -246,6 +246,7 @@ import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
+import { noteSpectatorBeat, takeSpectatorResume, useSpectate } from './versus/spectate';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
 const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ default: m.GodModePanel })));
@@ -2862,6 +2863,16 @@ export function Recruit() {
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused, rampEnabled });
+  // A VERSUS SPECTATOR switching seats mid-fight continues from the same moment on the other side (both sides of the
+  // one fight have the same beats, R-VERSUS-PERSPECTIVE-01): report the beat on screen, and resume at it after a switch.
+  const watchingVersus = useSpectate((s) => s.active);
+  useEffect(() => { if (watchingVersus && fighting) noteSpectatorBeat(run.wave, replay.beatIdx); }, [watchingVersus, fighting, run.wave, replay.beatIdx]);
+  const seekForResume = replay.seekTo;
+  useEffect(() => {
+    if (!watchingVersus || !fighting) return;
+    const b = takeSpectatorResume(run.wave);
+    if (b != null && b > 0) seekForResume(b);
+  }, [watchingVersus, fighting, run.lastCombat]);
   // THE ANNOUNCER's MinionHits100Stats during a fight: the TRUTH frame's player units, per beat (seven reads, no
   // allocation; the module reports once per fight and only while unfired). Never the enemy / ghost side.
   useEffect(() => { if (fighting) observeCombatBoard(replay.frame.player, run.wave); }, [fighting, replay.frame, run.wave]);

@@ -57,6 +57,7 @@ let rounds: Record<number, VersusRoundRow> = {};
 let fetching = false;
 let lastKeyAsk = 0;
 let raf = 0;
+let unsubDone: (() => void) | null = null;
 let lobbyCache: { key: string; lobby: RunState['lobby'] } | null = null;
 let last: { view: VersusSpectatorView; fight: unknown; seat: VersusSeat; run: RunState } | null = null;
 /** The store slice replaced on the way in, restored on the way out. */
@@ -247,8 +248,9 @@ function schedule(): void {
 function render(): void {
   if (!matchId || useSpectate.getState().optedOut === matchId) return;
   const seat = useSpectate.getState().seat;
-  const view = shownView ?? rx[seat].view;
-  if (!view) return; // nothing to show for this seat yet: the keyframe is on its way
+  const latest = shownView ?? rx[seat].view;
+  if (!latest) return; // nothing to show for this seat yet: the keyframe is on its way
+  const view = pinnedView(seat, latest);
   const round = rounds[view.wave];
   const fight = round ? (seat === 'p1' ? round.p1_result : round.p2_result) : undefined;
   // Same view, same fight: the same run object (a re-render with nothing new does nothing).
@@ -273,12 +275,59 @@ function enter(): void {
   for (const k of SNAPSHOT_KEYS) snap[k] = s[k];
   snapshot = snap as typeof snapshot;
   useSpectate.setState({ active: true });
+  unsubDone = useGame.subscribe((st, prev) => { if (st.combatReplayDone !== prev.combatReplayDone) onReplayDone(st.combatReplayDone); });
   useGame.setState({ replaying: true, showTitle: false, heroChoices: null, inspect: null, heroArmed: false, equipArmed: false });
 }
 
-/** Watch the other player (hotkeys 1 / 2, the spectator bar). Instant: both views are already cached. */
+// ── the fight on screen: played out in full, and continued across a seat switch ─────────────────────────────
+
+/**
+ * THE FIGHT IS WATCHED WHOLE (live playtest 2026-10-14: "spectating makes the combat look really weird too, not getting
+ * full lunge logic"). The watched player's client settles its fight on its own clock, and its settled view (hearts
+ * dropped, `combatSettled`) used to arrive while the spectator's replay was still playing, cutting the hero strike.
+ * The first combat view of a fight is PINNED (unsettled) until the spectator's own replay has finished and its hero
+ * strike has had its time; then the screen catches up to the latest view.
+ */
+let pin: { key: string; view: VersusSpectatorView; released: boolean } | null = null;
+let releaseTimer: number | null = null;
+/** The hero strike's time after the replay is done, before the pinned fight lets go. */
+const STRIKE_MS = 2600;
+function pinnedView(seat: VersusSeat, view: VersusSpectatorView): VersusSpectatorView {
+  if (view.phase === 'combat') {
+    const key = `${matchId}|${seat}|${view.wave}`;
+    if (pin?.key !== key) pin = { key, view: { ...view, combatSettled: false }, released: false };
+  }
+  return pin && !pin.released ? pin.view : view;
+}
+function onReplayDone(done: boolean): void {
+  if (!done || !pin || pin.released || releaseTimer != null) return;
+  releaseTimer = window.setTimeout(() => { releaseTimer = null; if (pin) pin.released = true; schedule(); }, STRIKE_MS);
+}
+
+/** Where the fight on screen is (Recruit reports it while a spectator watches one). */
+let fightBeat: { key: string; beat: number } | null = null;
+let resumeAt: { wave: number; beat: number } | null = null;
+export function noteSpectatorBeat(wave: number, beat: number): void { fightBeat = { key: `${matchId}|${wave}`, beat }; }
+/** The beat to continue the fight at after a seat switch (once), or null. Both sides of the one fight have the same
+ *  beats (R-VERSUS-PERSPECTIVE-01), so the same index is the same moment. */
+export function takeSpectatorResume(wave: number): number | null {
+  if (!resumeAt || resumeAt.wave !== wave) return null;
+  const b = resumeAt.beat;
+  resumeAt = null;
+  return b;
+}
+
+/** Watch the other player (hotkeys 1 / 2, the spectator bar). Instant: both views are already cached. In a fight it
+ *  continues from the same moment, from the other side. */
 export function watchSeat(seat: VersusSeat): void {
   if (useSpectate.getState().seat === seat) return;
+  const run = useGame.getState().run;
+  if (run.phase === 'combat' && fightBeat?.key === `${matchId}|${run.wave}`) resumeAt = { wave: run.wave, beat: fightBeat.beat };
+  // The pin follows the fight, not the seat: carry its state to the other side.
+  if (pin && run.phase === 'combat') {
+    const other = rx[seat].view;
+    if (other && other.phase === 'combat') pin = { key: `${matchId}|${seat}|${other.wave}`, view: { ...other, combatSettled: false }, released: pin.released };
+  }
   useGame.setState({ inspect: null });
   clearQueue();
   resetCursor();
@@ -305,6 +354,12 @@ export function stopSpectating(): void {
   const snap = snapshot;
   snapshot = null;
   last = null;
+  unsubDone?.();
+  unsubDone = null;
+  if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
+  pin = null;
+  fightBeat = null;
+  resumeAt = null;
   useSpectate.setState({ active: false });
   // Back to the room: a spectator always came from it (the Versus title view), whatever the snapshot says.
   if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus' });

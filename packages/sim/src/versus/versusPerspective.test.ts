@@ -5,7 +5,7 @@
  * simulate(B, A, { firstSide: flip(X) }). Same outcome, damages, breakdowns, starting boards, every event (uids,
  * slots, sides, step tags) and carry-backs. Then the replay, the lunges, the beat schedule and every FX anchor are
  * the ordinary lobby path, with no Versus special case. Over random board pairs and run contexts from every set.
- * (Not compared: the narration's "your / their" wording, which is per seat by design, and `enemyScalers`, which the
+ * (Not compared: `enemyScalers`, which the
  * mirror cannot rebuild for the other seat without its run state.)
  */
 import { describe, expect, it } from 'vitest';
@@ -14,8 +14,7 @@ import { CARD_INDEX, SETS, poolFor, type SetId } from '@game/content';
 import { mirrorForEnemySeat } from './mirror';
 
 const fp = (set: SetId): FuzzPool => ({ ...poolFor(set), tribes: SETS[set].tribes });
-const neutral = (s: string): string => s.replace(/Fleeting Vigor — your minions surge/g, 'Fleeting Vigor: SIDE minions surge')
-  .replace(/Fleeting Vigor: their minions surge/g, 'Fleeting Vigor: SIDE minions surge');
+const neutral = (s: string): string => s; // the narration is reworded for the seat too: compared verbatim
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const strip = (r: CombatResult): Record<string, unknown> => {
   const o = JSON.parse(JSON.stringify(r)) as Record<string, unknown>;

@@ -60,6 +60,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New mode: Versus. Play a live 1v1 against a friend.',
+        details: [
+          'Open Versus from the main menu. Make a room or join one from the list.',
+          'You both fight each other every round. Each player has 7 hearts, and you lose one when you lose a round. Lose all 7 and the match is over.',
+          'The host starts the game, both players press the crystal, then each picks a hero.',
+          'Your opponent shows on the right with their hearts. Hover them to scout their tier, runes and recent rounds.',
+          'Anyone can watch a match from the stands and switch between players with 1 and 2.',
+          'Versus gives XP and counts for achievements. It never changes your rank.',
+          'If a player drops, the match pauses for up to 30 seconds. Concede is in the Esc menu.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The end screen opens faster. It no longer replays your whole game in the background.',
       },
       {

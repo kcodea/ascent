@@ -16,7 +16,7 @@ import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlay
 import { botDamageMultFor } from './lobby/practiceBots';
 import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
-import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { DEFAULT_HERO_ID, activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -399,7 +399,9 @@ function appendDominantTypeOffer(s: RunState): void {
   // and grows nothing.
   if (s.shop.length < tierSlots(s.tier)) {
     takeFromPool(s, pick.id);
-    s.shop.push({ uid: `s${s.uidSeq++}`, cardId: pick.id });
+    const added = { uid: `s${s.uidSeq++}`, cardId: pick.id };
+    s.shop.push(added);
+    stampNewShopOffers(s, [added], { onRefresh: true, cia: true }); // the one new-offer stamp
     return;
   }
   // Full row — replace the right-most MINION offer (never the Starform: it holds its slot, rule 3).
@@ -412,6 +414,7 @@ function appendDominantTypeOffer(s: RunState): void {
   returnToPool(s, s.shop[idx]!.cardId);
   takeFromPool(s, pick.id);
   s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id };
+  stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the replaced slot's enchant
 }
 
 /** Pete (Contrabanana): the RIGHT-MOST Shop minion is REPLACED by one from the tier ABOVE the Shop tier —
@@ -436,6 +439,7 @@ function upgradeRightmostOffer(s: RunState): void {
   returnToPool(s, s.shop[idx]!.cardId); // the displaced offer goes back to the shared pool, like a reroll
   takeFromPool(s, pick.id);
   s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true }; // flagged so the UI flashes it
+  stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the right-most slot's enchant
 }
 
 /**
@@ -477,6 +481,7 @@ function fillBargainBin(s: RunState): void {
   const pool = bargainBinPool(s);
   if (pool.length === 0) return;
   const rng = makeRng(s.rngCursor);
+  const prior = new Set(s.shop);
   s.shop = s.shop.map((o) => {
     const d = CARD_INDEX[o.cardId];
     if (!d || d.spell || d.ruby || o.starform) return o; // the Starform is never binned (rule 3)
@@ -484,6 +489,9 @@ function fillBargainBin(s: RunState): void {
     return { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 1, sellZero: true };
   });
   s.rngCursor = rng.state();
+  // The one new-offer stamp (the binned offers replaced stamped ones). The slot enchants land after, in the
+  // refresh's `applyShopRefreshed`.
+  stampNewShopOffers(s, s.shop.filter((o) => !prior.has(o)), { onRefresh: true, cia: true });
 }
 
 /**
@@ -614,6 +622,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
       returnToPool(s, s.shop[idx]!.cardId); // the displaced offer goes back, exactly like a reroll
       takeFromPool(s, def.id);
       s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: def.id, contraband: true }; // flagged so the UI flashes it
+      stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: false, cia: true, inPlace: true }); // the one new-offer stamp
       // ANCIENTS × Albus (a no-op unless the run has them): Death's Rise, Fortune's 0 Gold, Genesis' copy to hand.
       ancientOnEmpowerPick(s, def, s.shop[idx]);
       return true;
@@ -1715,6 +1724,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           const pick = pool[rng.int(pool.length)]!;
           s.rngCursor = rng.state();
           s.shop.splice(i, 0, { uid: `s${s.uidSeq++}`, cardId: pick.id, cost: 2 });
+          stampNewShopOffers(s, [s.shop[i]!], { onRefresh: false, cia: true }); // the one new-offer stamp
           s.restockUsedThisTurn = gateUses(s.restockUsedThisTurn) + 1;
         }
       }
@@ -3006,6 +3016,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // card: bought at its normal price, kept by Freeze, replaced by a roll, counted toward triples.
       if (s.godMode !== true || s.phase !== 'recruit' || !CARD_INDEX[action.cardId]) return state;
       s.shop.push({ uid: `s${s.uidSeq++}`, cardId: action.cardId });
+      stampNewShopOffers(s, s.shop.slice(-1), { onRefresh: false, cia: true }); // an ordinary shop card: the one new-offer stamp
       return s;
     }
     case 'godGrantRune': {
@@ -3562,6 +3573,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         withStarformPinned(s, () => { // the Starform keeps its slot through a Membrance restock (rule 3)
           for (const offer of s.shop) returnToPool(s, offer.cardId);
           s.shop = ids.map((cardId) => ({ uid: `s${s.uidSeq++}`, cardId }));
+          stampNewShopOffers(s, s.shop, { onRefresh: true, cia: true }); // plain bodies, but shop offers all the same
         });
         applyShopRefreshed(s);
       } else if (power.kind === 'soulkeeper') {
@@ -8181,7 +8193,8 @@ function rollTavern(s: RunState, hold: boolean): void {
     s.runeMuster = armed > 1 ? armed - 1 : undefined;
     withStarformPinned(s, () => { // the Starform keeps its slot through a Muster (rule 3)
       for (const offer of s.shop) returnToPool(s, offer.cardId);
-      s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no buffs, never golden
+      s.shop = s.board.map((c) => ({ uid: `s${s.uidSeq++}`, cardId: c.cardId })); // plain: no board buffs, never golden
+      stampNewShopOffers(s, s.shop, { onRefresh: true, cia: true }); // …but the shop's own buffs, like any new offer
     });
     injectPendingTavern(s, hold);
     return;

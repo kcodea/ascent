@@ -28,7 +28,7 @@ import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
 import { announcerPackOf } from './announcerPack';
 import { emoteSrc } from '../emotes/emoteArt';
 import { CARD_PLATE_LOOKS, type CardPlateLook } from '../cardPlate/cardPlateLook';
-import { clearLocalEmotes, equipEmoteLocally, useEquippedEmotes } from '../emotes/emoteLoadout';
+import { clearLocalEmotes, equipEmoteLocally, useEmoteSlots } from '../emotes/emoteLoadout';
 import '../emotes/emotes.css';
 import './collection.css';
 
@@ -93,10 +93,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const userId = useGame((s) => s.account.userId);
   const playerName = useGame((s) => s.playerName);
   const me = mirrorFor(userId, mirror);
-  // The STARTER items (the first four emotes, 2026-10-13) are everyone's, signed in or not.
+  // STARTER items are everyone's, signed in or not (none exist since 2026-10-15, when every emote became a crate drop).
   const ownedList = useMemo(() => withStarterCosmetics(me ? ownedIds(me) : EMPTY), [me]);
-  // The emote menu as the game will show it (the server's rows, this device's layer, the starters filling in).
-  const emoteMenu = useEquippedEmotes();
+  // The emote menu by position, as the game will show it (the server's rows, this device's layer, owned emotes filling in).
+  const emoteMenu = useEmoteSlots();
   const worn = useCallback((c: CosmeticDef): boolean => (c.category === 'emote' ? emoteMenu.includes(c.id) : isEquipped(c, me)), [emoteMenu, me]);
   const owned = useMemo(() => new Set(ownedList), [ownedList]);
   // The server's kill switch can retire an item or a category while the page is open: every list re-derives.

@@ -138,7 +138,7 @@ describe('the card plate slot', () => {
   });
 
   it('every older slot works exactly as before under the replaced function, side by side with a plate', async () => {
-    const u = await playerOwning(['skin_albus_1', 'attack_blast', 'frame_water', 'announcer_lemon', 'plate_aquarium_rocks']);
+    const u = await playerOwning(['skin_albus_1', 'attack_blast', 'frame_water', 'announcer_lemon', 'plate_aquarium_rocks', 'emote_zen_brian']); // emotes are crate drops since 2026-10-15
     await equip(u, 'hero_attack', '', 'attack_blast');
     await equip(u, 'portrait_frame', '', 'frame_water');
     await equip(u, 'announcer', '', 'announcer_lemon');

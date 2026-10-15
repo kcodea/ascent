@@ -125,14 +125,17 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
   return createPortal(
     <div
       ref={ref}
-      className={`atip emote-menu${cooling ? ' cooling' : ''}`}
+      className={`atip emote-menu${cooling ? ' cooling' : ''}${emotes.length === 0 ? ' empty' : ''}`}
       role="menu"
       aria-label="Emotes"
       style={{ left: `${at.x}px`, top: `${at.y}px` }}
       onContextMenu={(e) => { e.preventDefault(); }}
     >
       <b className="atip-title">Emotes</b>
-      <div className="emote-grid">
+      {/* No emote is given away since 2026-10-15 (all are crate drops), so an account can own none: say where they come
+          from instead of an empty grid. */}
+      {emotes.length === 0 && <div className="emote-none">No emotes yet. Open crates to find them.</div>}
+      {emotes.length > 0 && <div className="emote-grid">
         {emotes.map((id) => {
           const def = cosmeticOf(id);
           const src = emoteSrc(id);
@@ -146,8 +149,8 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
             </button>
           );
         })}
-      </div>
-      <div className="emote-cd" aria-live="polite">
+      </div>}
+      {emotes.length > 0 && <div className="emote-cd" aria-live="polite">
         {cooling ? (
           <>
             <span className="emote-cd-bar" aria-hidden="true">
@@ -158,7 +161,7 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
         ) : (
           <span className="emote-cd-txt">Pick one to say it</span>
         )}
-      </div>
+      </div>}
     </div>,
     stageHost(),
   );

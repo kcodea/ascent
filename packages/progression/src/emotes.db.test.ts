@@ -6,12 +6,13 @@ import { COSMETICS, catalogHash, catalogSyncPayload, emoteLoadoutOf, type Catalo
 import { parseProgressionProfile } from './rules';
 
 /**
- * THE EMOTE SQL, EXECUTED (owner spec 2026-10-13: "Players equip up to 4 in Collections. Unlock source: crates, plus
- * starter emotes everyone owns"). PGlite runs the progression migrations in order up to 2026-10-13-emotes.sql, syncs
- * the code catalog (the emote category and the four STARTER emotes, whose acquisition the new check allows), and drives
- * `equip_cosmetic` on the four-position `emote` slot: a starter equips with NO ownership row; a position is '0'..'3'; an
- * emote MOVES (it leaves its other position); a crate emote still needs ownership; every older slot still works; a
- * re-run changes nothing; clients can never call it.
+ * THE EMOTE SQL, EXECUTED (owner spec 2026-10-13: "Players equip up to 4 in Collections"; reworked 2026-10-15: "remove
+ * all emotes as 'given' and put them in various loot tiers between rare and legendary"). PGlite runs the progression
+ * migrations in order up to 2026-10-13-emotes.sql, syncs the code catalog (the emote category, thirteen CRATE emotes
+ * and the retired starter Angry Mushy) and drives `equip_cosmetic` on the four-position `emote` slot: an emote needs
+ * an ownership row; a position is '0'..'3'; an emote MOVES (it leaves its other position); every older slot still
+ * works; a re-run changes nothing; clients can never call it. It also runs the 2026-10-15 grandfather file over the
+ * 2026-10-13 catalog (three live starters) and the move to the current one.
  */
 const root = join(__dirname, '../../..');
 const read = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
@@ -22,9 +23,14 @@ const ACH = read('2026-09-28-achievements.sql');
 const ATTACK = read('2026-09-28-progression-hero-attack.sql');
 const FRAMES = read('2026-10-01-portrait-frames.sql');
 const ANNOUNCER = read('2026-10-11-announcer-slot.sql');
+const SEEN = read('2026-10-11-cosmetics-seen.sql'); // the grandfather file writes seen_at
 const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(read('2026-10-02-ancient-rarity.sql'));
 const EMOTES = read('2026-10-13-emotes.sql');
-const [A, B, C, D] = ['emote_angry_mushy', 'emote_flirty_midas', 'emote_nervous_jensen', 'emote_zen_brian'];
+const GRANDFATHER = read('2026-10-15-emotes-grandfather.sql');
+/** Angry Mushy was a starter until the owner retired it on 2026-10-15 ("remove the angry mushy emote"). */
+const RETIRED = 'emote_angry_mushy';
+/** The three starters of 2026-10-13 that became crate emotes on 2026-10-15. */
+const [A, B, C] = ['emote_flirty_midas', 'emote_nervous_jensen', 'emote_zen_brian'];
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -47,9 +53,10 @@ const STUB = `
 `;
 const API_GRANTS = `grant select, insert, update, delete on all tables in schema public to anon, authenticated;`;
 
-/** A CRATE emote (none ships yet): proves the ordinary ownership path still guards the slot. */
-const CRATE_EMOTE: CosmeticDef = { id: 'emote_test_crate', category: 'emote', name: 'Test', rarity: 'rare', acquisition: { type: 'crate' }, assets: {}, active: true };
-const WITH_CRATE_EMOTE = catalogSyncPayload([...COSMETICS, CRATE_EMOTE]);
+/** The catalog as it was on 2026-10-13: the four starter emotes, all live (and none of the later emotes). */
+const STARTER_ERA = catalogSyncPayload(COSMETICS
+  .filter((c) => c.category !== 'emote' || ['emote_angry_mushy', A, B, C].includes(c.id))
+  .map((c): CosmeticDef => (c.category === 'emote' ? { ...c, rarity: 'common', acquisition: { type: 'starter' }, active: true } : c)));
 
 let db: PGlite;
 let userSeq = 0;
@@ -87,73 +94,76 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, FRAMES, ANNOUNCER, ANCIENT_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, FRAMES, ANNOUNCER, SEEN, ANCIENT_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   // BEFORE the emote file the starters cannot sync: the old acquisition check refuses 'starter' (why the owner runs the
   // SQL before deploying progression-inventory).
   expect(await raises('select public.sync_cosmetic_catalog($1::jsonb, $2)', [JSON.stringify(catalogSyncPayload()), 'pre-emote-hash'])).toMatch(/acquisition_source/);
   await db.exec(EMOTES);
   await db.exec(API_GRANTS);
-  expect(await sync(WITH_CRATE_EMOTE)).toBe('synced');
+  expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 
-describe('the emote category and the starter acquisition', () => {
-  it('the sync adds the category (global, on) and the four starters as targetless starter items', async () => {
+describe('the emote catalog (2026-10-15: crate emotes, Angry Mushy retired)', () => {
+  it('the sync adds the category (global, on), thirteen live CRATE emotes and the retired starter', async () => {
     expect(await one("select enabled, target from public.cosmetic_categories where category = 'emote'")).toEqual({ enabled: true, target: 'global' });
-    const rows = (await db.query<{ cosmetic_id: string; acquisition_source: string }>("select cosmetic_id, acquisition_source from public.cosmetic_catalog where category = 'emote' and target_type is null order by cosmetic_id")).rows;
-    expect(rows).toEqual([
-      { cosmetic_id: A, acquisition_source: 'starter' }, { cosmetic_id: B, acquisition_source: 'starter' },
-      { cosmetic_id: C, acquisition_source: 'starter' }, { cosmetic_id: CRATE_EMOTE.id, acquisition_source: 'crate' },
-      { cosmetic_id: D, acquisition_source: 'starter' },
-    ]);
+    const rows = (await db.query<{ cosmetic_id: string; acquisition_source: string; rarity: string; active: boolean }>("select cosmetic_id, acquisition_source, rarity, active from public.cosmetic_catalog where category = 'emote' and target_type is null order by cosmetic_id")).rows;
+    expect(rows.find((r) => r.cosmetic_id === RETIRED)).toEqual({ cosmetic_id: RETIRED, acquisition_source: 'starter', rarity: 'common', active: false });
+    const live = rows.filter((r) => r.active);
+    expect(live).toHaveLength(13);
+    expect(live.every((r) => r.acquisition_source === 'crate')).toBe(true);
+    expect(live.map((r) => r.rarity).sort()).toEqual([...Array(4).fill('epic'), ...Array(3).fill('legendary'), ...Array(6).fill('rare')]);
+    expect(rows.filter((r) => [A, B, C].includes(r.cosmetic_id)).map((r) => [r.cosmetic_id, r.rarity])).toEqual([[A, 'epic'], [B, 'rare'], [C, 'rare']]);
   });
 
-  it('starters are never in the crate pool; a crate emote is', async () => {
+  it('every live emote is in a fresh player\x27s crate pool; the retired one never is', async () => {
     const u = await player();
     const pool = (await db.query<{ pool_cosmetic_id: string }>('select pool_cosmetic_id from public.progression_crate_pool($1)', [u])).rows.map((r) => r.pool_cosmetic_id);
-    expect(pool).toContain(CRATE_EMOTE.id);
-    for (const id of [A, B, C, D]) expect(pool).not.toContain(id);
+    for (const id of [A, B, C, 'emote_baby_rubies', 'emote_mad_tormentor']) expect(pool).toContain(id);
+    expect(pool.filter((id) => id.startsWith('emote_'))).toHaveLength(13);
+    expect(pool).not.toContain(RETIRED);
+    const owner = await player([A]);
+    expect((await db.query<{ pool_cosmetic_id: string }>('select pool_cosmetic_id from public.progression_crate_pool($1)', [owner])).rows.map((r) => r.pool_cosmetic_id)).not.toContain(A);
   });
 });
 
 describe('equip_cosmetic: the four-position emote slot', () => {
-  it('a starter equips with NO ownership row; the profile loadout carries its position', async () => {
-    const u = await player();
+  it('an emote needs an ownership row (no emote is given away any more); the profile loadout carries its position', async () => {
+    const stranger = await player();
+    expect(await raises(EQUIP, [stranger, 'emote', '0', B])).toContain('not_owned');
+    const u = await player([A, B, C]);
     const p = await equip(u, 'emote', '0', C);
     expect(p.loadout).toEqual({ emotes: { 0: C } });
-    expect(emoteLoadoutOf(p.loadout)).toEqual([C, B, A, D]);
-    expect((await db.query("select 1 from public.player_cosmetics where user_id = $1 and cosmetic_id like 'emote_%'", [u])).rows).toHaveLength(0);
+    expect(emoteLoadoutOf(p.loadout, p.cosmetics)).toEqual([C, B, A]); // owned, in catalog order: B, C (Rares), A (Epic)
   });
 
   it('an emote MOVES: put in another position, it leaves the first; null clears a position', async () => {
-    const u = await player();
-    await equip(u, 'emote', '0', D);
+    const u = await player([A, B, C]);
+    await equip(u, 'emote', '0', C);
     await equip(u, 'emote', '1', A);
-    expect(await rowsOf(u)).toEqual([{ target_id: '0', cosmetic_id: D }, { target_id: '1', cosmetic_id: A }]);
-    const p = await equip(u, 'emote', '3', D);
-    expect(await rowsOf(u)).toEqual([{ target_id: '1', cosmetic_id: A }, { target_id: '3', cosmetic_id: D }]);
-    expect(emoteLoadoutOf(p.loadout)).toEqual([B, A, C, D]);
+    expect(await rowsOf(u)).toEqual([{ target_id: '0', cosmetic_id: C }, { target_id: '1', cosmetic_id: A }]);
+    await equip(u, 'emote', '3', C);
+    expect(await rowsOf(u)).toEqual([{ target_id: '1', cosmetic_id: A }, { target_id: '3', cosmetic_id: C }]);
     await equip(u, 'emote', '1', null);
-    expect(await rowsOf(u)).toEqual([{ target_id: '3', cosmetic_id: D }]);
+    expect(await rowsOf(u)).toEqual([{ target_id: '3', cosmetic_id: C }]);
   });
 
-  it('refuses a bad position, a non-emote, an emote in another slot, and an unowned CRATE emote (owned: fine)', async () => {
-    const u = await player(['frame_fire']);
+  it('refuses a bad position, a non-emote, an emote in another slot, and the retired emote', async () => {
+    const u = await player(['frame_fire', A]);
     for (const t of ['', '4', '01', 'albus']) expect(await raises(EQUIP, [u, 'emote', t, A]), t).toContain('bad_target');
     expect(await raises(EQUIP, [u, 'emote', null, A])).toContain('bad_target');
     expect(await raises(EQUIP, [u, 'emote', '0', 'frame_fire'])).toContain('wrong_target');
     expect(await raises(EQUIP, [u, 'portrait_frame', '', A])).toContain('wrong_target');
-    expect(await raises(EQUIP, [u, 'emote', '0', CRATE_EMOTE.id])).toContain('not_owned');
-    const owner = await player([CRATE_EMOTE.id]);
-    expect((await equip(owner, 'emote', '2', CRATE_EMOTE.id)).loadout).toEqual({ emotes: { 2: CRATE_EMOTE.id } });
+    expect(await raises(EQUIP, [u, 'emote', '0', RETIRED])).toContain('not_equippable');
+    expect((await equip(u, 'emote', '2', A)).loadout).toEqual({ emotes: { 2: A } });
   });
 
   it('the kill switch: a disabled category refuses the equip and drops the rows from the profile (they survive)', async () => {
-    const u = await player();
-    await equip(u, 'emote', '0', B);
+    const u = await player([A, B]);
+    await equip(u, 'emote', '0', A);
     await db.exec("update public.cosmetic_categories set admin_off = true, updated_at = now() where category = 'emote';");
     try {
-      expect(await raises(EQUIP, [u, 'emote', '1', A])).toContain('not_equippable');
+      expect(await raises(EQUIP, [u, 'emote', '1', B])).toContain('not_equippable');
       const p = parseProgressionProfile((await one<{ j: unknown }>('select public.progression_profile_json($1) as j', [u])).j)!;
       expect(p.loadout?.emotes).toBeUndefined();
       expect(await rowsOf(u)).toHaveLength(1);
@@ -163,7 +173,7 @@ describe('equip_cosmetic: the four-position emote slot', () => {
   });
 
   it('every older slot works exactly as before under the replaced function, side by side with emotes', async () => {
-    const u = await player(['skin_albus_1', 'attack_blast', 'frame_water', 'announcer_lemon']);
+    const u = await player(['skin_albus_1', 'attack_blast', 'frame_water', 'announcer_lemon', A]);
     await equip(u, 'hero_attack', '', 'attack_blast');
     await equip(u, 'portrait_frame', '', 'frame_water');
     await equip(u, 'announcer', '', 'announcer_lemon');
@@ -173,13 +183,51 @@ describe('equip_cosmetic: the four-position emote slot', () => {
     expect(await raises(EQUIP, [u, 'announcer', 'x', 'announcer_lemon'])).toContain('bad_target');
     expect(await raises(EQUIP, [u, 'title', '', 'title_wanderer'])).toContain('bad_slot');
   });
+});
 
-  it('is idempotent: re-running the file changes no loadout, ownership or catalog row', async () => {
+describe('the 2026-10-15 move: starters become crate emotes, Angry Mushy retires', () => {
+  it('the grandfather file gives every existing account the three former starters (seen), once; a slot keeps its emote', async () => {
+    expect(await sync(STARTER_ERA)).toBe('synced');
+    let veteran = '';
+    let quiet = '';
+    try {
+      veteran = await player();
+      await equip(veteran, 'emote', '0', RETIRED); // starters equip with no ownership row in the 2026-10-13 catalog
+      await equip(veteran, 'emote', '1', C);
+      quiet = await player(); // never touched the menu: the starters were simply its default
+      const rev = async (u: string) => (await one<{ r: number }>('select progression_revision as r from public.profiles where user_id = $1', [u])).r;
+      const before = await rev(veteran);
+      await db.exec(GRANDFATHER);
+      expect(await rev(veteran)).toBe(before + 1);
+      const owned = async (u: string) => (await db.query<{ cosmetic_id: string; source: string; seen: boolean }>("select cosmetic_id, source, seen_at is not null as seen from public.player_cosmetics where user_id = $1 and cosmetic_id like 'emote_%' order by cosmetic_id", [u])).rows;
+      for (const u of [veteran, quiet]) {
+        expect(await owned(u)).toEqual([A, B, C].map((id) => ({ cosmetic_id: id, source: 'starter_grandfather', seen: true })));
+      }
+      await db.exec(GRANDFATHER); // a re-run changes nothing
+      expect(await rev(veteran)).toBe(before + 1);
+      expect(await owned(veteran)).toHaveLength(3);
+    } finally {
+      expect(await sync()).toBe('synced');
+    }
+    // After the move: the retired emote leaves the profile at once (its row survives), the owned one stays where it was.
+    const p = parseProgressionProfile((await one<{ j: unknown }>('select public.progression_profile_json($1) as j', [veteran])).j)!;
+    expect(p.loadout).toEqual({ emotes: { 1: C } });
+    expect(emoteLoadoutOf(p.loadout, p.cosmetics)).toEqual([B, C, A]);
+    expect(await rowsOf(veteran)).toEqual([{ target_id: '0', cosmetic_id: RETIRED }, { target_id: '1', cosmetic_id: C }]);
+    const q = parseProgressionProfile((await one<{ j: unknown }>('select public.progression_profile_json($1) as j', [quiet])).j)!;
+    expect(emoteLoadoutOf(q.loadout, q.cosmetics)).toEqual([B, C, A]);
+    // An account made after the file ran owns nothing.
+    const fresh = await player();
+    const f = parseProgressionProfile((await one<{ j: unknown }>('select public.progression_profile_json($1) as j', [fresh])).j)!;
+    expect(emoteLoadoutOf(f.loadout, f.cosmetics)).toEqual([]);
+  });
+
+  it('is idempotent: re-running the emote file changes no loadout, ownership or catalog row', async () => {
     const before = (await db.query('select user_id, slot, target_id, cosmetic_id from public.cosmetic_loadouts order by 1, 2, 3')).rows;
     await db.exec(EMOTES);
     await db.exec(EMOTES);
     expect((await db.query('select user_id, slot, target_id, cosmetic_id from public.cosmetic_loadouts order by 1, 2, 3')).rows).toEqual(before);
-    expect(await sync(WITH_CRATE_EMOTE)).toBe('unchanged');
+    expect(await sync()).toBe('unchanged');
   });
 
   it('clients can never call it', async () => {

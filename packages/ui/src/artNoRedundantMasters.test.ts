@@ -180,6 +180,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Secrets Equipment icon; measured 1423 with them, so the old budget had one file of slack).
     // → 1435: Set 3 Dragon batch 2 art 2026-10-15 (+7 owner-named: Gatherer, Gravus, Well Watcher portraits + the Falx2,
     // Galas2, Tamby2, Whisp2 alt variants; owner: "wire set 3 dragon art that matches"; measured 1434 with them).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1435);
+    // → 1444: emotes 2026-10-15 (+10 owner-named emote webps in `art/emotes/`, -1 for the retired Angry Mushy; owner: "wire
+    // all the new ones that i added"; measured 1443 with them).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1444);
   });
 });

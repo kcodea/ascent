@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Execute now always destroys a minion it damages. Before, a minion that gained Health later in the same fight moment, like Axeman, could survive it. A Ward or Immune still blocks it.' },
       { category: 'Balance', text: 'Six heroes are back in the hero pick: Gorun, Foreman Flint, Underdweller, Pete, Membrance and Emissary. Each has its achievements and a hero title to earn.' },
+      {
+        category: 'Systems',
+        text: 'Emotes now come from crates. Ten new emotes join the pool.',
+        details: [
+          'Thirteen emotes drop from crates: six Rare, four Epic and three Legendary.',
+          'New: Depressed Hank, Nervous Voss, Sad Wrangler, Tara Sad, Happy Urchin, Sly Oona, Dead Elder, Rich Pimm, Baby Rubies and Mad Tormentor.',
+          'Emotes are no longer given to everyone. Your menu shows the emotes you own, up to four.',
+          'An emote you open shows up in your menu right away. Choose its slot in the Collection.',
+          'The Angry Mushy emote is gone.',
+        ],
+      },
     ],
   },
   {

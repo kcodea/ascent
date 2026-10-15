@@ -19,6 +19,9 @@
   max-width: none; width: 440px;
   pointer-events: auto;
 }
+/* An account that owns no emote (none are given away since 2026-10-15): a short line pointing at crates. */
+.emote-menu.empty { width: auto; }
+.emote-none { color: var(--atip-muted); white-space: nowrap; }
 .emote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* A pick is the bubble art on a quiet well; it lifts a touch on hover (transform only). The global rule paints the
    gauntlet cursor on buttons, so none is set here. */

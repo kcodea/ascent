@@ -905,6 +905,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   Joining mid-match lands on the current moment; Leave (or the Esc menu) returns to the room, and Watch goes back. The
   room shows how many are watching (of 20). A spectator never changes the players' timing: with no one watching a
   player's client publishes nothing at all.
+- **Spectators get the full game** (owner 2026-10-15; R-SPECTATE-AV-01, -02, -03). The watch screen plays every
+  effect, animation and sound the player's screen plays, through the same hooks: card pick-ups (the grab shrink and
+  the wind trail), plays, spell casts at their targets, sales (the Gold float and coins), repositions, aim lines,
+  button presses, the End of Turn beats in step with the player, every fight beat, and the End Combat exit curtain.
+  It plays the game's music. Only the announcer stays silent for spectators (its lines speak to "you"), along with
+  input-only cues such as hover sounds.
 
 ## Health & economy
 

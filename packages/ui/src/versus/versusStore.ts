@@ -33,7 +33,7 @@ import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync } from './spectate';
-import { setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs } from './spectateTap';
+import { hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -696,9 +696,9 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const watchers = get().room?.members.filter((m) => m.role === 'spectator').length ?? 0;
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
-  setSpectatorTap(watchers > 0, mySeat(), session.channel?.send ?? null);
+  setSpectatorTap(watchers > 0, mySeat(), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }));
   if (watchers === 0) return;
-  const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted);
+  const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted, hasPendingActs());
   keyWanted = false;
   if (!msg) return;
   msg.m = matchId; // the stands drop anything from another match

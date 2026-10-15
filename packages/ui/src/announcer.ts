@@ -56,7 +56,7 @@ import { runeTally } from './runeTally';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 import { masterLevel, masterOutput, onMasterChange } from './audio/master';
 import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
-import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
+import { isMusicWanted, isWatchScreen, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
 import { COMBAT_MOMENT_EVENTS, COMBAT_SPECIAL_EVENTS, finalMoments, newCombatScan, scanCombat, type CombatScan, type FrameAt, type UnitStats } from './announcerCombat';
 import type { CombatEvent, MinionSnapshot } from '@game/core';
 import {
@@ -722,11 +722,13 @@ export interface AnnouncerStateLike extends MusicStateLike {
   rankResult?: { runId: string; promoted: boolean } | null | undefined;
 }
 
-/** The pure gate: the music's (lobby / practice / Gauntlet on screen, no sandbox, no replay, no title). A Gauntlet
+/** The pure gate: the music's (lobby / practice / Gauntlet on screen, no sandbox, no replay, no title), and never the
+ *  WATCH SCREEN (a spectator, owner 2026-10-15): the lines speak to the player as "you" and key on this screen's own
+ *  run history, so a watcher hears the music and every sound effect but no announcer. A Gauntlet
  *  speaks ONLY its round call (owner 2026-09-30, on top of the 2026-09-29 ruling that kept every other line out:
  *  several key on seat counts and would misfire on its 2-seat table); `isGauntletAnnouncer` + `enqueue` hold it to
  *  `GAUNTLET_ANNOUNCER_EVENTS`. */
-export const isAnnouncerWanted = (s: MusicStateLike): boolean => isMusicWanted(s);
+export const isAnnouncerWanted = (s: MusicStateLike): boolean => isMusicWanted(s) && !isWatchScreen(s);
 /** A Gauntlet on screen: the announcer speaks only `GAUNTLET_ANNOUNCER_EVENTS`. */
 export const isGauntletAnnouncer = (s: MusicStateLike): boolean => s.run.mode === 'gauntlet';
 

@@ -57,7 +57,7 @@ export const newPublisher = (seat: VersusSeat, seq = 0): SpectatorPublisher => (
  * The next message for `run`, or null when nothing visible changed. `forceKey` (shop open, reconnect) sends a
  * keyframe. Mutates `pub` (seq, last).
  */
-export function nextSpectatorMessage(pub: SpectatorPublisher, run: RunState, round: number, forceKey = false): SpectatorMessage | null {
+export function nextSpectatorMessage(pub: SpectatorPublisher, run: RunState, round: number, forceKey = false, forceDelta = false): SpectatorMessage | null {
   const view = projectSpectatorView(run);
   if (!pub.last || forceKey || pub.sinceKey >= KEYFRAME_EVERY) {
     pub.seq += 1;
@@ -70,7 +70,8 @@ export function nextSpectatorMessage(pub: SpectatorPublisher, run: RunState, rou
   const removed: string[] = [];
   for (const k of Object.keys(view)) if (!(k in prev) || !same(prev[k], view[k])) changed[k] = view[k];
   for (const k of Object.keys(prev)) if (!(k in view)) removed.push(k);
-  if (Object.keys(changed).length === 0 && removed.length === 0) return null;
+  // Nothing visible changed: no message, unless action tags must go out (`forceDelta`: an empty delta carries them).
+  if (Object.keys(changed).length === 0 && removed.length === 0 && !forceDelta) return null;
   pub.seq += 1;
   pub.sinceKey += 1;
   pub.last = view;

@@ -5699,4 +5699,99 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Two friends play a match, then watch the next match in the same room: its fights are the new match rounds, never their own old ones.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectate.test.ts', 'packages/ui/src/versus/spectateIdentity.test.tsx'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-PROG-PLATE-01',
+    title: 'Card plates are a crate cosmetic in the account-wide card_plate slot; every plate is Legendary unless the owner says otherwise',
+    statement:
+      'The card_plate category ("Card Plates", target global, enabled) holds the plates a player can wear behind their '
+      + 'cards: Aquarium Rocks, Amethyst, Bamboo, Beach, Magma and Moonstone, each a Legendary crate item (a plate from the '
+      + 'owner\x27s Card Backplates folder is Legendary unless the owner says otherwise), in the crate pool at the fixed rarity '
+      + 'odds with an equal chance within its rarity. A plate is ACCOUNT-WIDE: equip_cosmetic(user, \x27card_plate\x27, \x27\x27, '
+      + 'id) wears an owned, live plate (one cosmetic_loadouts row, target \x27\x27); null takes it off (the standard plates). '
+      + 'A retired plate, or the category switched off, falls back to the standard plates everywhere.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates)', quote: 'Turn Aquarium Rocks into a real equippable card plate cosmetic, with its own darkening settings, and leave the standard plates untouched.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, how players get it)', quote: 'Crate drop' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, rarity)', quote: 'aquariam rocks should be a legendary drop' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plates batch)', quote: 'in this folder will be where I provide all the custom backplates that you can unlock from opening chests. you can ignore the Gilded and Standard one, those are just the original cards. every other one should be a legendary reward unless explicitly specified' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (card_plate category, cardPlate item, GLOBAL_EQUIP_SLOTS, cardPlateOf); supabase/migrations/2026-10-14-card-plates.sql (equip_cosmetic)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-14 (the equip SQL is the owner\x27s to run before deploying progression-inventory).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cardPlates.test.ts', 'packages/progression/src/cardPlates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-PROG-PLATE-02',
+    title: 'A worn card plate replaces every standard plate on its wearer\x27s cards, with its own text darkening; gilded cards never change',
+    statement:
+      'A card shown in its owner\x27s skin scope wears that owner\x27s card plate in place of the standard plate, whatever its '
+      + 'tribe (the tribe name still prints on the plate\x27s bottom gem), and the plate brings its OWN rules-text darkening: '
+      + 'its own backbox shape, opacity, blend and seat (Aquarium Rocks: 0.63, multiply, 1.25 px below the standard seat at '
+      + 'the 138 px enlarged card). The standard plates and their darkening are untouched for every card without a plate. '
+      + 'A GILDED card never changes: it always keeps the original plate hued gold and the standard darkening, whatever '
+      + 'plate its owner wears. A Whisper keeps its Set 4 plate (its identity, not a tribe plate).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, tribe plates)', quote: 'replace all plates, but we ALWAYS will have the gilded cards be the existing original card plate hued gold. nothing should ever changed for gilded cards' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, darkening)', quote: 'the back of the card needs to be darkened - but the current shape doesnt work, can you use this and replace it with the current png that we use to darken the backplate? and can you increase its opacity?' },
+      { kind: 'code', ref: 'packages/ui/src/cardPlate/cardPlateLook.ts (CARD_PLATE_LOOKS, CardPlateContext); packages/ui/src/Card.tsx (plateLook: never golden, never Whisper; inline --ctx-box-* vars; descbox src); packages/ui/src/skins/skins.tsx (MinionSkins provides the plate)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-14. The shop buy dissolve still traces the standard plate\x27s outline (cardplate-wire.webp), so a skinned plate dissolves along a near-identical but not exact edge.',
+    example: 'A player wearing Aquarium Rocks holds a Beast, a Demon and a Gilded Beast: the Beast and Demon show the Aquarium Rocks plate with their tribe names on its bottom gem; the Gilded Beast shows the gold standard plate.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-PROG-PLATE-03',
+    title: 'Your card plate rides your recorded run, so the players you meet see it (through Show opponent cosmetics)',
+    statement:
+      'Every run records its player\x27s LIVE card plate on its cosmetic snapshot (cardPlate) like the portrait frame: '
+      + 'every board keeps it, a lobby seat unions it, and a save round trip, a replay and Match details keep it. The '
+      + 'players who meet that run see the plate on its cards wherever its cards are shown in its skin scope, unless they '
+      + 'have switched opponent cosmetics off.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, visibility)', quote: 'Others see it too' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (snapshotForRun, parseCosmeticSnapshot); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts (runCosmetics); packages/ui/src/skins/skins.tsx (MinionSkins)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-14.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/progression/src/cardPlates.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-PROG-PLATE-04',
+    title: 'A card shown bigger than a game card keeps its plate, text and darkening seated as on a game card',
+    statement:
+      'Every plated card drawn at a size other than the game\x27s own compact card (the Collection\x27s hover preview, and '
+      + 'any future enlarged surface that re-sizes the card through --ch / --cw / --ccw rather than a transform) scales '
+      + 'the plate\x27s fixed-px lift (--plate-top) by its own width over the game card\x27s width (--plate-k), so the plate, '
+      + 'the rules text and the dark backbox line up exactly as on a hand card. The enlarged Discover row does the same '
+      + 'with its fixed 1.3.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plates, Collection preview)', quote: 'when previewing a card, the darkening section is too high' },
+      { kind: 'fix-pr', ref: 'PR #2090 (feat/card-plate-cosmetic): packages/ui/src/progression/SkinCardPreview.tsx previewPlateK' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15 for the Collection hover preview (it used --plate-k 1 before, so its plate sat low and the darkening read too high). The Discover row has used --plate-k 1.3 since 2026-10-12.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/skinCardPreviewPlate.test.tsx'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-PROG-SKINS-16',
+    title: 'Every cosmetic a snapshot carries reaches the screen: snapshot de-duplication keys the WHOLE snapshot',
+    statement:
+      'Any cache that treats two cosmetic snapshots as the same (the client\x27s snapshot interning) compares their WHOLE '
+      + 'content, every field present today or added later, never a hand-picked list of fields. Two snapshots that differ in '
+      + 'any cosmetic (card plate, portrait frame, title, hero attack, skins, announcer, emotes) are never collapsed into '
+      + 'one, so a worn cosmetic always shows; a clone with the same content in another key order still counts as the same.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plates)', quote: 'i equipped the magma card plate and i only see the default in game, in a ranked game, and in practice' },
+      { kind: 'fix-pr', ref: 'PR #2090 (feat/card-plate-cosmetic): packages/ui/src/skins/skinArt.ts snapshotKey (was a five-field list that ignored cardPlate, announcer and emotes)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. Before, the interning key listed hero skins, minion skins, hero attack, title and portrait frame only, so a run snapshot that added a card plate interned to an older plateless snapshot and the plate never showed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skinIntern.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
 ];

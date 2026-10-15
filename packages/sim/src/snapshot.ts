@@ -347,7 +347,7 @@ export function socBoard(result: CombatResult): BoardMinion[] {
 
 /**
  * The run's recorded skins narrowed to one board: its hero's skin and the skins of cards actually on it, plus the
- * account-wide hero attack, title and portrait frame. Pure
+ * account-wide hero attack, title, portrait frame and card plate. Pure
  * key scoping (no catalog lookup, so capture stays deterministic and a retired item is still RECORDED: the
  * renderer decides whether it shows, and a restore brings it back on old boards too). Undefined when nothing
  * applies, so a skinless board serializes exactly as before.
@@ -368,10 +368,13 @@ export function scopeCosmetics(c: RunCosmeticSnapshot | undefined, heroIds: read
   const title = typeof c.title === 'string' ? c.title : undefined;
   // And the portrait frame (2026-10-01): every board keeps it, so the players it meets see the ring.
   const frame = typeof c.portraitFrame === 'string' ? c.portraitFrame : undefined;
-  if (!hero && !minion && !attack && !title && !frame) return undefined;
+  // And the card plate (2026-10-14): every board keeps it, so the players it meets see it on its cards.
+  const plate = typeof c.cardPlate === 'string' ? c.cardPlate : undefined;
+  if (!hero && !minion && !attack && !title && !frame && !plate) return undefined;
   return {
     ...(hero ? { heroSkinByHeroId: hero } : {}), ...(minion ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}), ...(title ? { title } : {}), ...(frame ? { portraitFrame: frame } : {}),
+    ...(plate ? { cardPlate: plate } : {}),
   };
 }
 

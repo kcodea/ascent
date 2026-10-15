@@ -41,8 +41,11 @@
 .colls-panel { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 16px; background: var(--colls-panel);
   border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.7); }
 
-/* Category tabs: icon, name, owned / total. A locked tab says Soon; a NEW count sits on the corner. */
-.colls-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; flex: none; }
+/* Category tabs: icon, name, owned / total. A locked tab says Soon; a NEW count sits on the corner. Four wide tabs to
+   a row (owner 2026-10-15: "made each section wider and have 4 sections to a row"), so eight categories are two rows.
+   The bottom margin opens a gap before the filters (owner 2026-10-15: "add some vertical space between the collection
+   categories and the various filters"). */
+.colls-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; flex: none; margin-bottom: 14px; }
 .colls-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 100px; padding: 10px 8px;
   border-radius: 12px; text-align: center; color: var(--colls-ink); background: rgba(8, 16, 34, 0.66); border: 1.5px solid var(--colls-line);
   transition: transform 0.14s ease, border-color 0.14s ease, background-color 0.14s ease; }
@@ -85,6 +88,14 @@
 
 /* ── The album ──────────────────────────────────────────────────────────────────────────────────────────── */
 .colls-gridwrap { flex: 1; min-height: 0; overflow-y: auto; margin: -8px; padding: 8px 8px 16px; }
+/* Themed scroll bar, copied from God Mode's (owner 2026-10-15: "change the scroll on the right side to be more
+   thematically in line with our aesthetic ... we've made this adjustment elsewhere. copy that"): a deep NAVY track under
+   a UI-gold thumb. Static. `scrollbar-color` for Firefox / new Chromium, ::-webkit-scrollbar for the rest. */
+.colls-gridwrap, .colls-side { --colls-scroll-track: #0e1a3a; scrollbar-width: thin; scrollbar-color: var(--ui-title) var(--colls-scroll-track); }
+.colls-gridwrap::-webkit-scrollbar, .colls-side::-webkit-scrollbar { width: calc(10 * var(--u)); }
+.colls-gridwrap::-webkit-scrollbar-track, .colls-side::-webkit-scrollbar-track { background: var(--colls-scroll-track); border-radius: 999px; }
+.colls-gridwrap::-webkit-scrollbar-thumb, .colls-side::-webkit-scrollbar-thumb { background: var(--ui-title); border-radius: 999px; border: 2px solid var(--colls-scroll-track); }
+.colls-gridwrap::-webkit-scrollbar-thumb:hover, .colls-side::-webkit-scrollbar-thumb:hover { background: var(--ui-hover-edge-main); }
 .colls-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .colls-grid > li { display: flex; }
 
@@ -295,6 +306,9 @@
 /* An UNOWNED portrait frame in the detail panel: the ring alone, blurred by the rule above, never around a portrait. */
 .colls-skinart.colls-framelocked { width: 220px; height: 220px; border: 0; box-shadow: none; background: transparent; border-radius: 50%; }
 .colls-skinart.colls-framelocked img { object-fit: contain; }
+/* A CARD PLATE (2026-10-14) in the detail panel: the plate whole, at its own tall 800x1244 shape, with no tile chrome. */
+.colls-skinart.colls-plateart { width: 150px; height: 233px; border: 0; box-shadow: none; background: transparent; border-radius: 0; overflow: visible; }
+.colls-skinart.colls-plateart img { object-fit: contain; }
 
 /* ── NEW REWARDS (owner ask 2026-09-28): the NEW pill on every Collection entry point, and the one-time pop-up the
    Collection opens with. Static styling; the pop-up's entrance is one-shot. The gauntlet cursor comes from the

@@ -47,6 +47,7 @@ function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | un
   let attack: string | undefined;
   let title: string | undefined;
   let frame: string | undefined;
+  let plate: string | undefined;
   for (const s of snaps) {
     for (const [k, v] of Object.entries(s.cosmetics?.heroSkinByHeroId ?? {})) if (!(k in hero) && typeof v === 'string') hero[k] = v;
     for (const [k, v] of Object.entries(s.cosmetics?.minionSkinByCardId ?? {})) if (!(k in minion) && typeof v === 'string') minion[k] = v;
@@ -54,11 +55,13 @@ function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | un
     if (attack === undefined && typeof s.cosmetics?.heroAttack === 'string') attack = s.cosmetics.heroAttack;
     if (title === undefined && typeof s.cosmetics?.title === 'string') title = s.cosmetics.title;
     if (frame === undefined && typeof s.cosmetics?.portraitFrame === 'string') frame = s.cosmetics.portraitFrame;
+    if (plate === undefined && typeof s.cosmetics?.cardPlate === 'string') plate = s.cosmetics.cardPlate;
   }
-  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title && !frame) return undefined;
+  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title && !frame && !plate) return undefined;
   return {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}), ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}), ...(title ? { title } : {}), ...(frame ? { portraitFrame: frame } : {}),
+    ...(plate ? { cardPlate: plate } : {}),
   };
 }
 

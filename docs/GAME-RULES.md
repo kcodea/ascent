@@ -524,7 +524,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **The catalog (2026-09-28).** Data in `packages/progression/src/cosmetics.ts`, which OWNS the database copy: the
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
-  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame, emote). Switched on:
+  for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame, emote, card plate). Switched on:
   **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
   **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
   categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
@@ -735,6 +735,16 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run, the frame recorded on that run, like a skin). Recorded per run, so opponents see it on your seat (combat
   portrait, Now Facing, lobby rail, fight recap, Match details, the Hall, Career rows) while their **Show opponent
   cosmetics** is on. No frame, an unknown or a retired one paints today's default ring. Presentation only.
+- **Card plates (2026-10-14; oracle R-PROG-PLATE-01..03).** A cosmetic plate that replaces the standard plate behind
+  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Six, all
+  Legendary from crates: **Aquarium Rocks**, **Amethyst**, **Bamboo**, **Beach**, **Magma** and **Moonstone**.
+  New plates come from the owner's Card Backplates folder and are Legendary unless the owner says otherwise. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
+  plate" takes it off; hovering an owned plate floats a card wearing it). A worn plate replaces EVERY standard plate,
+  whatever the card's tribe (the tribe name still prints on the plate's bottom gem), and brings its own rules-text
+  darkening (its own shape, opacity, blend and seat). **Gilded cards never change**: they always keep the original
+  plate hued gold. A Whisper keeps its own plate. Recorded per run like the portrait frame, so the players you meet see
+  it on your cards while their **Show opponent cosmetics** is on. No plate, an unknown or a retired one shows the
+  standard plates. Presentation only.
 - **Show opponent cosmetics (Settings, on by default; was "Show opponent skins"; R-PROG-SKINS-02).** Off, every
   OPPONENT's skins render as default art (lobby, combat, the scouted board, replays, another player's Career) and an
   opponent who strikes you plays the Classic attack. Your own always show. Display only; stored locally like the

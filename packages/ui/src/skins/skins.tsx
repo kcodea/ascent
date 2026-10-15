@@ -9,13 +9,19 @@ import { useGame } from '../store';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { MinionSkinContext, internSnapshot, minionSkinMap } from './skinArt';
+import { CardPlateContext, cardPlateLookOf } from '../cardPlate/cardPlateLook';
 
 export { heroPortrait, internSnapshot, minionSkinMap, skinArtOf, useMinionSkinMap, type MinionSkinMap } from './skinArt';
 
-/** Scope a subtree's minion art to one owner's skins. `snapshot` null = default art for everything inside. */
+/** Scope a subtree's minion art to one owner's skins, and its cards to that owner's CARD PLATE (2026-10-14).
+ *  `snapshot` null = default art and the standard plates for everything inside. */
 export function MinionSkins({ snapshot, children }: { snapshot: RunCosmeticSnapshot | null | undefined; children: ReactNode }): JSX.Element {
   useSkinEpoch();
-  return <MinionSkinContext.Provider value={minionSkinMap(snapshot)}>{children}</MinionSkinContext.Provider>;
+  return (
+    <MinionSkinContext.Provider value={minionSkinMap(snapshot)}>
+      <CardPlateContext.Provider value={cardPlateLookOf(snapshot)}>{children}</CardPlateContext.Provider>
+    </MinionSkinContext.Provider>
+  );
 }
 
 /** Subscribe to the server kill switch, so a retire/restore re-renders every skin surface. */

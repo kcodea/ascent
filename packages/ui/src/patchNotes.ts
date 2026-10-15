@@ -88,6 +88,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'New cosmetic: Card Plates. Find six Legendary plates in crates and wear one behind your cards.',
+        details: [
+          'The six: Aquarium Rocks, Amethyst, Bamboo, Beach, Magma and Moonstone.',
+          'Equip one in the Collection\'s new Card Plates tab. "Use standard plate" takes it off.',
+          'The Collection\'s category tabs are wider, four to a row.',
+          'It replaces the plate on all your cards, whatever their tribe. Gilded cards always keep their gold plate.',
+          'The players you meet see it on your cards while they have opponent cosmetics turned on.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The end screen opens faster. It no longer replays your whole game in the background.',
       },
       {

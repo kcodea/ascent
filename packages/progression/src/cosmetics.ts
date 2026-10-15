@@ -37,7 +37,7 @@
 
 // ── Categories, rarities, weights ─────────────────────────────────────────────────────────────────────────
 
-export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame', 'emote'] as const;
+export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame', 'emote', 'card_plate'] as const;
 export type CosmeticCategory = typeof COSMETIC_CATEGORIES[number];
 
 export const COSMETIC_RARITIES = ['common', 'rare', 'epic', 'legendary', 'ancient'] as const;
@@ -87,6 +87,10 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
   // seen by you and by the players who meet your recorded run. Account-wide (no hero or card target); the loadout
   // holds FOUR of them, one row per menu position (`EMOTE_SLOT_COUNT`). Weight 10 like titles (kept for later).
   emote:       { id: 'emote',       label: 'Emotes',            weight: 10, enabled: true,  target: 'global' },
+  // Owner 2026-10-14: "i want to test a new cosmetic: card plates", then "Turn Aquarium Rocks into a real equippable card
+  // plate cosmetic". The plate behind YOUR minion cards, account-wide, seen by the players you meet. Weight 10 like
+  // titles (kept for later).
+  card_plate:  { id: 'card_plate',  label: 'Card Plates',       weight: 10, enabled: true,  target: 'global' },
 });
 
 /**
@@ -179,6 +183,20 @@ const announcer = (id: string, name: string, rarity: CosmeticRarity, pack: strin
  */
 const emote = (id: string, name: string, rarity: CosmeticRarity, master: string, acquisition: CosmeticAcquisition = { type: 'crate' }): CosmeticDef =>
   ({ id, category: 'emote', name, rarity, acquisition, assets: { art: id, master }, active: true });
+
+/**
+ * A CARD PLATE (owner 2026-10-14: "Turn Aquarium Rocks into a real equippable card plate cosmetic, with its own
+ * darkening settings, and leave the standard plates untouched"). One account-wide item (target `global`) that replaces
+ * the plate behind every one of YOUR minion cards, whatever its tribe ("replace all plates"), seen by you and, through
+ * "Show opponent cosmetics", by the players you meet. Never on a GILDED card ("nothing should ever changed for gilded
+ * cards"). `assets.art` is the key of the in-repo plate (`apps/web/public/frames/plates/<key>.webp`, same 800x1244
+ * body as the standard plates); its text-panel darkening lives beside the art in `packages/ui/src/cardPlate/`.
+ * `assets.master` is the owner's master in `Reference Art/Card Backplates/` (owner 2026-10-15: "in this folder will be
+ * where I provide all the custom backplates that you can unlock from opening chests ... every other one should be a
+ * legendary reward unless explicitly specified"; Standard.png and Gilded.png there are the base plates, not rewards).
+ */
+const cardPlate = (id: string, name: string, rarity: CosmeticRarity, master: string): CosmeticDef =>
+  ({ id, category: 'card_plate', name, rarity, acquisition: { type: 'crate' }, assets: { art: id, master }, active: true });
 
 /**
  * HERO TITLES (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that title is
@@ -589,6 +607,14 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   emote('emote_flirty_midas', 'Flirty Midas', 'common', 'FlirtyMidas.png', { type: 'starter' }),
   emote('emote_nervous_jensen', 'Nervous Jensen', 'common', 'NervousJensen.png', { type: 'starter' }),
   emote('emote_zen_brian', 'Zen Brian', 'common', 'ZenBrian.png', { type: 'starter' }),
+  // CARD PLATES (owner 2026-10-14): "This card plate is called Aquarium Rocks"; "aquariam rocks should be a legendary drop".
+  cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'Aquarium Rocks.png'),
+  // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".
+  cardPlate('plate_amethyst', 'Amethyst', 'legendary', 'Amethyst.png'), // shares its name with the Amethyst portrait frame (owner 2026-10-15)
+  cardPlate('plate_bamboo', 'Bamboo', 'legendary', 'Bamboo.png'),
+  cardPlate('plate_beach', 'Beach', 'legendary', 'Beach.png'),
+  cardPlate('plate_magma', 'Magma', 'legendary', 'Magma.png'),
+  cardPlate('plate_moonstone', 'Moonstone', 'legendary', 'Moonstone.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);
@@ -844,11 +870,12 @@ export const liveCosmetics = (catalog: readonly CosmeticDef[] = COSMETICS): Cosm
 export type SkinSlot = 'hero_skin' | 'minion_skin';
 export const SKIN_SLOTS: readonly SkinSlot[] = ['hero_skin', 'minion_skin'];
 /** Every slot `equip_cosmetic` accepts: the two per-target skin slots, the account-wide hero attack, portrait
- *  frame and announcer (target ''), and the EMOTE slot (2026-10-13), whose target is the menu position '0'..'3'. */
-export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame' | 'announcer' | 'emote';
-export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame', 'announcer', 'emote'];
+ *  frame, announcer and card plate (target ''), and the EMOTE slot (2026-10-13), whose target is the menu position
+ *  '0'..'3'. */
+export type EquipSlot = SkinSlot | 'hero_attack' | 'portrait_frame' | 'announcer' | 'emote' | 'card_plate';
+export const EQUIP_SLOTS: readonly EquipSlot[] = ['hero_skin', 'minion_skin', 'hero_attack', 'portrait_frame', 'announcer', 'emote', 'card_plate'];
 /** The account-wide slots: one row each, target ''. */
-export const GLOBAL_EQUIP_SLOTS: readonly EquipSlot[] = ['hero_attack', 'portrait_frame', 'announcer'];
+export const GLOBAL_EQUIP_SLOTS: readonly EquipSlot[] = ['hero_attack', 'portrait_frame', 'announcer', 'card_plate'];
 
 /**
  * Who wears what, keyed by the TARGET (handoff §6.7 `cosmetic_loadouts` / §13 `RunCosmeticSnapshot`). The same
@@ -867,6 +894,9 @@ export interface RunCosmeticSnapshot {
   /** The equipped PORTRAIT FRAME (account-wide, owner 2026-10-01: "we want this to replace the default portrait png
    *  when a skin is applied"). Absent = the default ring. */
   portraitFrame?: string;
+  /** The equipped CARD PLATE (account-wide, owner 2026-10-14). Recorded on every run like the portrait frame, so the
+   *  players you meet see it on your cards. Absent = the standard plates. */
+  cardPlate?: string;
   /** The equipped ANNOUNCER (account-wide, owner 2026-10-11). LIVE LOADOUT ONLY: only the wearer hears it, so
    *  `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent = the default announcer. */
   announcer?: string;
@@ -907,10 +937,12 @@ export function parseCosmeticSnapshot(v: unknown): RunCosmeticSnapshot | null {
   const heroAttack = typeof o.heroAttack === 'string' && ID_RE.test(o.heroAttack) ? o.heroAttack : undefined;
   const title = typeof o.title === 'string' && ID_RE.test(o.title) ? o.title : undefined;
   const portraitFrame = typeof o.portraitFrame === 'string' && ID_RE.test(o.portraitFrame) ? o.portraitFrame : undefined;
-  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack && !title && !portraitFrame) return null;
+  const cardPlate = typeof o.cardPlate === 'string' && ID_RE.test(o.cardPlate) ? o.cardPlate : undefined;
+  if (!heroSkinByHeroId && !minionSkinByCardId && !heroAttack && !title && !portraitFrame && !cardPlate) return null;
   return {
     ...(heroSkinByHeroId ? { heroSkinByHeroId } : {}), ...(minionSkinByCardId ? { minionSkinByCardId } : {}),
     ...(heroAttack ? { heroAttack } : {}), ...(title ? { title } : {}), ...(portraitFrame ? { portraitFrame } : {}),
+    ...(cardPlate ? { cardPlate } : {}),
   };
 }
 
@@ -924,6 +956,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
   let attack: string | undefined;
   let frame: string | undefined;
   let voice: string | undefined;
+  let plate: string | undefined;
   const emotes: Record<string, string> = {};
   if (Array.isArray(rows)) {
     for (const r of rows) {
@@ -937,6 +970,8 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
       if (slot === 'portrait_frame') { if (target === '' || target === undefined) frame = id; continue; }
       // And the announcer (2026-10-11).
       if (slot === 'announcer') { if (target === '' || target === undefined) voice = id; continue; }
+      // And the card plate (2026-10-14).
+      if (slot === 'card_plate') { if (target === '' || target === undefined) plate = id; continue; }
       // The emote slot (2026-10-13) keys by menu position.
       if (slot === 'emote') { if (typeof target === 'string' && EMOTE_POSITION_RE.test(target)) emotes[target] = id; continue; }
       if (typeof target !== 'string' || !ID_RE.test(target)) continue;
@@ -950,6 +985,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
     ...(attack ? { heroAttack: attack } : {}),
     ...(frame ? { portraitFrame: frame } : {}),
     ...(voice ? { announcer: voice } : {}),
+    ...(plate ? { cardPlate: plate } : {}),
     ...(Object.keys(emotes).length ? { emotes } : {}),
   };
 }
@@ -999,6 +1035,15 @@ export function titleOf(snapshot: RunCosmeticSnapshot | null | undefined): Cosme
 export function portraitFrameOf(snapshot: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
   const c = cosmeticOf(snapshot?.portraitFrame);
   return c && c.category === 'portrait_frame' && isCosmeticLive(c.id) ? c : null;
+}
+
+/**
+ * The CARD PLATE this snapshot wears, or null for the standard plates. Null whenever the id is unknown, retired (item or
+ * category, TS or server) or not a card plate, so a stale or forged id always falls back to the standard plates.
+ */
+export function cardPlateOf(snapshot: RunCosmeticSnapshot | null | undefined): CosmeticDef | null {
+  const c = cosmeticOf(snapshot?.cardPlate);
+  return c && c.category === 'card_plate' && isCosmeticLive(c.id) ? c : null;
 }
 
 /**
@@ -1110,13 +1155,16 @@ export function snapshotForRun(
   const title = titleOf(loadout)?.id;
   // The portrait frame is account-wide too (2026-10-01): every run records a LIVE one.
   const frame = portraitFrameOf(loadout)?.id;
-  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title && !frame) return null;
+  // And so is the card plate (2026-10-14): every run records a LIVE one.
+  const plate = cardPlateOf(loadout)?.id;
+  if (!Object.keys(hero).length && !Object.keys(minion).length && !attack && !title && !frame && !plate) return null;
   return {
     ...(Object.keys(hero).length ? { heroSkinByHeroId: hero } : {}),
     ...(Object.keys(minion).length ? { minionSkinByCardId: minion } : {}),
     ...(attack ? { heroAttack: attack } : {}),
     ...(title ? { title } : {}),
     ...(frame ? { portraitFrame: frame } : {}),
+    ...(plate ? { cardPlate: plate } : {}),
   };
 }
 

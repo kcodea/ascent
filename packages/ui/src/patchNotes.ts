@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-14',
     changes: [
       {
+        category: 'Balance',
+        text: 'Every new Shop minion now gets your Shop buffs, however it got there.',
+        details: [
+          'Sigil of Kinship refreshes now keep your Shop buffs, like a normal refresh. It also keeps Layaway cards.',
+          'Elevation Ritual, Spell Cart, a frozen Shop topping up and cards added to the Shop work the same way.',
+          'A card that replaces your right-most or left-most Shop minion keeps that slot buff.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'New mode: Versus. Play a live 1v1 against a friend.',
         details: [

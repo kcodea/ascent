@@ -4,8 +4,8 @@ import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
 import { getHero, hasPower } from './heroes';
-import type { RunState } from './state';
-import { defIsTribe, stampVeinstormRubies } from './recruit';
+import type { RunState, ShopCard } from './state';
+import { addOfferBuff, defIsTribe, rightmostShopMinion, stampVeinstormRubies } from './recruit';
 import { buffStarform, starformOf, starformRefreshLand, withStarformPinned } from './starform';
 
 /**
@@ -24,14 +24,18 @@ import { buffStarform, starformOf, starformRefreshLand, withStarformPinned } fro
  * is the only thing it does. One draw per offer ALWAYS, never short-circuited on an already-marked card, so
  * the stream advances by a fixed count and stays reproducible.
  */
-export function rollCiaEnchants(state: RunState): void {
+export function rollCiaEnchants(state: RunState, only?: readonly ShopCard[]): void {
   if (!hasPower(state, 'luckySeat')) return; // a MIMICKED Lucky Seat enchants too — behaviour follows the wielded power
-  if (state.shop.length === 0 && !state.spell) return;
+  // `only`: roll just these freshly-served offers (a spell refresh, a single offer added to the row) — never the
+  // offers already sitting there, and never the spell slot, which that path did not serve.
+  const offers = only ?? state.shop;
+  const spell = only ? null : state.spell;
+  if (offers.length === 0 && !spell) return;
   const rng = makeRng(state.rngCursor);
-  for (const offer of state.shop) {
+  for (const offer of offers) {
     if (rng.next() < CIA_ENCHANT_CHANCE) offer.enchanted = true;
   }
-  if (state.spell && rng.next() < CIA_ENCHANT_CHANCE) state.spell.enchanted = true;
+  if (spell && rng.next() < CIA_ENCHANT_CHANCE) spell.enchanted = true;
   state.rngCursor = rng.state();
 }
 
@@ -115,6 +119,95 @@ export function takeFromPool(state: RunState, cardId: string): void {
 }
 
 /**
+ * THE ONE NEW-OFFER STAMP (owner bug 2026-10-14: "sigil of kinship refreshes dont have minions with shop buffs -
+ * this must be fixed as well").
+ *
+ * Every path that puts a freshly minted offer into the Shop — the ordinary roll, the turn-start roll, a frozen
+ * top-up, Sigil of Kinship, Elevation Ritual, Spell Cart, Grand Larceny, Rune of the Muster, Membrance, the
+ * Bargain Bin, Open Enrollment, Pete's contraband, Rune of Restocking, Albus' Empowerment pick, Indy's Golden
+ * Monkey (`addCardToShop`) — runs its new offers through HERE, so a new offer carries the same per-offer shop
+ * buffs whichever path served it. The bug was that each stamp lived inline in `rollShopRow`, so every other path
+ * silently served bare offers (a Sigil row had no Veinstorm Rubies, no Attachment price, no slot enchant).
+ *
+ * What it stamps, per offer:
+ *  1. Attachment Issues: a Magnetic offer with no price of its own takes the deal price.
+ *  2. Veinstorm: the banked Ruby grant, as a REAL per-offer `Ruby` buff (recorded for the gem span).
+ *  3. `inPlace` only — the offer REPLACED a living offer in its slot (Elevation, Pete, Open Enrollment / Indy on a
+ *     full row, Albus): the right-most / left-most SLOT enchant (Market Tormentor, Picnic, Display Case) re-lands on
+ *     it when it sits in that slot, so replacing the enchanted right-most never strips the slot's buff. A whole-row
+ *     refresh does NOT pass it: `applyShopRefreshed` lands the slot enchants once per refresh.
+ *  4. `cia` — Croupier Ayse's Enchanted roll for these offers. False only on the ordinary roll, whose row-wide roll
+ *     runs in the reducer's refresh tail (keeping that rng stream byte-identical).
+ *
+ * Run-wide shop buffs (`tavernBuyBonus`, the this-turn layer, card-type buffs, auras) are NOT stamped: they are
+ * read live by `offerBuyStats`, so every offer already shows them. Held (Displacement) and Starform offers are
+ * skipped: a held body is a restoration, and the Starform has its own once-per-key latch (rule 4).
+ */
+export interface NewOfferOpts {
+  cia?: boolean;
+  inPlace?: boolean;
+  /** The Veinstorm gem span waits for the row to slide in (a refresh) rather than playing at once. */
+  onRefresh?: boolean;
+}
+
+export function stampNewShopOffers(state: RunState, offers: readonly ShopCard[], opts: NewOfferOpts = {}): void {
+  const fresh = offers.filter((o) => !!CARD_INDEX[o.cardId] && !o.held && !o.starform);
+  if (fresh.length === 0) return;
+  for (const o of fresh) priceAttachmentOffer(state, o);
+  const vs = state.veinstormRubies;
+  if (vs && (vs.atk > 0 || vs.hp > 0)) {
+    const stamped = fresh.filter((o) => stampVeinstormRubies(o, vs.atk, vs.hp)).map((o) => o.uid);
+    if (stamped.length > 0) {
+      const prev = state.veinstormStamped;
+      state.veinstormStamped = { uids: [...(prev?.uids ?? []), ...stamped], onRefresh: opts.onRefresh ?? true, attack: vs.atk, health: vs.hp };
+    }
+  }
+  if (opts.inPlace) {
+    const uids = new Set(fresh.map((o) => o.uid));
+    landRightmostSlotBuff(state, uids);
+    landLeftmostSlotBuff(state, uids);
+  }
+  if (opts.cia) rollCiaEnchants(state, fresh);
+}
+
+/** Attachment Issues: price a Magnetic offer at the deal (an offer that already has its own price keeps it). */
+function priceAttachmentOffer(state: RunState, offer: ShopCard): void {
+  if (state.attachmentCost !== undefined && offer.cost === undefined && CARD_INDEX[offer.cardId]?.keywords.includes('M')) offer.cost = state.attachmentCost;
+}
+
+/** Market Tormentor / Picnic: land the accumulated right-most SLOT enchant on the right-most minion offer. `only`:
+ *  land it only when that offer is one of these (a replacement), so a living enchanted offer is never paid twice.
+ *  A Starform takes it once (rule 4). */
+export function landRightmostSlotBuff(state: RunState, only?: ReadonlySet<string>): void {
+  const slot = state.rightmostSlotBuff;
+  if (!slot) return;
+  const i = rightmostShopMinion(state);
+  if (i < 0 || (only && !only.has(state.shop[i]!.uid))) return;
+  if (starformRefreshLand(state.shop[i]!, 'tormentor')) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
+}
+
+/** Rune of the Display Case: the same for the LEFT-most minion offer. */
+export function landLeftmostSlotBuff(state: RunState, only?: ReadonlySet<string>): void {
+  const lslot = state.leftmostSlotBuff;
+  if (!lslot) return;
+  const l = state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+  if (l < 0 || (only && !only.has(state.shop[l]!.uid))) return;
+  if (starformRefreshLand(state.shop[l]!, 'displayCase')) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
+}
+
+/** Rule 4: Veinstorm's per-refresh Ruby stamp lands on a Starform ONCE — the first refresh it sits through — and
+ *  never again. Rides the Starform's own buff path (Twin Star hears it) under the same `Ruby` source name. Shared
+ *  by every whole-row refresh (the ordinary roll, Sigil of Kinship). */
+function landStarformVeinstorm(state: RunState): void {
+  const sf = starformOf(state);
+  const vs = state.veinstormRubies;
+  if (sf && vs && (vs.atk > 0 || vs.hp > 0) && starformRefreshLand(sf, 'veinstorm') && buffStarform(state, vs.atk, vs.hp, 'Ruby')) {
+    const prev = state.veinstormStamped;
+    state.veinstormStamped = { uids: [...(prev?.uids ?? []), sf.uid], onRefresh: true, attack: vs.atk, health: vs.hp };
+  }
+}
+
+/**
  * Refill the shop from the shared pool. A full reroll first returns the current (discarded) offers
  * to the pool, then draws fresh — decrementing each drawn copy. Advances + persists the shop RNG
  * cursor so rerolls are reproducible.
@@ -123,14 +216,7 @@ export function rollShop(state: RunState): void {
   // THE STARFORM (owner rule 3): the token is lifted out, the row is rebuilt one slot short, and it is put back
   // at its own index — so it survives every roll IN PLACE and the kept-offers-to-the-left rule never moves it.
   withStarformPinned(state, (slots) => rollShopRow(state, slots));
-  // Rule 4: Veinstorm's per-refresh Ruby stamp lands on a Starform ONCE — the first roll it sits through — and
-  // never again. It rides the Starform's own buff path (Twin Star hears it) under the same `Ruby` source name.
-  const sf = starformOf(state);
-  const vs = state.veinstormRubies;
-  if (sf && vs && (vs.atk > 0 || vs.hp > 0) && starformRefreshLand(sf, 'veinstorm') && buffStarform(state, vs.atk, vs.hp, 'Ruby')) {
-    const prev = state.veinstormStamped;
-    state.veinstormStamped = { uids: [...(prev?.uids ?? []), sf.uid], onRefresh: true, attack: vs.atk, health: vs.hp };
-  }
+  landStarformVeinstorm(state);
 }
 
 function rollShopRow(state: RunState, slots: number): void {
@@ -199,21 +285,12 @@ function rollShopRow(state: RunState, slots: number): void {
       }
     }
   }
-  // Attachment Issues: price EVERY Magnetic offer (naturally rolled too, not just the forced one) at the deal.
-  if (state.attachmentCost !== undefined) {
-    for (const o of offers) if (o.cost === undefined && CARD_INDEX[o.cardId]?.keywords.includes('M')) o.cost = state.attachmentCost;
-  }
-  // VEINSTORM (owner 2026-08-06): every minion in a refreshed shop carries the banked Ruby grant, stamped as
-  // a REAL per-offer Ruby buff at mint. Kept offers (Layaway) already hold theirs and must not be stamped
-  // twice, which is what `kept` excludes here.
-  const vs = state.veinstormRubies;
-  if (vs && (vs.atk > 0 || vs.hp > 0)) {
-    const stamped: string[] = [];
-    for (const o of offers) if (!kept.includes(o) && stampVeinstormRubies(o, vs.atk, vs.hp)) stamped.push(o.uid);
-    // A re-stamp is Veinstorm gemming the fresh shop, so it drives the same span — with `onRefresh: true`, so
-    // the UI holds it a beat and it lands with the offers rather than while they are still sliding in.
-    if (stamped.length > 0) state.veinstormStamped = { uids: stamped, onRefresh: true, attack: vs.atk, health: vs.hp };
-  }
+  // THE ONE NEW-OFFER STAMP (Attachment Issues' price on EVERY Magnetic offer, naturally rolled or forced;
+  // Veinstorm's banked Rubies). Kept offers (Layaway) already hold theirs and must not be stamped twice — they
+  // only re-check the Attachment price (idempotent: an offer with its own price keeps it). No Cia roll here: the
+  // reducer's refresh tail rolls the whole row after injecting Fodder, and that rng order is pinned.
+  for (const o of kept) priceAttachmentOffer(state, o);
+  stampNewShopOffers(state, offers.filter((o) => !kept.includes(o)), { onRefresh: true });
   state.shop = offers;
   // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but
   // still gated by tavern tier (a T5 spell can't appear at T2).
@@ -239,6 +316,7 @@ function rollTutorialShop(state: RunState): void {
     ...roll.minions.map((cardId) => ({ uid: `s${state.uidSeq++}`, cardId })),
   ];
   state.spell = roll.spell ? { uid: `s${state.uidSeq++}`, cardId: roll.spell } : null;
+  stampNewShopOffers(state, state.shop.filter((o) => !o.kept), { onRefresh: true }); // the one new-offer stamp
   state.tutorialShopRoll = rollIdx + 1;
 }
 
@@ -261,6 +339,7 @@ function rollSpellShopRow(state: RunState, slots: number): void {
   }
   state.shop = eligible.slice(0, slots).map((id) => ({ uid: `s${state.uidSeq++}`, cardId: id }));
   state.rngCursor = rng.state();
+  stampNewShopOffers(state, state.shop, { onRefresh: true, cia: true }); // the one new-offer stamp
 }
 
 /**
@@ -271,14 +350,18 @@ function rollSpellShopRow(state: RunState, slots: number): void {
  */
 export function refillShopFiltered(state: RunState, filter: (c: CardDef) => boolean): void {
   withStarformPinned(state, (slots) => refillShopFilteredRow(state, filter, slots)); // the Starform keeps its slot (rule 3)
+  landStarformVeinstorm(state); // a refresh like any other (rule 4)
 }
 
 function refillShopFilteredRow(state: RunState, filter: (c: CardDef) => boolean, slots: number): void {
-  for (const offer of state.shop) returnToPool(state, offer.cardId);
+  // A REFRESH like any other: Layaway-kept offers survive it in the leftmost slots (never returned to the pool),
+  // exactly as `rollShopRow` keeps them. The rest go back and the row is redrawn from the filtered pool.
+  const kept = state.shop.filter((o) => o.kept);
+  for (const offer of state.shop) if (!offer.kept) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
   const pool = poolOf(state).buyable.filter((c) => filter(c) && (state.pool[c.id] ?? 0) > 0);
-  const offers: RunState['shop'] = [];
-  for (let i = 0; i < slots && pool.length > 0; i++) {
+  const offers: RunState['shop'] = [...kept];
+  for (let i = kept.length; i < slots && pool.length > 0; i++) {
     const idx = rng.int(pool.length);
     const pick = pool[idx]!;
     offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id });
@@ -287,6 +370,7 @@ function refillShopFilteredRow(state: RunState, filter: (c: CardDef) => boolean,
   }
   state.shop = offers;
   state.rngCursor = rng.state();
+  stampNewShopOffers(state, offers.filter((o) => !kept.includes(o)), { onRefresh: true, cia: true }); // the one new-offer stamp
 }
 
 /**
@@ -307,6 +391,7 @@ function refillShopFilteredRow(state: RunState, filter: (c: CardDef) => boolean,
  * card those two cancel out, which is exactly right.
  */
 export function elevateShop(state: RunState): void {
+  const prior = [...state.shop];
   const cap = maxTierFor(state.rift);
   const rng = makeRng(state.rngCursor);
   const next: RunState['shop'] = [];
@@ -328,6 +413,10 @@ export function elevateShop(state: RunState): void {
   }
   state.shop = next;
   state.rngCursor = rng.state();
+  // The one new-offer stamp. `inPlace`: each new offer replaced one in its own slot, so an upgraded right-most /
+  // left-most keeps that slot's enchant (a kept, dry-pool offer is not new and is never paid twice).
+  const before = new Set(prior);
+  stampNewShopOffers(state, next.filter((o) => !before.has(o)), { onRefresh: true, inPlace: true, cia: true });
 }
 
 /**
@@ -338,15 +427,20 @@ export function elevateShop(state: RunState): void {
 export function topUpTavern(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
+  const added: ShopCard[] = [];
   while (state.shop.length < slots) {
     const id = drawOfferId(rng, availableOffers(state), state.pool);
     if (!id) break;
     state.pool[id] -= 1;
-    state.shop.push({ uid: `s${state.uidSeq++}`, cardId: id });
+    const offer: ShopCard = { uid: `s${state.uidSeq++}`, cardId: id };
+    state.shop.push(offer);
+    added.push(offer);
   }
   if (!state.spell) {
     const spellId = drawSpellId(rng, state.tier, state);
     if (spellId) state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId };
   }
   state.rngCursor = rng.state();
+  // The one new-offer stamp — the frozen offers already wore theirs; only the gap-fillers are new.
+  stampNewShopOffers(state, added, { onRefresh: true, cia: true });
 }

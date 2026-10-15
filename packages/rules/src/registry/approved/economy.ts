@@ -213,4 +213,30 @@ export const ECONOMY_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-10). Was a T5 4/3 with "Shout: get a Dwarven Ale. Echo: get a Dwarven Ale."',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-SHOP-04',
+    title: 'Every new Shop offer carries the Shop buffs, whatever served it',
+    statement:
+      'A minion that enters the Shop carries the same Shop buffs whichever path put it there: an ordinary or turn-start '
+      + 'refresh, a frozen top-up, Sigil of Kinship, Elevation Ritual, Spell Cart, Grand Larceny, Rune of the Muster, '
+      + 'Membrance, the Bargain Bin, Open Enrollment, Pete, Rune of Restocking, Albus, or an "add a card to the Shop" '
+      + 'effect such as the Golden Monkey from Indy. Per-offer stamps (the Veinstorm Rubies, the Attachment Issues price, the '
+      + 'Enchanted roll) run through ONE function, `stampNewShopOffers`. A new offer that REPLACES the enchanted '
+      + 'right-most or left-most offer takes the enchant of that slot (Market Tormentor, Picnic, Display Case). A spell '
+      + 'that says "Refresh" (Sigil of Kinship, Spell Cart, Grand Larceny) is a refresh: it runs the same refresh tail '
+      + '(slot enchants, Rune of the Embers, Endless Inventory, refresh watchers) and keeps Layaway offers. Run-wide '
+      + 'Shop buffs are read live by every offer, so they need no stamp.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (bug report)', quote: 'sigil of kinship refreshes dont have minions with shop buffs - this must be fixed as well' },
+      { kind: 'code', ref: 'packages/sim/src/shop.ts stampNewShopOffers (called by every Shop-populating path in shop.ts, recruit.ts and reducer.ts)' },
+    ],
+    contentIds: ['sigilkinship', 'elevationritual', 'spellcart', 'veinstorm', 'sp_picnic', 'rune_display_case'],
+    currentBehaviour:
+      'Conforms as of 2026-10-14. Before it the stamps lived inline in the ordinary roll, so a Sigil of Kinship row '
+      + '(and Elevation, a frozen top-up, the Golden Monkey, Pete, Open Enrollment) served bare offers with no Veinstorm '
+      + 'Rubies and no slot enchant.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopOfferStamp.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

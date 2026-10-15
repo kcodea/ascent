@@ -17,7 +17,7 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
-import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots } from './shop';
+import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants } from './shop';
 import { runeStacksOf } from './runeDup';
 
 /**
@@ -3882,6 +3882,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
     st.shop = st.shop.filter((o) => o.starform);
     rollShop(st);
+    // "…then refresh": the same refresh tail the reducer's refresh runs — the Enchanted roll over the new row and
+    // the slot enchants / refresh watchers (owner bug 2026-10-14: every refresh serves buffed offers).
+    rollCiaEnchants(st);
+    applyShopRefreshed(st);
   },
 
   /** ARCANE CLEARANCE: Shop Spells cost 1 less this turn (the same per-turn channel the shop discounts use). */
@@ -9003,7 +9007,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  THAT minion's type (dual-types count), up to your tavern tier. The spell slot is left as-is. */
   spellRefreshToTribe: (ctx, self) => {
     const tribe = self.tribe;
+    // The new row is stamped inside `refillShopFiltered` (THE ONE NEW-OFFER STAMP: Veinstorm, Attachment price,
+    // Enchanted roll; Layaway offers kept). It is a REFRESH ("Refresh the Shop"), so it then runs the refresh tail
+    // every refresh runs (owner bug 2026-10-14, "sigil of kinship refreshes dont have minions with shop buffs"):
+    // the right-most / left-most slot enchants (Market Tormentor, Picnic, Display Case), Rune of the Embers,
+    // Endless Inventory and the shopRefreshed watchers. Not a player-pressed roll (Indy counts only those).
     refillShopFiltered(ctx.state, (c) => c.tier <= ctx.state.tier && (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)));
+    applyShopRefreshed(ctx.state);
   },
 
   /** Elevation Ritual — cast: upgrade EACH minion offer to a random minion one tier higher than itself (capped
@@ -9703,6 +9713,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  The next normal roll restocks minions, so it's a one-shot. Untargeted. */
   spellRefreshToSpells: (ctx) => {
     rollSpellShop(ctx.state);
+    applyShopRefreshed(ctx.state); // "Refresh the tavern": the same refresh tail as every refresh (see Sigil of Kinship)
   },
 
   /** Steward of Spells — End of Turn: add a copy of the most recent spell cast this run to your hand (golden:
@@ -12708,11 +12719,7 @@ export function applyShopRefreshed(state: RunState, opts: { playerRoll?: boolean
   // the first refresh it sits there — and never again on later refreshes (`refreshLanded` latches per source).
   // Nothing is redirected to the next minion: the buff is gated, not moved. Play-time right-most buffs (a
   // Shout, a hero power) are untouched — this is only about refresh re-landing.
-  const slot = state.rightmostSlotBuff;
-  if (slot) {
-    const i = rightmostShopMinion(state);
-    if (i >= 0 && starformRefreshLand(state.shop[i]!, 'tormentor')) addOfferBuff(state.shop[i]!, 'Market Tormentor', slot.attack, slot.health);
-  }
+  landRightmostSlotBuff(state); // shared with the new-offer stamp's in-place re-land (shop.ts)
   // RUNE OF THE EMBERS: every refresh DOUBLES the right-most Shop minion's Health. Applied as an offer buff
   // (`+hp` equal to the body's current Health) rather than a stat rewrite, so the shop card shows where the
   // number came from and the buy bakes it in through the same path every other slot enchant uses. It runs
@@ -12729,11 +12736,7 @@ export function applyShopRefreshed(state: RunState, opts: { playerRoll?: boolean
     }
   }
   // Rune of the Display Case: re-land the accumulated LEFT-most-slot enchant on the left offer each roll.
-  const lslot = state.leftmostSlotBuff;
-  if (lslot) {
-    const l = state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-    if (l >= 0 && starformRefreshLand(state.shop[l]!, 'displayCase')) addOfferBuff(state.shop[l]!, 'Market Tormentor', lslot.attack, lslot.health);
-  }
+  landLeftmostSlotBuff(state);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'shopRefreshed')) continue;
@@ -13116,6 +13119,7 @@ export function addCardToShop(state: RunState, cardId: string): string | null {
   if (state.shop.length < tierSlots(state.tier)) {
     takeFromPool(state, cardId);
     state.shop.push(offer);
+    stampNewShopOffers(state, [offer], { onRefresh: false, cia: true }); // the one new-offer stamp
     return offer.uid;
   }
   let idx = -1;
@@ -13128,6 +13132,7 @@ export function addCardToShop(state: RunState, cardId: string): string | null {
   returnToPool(state, state.shop[idx]!.cardId);
   takeFromPool(state, cardId);
   state.shop[idx] = offer;
+  stampNewShopOffers(state, [offer], { onRefresh: false, cia: true, inPlace: true }); // it took the replaced slot's enchant
   return offer.uid;
 }
 

@@ -303,6 +303,16 @@ export function simulate(
   // Side-neutral: both sides' passes queue and flush the same way. Outside a wave nothing is queued.
   let demonReactQueue: Minion[] | null = null;
   let pendingCountsLiving = false;
+  // ── EXECUTE ALWAYS KILLS (R-EXECUTE-04, owner 2026-10-15) ─────────────────────────────────────────────────────
+  // *"can you make sure execute full kills any minion it hits as long as it deals dmg to it"*. An Execute hit that
+  // LANDS marks its victim here, at damage application. The mark is the kill: every death check (`isFelled`) reads it,
+  // so a Health gain that resolves later in the same damage resolution (Axeman's +3/+3 when its own retaliation lands,
+  // a wave's Rad Rachel buffs, a heal) cannot save the body, and `living()` stops counting it. `killOrReborn` clears
+  // the mark, so a Rise / Rebirth return is a fresh body. A PREVENTED hit (Ward, Resilient Ward, Immune, 0 damage)
+  // never reaches the mark. Side-neutral: keyed by uid, the same for both boards.
+  const executed = new Set<string>();
+  /** A body on the board that must die at the next death check: at <=0 Health, or executed this resolution. */
+  const isFelled = (m: Minion): boolean => !m.dead && (m.health <= 0 || executed.has(m.uid));
   const flushDemonReactions = (): void => {
     const q = demonReactQueue;
     if (!q || q.length === 0) return;
@@ -334,7 +344,7 @@ export function simulate(
   const echoDeferredDeaths: { victim: Minion; killer?: Minion }[] = [];
   const flushEchoDeaths = (): void => {
     const pending = echoDeferredDeaths.splice(0);
-    for (const { victim, killer } of pending) if (!victim.dead && victim.health <= 0) killOrReborn(victim, killer);
+    for (const { victim, killer } of pending) if (isFelled(victim)) killOrReborn(victim, killer);
   };
   const withEchoDefer = <T,>(fire: () => T): T => {
     echoDeferDepth++;
@@ -1103,7 +1113,8 @@ export function simulate(
 
   // `pendingCountsLiving`: while a wave pass flushes its Demon-damage reactions, a body the pass left at <=0 but has
   // not killed yet is still on the board and still gets buffed (R-DEMON-DMG-DEATH-01, see `flushDemonReactions`).
-  const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && (m.health > 0 || pendingCountsLiving));
+  // An executed body is never living, even if a later gain lifted its Health (R-EXECUTE-04).
+  const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && !executed.has(m.uid) && (m.health > 0 || pendingCountsLiving));
   /** Set 3 rune batch 3: cast a Ruby on `n` DISTINCT random living friendly Kobolds (All-types bodies count) through
    *  `playRubyOn`, the one combat Ruby primitive, each Kobold its own source (the Gemstorm convention: a rune has no
    *  body). `permanent` = the Ruby carries back (Rune of Combatative Rubies). Fewer Kobolds = each gets one. */
@@ -1431,7 +1442,7 @@ export function simulate(
     },
     resolveEchoDeath: (target, source) => {
       flushDemonReactions(); // the pass's reactions land BEFORE any death check (R-DEMON-DMG-DEATH-01)
-      if (target.dead || target.health > 0) return;
+      if (!isFelled(target)) return; // an executed body dies whatever the reactions gave it (R-EXECUTE-04)
       // Inside a multi-fire echo scope, HOLD the death — the outermost `withEchoDefer` flushes the whole set
       // at once after every volley + re-fire, so tokens (Void Cubs) land after all the damage and a low-HP
       // victim reads every volley instead of dying to the first. Outside any scope, resolve immediately.
@@ -3259,6 +3270,9 @@ export function simulate(
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
     nextStep(); // this victim's death is its own resolution step (the exchange's damage came before)
+    // EXECUTE (R-EXECUTE-04): the mark is spent on this death. A gain that lifted an executed body's Health after the
+    // hit is void: it dies at 0, and a Rise / Rebirth return below is a fresh body with no mark.
+    if (executed.delete(minion.uid) && minion.health > 0) minion.health = 0;
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
     // ONCE at its *base ATTACK* with **1 Health** (Hearthstone-style — regardless of its printed Health),
     // shedding combat buffs + granted keywords (Divine Shield, etc.), keeping printed keywords (minus the spent
@@ -4098,8 +4112,14 @@ export function simulate(
     // above), so any damage from a Venomous source destroys the target — even if the raw hit was
     // already lethal. So attacking a Venomous minion is fatal *unless you were shielded from the
     // damage*, and the venom procs/drops off whichever side it lands on (main hit or retaliation).
-    if (poison) {
+    // EXECUTE from ANY path (R-EXECUTE-04, owner 2026-10-15): the attack exchange passes `poison` (captured at the
+    // swing, so a Cleave clash fells all three), and any other landed hit an Execute dealer puts on an ENEMY minion (a
+    // Bleed, a sourced effect or Echo spray) executes too. Friendly fire from an Execute body (a Set 4 self-wound, a
+    // Fel Spikes spray on its own non-Demons) is NOT executed: an open owner question, kept as before until ruled.
+    // The mark makes the kill stick past later Health gains.
+    if (poison || (!!poisoner && poisoner.side !== target.side && poisoner.keywords.includes('V'))) {
       if (target.health > 0) target.health = 0;
+      executed.add(target.uid);
       emit({ type: 'poison', target: target.uid });
       // Venomous proc: the poisoner spends its venom (drops off for the rest of combat).
       if (poisoner && poisoner.keywords.includes('V')) {
@@ -4119,7 +4139,7 @@ export function simulate(
     poisoner?: Minion,
   ): void {
     applyDamage(target, amount, poison, bypassShield, poisoner);
-    if (!target.dead && target.health <= 0) killOrReborn(target, poisoner);
+    if (isFelled(target)) killOrReborn(target, poisoner);
   }
 
   // Targeting: random among living enemies, Taunts first if any (A.3 step 4).
@@ -4594,7 +4614,7 @@ export function simulate(
       // Deathrattle / Rise runs only now, after every hit of the clash has landed — so death effects see the
       // full post-exchange board (e.g. a mutual kill counts both bodies down before either rattle fires).
       for (const { m, killer } of victims) {
-        if (!m.dead && m.health <= 0) killOrReborn(m, killer);
+        if (isFelled(m)) killOrReborn(m, killer);
       }
 
       // On-kill (owner ruling 2026-07-03): EVERY kill in the clash procs the killer's on-kill effects —

@@ -15,8 +15,8 @@ re-roll" in `docs/GAME-RULES.md`.
   optional on `ReplayV2` too. Nothing in the sim reads it. Telemetry's `heroOffer` stays the FINAL three.
 - **Ranked entry** (`rank/rankedEntry.ts`): the entry stores the re-rolled `heroChoices` and `heroReroll`, so a
   restart on hero select reopens the re-rolled heroes with the re-roll spent (no free refresh by closing the game).
-- **UI** (`HeroSelect.tsx`, `styles.css` "THE HERO RE-ROLL"): a round `.hcreroll` on each tile's frame bottom-right
-  corner, wearing the Runeforge re-roll's Gem plate tokens and the shop's `refresh` glyph, `gtip` hover text, no
+- **UI** (`HeroSelect.tsx`, `styles.css` "THE HERO RE-ROLL"): a round 64px `.hcreroll` centred under each tile's
+  difficulty pill (owner 2026-10-15: bigger, below the pill; its row is reserved so spending it moves nothing), wearing the Runeforge re-roll's Gem plate tokens and the shop's `refresh` glyph, `gtip` hover text, no
   `title=`, no cursor override. It is a SIBLING of the card button (`.hcslot` wrapper), only in the 3-card layout. One
   press: `sfx.roll()`, the slot swaps, every control unmounts. The swap is CSS only and reuses existing animations:
   the old portrait `dyingfade`s on top, the new one `summonpop`s in, and the Refresh crystal's `.rfb-shine` flare

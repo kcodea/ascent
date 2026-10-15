@@ -5839,24 +5839,24 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
   box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.6);
 }
 /* THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): one re-roll per hero select, any slot. Each tile wears the
-   same small control at its frame's bottom-right corner: the Runeforge re-roll's navy Gem plate (gold rim, theme hover)
-   as a round icon button with the shop's refresh glyph. It is a SIBLING of the card button (a button cannot nest one),
-   so `.hcslot` is the positioning box, and it follows the card's hover lift. No `cursor`: the global button rule
-   paints the gauntlet. Once spent, every control unmounts. */
-.hcslot { position: relative; display: flex; }
+   same control CENTRED UNDER its difficulty pill (owner 2026-10-15: bigger, below the pill, easier to click): the
+   Runeforge re-roll's navy Gem plate (gold rim, theme hover) as a round 64px icon button with the shop's refresh glyph.
+   It is a SIBLING of the card button (a button cannot nest one), in `.hcslot`'s column under the card. The row under
+   the card is RESERVED (`.hcreroll-slot`, fixed height) whether or not the button is there, so spending the re-roll
+   never moves the cards. Its 24px top margin clears the longest hover power text (Soren's runs 27px past `.hcbelow`;
+   measured over every hero 2026-10-15). No `cursor`: the global button rule paints the gauntlet. Once spent, every control unmounts. */
+.hcslot { position: relative; display: flex; flex-direction: column; align-items: center; }
+.hcreroll-slot { height: 68px; margin-top: 24px; display: flex; align-items: flex-start; justify-content: center; }
 .hcreroll {
-  /* Centred on the frame's BOTTOM-RIGHT corner (the frame is 245px, centred in the 300px card, 26px down: corner at
-     271px), clear of the name pill on the top edge (long names reach the top corners) and the Health pill. */
-  position: absolute; top: 250px; right: 6px; z-index: 6;
-  width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border-radius: 50%;
+  position: relative; z-index: 6;
+  width: 64px; height: 64px; padding: 0; display: grid; place-items: center; border-radius: 50%;
   border: 2px solid transparent; color: var(--ui-icon);
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -2px rgba(0, 0, 0, 0.66);
   transition: transform 0.16s ease;
 }
-.hcreroll svg { width: 21px; height: 21px; }
+.hcreroll svg { width: 32px; height: 32px; }
 .hcreroll:hover { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
-.hcslot:has(> .herocard:hover:not(:disabled)) > .hcreroll { transform: translateY(-6px); }
 .hcreroll:active { transform: translateY(1px); }
 /* THE SWAP (one-shot, transform/opacity only): the outgoing portrait fades on top (`dyingfade`, the combat death fade)
    while the incoming one pops in under it (`summonpop`, the summon pop), and the Refresh crystal's click flare

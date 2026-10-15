@@ -302,16 +302,19 @@ export function HeroSelect() {
               return (
                 <div key={id} className="hcslot">
                   {card}
-                  {canReroll && (
-                    <button
-                      className="hcreroll gtip"
-                      onClick={onReroll(i)}
-                      aria-label={`Re-roll ${hero.name}. Swaps this hero for a new one. One re-roll per hero select.`}
-                      data-tip="Re-roll this hero. Once per hero select."
-                    >
-                      <Icon name="refresh" />
-                    </button>
-                  )}
+                  {/* Centred under the difficulty pill; the row is reserved even once the re-roll is spent. */}
+                  <div className="hcreroll-slot">
+                    {canReroll && (
+                      <button
+                        className="hcreroll gtip"
+                        onClick={onReroll(i)}
+                        aria-label={`Re-roll ${hero.name}. Swaps this hero for a new one. One re-roll per hero select.`}
+                        data-tip="Re-roll this hero. Once per hero select."
+                      >
+                        <Icon name="refresh" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             }

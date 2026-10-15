@@ -40,6 +40,8 @@ interface Live {
   channel: { send: (e: string, p: unknown) => void; close: () => void } | null;
   fightSent: unknown;
   keyWanted: boolean;
+  /** The last heartbeat a watcher's arrival asked for (throttled). */
+  askedAt: number;
 }
 let live: Live | null = null;
 let remote: LiveRemote = liveRemote;
@@ -57,16 +59,30 @@ function beat(): void {
   }).then((n) => { if (live === l) setWatchers(l, Number(n) || 0); }).catch(() => undefined);
 }
 
+/** A watcher's arrival is HEARD at once (owner ask 2026-10-15: no 15 s wait to start). The game's channel is joined
+ *  for LISTENING when the game is listed (a passive subscription: nothing is sent on it while unwatched); a joining
+ *  watcher asks it for a keyframe, and a game not yet publishing answers with an immediate heartbeat (throttled), whose
+ *  watcher count starts publishing. */
+const ASK_THROTTLE_MS = 2000;
+function onBroadcast(l: Live, event: string): void {
+  if (event !== SPECTATE_KEY_EVENT) return;
+  if (l.pub) { l.keyWanted = true; frames.schedule(undefined); return; }
+  const now = Date.now();
+  if (now - l.askedAt < ASK_THROTTLE_MS) return;
+  l.askedAt = now;
+  beat();
+}
+
 function setWatchers(l: Live, n: number): void {
   const was = l.watchers;
   l.watchers = n;
-  if (n > 0 && !l.channel) {
-    l.channel = remote.channel(l.gameId, (event) => { if (event === SPECTATE_KEY_EVENT) { l.keyWanted = true; frames.schedule(undefined); } });
+  if (n > 0 && !l.pub) {
+    if (!l.channel) l.channel = remote.channel(l.gameId, (event) => onBroadcast(l, event));
     l.pub = newPublisher('p1');
     l.keyWanted = true;
     setSpectatorTap(true, 'p1', l.channel.send, () => frames.schedule(undefined));
     frames.schedule(undefined);
-  } else if (n === 0 && l.channel) {
+  } else if (n === 0 && l.pub) {
     stopPublishing(l);
   } else if (n > was) {
     l.keyWanted = true; // a newcomer: the next publish is a keyframe
@@ -74,10 +90,9 @@ function setWatchers(l: Live, n: number): void {
   }
 }
 
+/** Stop publishing (nobody watching any more): the channel stays joined, listening for the next watcher. */
 function stopPublishing(l: Live): void {
   setSpectatorTap(false, null, null);
-  l.channel?.close();
-  l.channel = null;
   l.pub = null;
   l.fightSent = null;
 }
@@ -104,8 +119,10 @@ const frames = createDeferredWriter<undefined>(() => {
 
 function start(run: RunState): void {
   const gameId = rankedRunIdOf(run);
-  live = { gameId, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false };
-  live.timer = window.setInterval(beat, LIVE_HEARTBEAT_MS);
+  const l: Live = { gameId, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, askedAt: 0 };
+  live = l;
+  l.timer = window.setInterval(beat, LIVE_HEARTBEAT_MS);
+  l.channel = remote.channel(gameId, (event) => onBroadcast(l, event)); // listening only, until someone watches
   // the first beat is the round / phase key change in the subscriber (one registration, not two)
 }
 
@@ -115,6 +132,8 @@ function stop(ended: number | null | 'abandon'): void {
   live = null;
   if (l.timer != null) window.clearInterval(l.timer);
   stopPublishing(l);
+  l.channel?.close();
+  l.channel = null;
   void remote.end(l.gameId, ended === 'abandon' ? null : ended).catch(() => undefined);
 }
 
@@ -139,11 +158,11 @@ export function installLivePublisher(): () => void {
     const l = live!;
     const key = `${run.wave}|${phaseOf(run)}`;
     if (key !== l.lastKey) { l.lastKey = key; beat(); }
-    if (l.channel) frames.schedule(undefined);
+    if (l.pub) frames.schedule(undefined);
   });
   return () => { unsub(); stop('abandon'); };
 }
 
 /** For the tests: the live state. */
 export const liveState = (): { gameId: string; watchers: number; publishing: boolean } | null =>
-  live ? { gameId: live.gameId, watchers: live.watchers, publishing: !!live.channel } : null;
+  live ? { gameId: live.gameId, watchers: live.watchers, publishing: !!live.pub } : null;

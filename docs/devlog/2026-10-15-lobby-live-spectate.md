@@ -38,9 +38,14 @@ oracle R-LIVE-01..03.
 
 ## Known limits
 
-- Join latency up to one heartbeat (15 s) before the player starts publishing; the persisted keyframe covers the
-  screen meanwhile if one exists.
-- Perf 0 vs 1 spectator on the prod build waits on the migration being applied.
+- (Fixed) Join latency: the player's client joins its game's channel to LISTEN when the game is listed; a joining
+  watcher's key request triggers an immediate heartbeat, so publishing starts in about a second (measured live:
+  745 ms from Watch to the first frame), not on the next 15 s beat.
+- The watched seat is labelled with the watched player's name on the rail (it was "You").
+- Live E2E (2026-10-15, after the migration): a real ranked game on one anonymous identity watched from a second:
+  list, shop, combat, the end placement and the return to the list all worked.
+- Player perf 0 vs 1 spectator (prod build, busy late turn): p95 2.8 vs 2.8 ms, p99 5.5 vs 5.3 ms, about 0.6% of
+  frames over 6.25 ms in both; no measurable cost.
 
 ## Deploy
 

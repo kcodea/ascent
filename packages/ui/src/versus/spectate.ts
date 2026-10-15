@@ -86,6 +86,10 @@ export function spectatorRunOf(view: VersusSpectatorView, seat: VersusSeat, id: 
     runDamage: {},
     runProcs: {},
   } as unknown as RunState;
+  // A LIVE RANKED LOBBY game's own seat is labelled "You" (for its player): the watch screen names the WATCHED player
+  // there instead (the rail, the recaps). Cached per lobby object, so an unchanged lobby keeps its reference.
+  const named = useSpectate.getState().name;
+  if (named && view.lobby) (base as { lobby?: RunState['lobby'] }).lobby = watchedLobby(view.lobby as NonNullable<RunState['lobby']>, named);
   // The game's own end screen is never drawn for a spectator (its buttons act on the store): the last frame holds and
   // the watch chrome shows the placement instead (live/LiveWatchBar).
   if (view.phase === 'gameover' || view.phase === 'victory') return null;
@@ -100,6 +104,16 @@ export function spectatorRunOf(view: VersusSpectatorView, seat: VersusSeat, id: 
   if (base.lastCombat) return base;
   const fight = round ? ((seat === 'p1' ? round.p1_result : round.p2_result) as CombatResult | null) : null;
   return fight ? { ...base, lastCombat: fight } : null; // the round row is not here yet: hold the previous frame
+}
+
+const watchedLobbies = new WeakMap<NonNullable<RunState['lobby']>, { name: string; lobby: NonNullable<RunState['lobby']> }>();
+/** The lobby with its own seat (`s0`) labelled by the watched player's name. */
+function watchedLobby(lobby: NonNullable<RunState['lobby']>, name: string): NonNullable<RunState['lobby']> {
+  const hit = watchedLobbies.get(lobby);
+  if (hit && hit.name === name) return hit.lobby;
+  const out = { ...lobby, seats: lobby.seats.map((seat) => (seat.id === 's0' ? { ...seat, label: name } : seat)) };
+  watchedLobbies.set(lobby, { name, lobby: out });
+  return out;
 }
 
 /** Live match state from the session: enter, keep, or leave the watch screen. Only ever called for a seatless member. */

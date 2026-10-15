@@ -99,7 +99,7 @@ export function LiveGames(): JSX.Element | null {
                   </div>
                   <div className="lb-row-outcome lv-state">
                     <div className="lv-status">{liveStatusText(r)}</div>
-                    <div className="lv-watchers"><Icon name="eye" />{r.spectators} watching</div>
+                    {r.phase !== 'end' && <div className="lv-watchers"><Icon name="eye" />{r.spectators} watching</div>}
                     <button type="button" className="lb-btn lb-watch pressable" disabled={joining !== null || r.phase === 'end' || r.spectators >= 20}
                       onClick={() => watch(r)} aria-label={`Watch ${r.display_name}`}>
                       {joining === r.game_id ? 'Joining…' : r.spectators >= 20 ? 'Full' : 'Watch'}

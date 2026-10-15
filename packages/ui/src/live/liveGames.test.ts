@@ -65,7 +65,7 @@ describe('the player side: presence and publishing', () => {
     await flush();
     expect(net.r.heartbeat).toHaveBeenCalledTimes(1);
     expect(pubMod.liveState()?.publishing).toBe(false);
-    expect(net.r.channel).not.toHaveBeenCalled(); // nobody watching: nothing opens
+    expect(net.sent).toEqual([]); // nobody watching: the channel only listens, nothing is sent
     // a watcher arrives: the next heartbeat opens the channel and a keyframe goes out
     watching = 1;
     vi.advanceTimersByTime(pubMod.LIVE_HEARTBEAT_MS);
@@ -83,6 +83,23 @@ describe('the player side: presence and publishing', () => {
     await flush();
     expect(net.r.end).toHaveBeenCalledWith(expect.any(String), 3);
     expect(pubMod.liveState()).toBeNull();
+    off();
+  });
+
+  it('a joining watcher is heard at once: its key request starts publishing without waiting for the heartbeat', async () => {
+    let watching = 0;
+    const net = fakeRemote(() => watching);
+    pubMod.setLiveRemoteForTests(net.r);
+    const off = pubMod.installLivePublisher();
+    useGame.setState({ run: rankedRun(), replaying: false, showTitle: false });
+    await flush();
+    expect(pubMod.liveState()?.publishing).toBe(false);
+    // a watcher joins (the watch RPC counted it) and asks for a keyframe on the game's channel
+    watching = 1;
+    net.push('spectate_key', {});
+    await flush();
+    expect(net.r.heartbeat).toHaveBeenCalledTimes(2); // the registration + the immediate answer, no 15 s wait
+    expect(pubMod.liveState()?.publishing).toBe(true);
     off();
   });
 
@@ -136,6 +153,7 @@ describe('the viewer', () => {
     expect(g.replaying).toBe(true);
     expect(g.run.wave).toBe(3);
     expect(g.run.heroId).toBe('warden');
+    expect(g.run.lobby?.seats.find((s) => s.id === 's0')?.label).toBe('Watched Wanda'); // the rail names them, not "You"
     // view only
     const shown = g.run;
     g.dispatch({ type: 'roll' });

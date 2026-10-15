@@ -27,6 +27,15 @@ oracle R-LIVE-01..03.
   and the game's own end screen never drawn for a spectator (its buttons would act on the store; the watch chrome
   shows the placement instead).
 
+## Found by the FX parity harness
+
+- A run parked under the TITLE screen (a saved Continue loaded at boot) was listed as live: `liveEligible` now
+  requires the player to be in the game (`!showTitle`), and the subscription re-checks when the title opens or
+  closes (back to the menu delists with an abandon-style end; Continue lists again).
+- The fight rode EVERY combat message as a fresh object, so a watcher's replay restarted on each delta: it now rides
+  keyframes only, and the watcher keeps the object when the same fight is re-sent.
+- Spectator FX/sound/animation parity (all modes): see `2026-10-15-spectator-fx-parity.md`.
+
 ## Known limits
 
 - Join latency up to one heartbeat (15 s) before the player starts publishing; the persisted keyframe covers the

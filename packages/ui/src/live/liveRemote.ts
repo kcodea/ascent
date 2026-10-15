@@ -44,6 +44,7 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
     return c;
   };
   async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+    // rows: every lobby_live_* RPC returns a scalar, nothing, or one row (the watched game).
     const { data, error } = await db().rpc(fn, args);
     if (error) fail(error);
     return data as T;

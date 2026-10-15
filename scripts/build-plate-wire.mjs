@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = resolve(HERE, '../apps/web/public/frames/cardplate.webp');
+const SRC = resolve(HERE, '../apps/web/public/frames/cardplate-standard.webp'); // the STANDARD plate (2026-10-15)
 const OUT = resolve(HERE, '../apps/web/public/frames/cardplate-wire.webp');
 
 /** Rig values (plate-dissolve-preview.html → the "Wireframe" section). */

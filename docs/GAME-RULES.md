@@ -742,14 +742,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   run, the frame recorded on that run, like a skin). Recorded per run, so opponents see it on your seat (combat
   portrait, Now Facing, lobby rail, fight recap, Match details, the Hall, Career rows) while their **Show opponent
   cosmetics** is on. No frame, an unknown or a retired one paints today's default ring. Presentation only.
-- **Card plates (2026-10-14; oracle R-PROG-PLATE-01..03).** A cosmetic plate that replaces the standard plate behind
-  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Six, all
-  Legendary from crates: **Aquarium Rocks**, **Amethyst**, **Bamboo**, **Beach**, **Magma** and **Moonstone**.
-  New plates come from the owner's Card Backplates folder and are Legendary unless the owner says otherwise. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
+- **The standard and gilded plates (2026-10-15; oracle R-PROG-PLATE-02).** Every card without a plate cosmetic wears
+  ONE standard plate, whatever its tribe (the tribe name prints along its bottom edge), with a text darkening shaped to
+  it. Every GILDED card wears the painted gold gilded plate, with no text darkening and no colour filter, whatever plate
+  its owner wears. A Whisper keeps its own plate.
+- **Card plates (2026-10-14; oracle R-PROG-PLATE-01..05).** A cosmetic plate that replaces the standard plate behind
+  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Nineteen,
+  all from crates. **Ancient:** Mooncloud, Simple Black, Simple White. **Epic:** Moonstone, Bamboo, Smooth Aqua, Smooth
+  Blue, Smooth Red. **Legendary:** Aquarium Rocks, Amethyst, Beach, Magma, Galaxy, Crackling Gemstone, Hand Drawn, Blue
+  Hand Drawn, Green Hand Drawn, Topaz, Blossom. New plates come from the owner's Card Backplates folder and are
+  Legendary unless the owner says otherwise. Most are LAYERED: an interior (Brown by default; Dark, Magma, Water and
+  Simple Black too), then the text darkening, then the frame on top, so a frame's effects are never darkened. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
   plate" takes it off; hovering an owned plate floats a card wearing it). A worn plate replaces EVERY standard plate,
-  whatever the card's tribe (the tribe name still prints on the plate's bottom gem), and brings its own rules-text
-  darkening (its own shape, opacity, blend and seat). **Gilded cards never change**: they always keep the original
-  plate hued gold. A Whisper keeps its own plate. Recorded per run like the portrait frame, so the players you meet see
+  whatever the card's tribe (the tribe name still prints along the bottom), and brings its own rules-text darkening
+  (its own shape, opacity, blend and seat), or none. **Gilded cards never change**: they always wear the gilded plate.
+  A Whisper keeps its own plate. Recorded per run like the portrait frame, so the players you meet see
   it on your cards while their **Show opponent cosmetics** is on. No plate, an unknown or a retired one shows the
   standard plates. Presentation only.
 - **Show opponent cosmetics (Settings, on by default; was "Show opponent skins"; R-PROG-SKINS-02).** Off, every

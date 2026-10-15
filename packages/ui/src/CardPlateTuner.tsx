@@ -6,9 +6,9 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV-only tuner for the HAND CARD BACKPLATE — the plate's geometry, the rules-text shrink thresholds, the
- * golden tint, and the tribe-name label. Values persist to localStorage and apply live through `--plate-*`
- * CSS vars.
+ * DEV-only tuner for the HAND CARD BACKPLATE — the plate's geometry, the rules-text shrink thresholds and the
+ * tribe-name label (the gilded gold tint was retired 2026-10-15: gilded cards wear a painted gold plate). Values
+ * persist to localStorage and apply live through `--plate-*` CSS vars.
  *
  * "Copy values" grabs the JSON to paste back as the shipped defaults in `cardPlateConfig.ts` — and those MUST
  * be mirrored into the CSS `var(--plate-*, …)` fallbacks in styles.css. `cardPlateConfig.ts` itself DOES ship
@@ -36,11 +36,6 @@ const SPECS: Record<keyof CardPlateConfig, [string, TunerUnit | undefined, strin
   bucketL:       ['Shrink to small at', undefined, 'Character count at which rules text steps down to the small font size.', 'Rules text', NOT_LIVE],
   bucketXl:      ['Shrink to smallest at', undefined, 'Character count at which rules text steps down to the smallest font size.', 'Rules text', NOT_LIVE],
 
-  goldSepia:     ['Sepia', undefined, 'Warmth of the gold base. Higher is warmer and more uniform.', 'Gilded tint'],
-  goldSat:       ['Saturation', '×', 'Colour intensity of the gilding. Higher is more vibrant.', 'Gilded tint'],
-  goldBright:    ['Brightness', '×', 'Overall lightness of the gilding.', 'Gilded tint'],
-  goldContrast:  ['Contrast', '×', 'Separation between the gilding’s lights and darks.', 'Gilded tint'],
-  goldHue:       ['Hue shift', '°', 'Positive shifts toward yellow-gold, negative toward orange-red.', 'Gilded tint'],
 
   tribeNameY:    ['Vertical position', '×', 'How far down the tribe plate the label sits. 1 is the very bottom gem.', 'Tribe name'],
   tribeNameX:    ['Horizontal offset', '×', 'Offset from centre, as a multiple of card width. Positive moves right.', 'Tribe name'],
@@ -51,7 +46,6 @@ const SPECS: Record<keyof CardPlateConfig, [string, TunerUnit | undefined, strin
 const ORDER: (keyof CardPlateConfig)[] = [
   'scale', 'top', 'radius',
   'bucketM', 'bucketL', 'bucketXl',
-  'goldSepia', 'goldSat', 'goldBright', 'goldContrast', 'goldHue',
   'tribeNameY', 'tribeNameX', 'tribeNameSize',
 ];
 

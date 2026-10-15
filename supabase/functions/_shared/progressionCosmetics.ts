@@ -635,10 +635,33 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'Aquarium Rocks.png'),
   // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".
   cardPlate('plate_amethyst', 'Amethyst', 'legendary', 'Amethyst.png'), // shares its name with the Amethyst portrait frame (owner 2026-10-15)
-  cardPlate('plate_bamboo', 'Bamboo', 'legendary', 'Bamboo.png'),
-  cardPlate('plate_beach', 'Beach', 'legendary', 'Beach.png'),
-  cardPlate('plate_magma', 'Magma', 'legendary', 'Magma.png'),
-  cardPlate('plate_moonstone', 'Moonstone', 'legendary', 'Moonstone.png'),
+  cardPlate('plate_bamboo', 'Bamboo', 'epic', 'Bamboo.png'), // owner 2026-10-15: Epic
+  cardPlate('plate_beach', 'Beach', 'legendary', 'Beach Frame.png'), // layered on the Water interior (2026-10-15)
+  cardPlate('plate_magma', 'Magma', 'legendary', 'Magma Frame.png'), // layered on the Magma interior (2026-10-15)
+  cardPlate('plate_moonstone', 'Moonstone', 'epic', 'Moonstone Frame.png'), // owner 2026-10-15: Epic; // layered on the Dark interior (2026-10-15)
+  // Owner 2026-10-15: "create a new plate using the dark interior and mooncloud plate" (Legendary by the folder rule).
+  cardPlate('plate_mooncloud', 'Mooncloud', 'ancient', 'Mooncloud.png'), // owner 2026-10-15: Ancient ("make mooncloud ascendant rarity", meaning Ancient)
+  // Owner 2026-10-15: "create a new one with dark interior and galaxy frame".
+  cardPlate('plate_galaxy', 'Galaxy', 'legendary', 'Galaxy.png'),
+  // Owner 2026-10-15: "i added more frames to the folder, can you add them all in with the dark interior".
+  cardPlate('plate_crackling_gemstone', 'Crackling Gemstone', 'legendary', 'Crackling Gemstone.png'),
+  cardPlate('plate_hand_drawn', 'Hand Drawn', 'legendary', 'Hand Drawn.png'),
+  cardPlate('plate_blue_hand_drawn', 'Blue Hand Drawn', 'legendary', 'Blue Hand Drawn.png'),
+  cardPlate('plate_green_hand_drawn', 'Green Hand Drawn', 'legendary', 'Green Hand Drawn.png'),
+  // Owner 2026-10-15: "the simpleblack and simplewhite should go on top of the new simpleblack interior"; Topaz came in
+  // the same drop with no interior named, so it takes the default (Brown).
+  // Owner 2026-10-15: "make simple black and simple white Ascendant tier rewards" -> "i meant ancient rarity".
+  cardPlate('plate_simple_black', 'Simple Black', 'ancient', 'Simpleblack Frame.png'),
+  cardPlate('plate_simple_white', 'Simple White', 'ancient', 'Simplewhite.png'),
+  cardPlate('plate_topaz', 'Topaz', 'legendary', 'Topaz.png'),
+  // Owner 2026-10-15: "i added three new \"smooth\" frames - pair them with the dark interior"; then "make moonstone,
+  // bamboo, and the smooth frames all epic rarity".
+  cardPlate('plate_smooth_aqua', 'Smooth Aqua', 'epic', 'Smooth Aqua.png'),
+  cardPlate('plate_smooth_blue', 'Smooth Blue', 'epic', 'Smooth Blue.png'),
+  cardPlate('plate_smooth_red', 'Smooth Red', 'epic', 'Smooth Red.png'),
+  // Owner 2026-10-15: the first LAYERED plate (built as "Test Blossom"), then "rename the existing Test blossom in game to
+  // Blossom". Legendary by the folder rule.
+  cardPlate('plate_blossom', 'Blossom', 'legendary', 'Test Blossom Frame.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

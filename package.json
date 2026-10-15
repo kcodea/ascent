@@ -119,7 +119,8 @@
     "guides:pull": "tsx packages/tools/src/guides-pull.ts",
     "versus:bundle": "tsx packages/tools/src/versus-bundle.ts",
     "versus:parity": "tsx packages/tools/src/versus-parity.ts",
-    "strength": "tsx packages/tools/src/strength/cli.ts"
+    "strength": "tsx packages/tools/src/strength/cli.ts",
+    "plates:build": "node scripts/build-card-plate.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-15',
     changes: [
+      {
+        category: 'Systems',
+        text: 'New card look: a fresh standard plate for every card, a painted gold plate for Gilded cards, and thirteen more Card Plates to find in crates.',
+        details: [
+          'Every card now wears the same standard plate, whatever its tribe. The tribe name still shows along the bottom.',
+          'Gilded cards wear their own painted gold plate, always, even if you have a Card Plate equipped.',
+          'New Card Plates: Mooncloud, Simple Black and Simple White (Ancient); Smooth Aqua, Smooth Blue and Smooth Red (Epic); Galaxy, Crackling Gemstone, Hand Drawn, Blue Hand Drawn, Green Hand Drawn, Topaz and Blossom (Legendary). Moonstone and Bamboo are now Epic.',
+          'Some plates have decorations that reach over the card, like Blossom\'s flowers and Mooncloud\'s clouds.',
+        ],
+      },
       { category: 'Systems', text: 'Live Games: watch ranked games as they happen. Open Live Games from the main menu, pick a player and press Watch. The best ranked players are listed first.' },
       { category: 'Systems', text: 'A minion given a new trigger now shows its badge. Hum with a kept Seed shows the Echo badge. A minion whose own badge comes first keeps it.' },
       { category: 'Systems', text: 'Spectating now shows the whole game: every effect, animation and sound the player gets, the End of Turn beats, spell casts, the combat exit and the music.' },

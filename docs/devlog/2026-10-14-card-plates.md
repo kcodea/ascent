@@ -59,11 +59,30 @@ sections to a row").
   so the edge is near-identical, not exact. A per-plate wire would need `scripts/build-plate-wire.mjs` run per plate.
 - A Whisper keeps its own plate (its Set 4 identity). Flagged for the owner: say so if a worn plate should cover it too.
 
-## Adding the NEXT card plate
+## Adding the NEXT card plate (LAYERED, the default from 2026-10-15)
 
-1. Export the plate at 800x1244 (the standard plate body) to `apps/web/public/frames/plates/<id>.webp` and its text
-   darkening to `<id>-backbox.webp`.
-2. One line in `cosmetics.ts`: `cardPlate('plate_<id>', '<Name>', '<rarity>')`, and one entry in `SETTINGS` in
-   `packages/ui/src/cardPlate/cardPlateLook.ts` (start from Aquarium Rocks' numbers, tune live with the Card Text tuner).
-3. `npm run progression:shared`, update the pinned counts in `cosmetics.test.ts`, merge, deploy `progression-inventory`.
-   No SQL (the slot exists). `cardPlate.test.tsx` fails if a plate has no look or its images are missing.
+Owner 2026-10-15: *"going forward i think its better to do it this way, with the layers, and we can create different
+bottom layers. if i dont specify, just default to the brown one"*, and *"we will call them interior"*. A plate is three
+layers, bottom to top: the **interior** (a shared plate body, default **Brown**), the text **darkening**, and the plate's
+own **frame** (above the darkening, below the name and rules text, so its flowers or vines are never darkened).
+
+1. The owner drops a frame PNG in `Reference Art/Card Backplates/` (946x1471, the standard plate body). It is
+   **Legendary** unless the owner says otherwise. Standard.png and Gilded.png there are the base plates, not rewards.
+2. Check the frame is centred: measure its opening's centre against the image centre (Blossom's was 11px left).
+   Fix the art's centring first, then let the owner nudge by eye with `frameX`.
+3. Build its files (the frame layer, a copy of Aquarium Rocks' darkening, and the Collection image):
+   `npm run plates:build -- --id plate_<name> --frame "<path to the PNG>"`.
+   Another interior: `--interior <name>` (add it once with `--interior-src <png> --interior <name>`).
+4. One line in `cosmetics.ts`: `cardPlate('plate_<name>', '<Name>', 'legendary', '<file>.png')`, and one entry in
+   `SETTINGS` in `packages/ui/src/cardPlate/cardPlateLook.ts`: `{ ...AQUARIUM_ROCKS, layered: true }` (plus
+   `interior` if not Brown, and `frameX` once the owner nudges it).
+5. **Fit the interior to the frame:** `npm run plates:build -- --id plate_<name> --interior <name> --fit` prints the
+   `interiorSx` (sideways stretch) that tucks the interior 8px under the frame's opening; set it in `SETTINGS` and rebuild
+   the Collection image with the same `--interior-sx`. The interior moves with `frameX`, so a nudge needs no rebuild;
+   an interior or stretch change does, or the Collection shows stale art. A plate whose interior is dark enough takes
+   `darken: false` (no text darkening): Beach, Magma and Moonstone.
+6. `npm run progression:shared`, update the pinned counts in `cosmetics.test.ts` and the Collection totals, merge,
+   deploy `progression-inventory`. No SQL (the slot exists). `cardPlate.test.tsx` fails if a plate has no look or any
+   of its images is missing.
+
+The first six plates (Aquarium Rocks to Moonstone) are single-image plates and stay so until the owner asks.

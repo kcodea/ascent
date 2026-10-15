@@ -350,7 +350,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                     {shown.map((c) => (
                       <li key={c.id}>
                         <ItemTile
-                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.plate : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
+                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.thumb : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
                           onPick={onPick} onHover={c.target?.type === 'card' || c.category === 'card_plate' ? onHover : undefined}
                         />
@@ -483,7 +483,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   const voice = item.category === 'announcer';
   const emote = item.category === 'emote';
   const plate = item.category === 'card_plate';
-  const plateArt = plate ? plateLookOf(item)?.plate : undefined;
+  const plateArt = plate ? plateLookOf(item)?.thumb : undefined;
   // An announcer's sample stops when you look at another item or leave the screen.
   useEffect(() => (voice ? stopAnnouncerPreview : undefined), [voice, item.id]);
   return (

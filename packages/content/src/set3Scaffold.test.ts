@@ -76,6 +76,9 @@ describe('set 3 scaffold', () => {
       // to Set 4 the same day. Every earlier minion keeps its position.
       'd4_galas', 'd4_tolan', 'd4_tamby', 'd4_whisp',
       'd3_whaloo', 'd3_falx', 'd3_morro', 'd3_shush', // the first Set 3-authored Dragons (owner 2026-10-14), appended after the swapped-in four
+      'd3_gatherer', 'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener', // Dragon batch 2 (owner 2026-10-15)
+      'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', // owner additions on #2097 (2026-10-15)
+      'd2_chorus', 'd2_transcendence', 'd2_flutterdrake', // the three carried Set 2 Dragons (2026-10-15), by reference
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.
     for (const id of ['spore', 'karthus', 'ryme', 'gravebody', 'thunderingabomination', 'steadfast', 'gravewarden', 'cryptscribe', 'watcher', 'graverobber', 'bonetaxer', 'cryptbroker', 'gravetwin']) {

@@ -9,9 +9,8 @@
  *      deliberately kept. A definition nothing uses is a stale definition.
  *
  * `KEEP` is the deliberately-kept list: `stealth` is a badge keyword no printed card carries yet (the engine
- * supports it); `watcher` is Compendium-only (the reactive family has no text term — `pill: false`);
- * `resilientward` is granted only by the dev-only Ancients (the Warden's War Aegis, 2026-09-26), whose texts are
- * not a shipped surface yet.
+ * supports it); `watcher` is Compendium-only (the reactive family has no text term — `pill: false`).
+ * `resilientward` left the kept list on 2026-10-15: a Gilded Whispwarder (Set 3) prints it.
  */
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, EPIC_RUNES, EQUIPMENT, GIFTS, QUEST_DEFS, RUNES } from '@game/content';
@@ -23,7 +22,7 @@ import { colourTerms } from './termColour';
 import { renameTerms } from './terms';
 import { questObjectiveText, questRewardText } from './questText';
 
-const KEEP = new Set(['stealth', 'watcher', 'resilientward']);
+const KEEP = new Set(['stealth', 'watcher']);
 
 /** Every shipped rules text, with its owner for the failure message. */
 function shippedTexts(): { owner: string; keywords: Keyword[]; text: string }[] {

@@ -189,6 +189,12 @@ export interface UnitFrame {
   spellsCastCombat?: number;
   /** Whaloo (Set 3): Whispers it has cast so far THIS fight (its "3 times per combat" cap, printed live). */
   whisperCastsUsed?: number;
+  /** Immune Iggy (Set 3, 2026-10-15): this body's swings so far this fight, for its live immune countdown. */
+  attacksMade?: number;
+  /** Seed (Set 3, 2026-10-15): the granted Drake Pup Echo stacks it carries (from the snapshot), for the live text. */
+  seedEchoes?: number;
+  /** Hatcher (Set 3, 2026-10-15): its Whisper's tier progression, from the snapshot (display-only). */
+  whisperTick?: number;
   /** Set 3 Whispers: this unit's SIDE's per-Whisper improvement as the fight has raised it so far (a combat Runebind),
    *  stamped on every unit of that side once one lands. Tolan / a Whisper print it live; absent = the run's value. */
   whisperImproveLive?: Readonly<Record<string, number>>;
@@ -259,6 +265,8 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   taughtSpellId: s.taughtSpellId, // Mage-Pup: the combat card names the spell it was taught
   rallySpreadAtk: s.rallySpreadAtk, // Sunmane Herald: the combat card shows the live escalating rally grant
   grantedRallyShout: s.grantedRallyShout, // Auctioneer × War: the combat card prints the granted Rally
+  seedEchoes: s.seedEchoes, // Seed (Set 3): the Drake Pup Echo stacks print in combat too
+  whisperTick: s.whisperTick, // Hatcher: its Whisper's tier prints in combat too
   riseTint: s.riseTint, // Risen × War: the Undying target's Rise is red from the first frame
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
@@ -374,12 +382,13 @@ export function computeFrame(
   // cast count (Whaloo's cap), folded from the combat Whisper casts so far.
   const whisperImp: Record<'player' | 'enemy', Record<string, number> | undefined> = { player: undefined, enemy: undefined };
   const whisperCasts = new Map<string, number>();
+  const attacksBy = new Map<string, number>(); // Immune Iggy: each body's swings so far (its immune countdown)
   const whisperTriggerSeen = new Set<string>();
   /** uid → how far below 0 its last hit took it (see the `dmg` branch). */
   const overkill = new Map<string, number>();
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
-    if (e.type === 'attack') attackCount++;
+    if (e.type === 'attack') { attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1); }
     if (e.type === 'spellcast') spellCasts[e.side]++;
     if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
       // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
@@ -615,6 +624,8 @@ export function computeFrame(
   for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.player; }
   for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.enemy; }
   if (whisperCasts.size > 0) for (const u of [...player, ...enemy]) { const n = whisperCasts.get(u.uid); if (n) u.whisperCastsUsed = n; }
+  // Only the bodies whose text reads it (Immune Iggy), so no other unit's memo churns on every swing.
+  for (const u of [...player, ...enemy]) { if (CARD_INDEX[u.cardId]?.attackImmuneTurns) { const n = attacksBy.get(u.uid); if (n) u.attacksMade = n; } }
   if (whisperImp.player) for (const u of player) u.whisperImproveLive = whisperImp.player;
   if (whisperImp.enemy) for (const u of enemy) u.whisperImproveLive = whisperImp.enemy;
   // Keep a DEAD unit on screen for the beat in which it is still DEALING damage — a Deathrattle whose Echo

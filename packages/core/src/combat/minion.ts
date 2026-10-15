@@ -1,4 +1,4 @@
-import { type BoardMinion, type CardDef, type Minion, type Side, type Tribe } from '../types';
+import { type BoardMinion, type CardDef, type EffectDef, type Minion, type Side, type Tribe } from '../types';
 
 export type CardIndex = Record<string, CardDef>;
 
@@ -36,6 +36,24 @@ export function foldTribes<T extends string>(tribe: T, tribe2: T | undefined, ex
   return seen[1] === undefined ? { tribe: seen[0]! } : { tribe: seen[0]!, tribe2: seen[1] };
 }
 
+/** The token a Seed's granted Echo summons (Gardener's Whisper, Set 3 2026-10-15). */
+export const SEED_TOKEN_ID = 'd3_drakepup';
+/** ONE Seed stack: "Echo: summon a 3/3 Drake Pup with Taunt". `fixed`: a stack is one Pup whatever the body's gilding
+ *  (a gilded Seed grants two stacks instead). `seed` marks it so the presentation can count the stacks. */
+export const SEED_ECHO_EFFECT: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: SEED_TOKEN_ID, fixed: true, seed: true } };
+/** `n` Seed stacks as `n` separate Echo effects, each its own trigger (and its own beat). Fresh objects each time. */
+export function seedEchoEffects(n: number): EffectDef[] {
+  const out: EffectDef[] = [];
+  for (let i = 0; i < n; i++) out.push({ ...SEED_ECHO_EFFECT, params: { ...SEED_ECHO_EFFECT.params } });
+  return out;
+}
+/** How many Seed stacks an effect list carries (the presentation's count). */
+export function seedEchoCount(effects: readonly EffectDef[]): number {
+  let n = 0;
+  for (const e of effects) if (e.do === 'deathrattleSummon' && e.params?.seed === true) n++;
+  return n;
+}
+
 /**
  * Clone a board minion into a live combat instance. Pulls identity/effects from
  * the (immutable) CardDef and current stats from the BoardMinion. The CardDef
@@ -54,8 +72,8 @@ export function instantiate(
   // printed one (owner ruling 2026-08-27). An `echoStripped` body ("summon a copy WITHOUT the Echo", marked
   // in the shop where there is no per-instance effects list to filter) drops every `onDeath` effect here —
   // the exact rule combat's own `stripEchoes` applies to copies created mid-fight.
-  let effects = board.copiedEcho?.length || board.grantedEffects?.length
-    ? [...card.effects, ...(board.copiedEcho ?? []), ...(board.grantedEffects ?? [])]
+  let effects = board.copiedEcho?.length || board.grantedEffects?.length || board.seedEchoes
+    ? [...card.effects, ...(board.copiedEcho ?? []), ...(board.grantedEffects ?? []), ...seedEchoEffects(board.seedEchoes ?? 0)]
     : card.effects;
   if (board.echoStripped) effects = effects.filter((e) => e.on !== 'onDeath');
   const keywords = board.keywords ? [...board.keywords] : [...card.keywords];
@@ -90,10 +108,12 @@ export function instantiate(
     chosenOption: board.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
     taughtSpellId: board.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: board.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
+    whisperTick: board.whisperTick, // Hatcher: display-only (its Whisper's tier for the live text)
     eotTick: board.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
     // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack. Mauron
     // (attackImmuneAlways) seeds 1 and never spends it (see the swing site in simulate).
-    attackImmuneLeft: card.attackImmuneAlways ? 1 : card.attackImmuneTurns,
+    // Immune Iggy (2026-10-15): a GILDED copy reads its own count (`attackImmuneTurnsGilded`, 4 swings).
+    attackImmuneLeft: card.attackImmuneAlways ? 1 : (board.golden && card.attackImmuneTurnsGilded ? card.attackImmuneTurnsGilded : card.attackImmuneTurns),
 
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board

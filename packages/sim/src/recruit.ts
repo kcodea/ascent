@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -461,6 +461,10 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const pool = poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.effects.some((e) => e.on === 'onPlay'));
       conjureToHand(state, pool, count);
     },
+    grantRandomTribeMinion: (count, tribe) => {
+      const pool = poolOf(state).buyable.filter((c) => c.tier <= state.tier && defIsTribe(c, tribe as Tribe, state));
+      if (pool.length > 0) conjureToHand(state, pool, count);
+    },
     hasEffect: (t, on, doId) => instanceEffects(t as BoardCard).some((e) => e.on === on && (!doId || e.do === doId)),
     replayShout: (t) => { replayBattlecry(state, t as BoardCard); },
     hasEcho: (t, strict) => instanceEffects(t as BoardCard)
@@ -587,8 +591,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
  *  grafted trigger is as real in the shop as a printed one. */
 export function instanceEffects(card: BoardCard): EffectDef[] {
   const printed = CARD_INDEX[card.cardId]?.effects ?? [];
-  if (!card.copiedEcho?.length && !card.grantedEffects?.length) return [...printed];
-  return [...printed, ...(card.copiedEcho ?? []), ...(card.grantedEffects ?? [])];
+  const seeds = (card.seedEchoes ?? 0) + (card.seedEchoesTemp ?? 0); // Seed (Set 3): each stack is its own Echo
+  if (!card.copiedEcho?.length && !card.grantedEffects?.length && !seeds) return [...printed];
+  return [...printed, ...(card.copiedEcho ?? []), ...(card.grantedEffects ?? []), ...seedEchoEffects(seeds)];
 }
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions bake their recruit buffs in at doubled magnitude. */
@@ -2962,7 +2967,7 @@ export function mintHandSpells(state: RunState, cardId: string, count: number): 
  * honouring the hand cap. The `mintHandSpells` shape: a Whisper is a card arriving in hand, so the `onGainCard` round
  * fires per copy (Gangplank) under the same ledger contract. Only a `whisper` def mints this way.
  */
-export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1): void {
+export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number): void {
   const def = CARD_INDEX[cardId];
   if (!def?.whisper) return;
   let minted = 0;
@@ -2976,6 +2981,7 @@ export function mintWhisper(state: RunState, cardId: string, count: number, mult
       keywords: [...def.keywords],
       golden: false,
       ...(mult > 1 ? { whisperMult: mult } : {}),
+      ...(tier !== undefined ? { grantedTier: tier } : {}), // Hatcher's Whisper: the tier of Dragon it gets
     });
     minted++;
   }
@@ -3002,11 +3008,33 @@ export function mintRandomWhispers(state: RunState, count: number, mult = 1): vo
 /** The Whisper being cast right now carries its multiplier here (set by the reducer's Whisper branch around the
  *  cast), so the cast factory and Tamby's copy read it. 1 outside a Whisper cast. Module-scoped like the cast stacks. */
 const whisperMultStack: number[] = [];
-export function withWhisperMult<T>(mult: number, fn: () => T): T {
+const whisperTierStack: (number | undefined)[] = [];
+/** `tier`: the held copy's `grantedTier` (Hatcher's Whisper reads it; undefined for every other Whisper). */
+export function withWhisperMult<T>(mult: number, fn: () => T, tier?: number): T {
   whisperMultStack.push(Math.max(1, mult));
-  try { return fn(); } finally { whisperMultStack.pop(); }
+  whisperTierStack.push(tier);
+  try { return fn(); } finally { whisperMultStack.pop(); whisperTierStack.pop(); }
 }
 const currentWhisperMult = (): number => whisperMultStack[whisperMultStack.length - 1] ?? 1;
+const currentWhisperTier = (): number | undefined => whisperTierStack[whisperTierStack.length - 1];
+
+/** HATCHER: the tier its Whisper gets right now (T1, then one higher per Start of Turn on the board, capped at T6). */
+export const HATCHER_MAX_TIER = 6;
+export function hatcherTier(card: Pick<BoardCard, 'whisperTick'>): number {
+  return Math.min(HATCHER_MAX_TIER, 1 + (card.whisperTick ?? 0));
+}
+
+/** Grant a WHISPER KEYWORD (Bait's Taunt, Warding Call's Ward): added to `keywords` and recorded on `whisperKeywords`
+ *  only when the body lacked it, so the Start-of-Turn strip never takes away a keyword it had of its own. Resilient
+ *  Ward rides beside Ward (granting RW adds DS too, each recorded only if new). */
+export function applyWhisperKeyword(target: BoardCard, keyword: Keyword): void {
+  const add = keyword === 'RW' ? (['RW', 'DS'] as Keyword[]) : [keyword];
+  for (const k of add) {
+    if (target.keywords.includes(k)) continue;
+    target.keywords = [...target.keywords, k];
+    (target.whisperKeywords ??= []).push(k);
+  }
+}
 
 /** Every spell cast this game, of every kind (Shop spells, Gifts, Whispers, Rubies): the Vaultkeeper umbrella. */
 export function allSpellsCastThisGame(state: Pick<RunState, 'spellsCast' | 'rubyCasts'>): number {
@@ -3048,6 +3076,51 @@ export function applyWhisperBuff(target: BoardCard, source: string, attack: numb
   const list = (target.whisperBuffs ??= []);
   const row = list.find((b) => b.source === source);
   if (row) { row.attack += da; row.health += dh; row.count += 1; } else list.push({ source, attack: da, health: dh, count: 1 });
+}
+
+/** What a Whisper cast can leave on a body: its temporary stat rows and its temporary Seed stacks. */
+export interface WhisperMarks { rows: { source: string; attack: number; health: number; count: number }[]; seeds: number; keywords: Keyword[] }
+export function whisperMarksOf(card: BoardCard): WhisperMarks {
+  return { rows: (card.whisperBuffs ?? []).map((r) => ({ ...r })), seeds: card.seedEchoesTemp ?? 0, keywords: [...(card.whisperKeywords ?? [])] };
+}
+
+/** Hum's cap this turn: `count` (1), x2 Gilded. 0 = not a Hum. */
+export function humKeepCap(card: BoardCard): number {
+  const eff = instanceEffects(card).find((e) => e.do === 'whisperKeepOnThis');
+  if (!eff) return 0;
+  return (typeof eff.params?.count === 'number' ? eff.params.count : 1) * (card.golden ? 2 : 1);
+}
+
+/**
+ * After ONE Shop Whisper cast landed on `target` (the cast path snapshots `before` with `whisperMarksOf`): if the target
+ * is a Hum with a keep left this turn, whatever THIS cast added becomes permanent. Its stat delta leaves the temporary
+ * rows (the stats and the `buffs` ledger simply stay, as `keepWhisperBuffs` does for a whole body), and its Seed stacks
+ * move from the temporary lane to the permanent one (no cap: the owner wants 10+ stacks to work). Every cast counts as
+ * one Whisper (a Yazzus repeat is a second Whisper cast), so a Gilded Hum keeps the first two. The per-turn re-arm
+ * (`HUM_PER_TURN`, sim/whisper.ts) lives with the reducer's per-turn clears.
+ */
+export function keepWhispersOnHum(target: BoardCard, before: WhisperMarks): void {
+  const cap = humKeepCap(target);
+  if (cap <= 0 || (target.whisperKeptThisTurn ?? 0) >= cap) return;
+  target.whisperKeptThisTurn = (target.whisperKeptThisTurn ?? 0) + 1;
+  const rows = target.whisperBuffs ?? [];
+  for (const r of rows) {
+    // Back to what the row held before this cast: the cast's share is no longer temporary.
+    const b = before.rows.find((x) => x.source === r.source);
+    r.attack = b?.attack ?? 0;
+    r.health = b?.health ?? 0;
+    r.count = b?.count ?? 0;
+  }
+  const left = rows.filter((r) => r.count > 0 || r.attack !== 0 || r.health !== 0);
+  target.whisperBuffs = left.length > 0 ? left : undefined;
+  // Its Whisper keywords (Bait's Taunt, Warding Call's Ward) stop being temporary: they stay in `keywords`.
+  const kept = (target.whisperKeywords ?? []).filter((k) => before.keywords.includes(k));
+  target.whisperKeywords = kept.length > 0 ? kept : undefined;
+  const seeds = (target.seedEchoesTemp ?? 0) - before.seeds;
+  if (seeds > 0) {
+    target.seedEchoes = (target.seedEchoes ?? 0) + seeds;
+    target.seedEchoesTemp = before.seeds > 0 ? before.seeds : undefined;
+  }
 }
 
 /** Set 4 Beasts (Shop): did a friendly `params.tribe` body (default Beast) take a landed hit? */
@@ -3126,7 +3199,8 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
   // …and a GRAFTED Echo (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) is as real in
   // the shop as a printed one (the `instanceEffects` contract; combat folds the same list at instantiate).
-  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? []), ...(minion.grantedEffects ?? [])];
+  // …and every SEED stack (Gardener's Whisper, Set 3): `instanceEffects` folds them, one Echo per stack.
+  const effects = effectsOverride ?? instanceEffects(minion);
   if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
   // THE ECHO CUE (owner ask 2026-08-28): "the echo animation ... should play ANYTIME an echo is triggered".
@@ -4066,6 +4140,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyGiveAttackToOthers(shopArena(ctx.state, self), params);
   },
+  /** Gatherer (Set 3, 2026-10-15): a Shop-phase Rally (a forced Rally) gets the random Dragon now. */
+  rallyGrantRandomTribeMinion: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantRandomTribeMinion(shopArena(ctx.state, self), params);
+  },
+  /** Gravus (Set 3, 2026-10-15): a Shop Echo (a Sacrifice, a forced Echo) gives its Attack to 2 other friendlies, permanently. */
+  deathrattleGiveAttackToOthers: (ctx, self, params) => {
+    ARENA_EFFECTS.rallyGiveAttackToOthers(shopArena(ctx.state, self), params);
+  },
   rallyGetRubies: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyGetRubies(shopArena(ctx.state, self), params);
@@ -4851,6 +4934,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const m = currentWhisperMult();
     const v = whisperValue(ctx.state, def);
     applyWhisperBuff(self, str(params._source) || def.name, v.attack * m, v.health * m);
+    // Bait (2026-10-15): "+3/+5 and Taunt". The keyword lasts as long as the stats; a gilded copy does not double it.
+    const kw = str(params.keyword);
+    if (kw) applyWhisperKeyword(self, kw as Keyword);
     const imp = num(params.improve, 0);
     if (imp > 0) {
       const map = (ctx.state.whisperImprove ??= {});
@@ -4874,6 +4960,39 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  multiplier (a gilded Ripple from a Gilded Falx triggers it TWICE, each its own replay). A target with no Shout is
    *  refused before the cast (reducer, the Resonance precedent), so a cast that reaches here always has one; a Whisp
    *  echo landing on a Shout-less Whisp simply triggers nothing. */
+  /** WELL OF DRAGONS (Well Watcher's Whisper, owner 2026-10-15): Discover a `tribe` minion (the run's pool, up to your
+   *  tier), once per the cast Whisper's multiplier (a gilded Well = two Discovers, queued). */
+  whisperDiscoverTribe: (ctx, _self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    for (let i = 0; i < currentWhisperMult(); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe });
+  },
+
+  /** SEED (Gardener's Whisper, owner 2026-10-15): the target gains "Echo: summon a 3/3 Drake Pup with Taunt" until the
+   *  start of your next turn (a TEMPORARY stack, `seedEchoesTemp`, stripped by `expireWhisperBuffs`), x the cast
+   *  Whisper's multiplier. A Hum turns it into a permanent stack (`keepWhispersOnHum`). */
+  whisperGrantSeedEcho: (ctx, self) => {
+    if (!self || !ctx.state.board.includes(self)) return;
+    self.seedEchoesTemp = (self.seedEchoesTemp ?? 0) + currentWhisperMult();
+  },
+
+  /** HATCHER's Whisper (owner 2026-10-15): get a random `tribe` minion of the held copy's tier (`grantedTier`, stamped
+   *  by its Hatcher; Tier 1 for a copy with none) from the run's set pool, x the cast Whisper's multiplier (gilded: 2).
+   *  An empty tier gets nothing. */
+  whisperGetTribeOfTier: (ctx, _self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const tier = Math.max(1, Math.min(HATCHER_MAX_TIER, currentWhisperTier() ?? 1));
+    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier === tier && defIsTribe(c, tribe, ctx.state));
+    if (pool.length > 0) conjureToHand(ctx.state, pool, currentWhisperMult());
+  },
+
+  /** WARDING CALL (Whispwarder's Whisper, owner 2026-10-15): the target gains `keyword` (Ward) until your next turn; a
+   *  gilded copy grants `gildedKeyword` (Resilient Ward) instead. A Hum keeps it. */
+  whisperGrantKeyword: (ctx, self, params) => {
+    if (!self || !ctx.state.board.includes(self)) return;
+    const kw = (currentWhisperMult() > 1 && str(params.gildedKeyword) ? str(params.gildedKeyword) : str(params.keyword)) as Keyword;
+    if (kw) applyWhisperKeyword(self, kw);
+  },
+
   /** Jar of Secrets (Shush's Equipment): get `count` random Whispers, x `mult` (gilded copies). */
   grantRandomWhispers: (ctx, _self, params) => {
     mintRandomWhispers(ctx.state, num(params.count, 1), Math.max(1, num(params.mult, 1)));
@@ -4889,6 +5008,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  own Start-of-Turn beat (the dispatcher wraps it, R-SOT-BEAT-01). A Gilded granter's copy is worth double. The
    *  on-play grant reads the same marker from the reducer (`grantWhispersOnPlay`). */
   grantWhisper: (ctx, self, params) => {
+    // Hatcher (`tierStep`, 2026-10-15): "Improves every turn". The turn's tick lands BEFORE the grant, so the copy handed
+    // over on play is Tier 1 and the next Start of Turn's is Tier 2. Capped at T6 (the tick stops there too).
+    if (params.tierStep === true) {
+      if (hatcherTier(self) < HATCHER_MAX_TIER) self.whisperTick = (self.whisperTick ?? 0) + 1;
+      mintWhisper(ctx.state, str(params.cardId), 1, gold(self), hatcherTier(self));
+      return;
+    }
     mintWhisper(ctx.state, str(params.cardId), 1, gold(self));
   },
 
@@ -10833,9 +10959,20 @@ export function spellEscalationLive(state: RunState): { attack: number; health: 
  * (`whisperValue`) x the held copy's multiplier, green when it differs from the printed base; a stepping Whisper
  * (Tome) appends the countdown to its next step; an improving one (Runebind) names how much each cast improves it.
  */
-export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
+export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
   const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
   const m = Math.max(1, extra?.whisperMult ?? 1);
+  // Hatcher's Whisper (2026-10-15): the tier this held copy gets (green above Tier 1); a gilded copy gets 2.
+  if (def.effects.some((e) => e.do === 'whisperGetTribeOfTier')) {
+    const tier = Math.max(1, Math.min(HATCHER_MAX_TIER, extra?.whisperTier ?? 1));
+    let t = tier > 1 ? def.text.replace('**Tier 1**', `{{Tier ${tier}}}`) : def.text;
+    if (m > 1) t = t.replace('Get a random', `Get {{${m}}} random`).replace('**Dragon**.', '**Dragons**.');
+    return t;
+  }
+  // Warding Call (2026-10-15): a gilded copy gives Resilient Ward instead (live, green).
+  if (m > 1 && def.effects.some((e) => e.do === 'whisperGrantKeyword' && e.params?.gildedKeyword === 'RW')) {
+    return def.text.replace('**Ward**', '{{Resilient Ward}}');
+  }
   // A Whisper with no stat grant (Ripple, Falx 2026-10-14): its multiplier repeats the whole effect, so a gilded copy
   // prints "twice" (live, green).
   if (!eff) return m > 1 ? def.text.replace(/\.$/, m === 2 ? ' {{twice}}.' : ` {{${m} times}}.`) : def.text;
@@ -10854,7 +10991,7 @@ export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rub
   return text;
 }
 
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 4 — a WHISPER reads live (R-TEXT live rule): its CURRENT value per cast, x the held copy's multiplier, with the
@@ -13525,6 +13662,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // what they ACTUALLY granted — a targeted spell's delta on its target, an untargeted one's biggest per-minion
   // delta (its printed per-minion grant, spell power included). Snapshot only while the rune is live.
   const weaveBefore = spellweaveSnapshot(state, spellDef);
+  // HUM: snapshot a Whisper target's temporary marks, so only THIS cast's share can be made permanent.
+  const humBefore = spellDef.whisper && target && humKeepCap(target) > 0 ? whisperMarksOf(target) : undefined;
   // Starpath Vendor's next-SHOP-spell bonus: a Gift (Tower Shield, Clue) neither reads it nor spends it, so it
   // is lifted out for the duration of a Gift's cast and put back after.
   const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
@@ -13548,6 +13687,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     for (let k = 0; k < runeStacksOf(state, 'rune_red_storm'); k++) rubyOnRandomKobolds(state, 2);
   }
   if (weaveBefore) settleSpellweave(state, weaveBefore, target);
+  // HUM (Set 3, 2026-10-15): a Whisper cast on a Hum with a keep left this turn stays for good.
+  if (humBefore && target && state.board.includes(target)) keepWhispersOnHum(target, humBefore);
   if (target && state.board.includes(target)) {
     const dAtk = target.attack - preAtk;
     const dHp = target.health - preHp;

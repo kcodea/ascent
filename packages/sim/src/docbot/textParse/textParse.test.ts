@@ -165,7 +165,12 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-14 (the Set 3 Dragon batch): 130 -> 132, CONSCIOUSLY. Five new cards (Whaloo, Falx + its Whisper Ripple,
 // Queen Morro, Shush); two of their texts have no grammar rule yet (an ally-attack Whisper cast with a per-combat cap,
 // and a combat cast-count aura).
-const UNRESOLVED_CAP = 132;
+// 2026-10-15 (Set 3 Dragon batch 2): 132 -> 136, CONSCIOUSLY. Eleven new cards (eight Dragons, the Drake Pup token,
+// Well of Dragons, Seed); four of their texts have no grammar rule yet (new phrasings: a per-turn Whisper keep, a capped
+// attack immunity, a quoted granted Echo).
+// 2026-10-15 (owner additions on #2097: Bait Brood, Hatcher, Whispwarder + three Whispers): 136 -> 141, CONSCIOUSLY
+// (new phrasings: a keyword granted with stats until your next turn, a tier that climbs every turn, a placeholder-named Whisper).
+const UNRESOLVED_CAP = 141;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

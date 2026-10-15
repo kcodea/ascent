@@ -160,6 +160,7 @@ const ALIASES: Record<string, string> = {
   embermouthwhelp: 'd2_embermouth',    // now Ember Whelp
   riverdrake: 'd2_riverdrake',         // now Riverback (Riverdrake.png)
   flutterdrake: 'd2_flutterdrake',     // now Flutterbutter
+  transcendence: 'd2_transcendence',   // the card is Transcendant; its masters are Transcendence.png (owner 2026-10-15)
   commanderwarpath: 'd2_blazingkeeper', // now Warpath
   livinggrimoire: 'd2_grimoire',       // now Grimoire
   warflame: 'd2_warflame',             // now Captain Flamus
@@ -386,6 +387,11 @@ const JOBS: Job[] = [
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
     dirs: ['Beasts', 'Demons', 'Dragons', 'Dwarves', 'Kobolds', 'Neutral'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+    // Owner 2026-10-15 ("rewire chorus drake and transcendence art too"): the CURRENT Chorus Drake and Transcendant art
+    // is the Set 3 Minions/Dragons master (the two cards are shared by Sets 2 and 3, one art slot each). This job runs
+    // AFTER the set-3 job and the later job wins a slot, so the stale Set 2 copies are skipped here, or a full re-run
+    // would put the old art back.
+    skip: new Set(['chorusdrake', 'transcendence']),
   },
   {
     // The rune-exclusive tokens (Handy Flame, Feasting Bogrot, ...) — the owner keeps their masters beside the rune

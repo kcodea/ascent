@@ -150,6 +150,11 @@ function boardCardExemplar(): Required<BoardCard> {
     whisperBuffs: [{ source: 'Tome', attack: 1, health: 1, count: 1 }],
     whisperMult: 2,
     whisperCopiedThisTurn: true,
+    seedEchoes: 2, // Seed (Set 3): permanent Drake Pup Echo stacks
+    seedEchoesTemp: 1, // Seed: this turn's temporary stacks (summed into the captured seedEchoes)
+    whisperKeptThisTurn: 1, // Hum's per-turn keep count
+    whisperKeywords: ['T'], // Bait's temporary Taunt (already in keywords)
+    whisperTick: 2, // Hatcher's tier progression
     tempGrants: [{ label: 'Rise', keyword: 'R' }],
     boardSpellCount: 2,
     soldSeen: 1,
@@ -179,6 +184,8 @@ function boardMinionExemplar(): Required<BoardMinion> {
     copiedEcho: sentinelEcho(),
     grantedEffects: sentinelEcho(), // runtime shop grafts — folded into Minion.effects at instantiate (2026-08-27)
     echoStripped: true, // "without Echo" mark — consumed at instantiate (filters the onDeath effects out)
+    seedEchoes: 2, // Seed (Set 3): expanded into onDeath effects at instantiate
+    whisperTick: 2, // Hatcher (display-only)
     impBank: { attack: 2, health: 5 }, // Ashen Heir's shop bank — cloned onto Minion.impBank, spent live
     soldProgress: 2, // Runic Archivist (display-only) — parity pass 2026-09-10
     boardFirstSpellId: 'growth', // Spell Warden (display-only)

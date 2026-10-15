@@ -2026,9 +2026,48 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   convention). The draws come from every Whisper (Tome, Runebind, Ripple, and any future one) and follow every Whisper
   rule. A Gilded Shush's Jar gets 3 Gilded Whispers.
 - **Gilded Whispers:** a Whisper from a Gilded source doubles its effect (and Runebind's improve) on every surface.
-- **Buffs panel:** a Whisper's grant is its own row under the Whisper's name, marked "until your next turn".
+- **Buffs panel:** a Whisper's grant is its own row under the Whisper's name (name, count and amount; no expiry note, owner 2026-10-15).
 - **Runebind's effect** (the owner's FX def `runebind`) plays on the target of every Runebind cast, from every source, in
   both phases.
+
+### Set 3 Dragon batch 2 (owner 2026-10-15; R-DRAGON-GATHERER-01, R-DRAGON-GRAVUS-01, R-WHISPER-08..11, R-SPELL-MATRIARCH-01, R-IMMUNE-IGGY-01)
+
+Gravestar Seer is archived. Chorus Drake, Flutterbutter and Transcendant (Set 2 Dragons) are also in Set 3, as the same
+cards. New Dragons:
+
+- **Gatherer** (T4 5/4): "**Rally:** Get a random **Dragon**." From the run's set pool, up to your tier, in both phases
+  (a combat swing hands it over mid-fight). Gilded: 2.
+- **Gravus** (T5 8/3, Dragon and Undead): "**Echo:** Give this minion's **Attack** to **2** friendly minions." Its
+  Attack at death, to 2 different other friendlies. A combat buff in combat; permanent from a Shop Echo. Gilded: twice.
+- **Well Watcher** (T5 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no
+  target. A Gilded Well Watcher's Well opens two Discovers.
+- **Matriarch** (T6 4/12): "When you cast a spell, give your minions **+3 Health**." Every spell: Shop spells, Gifts,
+  Whispers, Rubies, in the Shop (permanent) and in combat (a combat buff). Gilded: +6.
+- **Woozy** (T3 5/3): "**Avenge (3):** Get **2** random **Whispers**." Drawn from every Whisper. Gained in combat, they
+  arrive in the next Shop's hand and follow every Whisper rule there (they fade at that turn's End of Turn if unused).
+  Gilded: 2 Gilded Whispers.
+- **Immune Iggy** (T5 7/2): "Immune while attacking. **(Twice per combat)**" Its first 2 swings each combat take no
+  retaliation; the combat card counts down. Gilded: 4.
+- **Hum** (T2 2/5): "The first **Whisper** cast on this each turn is permanent." Everything that cast gave it stays
+  (stats, and a Seed's Echo as a permanent stack). Per turn (owner 2026-10-15); one switch (`HUM_PER_TURN`) makes it
+  per game. Shop casts only: a Whaloo Runebind on Hum in combat stays combat-only. Gilded: the first 2.
+- **Gardener** (T1 1/1): "**Whisper:** Give a minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**."" Its Whisper,
+  **Seed**, grants the Echo until your next turn (a gilded Seed grants it twice). On Hum the Echo is permanent and
+  stacks every turn with no cap (owner: "10+ stacks ... awesome overflow synergy"). Every stack is its own Echo: Echo
+  multipliers repeat each, Pups past the 7th overflow (Overflow cards pay per Pup), a risen body keeps them for its
+  second death, triples add the copies' stacks, and served boards keep them. The card prints "(xN)" and the buffs panel
+  lists the stacks.
+
+Owner additions the same day (R-WHISPER-12..14):
+
+- **Bait Brood** (T2 2/4): "**Whisper:** Give a minion **+3/+5** and **Taunt**." Its Whisper, **Bait**: the stats and
+  the Taunt last until your next turn (a Taunt the minion had of its own stays); a Hum keeps both. Gilded: +6/+10 and
+  Taunt.
+- **Hatcher** (T4 5/4): "**Whisper:** Get a random **Tier 1** **Dragon**. Improves every turn." Its Whisper (name
+  pending, "Clutch" for now) gets a Dragon of exactly that tier from the run's pool. Tier 1 on play, one tier higher each
+  Start of Turn it spends on the board (not in hand), up to Tier 6. Gilded: get 2.
+- **Whispwarder** (T5 7/5): "**Whisper:** Give a minion **Ward**." Its Whisper, **Warding Call**: Ward until your next
+  turn; a Hum keeps it. Gilded: Resilient Ward instead.
 
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 

@@ -567,6 +567,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     grantRubies: (count) => ctx.grantRubies(count, self.side, self.uid),
     grantRandomRubies: (count) => ctx.grantRandomRubies(count, self.side, self.uid),
     grantRandomShoutMinion: (count) => ctx.grantRandomMinion(count, undefined, self.side, undefined, self.uid, undefined, true),
+    grantRandomTribeMinion: (count, tribe) => ctx.grantRandomMinion(count, tribe, self.side, undefined, self.uid),
     hasEffect: (t, on, doId) => (t as Minion).effects.some((e) => e.on === on && (!doId || e.do === doId)),
     replayShout: (t) => {
       const m = t as Minion;
@@ -2222,6 +2223,33 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.rallyGiveAttackToOthers(combatArena(ctx, self), params);
   },
 
+  /** GRAVUS (Set 3, 2026-10-15) — Echo: give this minion's Attack (at death) to `count` different random OTHER living
+   *  friendlies. Thane's Rally body, fired off the death (payload-guarded like every Echo); golden repeats the spread.
+   *  A combat buff (R-BUFF-PERM). */
+  deathrattleGiveAttackToOthers: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.rallyGiveAttackToOthers(combatArena(ctx, self), params);
+  },
+
+  /** GATHERER (Set 3, 2026-10-15) — Rally: get a random `tribe` minion (golden 2), mid-fight. */
+  rallyGrantRandomTribeMinion: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ARENA_EFFECTS.rallyGrantRandomTribeMinion(combatArena(ctx, self), params);
+  },
+
+  /** WOOZY (Set 3, 2026-10-15) — Avenge (X): every X friendly deaths, get `grant` random Whispers (the whole Whisper
+   *  pool, the side's grant stream). Gilded: the same count of GILDED Whispers (Shush's rule). They arrive in hand at
+   *  settle and follow every Whisper rule in the next Shop. */
+  avengeGrantRandomWhispers: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    const seen = avengeCountFor(self, count);
+    if (seen <= 0 || seen % x !== 0) return;
+    ctx.grantRandomWhispers?.(num(params.grant, 2), self.side, self.golden ? 2 : 1, self.uid);
+  },
+
   /**
    * The exact-copy Echo — summon an exact copy of itself WITHOUT the Echo, so it can't chain forever. Rune of
    * Living Treasure's graft on the Gemheart Shard (it was Exgalloper's printed Echo until the owner moved that
@@ -2292,6 +2320,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Whisp (passive marker). Nothing fires on its own: the Shop reads it in `castSpell` (recruit.ts
    *  `whisperEchoOnDragons`) and a COMBAT Whisper cast (Whaloo) reads it in `castWhisperInCombat` below. */
   whisperEchoOnDragon: () => {},
+  /** Hum (passive marker): read by the Shop Whisper cast path (`keepWhispersOnHum`, sim/whisper.ts). */
+  whisperKeepOnThis: () => {},
   /** Queen Morro (passive marker): read LIVE by the combat cast path (`spellCastRepsFor`) and the Ruby primitive. */
   combatSpellsCastExtra: () => {},
   /** WHALOO (Set 3, owner 2026-10-14): "When a Dragon attacks, cast Runebind on it. (3 times per combat)". Any friendly

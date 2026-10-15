@@ -52,7 +52,7 @@ describe('the batch is Set 3 content', () => {
     // Ripple is a Whisper (Gift class): granted, never drawable.
     expect(CARD_INDEX['w3_ripple']?.whisper).toBe(true);
     expect(poolFor('set3').all.some((c) => c.id === 'w3_ripple')).toBe(false);
-    expect([...WHISPER_IDS]).toEqual(['w4_tome', 'w4_runebind', 'w3_ripple']);
+    expect([...WHISPER_IDS].slice(0, 3)).toEqual(['w4_tome', 'w4_runebind', 'w3_ripple']); // + Well of Dragons and Seed (2026-10-15, set3Dragons1015.test.ts)
     for (const id of ['d3_whaloo', 'd3_falx', 'd3_morro', 'd3_shush', 'w3_ripple']) {
       for (const t of [CARD_INDEX[id]!.text, CARD_INDEX[id]!.goldenText ?? '']) expect(/—|--/.test(t), `${id}: ${t}`).toBe(false);
     }

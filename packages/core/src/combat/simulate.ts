@@ -26,7 +26,7 @@ import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
-import { addedSecondTribe, instantiate, type CardIndex } from './minion';
+import { addedSecondTribe, instantiate, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
@@ -100,6 +100,18 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
     || out.alesLastTurn > 0 || !!out.lastSpellCastId || out.rememberedSpellIds.length > 0 || pair(out.spellEscalation)
     || out.growthBonus > 0 || pair(out.rubyBonus) || !!out.whisperImprove;
   return any ? out : undefined;
+}
+
+/** Every WHISPER in a card index, in index order (content appends the Whispers in declaration order, so this matches
+ *  `WHISPER_IDS`): the pool a combat "get a random Whisper" draws from (Woozy). Memoized per index. */
+const WHISPER_IDS_BY_INDEX = new WeakMap<object, readonly string[]>();
+function whisperIdsOf(cards: CardIndex): readonly string[] {
+  let ids = WHISPER_IDS_BY_INDEX.get(cards);
+  if (!ids) {
+    ids = Object.values(cards).filter((c) => c.whisper).map((c) => c.id); // WHISPER-POOL-GLOBAL: Whispers belong to no set (Gift class), so the global index IS their pool
+    WHISPER_IDS_BY_INDEX.set(cards, ids);
+  }
+  return ids;
 }
 
 export function simulate(
@@ -1071,10 +1083,12 @@ export function simulate(
     chosenOption: m.chosenOption, // Choose One: display-only, so the combat card prints the branch it became
     rallySpreadAtk: m.rallySpreadAtk, // Sunmane: the live escalating rally value, for the card text
     ...(m.effects.some((e) => e.do === 'rallyTriggerOwnShout') ? { grantedRallyShout: true as const } : {}), // Auctioneer × War: print the granted Rally
+    ...(seedEchoCount(m.effects) > 0 ? { seedEchoes: seedEchoCount(m.effects) } : {}), // Seed (Set 3): the granted Drake Pup Echo stacks
     ...(riseTint.has(m.uid) && m.keywords.includes('R') ? { riseTint: riseTint.get(m.uid) } : {}), // Risen × War / Death: the tinted Rise look
     taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
+    whisperTick: m.whisperTick, // Hatcher: its Whisper's tier, for the live combat text
     overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,
@@ -1666,6 +1680,12 @@ export function simulate(
       const idx = handGrants[side].length;
       ctx.grantToHand(whisperId, side, sourceUid);
       if (mult > 1 && handGrants[side].length > idx) (shoutCarry[side].handWhisperMults ??= []).push({ idx, mult });
+    },
+    grantRandomWhispers: (count, side, mult, sourceUid) => {
+      const ids = whisperIdsOf(cards);
+      if (ids.length === 0 || count <= 0) return;
+      const draw = grantRngFor(side);
+      for (let i = 0; i < count; i++) ctx.grantWhisperToHand?.(ids[draw.int(ids.length)]!, side, mult, sourceUid);
     },
     grantToHandThenEcho: (cardId, side, sourceUid) => {
       const idx = handGrants[side].length;
@@ -5678,6 +5698,15 @@ export function simulate(
    *  the left-most hand minion (a hand buff, permanent, per copy; an empty hand = nothing). The Gem Star gives the
    *  Starform one Ruby's stats for each of the turn's remaining `gemStarLeft` Rubies (per copy; banked for settle). */
   function runeRubyCastCombat(side: Side, caster: Minion, target: Minion, per: number, attack: number, health: number): void {
+    // MATRIARCH (Set 3, 2026-10-15: "When you cast a spell" counts Rubies): a Ruby played in combat is a spell cast for
+    // the `spellCast` watchers that opt into Rubies (`includeRubies`) and share the combat-safe `spellCastBuffAll` body.
+    // Once per repetition; a combat buff (R-BUFF-PERM). The Shop half is `fireSpellCastWatchersForRuby`.
+    for (const w of living(side)) {
+      for (const eff of w.effects) {
+        if (eff.on !== 'spellCast' || eff.do !== 'spellCastBuffAll' || eff.params?.includeRubies !== true) continue;
+        for (let r = 0; r < per && !w.dead; r++) FACTORIES.spellCastBuffAll!(ctx, w, eff.params ?? {}, { side });
+      }
+    }
     const m = modsFor(side);
     if (m.runeKeepsakeGem && (attack > 0 || health > 0)) {
       const left = ctx.handMinionsFor(side)[0];

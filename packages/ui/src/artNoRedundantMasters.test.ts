@@ -178,6 +178,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Chromatic Scale, Reflective; owner-named: "ive also added many skins to the game's collections").
     // → 1429: the Set 3 Dragon batch 2026-10-14 (+5 owner-named: Whaloo, Falx, Queen Morro, Shush portraits + the Jar of
     // Secrets Equipment icon; measured 1423 with them, so the old budget had one file of slack).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1429);
+    // → 1435: Set 3 Dragon batch 2 art 2026-10-15 (+7 owner-named: Gatherer, Gravus, Well Watcher portraits + the Falx2,
+    // Galas2, Tamby2, Whisp2 alt variants; owner: "wire set 3 dragon art that matches"; measured 1434 with them).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1435);
   });
 });

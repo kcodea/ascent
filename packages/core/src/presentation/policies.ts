@@ -115,6 +115,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onDragonAttackCastWhisper:onAttack': { policy: 'ownBeat', family: 'rally' }, // Whaloo (Set 3, 2026-10-14): a Dragon's swing casts Runebind on it (Taragosa's shape)
   'factory:combatSpellsCastExtra:passive': { policy: 'passive', family: 'passive' }, // Queen Morro: read live by the combat cast path; each extra cast announces itself
   'factory:whisperReplayShout:cast': { policy: 'ownBeat', family: 'spellCast' }, // Ripple (Falx's Whisper): the target's Shout re-fires
+  // ── Set 3 Dragon batch 2 (owner 2026-10-15) ──
+  'factory:rallyGrantRandomTribeMinion:onAttack': { policy: 'ownBeat', family: 'rally' }, // Gatherer: a random Dragon to hand
+  'factory:deathrattleGiveAttackToOthers:onDeath': { policy: 'ownBeat', family: 'echo' }, // Gravus: its Attack to 2 friendlies
+  'factory:whisperDiscoverTribe:cast': { policy: 'ownBeat', family: 'spellCast' }, // Well of Dragons: Discover a Dragon
+  'factory:avengeGrantRandomWhispers:avenge': { policy: 'ownBeat', family: 'avenge' }, // Woozy: 2 random Whispers to hand
+  'factory:whisperKeepOnThis:passive': { policy: 'passive', family: 'passive' }, // Hum: read by the Shop Whisper cast path
+  'factory:whisperGrantSeedEcho:cast': { policy: 'ownBeat', family: 'spellCast' }, // Seed: the target gains the Drake Pup Echo
+  'factory:whisperGetTribeOfTier:cast': { policy: 'ownBeat', family: 'spellCast' }, // Hatcher's Whisper: a Dragon of its tier to hand
+  'factory:whisperGrantKeyword:cast': { policy: 'ownBeat', family: 'spellCast' }, // Warding Call: Ward until your next turn
   'factory:shoutWoundSelfMendTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Hawg
   'factory:deathrattleWoundMendTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Eatah
   'factory:onTribeDamagedBuffSelf:onDamaged': { policy: 'ownBeat', family: 'react' }, // Apua: its own reaction tick after the hits (the #2074 hit-reaction split)

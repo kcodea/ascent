@@ -2030,6 +2030,34 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
 - **Runebind's effect** (the owner's FX def `runebind`) plays on the target of every Runebind cast, from every source, in
   both phases.
 
+### Set 3 Dragon batch 2 (owner 2026-10-15; R-DRAGON-GATHERER-01, R-DRAGON-GRAVUS-01, R-WHISPER-08..11, R-SPELL-MATRIARCH-01, R-IMMUNE-IGGY-01)
+
+Gravestar Seer is archived. Chorus Drake, Flutterbutter and Transcendant (Set 2 Dragons) are also in Set 3, as the same
+cards. New Dragons:
+
+- **Gatherer** (T4 5/4): "**Rally:** Get a random **Dragon**." From the run's set pool, up to your tier, in both phases
+  (a combat swing hands it over mid-fight). Gilded: 2.
+- **Gravus** (T6 8/3, Dragon and Undead): "**Echo:** Give this minion's **Attack** to **2** friendly minions." Its
+  Attack at death, to 2 different other friendlies. A combat buff in combat; permanent from a Shop Echo. Gilded: twice.
+- **Well Watcher** (T6 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no
+  target. A Gilded Well Watcher's Well opens two Discovers.
+- **Matriarch** (T6 4/12): "When you cast a spell, give your minions **+3 Health**." Every spell: Shop spells, Gifts,
+  Whispers, Rubies, in the Shop (permanent) and in combat (a combat buff). Gilded: +6.
+- **Woozy** (T3 5/3): "**Avenge (3):** Get **2** random **Whispers**." Drawn from every Whisper. Gained in combat, they
+  arrive in the next Shop's hand and follow every Whisper rule there (they fade at that turn's End of Turn if unused).
+  Gilded: 2 Gilded Whispers.
+- **Immune Iggy** (T5 7/2): "Immune while attacking. **(Twice per combat)**" Its first 2 swings each combat take no
+  retaliation; the combat card counts down. Gilded: 4.
+- **Hum** (T2 2/5): "The first **Whisper** cast on this each turn is permanent." Everything that cast gave it stays
+  (stats, and a Seed's Echo as a permanent stack). Per turn (owner 2026-10-15); one switch (`HUM_PER_TURN`) makes it
+  per game. Shop casts only: a Whaloo Runebind on Hum in combat stays combat-only. Gilded: the first 2.
+- **Gardener** (T1 1/1): "**Whisper:** Give a minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**."" Its Whisper,
+  **Seed**, grants the Echo until your next turn (a gilded Seed grants it twice). On Hum the Echo is permanent and
+  stacks every turn with no cap (owner: "10+ stacks ... awesome overflow synergy"). Every stack is its own Echo: Echo
+  multipliers repeat each, Pups past the 7th overflow (Overflow cards pay per Pup), a risen body keeps them for its
+  second death, triples add the copies' stacks, and served boards keep them. The card prints "(xN)" and the buffs panel
+  lists the stacks.
+
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 
 The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:

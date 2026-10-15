@@ -370,4 +370,30 @@ export const KEYWORDS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-10). Before it Todd gained +1/+2 permanently per instance and had Ward, with no Pummel.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-EXECUTE-04',
+    title: 'Execute always kills: any landed damage from an Execute source destroys the minion, and nothing after the hit saves it',
+    statement:
+      'Any damage greater than 0 that an Execute source lands on an enemy minion destroys it, on that hit, from every combat '
+      + 'path: attacking, being attacked (retaliation), Cleave and splash, Execute granted mid-fight (Raven, Tort), and a '
+      + 'landed hit an Execute body deals by an effect that names it as the dealer (a Bleed, an Echo spray). The kill is '
+      + 'marked when the damage is applied, so a Health gain, heal or buff that resolves later in the same damage resolution '
+      + '(Axeman gaining +3/+3 as its own retaliation lands, the wave buffs from Rad Rachel) cannot save it. A hit that is fully '
+      + 'prevented deals no damage and does not execute: Ward and Resilient Ward absorb it, Immune and 0-damage hits are '
+      + 'non-events, and the Execute is not spent. Death processing is otherwise normal: Echo fires and Rise / Rebirth return '
+      + 'the body as a fresh one. Side-neutral. The Shop has no enemy minions, so there is no Shop Execute path.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-15 (Venom vs Axeman)', quote: 'my venom hit an axeman and it didnt kill it - can you make sure execute full kills any minion it hits as long as it deals dmg to it' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts executed / isFelled / applyDamage (Execute block) / killOrReborn / living / resolveEchoDeath' },
+    ],
+    contentIds: ['venom', 'dm_chosenfiend', 'b2_raven', 'b2_tort', 'bloodbinder', 'dm_felspikes'],
+    currentBehaviour:
+      'Conforms as of 2026-10-15. Before, Execute set the victim to 0 Health but the death check came later in the clash: '
+      + 'Venom hitting Axeman took it to 0, then the retaliation from Axeman landed (a friendly Demon dealing damage) and its '
+      + '+3/+3 lifted it back to 3 Health, so it survived. Effect damage from an Execute body (Bleed, Echo spray) did not '
+      + 'execute at all.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/execute.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
 ];

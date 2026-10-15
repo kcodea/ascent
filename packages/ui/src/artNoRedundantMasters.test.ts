@@ -182,6 +182,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Galas2, Tamby2, Whisp2 alt variants; owner: "wire set 3 dragon art that matches"; measured 1434 with them).
     // → 1444: emotes 2026-10-15 (+10 owner-named emote webps in `art/emotes/`, -1 for the retired Angry Mushy; owner: "wire
     // all the new ones that i added"; measured 1443 with them).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1444);
+    // → 1452: Set 3 Dragon + Whisper art 2026-10-15 (+8: Bait Brood, Drake Pup, Gardener, Hum, Immune Iggy, Woozy, Bait,
+    //   Well of Dragons; owner: "wire art for whispers and set 3 dragons that ive added").
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1452);
   });
 });

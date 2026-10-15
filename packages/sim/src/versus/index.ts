@@ -2,6 +2,6 @@
 export * from './constants';
 export * from './canonical';
 export * from './combat';
-export { mirrorForEnemySeat } from './mirror';
+export { flipEventSides, mirrorForEnemySeat, ownSeatPerspective } from './mirror';
 export * from './run';
 export * from './lobbyView';

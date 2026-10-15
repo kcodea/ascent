@@ -5,7 +5,8 @@
  * (blueprint 4). See supabase/migrations/2026-10-13-versus.sql for every RPC this wraps.
  */
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { VERSUS_PROTOCOL, type PreparedCombatSide, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import { ownSeatPerspective, VERSUS_PROTOCOL, type PreparedCombatSide, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import type { CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
@@ -219,7 +220,9 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     // rows: a match has one row per round and ends long before 1,000 rounds (7 hearts; the slowest is a draw run) (R-NET-01).
     const { data, error } = await db().from('versus_rounds').select('*').eq('match_id', matchId).gte('round', fromRound).order('round');
     if (error) fail(error);
-    return (data as VersusRoundRow[]) ?? [];
+    // THE ONE READ of stored rounds: p2's result in p2's own perspective, whichever resolver stored it (a round stored
+    // by the old mirror has its event sides unflipped: summons on the wrong row, live bug 2026-10-14).
+    return ((data as VersusRoundRow[]) ?? []).map((r) => (r.p2_result ? { ...r, p2_result: ownSeatPerspective(r.p2_result as CombatResult) } : r));
   },
   /** My newest LOCKED submission with a checkpoint (the reconnect restore point). */
   async myLatestCheckpoint(matchId: string): Promise<VersusOwnSubmission | null> {

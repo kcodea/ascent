@@ -867,6 +867,8 @@ export interface CombatReplay {
   /** uid → a per-fire nonce for the watcher's card-frame bloom (CSS fallback when the Pixi def can't play). */
   framePulseUids: Map<string, number>;
   done: boolean;
+  /** The beat on screen (a Versus spectator switching seats mid-fight resumes the other side at it). */
+  beatIdx: number;
   result: CombatResult['result'] | null;
   shaking: boolean;
   critShaking: boolean;
@@ -3716,7 +3718,7 @@ export function useCombatReplay(
     rallyPulseUids: rallyPulse,
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
-    done, result: combat ? combat.result : null, shaking, critShaking,
+    done, beatIdx, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, replayEvents: events, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the

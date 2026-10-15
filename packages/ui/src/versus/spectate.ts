@@ -57,6 +57,7 @@ let rounds: Record<number, VersusRoundRow> = {};
 let fetching = false;
 let lastKeyAsk = 0;
 let raf = 0;
+let unsubDone: (() => void) | null = null;
 let lobbyCache: { key: string; lobby: RunState['lobby'] } | null = null;
 let last: { view: VersusSpectatorView; fight: unknown; seat: VersusSeat; run: RunState } | null = null;
 /** The store slice replaced on the way in, restored on the way out. */
@@ -89,8 +90,13 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
   const live = !!match && (match.phase === 'shop' || match.phase === 'resolving' || match.phase === 'combat');
   if (!match || !live) { if (useSpectate.getState().active) stopSpectating(); return; }
   if (matchId !== match.id) {
+    // A NEW MATCH in the room: nothing of the last one survives (views, queue, cursor, caches).
+    if (useSpectate.getState().active) stopSpectating();
     matchId = match.id;
     rx = { p1: newReceiver(), p2: newReceiver() };
+    lobbyCache = null;
+    last = null;
+    rounds = allRounds;
     void fetchKeyframes();
   }
   if (useSpectate.getState().optedOut === match.id) return;
@@ -101,6 +107,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
 export function receiveSpectate(payload: unknown): void {
   const msg = payload as SpectatorMessage;
   if (!msg || (msg.seat !== 'p1' && msg.seat !== 'p2') || typeof msg.seq !== 'number') return;
+  if (!matchId || (msg.m && msg.m !== matchId)) return; // another match's frame (a room hosts match after match)
   const { rx: next, needKeyframe } = applySpectatorMessage(rx[msg.seat], msg);
   rx[msg.seat] = next;
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
@@ -225,6 +232,7 @@ async function fetchKeyframes(): Promise<void> {
     if (id !== matchId) return;
     for (const r of rows) {
       const msg = r.frame as SpectatorMessage;
+      if (msg?.m && msg.m !== id) continue;
       if (msg?.kind === 'key') rx[r.seat] = applySpectatorMessage(rx[r.seat], msg).rx;
     }
     schedule();
@@ -240,15 +248,16 @@ function schedule(): void {
 function render(): void {
   if (!matchId || useSpectate.getState().optedOut === matchId) return;
   const seat = useSpectate.getState().seat;
-  const view = shownView ?? rx[seat].view;
-  if (!view) return; // nothing to show for this seat yet: the keyframe is on its way
+  const latest = shownView ?? rx[seat].view;
+  if (!latest) return; // nothing to show for this seat yet: the keyframe is on its way
+  const view = pinnedView(seat, latest);
   const round = rounds[view.wave];
   const fight = round ? (seat === 'p1' ? round.p1_result : round.p2_result) : undefined;
   // Same view, same fight: the same run object (a re-render with nothing new does nothing).
   const run = last && last.view === view && last.fight === fight && last.seat === seat ? last.run : spectatorRunOf(view, seat, matchId, round);
   if (run && run !== last?.run && !run.lobby && io) {
     // Rebuilt only when what it reads moves (a round commits, the fight lands or settles), never per shop delta.
-    const key = `${seat}|${run.wave}|${run.phase}|${run.combatSettled ? 1 : 0}|${Object.keys(rounds).length}`;
+    const key = `${matchId}|${seat}|${run.wave}|${run.phase}|${run.combatSettled ? 1 : 0}|${Object.keys(rounds).length}`;
     if (lobbyCache?.key !== key) lobbyCache = { key, lobby: io.lobbyFor(seat, run) };
     run.lobby = lobbyCache.lobby;
   }
@@ -266,12 +275,59 @@ function enter(): void {
   for (const k of SNAPSHOT_KEYS) snap[k] = s[k];
   snapshot = snap as typeof snapshot;
   useSpectate.setState({ active: true });
+  unsubDone = useGame.subscribe((st, prev) => { if (st.combatReplayDone !== prev.combatReplayDone) onReplayDone(st.combatReplayDone); });
   useGame.setState({ replaying: true, showTitle: false, heroChoices: null, inspect: null, heroArmed: false, equipArmed: false });
 }
 
-/** Watch the other player (hotkeys 1 / 2, the spectator bar). Instant: both views are already cached. */
+// ── the fight on screen: played out in full, and continued across a seat switch ─────────────────────────────
+
+/**
+ * THE FIGHT IS WATCHED WHOLE (live playtest 2026-10-14: "spectating makes the combat look really weird too, not getting
+ * full lunge logic"). The watched player's client settles its fight on its own clock, and its settled view (hearts
+ * dropped, `combatSettled`) used to arrive while the spectator's replay was still playing, cutting the hero strike.
+ * The first combat view of a fight is PINNED (unsettled) until the spectator's own replay has finished and its hero
+ * strike has had its time; then the screen catches up to the latest view.
+ */
+let pin: { key: string; view: VersusSpectatorView; released: boolean } | null = null;
+let releaseTimer: number | null = null;
+/** The hero strike's time after the replay is done, before the pinned fight lets go. */
+const STRIKE_MS = 2600;
+function pinnedView(seat: VersusSeat, view: VersusSpectatorView): VersusSpectatorView {
+  if (view.phase === 'combat') {
+    const key = `${matchId}|${seat}|${view.wave}`;
+    if (pin?.key !== key) pin = { key, view: { ...view, combatSettled: false }, released: false };
+  }
+  return pin && !pin.released ? pin.view : view;
+}
+function onReplayDone(done: boolean): void {
+  if (!done || !pin || pin.released || releaseTimer != null) return;
+  releaseTimer = window.setTimeout(() => { releaseTimer = null; if (pin) pin.released = true; schedule(); }, STRIKE_MS);
+}
+
+/** Where the fight on screen is (Recruit reports it while a spectator watches one). */
+let fightBeat: { key: string; beat: number } | null = null;
+let resumeAt: { wave: number; beat: number } | null = null;
+export function noteSpectatorBeat(wave: number, beat: number): void { fightBeat = { key: `${matchId}|${wave}`, beat }; }
+/** The beat to continue the fight at after a seat switch (once), or null. Both sides of the one fight have the same
+ *  beats (R-VERSUS-PERSPECTIVE-01), so the same index is the same moment. */
+export function takeSpectatorResume(wave: number): number | null {
+  if (!resumeAt || resumeAt.wave !== wave) return null;
+  const b = resumeAt.beat;
+  resumeAt = null;
+  return b;
+}
+
+/** Watch the other player (hotkeys 1 / 2, the spectator bar). Instant: both views are already cached. In a fight it
+ *  continues from the same moment, from the other side. */
 export function watchSeat(seat: VersusSeat): void {
   if (useSpectate.getState().seat === seat) return;
+  const run = useGame.getState().run;
+  if (run.phase === 'combat' && fightBeat?.key === `${matchId}|${run.wave}`) resumeAt = { wave: run.wave, beat: fightBeat.beat };
+  // The pin follows the fight, not the seat: carry its state to the other side.
+  if (pin && run.phase === 'combat') {
+    const other = rx[seat].view;
+    if (other && other.phase === 'combat') pin = { key: `${matchId}|${seat}|${other.wave}`, view: { ...other, combatSettled: false }, released: pin.released };
+  }
   useGame.setState({ inspect: null });
   clearQueue();
   resetCursor();
@@ -298,6 +354,12 @@ export function stopSpectating(): void {
   const snap = snapshot;
   snapshot = null;
   last = null;
+  unsubDone?.();
+  unsubDone = null;
+  if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
+  pin = null;
+  fightBeat = null;
+  resumeAt = null;
   useSpectate.setState({ active: false });
   // Back to the room: a spectator always came from it (the Versus title view), whatever the snapshot says.
   if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus' });
@@ -310,6 +372,17 @@ export function resetSpectate(): void {
   rx = { p1: newReceiver(), p2: newReceiver() };
   rounds = {};
   useSpectate.setState({ seat: 'p1', optedOut: null });
+}
+
+/**
+ * THE WATCHED PLAYER'S NAME (live bug 2026-10-14: "it shows the spectators name in the bottom left"), or null when not
+ * spectating. Read off the watched run's own two-seat lobby (seat s0 = that player, labelled from the match), so it
+ * can never be the local profile's. Every "you" surface on the watch screen uses it.
+ */
+export function useWatchedName(): string | null {
+  const active = useSpectate((s) => s.active);
+  const label = useGame((s) => s.run.lobby?.seats[0]?.label ?? null);
+  return active ? label ?? '' : null;
 }
 
 /** For the tests: a seat's cached view. */

@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
+import { useWatchedName } from './versus/spectate';
 
 /**
  * FIGHT RECAP (owner ask 2026-09-24): the redesigned post-combat summary, opened only from the Summary pill.
@@ -64,11 +65,13 @@ const RecapMini = memo(function RecapMini({ art, icon, name, chips, golden }: {
 /** The single damage readout: "You dealt" over a big green number on a win, "You took" over a big red one on
  *  a loss, "No damage" otherwise (owner 2026-09-25: number on its own line, no Armor callout). */
 function DamageLine({ verdict, dealt, taken }: { verdict: 'win' | 'lose' | 'draw'; dealt: number; taken: number }) {
+  // A Versus spectator reads the WATCHED player's fight: their name, not "You".
+  const watched = useWatchedName();
   const kind = verdict === 'win' && dealt > 0 ? 'dealt' : verdict === 'lose' && taken > 0 ? 'taken' : null;
   if (!kind) return <div className="fr-dmgline zero">No damage</div>;
   return (
     <div className={`fr-dmgline ${kind}`}>
-      <span className="fr-dmgline-label">{kind === 'dealt' ? 'You dealt' : 'You took'}</span>
+      <span className="fr-dmgline-label">{watched ? `${watched} ${kind === 'dealt' ? 'dealt' : 'took'}` : kind === 'dealt' ? 'You dealt' : 'You took'}</span>
       <span className="fr-dmgline-num">{kind === 'dealt' ? dealt : taken}</span>
     </div>
   );

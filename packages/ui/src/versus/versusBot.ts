@@ -97,6 +97,7 @@ function publishBotFrame(): void {
   const msg = nextSpectatorMessage(pub.p, run, run.wave, shopOpened || botKeyWanted);
   botKeyWanted = false;
   if (!msg) return;
+  msg.m = matchId;
   pub.channel.send('spectate', msg);
   if (msg.kind === 'key') void remote.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
 }

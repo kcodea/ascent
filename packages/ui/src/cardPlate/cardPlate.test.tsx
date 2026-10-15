@@ -5,7 +5,7 @@
  * whatever its tribe ("replace all plates") with the plate's own darkening; a GILDED card never changes ("nothing should
  * ever changed for gilded cards"); a Whisper keeps its Set 4 plate; no plate equipped = the standard plates exactly.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { COSMETICS } from '@game/progression';
@@ -34,11 +34,13 @@ describe('the card plate a card wears', () => {
   const plateOf = (el: Element): string => el.querySelector('img.cardplate')!.getAttribute('src')!;
   const backboxOf = (el: Element): string => el.querySelector('img.descbox')!.getAttribute('src')!;
 
-  it('no plate equipped: the standard tribe plate and the shared darkening, no inline darkening vars', () => {
-    const el = render('k_pouchpincher', 'neutral');
-    expect(plateOf(el)).toContain('frames/cardplate-neutral.webp');
-    expect(backboxOf(el)).toContain('frames/desc-backbox.webp');
-    expect(el.style.getPropertyValue('--ctx-box-a')).toBe('');
+  it('no plate equipped: the new STANDARD plate for every tribe, with its socketless darkening (owner 2026-10-15)', () => {
+    for (const tribe of ['neutral', 'beast', 'demon']) {
+      const el = render('k_pouchpincher', tribe);
+      expect(plateOf(el), tribe).toContain('frames/cardplate-standard.webp');
+      expect(backboxOf(el)).toContain('frames/desc-backbox-standard.webp');
+      expect(el.style.getPropertyValue('--ctx-box-a')).toBe('');
+    }
   });
 
   it('Aquarium Rocks replaces every tribe plate and brings its own darkening (shape, opacity, blend, seat)', () => {
@@ -53,16 +55,61 @@ describe('the card plate a card wears', () => {
     }
   });
 
-  it('a GILDED card never changes: the standard plate and darkening, even with a plate equipped', () => {
-    const el = render('k_pouchpincher', 'neutral', { golden: true, snapshot: AQUARIUM });
-    expect(plateOf(el)).toContain('frames/cardplate-neutral.webp');
-    expect(backboxOf(el)).toContain('frames/desc-backbox.webp');
-    expect(el.style.getPropertyValue('--ctx-box-a')).toBe('');
+  it('a GILDED card always wears the gilded plate, with no darkening and no gold filter, plate equipped or not', () => {
+    for (const snapshot of [null, AQUARIUM]) {
+      const el = render('k_pouchpincher', 'beast', { golden: true, snapshot });
+      expect(plateOf(el)).toContain('frames/cardplate-gilded.webp');
+      expect(el.querySelector('img.descbox')).toBeNull();
+      expect(el.style.getPropertyValue('--ctx-box-a')).toBe('');
+      expect(getComputedStyle(el.querySelector('img.cardplate')!).filter || 'none').toBe('none');
+    }
   });
 
-  it('a Whisper keeps its own plate', () => {
+  it('no stylesheet rule recolours a gilded plate (owner 2026-10-15: "the gilded card does not need the gold hue filter")', () => {
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [...css.matchAll(/([^{}]*\.golden[^{}]*\.cardplate[^{}]*)\{([^}]*)\}/g)];
+    for (const [, sel, body] of rules) expect(body, sel!.trim()).not.toMatch(/filter\s*:/);
+  });
+
+  it('a LAYERED plate paints interior, then darkening, then frame, then the text (owner 2026-10-15)', () => {
+    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_blossom' } as unknown as typeof AQUARIUM });
+    const interior = el.querySelector('img.cardplate')!;
+    expect(interior.getAttribute('src')).toContain('frames/plates/interiors/brown.webp'); // the default interior
+    expect(interior.classList.contains('plate-interior')).toBe(true);
+    expect(el.querySelector('img.plateglow')!.getAttribute('src')).toContain('plate_blossom-frame.webp');
+    const drawer = [...el.querySelector('.drawer')!.children].map((c) => c.className.split(' ')[0]);
+    expect(drawer.indexOf('descbox')).toBeLessThan(drawer.indexOf('plate-frame'));
+    expect(drawer.indexOf('plate-frame')).toBeLessThan(drawer.findIndex((c) => c === 'cn'));
+  });
+
+  it('a plate can drop the darkening: Beach, Moonstone, Mooncloud, Galaxy and Amethyst have none (owner 2026-10-15)', () => {
+    for (const cardPlate of ['plate_beach', 'plate_moonstone', 'plate_mooncloud', 'plate_galaxy', 'plate_amethyst', 'plate_crackling_gemstone', 'plate_hand_drawn', 'plate_blue_hand_drawn', 'plate_green_hand_drawn', 'plate_simple_black', 'plate_simple_white', 'plate_smooth_aqua', 'plate_smooth_blue', 'plate_smooth_red']) {
+      const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate } as unknown as typeof AQUARIUM });
+      expect(el.querySelector('img.descbox'), cardPlate).toBeNull();
+    }
+    for (const cardPlate of ['plate_beach', 'plate_magma', 'plate_moonstone']) {
+      const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate } as unknown as typeof AQUARIUM });
+      expect(el.querySelector('.drawer .plate-frame'), cardPlate).not.toBeNull();
+    }
+  });
+
+  it('Magma keeps its darkening at half opacity (owner 2026-10-15)', () => {
+    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_magma' } as unknown as typeof AQUARIUM });
+    expect(el.querySelector('img.descbox')!.getAttribute('src')).toContain('frames/plates/plate_magma-backbox.webp');
+    expect(el.style.getPropertyValue('--ctx-box-a')).toBe('0.315');
+  });
+
+  it('a layered interior carries its fit (stretch + nudge) as inline vars', () => {
+    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_magma' } as unknown as typeof AQUARIUM });
+    expect(el.style.getPropertyValue('--plate-interior-sx')).toBe('1.059');
+    expect(el.style.getPropertyValue('--plate-interior-sy')).toBe('1.035');
+    expect(el.style.getPropertyValue('--plate-interior-y')).toBe('0.0075');
+  });
+
+  it('a Whisper keeps its own plate and its socketed darkening', () => {
     const el = render('w4_tome', 'neutral', { snapshot: AQUARIUM });
     expect(plateOf(el)).toContain('frames/cardplate-whisper.webp');
+    expect(backboxOf(el)).toContain('frames/desc-backbox.webp');
   });
 });
 
@@ -75,7 +122,7 @@ describe('the plate looks', () => {
       const look = CARD_PLATE_LOOKS[c.assets.art!];
       expect(look, c.id).toBeTruthy();
       expect(cardPlateLookOf({ cardPlate: c.id })).toBe(look);
-      for (const url of [look!.plate, look!.backbox]) expect(existsSync(join(pub, url.replace(/^.*?frames\//, 'frames/'))), url).toBe(true);
+      for (const url of [look!.plate, look!.thumb, ...(look!.backbox ? [look!.backbox] : []), ...(look!.frame ? [look!.frame] : [])]) expect(existsSync(join(pub, url.replace(/^.*?frames\//, 'frames/'))), url).toBe(true);
     }
     expect(cardPlateLookOf(null)).toBeNull();
     expect(cardPlateLookOf({ cardPlate: 'frame_fire' })).toBeNull();

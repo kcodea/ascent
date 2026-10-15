@@ -10,7 +10,8 @@
  */
 
 export const WIRE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-wire.webp`;
-export const PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+// The STANDARD plate (2026-10-15): every plate cosmetic shares its body silhouette, so its alpha is the spawn mask.
+export const PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-standard.webp`;
 
 /** Plate width the effects' px-quantities were dialed against. Speeds/sizes scale by (actual / REF_W) so
  *  both effects hold their proportions at any board scale. */

@@ -20,14 +20,27 @@ describe('the card plate catalog', () => {
     expect(COSMETIC_CATEGORY_DEFS.card_plate).toEqual({ id: 'card_plate', label: 'Card Plates', weight: 10, enabled: true, target: 'global' });
   });
 
-  it('six Legendary crate plates (owner: "every other one should be a legendary reward"), each art key its own id, each naming its master', () => {
+  it('nineteen crate plates, Legendary unless the owner says otherwise (Simple Black, Simple White and Mooncloud are Ancient; Moonstone, Bamboo and the Smooth plates Epic), each art key its own id, each naming its master', () => {
     expect(PLATES.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.art, c.assets.master, c.target])).toEqual([
       ['plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'crate', 'plate_aquarium_rocks', 'Aquarium Rocks.png', undefined],
       ['plate_amethyst', 'Amethyst', 'legendary', 'crate', 'plate_amethyst', 'Amethyst.png', undefined],
-      ['plate_bamboo', 'Bamboo', 'legendary', 'crate', 'plate_bamboo', 'Bamboo.png', undefined],
-      ['plate_beach', 'Beach', 'legendary', 'crate', 'plate_beach', 'Beach.png', undefined],
-      ['plate_magma', 'Magma', 'legendary', 'crate', 'plate_magma', 'Magma.png', undefined],
-      ['plate_moonstone', 'Moonstone', 'legendary', 'crate', 'plate_moonstone', 'Moonstone.png', undefined],
+      ['plate_bamboo', 'Bamboo', 'epic', 'crate', 'plate_bamboo', 'Bamboo.png', undefined],
+      ['plate_beach', 'Beach', 'legendary', 'crate', 'plate_beach', 'Beach Frame.png', undefined],
+      ['plate_magma', 'Magma', 'legendary', 'crate', 'plate_magma', 'Magma Frame.png', undefined],
+      ['plate_moonstone', 'Moonstone', 'epic', 'crate', 'plate_moonstone', 'Moonstone Frame.png', undefined],
+      ['plate_mooncloud', 'Mooncloud', 'ancient', 'crate', 'plate_mooncloud', 'Mooncloud.png', undefined],
+      ['plate_galaxy', 'Galaxy', 'legendary', 'crate', 'plate_galaxy', 'Galaxy.png', undefined],
+      ['plate_crackling_gemstone', 'Crackling Gemstone', 'legendary', 'crate', 'plate_crackling_gemstone', 'Crackling Gemstone.png', undefined],
+      ['plate_hand_drawn', 'Hand Drawn', 'legendary', 'crate', 'plate_hand_drawn', 'Hand Drawn.png', undefined],
+      ['plate_blue_hand_drawn', 'Blue Hand Drawn', 'legendary', 'crate', 'plate_blue_hand_drawn', 'Blue Hand Drawn.png', undefined],
+      ['plate_green_hand_drawn', 'Green Hand Drawn', 'legendary', 'crate', 'plate_green_hand_drawn', 'Green Hand Drawn.png', undefined],
+      ['plate_simple_black', 'Simple Black', 'ancient', 'crate', 'plate_simple_black', 'Simpleblack Frame.png', undefined],
+      ['plate_simple_white', 'Simple White', 'ancient', 'crate', 'plate_simple_white', 'Simplewhite.png', undefined],
+      ['plate_topaz', 'Topaz', 'legendary', 'crate', 'plate_topaz', 'Topaz.png', undefined],
+      ['plate_smooth_aqua', 'Smooth Aqua', 'epic', 'crate', 'plate_smooth_aqua', 'Smooth Aqua.png', undefined],
+      ['plate_smooth_blue', 'Smooth Blue', 'epic', 'crate', 'plate_smooth_blue', 'Smooth Blue.png', undefined],
+      ['plate_smooth_red', 'Smooth Red', 'epic', 'crate', 'plate_smooth_red', 'Smooth Red.png', undefined],
+      ['plate_blossom', 'Blossom', 'legendary', 'crate', 'plate_blossom', 'Test Blossom Frame.png', undefined],
     ]);
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).toContain('plate_aquarium_rocks');
     expect(eligibleCrateCosmetics(['plate_aquarium_rocks']).map((c) => c.id)).not.toContain('plate_aquarium_rocks');

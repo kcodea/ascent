@@ -225,35 +225,28 @@ const tierPlateSrc = (golden: boolean): string =>
 const GILDED_BADGE_SRC = `${import.meta.env.BASE_URL}frames/gilded.webp`;
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
+/** The darkening for the NEW standard plate (owner 2026-10-15: "the standard card needs the new darkening section, as
+ *  the old one cuts out space for the socket at the bottom that has been removed"): the card-plate shape, no socket.
+ *  The old `desc-backbox` stays for the Whisper plate, which still has its socket. */
+const STANDARD_DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox-standard.webp`;
 /** The gold diamond divider between the card NAME and its rules text (owner art, 2026-10-09). */
 const NAME_DIVIDER_SRC = `${import.meta.env.BASE_URL}frames/name-divider.webp`;
-const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+// NEW STANDARD + GILDED PLATES (owner 2026-10-15: "i want to replace the standard card plate with this", "this can also
+// be the replaced for the gilded card backplate", "the gilded backplate i provided will always be the gilded backplate,
+// even if the standard card has a skin on"). Same 800x1244 body as every plate. The standard one replaces every
+// tribe plate (the tribe name still prints on the bottom); the gilded one is painted gold, so it is NOT hue-filtered.
+const STANDARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-standard.webp`;
+const GILDED_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-gilded.webp`;
 // Milestone frame art — the disc a stat badge sits in once it crosses a value tier (see choreo/statMilestones.ts).
 // One per stat (`atk` sword motif / `hp` heart motif) per tier 1..5; tier 0 (below the first threshold) has no
 // frame and keeps the flat plate. BASE_URL-relative like every other public/frames asset (itch serves from a CDN
 // sub-path where a root-absolute '/frames/…' 404s — see the note on TAUNT_FRAME_SRC).
 const msFrameSrc = (stat: 'atk' | 'hp', tier: number): string =>
   `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
-// Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
-// dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
-// shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
-// `frames/` to give it a plate (all ten tribes have one as of 2026-10-11, when Set 3's Celestial and Spirit got
-// theirs). A tribe-plated card also relocates its tribe LABEL to the plate's bottom gem (no icon) — see
-// `TRIBE_PLATE_SET` / `.plate-tribe`.
-const TRIBE_PLATES: Partial<Record<Tribe, string>> = {
-  beast: `${import.meta.env.BASE_URL}frames/cardplate-beast.webp`,
-  dragon: `${import.meta.env.BASE_URL}frames/cardplate-dragon.webp`,
-  mech: `${import.meta.env.BASE_URL}frames/cardplate-mech.webp`,
-  demon: `${import.meta.env.BASE_URL}frames/cardplate-demon.webp`,
-  undead: `${import.meta.env.BASE_URL}frames/cardplate-undead.webp`,
-  neutral: `${import.meta.env.BASE_URL}frames/cardplate-neutral.webp`,
-  kobold: `${import.meta.env.BASE_URL}frames/cardplate-kobold.webp`,
-  dwarf: `${import.meta.env.BASE_URL}frames/cardplate-dwarf.webp`,
-  celestial: `${import.meta.env.BASE_URL}frames/cardplate-celestial.webp`,
-  spirit: `${import.meta.env.BASE_URL}frames/cardplate-spirit.webp`,
-};
-const plateSrcFor = (tribe: Tribe | undefined): string =>
-  (tribe && TRIBE_PLATES[tribe]) || CARD_PLATE_SRC;
+// The tribes whose name prints on the plate's bottom edge (`.plate-tribe`, no icon) instead of in the text drawer:
+// all ten. Keyed on the PRIMARY tribe (owner 2026-07-25). They used to have their own tribe-gem plates; since
+// 2026-10-15 every tribe wears the one STANDARD plate, and only the label placement stays.
+const TRIBE_PLATED: ReadonlySet<Tribe> = new Set<Tribe>(['beast', 'dragon', 'mech', 'demon', 'undead', 'neutral', 'kobold', 'dwarf', 'celestial', 'spirit']);
 // SET 4 WHISPER plate (owner 2026-10-14: "use this as the whisper frame instead"): the owner's painted blue-violet
 // plate, the same body geometry as every cardplate (951x1478 master, aspect matches 800x1244, overlay-checked), so
 // the art window, name, text and spell crystal sit exactly where they do on a Shop spell. Shipped at 768 px tall.
@@ -262,7 +255,7 @@ const WHISPER_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper.w
 // the same painted plate (951x1478 master, overlay-checked identical to whisperFrame.png). `cardplate-whisper-*` keeps
 // it off the preload chrome lane ("whisper" is not a live tribe) while Set 4 is disabled.
 const WHISPER_GILDED_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper-gilded.webp`;
-const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATES[tribe]);
+const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATED.has(tribe));
 let cardPlateAvailable = true;
 
 const TRIBE_LABEL: Record<Tribe, string> = {
@@ -906,7 +899,10 @@ export const Card = memo(function Card({
   // ("nothing should ever changed for gilded cards") and never on a Whisper, whose plate is its Set 4 identity.
   const plateLookCtx = useCardPlateLook();
   const plateLook = plateLookCtx && !card.golden && !whisperLook ? plateLookCtx : null;
-  const plateSrc = whisperLook ? (card.whisperGilded ? WHISPER_GILDED_PLATE_SRC : WHISPER_PLATE_SRC) : plateLook ? plateLook.plate : plateSrcFor(card.tribe);
+  const plateSrc = whisperLook ? (card.whisperGilded ? WHISPER_GILDED_PLATE_SRC : WHISPER_PLATE_SRC)
+    : card.golden ? GILDED_PLATE_SRC
+    : plateLook ? plateLook.plate
+    : STANDARD_PLATE_SRC;
   const plateFade = useArtFade(usePlate ? plateSrc : undefined);
   return (
     <div
@@ -928,7 +924,7 @@ export const Card = memo(function Card({
         // the card's own entry — the base and the branch are different pictures (owner ask 2026-08-28).
         ...(cardArtVars(card.cardId ? artVariantKey(card.cardId, card.chosenOption) : undefined, card.cardId) ?? {}),
         /* A card plate's own darkening (2026-10-14): inline, so it beats the Card Text tuner's :root values on THIS card. */
-        ...(plateLook ? { '--ctx-box-a': plateLook.boxA, '--ctx-box-blend': plateLook.boxBlend, '--ctx-box-y': plateLook.boxY } : {}),
+        ...(plateLook ? { '--ctx-box-a': plateLook.boxA, '--ctx-box-blend': plateLook.boxBlend, '--ctx-box-y': plateLook.boxY, ...(plateLook.frameX ? { '--plate-frame-x': plateLook.frameX } : {}), ...(plateLook.interiorSx ? { '--plate-interior-sx': plateLook.interiorSx } : {}), ...(plateLook.interiorSy ? { '--plate-interior-sy': plateLook.interiorSy } : {}), ...(plateLook.interiorY ? { '--plate-interior-y': plateLook.interiorY } : {}) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -988,9 +984,9 @@ export const Card = memo(function Card({
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
-          <img decoding="sync" className={`plateglow${plateFade.cls}`} src={plateSrc} alt="" aria-hidden="true" draggable={false} />
+          <img decoding="sync" className={`plateglow${plateLook?.frame ? ' plate-framed' : ''}${plateFade.cls}`} src={plateLook?.frame ?? plateSrc} alt="" aria-hidden="true" draggable={false} />
           <img decoding="sync"
-            className={`cardplate${plateFade.cls}`}
+            className={`cardplate${plateLook?.frame ? ' plate-interior' : ''}${plateFade.cls}`}
             src={plateSrc}
             alt=""
             aria-hidden="true"
@@ -1340,7 +1336,16 @@ export const Card = memo(function Card({
             text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
             tuner (backbox · size/x/y/opacity/blend). */}
-        <FadeImg className="descbox" src={plateLook ? plateLook.backbox : DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
+        {/* A GILDED card has none (owner 2026-10-15: "the gilded card no longer needs the darkening plate at all"):
+            its plate is already dark behind the text. A Gilded Whisper keeps its Whisper darkening. */}
+        {!(card.golden && !whisperLook) && !(plateLook && !plateLook.backbox) && (
+          <FadeImg className="descbox" src={plateLook?.backbox ?? (whisperLook ? DESC_BOX_SRC : STANDARD_DESC_BOX_SRC)} alt="" aria-hidden="true" draggable={false} />
+        )}
+        {/* A LAYERED plate's FRAME (owner 2026-10-15): above the darkening, below the name and text, so the frame's
+            flowers and vines are never darkened. Seated on the plate's own box (styles.css `.plate-frame`). */}
+        {usePlate && plateLook?.frame && (
+          <img decoding="sync" className="plate-frame" src={plateLook.frame} alt="" aria-hidden="true" draggable={false} />
+        )}
         <CardName name={card.name} />
         {/* DIVIDER — separates the name from the rules text. Only when there IS rules text: on a vanilla card it
             would just sit between the name and the tribe line. Sized/placed by `.namediv` in styles.css. */}

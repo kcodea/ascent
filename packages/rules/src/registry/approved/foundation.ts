@@ -5718,11 +5718,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-PLATE-01',
-    title: 'Card plates are a crate cosmetic in the account-wide card_plate slot; every plate is Legendary unless the owner says otherwise',
+    title: 'Card plates are a crate cosmetic in the account-wide card_plate slot; a plate is Legendary unless the owner says otherwise',
     statement:
       'The card_plate category ("Card Plates", target global, enabled) holds the plates a player can wear behind their '
-      + 'cards: Aquarium Rocks, Amethyst, Bamboo, Beach, Magma and Moonstone, each a Legendary crate item (a plate from the '
-      + 'owner\x27s Card Backplates folder is Legendary unless the owner says otherwise), in the crate pool at the fixed rarity '
+      + 'cards, every one a crate item (a plate from the owner\x27s Card Backplates folder is Legendary unless the owner says '
+      + 'otherwise): Ancient Mooncloud, Simple Black, Simple White; Epic Moonstone, Bamboo, Smooth Aqua, Smooth Blue, Smooth '
+      + 'Red; Legendary Aquarium Rocks, Amethyst, Beach, Magma, Galaxy, Crackling Gemstone, Hand Drawn, Blue Hand Drawn, Green '
+      + 'Hand Drawn, Topaz, Blossom. Each sits in the crate pool at the fixed rarity '
       + 'odds with an equal chance within its rarity. A plate is ACCOUNT-WIDE: equip_cosmetic(user, \x27card_plate\x27, \x27\x27, '
       + 'id) wears an owned, live plate (one cosmetic_loadouts row, target \x27\x27); null takes it off (the standard plates). '
       + 'A retired plate, or the category switched off, falls back to the standard plates everywhere.',
@@ -5733,31 +5735,38 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, how players get it)', quote: 'Crate drop' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, rarity)', quote: 'aquariam rocks should be a legendary drop' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plates batch)', quote: 'in this folder will be where I provide all the custom backplates that you can unlock from opening chests. you can ignore the Gilded and Standard one, those are just the original cards. every other one should be a legendary reward unless explicitly specified' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (card_plate category, cardPlate item, GLOBAL_EQUIP_SLOTS, cardPlateOf); supabase/migrations/2026-10-14-card-plates.sql (equip_cosmetic)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plate rarities)', quote: 'make moonstone, bamboo, and the smooth frames all epic rarity' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plate rarities)', quote: 'im sorry - i meant ancient rarity' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (card_plate category, cardPlate items, GLOBAL_EQUIP_SLOTS, cardPlateOf); supabase/migrations/2026-10-14-card-plates.sql (equip_cosmetic)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-14 (the equip SQL is the owner\x27s to run before deploying progression-inventory).',
+    currentBehaviour: 'Conforms: six plates built 2026-10-14, nineteen as of 2026-10-15 (feat/new-standard-gilded-plates; deploy progression-inventory to sync them).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cardPlates.test.ts', 'packages/progression/src/cardPlates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
   {
     id: 'R-PROG-PLATE-02',
-    title: 'A worn card plate replaces every standard plate on its wearer\x27s cards, with its own text darkening; gilded cards never change',
+    title: 'One standard plate for every tribe; a worn card plate replaces it with its own text darkening; gilded cards always wear the gilded plate, undarkened and unfiltered',
     statement:
-      'A card shown in its owner\x27s skin scope wears that owner\x27s card plate in place of the standard plate, whatever its '
-      + 'tribe (the tribe name still prints on the plate\x27s bottom gem), and the plate brings its OWN rules-text darkening: '
-      + 'its own backbox shape, opacity, blend and seat (Aquarium Rocks: 0.63, multiply, 1.25 px below the standard seat at '
-      + 'the 138 px enlarged card). The standard plates and their darkening are untouched for every card without a plate. '
-      + 'A GILDED card never changes: it always keeps the original plate hued gold and the standard darkening, whatever '
-      + 'plate its owner wears. A Whisper keeps its Set 4 plate (its identity, not a tribe plate).',
+      'Every card without a plate cosmetic wears ONE STANDARD plate whatever its tribe (the tribe name prints along its '
+      + 'bottom edge), with a socketless text darkening shaped to it. A card shown in its owner\x27s skin scope wears that '
+      + 'owner\x27s card plate instead, and the plate brings its OWN rules-text darkening: its own backbox shape, opacity, blend '
+      + 'and seat, or none (Aquarium Rocks: 0.63, multiply; Magma: 0.315; Beach, Moonstone, Mooncloud, Galaxy, Amethyst and '
+      + 'the Dark and Simple Black plates: none). A GILDED card always wears the painted GILDED plate, with no text darkening '
+      + 'and no colour filter, whatever plate its owner wears. A Whisper keeps its Set 4 plate (its identity, not a tribe '
+      + 'plate) and its own darkening.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, tribe plates)', quote: 'replace all plates, but we ALWAYS will have the gilded cards be the existing original card plate hued gold. nothing should ever changed for gilded cards' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-14 (card plates, darkening)', quote: 'the back of the card needs to be darkened - but the current shape doesnt work, can you use this and replace it with the current png that we use to darken the backplate? and can you increase its opacity?' },
-      { kind: 'code', ref: 'packages/ui/src/cardPlate/cardPlateLook.ts (CARD_PLATE_LOOKS, CardPlateContext); packages/ui/src/Card.tsx (plateLook: never golden, never Whisper; inline --ctx-box-* vars; descbox src); packages/ui/src/skins/skins.tsx (MinionSkins provides the plate)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (standard + gilded plates)', quote: 'the gilded backplate i provided will always be the gilded backplate, even if the standard card has a skin on' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (standard darkening)', quote: 'the standard card needs the new darkening section, as the old one cuts out space for the socket at the bottom that has been removed' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (gilded)', quote: 'the gilded card no longer needs the darkening plate at all' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (gilded)', quote: 'lets lock in that the gilded card does not need the gold hue filter applied' },
+      { kind: 'code', ref: 'packages/ui/src/cardPlate/cardPlateLook.ts (CARD_PLATE_LOOKS, CardPlateContext); packages/ui/src/Card.tsx (STANDARD_PLATE_SRC, GILDED_PLATE_SRC, plateLook: never golden, never Whisper; inline --ctx-box-* vars; descbox src, none on gilded); packages/ui/src/styles.css (no rule filters a gilded plate); packages/ui/src/skins/skins.tsx (MinionSkins provides the plate)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-14. The shop buy dissolve still traces the standard plate\x27s outline (cardplate-wire.webp), so a skinned plate dissolves along a near-identical but not exact edge.',
-    example: 'A player wearing Aquarium Rocks holds a Beast, a Demon and a Gilded Beast: the Beast and Demon show the Aquarium Rocks plate with their tribe names on its bottom gem; the Gilded Beast shows the gold standard plate.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-14' },
+    currentBehaviour: 'Conforms as of 2026-10-15 (the new standard and gilded plates; the gold filter and the ten tribe plates are gone). The shop buy dissolve traces the standard plate\x27s outline (cardplate-wire.webp, rebuilt from it), so a skinned plate dissolves along a near-identical but not exact edge.',
+    example: 'A player wearing Aquarium Rocks holds a Beast, a Demon and a Gilded Beast: the Beast and Demon show the Aquarium Rocks plate with their tribe names along its bottom; the Gilded Beast shows the gilded plate (EARLIER: the gold standard plate.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
   {
     id: 'R-PROG-PLATE-03',
@@ -5888,5 +5897,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-15 (feat/lobby-live-spectate).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-PROG-PLATE-05',
+    title: 'Card plates are LAYERED: interior, then text darkening, then frame; the interior is seated on the frame and tucks under its opening',
+    statement:
+      'A layered card plate paints, bottom to top: its INTERIOR (a shared plate body, Brown unless the owner names another), '
+      + 'the rules-text darkening (when the plate has one), then its FRAME (the full plate silhouette), and only then the '
+      + 'card\x27s name and rules text, so a frame\x27s effects (flowers, vines, clouds) are never darkened and never cover the '
+      + 'text. The interior is positioned from the FRAME\x27s own box, never from the text panel, so the two line up at every '
+      + 'card size, and it is stretched and nudged per plate (interiorSx / interiorSy / interiorY) to tuck under the '
+      + 'frame\x27s opening on every side, leaving no see-through sliver. It moves with the frame\x27s horizontal nudge (frameX). '
+      + 'The Collection shows each layered plate as one pre-built image at the same proportions, rebuilt whenever its '
+      + 'interior, stretch or frame changes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (layered plates)', quote: 'i want the darkening png to sit behind the frame, so there can be effects that can encroach over into the brown area without getting darketing over it' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (layered plates)', quote: 'going forward i think its better to do it this way, with the layers, and we can create different bottom layers. if i dont specify, just default to the brown one' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (interior fit)', quote: 'the thumbnails are showing gaps on the interior and the frame on the rightside' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (interior fit)', quote: "magma's interior needs to nudge down" },
+      { kind: 'code', ref: 'packages/ui/src/cardPlate/cardPlateLook.ts (layered, interior, frameX, interiorSx/Sy/Y, thumb); packages/ui/src/styles.css (.plate-interior anchored to the plate box, .plate-frame in the text panel); packages/ui/src/Card.tsx; scripts/build-card-plate.mjs (--fit)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15: every plate added since is layered (Aquarium Rocks, Amethyst and Bamboo are single images).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
 ];

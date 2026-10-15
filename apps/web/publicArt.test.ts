@@ -34,7 +34,7 @@ describe('isReferenced', () => {
 describe('the real public folder', () => {
   const list = publicArtList(r('./public'), [r('../../packages/ui/src'), r('./src')]);
   it('includes the card chrome and the templated families, and leaves dead files out', () => {
-    for (const must of ['frames/oval-beast.webp', 'frames/tier-stars-1.webp', 'frames/tier-stars-7.webp', 'frames/cardplate-neutral.webp', 'augustfullboard.webp', 'cursors/gauntlet_open.svg']) {
+    for (const must of ['frames/oval-beast.webp', 'frames/tier-stars-1.webp', 'frames/tier-stars-7.webp', 'frames/cardplate-standard.webp', 'frames/cardplate-gilded.webp', 'augustfullboard.webp', 'cursors/gauntlet_open.svg']) {
       expect(list, must).toContain(must);
     }
     for (const dead of ['board.jpg', 'board169.webp', 'icon-512.png']) expect(list, dead).not.toContain(dead);

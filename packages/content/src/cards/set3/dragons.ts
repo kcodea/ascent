@@ -139,7 +139,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     goldenText: '**Rally:** Get **2** random **Dragons**.',
   },
   {
-    // T6 8/3, Dragon AND Undead (the `tribe2` dual): "Echo: Give this minion's Attack to 2 friendly minions." Its Attack
+    // T5 8/3 (T6 until the owner's 2026-10-15 move: "move gravus & well watcher to t5"), Dragon AND Undead (the `tribe2` dual): "Echo: Give this minion's Attack to 2 friendly minions." Its Attack
     // at death, to 2 DIFFERENT random other friendly minions (Lieutenant Thane's Rally body, reused by
     // `deathrattleGiveAttackToOthers`). Combat: a combat buff (R-BUFF-PERM); a Shop Echo is permanent. Gilded: the whole
     // spread twice (Thane's convention).
@@ -147,7 +147,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     name: 'Gravus',
     tribe: 'dragon',
     tribe2: 'undead',
-    tier: 6,
+    tier: 5,
     attack: 8,
     health: 3,
     keywords: [],
@@ -156,12 +156,12 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     goldenText: "**Echo:** Give this minion's **Attack** to **2** friendly minions twice.",
   },
   {
-    // T6 8/8: "Whisper: Discover a Dragon." Grants the Whisper Well of Dragons (on play from hand + every Start of Turn
+    // T5 8/8 (T6 until the owner's 2026-10-15 move): "Whisper: Discover a Dragon." Grants the Whisper Well of Dragons (on play from hand + every Start of Turn
     // while on the board, as Galas). Gilded: a gilded Well, which Discovers twice (two Discovers).
     id: 'd3_wellwatcher',
     name: 'Well Watcher',
     tribe: 'dragon',
-    tier: 6,
+    tier: 5,
     attack: 8,
     health: 8,
     keywords: [],

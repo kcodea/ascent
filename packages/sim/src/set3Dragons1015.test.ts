@@ -12,8 +12,8 @@ import { HUM_PER_TURN } from './whisper';
  *
  *  - Gravestar Seer archived; Chorus Drake, Flutterbutter and Transcendant join Set 3 by reference.
  *  - GATHERER (T4 5/4)  "Rally: Get a random Dragon."                                  R-DRAGON-GATHERER-01
- *  - GRAVUS (T6 8/3, Dragon + Undead) "Echo: Give this minion's Attack to 2 friendly minions."  R-DRAGON-GRAVUS-01
- *  - WELL WATCHER (T6 8/8) "Whisper: Discover a Dragon." (Well of Dragons)              R-WHISPER-08
+ *  - GRAVUS (T5 8/3, Dragon + Undead) "Echo: Give this minion's Attack to 2 friendly minions."  R-DRAGON-GRAVUS-01
+ *  - WELL WATCHER (T5 8/8) "Whisper: Discover a Dragon." (Well of Dragons)              R-WHISPER-08
  *  - MATRIARCH (T6 4/12) "When you cast a spell, give your minions +3 Health."          R-SPELL-MATRIARCH-01
  *  - WOOZY (T3 5/3) "Avenge (3): Get 2 Whispers."                                       R-WHISPER-09
  *  - IMMUNE IGGY (T5 7/2) "Immune while attacking. (Twice per combat)"                  R-IMMUNE-IGGY-01
@@ -57,7 +57,7 @@ const isDragon = (id: string): boolean => {
 describe('the batch is Set 3 content', () => {
   it('the eight new Dragons are Set 3 Dragons at the owner tiers / stats; Gravus is Dragon AND Undead', () => {
     const want: [string, number, number, number][] = [
-      ['d3_gatherer', 4, 5, 4], ['d3_gravus', 6, 8, 3], ['d3_wellwatcher', 6, 8, 8], ['d3_matriarch', 6, 4, 12],
+      ['d3_gatherer', 4, 5, 4], ['d3_gravus', 5, 8, 3], ['d3_wellwatcher', 5, 8, 8] /* T6 -> T5, owner 2026-10-15 */, ['d3_matriarch', 6, 4, 12],
       ['d3_woozy', 3, 5, 3], ['d3_iggy', 5, 7, 2], ['d3_hum', 2, 2, 5], ['d3_gardener', 1, 1, 1],
     ];
     const ids = poolFor('set3').buyable.map((c) => c.id);

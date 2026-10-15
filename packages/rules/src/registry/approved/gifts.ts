@@ -212,11 +212,12 @@ export const GIFTS_RULES: GameRule[] = [
     id: 'R-DRAGON-GRAVUS-01',
     title: "Gravus (Dragon and Undead): \"Echo: Give this minion's Attack to 2 friendly minions.\" Its Attack at death, 2 different others; combat-only in combat",
     statement:
-      "Gravus (Set 3, T6 8/3) is a Dragon AND an Undead (the tribe2 dual). Its Echo hands its Attack at death to 2 DIFFERENT random other friendly minions (never itself; Lieutenant Thane's spread body). In combat the gain is a combat buff (the buff-permanence rule); an Echo fired in the Shop is permanent. Gilded: the whole spread twice.",
+      "Gravus (Set 3, T5 8/3; Tier 6 until the owner moved it on 2026-10-15) is a Dragon AND an Undead (the tribe2 dual). Its Echo hands its Attack at death to 2 DIFFERENT random other friendly minions (never itself; Lieutenant Thane's spread body). In combat the gain is a combat buff (the buff-permanence rule); an Echo fired in the Shop is permanent. Gilded: the whole spread twice.",
     domain: 'gifts',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Gravus, Dragon AND Undead, T6 8/3: \"Echo: Give this minion's Attack to 2 friendly minions.\" (its Attack at death, random 2 other friendly minions; combat-only per the buff-permanence rule)." },
+      { kind: 'owner-chat', ref: 'Owner change 2026-10-15 (PR #2097)', quote: 'move gravus & well watcher to t5' },
       { kind: 'code', ref: "packages/core/src/effects/factories.ts deathrattleGiveAttackToOthers; packages/core/src/effects/arena.ts rallyGiveAttackToOthers; packages/sim/src/recruit.ts deathrattleGiveAttackToOthers" },
     ],
     contentIds: ["d3_gravus"],
@@ -227,11 +228,12 @@ export const GIFTS_RULES: GameRule[] = [
     id: 'R-WHISPER-08',
     title: "Well Watcher grants Well of Dragons: \"Discover a Dragon\" (untargeted); a gilded Well is two Discovers",
     statement:
-      "Well Watcher (Set 3 Dragon, T6 8/8) grants the Whisper Well of Dragons with the Whisper lifecycle (on play, every Start of Turn while it stands, fades at End of Turn, counts as a spell cast). Casting it (no target) opens a Discover of a Dragon from the run's set pool up to your tier. A Gilded Well Watcher grants a gilded Well, which opens TWO Discovers (the second queued).",
+      "Well Watcher (Set 3 Dragon, T5 8/8; Tier 6 until the owner moved it on 2026-10-15) grants the Whisper Well of Dragons with the Whisper lifecycle (on play, every Start of Turn while it stands, fades at End of Turn, counts as a spell cast). Casting it (no target) opens a Discover of a Dragon from the run's set pool up to your tier. A Gilded Well Watcher grants a gilded Well, which opens TWO Discovers (the second queued).",
     domain: 'gifts',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Well Watcher, T6 8/8: \"Whisper: Discover a Dragon.\" The Whisper is named Well of Dragons. Gilded: Discover 2 Dragons (two Discovers)." },
+      { kind: 'owner-chat', ref: 'Owner change 2026-10-15 (PR #2097)', quote: 'move gravus & well watcher to t5' },
       { kind: 'code', ref: "packages/sim/src/recruit.ts whisperDiscoverTribe; packages/content/src/cards/set3/whispers.ts w3_wellofdragons" },
     ],
     contentIds: ["d3_wellwatcher", "w3_wellofdragons"],

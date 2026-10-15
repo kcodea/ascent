@@ -12,6 +12,8 @@ Owner batch. Set 3 is disabled (Set 2 is live), and Gravestar Seer's archive is 
   Immune Iggy, Hum, Gardener (+ Whisper **Seed**) and the **Drake Pup** token (3/3 Taunt Dragon). Rules in
   `docs/GAME-RULES.md`, oracle rules in `packages/rules/src/registry/approved/gifts.ts`.
 
+Owner change the same day (on the PR): "move gravus & well watcher to t5". Both are Tier 5 now, stats unchanged.
+
 ## Engine
 
 - New factories: `rallyGrantRandomTribeMinion` (arena verb `grantRandomTribeMinion`), `deathrattleGiveAttackToOthers`

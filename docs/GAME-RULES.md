@@ -2037,9 +2037,9 @@ cards. New Dragons:
 
 - **Gatherer** (T4 5/4): "**Rally:** Get a random **Dragon**." From the run's set pool, up to your tier, in both phases
   (a combat swing hands it over mid-fight). Gilded: 2.
-- **Gravus** (T6 8/3, Dragon and Undead): "**Echo:** Give this minion's **Attack** to **2** friendly minions." Its
+- **Gravus** (T5 8/3, Dragon and Undead): "**Echo:** Give this minion's **Attack** to **2** friendly minions." Its
   Attack at death, to 2 different other friendlies. A combat buff in combat; permanent from a Shop Echo. Gilded: twice.
-- **Well Watcher** (T6 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no
+- **Well Watcher** (T5 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no
   target. A Gilded Well Watcher's Well opens two Discovers.
 - **Matriarch** (T6 4/12): "When you cast a spell, give your minions **+3 Health**." Every spell: Shop spells, Gifts,
   Whispers, Rubies, in the Shop (permanent) and in combat (a combat buff). Gilded: +6.

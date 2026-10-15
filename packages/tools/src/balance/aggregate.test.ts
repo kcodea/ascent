@@ -35,17 +35,18 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-10-10: the owner spell batch (costs, Growth / Spirit Fire / Staff numbers, two archives) moves them again.
     // Regenerated 2026-10-14: the Celestial / Dragon set swap (Celestials to Set 4, the Whisper Dragons into Set 3), then
     // the Set 3 Dragon batch the same day (Whaloo, Falx, Queen Morro, Shush).
-    // Regenerated 2026-10-15: Set 3 Dragon batch 2 (eight new Dragons, three carried Set 2 Dragons) and Gravestar Seer archived.
+    // Regenerated 2026-10-15: Set 3 Dragon batch 2 (eight new Dragons, three carried Set 2 Dragons) and Gravestar Seer archived;
+    // again the same day when the owner moved Gravus and Well Watcher to Tier 5.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:5.17",
-        "fibbsy:30:4.07",
-        "gorr:30:4.03",
-        "harlan:30:4.93",
-        "midas:30:4.40",
-        "nadja:30:3.80",
-        "pete:30:4.93",
-        "warden:30:4.67",
+        "drakko:30:5.10",
+        "fibbsy:30:4.17",
+        "gorr:30:4.07",
+        "harlan:30:5.03",
+        "midas:30:4.23",
+        "nadja:30:3.90",
+        "pete:30:4.80",
+        "warden:30:4.70",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

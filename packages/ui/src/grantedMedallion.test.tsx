@@ -45,6 +45,14 @@ describe('R-MEDAL-GRANTED-01: the medallion reads printed + granted triggers', (
     expect(gem(instView(bc('a', 'b2_armadiyo', { seedEchoes: 1 }), 2))).toBe('echo');
   });
 
+  it('a printed Watcher given an Echo keeps its eye (owner 2026-10-15: "eye should win > echo", R-MEDAL-EYE-01)', () => {
+    const echo = { on: 'onDeath' as const, do: 'deathrattleSummon' as const, params: { tokenId: 'impscrap', count: 2, fixed: true } };
+    expect(gem(instView(bc('j', 'dm_jumbo'), 2))).toBe('watcher');
+    expect(gem(instView(bc('j', 'dm_jumbo', { seedEchoes: 2 }), 2))).toBe('watcher');
+    expect(gem(instView(bc('j', 'dm_jumbo', { grantedEffects: [echo] }), 2))).toBe('watcher');
+    expect(gem(instView(bc('j', 'dm_jumbo', { copiedEcho: [echo] }), 2))).toBe('watcher');
+  });
+
   it('a copied Echo / grafted Echo on a blank body wears the Echo gem; an Echo-stripped copy does not', () => {
     const echo = { on: 'onDeath' as const, do: 'deathrattleSummon' as const, params: { tokenId: 'impscrap', count: 2, fixed: true } };
     expect(gem(instView(bc('h', 'd3_hum', { grantedEffects: [echo] }), 2))).toBe('echo');

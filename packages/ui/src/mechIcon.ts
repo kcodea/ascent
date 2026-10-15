@@ -25,6 +25,14 @@ export function firstMentionIndex(text: string, m: Mechanic): number {
 const MEDALLION_EXCLUDED: ReadonlySet<string> = new Set(['taunt', 'ward', 'flurry']);
 
 /**
+ * OUTRANKS: the badge that wins whenever both are on one body, whatever their text order (owner 2026-10-15, "eye should
+ * win > echo", R-MEDAL-EYE-01). The winner runs in the better of its own place and the loser's in the precedence below
+ * (text mention, keyword position, global order) and the loser leaves the race: a third badge that beat BOTH still wins,
+ * and one the loser beat now loses to the winner. Printed and granted mechanics alike: a Watcher given an Echo keeps its eye.
+ */
+const MEDALLION_OUTRANKS: ReadonlyArray<readonly [winner: string, loser: string]> = [['watcher', 'echo']];
+
+/**
  * The medallion of a card: its PRINTED mechanics plus any the instance was GRANTED (`view.grantedTriggers`: a Seed's
  * Echo, a copied Echo, a Shop / rune graft; owner 2026-10-15, R-MEDAL-GRANTED-01), resolved under ONE precedence (text
  * order, then keyword order, then the global order), so a printed badge that outranks a grant keeps the gem and a body
@@ -51,11 +59,25 @@ export function resolveMech(view: CardView): Mechanic | null {
     chooseOne: def?.chooseOne,
     text: view.text ?? '',
   };
-  const owned = MECHANICS.filter((m) => !MEDALLION_EXCLUDED.has(m.id) && m.detect(input));
+  let owned = MECHANICS.filter((m) => !MEDALLION_EXCLUDED.has(m.id) && m.detect(input));
   if (owned.length === 0) return null;
   if (owned.length === 1) return owned[0]!;
   const kwPos = (m: Mechanic): number => (m.kw ? input.keywords.indexOf(m.kw) : -1);
-  const winner = owned.slice().sort((a, b) => {
+  // Who each racer runs AS: itself, unless it outranks a loser also on this body; then it runs in the better of its own
+  // place and the loser's, and the loser leaves the race.
+  const runsAs = new Map<Mechanic, Mechanic>();
+  for (const [w, l] of MEDALLION_OUTRANKS) {
+    const winnerM = owned.find((m) => m.id === w), loserM = owned.find((m) => m.id === l);
+    if (!winnerM || !loserM) continue;
+    const winnerSlot = runsAs.get(winnerM) ?? winnerM, loserSlot = runsAs.get(loserM) ?? loserM;
+    runsAs.set(winnerM, cmp(loserSlot, winnerSlot) < 0 ? loserSlot : winnerSlot);
+    owned = owned.filter((m) => m !== loserM);
+  }
+  if (owned.length === 1) return owned[0]!;
+  const as = (m: Mechanic): Mechanic => runsAs.get(m) ?? m;
+  return owned.slice().sort((a, b) => cmp(as(a), as(b)))[0]!;
+
+  function cmp(a: Mechanic, b: Mechanic): number {
     const pa = firstMentionIndex(input.text, a), pb = firstMentionIndex(input.text, b);
     if (pa !== -1 && pb !== -1) return pa - pb;        // both in text → text order
     if (pa !== -1) return -1;                          // only a in text → a wins
@@ -65,6 +87,5 @@ export function resolveMech(view: CardView): Mechanic | null {
     if (ka !== -1) return -1;
     if (kb !== -1) return 1;
     return a.order - b.order;                           // …then global order
-  })[0]!;
-  return winner;
+  }
 }

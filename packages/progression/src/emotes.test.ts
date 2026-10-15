@@ -10,10 +10,12 @@ import { validateInventoryBody } from './inventory';
  * EMOTES (owner spec 2026-10-13): "Emotes are a new COSMETIC type in Collections ... Players equip up to 4 in
  * Collections." Reworked 2026-10-15: "remove all emotes as 'given' and put them in various loot tiers between rare and
  * legendary. wire all the new ones that i added", "remove the angry mushy emote", then "all emotes are crate only except
- * give all players the zen brian emote and show the empty emote slots".
+ * give all players the zen brian emote and show the empty emote slots", then "remove the sad wrangler".
  */
 /** Angry Mushy was a starter until the owner retired it on 2026-10-15. */
 const RETIRED = 'emote_angry_mushy';
+/** Sad Wrangler was a Rare CRATE emote until the owner retired it on 2026-10-15 ("remove the sad wrangler"). */
+const RETIRED_CRATE = 'emote_sad_wrangler';
 /** THE starter: every player owns it and has it in the menu. */
 const Z = 'emote_zen_brian';
 /** Three crate emotes in catalog order (two Rares, then an Epic). */
@@ -23,7 +25,7 @@ const ABC = [A, B, C];
 afterEach(() => setServerCatalogState(null));
 
 describe('the emote catalog', () => {
-  it('Zen Brian is the one STARTER; twelve CRATE emotes, 5 Rare / 4 Epic / 3 Legendary (EmoteTemplate is not one)', () => {
+  it('Zen Brian is the one STARTER; eleven CRATE emotes, 4 Rare / 4 Epic / 3 Legendary (EmoteTemplate is not one)', () => {
     expect(COSMETIC_CATEGORY_DEFS.emote).toEqual({ id: 'emote', label: 'Emotes', weight: 10, enabled: true, target: 'global' });
     const live = COSMETICS.filter((c) => c.category === 'emote' && c.active);
     expect(live.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.master])).toEqual([
@@ -31,7 +33,6 @@ describe('the emote catalog', () => {
       [A, 'Nervous Jensen', 'rare', 'crate', 'NervousJensen.png'],
       [B, 'Depressed Hank', 'rare', 'crate', 'DepressedHank.png'],
       ['emote_nervous_voss', 'Nervous Voss', 'rare', 'crate', 'NervousVoss.png'],
-      ['emote_sad_wrangler', 'Sad Wrangler', 'rare', 'crate', 'SadWrangler.png'],
       ['emote_tara_sad', 'Tara Sad', 'rare', 'crate', 'TaraSad.png'],
       [C, 'Flirty Midas', 'epic', 'crate', 'FlirtyMidas.png'],
       ['emote_happy_urchin', 'Happy Urchin', 'epic', 'crate', 'HappyUrchin.png'],
@@ -63,9 +64,22 @@ describe('the emote catalog', () => {
     expect(catalogSyncPayload().items.find((i) => i.cosmeticId === RETIRED)).toMatchObject({ acquisitionSource: 'starter', active: false });
   });
 
+  it('Sad Wrangler is RETIRED (owner 2026-10-15: "remove the sad wrangler"), not deleted; a player who OWNS it keeps it but never sees or plays it', () => {
+    const def = COSMETICS.find((c) => c.id === RETIRED_CRATE)!;
+    expect([def.name, def.rarity, def.acquisition.type, def.active]).toEqual(['Sad Wrangler', 'rare', 'crate', false]);
+    expect(emoteOf(RETIRED_CRATE)).toBeNull(); // so sayEmote / a recorded board naming it plays nothing
+    expect(eligibleCrateCosmetics([]).map((c) => c.id)).not.toContain(RETIRED_CRATE);
+    // Owned (its ownership row stays) and even placed in a slot: the menu skips it and refills the position.
+    expect(emoteSlotsOf({ emotes: { 0: RETIRED_CRATE } }, [RETIRED_CRATE, A])).toEqual([Z, A, null, null]);
+    expect(emoteLoadoutOf(null, [RETIRED_CRATE, ...ABC])).toEqual([Z, A, B, C]);
+    expect(emotePositionOf({ emotes: { 1: RETIRED_CRATE } }, RETIRED_CRATE, [RETIRED_CRATE])).toBe(-1);
+    // The sync still sends it, marked inactive, so the server's copy retires it too.
+    expect(catalogSyncPayload().items.find((i) => i.cosmeticId === RETIRED_CRATE)).toMatchObject({ acquisitionSource: 'crate', active: false });
+  });
+
   it('every live emote but Zen Brian drops from a crate, and only until it is owned', () => {
     const pool = eligibleCrateCosmetics([]).filter((c) => c.category === 'emote').map((c) => c.id);
-    expect(pool).toHaveLength(12);
+    expect(pool).toHaveLength(11);
     expect(pool).toEqual(expect.arrayContaining(ABC));
     expect(pool).not.toContain(Z);
     expect(eligibleCrateCosmetics([A]).map((c) => c.id)).not.toContain(A);
@@ -78,7 +92,7 @@ describe('the emote catalog', () => {
 
   it('the catalog sync sends Zen Brian as a starter and every other live emote as a targetless crate item', () => {
     const items = catalogSyncPayload().items.filter((i) => i.category === 'emote' && i.active);
-    expect(items).toHaveLength(13);
+    expect(items).toHaveLength(12);
     expect(items.find((i) => i.cosmeticId === Z)).toMatchObject({ acquisitionSource: 'starter', targetType: null, targetId: null });
     expect(items.filter((i) => i.cosmeticId !== Z).every((i) => i.acquisitionSource === 'crate' && i.targetType === null && i.targetId === null)).toBe(true);
   });

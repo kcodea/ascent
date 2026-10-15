@@ -5351,11 +5351,14 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Zen Brian is the one STARTER '
       + 'item (acquisition \x27starter\x27): every player owns it from the start, signed in or not, with no ownership row, '
-      + 'and it never drops from a crate. Every other live emote is a CRATE item: 5 Rare (Nervous Jensen, Depressed Hank, '
-      + 'Nervous Voss, Sad Wrangler, Tara Sad), 4 Epic (Flirty Midas, Happy Urchin, Sly Oona, Dead Elder) and 3 Legendary '
+      + 'and it never drops from a crate. Every other live emote is a CRATE item: 4 Rare (Nervous Jensen, Depressed Hank, '
+      + 'Nervous Voss, Tara Sad), 4 Epic (Flirty Midas, Happy Urchin, Sly Oona, Dead Elder) and 3 Legendary '
       + '(Rich Pimm, Baby Rubies, Mad Tormentor), dropping like any crate item (fixed rarity odds, then an equal share '
       + 'inside the rarity, never one already owned). Angry Mushy, once a starter, is RETIRED (active false, the id kept): '
-      + 'not owned, shown, equippable or played, and an old recording of it plays nothing. The in-game menu holds FOUR '
+      + 'not owned, shown, equippable or played, and an old recording of it plays nothing. Sad Wrangler, once a Rare crate '
+      + 'emote, is RETIRED the same way: a player who already owns it keeps the ownership row, but it is never shown in '
+      + 'the Collection or its counts, never in the menu (a position naming it is refilled), never equippable, never in a '
+      + 'crate, and a recording of it plays nothing. The in-game menu holds FOUR '
       + 'slots, one cosmetic_loadouts row per position (slot \x27emote\x27, target \x270\x27..\x273\x27); equip_cosmetic puts '
       + 'an owned (or starter) live emote in a position and the same emote leaves any other position (a move). Only emotes '
       + 'the account owns ever show: explicit positions first (a row naming an emote not owned, retired or unknown is '
@@ -5379,12 +5382,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove the angry mushy emote' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove all emotes as \x27given\x27 and put them in various loot tiers between rare and legendary. wire all the new ones that i added' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'all emotes are crate only except give all players the zen brian emote and show the empty emote slots so it\x27s obvious they have empty slots' },
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove the sad wrangler' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (emote(), EMOTE_SLOT_COUNT, emoteSlotsOf, emoteLoadoutOf, withEmoteAt); packages/ui/src/progression/CrateOpener.tsx (the emote reveal); packages/ui/src/emotes/EmptyEmoteSlot.tsx (the empty slot); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-13-emotes.sql (the starter check, equip_cosmetic); packages/sim/src/emotes.ts (EMOTE_COOLDOWN_MS, emoteCooldownLeft); packages/ui/src/emotes/ (emoteRuntime.ts, emoteLoadout.ts, EmoteLayer.tsx); packages/ui/src/StatusBar.tsx (the right-click); packages/ui/src/progression/CollectionScreen.tsx (the slot buttons)' },
     ],
     currentBehaviour:
       'Conforms in the client from 2026-10-15. On the live server the catalog follows when the owner deploys '
       + 'progression-inventory (the sync writes Zen Brian back as a starter, the other emotes as crate items, and retires '
-      + 'Angry Mushy). No SQL: the acquisition check already allows \x27starter\x27 and the sync updates the source.',
+      + 'Angry Mushy and Sad Wrangler). No SQL: the acquisition check already allows \x27starter\x27 and the sync updates the source.',
     example:
       'A fresh account right-clicks its portrait: Zen Brian, then three dashed "Empty" slots; hovering one says "Empty '
       + 'slot. Find more emotes in crates." Its level 3 crate gives Nervous Jensen (Rare) and the reveal shows the bubble; '

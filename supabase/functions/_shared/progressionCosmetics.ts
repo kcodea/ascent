@@ -608,7 +608,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // (EmoteTemplate.png there is the blank template, not an emote). Names come from the filenames. Owner 2026-10-15:
   // "remove all emotes as 'given' and put them in various loot tiers between rare and legendary. wire all the new ones
   // that i added": every emote is a CRATE drop, spread by how expressive each is (a proposal the owner may re-tier: a
-  // one-word change per line), EXCEPT Zen Brian, the one starter (below). 5 Rare / 4 Epic / 3 Legendary in crates.
+  // one-word change per line), EXCEPT Zen Brian, the one starter (below). 4 Rare / 4 Epic / 3 Legendary in crates
+  // (Sad Wrangler, a Rare, retired 2026-10-15).
   // RETIRED 2026-10-15 (owner: "remove the angry mushy emote"). Kept as an inactive row, never deleted: the id stays known
   // so an equipped slot or an old recorded board naming it degrades quietly (it is not live, so the menu skips that
   // position, a recording of it plays nothing, the Collection hides it). Its in-repo bubble art was removed with it.
@@ -620,7 +621,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   emote('emote_nervous_jensen', 'Nervous Jensen', 'rare', 'NervousJensen.png'),
   emote('emote_depressed_hank', 'Depressed Hank', 'rare', 'DepressedHank.png'),
   emote('emote_nervous_voss', 'Nervous Voss', 'rare', 'NervousVoss.png'),
-  emote('emote_sad_wrangler', 'Sad Wrangler', 'rare', 'SadWrangler.png'),
+  // RETIRED 2026-10-15 (owner: "remove the sad wrangler"), exactly like Angry Mushy above: an inactive row, never deleted,
+  // so the id stays known. A player who already OWNS it keeps the ownership row, but it is never shown (the Collection
+  // hides it), never in the menu, never equippable, never in a crate, and a recording of it plays nothing. Its in-repo
+  // bubble art was removed with it (the master stays in the Game Assets folder).
+  { ...emote('emote_sad_wrangler', 'Sad Wrangler', 'rare', 'SadWrangler.png'), active: false },
   emote('emote_tara_sad', 'Tara Sad', 'rare', 'TaraSad.png'),
   // Epic: a bigger gesture or a little scene.
   emote('emote_flirty_midas', 'Flirty Midas', 'epic', 'FlirtyMidas.png'),

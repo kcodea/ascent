@@ -917,7 +917,18 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   the wind trail), plays, spell casts at their targets, sales (the Gold float and coins), repositions, aim lines,
   button presses, the End of Turn beats in step with the player, every fight beat, and the End Combat exit curtain.
   It plays the game's music. Only the announcer stays silent for spectators (its lines speak to "you"), along with
-  input-only cues such as hover sounds.
+  input-only cues such as hover sounds. An action the game refused (no Gold, a full board) makes no sound for the
+  stands (R-SPECTATE-AV-04).
+- **Spectators are in sync with the player's hand** (owner 2026-10-15; R-SPECTATE-CURSOR-01, -HOVER-01, -DRAGGAP-01,
+  -AIM-01, -JOIN-01). The player's cursor points at the same button or card on any spectator screen size or aspect;
+  the hover previews the player opens (cards, minions, runes, quests, the hero power, the game's tips) open for the
+  spectator too; the board opens the same gap while the player drags a minion over it; a targeting arrow follows the
+  player's aim and ends on their target, and the spectator's own mouse never moves it. Joining or coming back in the
+  middle of a fight starts it from the player's current moment, never from its first beat.
+- **The player sees who is watching** (owner 2026-10-15; R-SPECTATE-WATCHERS-01). Top left of their own screen, in
+  shop and combat: each spectator's portrait in their frame, their name (or "Spectator") and "Spectating", up to
+  three, then "+N" (hover it for the names). It stays while they watch and goes when they leave. The same applies to
+  a ranked game watched from Live Games.
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 

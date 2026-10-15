@@ -566,6 +566,8 @@ export function takeSpectatorResume(wave: number): number | null {
 
 /** A spectator this many beats behind the player's fight is seeked; closer than that it plays on (no visible jump). */
 export const SEEK_LAG_BEATS = 3;
+/** Every seek request's number, never reused (across watch sessions too), so a request runs exactly once. */
+let seekSeq = 0;
 /**
  * LATE JOIN (owner 2026-10-15: "i left a game as a spectator and came back in combat, and it started combat from the
  * start ... can we just sync the viewer up either mid fight"; R-SPECTATE-JOIN-01). The player's broadcast keyframe
@@ -579,7 +581,7 @@ export function syncFightBeat(cb: CombatBeat): void {
   const fb = fightBeat;
   const onScreen = useSpectate.getState().active && run.phase === 'combat' && run.wave === cb.w && fb?.key === `${matchId}|${cb.w}`;
   if (onScreen && fb) {
-    if (cb.b - fb.beat >= SEEK_LAG_BEATS) useSpectate.setState((st) => ({ seek: { wave: cb.w, beat: cb.b, n: (st.seek?.n ?? 0) + 1 } }));
+    if (cb.b - fb.beat >= SEEK_LAG_BEATS) { seekSeq += 1; useSpectate.setState({ seek: { wave: cb.w, beat: cb.b, n: seekSeq } }); }
     return;
   }
   resumeAt = { wave: cb.w, beat: cb.b };

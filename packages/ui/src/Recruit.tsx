@@ -2891,11 +2891,14 @@ export function Recruit() {
     if (b != null && b > 0) seekForResume(b);
   }, [watchingVersus, fighting, run.lastCombat]);
   // A spectator already in this fight and behind the player's beat: snap to it (spectate.ts `syncFightBeat`).
+  // A request that lands during the fight's entrance waits for the fight itself (`fighting`), then runs once.
   const spectatorSeek = useSpectate((s) => s.seek ?? null);
+  const seekDoneRef = useRef(0);
   useEffect(() => {
-    if (!watchingVersus || !fighting || !spectatorSeek || spectatorSeek.wave !== run.wave) return;
-    seekForResume(spectatorSeek.beat);
-  }, [spectatorSeek]);
+    if (!watchingVersus || !fighting || !spectatorSeek || spectatorSeek.wave !== run.wave || seekDoneRef.current === spectatorSeek.n) return;
+    seekDoneRef.current = spectatorSeek.n;
+    if (spectatorSeek.beat > replay.beatIdx) seekForResume(spectatorSeek.beat);
+  }, [spectatorSeek, fighting, watchingVersus, run.wave]);
   // THE ANNOUNCER's MinionHits100Stats during a fight: the TRUTH frame's player units, per beat (seven reads, no
   // allocation; the module reports once per fight and only while unfired). Never the enemy / ghost side.
   useEffect(() => { if (fighting) observeCombatBoard(replay.frame.player, run.wave); }, [fighting, replay.frame, run.wave]);

@@ -3,6 +3,7 @@
  * and returns the FIRST one mentioned in the card's text — or null for a blank badge. Never the tribe.
  * CardView has no `effects`, so the def is looked up in CARD_INDEX; keywords come from the live view.
  */
+import type { EffectDef, Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { CardView } from './Card';
 import { MECHANICS, type Mechanic, type MechInput } from './mechanics';
@@ -23,11 +24,30 @@ export function firstMentionIndex(text: string, m: Mechanic): number {
  */
 const MEDALLION_EXCLUDED: ReadonlySet<string> = new Set(['taunt', 'ward', 'flurry']);
 
+/**
+ * The medallion of a card: its PRINTED mechanics plus any the instance was GRANTED (`view.grantedTriggers`: a Seed's
+ * Echo, a copied Echo, a Shop / rune graft; owner 2026-10-15, R-MEDAL-GRANTED-01), resolved under ONE precedence (text
+ * order, then keyword order, then the global order), so a printed badge that outranks a grant keeps the gem and a body
+ * with no badge of its own wears the granted one. A granted self-attack or self-kill graft (`onAttack` / `onKill`) is a
+ * RALLY / SLAUGHTER on this body, never a watch on an ally, so it reads as that keyword.
+ */
 export function resolveMech(view: CardView): Mechanic | null {
   const def = CARD_INDEX[view.cardId];
+  const granted = view.grantedTriggers;
+  let keywords = view.keywords;
+  let effects: EffectDef[] = def?.effects ?? [];
+  if (granted?.length) {
+    effects = [...effects, ...(granted as EffectDef[])];
+    const add: Keyword[] = [];
+    for (const g of granted) {
+      if (g.on === 'onAttack' && !keywords.includes('RL') && !add.includes('RL')) add.push('RL');
+      if (g.on === 'onKill' && !keywords.includes('SL') && !add.includes('SL')) add.push('SL');
+    }
+    if (add.length) keywords = [...keywords, ...add];
+  }
   const input: MechInput = {
-    keywords: view.keywords,
-    effects: def?.effects ?? [],
+    keywords,
+    effects,
     chooseOne: def?.chooseOne,
     text: view.text ?? '',
   };

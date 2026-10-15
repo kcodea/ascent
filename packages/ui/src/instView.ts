@@ -2,6 +2,7 @@ import { damageMeterOf, foldTribes, type Keyword, type Tribe } from '@game/core'
 import { CARD_INDEX } from '@game/content';
 import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe } from '@game/sim';
 import type { CardView } from './Card';
+import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
@@ -451,6 +452,9 @@ export function instView(
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: withSeedRows(inst),
+    // Granted triggers (a Seed's Echo, permanent or this turn's; a copied Echo; a graft) join the medallion
+    // (R-MEDAL-GRANTED-01). Live: a Whisper's temporary stack is stripped at the next turn and the badge drops with it.
+    grantedTriggers: grantedTriggersOfBoard(inst),
     // Shop/board counter: only render once it has PROGRESS — a fresh 0/N reads as noise (owner ruling), so
     // hide at 0 and surface it from 1/N up. (Combat keeps its own 0/N → fades in on the first tick.)
     stepProgress: live?.onBoard

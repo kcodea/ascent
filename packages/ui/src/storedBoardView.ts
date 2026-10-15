@@ -1,6 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import { foldTribes, type BoardMinion } from '@game/core';
 import type { CardView } from './Card';
+import { grantedTriggersOfBoard } from './grantedTriggers';
 
 /**
  * Render a card from a STORED board snapshot (Career / Leaderboard history).
@@ -61,5 +62,6 @@ export function storedCardView(m: BoardMinion): CardView {
     // Per-source buff breakdown (captured in the snapshot) → the right-click inspect panel. Older snapshots
     // carry none, so the panel simply does not appear for them.
     buffs: m.buffs,
+    grantedTriggers: grantedTriggersOfBoard(m), // a stored body's granted Echo / graft wears its medallion (R-MEDAL-GRANTED-01)
   };
 }

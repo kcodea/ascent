@@ -1,6 +1,7 @@
 import { memo, type CSSProperties } from 'react';
 import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { grantedTriggersOfSnapshot } from './grantedTriggers';
 import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
@@ -194,6 +195,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     health: Math.max(0, u.health),
     keywords: u.keywords, golden: u.golden,
     riseTint: u.riseTint, // Ancients × Lord of the Risen: War's red / Death's regained blue Rise
+    // Granted triggers (Seed's Echo, a copied Echo, a graft) join the medallion (R-MEDAL-GRANTED-01). One shared
+    // array per shape, so the per-beat frame copy never churns it.
+    grantedTriggers: grantedTriggersOfSnapshot(u),
     text: liveText,
     // liveCardText already folds golden-awareness + the golden-variant fallback into its goldenText (Card renders
     // that for goldens), so pass it straight through — same source of truth as the shop.
@@ -277,6 +281,8 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.whisperCastsUsed === b.u.whisperCastsUsed && // Whaloo's live cap (only its own casts move it)
   a.u.attacksMade === b.u.attacksMade && // Immune Iggy's live immune countdown (only its own swings move it)
   a.u.seedEchoes === b.u.seedEchoes && // Seed's Drake Pup Echo stacks
+  a.u.grantedTriggers === b.u.grantedTriggers && // granted triggers for the medallion (the snapshot's own array, copied by reference)
+  a.u.grantedRallyShout === b.u.grantedRallyShout && // the Auctioneer's granted Rally (medallion + text)
   a.u.whisperTick === b.u.whisperTick && // Hatcher's tier
   sameNumRecord(a.u.whisperImproveLive, b.u.whisperImproveLive) && // a combat Runebind landed: compared BY VALUE (the frame rebuilds the map every beat)
   a.u.spiritTally === b.u.spiritTally &&

@@ -76,6 +76,7 @@ import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { FightRecap } from './FightRecap';
 import { instView, liveCardText, tribeFace, type LiveTextParams, type SellTextState } from './instView';
+import { grantedTriggersOfBoard } from './grantedTriggers';
 import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
@@ -8737,6 +8738,7 @@ const TavernRow = memo(function TavernRow({
                   golden: m.golden ?? false,
                   text: CARD_INDEX[m.cardId]?.text ?? '',
                   tier: CARD_INDEX[m.cardId]?.tier,
+                  grantedTriggers: grantedTriggersOfBoard(m), // granted Echo / graft on the medallion (R-MEDAL-GRANTED-01)
                 }}
                 onPointerDown={sbEditMode ? onSbEnemyPointerDown : undefined}
               />

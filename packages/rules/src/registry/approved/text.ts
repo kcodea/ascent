@@ -338,6 +338,36 @@ export const TEXT_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-MEDAL-GRANTED-01',
+    title: 'A granted trigger shows on the medallion when no printed badge outranks it',
+    statement:
+      'The medallion at the base of a minion\'s portrait is chosen from its printed mechanics PLUS the triggers that '
+      + 'body was granted (a Seed\'s Drake Pup Echo, temporary or kept by Hum; a copied Echo; a Shop, rune or Start of '
+      + 'Combat graft; the Auctioneer\'s Rally), under the same precedence as printed ones. A minion whose printed badge '
+      + 'outranks the grant keeps it; a minion with no badge wears the granted one. It holds on every surface (Shop, '
+      + 'board, hand, combat, inspect, stored and scouted boards, Versus) and drops the moment the grant expires.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (Hum with a kept Seed showed no badge)', quote: 'hum with the echo whisper on it should get the echo badge, same for other minions that dont have a badge that takes precedence' },
+      { kind: 'fix-pr', ref: 'fix/granted-trigger-badge — packages/ui/src/grantedTriggers.ts + mechIcon.ts (resolveMech folds granted triggers), MinionSnapshot.grantedTriggers (core snapshot)' },
+    ],
+    contentIds: ['d3_hum', 'd3_gardener', 'w3_seed', 'gravetwin'],
+    currentBehaviour:
+      'Conforms as of 2026-10-15. The medallion used to read the printed card only, so Hum carrying four kept Seed '
+      + 'Echoes showed no badge. Known gap: a trigger grafted DURING a fight (Grave Body, Contract Rewrite) does not '
+      + 'move the medallion in that fight, since combat emits no event for the graft itself; it shows wherever the body '
+      + 'carries it into a later surface.',
+    example:
+      'Hum with "Echo: Summon a 3/3 Drake Pup with Taunt (x4)" shows the Echo medallion; Haven Drake given the same '
+      + 'Echo keeps its Shout medallion.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/grantedMedallion.test.tsx'],
+      lastVerifiedAt: '2026-10-15',
+    },
+  },
+  {
     id: 'R-TEXT-ANCPREVIEW-01',
     title: 'The Ancients preview shows every Ancient name and effect in full, never clipped',
     statement:

@@ -11,6 +11,7 @@ import type { MinionSnapshot } from '@game/core';
 import type { CardView } from '../Card';
 import { stepProgress } from '../cardText';
 import { liveCardText } from '../instView';
+import { grantedTriggersOfSnapshot } from '../grantedTriggers';
 
 export function versusSnapshotView(m: MinionSnapshot, tier = 1): CardView {
   const def = CARD_INDEX[m.cardId];
@@ -37,6 +38,7 @@ export function versusSnapshotView(m: MinionSnapshot, tier = 1): CardView {
     keywords: m.keywords ?? [],
     golden: m.golden,
     riseTint: m.riseTint,
+    grantedTriggers: grantedTriggersOfSnapshot(m), // granted triggers on the medallion (R-MEDAL-GRANTED-01)
     text: live.text,
     goldenText: live.goldenText ?? def?.goldenText,
     tier: def?.tier,

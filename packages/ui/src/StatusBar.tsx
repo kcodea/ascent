@@ -29,6 +29,7 @@ import { EquipNamePlate } from './EquipNamePlate';
 import { DiscountWindowReadout } from './DiscountWindowReadout';
 import { goldClockOf } from './goldClock';
 import { sfx } from './sfx';
+import { onPressCue } from './pressCue';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { useAmplifiedSlotFx } from './useAmplifiedSlotFx';
 import { DiceRoll } from './DiceRoll';
@@ -492,6 +493,13 @@ export function StatusBar() {
   // The button's rect is read ONCE per roll, here, never per frame. `settled` flips at t = 1 so the held face
   // appears under the fading overlay; `null` again once the overlay has retired.
   const powerBtnRef = useRef<HTMLButtonElement>(null);
+  // A Versus SPECTATOR sees the hero-power press the player made (`pressCue.ts`): the same cue, SFX and spark.
+  useEffect(() => onPressCue('heroPower', () => {
+    sfx.pulse();
+    sfx.heroPower(hero.id);
+    const r = powerBtnRef.current?.getBoundingClientRect();
+    if (r) playDef('hero-power-spark', { source: { x: r.left + r.width / 2, y: r.top + r.height / 2 }, target: { x: r.left + r.width / 2, y: r.top + r.height / 2 } });
+  }), [hero.id]);
   // FRANK × ANCIENT OF WAR: each Clearance stack an Avenge gains MID-FIGHT pops the power with the one-shot
   // 'hero-power-spark' as it happens (the red uses count re-keys and bumps alongside). One rect read per gain, never
   // per frame; a new fight resets the delta to 0, which is not a gain.

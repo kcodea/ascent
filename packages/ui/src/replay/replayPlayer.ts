@@ -381,7 +381,7 @@ function sessionBase(i: number, f: Frame): NonNullable<StoreState['replaySession
  *  same decision fields — flagged `ghost` so the floating-card overlay and the sell/buy zones stay out (the
  *  ghost layer is the moving card). Cleared by `releaseGhostHold` when the frame lands or anything else
  *  renders. Pure over its inputs apart from the store write — tested through `ghostHoldFor`. */
-function holdGhostCard(prevView: ShopView | null, nextView: ShopView, cause: ShopFrame['cause'], drag: DragPath, view: CardView | undefined): void {
+export function holdGhostCard(prevView: ShopView | null, nextView: ShopView, cause: ShopFrame['cause'], drag: DragPath, view: CardView | undefined): void {
   const hold = ghostHoldFor(prevView, nextView, cause, drag);
   if (!hold) return;
   // The rows read `view.cardId` / `view.target` / `view.spell` off the drag; a card this build no longer
@@ -398,7 +398,7 @@ function holdGhostCard(prevView: ShopView | null, nextView: ShopView, cause: Sho
     overZone: hold.overZone, decision: hold.decision, castingSpell: false, snapping: false, magSlide: false,
   });
 }
-function releaseGhostHold(): void {
+export function releaseGhostHold(): void {
   if (dragStore.get().drag?.ghost) dragStore.endDrag();
 }
 
@@ -603,7 +603,7 @@ export function playableDragPath(d: DragPath | undefined): DragPath | null {
  *  view so the ghost carries the stats/golden state the card actually had when the player grabbed it (owner
  *  report 2026-08-19: the first ghost was a tiny generic tile, "not what the card actually looks like").
  *  Falls back to the printed base card when the id isn't found (edge of coalescing / a consumed offer). */
-function ghostCardView(prevView: ShopView | null, cardId: string): CardView | undefined {
+export function ghostCardView(prevView: ShopView | null, cardId: string): CardView | undefined {
   const def = CARD_INDEX[cardId];
   if (!def) return undefined;
   const base: CardView = {

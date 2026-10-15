@@ -59,7 +59,7 @@ export function phaseOfRun(run: { phase: string }): EmotePhase | null {
 /** Whether this client may emote at all right now (a run on screen in a shop turn or a combat, not a replay). */
 export function canEmoteNow(): boolean {
   const s = useGame.getState();
-  return !s.replaySession && !!phaseOfRun(s.run) && clock.phase !== null;
+  return !s.replaySession && !s.replaying && !!phaseOfRun(s.run) && clock.phase !== null; // a replay or a Versus spectator never emotes
 }
 
 export function openEmoteMenu(at: { x: number; y: number }): void {

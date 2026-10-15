@@ -2462,8 +2462,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (import.meta.env.DEV) console.warn(`[choreographer] prepared action cancelled: ${reason}`);
     set({ presentationTx: null });
   },
-  armHero: (slot = 0) => { if (!versusFreeze(get().run)) set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot, equipArmed: false })); },
-  armEquipment: () => { if (!versusFreeze(get().run)) set((s) => ({ equipArmed: !s.equipArmed, heroArmed: false })); },
+  armHero: (slot = 0) => { if (!get().replaying && !versusFreeze(get().run)) set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot, equipArmed: false })); },
+  armEquipment: () => { if (!get().replaying && !versusFreeze(get().run)) set((s) => ({ equipArmed: !s.equipArmed, heroArmed: false })); },
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   stampReplayOdds: (odds) => {
     const s = get();

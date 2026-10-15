@@ -23,6 +23,7 @@ import { Icon } from '../Icon';
 import type { ResolvedFrame } from '../portraitFrame/portraitFrameConfig';
 import { useGame } from '../store';
 import { mySeat, useVersus } from './versusStore';
+import { useSpectate } from './spectate';
 
 type Tone = 'ready' | 'away';
 
@@ -30,7 +31,9 @@ type Tone = 'ready' | 'away';
 function useFoeStatus(): { label: string; tone: Tone } | null {
   const key = useVersus((s) => {
     const m = s.match;
-    const seat = mySeat(m);
+    // A spectator reads it from the side of the player it is watching.
+    const sp = useSpectate.getState();
+    const seat = mySeat(m) ?? (sp.active ? sp.seat : null);
     if (!m || !seat || m.phase === 'complete') return '';
     const other = seat === 'p1' ? 'p2' : 'p1';
     if (m.paused_seat === other) return 'away|Disconnected';

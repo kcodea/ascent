@@ -1,4 +1,5 @@
-import { memo, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
+import { onPressCue } from './pressCue';
 import { playDef } from './fx/playDef';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
@@ -34,7 +35,8 @@ export const FreezeButton = memo(function FreezeButton({
   onFreeze: () => void;
 }) {
   const wrapRef = useRef<HTMLButtonElement>(null);
-  const click = (): void => {
+  /** The press visual: on a click, and on a spectator's replay of one (`pressCue.ts`). */
+  const playPress = (): void => {
     // Fire the authored 'freeze-blast' FX (built in the FX workbench) from the gem's centre on press (owner
     // ask 2026-08-14 — replaces the earlier impactPulse ring). The gem sits at the button's centre, so the
     // wrap rect gives the origin; both layers anchor to `source`.
@@ -43,6 +45,10 @@ export const FreezeButton = memo(function FreezeButton({
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       playDef('freeze-blast', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
     }
+  };
+  useEffect(() => onPressCue('freeze', playPress));
+  const click = (): void => {
+    playPress();
     onFreeze();
   };
   return (

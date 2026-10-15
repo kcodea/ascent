@@ -1,4 +1,5 @@
-import { memo, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
+import { onPressCue } from './pressCue';
 import { playDef } from './fx/playDef';
 import { Icon } from './Icon';
 
@@ -50,7 +51,8 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
   const wrapRef = useRef<HTMLButtonElement>(null);
   const maxed = tier >= maxTier;
 
-  const click = (): void => {
+  /** The press visual: on a click, and on a spectator's replay of one (`pressCue.ts`). */
+  const playPress = (): void => {
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -59,6 +61,10 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
       // anchor to `source`).
       playDef('shop-tier-up', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
     }
+  };
+  useEffect(() => onPressCue('upgrade', playPress));
+  const click = (): void => {
+    playPress();
     onUpgrade();
   };
 

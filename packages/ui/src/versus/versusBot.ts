@@ -11,6 +11,9 @@ import { activeSet, contentRevision } from '@game/content';
 import { create } from 'zustand';
 import { VersusBotDriver, type BotStepResult } from './versusBotDriver';
 import { makeVersusRemote } from './versusRemote';
+import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
+import { SPECTATE_KEY_EVENT } from './spectate';
+import type { RunState } from '@game/sim';
 import { versusServerNow } from './versusStore';
 
 const BOT_STORAGE_KEY = 'ascent.versus.testbot';
@@ -57,6 +60,7 @@ async function loop(): Promise<void> {
   driver.disconnected = useVersusBot.getState().disconnected;
   const r: BotStepResult = await driver.step();
   if (!driver) return;
+  publishBotFrame();
   if (r === 'done') {
     // The match is over (or the room is gone): keep watching the continuous room for the next match.
     const room = await remote.room(useVersusBot.getState().roomId!).catch(() => null);
@@ -64,6 +68,37 @@ async function loop(): Promise<void> {
   }
   // Small random gaps so it feels alive; the driver itself ends its turn with time to spare.
   schedule(r === 'acted' ? 250 + Math.random() * 550 : 500);
+}
+
+/**
+ * The bot's SPECTATOR FRAMES (Versus phase 2): a spectator watching the bot's seat sees its shop and fights like a
+ * person's. Same protocol as a player's client (`spectatorView.ts`): a keyframe at every shop open, on a spectator's
+ * request and every 25 deltas, deltas otherwise, on the room channel; keyframes also persisted for late joiners.
+ */
+let pub: { matchId: string; p: SpectatorPublisher; channel: { send: (e: string, p: unknown) => void; close: () => void } } | null = null;
+let lastRun: RunState | null = null;
+let botKeyWanted = false;
+function publishBotFrame(): void {
+  const roomId = useVersusBot.getState().roomId;
+  const run = driver?.run ?? null;
+  const matchId = driver?.currentMatchId ?? null;
+  const seat = driver?.currentSeat ?? null;
+  if (!roomId || !run || !matchId || !seat) return;
+  if (pub?.matchId !== matchId) {
+    pub?.channel.close();
+    const ch = remote.subscribeRoom(roomId, matchId, () => undefined, (event) => { if (event === SPECTATE_KEY_EVENT) botKeyWanted = true; });
+    pub = { matchId, p: newPublisher(seat), channel: ch };
+    lastRun = null;
+    botKeyWanted = true;
+  }
+  if (run === lastRun && !botKeyWanted) return;
+  const shopOpened = lastRun?.phase !== 'recruit' && run.phase === 'recruit';
+  lastRun = run;
+  const msg = nextSpectatorMessage(pub.p, run, run.wave, shopOpened || botKeyWanted);
+  botKeyWanted = false;
+  if (!msg) return;
+  pub.channel.send('spectate', msg);
+  if (msg.kind === 'key') void remote.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
 }
 
 /** Seat the bot in `roomId` (an empty player seat) and start it playing. */
@@ -90,6 +125,9 @@ export async function startVersusBot(roomId: string): Promise<void> {
 export async function stopVersusBot(): Promise<void> {
   const roomId = useVersusBot.getState().roomId;
   driver = null;
+  pub?.channel.close();
+  pub = null;
+  lastRun = null;
   if (timer != null) { window.clearTimeout(timer); timer = null; }
   useVersusBot.setState({ status: 'off', roomId: null, disconnected: false });
   if (roomId) await remote.leaveRoom(roomId).catch(() => undefined);

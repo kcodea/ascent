@@ -18,6 +18,7 @@ import { lockTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVers
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
 import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurn } from './versusTurn';
+import { SpectatorBar } from './SpectatorBar';
 import './versus.css';
 
 /** This player's turn state (`versusTurn`), from the session store and the run. */
@@ -141,6 +142,8 @@ export function VersusHud() {
   const resumeIn = useSecondsUntil(match?.resume_at ? Date.parse(match.resume_at) : undefined, paused && !!match?.resume_at);
   // Held whenever this shop is not this player's to play right now (`versusTurn`): nothing on the board changes.
   const held = versusTurnHolds(useVersusTurn({ mode, phase, wave }));
+  // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
+  if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
   const names = { p1: match.p1_name, p2: match.p2_name };
   const absent = match.paused_seat;

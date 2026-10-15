@@ -15,6 +15,7 @@ import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
 import type { RankResult } from './rank';
 import type { LobbyStrength } from './lobbyStrength';
+import type { HeroReroll } from './heroReroll';
 import { nextOpponent, playerBoardMinions, playerCombatSideState, playerCombatConfig, questCombatMods } from './reducer';
 import { defIsTribe } from './recruit';
 import { pairRunLobby, type RunLobby } from './lobby/runLobby';
@@ -185,6 +186,9 @@ export interface ReplayV2 {
   /** Identity + display only. `seed` is kept for debugging/repro; playback must NEVER re-simulate from it. */
   seed: number;
   heroId: string;
+  /** THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): the hero select's one re-roll, when the run used it
+   *  (`RunState.heroReroll`). Identity + display only, like `heroId`; absent on runs that kept their offer. */
+  heroReroll?: HeroReroll;
   mode: RunMode;
   /** Display handle at capture time. */
   author: string;

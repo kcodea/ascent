@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Hero select now has one re-roll. Pick any hero on offer and swap it for a new one.',
+        details: [
+          'You get one re-roll per hero select. Once you use it, the re-roll buttons go away.',
+          'The new hero is never one already on offer, and it fits the tribes in your game.',
+          'Works in Ranked and Versus. In Versus the clock keeps running, and your opponent never sees it.',
+          'Closing the game on a Ranked hero select keeps your new hero and does not give the re-roll back.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New card look: a fresh standard plate for every card, a painted gold plate for Gilded cards, and thirteen more Card Plates to find in crates.',
         details: [
           'Every card now wears the same standard plate, whatever its tribe. The tribe name still shows along the bottom.',

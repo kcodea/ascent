@@ -2,6 +2,7 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import type { AncientId, AncientsState } from './ancients';
 import type { RankMedal } from './rank';
 import type { RankAtStart } from './rankAtStart';
+import type { HeroReroll } from './heroReroll';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
 import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
@@ -1269,6 +1270,10 @@ export interface RunState {
   board: BoardCard[];
   /** Which hero is being played (indexes the HEROES registry). */
   heroId: string;
+  /** THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): the one re-roll spent on this run's hero select (which
+   *  slot, which hero left, which arrived), stamped by the UI when the run is built and never changed. Plain data for
+   *  saves, replays and telemetry; nothing in the sim reads it. Absent = no re-roll was used (and on older runs). */
+  heroReroll?: HeroReroll;
   /** Per-wave hero power charge (once-per-wave powers like Fortify). */
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */

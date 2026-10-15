@@ -5,7 +5,7 @@
  * (blueprint 4). See supabase/migrations/2026-10-13-versus.sql for every RPC this wraps.
  */
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { ownSeatPerspective, VERSUS_PROTOCOL, type PreparedCombatSide, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import { ownSeatPerspective, VERSUS_PROTOCOL, type HeroReroll, type PreparedCombatSide, type VersusSeat, type VersusSeatScout } from '@game/sim';
 import type { CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 
@@ -108,6 +108,16 @@ export interface VersusPrivate {
   hero_offer: string[] | null;
   hero_index: number | null;
   hero_auto: boolean;
+  /** THE HERO RE-ROLL (R-HERO-REROLL-01, 2026-10-15-versus-hero-reroll.sql): my one re-roll, once spent. Absent on a
+   *  server without that migration. */
+  hero_reroll?: HeroReroll | null;
+}
+
+/** `versus_reroll_hero`'s answer: my three after the swap and the swap itself (both private to me). */
+export interface VersusRerollResult {
+  match: VersusMatch;
+  offer: string[];
+  reroll: HeroReroll;
 }
 
 export interface VersusRoundRow {
@@ -234,6 +244,9 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
 
   registerOffer: (matchId: string, offer: string[]) => rpc<VersusMatch>('versus_register_offer', { p_match: matchId, p_offer: offer }),
   pickHero: (matchId: string, index: number) => rpc<VersusMatch>('versus_pick_hero', { p_match: matchId, p_index: index }),
+  /** Spend my one hero re-roll on `slot`. The SERVER draws the replacement from `candidates` with the match seed. */
+  rerollHero: (matchId: string, slot: number, candidates: string[]) =>
+    rpc<VersusRerollResult>('versus_reroll_hero', { p_match: matchId, p_slot: slot, p_candidates: candidates }),
   /** A candidate or the lock. `scout` is my public state for the opponent's scout card, recorded on the round once it
    *  is fought (2026-10-14-versus-scout.sql). A server without that migration takes the submit without it. */
   async submit(matchId: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null): Promise<VersusMatch> {

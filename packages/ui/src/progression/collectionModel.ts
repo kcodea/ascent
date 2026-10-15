@@ -76,7 +76,7 @@ export function collectibleItems(catalog: readonly CosmeticDef[] = COSMETICS, ow
 export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | null | undefined): readonly string[] => p?.cosmetics ?? p?.titles ?? [];
 
 /** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
- *  account-wide hero attack / portrait frame / announcer slot. */
+ *  account-wide hero attack / portrait frame / announcer / card plate slot. */
 export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
   // An emote is in the four-position menu (2026-10-13), which the starters fill even with no account at all.
   if (item.category === 'emote') return emoteLoadoutOf(p?.loadout).includes(item.id);
@@ -85,6 +85,7 @@ export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equip
   if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;
   if (item.category === 'portrait_frame') return p.loadout?.portraitFrame === item.id;
   if (item.category === 'announcer') return p.loadout?.announcer === item.id;
+  if (item.category === 'card_plate') return p.loadout?.cardPlate === item.id;
   const target = item.target?.id;
   if (!target) return false;
   if (item.category === 'hero_skin') return p.loadout?.heroSkinByHeroId?.[target] === item.id;
@@ -156,6 +157,7 @@ export const COMING_BLURB: Readonly<Record<CosmeticCategory, string>> = {
   music: 'New music for your games.',
   portrait_frame: 'New rings for your hero portrait.',
   emote: 'Bubbles your hero can say in a game.',
+  card_plate: 'New plates for your cards.',
 };
 
 // ── NEW: the local "seen" list ────────────────────────────────────────────────────────────────────────────

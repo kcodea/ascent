@@ -4,6 +4,7 @@ import { CARD_INDEX } from '@game/content';
 import { Card } from '../Card';
 import { toView } from '../MinionBook';
 import { MinionSkinContext, type MinionSkinMap } from '../skins/skinArt';
+import { CardPlateContext, type CardPlateLook } from '../cardPlate/cardPlateLook';
 import { refPopupLeft } from '../refPreviewPlacement';
 import { rectToStage, stageHost, stageViewport, type StageRect } from '../stage';
 
@@ -43,11 +44,14 @@ export function previewPlacement(anchor: Pick<StageRect, 'left' | 'right' | 'top
 
 const EMPTY_MAP: MinionSkinMap = new Map();
 
-export const SkinCardPreview = memo(function SkinCardPreview({ cardId, art, anchor }: {
+export const SkinCardPreview = memo(function SkinCardPreview({ cardId, art, anchor, plate }: {
   cardId: string;
   /** The skin's art, or undefined for the card's default art. */
   art: string | undefined;
   anchor: StageRect;
+  /** A CARD PLATE preview (2026-10-14): the card wears this plate (null = the standard plate). Undefined = the
+   *  surrounding scope's plate, so a skin preview shows the plate you wear. */
+  plate?: CardPlateLook | null;
 }): JSX.Element | null {
   const def = CARD_INDEX[cardId];
   const view = useMemo(() => (def ? toView(def) : null), [def]);
@@ -81,7 +85,9 @@ export const SkinCardPreview = memo(function SkinCardPreview({ cardId, art, anch
   return createPortal(
     <div ref={ref} className="colls-cardpreview" style={style} aria-hidden data-card-preview={cardId}>
       <MinionSkinContext.Provider value={skins}>
-        <Card card={view} forceFull suppressPop plated />
+        {plate !== undefined
+          ? <CardPlateContext.Provider value={plate}><Card card={view} forceFull suppressPop plated /></CardPlateContext.Provider>
+          : <Card card={view} forceFull suppressPop plated />}
       </MinionSkinContext.Provider>
     </div>,
     stageHost(),

@@ -46,6 +46,8 @@ const frames = readFileSync(join(root, 'supabase/migrations/2026-10-01-portrait-
 const announcerSlot = readFileSync(join(root, 'supabase/migrations/2026-10-11-announcer-slot.sql'), 'utf8');
 // The emote file (2026-10-13): the newest equip_cosmetic (the four-position emote slot) and the starter acquisition.
 const emotes = readFileSync(join(root, 'supabase/migrations/2026-10-13-emotes.sql'), 'utf8');
+// The card plate file (2026-10-14): the newest equip_cosmetic (the account-wide card plate slot).
+const cardPlates = readFileSync(join(root, 'supabase/migrations/2026-10-14-card-plates.sql'), 'utf8');
 // The Ancient rarity file (2026-10-02): the newest progression_crate_pick + open_crate (five rarities, roll version 4).
 const ancient = readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8');
 // The placement XP file (2026-10-03, owner "+50% bonuses"): the newest settle_progression (Top 4 60, 1st 90).
@@ -55,10 +57,10 @@ const placementXp = readFileSync(join(root, 'supabase/migrations/2026-10-03-plac
 const versusProg = readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-progression.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -197,7 +199,7 @@ describe('the migration shape', () => {
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 
-  it('equip_cosmetic accepts exactly the TS equip slots, and the global slots (hero attack, portrait frame, announcer) only with the global target', () => {
+  it('equip_cosmetic accepts exactly the TS equip slots, and the global slots (hero attack, portrait frame, announcer, card plate) only with the global target', () => {
     const body = fnBody('equip_cosmetic');
     const slots = /p_slot not in \(([^)]*)\)/.exec(body)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'));
     expect(slots).toEqual([...EQUIP_SLOTS]);
@@ -291,8 +293,8 @@ describe('the crates migration (2026-09-28)', () => {
 
   it('the crates file first seed: every category with the code weight and target (titles on), never re-writing a flag', () => {
     const rows = seedRows('cosmetic_categories');
-    // Categories added AFTER the crates file (portrait_frame 2026-10-01, emote 2026-10-13) arrive through the catalog sync, not this seed.
-    expect(rows.map((r) => r[0])).toEqual(COSMETIC_CATEGORIES.filter((c) => c !== 'portrait_frame' && c !== 'emote'));
+    // Categories added AFTER the crates file (portrait_frame 2026-10-01, emote 2026-10-13, card_plate 2026-10-14) arrive through the catalog sync, not this seed.
+    expect(rows.map((r) => r[0])).toEqual(COSMETIC_CATEGORIES.filter((c) => c !== 'portrait_frame' && c !== 'emote' && c !== 'card_plate'));
     for (const [id, weight, , target] of rows) {
       const def = COSMETIC_CATEGORY_DEFS[id as keyof typeof COSMETIC_CATEGORY_DEFS];
       expect({ weight: Number(weight), target }, id).toEqual({ weight: def.weight, target: def.target });

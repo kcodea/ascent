@@ -27,9 +27,9 @@ const board = (author: string, heroId: string, seed: number, wave: number, cardI
 // A skinned run: the hero skin on every board, the Brian skin only on the boards where Brian was fielded, and the
 // account-wide hero attack (2026-09-28) on every board.
 const SKINNED = Array.from({ length: 8 }, (_, i) => board('Skye', 'albus', 4242, i + 1, i >= 5 ? 'blackbelt' : 'pack',
-  i >= 5 ? { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire' } : { heroSkinByHeroId: { albus: 'skin_albus_1' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire' }));
+  i >= 5 ? { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire', cardPlate: 'plate_aquarium_rocks' } : { heroSkinByHeroId: { albus: 'skin_albus_1' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire', cardPlate: 'plate_aquarium_rocks' }));
 // (The equipped TITLE, owner ask 2026-09-28, is account-wide like the hero attack: it rides every board.)
-const SKYE = { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire' };
+const SKYE = { heroSkinByHeroId: { albus: 'skin_albus_1' }, minionSkinByCardId: { blackbelt: 'skin_blackbelt_2' }, heroAttack: 'attack_blast', title: 'title_kingbreaker', portraitFrame: 'frame_fire', cardPlate: 'plate_aquarium_rocks' };
 // A run from before skins: no field anywhere.
 const LEGACY = Array.from({ length: 8 }, (_, i) => board('Olde', 'warden', 4343, i + 1, 'pack'));
 
@@ -145,5 +145,20 @@ describe('the equipped portrait frame rides every board (owner 2026-10-01: "we w
     const run = { ...createRun(9, 'warden'), cosmetics: { portraitFrame: 'frame_ice' } };
     expect(deserialize(serialize(run)).cosmetics).toEqual({ portraitFrame: 'frame_ice' });
     expect(playerRunsFrom().find((r) => r.author === 'Skye')!.cosmetics?.portraitFrame).toBe('frame_fire');
+  });
+});
+
+describe('the equipped card plate rides every board (owner 2026-10-14: "Others see it too")', () => {
+  it('scopeCosmetics keeps the plate on any board, even one with no skin in it; snapshotBoard records it', () => {
+    expect(scopeCosmetics({ cardPlate: 'plate_aquarium_rocks' }, ['cia'], ['pack'])).toEqual({ cardPlate: 'plate_aquarium_rocks' });
+    expect(scopeCosmetics({ heroSkinByHeroId: { warden: 'skin_warden_1' }, cardPlate: 'plate_aquarium_rocks' }, ['albus'], [])).toEqual({ cardPlate: 'plate_aquarium_rocks' });
+    const run = { ...createRun(7, 'albus'), cosmetics: { cardPlate: 'plate_aquarium_rocks' } };
+    expect(snapshotBoard(run).cosmetics).toEqual({ cardPlate: 'plate_aquarium_rocks' });
+  });
+
+  it('the recorded plate survives the save round trip, and a pool run unions it so its lobby seat wears it', () => {
+    const run = { ...createRun(9, 'warden'), cosmetics: { cardPlate: 'plate_aquarium_rocks', portraitFrame: 'frame_ice' } };
+    expect(deserialize(serialize(run)).cosmetics).toEqual({ cardPlate: 'plate_aquarium_rocks', portraitFrame: 'frame_ice' });
+    expect(playerRunsFrom().find((r) => r.author === 'Skye')!.cosmetics?.cardPlate).toBe('plate_aquarium_rocks');
   });
 });

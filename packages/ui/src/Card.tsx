@@ -91,6 +91,7 @@ import { artFor, artVariantKey } from './art';
 import { useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
 import { useMinionSkinMap } from './skins/skinArt';
+import { useCardPlateLook } from './cardPlate/cardPlateLook';
 import { renameTerms } from './terms';
 import { getRebirthConfig } from './rebirthConfig';
 import { CROWN_FRAMES } from './rebirthCrown';
@@ -893,7 +894,12 @@ export const Card = memo(function Card({
     ? (frameOk ? tauntFrameSrcFor(card.tribe, !!card.golden) : undefined)
     : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? spellFrameSrc : undefined;
   const frameFade = useArtFade(frameSrc);
-  const plateSrc = whisperLook ? (card.whisperGilded ? WHISPER_GILDED_PLATE_SRC : WHISPER_PLATE_SRC) : plateSrcFor(card.tribe);
+  // CARD PLATE cosmetic (owner 2026-10-14): the nearest skin scope's equipped plate replaces every standard plate,
+  // whatever the tribe ("replace all plates"), and brings its own rules-text darkening. NEVER on a gilded card
+  // ("nothing should ever changed for gilded cards") and never on a Whisper, whose plate is its Set 4 identity.
+  const plateLookCtx = useCardPlateLook();
+  const plateLook = plateLookCtx && !card.golden && !whisperLook ? plateLookCtx : null;
+  const plateSrc = whisperLook ? (card.whisperGilded ? WHISPER_GILDED_PLATE_SRC : WHISPER_PLATE_SRC) : plateLook ? plateLook.plate : plateSrcFor(card.tribe);
   const plateFade = useArtFade(usePlate ? plateSrc : undefined);
   return (
     <div
@@ -914,6 +920,8 @@ export const Card = memo(function Card({
         // Framed under the BRANCH's key when a resolved Choose One is wearing branch art, falling back to
         // the card's own entry — the base and the branch are different pictures (owner ask 2026-08-28).
         ...(cardArtVars(card.cardId ? artVariantKey(card.cardId, card.chosenOption) : undefined, card.cardId) ?? {}),
+        /* A card plate's own darkening (2026-10-14): inline, so it beats the Card Text tuner's :root values on THIS card. */
+        ...(plateLook ? { '--ctx-box-a': plateLook.boxA, '--ctx-box-blend': plateLook.boxBlend, '--ctx-box-y': plateLook.boxY } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -1325,7 +1333,7 @@ export const Card = memo(function Card({
             text reads cleanly. FIRST child so tree order paints it behind every text sibling; `.drawer` keeps
             NO z-index (load-bearing — see styles.css) so this needs none either. Dialed in the 🔤 Card Text
             tuner (backbox · size/x/y/opacity/blend). */}
-        <FadeImg className="descbox" src={DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
+        <FadeImg className="descbox" src={plateLook ? plateLook.backbox : DESC_BOX_SRC} alt="" aria-hidden="true" draggable={false} />
         <CardName name={card.name} />
         {/* DIVIDER — separates the name from the rules text. Only when there IS rules text: on a vanilla card it
             would just sit between the name and the tribe line. Sized/placed by `.namediv` in styles.css. */}

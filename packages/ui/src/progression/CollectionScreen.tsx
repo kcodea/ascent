@@ -27,6 +27,7 @@ import { TitleBadge } from '../titles/TitleBadge';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
 import { announcerPackOf } from './announcerPack';
 import { emoteSrc } from '../emotes/emoteArt';
+import { CARD_PLATE_LOOKS, type CardPlateLook } from '../cardPlate/cardPlateLook';
 import { clearLocalEmotes, equipEmoteLocally, useEquippedEmotes } from '../emotes/emoteLoadout';
 import '../emotes/emotes.css';
 import './collection.css';
@@ -130,7 +131,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [defaultShown, setDefaultShown] = useState<string | null>(null);
   /** The card-skin preview under the pointer: the card, the art to wear (undefined = default), and the anchor
    *  rect, read ONCE on pointer enter (stage px). */
-  const [hover, setHover] = useState<{ cardId: string; art: string | undefined; rect: StageRect } | null>(null);
+  const [hover, setHover] = useState<{ cardId: string; art: string | undefined; rect: StageRect; plate?: CardPlateLook | null } | null>(null);
   const closeGate = useCallback(() => setGate(false), []);
 
   useEffect(() => { void refreshCrates(); }, []);
@@ -168,6 +169,12 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     const item = id ? cosmeticOf(id) : null;
     // OWNED SKINS ONLY (owner 2026-10-01: "do not allow preview if you do not own the art"): an unowned skin keeps its
     // locked, blurred tile and never floats its art on a card.
+    // A CARD PLATE (2026-10-14) floats a sample card wearing it (owned only, the same rule), or wearing the standard
+    // plate after "Use standard plate".
+    if (item && owned.has(item.id) && item.category === 'card_plate') {
+      setHover(el ? { cardId: PLATE_SAMPLE_CARD, art: undefined, rect: rectToStage(el.getBoundingClientRect()), plate: asDefault ? null : plateLookOf(item) } : null);
+      return;
+    }
     const cardId = item && owned.has(item.id) && item.target?.type === 'card' ? item.target.id : null;
     setHover(cardId && el ? { cardId, art: asDefault ? undefined : skinArtOf(item), rect: rectToStage(el.getBoundingClientRect()) } : null);
   }, [owned]);
@@ -197,17 +204,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     const attack = item.category === 'hero_attack';
     const frame = item.category === 'portrait_frame';
     const voice = item.category === 'announcer';
-    // Taking a skin (or a frame) off shows the DEFAULT art at once and keeps this item selected (it would otherwise
-    // jump to the next worn item); wearing one shows the skin again. A failed call puts the preview back.
-    if (skin || frame) { setPicked(item.id); setDefaultShown(on ? null : item.id); }
-    const ok = attack || frame || voice
-      ? await equipCosmetic(item.category as 'hero_attack' | 'portrait_frame' | 'announcer', '', on ? item.id : null)
+    const plate = item.category === 'card_plate';
+    // Taking a skin (or a frame, or a plate) off shows the DEFAULT art at once and keeps this item selected (it would
+    // otherwise jump to the next worn item); wearing one shows the skin again. A failed call puts the preview back.
+    if (skin || frame || plate) { setPicked(item.id); setDefaultShown(on ? null : item.id); }
+    const ok = attack || frame || voice || plate
+      ? await equipCosmetic(item.category as 'hero_attack' | 'portrait_frame' | 'announcer' | 'card_plate', '', on ? item.id : null)
       : skin && item.target
       ? await equipCosmetic(item.category as 'hero_skin' | 'minion_skin', item.target.id, on ? item.id : null)
       : await equipTitle(on ? item.id : null);
     setBusy(false);
-    if (!ok && (skin || frame)) setDefaultShown(on ? item.id : null);
-    if (!ok) setError(voice ? 'Could not change your announcer. Try again.' : attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
+    if (!ok && (skin || frame || plate)) setDefaultShown(on ? item.id : null);
+    if (!ok) setError(plate ? 'Could not change your card plate. Try again.' : voice ? 'Could not change your announcer. Try again.' : attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
   /** EMOTES (owner 2026-10-13: "Players equip up to 4 in Collections"): put an emote in a menu position (1 to 4 on
@@ -341,9 +349,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                     {shown.map((c) => (
                       <li key={c.id}>
                         <ItemTile
-                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : skinArtOf(c)} ring={c.category === 'portrait_frame'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
+                          id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.plate : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
-                          onPick={onPick} onHover={c.target?.type === 'card' ? onHover : undefined}
+                          onPick={onPick} onHover={c.target?.type === 'card' || c.category === 'card_plate' ? onHover : undefined}
                         />
                       </li>
                     ))}
@@ -388,7 +396,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
       <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => begin(all)} />
       <CrateSignInGate open={gate} onClose={closeGate} />
-      {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} />}
+      {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.plate === undefined ? '' : hover.plate?.id ?? 'standard'}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} plate={hover.plate} />}
       {theatre && (
         <CrateOpener
           queue={theatre.queue}
@@ -412,7 +420,7 @@ interface TileProps {
   art?: string;
   /** A skin's hero / minion, by name. */
   target?: string;
-  /** A portrait frame: `art` is the ring, shown whole (contained) rather than cropped. */
+  /** A portrait frame or a card plate: `art` is the ring / plate, shown whole (contained) rather than cropped. */
   ring?: boolean;
   /** A CARD skin: hovering the tile floats the in-game card wearing it (null clears it). */
   onHover?: (id: string | null, el?: HTMLElement) => void;
@@ -471,11 +479,13 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   const frame = item.category === 'portrait_frame';
   const voice = item.category === 'announcer';
   const emote = item.category === 'emote';
+  const plate = item.category === 'card_plate';
+  const plateArt = plate ? plateLookOf(item)?.plate : undefined;
   // An announcer's sample stops when you look at another item or leave the screen.
   useEffect(() => (voice ? stopAnnouncerPreview : undefined), [voice, item.id]);
   return (
-    <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin || frame ? ' skin' : ''}`} aria-label="Details">
-      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : voice ? 'Announcer' : emote ? 'Emote' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
+    <section className={`colls-panel colls-detail r-${item.rarity}${owned ? '' : ' missing'}${skin || frame || plate ? ' skin' : ''}`} aria-label="Details">
+      <div className="colls-kicker">{skin ? (item.category === 'hero_skin' ? 'Hero skin' : 'Minion skin') : attack ? 'Hero attack' : frame ? 'Portrait frame' : voice ? 'Announcer' : emote ? 'Emote' : plate ? 'Card plate' : COSMETIC_CATEGORY_DEFS[item.category].label.replace(/s$/, '')}</div>
       {/* An emote's bubble, large: the painted art as it pops up in a game. */}
       {emote && emoteSrc(item.id) && (
         <div className="colls-skinart colls-emoteart" aria-label="Preview">
@@ -483,6 +493,18 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         </div>
       )}
       {frame && <FramePreview item={item} owned={owned} showDefault={!!showDefault} />}
+      {/* A CARD PLATE (2026-10-14): the plate whole; an owned one floats a sample card wearing it on hover (after "Use
+          standard plate", the standard plate). A missing one stays blurred, like a skin. */}
+      {plate && plateArt && (
+        <div
+          className="colls-skinart colls-plateart" aria-label={showDefault ? 'Preview, standard plate' : 'Preview'}
+          onPointerEnter={owned && onHover ? (e) => { if (e.pointerType !== 'touch') onHover(item.id, e.currentTarget, showDefault); } : undefined}
+          onPointerLeave={owned && onHover ? () => onHover(null) : undefined}
+        >
+          <img src={plateArt} alt="" draggable={false} decoding="sync" />
+          {showDefault && <span className="colls-default-tag">Standard plate</span>}
+        </div>
+      )}
       {/* A hero attack plays in place (the Blast tuner's own runner, in a sandbox box): owned or not, so you can
           see what a crate might give. Keyed by item so switching items starts a fresh stage. */}
       {attack && <HeroAttackPreview key={item.id} style={typeof item.assets.style === 'string' ? item.assets.style : ''} reducedMotion={reducedMotion} />}
@@ -495,7 +517,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
           {showDefault && <span className="colls-default-tag">Default art</span>}
         </div>
       )}
-      {item.category !== 'hero_skin' && !frame && art && (
+      {item.category !== 'hero_skin' && !frame && !plate && art && (
         <div
           className="colls-skinart minion" aria-label={showDefault ? 'Preview, default art' : 'Preview'}
           onPointerEnter={cardSkin && onHover ? (e) => { if (e.pointerType !== 'touch') onHover(item.id, e.currentTarget, showDefault); } : undefined}
@@ -518,6 +540,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {frame && <div className="colls-fact"><span>For</span><b>Your hero portrait, seen by the players you meet</b></div>}
         {frame && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Default frame</b></div>}
         {voice && <div className="colls-fact"><span>For</span><b>The voice calling your games. Only you hear it</b></div>}
+        {plate && <div className="colls-fact"><span>For</span><b>Your cards, seen by the players you meet. Gilded cards keep their gold plate</b></div>}
+        {plate && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Standard plate</b></div>}
         {emote && <div className="colls-fact"><span>For</span><b>Your hero. Right-click your portrait in a game to say it</b></div>}
         {emote && emotePosition >= 0 && <div className="colls-fact"><span>In your menu</span><b>Slot {emotePosition + 1}</b></div>}
         <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
@@ -554,7 +578,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         ) : equipped ? (
           <>
             <div className="colls-worn-tag" role="status">Equipped</div>
-            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : frame ? 'Use the default portrait frame' : voice ? 'Use the default announcer' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : voice ? 'Use default announcer' : 'Take off'}</button>
+            <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onTakeOff} aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : frame ? 'Use the default portrait frame' : voice ? 'Use the default announcer' : plate ? 'Use the standard card plate' : `Take off ${item.name}`}>{skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : voice ? 'Use default announcer' : plate ? 'Use standard plate' : 'Take off'}</button>
           </>
         ) : (
           <button type="button" className="cv2-btn pressable colls-equip" disabled={busy} onClick={onEquip} aria-label={`Equip ${item.name}`}>{busy ? 'Equipping' : 'Equip'}</button>
@@ -585,6 +609,18 @@ function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: 
     </div>
   );
 }
+
+// ── Card plates (2026-10-14) ───────────────────────────────────────────────────────────────────────────────
+
+/** The card a plate preview floats: Cheap Date, a Tier 1 neutral minion with a line of rules text, so the preview shows
+ *  the plate, its darkening and the text on it. */
+const PLATE_SAMPLE_CARD = 'k_pouchpincher';
+
+/** A plate item's look (art + darkening), or null for an item this client has no art for. */
+const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null => {
+  const key = item?.category === 'card_plate' ? item.assets.art : undefined;
+  return key ? CARD_PLATE_LOOKS[key] ?? null : null;
+};
 
 // ── The crate bay (always in view) ─────────────────────────────────────────────────────────────────────────
 
@@ -660,6 +696,7 @@ const CAT_PATHS: Readonly<Record<CosmeticCategory, string>> = {
   music: 'M9 4l11-2v13.5a3 3 0 1 1-2-2.8V6.3l-7 1.3v9.9a3 3 0 1 1-2-2.8V4z',
   portrait_frame: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8z',
   emote: 'M5 3h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-8l-5 4v-4H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm3 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm4 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
+  card_plate: 'M7 2h10l2 3v15l-2 2H7l-2-2V5l2-3zm1 4v6h8V6H8zm0 8v2h8v-2H8zm0 3v1h5v-1H8z',
 };
 
 function CategoryIcon({ category }: { category: CosmeticCategory }): JSX.Element {

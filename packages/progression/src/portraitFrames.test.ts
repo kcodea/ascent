@@ -66,7 +66,7 @@ describe('the portrait frame catalog', () => {
 describe('the equip slot, the loadout and the snapshot', () => {
   it('portrait_frame is an account-wide slot (target \'\'), accepted by the inventory request parser', () => {
     expect(EQUIP_SLOTS).toContain('portrait_frame');
-    expect(GLOBAL_EQUIP_SLOTS).toEqual(['hero_attack', 'portrait_frame', 'announcer']); // the announcer joined 2026-10-11
+    expect(GLOBAL_EQUIP_SLOTS).toEqual(['hero_attack', 'portrait_frame', 'announcer', 'card_plate']); // the announcer joined 2026-10-11, the card plate 2026-10-14
     expect(validateInventoryBody({ action: 'equip_cosmetic', slot: 'portrait_frame', targetId: '', cosmeticId: 'frame_fire' }))
       .toEqual({ ok: true, request: { action: 'equip_cosmetic', slot: 'portrait_frame', targetId: '', cosmeticId: 'frame_fire' } });
     expect(validateInventoryBody({ action: 'equip_cosmetic', slot: 'portrait_frame', targetId: '', cosmeticId: null })).toMatchObject({ ok: true });

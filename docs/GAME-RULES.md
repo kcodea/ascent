@@ -1226,10 +1226,12 @@ board, not the Compendium Heroes tab, and not the Mimic / Void / Power Shifter p
 boards, Career history, leaderboards) still resolves its name, portrait and power. The **Scene Builder** lists
 every hero, archived ones marked "(archived)".
 
-Archived today: Fi, Coran (2026-08-28), Void (2026-09-16), and the 2026-09-24 batch: Aevor, Cindara, Devourer,
-Emissary, Fibbsy, Foreman Flint, Gorun, Guardian, Harlan, Jensen, Membrance, Odelle, Pete, Rayse, Runesmith,
-Sable, Tiff, Underdweller, Yirin. (Djinni, Chronos, Chaos and the tutorial-only Aster carry the same flag.)
-With Tiff and Foreman Flint archived, no live hero carries a tribe gate (`HeroDef.tribes`); the gate stays.
+Archived today: Fi, Coran (2026-08-28), Void (2026-09-16), and what is left of the 2026-09-24 batch: Aevor,
+Cindara, Devourer, Fibbsy, Harlan, Jensen, Odelle, Sable, Tiff, Yirin. (Djinni, Chronos, Chaos and the
+tutorial-only Aster carry the same flag.) Re-enabled since: Runesmith and Guardian (2026-10-01), Rayse
+(2026-10-02), and Pete, Foreman Flint, Emissary, Underdweller, Membrance and Gorun (2026-10-15: *"re-enable gorun,
+foreman flint, underdweller, pete, and membrance"*, *"re-enable emissary as well"*). Foreman Flint carries the
+Dwarf tribe gate (`HeroDef.tribes`): he is offered only in a run whose tribes include Dwarves.
 
 ## Runes (the Runeforge)
 

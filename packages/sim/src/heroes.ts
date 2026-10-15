@@ -613,7 +613,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'pete',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Pete',
     blurb: 'He knows a guy who knows a guy.',
     resolve: 30,
@@ -627,7 +626,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'flint',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     tribes: ['dwarf'], // Company Rate prices Dwarves — inert without them
     name: 'Foreman Flint',
     blurb: 'Union rates. Dwarves come cheap by the dozen.',
@@ -642,7 +640,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'vale',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Emissary',
     blurb: 'Every banner rallies to the same horn.',
     resolve: 30,
@@ -700,7 +697,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'underdweller',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Underdweller',
     blurb: 'Nothing that falls down here stays lost for long.',
     resolve: 30,
@@ -784,7 +780,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'membrance',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Membrance',
     blurb: 'She remembers every board that ever stood against her, and sells you the copy.',
     resolve: 30,
@@ -920,7 +915,6 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'gorun',
-    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Gorun',
     blurb: 'Every swing is a lesson, and he has never stopped taking notes.',
     resolve: 30,

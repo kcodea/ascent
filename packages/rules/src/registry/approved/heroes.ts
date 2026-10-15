@@ -31,18 +31,20 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-08-28 (Fi + Coran archive)', quote: 'coran and fi should be archived for now. they will be redesigned and should not show in our hero list for practice nor play' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (Runesmith + Guardian re-activated)', quote: 're-activate runesmith and guardian in the game' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Rayse re-activated)', quote: 'unarchive rayse' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (six heroes re-enabled)', quote: 're-enable gorun, foreman flint, underdweller, pete, and membrance' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (Emissary re-enabled)', quote: 're-enable emissary as well' },
       { kind: 'code', ref: 'packages/sim/src/heroes.ts HeroDef.wip / isArchivedHero / playableHeroes / practiceHeroes / powerDiscoverPool; packages/ui/src/SceneBuilder.tsx HERO_OPTIONS' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-10-02. Archived: Fi, Coran (2026-08-28), Void (2026-09-16) and 16 of the 2026-09-24 batch: '
-      + 'Aevor, Cindara, Devourer, Emissary (vale), Fibbsy, Harlan, Odelle, Tiff, Underdweller, '
-      + 'Foreman Flint (flint), Gorun, Jensen (jenkins), Membrance, Pete, Sable, Yirin (rohan). Runesmith and '
-      + 'Guardian (runeguard) were re-activated on 2026-10-01, Rayse on 2026-10-02. '
+      'Conforms as of 2026-10-15. Archived: Fi, Coran (2026-08-28), Void (2026-09-16) and 10 of the 2026-09-24 batch: '
+      + 'Aevor, Cindara, Devourer, Fibbsy, Harlan, Odelle, Tiff, Jensen (jenkins), Sable, Yirin (rohan). Runesmith and '
+      + 'Guardian (runeguard) were re-activated on 2026-10-01, Rayse on 2026-10-02, and Pete, Foreman Flint (flint), '
+      + 'Emissary (vale), Underdweller, Membrance and Gorun on 2026-10-15. '
       + 'Djinni, Chronos, Chaos and the tutorial-only Aster carry the same flag.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/heroArchive.test.ts', 'packages/ui/src/sceneBuilderPanel.test.tsx'],
-      lastVerifiedAt: '2026-10-02',
+      lastVerifiedAt: '2026-10-15',
     },
   },
   {

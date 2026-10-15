@@ -17,26 +17,31 @@ const ARCHIVED_2026_09_24: Record<string, string> = {
   aevor: 'Aevor',
   cindara: 'Cindara',
   devourer: 'Devourer',
-  vale: 'Emissary',
   fibbsy: 'Fibbsy',
   harlan: 'Harlan',
   odelle: 'Odelle',
   tiff: 'Tiff',
-  underdweller: 'Underdweller',
   // The owner's second list, same day and same ruling, matched by name AND power:
-  flint: 'Foreman Flint', // Company Rate
-  gorun: 'Gorun', // Blade Mastery
   jenkins: 'Jensen', // Dynamite Dig
-  membrance: 'Membrance', // Memory
-  pete: 'Pete', // Contrabanana (not Re-Pete, id `repete`)
   sable: 'Sable', // Soulbind
   rohan: 'Yirin', // Reflector
 };
+// Owner 2026-10-15 re-enabled Gorun, Foreman Flint, Underdweller, Pete, Membrance and Emissary ("re-enable gorun,
+// foreman flint, underdweller, pete, and membrance" + "re-enable emissary as well"): they are live again.
+const REENABLED_2026_10_15 = ['gorun', 'flint', 'underdweller', 'pete', 'membrance', 'vale'];
 const IDS = Object.keys(ARCHIVED_2026_09_24);
 
 describe('the 2026-09-24 hero archive', () => {
   it('Runesmith and Guardian (owner 2026-10-01: "re-activate runesmith and guardian in the game") and Rayse (owner 2026-10-02: "unarchive rayse") are back in the game', () => {
     for (const id of ['runesmith', 'runeguard', 'rayse']) {
+      expect(isArchivedHero(HERO_INDEX[id]!), `${id} active`).toBe(false);
+      expect(playableHeroes().some((h) => h.id === id), `${id} in Play`).toBe(true);
+      expect(practiceHeroes().some((h) => h.id === id), `${id} in Practice`).toBe(true);
+    }
+  });
+
+  it('Gorun, Foreman Flint, Underdweller, Pete, Membrance and Emissary (owner 2026-10-15) are back in the game', () => {
+    for (const id of REENABLED_2026_10_15) {
       expect(isArchivedHero(HERO_INDEX[id]!), `${id} active`).toBe(false);
       expect(playableHeroes().some((h) => h.id === id), `${id} in Play`).toBe(true);
       expect(practiceHeroes().some((h) => h.id === id), `${id} in Practice`).toBe(true);

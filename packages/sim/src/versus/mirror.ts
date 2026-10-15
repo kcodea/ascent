@@ -27,11 +27,50 @@ import type { CombatResult } from '@game/core';
  *
  * Since R-SYMMETRY-01 (2026-10-13) the simulator has NO kept asymmetries: the enemy half is the same live
  * computation (Pack Mentality grows, Blood Trail marks, Grim / spell power / Imp Aura / per-card stacks are live),
- * so every carry-back below is the seat's real one. The event log keeps the fight's own labels (it is ONE fight,
- * shared by both seats; `initial` is swapped so the seat's own board reads as `player`). A result without
+ * so every carry-back below is the seat's real one. THE WHOLE PERSPECTIVE FLIPS AS ONE (fix 2026-10-14, live bug: "cubs and
+ * imps were summoning on the wrong side of the board"): `initial` is swapped so the seat's own board reads as
+ * `player`, AND every event's `side` is swapped with it (`flipEventSides`). The old mirror kept the fight's own
+ * event labels while swapping `initial`, so a `summon` landed on the other seat's row, and every `side`-keyed read
+ * (Avenge death tallies, hand grants, quest pulses, spell counters, the narration's "your / their") read the wrong
+ * seat. Events otherwise name bodies by uid, which is perspective-free. A mirrored result is stamped
+ * `sidesMirrored: true`, so a reader can tell an old stored one (labels unflipped) from a new one
+ * (`ownSeatPerspective`). A result without
  * `enemyCarry` (a hand-built fixture) mirrors damage, outcome, deaths and survivors only — deathrattles recorded
  * as 0, never estimated.
  */
+/** Swap every `player` <-> `enemy` string, deeply (the R-SYMMETRY-01 oracle's relabel). Card ids, texts and uids
+ *  never equal either word, so only perspective labels move. */
+function swapSideLabels<T>(x: T): T {
+  if (x === 'player') return 'enemy' as T;
+  if (x === 'enemy') return 'player' as T;
+  if (Array.isArray(x)) return x.map(swapSideLabels) as T;
+  if (x && typeof x === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(x)) out[k] = swapSideLabels(v);
+    return out as T;
+  }
+  return x;
+}
+
+/**
+ * Relabel every event to the other seat's perspective: every `player` / `enemy` value anywhere in an event (today
+ * that is `side`; a future side-bearing field flips with it, by construction). Bodies are named by uid, which is
+ * perspective-free, and a `summon`'s `index` is a slot within its own side's row, so it stays valid. Never mutates.
+ */
+export function flipEventSides(events: CombatResult['events']): CombatResult['events'] {
+  return swapSideLabels(events);
+}
+
+/**
+ * The p2 seat's result in its OWN perspective, whatever produced it: a result from the fixed mirror (stamped
+ * `sidesMirrored`) as it is; one stored by the old mirror (the `initial` boards swapped, the event labels not) gets
+ * its event sides flipped here, once. Readers of a stored p2 result call this; a p1 result is never mirrored.
+ */
+export function ownSeatPerspective(result: CombatResult): CombatResult {
+  if (!result || result.sidesMirrored || !Array.isArray(result.events)) return result;
+  return { ...result, events: flipEventSides(result.events), sidesMirrored: true };
+}
+
 export function mirrorForEnemySeat(result: CombatResult): CombatResult {
   const clone = structuredClone(result);
   // Strip EVERY player-perspective carry-back: they belong to the other seat.
@@ -127,6 +166,8 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     enemyDeaths: c ? c.foeDeaths : (result.playerDeaths ?? 0),
     ...(survivors.length ? { playerSurvivorCardIds: survivors } : {}),
     initial: { player: clone.initial.enemy, enemy: clone.initial.player },
+    events: flipEventSides(clone.events),
+    sidesMirrored: true,
     ...carried,
   } as CombatResult;
 }

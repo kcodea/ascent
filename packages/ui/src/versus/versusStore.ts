@@ -395,6 +395,10 @@ async function onMatch(match: VersusMatch): Promise<void> {
     useGame.setState({ heroArmed: false, equipArmed: false });
   }
   set({ match });
+  // ONE ROOM, MANY MATCHES (live bug 2026-10-14: spectators saw "combat from OUR game last game"): the committed rounds
+  // are keyed by round NUMBER, which restarts every match, so they belong to one match and are dropped the moment the
+  // room's match changes, for every member (players and the stands alike).
+  if (roundsOf !== match.id) { roundsOf = match.id; set({ rounds: {} }); }
   const seat = mySeat(match);
   if (!seat) {
     // A SPECTATOR (Versus phase 2): nothing to drive. The committed rounds feed the fights it watches.
@@ -424,13 +428,17 @@ async function onMatch(match: VersusMatch): Promise<void> {
   maybeEndGate();
 }
 
+/** The match the cached `rounds` belong to. */
+let roundsOf: string | null = null;
+
 async function loadRounds(match: VersusMatch): Promise<void> {
   const have = get().rounds;
   const known = Object.keys(have).map(Number);
   const from = known.length ? Math.max(...known) + 1 : 1;
   if (from > match.round) return;
   try {
-    const rows = await versusRemote.rounds(match.id, from);
+    const rows = (await versusRemote.rounds(match.id, from)).filter((r) => r.match_id === match.id);
+    if (roundsOf !== match.id) return; // the room moved on to another match while this read was in flight
     if (rows.length) set({ rounds: { ...get().rounds, ...Object.fromEntries(rows.map((r) => [r.round, r])) } });
   } catch { /* retried on the next wake */ }
 }
@@ -693,6 +701,7 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted);
   keyWanted = false;
   if (!msg) return;
+  msg.m = matchId; // the stands drop anything from another match
   const acts = takeActs();
   if (acts.length) msg.acts = acts;
   session.channel?.send('spectate', msg);

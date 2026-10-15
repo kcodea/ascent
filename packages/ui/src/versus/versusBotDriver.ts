@@ -163,6 +163,8 @@ export class VersusBotDriver {
       this.run = null;
       this.lockedRound = null;
       this.readyRound = null;
+      this.watchingRound = null; // round numbers restart every match: nothing round-keyed may carry over
+      this.watchUntil = 0;
       this.seq = 0;
     }
     this.match = m;

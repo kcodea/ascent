@@ -30,6 +30,7 @@ import { DiscountWindowReadout } from './DiscountWindowReadout';
 import { goldClockOf } from './goldClock';
 import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
+import { useWatchedName } from './versus/spectate';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { useAmplifiedSlotFx } from './useAmplifiedSlotFx';
 import { DiceRoll } from './DiceRoll';
@@ -185,7 +186,11 @@ export function StatusBar() {
   const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires, swapCharges: combatSwapCharges }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires, combatSwapCharges]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
-  const playerName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
+  // A Versus SPECTATOR: the hero panel is the WATCHED player's, so their name, never the spectator's own (live bug
+  // 2026-10-14). Their portrait skin and frame already come from the watched run's recorded cosmetics (`useRunSkins`).
+  const watchedName = useWatchedName();
+  const ownName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
+  const playerName = watchedName ?? ownName;
   const heroArmed = useGame((s) => s.heroArmed);
   const heroArmedSlot = useGame((s) => s.heroArmedSlot);
   const armHero = useGame((s) => s.armHero);

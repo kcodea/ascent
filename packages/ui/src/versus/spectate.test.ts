@@ -122,4 +122,21 @@ describe('Versus spectating', () => {
     expect(sp.useSpectate.getState().active).toBe(false);
     expect(useGame.getState().replaying).toBe(false);
   });
+
+  it('ONE ROOM, MANY MATCHES: a new match drops the last one (views, screen), and frames of another match are ignored', async () => {
+    const a = keyOf('p1', p1Run);
+    frames = [{ seat: 'p1', frame: { ...a.key, m: 'm1' } }];
+    sp.spectateSync(match(), {});
+    await flush();
+    expect(sp.useSpectate.getState().active).toBe(true);
+    // a late frame from ANOTHER match never lands
+    const stale = nextSpectatorMessage(a.pub, reduce(p1Run, { type: 'freeze' }), 1)!;
+    sp.receiveSpectate({ ...stale, m: 'old-match' });
+    expect(!!useGame.getState().run.frozen).toBe(!!p1Run.frozen);
+    // the room's next match: the old views are gone until the new match's keyframes arrive
+    frames = [];
+    sp.spectateSync(match({ id: 'm2' }), {});
+    expect(sp.spectatorViewOf('p1')).toBeNull();
+    expect(sp.useSpectate.getState().active).toBe(false);
+  });
 });

@@ -24,8 +24,9 @@ export const VERSUS_SPECTATOR_SECRET_KEYS = ['seed', 'rngCursor', 'pool', 'runId
 export type VersusSpectatorView = Record<string, unknown> & { wave: number; heroId: string };
 
 /** `acts`: the player's actions since the previous message (`spectateTap.ts`), for the spectator to replay. */
-export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[] }
-export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[] }
+/** `m`: the match the message belongs to (a room hosts match after match; the stands drop any other match's). */
+export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[]; m?: string }
+export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[]; m?: string }
 export type SpectatorMessage = SpectatorKeyframe | SpectatorDelta;
 
 /** A keyframe at least this often, so a receiver that missed one never drifts far. */

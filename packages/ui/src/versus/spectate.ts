@@ -89,8 +89,13 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
   const live = !!match && (match.phase === 'shop' || match.phase === 'resolving' || match.phase === 'combat');
   if (!match || !live) { if (useSpectate.getState().active) stopSpectating(); return; }
   if (matchId !== match.id) {
+    // A NEW MATCH in the room: nothing of the last one survives (views, queue, cursor, caches).
+    if (useSpectate.getState().active) stopSpectating();
     matchId = match.id;
     rx = { p1: newReceiver(), p2: newReceiver() };
+    lobbyCache = null;
+    last = null;
+    rounds = allRounds;
     void fetchKeyframes();
   }
   if (useSpectate.getState().optedOut === match.id) return;
@@ -101,6 +106,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
 export function receiveSpectate(payload: unknown): void {
   const msg = payload as SpectatorMessage;
   if (!msg || (msg.seat !== 'p1' && msg.seat !== 'p2') || typeof msg.seq !== 'number') return;
+  if (!matchId || (msg.m && msg.m !== matchId)) return; // another match's frame (a room hosts match after match)
   const { rx: next, needKeyframe } = applySpectatorMessage(rx[msg.seat], msg);
   rx[msg.seat] = next;
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
@@ -225,6 +231,7 @@ async function fetchKeyframes(): Promise<void> {
     if (id !== matchId) return;
     for (const r of rows) {
       const msg = r.frame as SpectatorMessage;
+      if (msg?.m && msg.m !== id) continue;
       if (msg?.kind === 'key') rx[r.seat] = applySpectatorMessage(rx[r.seat], msg).rx;
     }
     schedule();
@@ -248,7 +255,7 @@ function render(): void {
   const run = last && last.view === view && last.fight === fight && last.seat === seat ? last.run : spectatorRunOf(view, seat, matchId, round);
   if (run && run !== last?.run && !run.lobby && io) {
     // Rebuilt only when what it reads moves (a round commits, the fight lands or settles), never per shop delta.
-    const key = `${seat}|${run.wave}|${run.phase}|${run.combatSettled ? 1 : 0}|${Object.keys(rounds).length}`;
+    const key = `${matchId}|${seat}|${run.wave}|${run.phase}|${run.combatSettled ? 1 : 0}|${Object.keys(rounds).length}`;
     if (lobbyCache?.key !== key) lobbyCache = { key, lobby: io.lobbyFor(seat, run) };
     run.lobby = lobbyCache.lobby;
   }
@@ -310,6 +317,17 @@ export function resetSpectate(): void {
   rx = { p1: newReceiver(), p2: newReceiver() };
   rounds = {};
   useSpectate.setState({ seat: 'p1', optedOut: null });
+}
+
+/**
+ * THE WATCHED PLAYER'S NAME (live bug 2026-10-14: "it shows the spectators name in the bottom left"), or null when not
+ * spectating. Read off the watched run's own two-seat lobby (seat s0 = that player, labelled from the match), so it
+ * can never be the local profile's. Every "you" surface on the watch screen uses it.
+ */
+export function useWatchedName(): string | null {
+  const active = useSpectate((s) => s.active);
+  const label = useGame((s) => s.run.lobby?.seats[0]?.label ?? null);
+  return active ? label ?? '' : null;
 }
 
 /** For the tests: a seat's cached view. */

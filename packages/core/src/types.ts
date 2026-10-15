@@ -3488,6 +3488,10 @@ export interface DamageBreakdown {
 }
 
 export interface CombatResult {
+  /** This result is the ENEMY seat's mirrored view (`mirrorForEnemySeat`): `initial` AND every event's `side` are
+   *  swapped to that seat's perspective. Absent on a canonical result, and on a mirror stored before 2026-10-14
+   *  (its event sides unflipped; `ownSeatPerspective` repairs it on read). */
+  sidesMirrored?: true;
   events: CombatEvent[];
   result: CombatOutcome;
   /** The ENEMY side's carry-backs, mirrored from the same computation that fills the `player*` fields (see

@@ -5663,4 +5663,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The player drags a minion from the shop to the hand: the spectator sees the card follow the gauntlet and land in the hand, with the buy sound.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateLive.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-VERSUS-PERSPECTIVE-01',
+    title: 'The second Versus seat sees the one fight exactly as it would from the player chair',
+    statement:
+      'The p2 seat (and a spectator watching it) gets the one fight relabelled to its own side as a whole: the starting '
+      + 'boards swap and every player / enemy label in every event swaps with them, so the result equals the native fight '
+      + 'with the boards swapped and the tie-break side flipped (outcome, damages, boards, every event, carry-backs). A '
+      + 'summoned token lands on its summoner side at its slot. A round stored before this fix is repaired once on read.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner live playtest via the coordinator, 2026-10-14', quote: 'tokens are definitely spawning on the wrong sides specifically' },
+      { kind: 'code', ref: 'packages/sim/src/versus/mirror.ts (mirrorForEnemySeat, flipEventSides, ownSeatPerspective); packages/ui/src/versus/versusRemote.ts (rounds)' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-14.',
+    example: 'Player two plays a Cub summoner: when it dies in the fight, the Cubs appear on the board of player two, in its slot, on both screens.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusPerspective.test.ts', 'packages/sim/src/versus/versusMirrorSides.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-VERSUS-MATCH-SCOPE-01',
+    title: 'Everything a Versus member sees belongs to the current match of the room',
+    statement:
+      'A room hosts match after match. The committed rounds, the spectator views and frames, the watch screen and the '
+      + 'test bot state are keyed by the match and dropped the moment the room moves to another match; a spectator frame '
+      + 'from another match is ignored. On the watch screen every own-player surface (the name under the hero, the fight '
+      + 'recap) is the watched player, never the spectator.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner live playtest via the coordinator, 2026-10-14', quote: 'the recruit phase seems fine but then combat is from OUR game last game' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (roundsOf, loadRounds, msg.m); packages/ui/src/versus/spectate.ts (match reset, useWatchedName); packages/ui/src/versus/versusBotDriver.ts (adoptMatch)' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-14.',
+    example: 'Two friends play a match, then watch the next match in the same room: its fights are the new match rounds, never their own old ones.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectate.test.ts', 'packages/ui/src/versus/spectateIdentity.test.tsx'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

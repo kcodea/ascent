@@ -147,13 +147,18 @@ describe('End Turn plays the same recorded beats, then the queue goes on', () =>
 
 describe('leaving a fight', () => {
   it('the End Combat press cue starts the exit; the shop swaps in only at the curtain\'s full cover', async () => {
-    const run0 = { ...base(), phase: 'combat' } as RunState;
+    // Watching from the shop, so the fight is seen from its start (a LATE join cuts to real time instead,
+    // R-SPECTATE-JOIN-01, pinned in spectateSync.test.ts).
+    const shop0 = base();
+    const run0 = { ...shop0, phase: 'combat' } as RunState;
     const pub = newPublisher('p1');
     const fight = { events: [], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } };
     const rounds = { 1: { round: 1, p1_result: fight, p2_result: fight } } as never;
-    frames = [{ seat: 'p1', frame: nextSpectatorMessage(pub, run0, 1, true) }];
-    sp.spectateSync({ id: 'pd', phase: 'combat', round: 1 } as never, rounds);
+    frames = [{ seat: 'p1', frame: nextSpectatorMessage(pub, shop0, 1, true) }];
+    sp.spectateSync({ id: 'pd', phase: 'shop', round: 1 } as never, rounds);
     await flush();
+    expect(useGame.getState().run.phase).toBe('recruit');
+    sp.receiveSpectate(nextSpectatorMessage(pub, run0, 1)!);
     vi.useFakeTimers();
     expect(useGame.getState().run.phase).toBe('combat');
     const relight = vi.fn();

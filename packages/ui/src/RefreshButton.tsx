@@ -90,6 +90,7 @@ export const RefreshButton = memo(function RefreshButton({
   return (
     <button
       ref={wrapRef}
+      data-spec="refresh"
       className={`rfbwrap${disabled && !combat ? ' off' : ''}${combat ? ' combat' : ''}`}
       disabled={disabled || combat}
       onClick={click}

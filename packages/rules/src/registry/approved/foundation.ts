@@ -5941,4 +5941,102 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-15: every plate added since is layered (Aquarium Rocks, Amethyst and Bamboo are single images).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
+  {
+    id: 'R-SPECTATE-CURSOR-01',
+    title: 'The watched player cursor lands on the same UI element on any spectator screen',
+    statement:
+      'A cursor sample travels anchored to the UI element under the pointer (a card or minion by its uid, a button, rune, quest or hero power by a stable data-spec key) as a fraction of that element, with game-box (16:9 design space) fractions as the fallback and the old window fractions kept for older clients. The spectator lands it on its own copy of that element, else on the same spot of its own game box, so the hand points at the same button whatever the window size, aspect ratio, stage scale or letterboxing. One rect read per sent or received sample, never per frame.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'our cursor position is kinda off for someone viewing at a different aspect ratio, like my friend playing in 16:9 moves his mouse to a different area on screen to end turn and upgrade the shop' },
+    ],
+    currentBehaviour: 'Before, the cursor travelled as window fractions, so on a 16:10 or 21:9 screen it pointed beside End Turn and Upgrade.',
+    example: 'The player points at End Turn on a 1920x1080 screen: a spectator on 1440x900 sees the hand on End Turn too.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx', 'packages/ui/src/stage.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-HOVER-01',
+    title: 'The spectator sees the hover preview the watched player opens',
+    statement:
+      'The element under the player pointer is broadcast as a stable key (never DOM) on the cursor sample, which is only sent on a change. The spectator hovers its own copy of that element the way a mouse does, so the same preview component opens there (a card or minion reveal, a rune, quest or hero power tip, a game data-tip bubble), and it closes when the player hover ends or their tab hides. No hover while the player holds a card or aims.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'in spectating, the mouseover previews dont work when the player playing mouses over something' },
+    ],
+    currentBehaviour: 'Before, hover previews opened only on the player screen.',
+    example: 'The player rests the pointer on a shop minion: its full card preview opens on the spectator screen too.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-JOIN-01',
+    title: 'A spectator who joins or comes back mid-fight lands at the player current moment',
+    statement:
+      'While a fight plays, the player keyframe carries the beat its fight is on. A spectator arriving or coming back mid-fight asks for a keyframe; a fight not yet on screen starts at that beat, and one already on screen three or more beats behind seeks to it (the replay seek: the frame snaps, nothing is fast-forwarded, no beat FX, sound or announcer line replays). A fight joined late with no beat (an older player client) is never held a whole fight behind: when the player is back in the shop, the screen cuts to real time.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'i left a game as a spectator and came back in combat, and it started combat from the start, then i was \'caught up\' when i went back to shop' },
+    ],
+    currentBehaviour: 'Before, a late joiner replayed the whole fight from its first beat and only caught up at the next shop.',
+    example: 'A spectator joins at the eighth beat of a fight: their screen shows the fight from the eighth beat.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-DRAGGAP-01',
+    title: 'The spectator rows open the same drop gap the watched player drag opens',
+    statement:
+      'While the player holds a card, its live drag decision (the zone under it and the board, shop and hand gap indices) rides the cursor sample, sent only when it changes. The spectator feeds it to the same drag store the rows read, so the minions slide apart for it through the existing gap and slide code, and placement resolves smoothly. It clears on drop or cancel. An older sender has no decision: the card is lifted with no gap, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'spectating live is also doing that old replay issue where minions dont seem to move until the minion is placed, instead of shifting during the hover over' },
+    ],
+    currentBehaviour: 'Before, the board sat still during the player drag and jumped when the card was placed.',
+    example: 'The player drags a minion between their second and third minion: on the spectator screen the board opens a gap there.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-AIM-01',
+    title: 'The watched player aim line follows their cursor and lands on their target, never the spectator mouse',
+    statement:
+      'On the watch screen (and the replay viewer) the run pending target, hero power and spell aim never attach the viewer own pointer listeners: the viewer mouse drives no targeting, drag, highlight or gap. The aim line is drawn from the player broadcast cursor, its end snapped to the minion the player aim is on, which is lit with the game targeted highlight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'when a player has a targeting animation out, it actually goes to the spectator\'s mouse position if moved, fix that' },
+    ],
+    currentBehaviour: 'Before, a pending Battlecry or Choose One aim in the watched run listened to the spectator mouse, so the arrow followed it.',
+    example: 'The player aims a Battlecry at their Imp: the spectator sees the arrow end on the Imp, and moving their own mouse does nothing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-WATCHERS-01',
+    title: 'A player sees who is spectating them, top left',
+    statement:
+      'While anyone watches a player (Versus or a live ranked game), the player screen shows them top left, in shop and combat: their portrait ring in their frame, their name (Spectator when they have none) and a Spectating pill, up to three, then a +N chip whose names ride the data-tip hover. It stays while they watch and goes when they leave. The identities come from the watcher rows (the Versus room members; the live watcher rows, written by the watcher own watch call), never from a broadcast. It re-renders only on a join or leave.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'can we add something in the ui for a player in the top left if a spectator joins? it can show their portrait and name and say spectating?' },
+    ],
+    currentBehaviour: 'New on 2026-10-15.',
+    example: 'Two friends watch a Versus match: the player sees both portraits top left, each with the name and Spectating.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-AV-04',
+    title: 'A spectator never hears a sound for an action the game refused',
+    statement:
+      'A player action the reducer rejected (no Gold, a full board) is not tagged for the stands, so a spectator never hears the success sound of a buy or play that did not happen. Every accepted shop action, every combat sound and the music play on the watch screen exactly as on the player screen, in Versus and in a live ranked game; the announcer stays silent there (R-SPECTATE-AV-03).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15 (spectating fixes)', quote: 'im not sure if audio is working in live spectating? can you please make sure that it works' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. A local two-client run with every sound call logged matched the player call for call in shop and combat; the one difference was a refused buy that rang a buy for the spectator.',
+    example: 'The player tries to buy with no Gold and hears the deny buzz: the spectator hears nothing, not a buy.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx', 'packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
 ];

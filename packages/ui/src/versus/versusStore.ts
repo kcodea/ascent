@@ -33,7 +33,8 @@ import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync } from './spectate';
-import { hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs } from './spectateTap';
+import { setWatchers, type Watcher } from './watchers';
+import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -85,6 +86,17 @@ export const useVersus = create<VersusState>(() => ({
 const clock = new ServerClock();
 const set = (p: Partial<VersusState>): void => useVersus.setState(p);
 const get = (): VersusState => useVersus.getState();
+
+/** THE PLAYER'S STANDS (R-SPECTATE-WATCHERS-01): while I hold a seat, the room's spectators feed the top-left indicator
+ *  (`WatchersBadge`). From the member rows; `setWatchers` is a no-op unless someone joined or left. */
+export function versusWatchersOf(room: VersusRoom | null, seated: boolean): Watcher[] {
+  if (!room || !seated) return [];
+  return room.members.filter((m) => m.role === 'spectator').map((m) => ({ id: m.userId, name: m.displayName, profile: m.profile ?? null }));
+}
+useVersus.subscribe((st, prev) => {
+  if (st.room === prev.room && st.match === prev.match) return;
+  setWatchers(versusWatchersOf(st.room, !!st.room && !!mySeat(st.match)));
+});
 
 /** Human copy for the SQL error codes a player can actually hit (no em dashes, short sentences). */
 const ERROR_TEXT: Record<string, string> = {
@@ -661,7 +673,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
     },
     freeze: (run) => versusFreezeOf(get(), run),
     afterCommit: (action: Action, prev: RunState, next: RunState) => {
-      tapAct(action); // the stands replay it (a no-op with nobody watching)
+      if (next !== prev) tapAct(action); // the stands replay it (a no-op with nobody watching; never a rejected action)
       if (action.type === 'resolveCombat' && prev.phase === 'combat' && next.phase === 'recruit') {
         set({ endTurnWave: null });
         void versusRemote.combatReady(matchId, prev.wave).then((m) => onMatch(m)).catch(() => undefined);
@@ -713,7 +725,10 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   msg.m = matchId; // the stands drop anything from another match
   const acts = takeActs();
   if (acts.length) msg.acts = acts;
-  session.channel?.send('spectate', msg);
+  // Where my fight is, on a keyframe sent while it plays: a late joiner seeks to it (R-SPECTATE-JOIN-01). Never on
+  // the persisted copy (its beat would be stale by the time someone reads it).
+  const cb = msg.kind === 'key' ? combatBeatFor(run) : null;
+  session.channel?.send('spectate', cb ? { ...msg, cb } : msg);
   if (msg.kind === 'key') void versusRemote.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
 }, 250);
 

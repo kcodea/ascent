@@ -81,6 +81,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
   return (
     <button
       className={`questcard${art ? ' has-art' : ''}${readOnly ? ' readonly' : ''}`}
+      data-spec={`quest:${quest.id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
       style={{ '--c': c } as CSSProperties}
       onClick={readOnly ? undefined : onBuy}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}

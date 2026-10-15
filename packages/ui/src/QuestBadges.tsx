@@ -196,6 +196,7 @@ export function QuestBadges() {
             className={`questbadge runebadge${rune.epic ? ' runebadge-epic' : ''}${arrivalCls[i] ?? ''}`} data-tribe={runeAccentTribe(rune)}
             key={`${id}#${i}`}
             data-source-id={id}
+            data-spec={`rune:${i}:${id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
             data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}
             style={{ ...arrivalVars, '--rt': `var(--t-${runeAccentTribe(rune)})` } as React.CSSProperties}
           >
@@ -252,7 +253,7 @@ export function QuestBadges() {
           // Compound objectives (The Author's Hand) have no single count — the tip lists each part's own line.
           const compound = def.objective.event === 'authorsHand' || def.objective.event === 'compound';
           return (
-            <div className="questbadge pending" style={{ '--c': cP } as CSSProperties} key={aq.questId}>
+            <div className="questbadge pending" style={{ '--c': cP } as CSSProperties} key={aq.questId} data-spec={`questpending:${aq.questId}`}>
               <div className="questbadge-inner">
                 {art ? (
                   <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
@@ -308,7 +309,7 @@ export function QuestBadges() {
         // scaling countdown) — folded from the run state so the tooltip shows what it's producing NOW.
         const liveTxt = questRewardLiveText(r, questRewardLiveOf(run, r));
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-source-id={aq.questId} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-source-id={aq.questId} data-spec={`questbadge:${aq.questId}`} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
             {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")
                 each time it completes / re-fires / triggers in combat. The glow ring rides inside, in lockstep. */}
             <div className="questbadge-inner" key={pulse} data-pulse={pulse}>

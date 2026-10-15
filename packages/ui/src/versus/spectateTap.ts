@@ -5,17 +5,25 @@
  *  - ACTION TAGS: each committed shop action becomes a tiny tag (`{ t, uid, index, drag }`) that rides the next
  *    spectator delta, so the spectator plays the same animation and cue instead of guessing from a diff. A drag-driven
  *    action carries the drag's recorded path (the replay recorder's own trace, `replay/dragTrace.ts`).
- *  - THE CURSOR: the pointer as WINDOW FRACTIONS (the replay drag-path convention, so it lands on the same spot of the
- *    spectator's stage at any size), plus the card being dragged, on the room's broadcast channel at about 15 Hz,
- *    coalesced to the latest sample per tick. The pointer is read from the move event's own fields (no layout read),
- *    the send runs on a timer off the render path, and a backgrounded or idle tab sends one "hide" and then nothing.
+ *  - THE CURSOR: the pointer ANCHORED to the UI element under it, with game-box (design-space) fractions as the
+ *    fallback and the old window fractions for older spectators (`cursorSpace.ts`, R-SPECTATE-CURSOR-01), plus the card
+ *    being dragged, on the room's broadcast channel at about 15 Hz, coalesced to the latest sample per tick. The
+ *    pointer and its target are taken from the move event (no layout read per move); the one anchor rect read happens on
+ *    the sample timer, off the render path; a backgrounded or idle tab sends one "hide" and then nothing.
+ *  - THE HOVER: the anchor key IS the hovered target (R-SPECTATE-HOVER-01). It rides the cursor sample, which only goes
+ *    when something changed, so a hover costs no extra message.
+ *  - THE FIGHT'S BEAT: the beat the player's fight is on (`notePlayerBeat`) rides every spectator keyframe while in
+ *    combat (`cb`), so a spectator who joins or comes back mid-fight seeks to it (R-SPECTATE-JOIN-01).
  */
 import type { Action, DragPath, EotRecord, VersusSeat } from '@game/sim';
 import { liveAim } from '../aimState';
 import { dragStore } from '../dragStore';
 import { DRAG_CAUSES, takeDragTrace } from '../replay/dragTrace';
+import { encodePoint, type CursorAnchor } from './cursorSpace';
 
 export const SPECTATE_CURSOR_EVENT = 'spectate_cursor';
+/** A live-game watcher leaving (its game recounts the stands at once; R-SPECTATE-WATCHERS-01). An older player ignores it. */
+export const SPECTATE_BYE_EVENT = 'spectate_bye';
 
 /** One committed action, as the spectator replays it. */
 export interface SpectatorAct {
@@ -34,14 +42,50 @@ export interface SpectatorAct {
 /** One cursor sample. `hide` = the player's tab went to the background or the hand went idle. */
 export interface CursorSample {
   seat: VersusSeat;
+  /** Window fractions (the original wire form; an older spectator reads only these). */
   x: number;
   y: number;
-  /** The card in the player's hand right now (its uid, the zone it was picked from, its card id). */
-  drag?: { uid: string; source: string; cardId: string } | null;
+  /** Game-box (design-space) fractions (`cursorSpace.ts`). Optional: an older sender has none. */
+  gx?: number;
+  gy?: number;
+  /** The UI element under the pointer and the point within it; its key is also the hovered target. Optional. */
+  an?: CursorAnchor | null;
+  /** The card in the player's hand right now (its uid, the zone it was picked from, its card id), and the drop gap
+   *  the player's rows are opening for it (`g`, R-SPECTATE-DRAGGAP-01; optional, an older sender has none). */
+  drag?: { uid: string; source: string; cardId: string; g?: WireDecision } | null;
   /** A live AIM LINE on the player's screen (a spell cast, the hero power, Equipment, a Battlecry): where it starts
    *  (window fractions), whether it is on a target, and its effect when not the default. */
-  aim?: { x: number; y: number; on: boolean; def?: string } | null;
+  aim?: { x: number; y: number; gx?: number; gy?: number; an?: CursorAnchor | null; on: boolean; def?: string; t?: string } | null;
   hide?: true;
+}
+
+/**
+ * The player's live DRAG DECISION as it travels (owner 2026-10-15: "spectating live is also doing that old replay issue
+ * where minions dont seem to move until the minion is placed, instead of shifting during the hover over";
+ * R-SPECTATE-DRAGGAP-01): the zone under the card and the gap indices the rows open (the replay's ghost-hold fix,
+ * `holdGhostCard`, fed live). Short keys, defaults omitted; it changes a few times per drag, and only a change sends.
+ */
+export interface WireDecision {
+  z?: 'tavern' | 'warband' | 'hand' | null;
+  gi?: number;
+  sg?: number;
+  hg?: number;
+  ow?: 1;
+  cl?: 1;
+  mg?: 1;
+}
+
+/** The drag decision on the wire (pure; tested). */
+export function wireDecisionOf(overZone: WireDecision['z'], d: { gapIndex: number; shopGapIndex: number; handGapIndex: number; overWarband: boolean; collapsedLift: boolean; wouldMagnetize: boolean }): WireDecision {
+  return {
+    ...(overZone ? { z: overZone } : {}),
+    ...(d.gapIndex >= 0 ? { gi: d.gapIndex } : {}),
+    ...(d.shopGapIndex >= 0 ? { sg: d.shopGapIndex } : {}),
+    ...(d.handGapIndex >= 0 ? { hg: d.handGapIndex } : {}),
+    ...(d.overWarband ? { ow: 1 as const } : {}),
+    ...(d.collapsedLift ? { cl: 1 as const } : {}),
+    ...(d.wouldMagnetize ? { mg: 1 as const } : {}),
+  };
 }
 
 /** The actions a spectator replays (everything else is bookkeeping it does not need to see). */
@@ -104,29 +148,63 @@ let movedAt = 0;
 let moved = false;
 let lastDragKey = '';
 let hidden = false;
+/** The element the pointer is over (the move event's own target: no hit test). */
+let overEl: Element | null = null;
 
-const onMove = (e: PointerEvent): void => { cx = e.clientX; cy = e.clientY; movedAt = performance.now(); moved = true; };
+const onMove = (e: PointerEvent): void => { cx = e.clientX; cy = e.clientY; overEl = e.target as Element | null; movedAt = performance.now(); moved = true; };
+
+/** Where an aim line starts, as it travels: the element it starts from is the one under that point, if any. */
+function aimFrom(x: number, y: number): Pick<NonNullable<CursorSample['aim']>, 'x' | 'y' | 'gx' | 'gy' | 'an'> {
+  const target = typeof document !== 'undefined' && document.elementFromPoint ? document.elementFromPoint(x, y) : null;
+  return encodePoint(x, y, target);
+}
+/** The aim start last anchored (re-anchored only when it moves). */
+let aimKey: { x: number; y: number; wire: ReturnType<typeof aimFrom> } = { x: NaN, y: NaN, wire: { x: 0, y: 0 } };
 
 function tick(): void {
   if (!send || !seat) return;
-  const drag = dragStore.get().drag;
-  const dragNow = drag && drag.active && !drag.ghost ? { uid: drag.uid, source: drag.source, cardId: drag.view.cardId ?? '' } : null;
+  const ds = dragStore.get();
+  const drag = ds.drag;
+  const dragNow = drag && drag.active && !drag.ghost ? { uid: drag.uid, source: drag.source, cardId: drag.view.cardId ?? '', g: wireDecisionOf(ds.overZone, ds.decision) } : null;
   const a = liveAim.current;
-  const w0 = window.innerWidth || 1, h0 = window.innerHeight || 1;
-  const aimNow = a ? { x: Math.round((a.from.x / w0) * 1000) / 1000, y: Math.round((a.from.y / h0) * 1000) / 1000, on: a.onTarget, ...(a.defId ? { def: a.defId } : {}) } : null;
-  const dragKey = `${dragNow ? `${dragNow.uid}|${dragNow.source}` : ''}|${aimNow ? `${aimNow.x},${aimNow.y},${aimNow.on},${aimNow.def ?? ''}` : ''}`;
+  // The aim's start point is re-anchored only when it moves (one hit test then, not per tick).
+  if (a && (a.from.x !== aimKey.x || a.from.y !== aimKey.y)) aimKey = { x: a.from.x, y: a.from.y, wire: aimFrom(a.from.x, a.from.y) };
+  // The minion the aim is on (the hero power / Battlecry pick, or the spell drag's cast target): the stands snap the
+  // line's end to it and light it (R-SPECTATE-AIM-01).
+  const aimOn = a ? ds.aimTargetUid ?? ds.decision.castTargetUid ?? null : null;
+  const aimNow = a ? { ...aimKey.wire, on: a.onTarget, ...(a.defId ? { def: a.defId } : {}), ...(aimOn ? { t: aimOn } : {}) } : null;
+  const dragKey = `${dragNow ? `${dragNow.uid}|${dragNow.source}|${JSON.stringify(dragNow.g)}` : ''}|${aimNow ? `${aimNow.x},${aimNow.y},${aimNow.on},${aimNow.def ?? ''},${aimNow.t ?? ''}` : ''}`;
   const idle = !dragNow && !aimNow && performance.now() - movedAt > CURSOR_IDLE_MS;
   if (document.visibilityState === 'hidden' || idle) {
-    if (!hidden) { hidden = true; send(SPECTATE_CURSOR_EVENT, { seat, x: 0, y: 0, hide: true } satisfies CursorSample); }
+    if (!hidden) {
+      hidden = true;
+      // An IDLE hand still over a card keeps that card's hover open in the stands (the player is reading it); a
+      // backgrounded tab hovers nothing.
+      const still = document.visibilityState !== 'hidden' && overEl?.isConnected ? encodePoint(cx, cy, overEl).an : null;
+      send(SPECTATE_CURSOR_EVENT, { seat, x: 0, y: 0, hide: true, ...(still ? { an: still } : {}) } satisfies CursorSample);
+    }
     return;
   }
   if (!moved && dragKey === lastDragKey && !hidden) return;
   moved = false;
   hidden = false;
   lastDragKey = dragKey;
-  const w = window.innerWidth || 1, h = window.innerHeight || 1;
-  const sample: CursorSample = { seat, x: Math.round((cx / w) * 1000) / 1000, y: Math.round((cy / h) * 1000) / 1000, drag: dragNow, aim: aimNow };
+  const at = encodePoint(cx, cy, overEl && overEl.isConnected ? overEl : null);
+  const sample: CursorSample = { seat, ...at, drag: dragNow, aim: aimNow };
   send(SPECTATE_CURSOR_EVENT, sample);
+}
+
+// ── the fight's beat ───────────────────────────────────────────────────────────────────────────────────────
+
+/** The beat the player's own fight is on (Recruit notes it per beat; a plain write, nothing sent from here). */
+let playerBeat: { w: number; b: number } | null = null;
+export function notePlayerBeat(wave: number, beat: number): void {
+  if (playerBeat && playerBeat.w === wave && playerBeat.b === beat) return;
+  playerBeat = { w: wave, b: beat };
+}
+/** The player's fight position for a spectator message (`cb`), when the run is in that fight. */
+export function combatBeatFor(run: { phase: string; wave: number }): { w: number; b: number } | null {
+  return run.phase === 'combat' && playerBeat && playerBeat.w === run.wave ? playerBeat : null;
 }
 
 /**
@@ -150,6 +228,7 @@ export function setSpectatorTap(on: boolean, mySeat: VersusSeat | null, sender: 
     acts = [];
     hidden = false;
     lastDragKey = '';
+    overEl = null;
   }
 }
 

@@ -54,6 +54,7 @@ export const FreezeButton = memo(function FreezeButton({
   return (
     <button
       ref={wrapRef}
+      data-spec="freeze"
       className={`frzwrap${frozen ? ' on' : ''}${combat ? ' combat' : ''}`}
       disabled={disabled || combat}
       onClick={click}

@@ -27,8 +27,13 @@ import { playsAsSpell } from '../instView';
 import { actionSfx, useGame } from '../store';
 import { emitPressCue, type PressCue } from '../pressCue';
 import { ghostCardView, holdGhostCard, playableDragPath, releaseGhostHold } from '../replay/replayPlayer';
-import type { CursorSample, SpectatorAct } from './spectateTap';
-import { applySpectatorMessage, newReceiver, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
+import type { DragDecision, Zone } from '../dragDecision';
+import { NO_DRAG_DECISION } from '../dragDecision';
+import { dragStore } from '../dragStore';
+import { decodePoint } from './cursorSpace';
+import { setSpectatorHover } from './spectatorHover';
+import type { CursorSample, SpectatorAct, WireDecision } from './spectateTap';
+import { applySpectatorMessage, newReceiver, type CombatBeat, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 
 /** The broadcast event a spectator sends when it needs a fresh keyframe (a gap it could not repair from the table). */
@@ -44,9 +49,12 @@ export interface SpectateState {
   /** The watched player's name when the screen's own lobby does not carry it (a live ranked lobby game: seat s0 is
    *  labelled for its owner, not by name). */
   name?: string | null;
+  /** Seek the fight on screen to the watched player's beat (a late joiner catching up, R-SPECTATE-JOIN-01); `n`
+   *  bumps per request, so the same beat can be asked twice. Recruit performs it. */
+  seek?: { wave: number; beat: number; n: number } | null;
 }
 
-export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null }));
+export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null, seek: null }));
 
 interface Io {
   latestFrames(matchId: string): Promise<{ seat: VersusSeat; frame: unknown }[]>;
@@ -128,6 +136,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     rx = { p1: newReceiver(), p2: newReceiver() };
     lobbyCache = null;
     last = null;
+    resumeAt = null;
     rounds = allRounds;
     void fetchKeyframes();
   }
@@ -148,6 +157,7 @@ export function liveSync(gameId: string | null): void {
     rx = { p1: newReceiver(), p2: newReceiver() };
     lobbyCache = null;
     last = null;
+    resumeAt = null;
     rounds = {};
     useSpectate.setState({ seat: 'p1', optedOut: null });
     void fetchKeyframes();
@@ -167,6 +177,8 @@ export function receiveSpectate(payload: unknown): void {
   // The SAME fight arriving again (a later keyframe) keeps the object on screen, so the arena never restarts its replay.
   if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: sameFight(rx[msg.seat].view, msg.fight) } };
   rx[msg.seat] = next;
+  // Where the watched player's fight is (a broadcast keyframe while it plays): catch the screen up to it.
+  if (msg.cb && msg.seat === useSpectate.getState().seat) syncFightBeat(msg.cb);
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
   if (msg.seat !== useSpectate.getState().seat) return;
   // The watched player's ACTIONS: their screen moves one action at a time, each with the animation and cue the
@@ -328,9 +340,14 @@ function clearQueue(): void {
 
 // ── the watched player's cursor ────────────────────────────────────────────────────────────────────────────
 
+/** A cursor sample landed on THIS screen (screen px, `cursorSpace.decodePoint`). */
 export interface CursorPoint { t: number; x: number; y: number }
+/** The player's live aim line, landed on this screen (screen px). */
+export interface CursorAim { x: number; y: number; on: boolean; def?: string; end?: { x: number; y: number } | null }
+/** The card in the player's hand, and (R-SPECTATE-DRAGGAP-01) the drop gap their rows open for it right now. */
+export interface CursorDrag { uid: string; source: string; cardId: string; overZone: Zone | null; decision: DragDecision }
 /** The live cursor the overlay draws (`SpectatorCursor`): a short buffer of samples, the card in hand, hidden. */
-export const cursorFeed: { pts: CursorPoint[]; drag: CursorSample['drag']; aim: CursorSample['aim']; hidden: boolean; version: number } = { pts: [], drag: null, aim: null, hidden: true, version: 0 };
+export const cursorFeed: { pts: CursorPoint[]; drag: CursorDrag | null; aim: CursorAim | null; hidden: boolean; version: number } = { pts: [], drag: null, aim: null, hidden: true, version: 0 };
 const dragSeen = new Map<string, number>();
 const liveDragShown = (uid: string): boolean => performance.now() - (dragSeen.get(uid) ?? -1e9) < 2500;
 const cursorListeners = new Set<() => void>();
@@ -343,20 +360,64 @@ export function receiveSpectatorCursor(payload: unknown): void {
   if (c.hide) {
     cursorFeed.hidden = true;
     cursorFeed.aim = null;
+    setAimTarget(null);
+    // An idle hand still over a card keeps its preview open (the player is reading it); a hidden tab clears it.
+    setSpectatorHover(c.an?.k ?? null);
   } else {
     cursorFeed.hidden = false;
-    cursorFeed.pts.push({ t: performance.now(), x: c.x, y: c.y });
+    // Landed on THIS screen: on the same element, else the same spot of the game box (R-SPECTATE-CURSOR-01).
+    const at = decodePoint(c);
+    cursorFeed.pts.push({ t: performance.now(), x: at.x, y: at.y });
     if (cursorFeed.pts.length > 12) cursorFeed.pts.splice(0, cursorFeed.pts.length - 12);
     if (c.drag && c.drag.uid !== cursorFeed.drag?.uid) presentAction({ kind: 'touch' }); // the pick-up
-    cursorFeed.drag = c.drag ?? null;
-    cursorFeed.aim = c.aim ?? null;
+    cursorFeed.drag = c.drag ? { uid: c.drag.uid, source: c.drag.source, cardId: c.drag.cardId, ...wireDecision(c.drag.g) } : null;
+    const from = c.aim ? decodePoint(c.aim) : null;
+    // The aim's END snaps to the minion the player's aim is on (R-SPECTATE-AIM-01): its centre on this screen.
+    const end = c.aim?.t ? decodePoint({ x: 0, y: 0, an: { k: `u:${c.aim.t}`, fx: 0.5, fy: 0.5 } }) : null;
+    cursorFeed.aim = c.aim && from ? { x: from.x, y: from.y, on: c.aim.on, ...(c.aim.def ? { def: c.aim.def } : {}), end: end?.el ? { x: end.x, y: end.y } : null } : null;
+    setAimTarget(c.aim?.t ?? null);
     if (c.drag) dragSeen.set(c.drag.uid, performance.now());
+    // The player's hover preview (R-SPECTATE-HOVER-01): the element under their hand, unless a card is in it or an
+    // aim line is out (their own screen opens no preview then).
+    setSpectatorHover(!c.drag && !c.aim ? c.an?.k ?? null : null);
   }
   cursorFeed.version += 1;
   for (const fn of cursorListeners) fn();
 }
 
+/** The drop gap the player's rows open for the held card (R-SPECTATE-DRAGGAP-01), one object per distinct decision so
+ *  the drag store notifies (and the rows slide) only when it actually moves. An older sender's drag has none: the
+ *  card is lifted with no gap, as before. */
+let decisionCache: { key: string; out: { overZone: Zone | null; decision: DragDecision } } | null = null;
+export function wireDecision(g: WireDecision | undefined | null): { overZone: Zone | null; decision: DragDecision } {
+  const key = g ? JSON.stringify(g) : '';
+  if (decisionCache?.key === key) return decisionCache.out;
+  const out = g
+    ? {
+        overZone: g.z ?? null,
+        decision: {
+          ...NO_DRAG_DECISION,
+          gapIndex: g.gi ?? -1, shopGapIndex: g.sg ?? -1, handGapIndex: g.hg ?? -1,
+          overWarband: !!g.ow, collapsedLift: !!g.cl, wouldMagnetize: !!g.mg,
+        },
+      }
+    : { overZone: null, decision: { ...NO_DRAG_DECISION, collapsedLift: true } };
+  decisionCache = { key, out };
+  return out;
+}
+
+/** The watched player's aim target, lit with the game's own `targeted` highlight (the drag store's aim target). The
+ *  viewer's own mouse never writes it on the watch screen (Recruit skips its aim listeners while viewing). */
+let aimLit: string | null = null;
+function setAimTarget(uid: string | null): void {
+  if (uid === aimLit) return;
+  aimLit = uid;
+  dragStore.set({ aimTargetUid: uid });
+}
+
 function resetCursor(): void {
+  setSpectatorHover(null);
+  setAimTarget(null);
   cursorFeed.pts = [];
   cursorFeed.drag = null;
   cursorFeed.aim = null;
@@ -365,8 +426,8 @@ function resetCursor(): void {
   for (const fn of cursorListeners) fn();
 }
 
-function askForKey(): void {
-  if (Date.now() - lastKeyAsk < 2000) return;
+function askForKey(force = false): void {
+  if (!force && Date.now() - lastKeyAsk < 2000) return;
   lastKeyAsk = Date.now();
   io?.requestKey();
 }
@@ -401,6 +462,10 @@ function render(): void {
   const seat = useSpectate.getState().seat;
   const latest = shownView ?? rx[seat].view;
   if (!latest) return; // nothing to show for this seat yet: the keyframe is on its way
+  // A fight joined LATE (no beat to seek to, e.g. an older player client) never holds the screen a whole fight behind:
+  // once the player is back in the shop, the screen cuts to real time (R-SPECTATE-JOIN-01).
+  const now = rx[seat].view;
+  if (pin && pin.late && !pin.released && now && now.phase !== 'combat' && !queue.length) pin.released = true;
   const view = pinnedView(seat, latest);
   const round = rounds[view.wave];
   const fight = round ? (seat === 'p1' ? round.p1_result : round.p2_result) : undefined;
@@ -414,7 +479,7 @@ function render(): void {
   }
   if (run) last = { view, fight, seat, run };
   if (!run) { io?.loadRounds(); return; }
-  if (!snapshot) enter();
+  if (!snapshot) enter(view);
   const cur = useGame.getState().run;
   if (cur === run) return;
   // LEAVING A FIGHT: the player's End Combat (its relight and pulse) and the exit curtain, then the shop under it, as
@@ -445,7 +510,10 @@ export function spectatorFightCovered(): void {
   render();
 }
 
-function enter(): void {
+function enter(view: VersusSpectatorView): void {
+  // Arriving mid-fight: the fight on screen is a late one, and the player is asked where it is (their keyframe answer
+  // carries the beat, `cb`, which the screen seeks to).
+  if (view.phase === 'combat') askForKey(true);
   const s = useGame.getState();
   const snap: Record<string, unknown> = {};
   for (const k of SNAPSHOT_KEYS) snap[k] = s[k];
@@ -464,15 +532,18 @@ function enter(): void {
  * The first combat view of a fight is PINNED (unsettled) until the spectator's own replay has finished and its hero
  * strike has had its time; then the screen catches up to the latest view.
  */
-let pin: { key: string; view: VersusSpectatorView; released: boolean } | null = null;
+let pin: { key: string; view: VersusSpectatorView; released: boolean; late: boolean } | null = null;
+/** The next fight pinned was joined part way through (entering the watch screen, or coming back to it). */
+let lateEntry = true;
 let releaseTimer: number | null = null;
 /** The hero strike's time after the replay is done, before the pinned fight lets go. */
 const STRIKE_MS = 2600;
 function pinnedView(seat: VersusSeat, view: VersusSpectatorView): VersusSpectatorView {
   if (view.phase === 'combat') {
     const key = `${matchId}|${seat}|${view.wave}`;
-    if (pin?.key !== key) pin = { key, view: { ...view, combatSettled: false }, released: false };
+    if (pin?.key !== key) pin = { key, view: { ...view, combatSettled: false }, released: false, late: lateEntry };
   }
+  lateEntry = false;
   return pin && !pin.released ? pin.view : view;
 }
 function onReplayDone(done: boolean): void {
@@ -493,6 +564,29 @@ export function takeSpectatorResume(wave: number): number | null {
   return b;
 }
 
+/** A spectator this many beats behind the player's fight is seeked; closer than that it plays on (no visible jump). */
+export const SEEK_LAG_BEATS = 3;
+/** Every seek request's number, never reused (across watch sessions too), so a request runs exactly once. */
+let seekSeq = 0;
+/**
+ * LATE JOIN (owner 2026-10-15: "i left a game as a spectator and came back in combat, and it started combat from the
+ * start ... can we just sync the viewer up either mid fight"; R-SPECTATE-JOIN-01). The player's broadcast keyframe
+ * says which beat its fight is on. A fight already on screen and behind it SEEKS there (the replay's own `seekTo`:
+ * the frame snaps to that moment, no fast-forward through the beats, their FX, sounds or announcer lines); a fight
+ * not mounted yet starts there (`takeSpectatorResume`).
+ */
+export function syncFightBeat(cb: CombatBeat): void {
+  if (!cb || typeof cb.w !== 'number' || typeof cb.b !== 'number' || cb.b <= 0) return;
+  const run = useGame.getState().run;
+  const fb = fightBeat;
+  const onScreen = useSpectate.getState().active && run.phase === 'combat' && run.wave === cb.w && fb?.key === `${matchId}|${cb.w}`;
+  if (onScreen && fb) {
+    if (cb.b - fb.beat >= SEEK_LAG_BEATS) { seekSeq += 1; useSpectate.setState({ seek: { wave: cb.w, beat: cb.b, n: seekSeq } }); }
+    return;
+  }
+  resumeAt = { wave: cb.w, beat: cb.b };
+}
+
 /** Watch the other player (hotkeys 1 / 2, the spectator bar). Instant: both views are already cached. In a fight it
  *  continues from the same moment, from the other side. */
 export function watchSeat(seat: VersusSeat): void {
@@ -502,7 +596,7 @@ export function watchSeat(seat: VersusSeat): void {
   // The pin follows the fight, not the seat: carry its state to the other side.
   if (pin && run.phase === 'combat') {
     const other = rx[seat].view;
-    if (other && other.phase === 'combat') pin = { key: `${matchId}|${seat}|${other.wave}`, view: { ...other, combatSettled: false }, released: pin.released };
+    if (other && other.phase === 'combat') pin = { key: `${matchId}|${seat}|${other.wave}`, view: { ...other, combatSettled: false }, released: pin.released, late: pin.late };
   }
   useGame.setState({ inspect: null });
   clearQueue();
@@ -520,6 +614,9 @@ export function leaveSpectating(): void {
 /** Back to watching after Leave. */
 export function resumeSpectating(): void {
   useSpectate.setState({ optedOut: null });
+  // Coming back mid-fight is a late join: ask where the fight is (R-SPECTATE-JOIN-01).
+  lateEntry = true;
+  if (rx[useSpectate.getState().seat].view?.phase === 'combat') askForKey(true);
   schedule();
 }
 
@@ -534,8 +631,10 @@ export function stopSpectating(): void {
   unsubDone = null;
   if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
   pin = null;
+  lateEntry = true;
   fightBeat = null;
   resumeAt = null;
+  if (useSpectate.getState().seek) useSpectate.setState({ seek: null });
   leaving = 'no';
   if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
   useSpectate.setState({ active: false });
@@ -565,5 +664,7 @@ export function useWatchedName(): string | null {
   return active ? named ?? label ?? '' : null;
 }
 
+/** For the tests: the beat the fight on this screen is on (null outside a fight). */
+export const spectatorFightBeat = (): number | null => fightBeat?.beat ?? null;
 /** For the tests: a seat's cached view. */
 export const spectatorViewOf = (seat: VersusSeat): VersusSpectatorView | null => rx[seat].view;

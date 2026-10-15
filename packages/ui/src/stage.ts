@@ -146,3 +146,26 @@ export function installStage(): void {
   window.addEventListener('resize', applyStage);
   window.addEventListener('orientationchange', applyStage);
 }
+
+/** The 16:9 game box's caps (styles.css `--gw` / `--gh`: 16:9, never past 2560 x 1440 layout px). */
+export const GAME_BOX_MAX_W = 2560;
+export const GAME_BOX_MAX_H = 1440;
+export interface GameBox { left: number; top: number; w: number; h: number }
+/**
+ * THE GAME BOX in SCREEN px: the centred 16:9 `.app` box every piece of UI is laid out in (styles.css `--gw` / `--gh`,
+ * centred by `#root`'s flex), letterboxed inside a window of any other aspect. Pure math off the fit, no layout read,
+ * so a pointer can be expressed as a fraction of the box and land on the same UI on any window (spectator cursor,
+ * R-SPECTATE-CURSOR-01).
+ */
+export function gameBoxOf(f: StageFit): GameBox {
+  const w = Math.min(f.lw, (f.lh * 16) / 9, GAME_BOX_MAX_W);
+  const h = Math.min(f.lh, (f.lw * 9) / 16, GAME_BOX_MAX_H);
+  return { left: ((f.lw - w) / 2) * f.s, top: ((f.lh - h) / 2) * f.s, w: w * f.s, h: h * f.s };
+}
+/** The game box for the current window. The fit is refreshed on resize, but jsdom / pre-install reads the window. */
+export function gameBox(): GameBox {
+  if (typeof window !== 'undefined' && fit.s === 1 && (fit.lw !== window.innerWidth || fit.lh !== window.innerHeight)) {
+    return gameBoxOf({ s: 1, lw: window.innerWidth || DESIGN_W, lh: window.innerHeight || DESIGN_H });
+  }
+  return gameBoxOf(fit);
+}

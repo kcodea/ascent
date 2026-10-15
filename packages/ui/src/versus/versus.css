@@ -342,3 +342,11 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 .vsspec-cursor { transition: opacity 0.2s ease; }
 .vsspec-cursor .vsspec-cursor-open { position: absolute; left: 0; top: 0; width: 32px; height: 32px; transform: translate(-6px, -2px);
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
+
+/* THE PLAYER'S STANDS (WatchersBadge.tsx, R-SPECTATE-WATCHERS-01): who is watching, top left of the player's own screen.
+   The spectator bar's own plates (ring, name pill, a second pill reading "Spectating"), up to three, then a "+N" name
+   pill whose names ride the game's `data-tip` bubble. Not interactive (only the chip takes a hover). Static paint. */
+.vswatch { pointer-events: none; z-index: 60; }
+.vswatch .vswatch-ring { --ring: calc(44 * var(--u)); }
+.vswatch .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(11 * var(--u)); letter-spacing: 0.04em; }
+.vswatch .vswatch-more { pointer-events: auto; align-self: center; }

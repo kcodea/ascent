@@ -30,6 +30,9 @@ function fakeRemote(watchers: () => number) {
     publishFrame: vi.fn(async () => undefined),
     latestFrame: vi.fn(async () => null as unknown),
     watch: vi.fn(async (id: string) => row(id)),
+    // With the watcher's identity (R-SPECTATE-WATCHERS-01): the same answer as `watch`, whatever it is set to.
+    watchAs: vi.fn(async (id: string) => r.watch(id)),
+    watchers: vi.fn(async () => [] as { user_id: string; display_name: string; profile: Record<string, unknown> | null }[] | null),
     unwatch: vi.fn(async () => undefined),
     list: vi.fn(async () => []),
     game: vi.fn(async () => null),
@@ -100,6 +103,48 @@ describe('the player side: presence and publishing', () => {
     await flush();
     expect(net.r.heartbeat).toHaveBeenCalledTimes(2); // the registration + the immediate answer, no 15 s wait
     expect(pubMod.liveState()?.publishing).toBe(true);
+    off();
+  });
+
+  it('the stands: who watches is read on a join, dropped at once on a leave, and a fight keyframe carries the beat (R-SPECTATE-WATCHERS-01, R-SPECTATE-JOIN-01)', async () => {
+    const { useWatchers } = await import('../versus/watchers');
+    const tap = await import('../versus/spectateTap');
+    let watching = 0;
+    const net = fakeRemote(() => watching);
+    net.r.watchers.mockImplementation(async () => (watching ? [{ user_id: 'w1', display_name: 'Claudebot2', profile: { avatar: 'a1' } }] : []));
+    pubMod.setLiveRemoteForTests(net.r);
+    const off = pubMod.installLivePublisher();
+    useGame.setState({ run: rankedRun(), replaying: false, showTitle: false });
+    await flush();
+    expect(useWatchers.getState().list).toEqual([]);
+    watching = 1;
+    net.push('spectate_key', {});
+    await flush();
+    expect(useWatchers.getState().list).toEqual([{ id: 'w1', name: 'Claudebot2', profile: { avatar: 'a1' } }]);
+    // in a fight: a requested keyframe carries where the fight is
+    tap.notePlayerBeat(useGame.getState().run.wave, 6);
+    useGame.setState({ run: { ...useGame.getState().run, phase: 'combat' } as RunState });
+    net.push('spectate_key', {});
+    await vi.advanceTimersByTimeAsync(400);
+    const keys = net.sent.filter((m) => m.event === 'spectate' && m.payload.kind === 'key');
+    expect(keys.at(-1)!.payload.cb).toEqual({ w: useGame.getState().run.wave, b: 6 });
+    // the watcher leaves: its goodbye recounts at once (no 15 s heartbeat wait)
+    watching = 0;
+    net.push('spectate_bye', {});
+    await flush();
+    expect(useWatchers.getState().list).toEqual([]);
+    off();
+  });
+
+  it('an older server (no watcher identities) shows a plain "Spectator" per watcher', async () => {
+    const { useWatchers } = await import('../versus/watchers');
+    const net = fakeRemote(() => 2);
+    net.r.watchers.mockResolvedValue(null);
+    pubMod.setLiveRemoteForTests(net.r);
+    const off = pubMod.installLivePublisher();
+    useGame.setState({ run: rankedRun(), replaying: false, showTitle: false });
+    await flush();
+    expect(useWatchers.getState().list.map((w) => w.name)).toEqual(['', '']);
     off();
   });
 

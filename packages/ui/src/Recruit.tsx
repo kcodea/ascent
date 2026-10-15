@@ -251,6 +251,8 @@ import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 import { noteSpectatorBeat, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { notePlayerBeat } from './versus/spectateTap';
+import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
@@ -2876,13 +2878,27 @@ export function Recruit() {
   // A VERSUS SPECTATOR switching seats mid-fight continues from the same moment on the other side (both sides of the
   // one fight have the same beats, R-VERSUS-PERSPECTIVE-01): report the beat on screen, and resume at it after a switch.
   const watchingVersus = useSpectate((s) => s.active);
-  useEffect(() => { if (watchingVersus && fighting) noteSpectatorBeat(run.wave, replay.beatIdx); }, [watchingVersus, fighting, run.wave, replay.beatIdx]);
+  // The PLAYER's side of the same: the beat its own fight is on (a plain write), which rides the keyframe a spectator who
+  // joins mid-fight receives, so they start where the player is (R-SPECTATE-JOIN-01).
+  useEffect(() => {
+    if (watchingVersus) noteSpectatorBeat(run.wave, replay.beatIdx);
+    else if (fighting) notePlayerBeat(run.wave, replay.beatIdx);
+  }, [watchingVersus, fighting, run.wave, replay.beatIdx]);
   const seekForResume = replay.seekTo;
   useEffect(() => {
     if (!watchingVersus || !fighting) return;
     const b = takeSpectatorResume(run.wave);
     if (b != null && b > 0) seekForResume(b);
   }, [watchingVersus, fighting, run.lastCombat]);
+  // A spectator already in this fight and behind the player's beat: snap to it (spectate.ts `syncFightBeat`).
+  // A request that lands during the fight's entrance waits for the fight itself (`fighting`), then runs once.
+  const spectatorSeek = useSpectate((s) => s.seek ?? null);
+  const seekDoneRef = useRef(0);
+  useEffect(() => {
+    if (!watchingVersus || !fighting || !spectatorSeek || spectatorSeek.wave !== run.wave || seekDoneRef.current === spectatorSeek.n) return;
+    seekDoneRef.current = spectatorSeek.n;
+    if (spectatorSeek.beat > replay.beatIdx) seekForResume(spectatorSeek.beat);
+  }, [spectatorSeek, fighting, watchingVersus, run.wave]);
   // THE ANNOUNCER's MinionHits100Stats during a fight: the TRUTH frame's player units, per beat (seven reads, no
   // allocation; the module reports once per fight and only while unfired). Never the enemy / ghost side.
   useEffect(() => { if (fighting) observeCombatBoard(replay.frame.player, run.wave); }, [fighting, replay.frame, run.wave]);
@@ -4671,6 +4687,9 @@ export function Recruit() {
   // tavern spell); a tavern buff rides in when the offer is bought. Release off a minion to
   // cancel; a plain click stays armed for a follow-up click.
   useEffect(() => {
+    // A VIEWER (replay / spectator) never aims with their own mouse (R-SPECTATE-AIM-01): the watched player's aim is
+    // drawn from their broadcast cursor (`SpectatorCursor`), which also owns the target highlight.
+    if (viewing) return;
     if ((!heroArmed && !equipArmed) || inCombat) {
       dragStore.set({ aimTargetUid: null });
       return;
@@ -4795,7 +4814,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat]);
+  }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, viewing]);
 
   // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
@@ -4824,6 +4843,10 @@ export function Recruit() {
     return c ? isTribe(c, aimTribe) : false; // dual-types (Bane = Dragon/Demon) are valid picks
   }, [pendingTarget, run]);
   useEffect(() => {
+    // A pending target in the WATCHED run is the player's aim, not the viewer's (owner 2026-10-15: "when a player has a
+    // targeting animation out, it actually goes to the spectator's mouse position if moved"; R-SPECTATE-AIM-01). No
+    // listener here: `SpectatorCursor` draws it from the player's cursor and lights their target.
+    if (viewing) return;
     if (!pendingTarget || inCombat) {
       dragStore.set({ aimTargetUid: null });
       return;
@@ -4898,7 +4921,7 @@ export function Recruit() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
     };
-  }, [pendingTarget, timeUp, dispatch, inCombat, run.board, captureCoalesce]);
+  }, [pendingTarget, timeUp, dispatch, inCombat, run.board, captureCoalesce, viewing]);
 
   // Reset the round clock at the start of each recruit wave, and whenever the hero picker opens or
   // closes (so wave 1 always begins at full time the moment a hero is chosen — even on a fresh run
@@ -8096,6 +8119,8 @@ export function Recruit() {
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
       {run.mode === 'versus' && <VersusHud />}
+      {/* Who is watching this player (Versus or a live ranked lobby game): top left, R-SPECTATE-WATCHERS-01. */}
+      <WatchersBadge />
 
       {godPrompt && run.godMode && !inCombat && (
         <GodRoundPrompt lastRound={loadGodRound()} busy={godPrompt.busy} message={godPrompt.message}
@@ -9359,6 +9384,8 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
   timeUp: boolean; heroArmed: boolean; equipArmed: boolean; hasPendingTarget: boolean;
 }) {
   const { drag, castingSpell, snapping, magSlide, wouldMagnetize, overWarband, castTargetUid, overZone, sellTop, buyTop, touch } = useDragSlice(selectOverlayDrag);
+  // A viewer (replay / spectator) aims nothing of their own (R-SPECTATE-AIM-01).
+  const viewing = useGame((st) => !!st.replaySession || st.replaying);
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
   // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
   // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
@@ -9463,8 +9490,11 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
   // The hero-power / Battlecry paths push their own coordinates straight into Pixi from their
   // rAF-coalesced move handlers, so this effect does not drive them — it only owns the SPELL-drag line
   // and the teardown.
-  const aimingNow = !!((heroArmed || equipArmed || hasPendingTarget) || (castingSpell && drag));
+  // A viewer is never aiming (R-SPECTATE-AIM-01): their OS cursor stays, and the watched player's line belongs to
+  // `SpectatorCursor`, so nothing here draws or clears it.
+  const aimingNow = !viewing && !!((heroArmed || equipArmed || hasPendingTarget) || (castingSpell && drag));
   useEffect(() => {
+    if (viewing) { document.body.classList.remove('aiming'); return; }
     if (castingSpell && drag) {
       // Use the exact live position, not the quantised state, so this render-time placement agrees with the
       // per-frame update in the move flush (otherwise the line would flick back on every commit).
@@ -9479,7 +9509,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
     document.body.classList.toggle('aiming', aimingNow);
     // `castTargetUid` rides `drag` (a new decision is a new `drag` object), so every change that matters
     // already re-runs this.
-  }, [aimingNow, heroArmed, equipArmed, hasPendingTarget, castingSpell, drag]);
+  }, [aimingNow, heroArmed, equipArmed, hasPendingTarget, castingSpell, drag, viewing]);
   useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
 
   return (

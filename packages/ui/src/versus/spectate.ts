@@ -150,7 +150,8 @@ export function receiveSpectate(payload: unknown): void {
   const { needKeyframe } = applied;
   let next = applied.rx;
   // A live ranked lobby game's fight rides the message (the view never carries the heavy result itself).
-  if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: msg.fight } };
+  // The SAME fight arriving again (a later keyframe) keeps the object on screen, so the arena never restarts its replay.
+  if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: sameFight(rx[msg.seat].view, msg.fight) } };
   rx[msg.seat] = next;
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
   if (msg.seat !== useSpectate.getState().seat) return;
@@ -179,6 +180,13 @@ const BEHIND = 2;
 
 /** The press cue a button action replays (its own press visual, `pressCue.ts`). */
 const PRESS: Partial<Record<string, PressCue>> = { roll: 'refresh', freeze: 'freeze', upgrade: 'upgrade', heroPower: 'heroPower', endTurn: 'endTurn' };
+
+/** The fight on screen when `fight` is the same one (a later keyframe of the same live lobby fight), else `fight`. */
+function sameFight(view: VersusSpectatorView | null, fight: unknown): unknown {
+  const cur = (view as { lastCombat?: unknown } | null)?.lastCombat;
+  if (!cur || cur === fight) return fight;
+  try { return JSON.stringify(cur) === JSON.stringify(fight) ? cur : fight; } catch { return fight; }
+}
 
 /** Where the player let go of the card (the drag path's last point, in screen px), when the action was dragged. */
 function releasePoint(a: SpectatorAct): ScreenPoint | null {

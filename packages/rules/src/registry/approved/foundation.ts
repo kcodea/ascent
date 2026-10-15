@@ -5833,7 +5833,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (spectating in all modes)', quote: 'make sure pixi effects are firing as well as sound effects. all animations etc are important to be on there' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-15. Before, a spectator jumped from the shop straight to the fight with no End of Turn beats and saw the shop before the curtain.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
   {
     id: 'R-SPECTATE-AV-03',
@@ -5847,6 +5847,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-15. Before, the music was off on the watch screen (it shared the replay gate).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
     id: 'R-LIVE-01',
     title: 'Live games lists RANKED lobby games only, best rank first, and drops a game when it ends or goes silent',
     statement:

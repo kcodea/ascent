@@ -29,7 +29,6 @@ vi.mock('../remoteBoards', async (importOriginal) => {
     uploadPracticeGame: vi.fn(async () => null),
     fetchRunHistory: vi.fn(async () => null),
     fetchCareerTotals: vi.fn(async () => null),
-    recordFightResult: vi.fn(async () => {}),
     recordLobbyFights: vi.fn(async () => {}),
     fetchLobbyStrength: vi.fn(async () => null),
     refreshOpponentPoolAndRecords: vi.fn(),
@@ -38,7 +37,7 @@ vi.mock('../remoteBoards', async (importOriginal) => {
 
 import { createGauntletRun, practiceHeroChoiceIds, runTribesForSeed, type BoardCard, type RunState } from '@game/sim';
 import { useGame } from '../store';
-import { recordFightResult, uploadBoards, uploadPracticeGame, uploadRunHistory, uploadRunTelemetry } from '../remoteBoards';
+import { uploadBoards, uploadPracticeGame, uploadRunHistory, uploadRunTelemetry } from '../remoteBoards';
 import { clearedStages, recordClear } from './gauntletProgress';
 import { clearGauntletClearQueue, pendingGauntletClears } from './gauntletClearQueue';
 import { resetIdentityForTests, setIdentity } from '../identity';
@@ -133,7 +132,7 @@ function finishingGauntletRun(seed: number): RunState {
 
 describe('a finished gauntlet run', () => {
   beforeEach(() => {
-    for (const f of [uploadBoards, uploadRunHistory, uploadRunTelemetry, uploadPracticeGame, recordFightResult]) vi.mocked(f).mockClear();
+    for (const f of [uploadBoards, uploadRunHistory, uploadRunTelemetry, uploadPracticeGame]) vi.mocked(f).mockClear();
     useGame.setState({ playerName: 'Mike', run: finishingGauntletRun(7), showTitle: false, replaying: false, replayActions: [], capturedBoards: [], lastReplay: null, lastMatch: null });
   });
 
@@ -149,7 +148,6 @@ describe('a finished gauntlet run', () => {
     expect(vi.mocked(uploadRunHistory)).not.toHaveBeenCalled();
     expect(vi.mocked(uploadRunTelemetry)).not.toHaveBeenCalled();
     expect(vi.mocked(uploadPracticeGame)).not.toHaveBeenCalled();
-    expect(vi.mocked(recordFightResult)).not.toHaveBeenCalled();
     expect(useGame.getState().lastReplay).toBeNull();
     expect(useGame.getState().lastMatch).toBeNull();
     expect(useGame.getState().rankSubmission).toBe('unrated');

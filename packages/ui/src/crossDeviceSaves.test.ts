@@ -27,7 +27,6 @@ vi.mock('./remoteBoards', async (importOriginal) => {
     uploadRunTelemetry: vi.fn(async () => {}),
     uploadRunHistory: vi.fn(async () => {}),
     uploadPlayerProfile: vi.fn(async () => {}),
-    recordFightResult: vi.fn(async () => {}),
     recordLobbyFights: vi.fn(async () => {}),
     refreshOpponentPoolAndRecords: vi.fn(),
     // The session a booting device restores: whatever the test says this device is signed in as.

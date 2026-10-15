@@ -284,7 +284,7 @@ export async function flushUploadQueue(): Promise<void> {
           case 'telemetry': { const p = item.payload as { t: RunTelemetry; meta: Parameters<typeof uploadRunTelemetry>[1] }; await uploadRunTelemetry(p.t, p.meta); break; }
           case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
           case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
-          case 'fight':     await recordFightResult(item.payload as Parameters<typeof recordFightResult>[0]); break;
+          case 'fight':     break; // the retired board_results ledger (2026-10-14, R-LEDGER-01): a row queued before it is dropped
           case 'seat':      break; // the retired knockout ledger (2026-09-22): a row queued before the fight ledger is dropped
           case 'fights':    await recordLobbyFights(item.payload as Parameters<typeof recordLobbyFights>[0]); break;
         }
@@ -1788,22 +1788,6 @@ export function careerRunsOf(lightRows: RunHistoryRowLike[], detailRows: RunHist
     return careerRunOf(d ? { ...row, ...d } : row);
   });
   return joinTelemetry(runs, probeRows);
-}
-
-// ── Fight-result ledger (win-tracking) ─────────────────────────────────────────────────────────────────────
-// One row per combat fought against a served board; the leaderboard + Career per-round log aggregate it. Same
-// fire-and-forget / no-op-when-unconfigured / never-throws contract as the rest of this seam.
-
-/** Record one fight against a served board, from the BOARD's perspective (you lose to it → 'win'). */
-export async function recordFightResult(r: { boardId: string; round: number; outcome: 'win' | 'loss' | 'tie'; patch: string }): Promise<void> {
-  const c = client();
-  if (!c || !r.boardId) return;
-  if (!currentUserId()) { enqueueUpload('fight', r); return; }
-  try {
-    await c.from('board_results').insert([{ user_id: currentUserId(), board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
-  } catch {
-    /* best-effort — win-tracking must never disrupt play */
-  }
 }
 
 // ── The FIGHT LEDGER (owner 2026-09-22) ────────────────────────────────────────────────────────────────

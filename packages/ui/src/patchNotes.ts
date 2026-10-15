@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The end screen opens faster. It no longer replays your whole game in the background.',
+      },
+      {
+        category: 'Systems',
         text: 'Combat stats now update the moment a buff lands. Card text shows the same live numbers in the Shop as in your hand.',
         details: [
           'Rubies played in combat now raise a minion\'s stats as the gem lands, not on the next beat.',

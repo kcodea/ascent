@@ -6,6 +6,7 @@ import { goodLuckIntro, shouldPlayGoodLuckIntro } from '../goodLuck/goodLuckIntr
 import { lobbyPoolGate } from '../opponentPool/lobbyPoolGate';
 import { poolNeededFor } from '../opponentPool/poolGate';
 import { PoolWaitPanel } from '../opponentPool/PoolWaitPanel';
+import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -46,6 +47,8 @@ export function HeroLaunchCurtain() {
   const [req, setReq] = useState<HeroLaunchRequest | null>(null);
   const elRef = useRef<HTMLDivElement | null>(null);
   const resolveRef = useRef<(() => void) | null>(null);
+  const [versusWait, setVersusWait] = useState(false);
+  const awaitingFoe = useVersusAwaitingPick();
 
   // Register with the module seam for our whole lifetime. The ceremony reaches us only through
   // requestLaunch() — no prop drilling across the Game tree.
@@ -64,6 +67,7 @@ export function HeroLaunchCurtain() {
     const finish = () => {
       resolveRef.current?.();
       resolveRef.current = null;
+      setVersusWait(false);
       setReq(null); // unmount the div — no idle fullscreen layer left behind (§18)
     };
     void (async () => {
@@ -89,15 +93,25 @@ export function HeroLaunchCurtain() {
           return;
         }
       }
+      // VERSUS (owner 2026-10-14: the game start of a lobby game, 1:1): the run is the match's, built once both
+      // heroes are locked; the cover holds until it is on screen, then the Good Luck intro plays as below.
+      const versusStart = useGame.getState().pendingMode === 'versus';
+      if (versusStart) {
+        setVersusWait(true);
+        await launchVersusHero(req.heroId);
+        if (dead) return;
+        setVersusWait(false);
+      }
       // Fully covered: NOW build the run. This is the synchronous heavy step (createRun/createLobbyRun +
       // warmLobbyDrivers + writeSave) and it also unmounts HeroSelect behind us.
       try {
-        useGame.getState().pickHero(req.heroId);
+        if (!versusStart) useGame.getState().pickHero(req.heroId);
         // THE "GOOD LUCK" INTRO (owner ask 2026-09-24): a real lobby / Practice start comes up on a DIMMED
         // board with the words over it, and the shop clock holds until they fade. Begun here, while the cover
         // is still opaque, so the overlay is already dimming the board by the time the reveal below lifts.
         const st = useGame.getState();
-        if (shouldPlayGoodLuckIntro(st.run, { replaying: st.replaySession != null })) goodLuckIntro.begin();
+        const started = !versusStart || st.run.mode === 'versus'; // a Versus match that ended at Hero Select starts nothing
+        if (started && shouldPlayGoodLuckIntro(st.run, { replaying: st.replaySession != null })) goodLuckIntro.begin();
       } catch (err) {
         // §19 "run construction throws": don't strand the player on a black screen. We log and reveal —
         // heroChoices is untouched on a throw, so the picker is still there underneath. (The blueprint's
@@ -125,6 +139,14 @@ export function HeroLaunchCurtain() {
         aria-hidden="true"
       />
       <PoolWaitPanel gate={lobbyPoolGate} />
+      {versusWait && awaitingFoe && (
+        <div className="pool-wait" role="status" aria-live="polite">
+          <div className="vspanel pool-wait-delay">
+            <div className="vspanel-title">Waiting for your opponent</div>
+            <div className="vspanel-body">Both heroes are revealed once both players have chosen.</div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

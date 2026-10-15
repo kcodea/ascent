@@ -39,7 +39,7 @@ vi.mock('../sfx', async (importOriginal) => {
 });
 
 import { RankedGate, warmRankedGate } from './RankedGate';
-import { registerRankedGate, requestRankedGate, resetRankedGateForTests } from './rankedGateController';
+import { cancelRankedGate, registerRankedGate, requestRankedGate, resetRankedGateForTests } from './rankedGateController';
 import {
   RANKED_GATE_ART, RANKED_GATE_CRYSTAL_BODY, RANKED_GATE_CRYSTAL_GROW, RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt,
   rankedGateCrystalGrowth, rankedGateCssVars, rankedGateOpenTimeline,
@@ -383,6 +383,86 @@ describe('the gate plays', () => {
     warmRankedGate();
     expect(snd.warmGate).toHaveBeenCalledTimes(1);
     expect(fx.warm).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('VERSUS: the entry gate with a held press (owner 2026-10-14)', () => {
+  const close = rankedGateCloseTimeline();
+  const open = rankedGateOpenTimeline();
+  const start = (onPress: () => Promise<boolean>): { onShut: ReturnType<typeof vi.fn>; done: ReturnType<typeof vi.fn> } => {
+    vi.useFakeTimers();
+    ui = mount(<RankedGate />);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 1672, bottom: 941, width: 1672, height: 941, x: 0, y: 0, toJSON: () => ({}) } as DOMRect);
+    Object.defineProperty(window, 'innerHeight', { value: 941, configurable: true });
+    const onShut = vi.fn(), done = vi.fn();
+    act(() => { void requestRankedGate(onShut, 'entry', { onPress }).then(done); });
+    return { onShut, done };
+  };
+  const flush = async (): Promise<void> => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
+
+  it('the press is held until the match answers, then the crystal shatters as in a ranked gate', async () => {
+    let answer!: (ok: boolean) => void;
+    const onPress = vi.fn(() => new Promise<boolean>((r) => { answer = r; }));
+    const { onShut, done } = start(onPress);
+    advance(close.armedAt);
+    pressCrystal();
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(phaseOf(), 'held: the crystal stays up').toBe('armed');
+    pressCrystal();
+    expect(onPress, 'a held crystal is not pressable again').toHaveBeenCalledTimes(1);
+    advance(10_000);
+    expect(phaseOf()).toBe('armed');
+    answer(true);
+    await flush();
+    expect(phaseOf()).toBe('shatter');
+    expect(fx.shatter).toHaveBeenCalledTimes(1);
+    advance(open.endAt);
+    await flush();
+    expect(document.querySelector('.rgate')).toBeNull();
+    expect(onShut).toHaveBeenCalledTimes(1);
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refused press opens the doors quietly: no shatter', async () => {
+    const { done } = start(() => Promise.resolve(false));
+    advance(close.armedAt);
+    pressCrystal();
+    await flush();
+    expect(phaseOf()).toBe('opening');
+    expect(fx.shatter).not.toHaveBeenCalled();
+    expect(cues()).not.toContain('shatter');
+    advance(open.endAt - open.openAt);
+    await flush();
+    expect(document.querySelector('.rgate')).toBeNull();
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelled while armed and unpressed (the gate window closed), it opens quietly; cancelled while closing, it opens when it would have armed', async () => {
+    start(() => Promise.resolve(true));
+    advance(close.armedAt);
+    act(() => { cancelRankedGate(); });
+    expect(phaseOf()).toBe('opening');
+    expect(fx.shatter).not.toHaveBeenCalled();
+    advance(open.endAt);
+    await flush();
+    expect(document.querySelector('.rgate')).toBeNull();
+    ui?.unmount(); ui = null;
+    start(() => Promise.resolve(true));
+    advance(close.slamAt);
+    act(() => { cancelRankedGate(); });
+    expect(phaseOf()).toBe('shut');
+    advance(close.armedAt - close.slamAt);
+    expect(phaseOf()).toBe('opening');
+  });
+
+  it('without options the ranked gate is unchanged: the press shatters at once', () => {
+    vi.useFakeTimers();
+    ui = mount(<RankedGate />);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 1672, bottom: 941, width: 1672, height: 941, x: 0, y: 0, toJSON: () => ({}) } as DOMRect);
+    act(() => { void requestRankedGate(() => undefined); });
+    advance(close.armedAt);
+    pressCrystal();
+    expect(phaseOf()).toBe('shatter');
   });
 });
 

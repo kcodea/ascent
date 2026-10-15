@@ -11,6 +11,7 @@
  *   { mode: 'ranked',   runId, rulesVersion, comeback, facts? }   runId = the rank run id (`rank_results.run_id`)
  *   { mode: 'practice', runId, rulesVersion, comeback, sourceId, facts? }   runId = `practice:<sourceId>`
  *   { mode: 'tutorial', runId, rulesVersion, courseId, courseVersion }   runId = `learn-ascent:v1`
+ *   { mode: 'versus',   runId, rulesVersion, facts? }   runId = `versus:<match id>` (2026-10-14: XP + achievements, never rank)
  *
  * The SQL writer (`settle_progression`) reads the placement from the SOURCE ROW (the accepted `rank_results`
  * row, the caller's own `practice_games` row, or a unique tutorial claim), computes the XP, crosses levels,
@@ -19,7 +20,7 @@
  * sanity-checks it against the run's recorded win/loss counts where one exists.
  */
 import {
-  PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, levelOfXp,
+  PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, VERSUS_RUN_ID, levelOfXp,
   parseProgressionProfile, parseProgressionResult, practiceRunId, sameXpBreakdown, sanitizeProgressionFacts, titlesForLevel, titlesUnlockedBetween, tutorialRunId, xpForSettlement,
   type ProgressionMode, type ProgressionRunFacts,
 } from './rules';
@@ -55,6 +56,11 @@ export function validateSubmitBody(body: unknown): ValidationResult {
       return { ok: false, status: 409, error: 'unsupported_course', expected: { courseId: TUTORIAL_COURSE_ID, courseVersion: TUTORIAL_COURSE_VERSION } };
     }
     if (runId !== tutorialRunId()) return { ok: false, status: 400, error: 'bad_run_id' };
+    return { ok: true, request: { mode, runId, sourceId: null, comeback: false, facts } };
+  }
+  if (mode === 'versus') {
+    // The server reads the match row (players, winner, rounds); the client names only which match.
+    if (!VERSUS_RUN_ID.test(runId)) return { ok: false, status: 400, error: 'bad_run_id' };
     return { ok: true, request: { mode, runId, sourceId: null, comeback: false, facts } };
   }
   const comeback = b.comeback === true;

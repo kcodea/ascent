@@ -32,6 +32,14 @@ import { bandSteps, practiceStrengthBand, runInStrengthBand, type StrengthBand }
  * same boards — so a reloaded run reconstructs byte-identical opponents rather than storing them. It costs a
  * recompute on load and buys determinism, save/replay support, and a `RunState` that stays cloneable.
  */
+/** One seat's public state at a round's lock (VERSUS): what a lobby seat's recorded snapshot would show. */
+export interface VersusSeatScout {
+  tier?: number;
+  triples?: number;
+  quests?: string[];
+  runes?: string[];
+}
+
 export interface LobbySeatState {
   id: string;
   label: string;
@@ -59,6 +67,10 @@ export interface LobbySeatState {
    *  forward (`effectiveBuffs`) and trimmed to the non-zero ones. Each is the `BoardSnapshot` scaler of the same
    *  name, so `authoredSeat` spreads it onto the round's snapshot and combat reads it as a real run's. */
   authoredBuffs?: Partial<GauntletBuffs>[];
+  /** Authored seats only (VERSUS): what the opponent's own run showed at each round's lock (index = round − 1): its
+   *  triples, completed quest ids and owned rune ids, read by the rail's scout card (`boardIntel` via the snapshot).
+   *  The tier rides `authoredTiers`. Display only. */
+  authoredScouts?: (VersusSeatScout | null)[];
   /** Gauntlet's opponent: the settle never charges this seat, so it can never be eliminated (the player's goal
    *  is to SURVIVE, not to knock it out). Its hits are still recorded as 0 dealt to it. */
   invulnerable?: true;

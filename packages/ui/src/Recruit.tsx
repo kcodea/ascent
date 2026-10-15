@@ -243,6 +243,8 @@ import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundP
 import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
 import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/godPick';
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
+import { VersusHud, useVersusRecruit } from './versus/VersusHud';
+import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
 const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ default: m.GodModePanel })));
@@ -439,7 +441,7 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: boolean; goldGoal?: number | null }) {
+export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { practice?: boolean; goldGoal?: number | null }) {
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
@@ -1266,6 +1268,9 @@ export function Recruit() {
   // NOT in the clock-reset effect's deps below, so open/close resumes from the exact displayed second
   // instead of resetting the turn.
   const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance || s.bugReportOpen);
+  // VERSUS: a disconnect pause (and its 3-2-1) freezes the fight's beat clock like a fullscreen overlay, and holds any
+  // in-flight shop death until the resume (owner 2026-10-14: nothing advances or applies during a pause).
+  const versusPaused = useVersusPaused();
   // Subscribed alone (not just via `overlayOpen`) so the clock-reset effect can key on the title→play flip: a
   // resumed run does NOT change wave/turnSeconds, so without this the reset never fires and the turn is stuck at
   // 0 (owner Save & Quit bug 2026-08-24). Only the true title screen sets this — opening the Book mid-run doesn't.
@@ -2604,7 +2609,7 @@ export function Recruit() {
    */
   const pendingDeathUid = run.pendingDeath?.uid;
   useEffect(() => {
-    if (!pendingDeathUid) return;
+    if (!pendingDeathUid || versusPaused) return;
     const cfg = getShopDeathFxConfig();
     const ms = Math.max(0, cfg.landingMs);
     // THE ECHO LEAD (owner 2026-08-28: "trigger slightly earlier"). A negative `echoDelayMs` fires the skull
@@ -2625,7 +2630,7 @@ export function Recruit() {
     if (ms <= 0) { dispatch({ type: 'resolveShopDeath' }); return () => timers.forEach(window.clearTimeout); }
     timers.push(window.setTimeout(() => dispatch({ type: 'resolveShopDeath' }), ms));
     return () => timers.forEach(window.clearTimeout);
-  }, [pendingDeathUid, dispatch, findEl]);
+  }, [pendingDeathUid, dispatch, findEl, versusPaused]);
 
   /**
    * EQUIP / RE-EQUIP CUES (owner handoff 2026-08-28) — a body granting its Equipment.
@@ -2831,7 +2836,7 @@ export function Recruit() {
   // (perf 2026-09-17) — same order, same bodies — so they land in the commit where the row moves even when
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
-  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused, rampEnabled });
   // THE ANNOUNCER's MinionHits100Stats during a fight: the TRUTH frame's player units, per beat (seven reads, no
   // allocation; the module reports once per fight and only while unfired). Never the enemy / ghost side.
   useEffect(() => { if (fighting) observeCombatBoard(replay.frame.player, run.wave); }, [fighting, replay.frame, run.wave]);
@@ -3054,8 +3059,8 @@ export function Recruit() {
   // striking: the sequence guards on `combatSettled`, and this fired first). Only a DRAW — no winner, no
   // swing — settles immediately.
   useEffect(() => {
-    if (fighting && replay.done && !run.combatSettled && replay.result === 'draw') dispatch({ type: 'settleCombat' });
-  }, [fighting, replay.done, run.combatSettled, replay.result, dispatch]);
+    if (fighting && replay.done && !run.combatSettled && replay.result === 'draw' && !versusPaused) dispatch({ type: 'settleCombat' });
+  }, [fighting, replay.done, run.combatSettled, replay.result, dispatch, versusPaused]);
 
   // REPLAY VIEWER (v2): bridge the arena's animation-done flag to the store, so the replay player knows when
   // a spectated fight has finished playing and it's safe to advance to the next frame. During playback the
@@ -3105,9 +3110,24 @@ export function Recruit() {
   const wipeExitRef = useRef(false);
   const endCombat = useCallback((): void => {
     if (wipeExitRef.current) return; // already leaving — ignore a double-click
+    // VERSUS (owner 2026-10-14): End Combat tells the server this player is back, but the fight stays on screen until
+    // the next shop opens for both (the other presses, or their 5 s run out); `useVersusRecruit` then leaves it.
+    if (!sandboxReplay && !spectating) {
+      const run = useGame.getState().run;
+      if (!versusMatchEndsAtPress(run) && versusEndCombatPressed(run)) return;
+    }
     wipeExitRef.current = true;
     if (!sandboxReplay && !spectating) {
       const st = useGame.getState();
+      // VERSUS (owner 2026-10-14): the fight that ends the match leaves through the same end gate, onto the room.
+      if (versusMatchEndsAtPress(st.run) && gateMotionAllowed()) {
+        void requestRankedGate(() => {
+          pixiFx.clearParticles();
+          finishVersusMatch();
+          wipeExitRef.current = false;
+        }, 'end');
+        return;
+      }
       if (combatMayEndGame(st.run)) {
         const tx = st.preparePresentationAction({ type: 'resolveCombat' });
         if (tx && tx.action.type === 'resolveCombat' && resolutionEndsGame(tx.after) && gateMotionAllowed()) {
@@ -4836,6 +4856,7 @@ export function Recruit() {
     // Behind the title the clock is hidden and paused (via overlayOpen); the resumed value is applied the moment
     // showTitle flips back to false on Continue — this effect keys on showTitle precisely so that flip fires it.
     if (showTitle) return;
+    if (run.mode === 'versus') return; // VERSUS: the shared server deadline sets the clock (useVersusRecruit)
     // A resume hands us the exact seconds the turn was quit with (owner ask 2026-08-24); consume it one-shot.
     // The DECISION lives in `turnClockReset` so it is testable without a DOM — see its tests, which pin the
     // second-pass case this effect gets wrong on its own.
@@ -4907,6 +4928,7 @@ export function Recruit() {
     // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
     // The "Good Luck" intro holds the clock too (owner ask 2026-09-24): the turn starts at full time the moment
     // the intro fades or is skipped. The gate itself lives in `turnClockMayTick` so it is testable.
+    if (run.mode === 'versus') return; // VERSUS: the shared server deadline drives the clock (useVersusRecruit)
     if (!turnClockMayTick({
       recruitPhase: run.phase === 'recruit',
       decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || run.ancients?.offer?.length),
@@ -7138,6 +7160,9 @@ export function Recruit() {
   // Omen. (The effects themselves still *resolve* inside `faceOmen` — this is purely the telegraph.)
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
+    // VERSUS (2026-10-13): End Turn LOCKS the round on the server; the real End Turn plays once the round's one
+    // fight is in (`useVersusRecruit` re-enters here with the gate open), so its commit lands that fight.
+    if (versusGate.intercept()) return;
     // TUTORIAL gate: a guided step can block ending the turn (e.g. before a minion is bought). The choreographed
     // End-of-Turn path commits through `commitPresentationAction`, NOT `dispatch` (where the gate normally
     // lives), so check it here at the single End Turn entry — covering both the authoritative and legacy paths.
@@ -7479,6 +7504,9 @@ export function Recruit() {
   const endTurnRef = useRef(endTurn);
   endTurnRef.current = endTurn;
   const endTurnStable = useCallback((): void => { endTurnRef.current(); }, []);
+  // VERSUS (2026-10-13): End Turn locks the round; the shared server deadline drives the clock; the real End Turn
+  // re-enters `endTurn` once the round's one fight is committed. Inert outside Versus.
+  const versusGate = useVersusRecruit(run, endTurnStable, endCombat);
   // GOD MODE (owner 2026-10-08): End Turn asks for the opponent's round first; a pick fetches + pins a real board,
   // then re-enters endTurn with the gate open. Double-pick guard: the prompt's buttons are disabled while `busy`,
   // and a board that arrives after the shop moved on (phase / round changed) is dropped, never pinned.
@@ -7949,13 +7977,14 @@ export function Recruit() {
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
+      {run.mode === 'versus' && <VersusHud />}
 
       {godPrompt && run.godMode && !inCombat && (
         <GodRoundPrompt lastRound={loadGodRound()} busy={godPrompt.busy} message={godPrompt.message}
           onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
       )}
       <ShopControls
-        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold}
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked}
         replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
@@ -8298,13 +8327,17 @@ const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, godMode, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
-  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
   /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
   godMode: boolean;
   /** The gold-spend clock's threshold this turn (`goldClockOf(run)?.gold`), null for the standard clock. */
   goldClockGold: number | null;
+  /** VERSUS: "Players ready N/2" while this player waits on the other one (null otherwise). */
+  readyNote: string | null;
+  /** VERSUS: the gem is spent while this player waits on the other (End Turn or End Combat pressed early). */
+  gemLocked: boolean;
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
@@ -8388,9 +8421,10 @@ const ShopControls = memo(function ShopControls({
         onEndCombat={onEndCombat}
         combatReady={inCombat && combatGateOpen}
         disabled={inCombat
-          ? !combatGateOpen
-          : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled}
-        pressed={inCombat || eotAnimating}
+          ? !combatGateOpen || gemLocked
+          : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled || gemLocked}
+        pressed={inCombat || eotAnimating || gemLocked}
+        note={readyNote}
         urgent={timeUp && !inCombat}
       />
 

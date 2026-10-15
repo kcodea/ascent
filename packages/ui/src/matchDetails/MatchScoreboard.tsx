@@ -51,7 +51,7 @@ export function seatTitle(seat: MatchSeat, own: boolean, showOpponents: boolean)
 }
 
 /** The hero portrait in the game's gold ring (the Career's `.cv2-heroframe` markup, row-sized). */
-function SeatPortrait({ heroId, skins, self }: { heroId: string; skins: RunCosmeticSnapshot | null; self: boolean }) {
+export function SeatPortrait({ heroId, skins, self }: { heroId: string; skins: RunCosmeticSnapshot | null; self: boolean }) {
   const art = heroPortrait(heroId, skins);
   // The portrait frame RECORDED on the seat (owner 2026-10-01; `skins` already applies "Show opponent cosmetics" to
   // the other seats), else the portrait-frames tuner's ring: your seat wears yours, the other seven the opponents'.
@@ -132,7 +132,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
 /** The selected seat's rune choices at that moment (owner 2026-09-28: "runes are added to the view so you can see
  *  their rune choices"), in the Career banner's emblem + name style (hover = the rune's text). Unknown ids (a rune
  *  this build does not ship) are skipped; none (or an older record) reads "No runes". */
-function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
+export function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
   const known = (runes ?? []).filter((id) => RUNE_INDEX[id]);
   return (
     <div className="mds-runes">

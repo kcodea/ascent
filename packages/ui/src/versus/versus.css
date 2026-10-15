@@ -1,0 +1,302 @@
+/* VERSUS (2026-10-13): the browser, the room and the in-match layer. Existing UI primitives only (card panels, gold
+   trim, the game's buttons and icons); no looping animation; the game's gauntlet cursor comes from the global rule
+   (never a bare `cursor: pointer` here). Sizes in the stage's `--u` unit. */
+
+.vstitle { display: flex; flex-direction: column; gap: 16px; width: 1000px; max-width: calc(100 * var(--vw, 1vw) - 380px); margin: 0 auto; color: var(--ui-text); }
+/* THE BROWSER on the game's Gem plate (the uiTheme tokens of the room's controls and the End Combat pill), sized in
+   px like the mode picker it sits in: the picker's own zoom scales it. */
+.vserror { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-radius: 12px; border: 2px solid transparent; background: var(--ui-plate) padding-box, linear-gradient(#b0452e, #7a2a1b) border-box; font-weight: 700; font-size: 18px; }
+.vstitle .vsplate { height: 46px; padding: 0 20px; border-radius: 11px; font-size: 18px; }
+.vsbrowser { display: flex; flex-direction: column; gap: 14px; }
+.vscreate { display: flex; gap: 12px; align-items: center; }
+.vsinput { flex: 1; min-width: 0; height: 46px; font: inherit; font-family: var(--font-body), sans-serif; font-size: 19px; padding: 0 16px; border-radius: 11px; border: 2px solid transparent; background: var(--ui-plate) padding-box, var(--ui-edge) border-box; color: var(--ui-text); }
+.vsinput::placeholder { color: color-mix(in srgb, var(--ui-text) 55%, transparent); }
+.vsinput:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+.vsrooms { display: flex; flex-direction: column; gap: 8px; max-height: 560px; overflow-y: auto; }
+.vsroomrow { display: grid; grid-template-columns: 2.2fr 1.4fr 0.5fr 0.9fr 1fr auto auto; gap: 12px; align-items: center; min-height: 60px; padding: 6px 16px; border-radius: 12px; border: 2px solid transparent; background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: var(--ui-bevel); font-size: 19px; white-space: nowrap; }
+.vsroomname { font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
+.vsroomhost, .vsroomspec { overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
+.vsroomstatus { font-weight: 800; }
+.vsroomstatus.s-open { color: #8fe08a; }
+.vsroomstatus.s-in_game, .vsroomstatus.s-sealed { color: var(--ui-icon, #e8c877); }
+.vsempty { padding: 18px; font-size: 19px; opacity: 0.8; text-align: center; }
+
+/* In-match layer (over Recruit, inside the stage). The HOLD is invisible: the board stays exactly as it is while the
+   player waits on the other one (the End Turn gem's pill says so); it only takes the pointer. The PAUSE is the game's
+   own dark panel (`.vspanel`, below), seated under the Esc menu so Settings and Concede stay reachable. */
+.vshold { position: absolute; inset: 0; z-index: 55; pointer-events: auto; }
+
+/* ── THE ROOM on the painted arena (owner 2026-10-14). Every overlay is a % of the PAINTING (2560x1086), so it lands
+   on the painted frame / banner / bench slot at any stage scale. Static: no animation, no looping paint. ── */
+/* THE STAGE MODEL (owner bug 2026-10-14, "zoomy" art; the board's 2026-08-18 / 2026-09-26 rules): the painting is
+   sized from the 16:9 STAGE BOX (--gh, offset by the letterbox --bar-y), never from the window, so the frames, the VS
+   emblem, the bench and every overlay (all % of the painting, inside .vsarena) keep one size and place at any
+   aspect, windowed or fullscreen. Width beyond the painting and the letterbox bands above / below are covered by
+   the same painting at cover size, softened (static blur, no animation), with the crisp anchored painting faded into
+   it at its edges: no navy bars, and the anchored centre never moves. */
+/* `overflow: clip`, not hidden: a hidden box is still a scroll container, and focusing a button scrolled the wide
+   painting sideways (found live 2026-10-14). Clip never scrolls. */
+.vsroomstage { position: fixed; inset: 0; z-index: 480; overflow: clip; background: #1b1410; }
+.vsarena-ext { position: absolute; inset: calc(-40 * var(--u)); background: var(--vs-arena) center / cover no-repeat; filter: blur(calc(18 * var(--u))) brightness(0.72); pointer-events: none; }
+.vsarena { position: absolute; top: var(--bar-y, 0px); height: var(--gh, 100%); aspect-ratio: 2560 / 1086;
+  /* Explicit centring (no -50% translate): the box is exactly --gh x (--gh * 2560 / 1086), centred on the stage. */
+  --_vs-w: calc(var(--gh, 100%) * 2560 / 1086); width: var(--_vs-w); left: calc(50% - var(--_vs-w) / 2); }
+.vsarena-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.5%, #000 98.5%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 2%, #000 98%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent 0, #000 1.5%, #000 98.5%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 2%, #000 98%, transparent 100%); mask-composite: intersect; }
+/* The two painted frames' inner panels (arched tops). */
+.vsframe { position: absolute; top: 17.68%; height: 37.57%; display: grid; place-items: center; }
+/* The portrait fills EXACTLY the painted window (owner 2026-10-14: the seat-portrait mask, domed top with the V notch
+   under the gem, straight sides, flared foot), measured on the painting: blue 742-1068 px, red 1495-1820 px, rows
+   192-600 of 2560x1086 (the foot stops at the ribbon's top edge, so the painted ribbon stays over it). Static mask. */
+.vsframe-art { -webkit-mask-image: var(--vs-seat-mask); mask-image: var(--vs-seat-mask); -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; mask-mode: alpha; }
+.vsframe-p1 { left: 28.98%; width: 12.73%; }
+.vsframe-p2 { left: 58.40%; width: 12.70%; }
+.vsframe-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vsinitial { display: grid; place-items: center; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(110 * var(--u)); color: #f3e6c8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
+/* The painted name banners. */
+.vsbanner { position: absolute; top: 58.9%; height: 5.6%; width: 9.4%; display: flex; align-items: center; justify-content: center; gap: calc(6 * var(--u)); pointer-events: none; }
+.vsbanner-p1 { left: 30.65%; }
+.vsbanner-p2 { left: 60.2%; }
+.vsbanner-name { max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(24 * var(--u)); color: #f7ecd2; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5); }
+/* HOST sits on its own small line ABOVE the name (owner 2026-10-14), out of the flow, so both seats' names sit at the
+   same height whether or not they host. */
+.vshost { position: absolute; bottom: 100%; left: 50%; translate: -50% 0; margin-bottom: calc(2 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: 999px; background: rgba(8, 10, 20, 0.6); font-size: calc(13 * var(--u)); line-height: 1.5; font-weight: 800; color: var(--gold-lt, #e6b45a); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+/* Gate state + hearts, under each frame's banner tails. */
+.vsgatebox { position: absolute; top: 70.5%; width: 14%; display: flex; justify-content: center; }
+.vsgatebox-p1 { left: 28.6%; }
+.vsgatebox-p2 { left: 57.8%; }
+/* Room labels: the gold-rimmed navy pill of the End Turn gem's tip (uiTheme tokens), never a plain dark box. */
+.vsgatestate, .vsstatus { padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(11 * var(--u)); border: 1px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: var(--ui-bevel);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-family: var(--font-ui); font-weight: 700; font-size: calc(16 * var(--u)); text-align: center; }
+/* Under the VS emblem. */
+.vscenter { position: absolute; top: 58%; left: 50%; translate: -50% 0; width: 16%; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); }
+/* The painted bench: eight slots. */
+.vsbenchslot { position: absolute; top: 78.2%; width: 5.4%; height: 12.2%; display: grid; place-items: center; overflow: hidden; border-radius: calc(6 * var(--u)); }
+.vsbench-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vsbench-art.vsinitial { font-size: calc(44 * var(--u)); background: rgba(20, 24, 40, 0.85); }
+.vsbench-name { position: absolute; left: 0; right: 0; bottom: 0; padding: calc(2 * var(--u)); background: rgba(8, 10, 20, 0.78); color: #f3e6c8; font-size: calc(11 * var(--u)); font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vsbenchmore { background: rgba(8, 10, 20, 0.78); color: #f3e6c8; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(30 * var(--u)); }
+/* Controls on the game's Gem plate (the End Combat pill / hero-select button primitive, uiTheme tokens). */
+.vsplate {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: calc(46 * var(--u)); padding: 0 calc(20 * var(--u));
+  border-radius: calc(11 * var(--u)); border: 2px solid transparent; white-space: nowrap;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: calc(17 * var(--u)); line-height: 1;
+  transition: translate 0.1s ease;
+}
+.vsplate:hover:not(:disabled) { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.vsplate:active:not(:disabled) { translate: 0 1px; transition-duration: 0.05s; }
+.vsplate:disabled { opacity: 0.55; }
+.vsplate:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .vsplate:is(:hover, :active) { translate: none; } }
+.vsstartbtn { height: calc(56 * var(--u)); padding: 0 calc(30 * var(--u)); font-size: calc(22 * var(--u)); }
+.vstake { position: relative; z-index: 1; }
+.vsseatbtns { position: relative; z-index: 1; display: flex; flex-direction: column; gap: calc(8 * var(--u)); align-items: center; }
+.vsroomtop { position: absolute; top: calc(var(--bar-y, 0px) + 20 * var(--u)); left: calc(var(--bar-x, 0px) + 24 * var(--u)); display: flex; align-items: center; gap: calc(16 * var(--u)); }
+.vsroomtitle { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(30 * var(--u)); color: #f7ecd2; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
+.vsroomctl { position: absolute; bottom: calc(var(--bar-y, 0px) + 20 * var(--u)); left: calc(var(--bar-x, 0px) + 24 * var(--u)); display: flex; gap: calc(12 * var(--u)); }
+.vsroomerror { position: absolute; top: calc(var(--bar-y, 0px) + 80 * var(--u)); left: 50%; translate: -50% 0; }
+
+/* "Previous match stats" (owner 2026-10-14): the Match details panel with the end screen's round pips. */
+/* No heading row: the close button sits in the panel's corner, the pips straight under the Victory / Defeat title. */
+.mdd-panel:has(> .vsms-close) { position: relative; }
+.vsms-close { position: absolute; top: 14px; right: 16px; z-index: 2; }
+/* The round pips on the Gem plate (the tooltip / pill family): the result colour as the face, the gold edge, the bevel. */
+.vsms-pips { flex-wrap: wrap; gap: 8px; margin: 0 0 4px; }
+.vsms-pips .endpip { width: 38px; height: 38px; border-radius: 10px; font-size: 18px; border: 2px solid transparent;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.45), 0 3px 8px -2px rgba(0, 0, 0, 0.65); }
+.vsms-pips .endpip.win { background: var(--ui-sheen) padding-box, linear-gradient(180deg, #5cc37a, #2f7d45) padding-box, var(--ui-edge) border-box; }
+.vsms-pips .endpip.lose { background: var(--ui-sheen) padding-box, linear-gradient(180deg, #e8687a, #9a2c3d) padding-box, var(--ui-edge) border-box; }
+.vsms-pips .endpip.draw { background: var(--ui-sheen) padding-box, linear-gradient(180deg, #8c8a99, #545260) padding-box, var(--ui-edge) border-box; }
+.vsms-pips .endpip.clickable.active { outline: 2px solid var(--ui-title); outline-offset: 3px; }
+.vsms-round { display: flex; flex-direction: column; gap: 10px; }
+.vsms-side { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid rgba(196, 160, 92, 0.16); }
+/* Each player's line: Match details' seat portrait, the name with the hero under it, the hearts. Both rows align. */
+.vsms-who { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; }
+.vsms-name { display: flex; flex-direction: column; min-width: 0; font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #f4eee2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vsms-hero { font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+.vsms-hearts { font-size: 18px; }
+.vsms-hearts svg { width: 18px; height: 18px; color: var(--threat); }
+.vsms-side .mds-runes { min-height: 0; padding: 2px 0 0; border-top: none; }
+/* Hero Select's 20 s clock (the shop's own clock, `ShopTimer`), under the title. */
+.vshstimer { display: flex; justify-content: center; margin: calc(4 * var(--u)) 0 calc(22 * var(--u)); }
+
+/* ── The game's dark gold-rimmed panel for Versus messages (the Esc menu / Match details look: navy plate, gold edge,
+   gold title), over a dimmed screen. Static; buttons are the Gem plate (`.vsplate`). ── */
+.vsveil { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: rgba(4, 8, 16, 0.62); animation: fadein 0.16s ease; }
+.vspanel { min-width: calc(420 * var(--u)); max-width: calc(620 * var(--u)); padding: calc(22 * var(--u)) calc(28 * var(--u)); text-align: center;
+  color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98)); border: 2px solid rgba(196, 160, 92, 0.55); border-radius: calc(16 * var(--u));
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 26px 64px -16px rgba(0, 0, 0, 0.75); }
+.vspanel-title { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(30 * var(--u)); letter-spacing: 0.04em; color: #f0d089; }
+.vspanel-body { margin-top: calc(8 * var(--u)); font-family: var(--font-ui); font-weight: 600; font-size: calc(17 * var(--u)); color: rgba(255, 255, 255, 0.78); line-height: 1.4; }
+.vspanel-actions { margin-top: calc(18 * var(--u)); display: flex; gap: calc(12 * var(--u)); justify-content: center; }
+/* The Unpause 3-2-1: the end screen's gold numeral, one pop per second (a one-shot transform, keyed per number). */
+.vscount { display: grid; place-items: center; }
+.vscount-num { font-size: calc(220 * var(--u)); animation: vscountpop 0.9s ease-out both; }
+@keyframes vscountpop { from { transform: scale(1.35); opacity: 0; } 30% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vscount-num { animation: none; } }
+
+/* Previous match stats: VICTORY / DEFEAT in the lobby end screen's gold numeral (its `.endplace-num`); a win takes the
+   end screen's brighter first-place gradient, a loss stays on the base one. */
+.vsms-verdict { margin: 2px 0 -4px; }
+.vsms-verdict .endplace-num { font-size: clamp(48px, calc(8 * var(--vh, 1vh)), 96px); text-transform: uppercase; letter-spacing: 0.04em; }
+.vsms-verdict.won .endplace-num { background-image: linear-gradient(180deg, #fffdf6, #ffe08a 52%, #e8b43f); }
+
+/* ── THE OPPONENT'S HERO BLOCK (VersusFoe.tsx, owner 2026-10-14: "mirror the player's own hero block"). No panel. One
+   ANCHOR point, the portrait's centre: horizontally on the lobby rail's centre line (the same `--lr-*` expressions the
+   rail uses, so it rides into a wide window's side margin like the rail does), pulled in off the window edge; vertically
+   on the board's middle. Every piece is an existing one: the combat foe's disc in the opponent's portrait-frame
+   cosmetic (else the default frame), your name and heart pills, the tooltip plate.
+   Static paint; the feedback is one-shot transform / opacity only. ── */
+.vsfoe {
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  --lu: calc(var(--u) * var(--lby-scale, 0.82));
+  --lr-right0: calc((var(--lby-right, 0) - var(--lby-x, -23)) * var(--lu));
+  --lr-w0: calc(var(--lby-w, 251) * var(--lu));
+  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px - (var(--lvw, 100vw) - var(--gw)) / 2));
+  --lr-w: calc(var(--lr-w0) + var(--lr-right0) - var(--lr-right));
+  /* The block's scale (the disc is 116u): about 85% of your own hero block. */
+  --vsfoe-s: 2;
+  /* The portrait's centre: its distance from the stage's right edge, and its height (the board's vertical middle). */
+  --vsfoe-cx: calc(var(--lr-right) + var(--lr-w) / 2 + 52 * var(--u));
+  --vsfoe-cy: 44.5%;
+}
+.vsfoe {
+  position: absolute; z-index: 60; width: 0; height: 0;
+  right: var(--vsfoe-cx); top: var(--vsfoe-cy);
+  pointer-events: none;
+  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
+}
+/* Under the open Guides drawer the block fades out of the way (opacity only), and back when it closes. */
+.vsfoe.guides-open { opacity: 0; }
+.vsfoe.guides-open :is(.vsfoe-face, .vsfoe-guides) { pointer-events: none; }
+/* Leaves with the rail for the fight (the combat opponent takes over), inert while gone. */
+.app.staged .vsfoe { transform: translateX(calc(520 * var(--u))); opacity: 0; }
+.app.staged .vsfoe :is(.vsfoe-face, .vsfoe-guides) { pointer-events: none; }
+/* The stack, scaled about the portrait's centre: the disc's centre sits on the anchor whatever is above or below it. */
+.vsfoe-group {
+  position: absolute; left: 0; top: 0; width: max-content;
+  display: flex; flex-direction: column; align-items: center;
+  --vsfoe-above: calc(36 * var(--u)); /* the Round plate + its gap: keeps the disc centre on the anchor */
+  transform: translate(-50%, calc(-1 * (var(--vsfoe-above) + 58 * var(--u)))) scale(var(--vsfoe-s));
+  transform-origin: 50% calc(var(--vsfoe-above) + 58 * var(--u));
+}
+/* ROUND N: a small plate above, centred (the lobby rail's Round header, as a plate on the block). */
+.vsfoe-round {
+  height: calc(17 * var(--u)); margin-bottom: calc(19 * var(--u)); box-sizing: border-box;
+  display: inline-flex; align-items: center; padding: 0 calc(9 * var(--u)); border-radius: 999px; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(8 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold);
+}
+:root[data-hp-look="gem"] .vsfoe-round.hudpill-name { color: var(--ui-title); }
+/* The face: the disc in its frame, the name plate on its bottom rim. The hover / pin target (the scout card), so it
+   alone (and the Guides plate) takes the pointer. */
+.vsfoe-face { position: relative; width: calc(116 * var(--u)); height: calc(116 * var(--u)); pointer-events: auto; }
+.vsfoe-name {
+  position: absolute; left: 50%; bottom: 0; z-index: 4; transform: translate(-50%, 58%);
+  max-width: calc(120 * var(--u)); overflow: hidden; text-overflow: ellipsis;
+  padding: calc(2 * var(--u)) calc(11 * var(--u)); border-radius: 999px; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(10.5 * var(--u)); letter-spacing: 0.02em; line-height: 1.15;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold);
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
+}
+/* The hero's name, on hover only: a caption over the art's lower half, above the name plate. */
+.vsfoe-hero {
+  position: absolute; left: 50%; bottom: calc(16 * var(--u)); z-index: 2; transform: translateX(-50%);
+  padding: calc(1 * var(--u)) calc(6 * var(--u)); border-radius: 999px; white-space: nowrap;
+  background: rgba(8, 6, 4, 0.78); color: #f4ecdb; font-family: var(--font-ui); font-weight: 700; font-size: calc(7.5 * var(--u));
+  opacity: 0; transition: opacity 0.16s ease;
+}
+.vsfoe-face:hover .vsfoe-hero { opacity: 1; }
+/* The ready shine: one diagonal glint across the portrait (the disc clips it). Transform + opacity, once. */
+.vsfoe-shine { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; border-radius: 50%; }
+.vsfoe-shine > span { position: absolute; top: -20%; bottom: -20%; left: 0; width: 34%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 246, 214, 0.55) 50%, rgba(255, 255, 255, 0));
+  transform: translateX(-120%) rotate(12deg); animation: vsfoeshine 900ms cubic-bezier(0.3, 0, 0.2, 1) both; }
+@keyframes vsfoeshine { from { transform: translateX(-120%) rotate(12deg); opacity: 1; } 85% { opacity: 1; } to { transform: translateX(330%) rotate(12deg); opacity: 0; } }
+/* HEARTS: your heart pill (its paint via `.hudpill-hp`, its studs below), under the name plate. */
+.vsfoe-hpwrap { position: relative; margin-top: calc(15 * var(--u)); display: flex; justify-content: center; }
+.vsfoe-hp {
+  position: relative; z-index: 2;
+  display: inline-flex; align-items: center; gap: calc(4 * var(--u));
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(11 * var(--u));
+  padding: calc(3.5 * var(--u)) calc(10 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1; color: #ff9db0;
+}
+.vsfoe-hp svg { flex: none; width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: var(--threat); }
+.vsfoe-hp .hpval { font-variant-numeric: tabular-nums; }
+:root[data-hp-look="gem"] .vsfoe-hp::before,
+:root[data-hp-look="gem"] .vsfoe-hp::after {
+  content: ''; position: absolute; top: 50%; width: 0.3em; height: 0.3em;
+  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translateY(-50%) rotate(45deg); pointer-events: none;
+}
+:root[data-hp-look="gem"] .vsfoe-hp::before { left: -0.17em; }
+:root[data-hp-look="gem"] .vsfoe-hp::after { right: -0.17em; }
+/* Your heart pill's hit: the same shake (`hitshake`'s steps) and its rising "-N" (`.resfx`, sized to this pill). */
+.vsfoe-hp.hit { animation: vsfoehit 0.5s ease; }
+@keyframes vsfoehit { 0%, 100% { transform: none; } 20% { transform: translateX(-2.5px); } 40% { transform: translateX(2.5px); } 60% { transform: translateX(-1.5px); } 80% { transform: translateX(1px); } }
+.vsfoe-hp .resfx { top: calc(-9 * var(--u)); right: calc(-6 * var(--u)); font-size: calc(12 * var(--u)); }
+/* STATUS, only when it matters: a small gold-rimmed pill (the tooltip plate) tucked under the hearts. Positioned, so
+   its coming and going never moves the block. */
+.vsfoe-status {
+  position: absolute; left: 50%; top: calc(100% + 4 * var(--u)); translate: -50% 0;
+  white-space: nowrap; padding: calc(1.5 * var(--u)) calc(6.5 * var(--u));
+  background: var(--ui-sheen) padding-box, var(--atip-bg) padding-box, var(--atip-edge) border-box;
+  border: 1px solid transparent; border-top-width: 1.5px; border-radius: calc(6 * var(--u)); box-shadow: var(--atip-shadow);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(6.5 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--atip-text); animation: vsfoestatus 360ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+.vsfoe-status.ready { color: #9be59a; }
+.vsfoe-status.away { color: #ff9db0; }
+@keyframes vsfoestatus { from { transform: translateY(-3px) scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.vsfoe-face .combatopp-portrait.vsfoe-disc { position: relative; z-index: 1; }
+/* GUIDES: a labelled plate under the block (the name-pill family, a book icon), clear of the status pill below the
+   hearts. It is a BUTTON, so the global gauntlet cursor paints it. */
+.vsfoe-guides {
+  position: relative; margin-top: calc(22 * var(--u)); pointer-events: auto;
+  display: inline-flex; align-items: center; gap: calc(3.5 * var(--u));
+  padding: calc(2.5 * var(--u)) calc(9 * var(--u)); border-radius: 999px; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(8 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold);
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
+  transition: transform 0.12s ease;
+}
+.vsfoe-guides svg { width: calc(9 * var(--u)); height: calc(9 * var(--u)); }
+:root[data-hp-look="gem"] .vsfoe-guides.hudpill-name { color: var(--ui-title); }
+:root[data-hp-look="gem"] .vsfoe-guides.hudpill-name:hover,
+:root[data-hp-look="gem"] .vsfoe-guides.hudpill-name.on { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.vsfoe-guides:hover { transform: translateY(-1px); }
+.vsfoe-guides:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
+/* THE GUIDES DRAWER: the rail's own Guides face, over the right side, sliding in from the edge (one-shot transform +
+   opacity) and back out on close. Above the opponent block; nothing under it moves. */
+.lobbyrail.vsdrawer, .lobbyrailhead.vsdrawer { z-index: 64; animation: vsdrawerin 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.lobbyrailhead.vsdrawer { z-index: 65; }
+.lobbyrail.vsdrawer.closing, .lobbyrailhead.vsdrawer.closing { animation: vsdrawerout 220ms cubic-bezier(0.4, 0, 1, 1) both; pointer-events: none; }
+@keyframes vsdrawerin { from { transform: translateX(calc(60 * var(--u))); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes vsdrawerout { from { transform: none; opacity: 1; } to { transform: translateX(calc(60 * var(--u))); opacity: 0; } }
+/* The drawer's close: Match details' round ✕, small, at the header's right end. */
+/* The header sits a clear step above the panel's edge (measured: fully on-stage at 16:9 and 1366x768). */
+.lobbyrailhead.vsdrawer { align-items: center; padding-bottom: calc(5 * var(--lu)); }
+.lobbyrailhead .vsdrawer-close { width: 30px; height: 30px; font-size: 14px; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .vsfoe-status, .vsfoe-hp.hit, .vsfoe-shine > span, .lobbyrail.vsdrawer, .lobbyrailhead.vsdrawer { animation: none; } .vsfoe-shine { display: none; } }
+
+/* VERSUS scout card (owner 2026-10-14): the fight log reads in HEARTS (the heart pill icon, "-1" on a lost round, a quiet
+   0 otherwise) instead of the lobby's damage starburst, and a seat with no runes says "None yet" rather than three
+   empty sockets. */
+.lobbyscout-row .lobbyscout-dmg.lobbyscout-hearts { color: rgba(255, 255, 255, 0.45); }
+.lobbyscout-row .lobbyscout-dmg.lobbyscout-hearts.lost { color: #ff9db0; }
+.lobbyscout-hearts svg { width: calc(10 * var(--lfont) * var(--sc-histtext, 2)); height: calc(10 * var(--lfont) * var(--sc-histtext, 2)); color: var(--threat); }
+.lobbyscout-hearts:not(.lost) svg { opacity: 0.45; }
+.lobbyscout-norunes { text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); color: rgba(255, 255, 255, 0.5); padding: calc(2 * var(--lu)) 0; }
+
+/* The match stats overlay's card inspect opens ABOVE it (the overlay is z560): its own boards are inspectable. */
+body:has(.vsms-scrim) .inspect-ov { z-index: 590; }

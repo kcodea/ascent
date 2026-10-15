@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./semanticRevision": "./src/semanticRevision.ts",
+    "./versus/server": "./src/versus/server.ts",
     "./balance/*": "./src/balance/*.ts"
   },
   "dependencies": {

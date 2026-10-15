@@ -9,6 +9,8 @@ import { playerLossDamage, playerOpponent, runLossCap, type RunState } from '@ga
  * mirror of the same formula (`enemyDamage`), capped the same way.
  */
 export function heroStrikeDamage(run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave'>, won: boolean): number {
+  // VERSUS (owner 2026-10-14): a lost round costs exactly one heart, whatever the board (R-VERSUS-HEARTS-01).
+  if (run.mode === 'versus') return run.lastCombat && run.lastCombat.result === (won ? 'win' : 'lose') ? 1 : 0;
   const cap = runLossCap(run); // the run's own cap table (the Gauntlet has its own)
   if (won) return Math.min(run.lastCombat?.enemyDamage ?? 0, cap);
   return run.lobby && run.mode !== 'practice' && run.lastCombat
@@ -37,6 +39,8 @@ export interface HeroStrikeNumbers {
 
 export function heroStrikeNumbers(run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave'>, won: boolean): HeroStrikeNumbers {
   const total = heroStrikeDamage(run, won);
+  // VERSUS: the blow is one heart, never a tier + survivors sum, so the formation shows just the blow.
+  if (run.mode === 'versus') return { hero: null, minions: [], full: total, total, cap: null };
   const lc = run.lastCombat;
   const bd = won ? lc?.enemyDamageBreakdown : lc?.damageBreakdown;
   const stampedCap = typeof lc?.damageCap === 'number' ? lc.damageCap : null;
@@ -70,6 +74,11 @@ export function heroStrikeKnockout(
 ): boolean {
   const dmg = heroStrikeDamage(run, won);
   if (!(dmg > 0)) return false;
+  // VERSUS: the struck player's LAST heart (hearts ride the two-seat display lobby's seats, `versusLobby`).
+  if (run.mode === 'versus') {
+    const seat = run.lobby?.seats[won ? 1 : 0];
+    return !!seat && seat.resolve <= dmg;
+  }
   if (!won) {
     if (run.mode === 'practice' && run.practiceConfig?.health !== 'normal') return false;
     return Math.max(0, run.resolve) + Math.max(0, run.armor) <= dmg;

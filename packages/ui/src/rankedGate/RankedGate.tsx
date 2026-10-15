@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { sfx } from '../sfx';
 import { gateFx, type GateCrystal, type GateSeam } from './gateFx';
-import { registerRankedGate } from './rankedGateController';
+import { registerRankedGate, type RankedGateOptions } from './rankedGateController';
 import {
   RANKED_GATE_TIMING, rankedGateCloseTimeline, rankedGateCrystalAt, rankedGateCssVars, rankedGateEndTimeline, rankedGateOpenTimeline,
   type RankedGatePhase,
@@ -43,7 +43,7 @@ export function RankedGate(): JSX.Element | null {
   const crystalRef = useRef<HTMLButtonElement | null>(null);
   const timers = useRef<number[]>([]);
   /** The sequence in flight: its `onShut` (until it has run) and the promise's resolver. */
-  const live = useRef<{ onShut: (() => void) | null; done: () => void } | null>(null);
+  const live = useRef<{ onShut: (() => void) | null; done: () => void; opts?: RankedGateOptions; held?: boolean; cancelled?: boolean } | null>(null);
   /** The press on the armed crystal. Set by the sequence; null whenever the crystal cannot be pressed. */
   const pressRef = useRef<(() => void) | null>(null);
 
@@ -85,10 +85,41 @@ export function RankedGate(): JSX.Element | null {
     };
     const t = RANKED_GATE_TIMING;
 
+    /** VERSUS: open the doors with no shatter (the gate window closed, or the press was refused). */
+    const openQuiet = (): void => {
+      const cur = live.current;
+      if (!cur) return;
+      pressRef.current = null;
+      cur.held = false;
+      clearTimers();
+      sfx.gateHum(false, 60);
+      gateFx.stopAmbient();
+      const at = rankedGateOpenTimeline(t);
+      sfx.gate('open');
+      setPhase('opening');
+      later(at.endAt - at.openAt, finish);
+    };
+
     /** THE SECOND CLOCK: the crystal was pressed. It shatters, the doors shudder, then grind open. */
     const open = (): void => {
       if (!pressRef.current) return;
       pressRef.current = null;
+      // VERSUS: the press is the player's "ready". The crystal holds (armed, no longer pressable) until the match
+      // answers, then shatters onto what was swapped in, or the doors part quietly if the window closed.
+      const onPress = live.current?.opts?.onPress;
+      if (onPress && live.current) {
+        const cur = live.current;
+        cur.held = true;
+        void onPress().catch(() => false).then((ok) => {
+          if (live.current !== cur || !cur.held) return;
+          cur.held = false;
+          if (ok) breakOpen(); else openQuiet();
+        });
+        return;
+      }
+      breakOpen();
+    };
+    const breakOpen = (): void => {
       const at = rankedGateOpenTimeline(t);
       setPhase('shatter');
       sfx.gateHum(false, 60); // the hum is gone under the break
@@ -107,9 +138,9 @@ export function RankedGate(): JSX.Element | null {
       later(at.endAt, finish);
     };
 
-    registerRankedGate((onShut, variant) => new Promise<void>((resolve) => {
+    registerRankedGate((onShut, variant, opts) => new Promise<void>((resolve) => {
       if (live.current) { resolve(); return; } // the controller already joins a gate in flight; belt and braces
-      live.current = { onShut, done: resolve };
+      live.current = { onShut, done: resolve, ...(opts ? { opts } : {}) };
       const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (reduced) { finish(); return; }
 
@@ -154,12 +185,19 @@ export function RankedGate(): JSX.Element | null {
       });
       later(at.armedAt, () => {
         shut(); // belt and braces: the gate is never openable onto a screen that has not been swapped
+        if (live.current?.cancelled) { openQuiet(); return; } // VERSUS: the window closed while the doors shut
         pressRef.current = open;
         setPhase('armed');
         const c = crystal();
         if (c) gateFx.ambient(c);
       });
-    }));
+    }), () => {
+      // VERSUS: cancelled from outside. Before the crystal is armed, it opens quietly the moment it would have armed.
+      const cur = live.current;
+      if (!cur) return;
+      cur.cancelled = true;
+      if (pressRef.current || cur.held) openQuiet();
+    });
 
     return () => {
       registerRankedGate(null);

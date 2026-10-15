@@ -17,6 +17,8 @@ import { rectToStage } from './stage';
 import { ceremonyTiming } from './hero-select/heroCeremonyTiming';
 import { HSC_REPLAY_EVENT } from './hero-select/heroCeremonyTunerConfig';
 import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
+import { VersusHeroTimer } from './versus/VersusHeroTimer';
+import { lockVersusHeroPick, markVersusPickShown, useVersusTimeoutHero } from './versus/versusStore';
 
 /**
  * Pre-run hero picker. Shows whenever the store has `heroChoices` (first load + after a
@@ -101,6 +103,17 @@ export function HeroSelect() {
     return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
   }, [choices]);
 
+  // VERSUS: the 20 s ran out before a pick, so the server chose (ruling 2). Play the ordinary ceremony for its hero.
+  const timeoutHero = useVersusTimeoutHero();
+  useEffect(() => {
+    if (mode !== 'versus' || !timeoutHero || !choices || !ceremonyAcceptsClicks(ceremony)) return;
+    const index = choices.indexOf(timeoutHero);
+    const card = cardRefs.current[index];
+    if (index < 0 || !card) return;
+    markVersusPickShown();
+    dispatch({ type: 'select', heroId: timeoutHero, rect: snapshotRect(rectToStage(card.getBoundingClientRect())), index, now: performance.now() });
+  }, [mode, timeoutHero, choices, ceremony]);
+
   if (!choices) return null;
 
   // PRACTICE (owner rework 2026-08-22): the whole roster, in the SAME big cards Play uses — 4 across, two
@@ -120,6 +133,7 @@ export function HeroSelect() {
   const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => {
     if (!ceremonyAcceptsClicks(ceremony)) return; // repeats during the ceremony are ignored (§16)
     sfx.pulse();
+    if (mode === 'versus') lockVersusHeroPick(id); // VERSUS: the pick locks now, not at Start Game (the clock runs on)
     dispatch({
       type: 'select',
       heroId: id,
@@ -138,7 +152,8 @@ export function HeroSelect() {
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}
-      {!active && (ranked ? (
+      {/* VERSUS (owner 2026-10-14): no Back here; leaving a match is the Esc menu's Concede. */}
+      {!active && mode !== 'versus' && (ranked ? (
         <button
           className={`hsback${abandonArmed ? ' armed' : ''}`}
           onPointerDown={() => { sfx.pulse(); if (abandonArmed) abandonRankedEntry(); else setAbandonArmed(true); }}
@@ -160,7 +175,9 @@ export function HeroSelect() {
             nothing here (owner ask 2026-08-22), Practice is unscored, and a GAUNTLET stage never moves your
             Rating, so none of them show it. The "Oath N" pill that sat beside the Rating is gone: Oath is a
             retired term (owner 2026-10-14, R-TERM-01). `profile.currentLine` is still computed, just not shown. */}
-        {mode !== 'lobby' && mode !== 'practice' && mode !== 'gauntlet' && (
+        {/* VERSUS: the 20 s pick clock, the shop's own clock face; a timeout picks one of the three at random. */}
+        {mode === 'versus' && <VersusHeroTimer />}
+        {mode !== 'lobby' && mode !== 'practice' && mode !== 'gauntlet' && mode !== 'versus' && (
           <div className="hsline" aria-label="Your Rating">
             <span className="hsline-rat">Rating {profile.rating}</span>
           </div>
@@ -200,11 +217,12 @@ export function HeroSelect() {
                         height, so an extra line there spills over the card in the next row (measured). */}
                     {hero.practiceOnly && <span className="hcpractice">Not currently enabled in Play</span>}
                     <PortraitFrame frame={frame} />
-                    <div className="hchp hudpill-hp">
+                    {/* VERSUS plays to hearts, never Resolve: no Health pill on its picks. */}
+                    {mode !== 'versus' && <div className="hchp hudpill-hp">
                       <Icon name="heartPill" />
                       {hero.resolve}
                       {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
-                    </div>
+                    </div>}
                   </div>
                   {/* One box, two crossfading faces (owner ask 2026-08-20): at rest the card answers "how hard
                       is this hero, and what is the idea"; hovering answers "what does the button actually do".

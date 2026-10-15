@@ -1036,7 +1036,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
      the centring + the slide-in animation) instead of overwriting it. */
   translate: var(--cc-end-x, -4px) var(--cc-end-y, 0px);
 }
-.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip, .etbwrap:not(:disabled).tt-on .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
+.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip, .etbwrap.noted .etb-tip, .etbwrap:not(:disabled).tt-on .etb-tip { opacity: 1; transform: translateX(calc(-50% + var(--etb-tip-x, 108px))) translateY(0); }
 /* LOBBY: the End Turn label is centred on a button that sits well right of centre, and its right half ran
    under the seat rail — the rail's z-index simply hid the text rather than avoiding it. Shift it left by the
    rail's own width so the whole label stays readable. Scaled in `--u-base`, like the rail, so the two track

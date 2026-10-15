@@ -70,7 +70,8 @@ export function isMusicWanted(s: MusicStateLike): boolean {
   const run = s.run;
   // GOD MODE (owner 2026-10-08) is a player-facing practice game on the sandbox flag: it keeps its music.
   if (run.sandbox && run.godMode !== true) return false;
-  return run.mode === 'lobby' || run.mode === 'practice' || run.mode === 'gauntlet';
+  // VERSUS (owner 2026-10-14): the match plays on the lobby screens, with the lobby's music.
+  return run.mode === 'lobby' || run.mode === 'practice' || run.mode === 'gauntlet' || run.mode === 'versus';
 }
 
 /** The minimum of HTMLMediaElement the machine touches (so a test can hand in a stub). */

@@ -23,8 +23,9 @@ export const HudBar = memo(function HudBar() {
     <div className="bar">
       {/* The round/record plaque is REDUNDANT with the lobby rail (which shows the round + seats left), so it
           is hidden in a lobby (owner ask 2026-08-11) — the rail carries the round, seats-left, and the max-loss
-          readout now. It stays for a course/Ascent run, which has no rail. */}
-      {!lobby && (
+          readout now. It stays for a course/Ascent run, which has no rail. VERSUS hides it too (owner 2026-10-14): its
+          round and hearts live in the Versus HUD, and an Oath / record plaque means nothing there. */}
+      {!lobby && run.mode !== 'versus' && (
       <div className="alt">
         <span className="wavecol">
           {/* Course/Ascent only (a lobby hides this whole plaque and uses the rail). */}
@@ -81,7 +82,7 @@ export const HudBar = memo(function HudBar() {
       {/* Top-right: the next-enemy frame (recruit only). A LOBBY run has no single "next enemy" card here —
           the table lives in its own rail down the right edge of the stage (see `.lobbyrail`). */}
       <div className="topright">
-        {!run.lobby && <OpponentFrame />}
+        {!run.lobby && run.mode !== 'versus' && <OpponentFrame />}{/* VERSUS: the opponent lives in the Versus HUD */}
       </div>
     </div>
   );

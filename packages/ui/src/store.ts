@@ -35,7 +35,7 @@ export interface CareerView {
 }
 
 /** The title screen's view: the main menu, the MODE picker, or the LEARN hub / GAUNTLET stage select inside it. */
-export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet';
+export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet' | 'versus';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the four ladder pages. */
 export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'collection';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
@@ -121,6 +121,7 @@ import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
 import { parseBugScenario } from './bug-report/bugScenario';
+import { versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
 
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -584,6 +585,11 @@ interface GameStore {
   pickHero: (heroId: string) => void;
   /** Start a fresh run directly (optionally with a seed / hero), bypassing the picker. */
   newRun: (seed?: number, heroId?: string) => void;
+  /** VERSUS (2026-10-13): put a live Versus run on screen. Never touches the save slot (`ascent.save` stays the
+   *  player's resumable solo/lobby game): a Versus run is not resumable from it, the match server owns recovery. */
+  startVersusRun: (run: RunState) => void;
+  /** VERSUS: leave the match screen for the room (the title's Versus view). Puts the save slot back behind the title. */
+  leaveVersusRun: () => void;
   /** Boards this run contributed to the pool (captured on run-end) — shown on the post-run summary (A6).
    *  0 until the deferred capture runs; stays 0 for Practice (read-only). */
   lastRunBoards: number;
@@ -987,12 +993,18 @@ export function loadShowOpponentSkins(): boolean {
  * in for the run: equipping mid-run changes the NEXT run.
  */
 function recordRunCosmetics(run: RunState): RunState {
+  const cosmetics = currentRunCosmetics();
+  if (cosmetics) run.cosmetics = cosmetics;
+  return run;
+}
+
+/** The cosmetic snapshot a run started now would record (null when signed out or wearing nothing). VERSUS sends it to
+ *  the opponent through the room profile, so their screen shows this player's skins exactly as a lobby seat would. */
+export function currentRunCosmetics(): ReturnType<typeof snapshotForRun> {
   const mirror = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror);
   // TITLES (owner ask 2026-09-28): the equipped title rides the same snapshot, so opponents see the title worn
   // in THIS run. It lives on the profile, not the loadout rows, so it is folded in here.
-  const cosmetics = snapshotForRun(withEquippedTitle(mirror?.loadout, mirror?.equippedTitleId));
-  if (cosmetics) run.cosmetics = cosmetics;
-  return run;
+  return snapshotForRun(withEquippedTitle(mirror?.loadout, mirror?.equippedTitleId));
 }
 
 /** Persisted auto-ramp toggle. Defaults to ON (true) on anything missing/malformed. Best-effort. */
@@ -1020,7 +1032,8 @@ const activeNow = (): number => (typeof performance !== 'undefined' ? performanc
  * (owner 2026-09-30: "remove the wave format option entirely"), and a Scene Builder run is disposable.
  */
 export function isResumableRun(run: RunState): boolean {
-  return !!run.lobby && !run.sandbox && run.phase !== 'gameover' && run.phase !== 'victory';
+  // VERSUS (2026-10-14) carries a display lobby (`versusLobby`) but never holds the slot: the match server owns recovery.
+  return !!run.lobby && !run.sandbox && run.mode !== 'versus' && run.phase !== 'gameover' && run.phase !== 'victory';
 }
 interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; /** Active play ms so far (R-MATCH-LENGTH-01); absent on saves from before the clock. */ activeMs?: number; }
 function loadSave(): SavedGame | null {
@@ -1538,6 +1551,8 @@ function commitResolvedAction(
   captureBeats: boolean,
   set: StoreSet,
 ): Partial<GameStore> {
+    // VERSUS (2026-10-13): an End Turn that parked its side lands the server's fight in this same commit.
+    next = versusLand(reduce, action, next);
     // GOD MODE (owner 2026-10-08): the wallet refills. Only when the reducer actually changed the run, so a refused
     // action stays a no-op (no phantom replay action, no re-render). Covers dispatch AND commitPresentationAction
     // (End Turn) — both funnel through here. BEFORE `actionSfx`, so the sound sees the final run.
@@ -1664,6 +1679,7 @@ function commitResolvedAction(
       next.mode !== 'practice' &&
       next.mode !== 'tutorial' && // the TUTORIAL never rates, uploads, or records a career run (it carries a lobby, so it must be excluded here or its placement would move MMR)
       next.mode !== 'gauntlet' && // …nor does a GAUNTLET stage (a lobby too): its only run-end write is the local clear below
+      next.mode !== 'versus' && // …nor VERSUS (its two-seat display lobby is never a table: no boards, rating, history or Hall)
       // A SANDBOX run never captures boards, rates, or uploads telemetry/history — the mode gates above used
       // to imply this (the rig only ever created 'practice' runs), but a loaded bug scenario (PR 4) keeps its
       // original mode, so a replayed lobby/ascent incident would otherwise upload on finish.
@@ -2341,6 +2357,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // auto-settle/end-combat effects, or a stray click — fires a side effect (upload / autosave / rating /
     // telemetry) or fights the player. The combat ARENA still animates (it reacts to `run`, not to dispatch).
     if (get().replaying) return;
+    if (versusRefuses(get().run, action)) return; // VERSUS: a paused match (or a held shop) takes no input
+    action = versusAction(get().run, action); // VERSUS: End Turn parks the side for the server
     // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
     // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
     const prev = get().run;
@@ -2391,6 +2409,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // Feed the tutorial action bus AFTER the commit — a no-op (one set-size check) on every non-tutorial run,
     // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
     notifyTutorialActions(action, prev, get().run);
+    versusAfterCommit(action, prev, get().run);
   },
   presentationTx: null,
   /**
@@ -2404,6 +2423,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // a viewer clicking the End Turn gem during playback must never resolve gameplay against the synthetic run.
     if (s.replaying) return null;
     if (s.presentationTx) return s.presentationTx; // already prepared — never resolve twice
+    if (versusRefuses(s.run, action)) return null; // VERSUS: a paused match takes no End Turn either
+    action = versusAction(s.run, action); // VERSUS: End Turn parks the side for the server
     const prepared = prepareActionWithPresentation(s.run, action);
     // The moment End Turn was pressed, on the replay frames' clock — where a replay starts this End of Turn's
     // beats (the fight's own frame lands at the commit, after them). See `CombatFrame.eot`.
@@ -2429,6 +2450,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // here, NOT `dispatch`, so without this the tutorial never sees End Turn and a coached "end your turn" step
     // stalls forever. No-op on every non-tutorial run.
     notifyTutorialActions(tx.action, prev, get().run);
+    versusAfterCommit(tx.action, prev, get().run);
   },
   /**
    * Drop a prepared transaction without committing. Only legitimate when the run itself is being abandoned
@@ -2440,8 +2462,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (import.meta.env.DEV) console.warn(`[choreographer] prepared action cancelled: ${reason}`);
     set({ presentationTx: null });
   },
-  armHero: (slot = 0) => set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot, equipArmed: false })),
-  armEquipment: () => set((s) => ({ equipArmed: !s.equipArmed, heroArmed: false })),
+  armHero: (slot = 0) => { if (!versusFreeze(get().run)) set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot, equipArmed: false })); },
+  armEquipment: () => { if (!versusFreeze(get().run)) set((s) => ({ equipArmed: !s.equipArmed, heroArmed: false })); },
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
   stampReplayOdds: (odds) => {
     const s = get();
@@ -2550,6 +2572,15 @@ export const useGame = create<GameStore>((rawSet, get) => {
     });
     // A rated game now holds the entry's id (and is the save), so the entry record is spent. Outside the updater (storage).
     if (get().rankedEntry === null) clearRankedEntry();
+  },
+  startVersusRun: (run) => {
+    dropBoardFx();
+    get().cancelPresentationAction('start Versus');
+    set({ run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, ...PAGES_CLOSED, ...freshObservers(run), ...RANK_SLICE_RESET });
+  },
+  leaveVersusRun: () => {
+    if (get().run.mode === 'versus') restoreSaveSlot();
+    set({ showTitle: true, heroChoices: null, titleView: 'versus', ...PAGES_CLOSED });
   },
   newRun: (seed, heroId) => {
     dropBoardFx();
@@ -2759,7 +2790,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     get().flushSave();
     // GOD MODE (owner 2026-10-08): leaving a God Mode game puts the save slot back behind the title exactly as a
     // boot would (the real save, or a throwaway when there is none), so Continue never resumes the God Mode game.
-    if (get().run.godMode === true) restoreSaveSlot();
+    if (get().run.godMode === true || get().run.mode === 'versus') restoreSaveSlot(); // VERSUS never holds the slot either
     set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED });
     void syncCloudAtTitle();
   },

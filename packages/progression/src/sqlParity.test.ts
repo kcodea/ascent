@@ -50,12 +50,15 @@ const emotes = readFileSync(join(root, 'supabase/migrations/2026-10-13-emotes.sq
 const ancient = readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8');
 // The placement XP file (2026-10-03, owner "+50% bonuses"): the newest settle_progression (Top 4 60, 1st 90).
 const placementXp = readFileSync(join(root, 'supabase/migrations/2026-10-03-placement-xp.sql'), 'utf8');
+// The Versus progression file (2026-10-14, owner "versus can complete achievements and grant XP but no rank progress"):
+// the newest settle_progression and the progression_results.mode check.
+const versusProg = readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-progression.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
 /** The body of a function's LATEST definition (the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -80,6 +83,7 @@ describe('settle_progression constants equal the TS rules', () => {
     expect(n(settle, 'c_top_four')).toBe(XP_RULES.topFour);
     expect(n(settle, 'c_first_place')).toBe(XP_RULES.firstPlace);
     expect(n(settle, 'c_comeback')).toBe(XP_RULES.comeback);
+    expect(n(settle, 'c_versus_win')).toBe(XP_RULES.versusWin);
     expect(n(settle, 'c_comeback_streak')).toBe(XP_RULES.comebackStreak);
     expect(n(settle, 'c_practice_percent')).toBe(XP_RULES.practicePercent);
     expect(n(settle, 'c_practice_flat')).toBe(XP_RULES.practiceFlat);
@@ -133,8 +137,8 @@ describe('settle_progression constants equal the TS rules', () => {
 });
 
 describe('the migration shape', () => {
-  it('the ledger modes equal the TS modes', () => {
-    const m = /mode\s+text not null check \(mode in \(([^)]+)\)\)/.exec(sql);
+  it('the ledger modes equal the TS modes (the Versus file replaced the MVP check, 2026-10-14)', () => {
+    const m = /add constraint progression_results_mode_check\s+check \(mode in \(([^)]+)\)\)/.exec(versusProg);
     expect(m, 'progression_results.mode check').toBeTruthy();
     expect(m![1]!.split(',').map((s) => s.trim().replace(/'/g, ''))).toEqual([...PROGRESSION_MODES]);
   });
@@ -166,6 +170,7 @@ describe('the migration shape', () => {
       [ach, 'sync_achievement_catalog', 'jsonb, text'],
       [heroTitles, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
       [placementXp, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
+      [versusProg, 'settle_progression', 'uuid, text, text, bigint, boolean, int, jsonb'],
     ] as const) {
       const at = text.indexOf(`create or replace function public.${fn}(`);
       const head = text.slice(at, text.indexOf('as $$', at));
@@ -187,7 +192,7 @@ describe('the migration shape', () => {
 
   it('schema.sql (the cumulative paste file) carries every progression migration verbatim, in order', () => {
     const flat = schema.replace(/\r\n/g, '\n');
-    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet, ancient, placementXp].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
+    const at = [sql, crates, skins, ach, heroAttack, odds, uniform, heroTitles, gauntlet, ancient, placementXp, versusProg].map((t) => flat.indexOf(t.replace(/\r\n/g, '\n').trim()));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });

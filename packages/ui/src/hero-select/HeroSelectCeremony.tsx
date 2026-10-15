@@ -17,6 +17,11 @@ import { ringRelativeToDefault } from '../portraitFrame/portraitFrameConfig';
 import { createHeroCeremonyFx, type HeroCeremonyFxController } from './HeroCeremonyPixi';
 import { rectToStage, stageViewport } from '../stage';
 import './heroCeremony.css';
+import { useGame } from '../store';
+import { useVersusHeroesRevealed } from '../versus/versusStore';
+
+/** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
+const VERSUS_AUTO_START_MS = 1500;
 
 /**
  * HERO SELECT CEREMONY — the post-click presentation (hero-select-ceremony-blueprint.md §6, §8–§10, §13–§14).
@@ -358,6 +363,17 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     void requestLaunch({ heroId, accent: 'var(--acc)' });
   };
 
+  /* ---- VERSUS (owner 2026-10-14: "let the full hero select animation play out"): once both heroes are locked on the
+     server, a finished ceremony starts the game on its own after a beat, so a player who has stopped at Start Game
+     (or whose hero the 20 s clock picked) still reaches the match with the opponent. */
+  const versusPick = useGame((s) => s.pendingMode === 'versus');
+  const heroesLocked = useVersusHeroesRevealed();
+  useEffect(() => {
+    if (!versusPick || !heroesLocked || state.phase !== 'ready') return undefined;
+    const id = window.setTimeout(onStart, VERSUS_AUTO_START_MS);
+    return () => window.clearTimeout(id);
+  }, [versusPick, heroesLocked, state.phase]);
+
   const materialized = pi >= phaseIndex('materializing');
   const k = source.width > 0 ? source.width / BIG_CARD_W : 1; // static adapter: natural card → source rect
 
@@ -394,11 +410,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
           <div ref={frameRef} className="hcframe">
             <div className="hcname hudpill-name">{hero.name}</div>
             {art ? <img decoding="sync" className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
-            <div className="hchp hudpill-hp">
+            {/* VERSUS plays to hearts: no Health pill (as on its Hero Select cards). */}
+            {!versusPick && <div className="hchp hudpill-hp">
               <Icon name="heartPill" />
               {hero.resolve}
               {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
-            </div>
+            </div>}
           </div>
           {/* The resting face only (difficulty + tip) — the hover face never shows on a clone nobody can
               hover, and it dissolves with the rest of the chrome. */}
@@ -490,7 +507,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
             <div className="hsc-name">{hero.name}</div>
             <div className="hsc-power">{hero.power.name}</div>
           </div>
-          <button
+          {/* VERSUS (owner 2026-10-14): no Start Game; the game starts on its own a beat after the ceremony. */}
+          {!versusPick && <button
             ref={startBtnRef}
             className="hsc-start"
             disabled={!ceremonyCanLaunch(state)}
@@ -499,13 +517,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
             <span className="hsc-start-orn" aria-hidden="true" />
             Start Game
             <span className="hsc-start-orn hsc-start-orn-r" aria-hidden="true" />
-          </button>
+          </button>}
         </div>
       )}
 
       {/* §16: announce readiness to assistive tech. Visually hidden, polite. */}
       <div className="hsc-live" aria-live="polite">
-        {pi >= phaseIndex('ready') ? `${hero.name} selected. Start Game is ready.` : ''}
+        {pi >= phaseIndex('ready') ? `${hero.name} selected. ${versusPick ? 'The game starts in a moment.' : 'Start Game is ready.'}` : ''}
       </div>
     </div>
   );

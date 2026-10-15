@@ -63,6 +63,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   resolveShopDeath: 'open',
   settleCombat: 'open',
   resolveCombat: 'open',
+  landCombat: 'open',
   combatEscalationPreview: 'open',
   combatSpellPowerPreview: 'open',
   combatSpellCastPreview: 'open',

@@ -1,4 +1,4 @@
-import { inRunTribes } from '@game/core';
+import { inRunTribes, type CardDef } from '@game/core';
 import type { CardPool, SetId } from '@game/content';
 import { poolFor } from '@game/content';
 import type { RunState } from './state';
@@ -13,8 +13,12 @@ import type { RunState } from './state';
  * Saves written before sets existed carry no `setId`; they resolve to `set1`, which is exactly the pool
  * they were played under, so old saves and replays keep working untouched.
  */
-export function poolOf(state: Pick<RunState, 'setId'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig'>>): CardPool {
-  const base = poolFor(state.setId ?? 'set1');
+export function poolOf(state: Pick<RunState, 'setId'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'mode'>>): CardPool {
+  const set = poolFor(state.setId ?? 'set1');
+  // VERSUS (owner ruling 2026-10-13, R-VERSUS-POOL-01): "Pre-emptive Assault ... just remove this spell from
+  // versus." Every attack-first source is out of a Versus run's pool, so it can never be shopped, Discovered or
+  // granted, and the resolver's chair only decides the seeded tie-break.
+  const base = state.mode === 'versus' ? versusPool(set) : set;
   // PRACTICE TRIBES (owner 2026-09-27: "that tribe's cards plus neutral cards, and all spells associated"): a
   // Practice game played with picked tribes draws from a pool NARROWED to them, so every random pick, not only
   // the gated shop/Discover sites (a "random minion" grant, a combat-generated card), stays on those tribes plus
@@ -25,9 +29,25 @@ export function poolOf(state: Pick<RunState, 'setId'> & Partial<Pick<RunState, '
   return narrowedPool(base, state.tribes);
 }
 
+/** A card that makes its side strike first (Pre-emptive Assault today): read from the effect data, so a future
+ *  attack-first card is excluded from Versus without a list to keep. */
+export function isVersusExcludedCard(c: Pick<CardDef, 'effects'>): boolean {
+  return (c.effects ?? []).some((e) => e.do === 'spellAttackFirst');
+}
+
+const VERSUS_POOLS = new Map<string, CardPool>();
+function versusPool(base: CardPool): CardPool {
+  const hit = VERSUS_POOLS.get(base.setId);
+  if (hit) return hit;
+  const keep = (c: CardDef): boolean => !isVersusExcludedCard(c);
+  const pool: CardPool = { setId: base.setId, all: base.all.filter(keep), buyable: base.buyable.filter(keep), spells: base.spells.filter(keep) };
+  VERSUS_POOLS.set(base.setId, pool);
+  return pool;
+}
+
 const NARROWED = new Map<string, CardPool>();
 function narrowedPool(base: CardPool, tribes: readonly string[]): CardPool {
-  const key = `${base.setId}|${[...tribes].sort().join(',')}`;
+  const key = `${base.setId}|${base.all.length}|${[...tribes].sort().join(',')}`;
   const hit = NARROWED.get(key);
   if (hit) return hit;
   const all = base.all.filter((c) => c.token || inRunTribes(c, tribes));

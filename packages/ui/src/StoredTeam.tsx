@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { BoardMinion } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { Card } from './Card';
+import { Card, type CardView } from './Card';
 import { storedCardView } from './storedBoardView';
 import { MinionSkins } from './skins/skins';
 
@@ -18,10 +18,14 @@ const BOARD_SLOTS = 7;
  * is what made the panel scroll and jitter). The views are memoised per board, so a parent re-render never hands
  * the memoised `Card` a fresh object.
  */
-export function StoredTeam({ minions, skins, label = 'Final team', compact }: {
+export function StoredTeam({ minions, skins, label = 'Final team', compact, views: given }: {
   minions: readonly BoardMinion[]; skins: RunCosmeticSnapshot | null; label?: string; compact?: boolean;
+  /** Ready-made views to show instead (Versus match stats: the fight's live snapshot views, inspectable with their
+   *  buffs). Memoise them; `minions` is ignored when given. */
+  views?: readonly CardView[];
 }) {
-  const views = useMemo(() => minions.slice(0, BOARD_SLOTS).map(storedCardView), [minions]);
+  const built = useMemo(() => minions.slice(0, BOARD_SLOTS).map(storedCardView), [minions]);
+  const views = given ? given.slice(0, BOARD_SLOTS) : built;
   return (
     <MinionSkins snapshot={skins}>
       <div className="cv2-team" aria-label={label}>

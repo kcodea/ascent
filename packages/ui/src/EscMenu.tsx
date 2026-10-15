@@ -26,6 +26,7 @@ import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { perfThresholds } from './perfMonitor';
 import { endReplay } from './replay/replayPlayer';
+import { forfeitMatch } from './versus/versusStore';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -49,7 +50,10 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const rankedPick = useGame((s) => !s.showTitle && s.heroChoices !== null && s.pendingMode === 'lobby' && s.rankedEntry !== null);
   const abandonRankedEntry = useGame((s) => s.abandonRankedEntry);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
-  const primary: 'replay' | 'menu' | 'none' | 'abandon' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : rankedPick ? 'abandon' : 'run';
+  // VERSUS (owner 2026-10-14): the match's only exit is CONCEDE, here, with the same two-tap confirm. From Hero Select
+  // or the match itself; there is nothing to save (the match server owns it).
+  const versusPlay = useGame((s) => !s.showTitle && (s.run.mode === 'versus' || (s.heroChoices !== null && s.pendingMode === 'versus')));
+  const primary: 'replay' | 'menu' | 'none' | 'abandon' | 'run' | 'concede' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : versusPlay ? 'concede' : rankedPick ? 'abandon' : 'run';
   // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
   const godMode = useGame((s) => s.run.godMode === true);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
@@ -91,7 +95,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
-        {primary !== 'none' && <div className="escsec">{primary === 'replay' ? 'Replay' : primary === 'menu' ? 'Menu' : 'Run'}</div>}
+        {primary !== 'none' && <div className="escsec">{primary === 'replay' ? 'Replay' : primary === 'menu' ? 'Menu' : primary === 'concede' ? 'Match' : 'Run'}</div>}
         {/* SAVE & QUIT — promoted to the top and styled as the primary action (owner ask 2026-08-24). The
             run is already saved continuously; this button makes that explicit and one obvious tap. During a
             REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting left the replay
@@ -119,6 +123,14 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             note="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
             danger={confirmAbandon}
             onPress={() => { if (!confirmAbandon) { setConfirmAbandon(true); return; } abandonRankedEntry(); onClose(); }}
+          />
+        )}
+        {primary === 'concede' && (
+          <ActionButton
+            label={confirmAbandon ? 'Tap again to concede' : 'Concede match'}
+            note="Your opponent wins this match. You go back to the room."
+            danger={confirmAbandon}
+            onPress={() => { if (!confirmAbandon) { setConfirmAbandon(true); return; } void forfeitMatch(); onClose(); }}
           />
         )}
         {primary === 'run' && (

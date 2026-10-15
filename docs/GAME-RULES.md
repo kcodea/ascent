@@ -829,6 +829,60 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
 
 ---
 
+## Versus (real-time 1v1, owner rulings 2026-10-13; R-VERSUS-HEARTS-01, R-VERSUS-RANK-01, R-VERSUS-TIMEOUT-01, R-VERSUS-PAUSE-01, R-VERSUS-POOL-01, R-VERSUS-LOBBY-UI-01)
+
+> Built on `feat/versus-phase0`; the mode's door on the mode picker stays behind `versusEnabled()` until the
+> Versus migration (`supabase/migrations/2026-10-13-versus.sql`) and the `versus-resolve` finalize deploy are live.
+
+- **Rooms are continuous.** A player creates a room and takes Player 1; another joins as Player 2 (atomically);
+  anyone may join the stands (up to 20 spectators, always on, the host cannot turn it off). While a room is Open,
+  members swap freely between an empty player seat and the stands. A room outlives its matches: when a match ends
+  everyone is back in the same room. There is no separate rematch room.
+- **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
+  the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
+  the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same
+  opponent every round; **hearts** in the Health box under your hero; no seat rail: the **opponent's hero block** floats on the
+  right like your own (portrait, name, hearts, what they are doing, their shop tier; the scout card on hover), with the
+  Round header and the Guides tab; no loss cap, no "N left"; server timers with no Gold Fuse; the room; no rank; no Pre-emptive Assault. The
+  announcer skips the lines about the 8-seat table, Health, damage, placement and rank.
+- **Start.** Only the host presses Start, and only with both seats filled. The room seals (no player-seat changes)
+  and each player gets the ranked entry gate: the doors close and the crystal forms. Pressing the crystal is that
+  player's "ready"; it holds until both are in, then shatters onto Hero Select. If the 30 second window runs out the
+  doors open quietly and the room returns to Open.
+- **Hero Select, 20 seconds.** The ordinary Hero Select screen with the shop's clock and no Back button. Each player
+  gets three heroes from a private seed; offers are hidden and may repeat across seats. The pick locks the moment a
+  hero is chosen and stays hidden until both are in. No pick in time: a random one of the three, and the screen
+  plays the ordinary ceremony for it. Once both heroes are locked, a finished ceremony starts the game on its own
+  after a beat.
+- **Game start, 1:1 with a lobby game.** The full ceremony, the launch, then the Good Luck intro. Round 1's clock
+  starts when both players' intros have played out (or 45 seconds after the heroes lock, so a stuck client cannot
+  stall it). There is no countdown anywhere.
+- **Rounds.** Both players shop at the same time on the normal round-by-round timer (`standardTurnSeconds`, no Gold
+  Fuse), counted down from one server deadline that nothing pauses locally. End Turn locks the round (irreversible);
+  a player who locks early waits, and never shortens the other's turn. While a player waits on the other (locked
+  early, back from the fight early, or past the Good Luck intro first) their board stays as it is, takes no input,
+  and the End Turn gem's pill reads "Players ready 1/2" (then 2/2). At zero the turn is locked for the player;
+  any open decision gets a random legal pick seeded by match, round and seat. Pre-emptive Assault (every
+  attack-first card) is not in Versus.
+- **One fight per round.** The server resolves the two locked boards once (Player 1 takes the first position on odd
+  rounds, Player 2 on even ones) and both players watch that fight from their own side. The next shop opens the
+  moment both are back from the fight (or after 90 seconds), and its clock starts then, for both.
+- **Hearts.** 7 each. The loser of a round loses one heart; a draw costs nobody. 0 hearts loses the match. Resolve
+  and Armor never change in Versus; cards and heroes that touch them stay in the pool and simply do not change hearts.
+- **Disconnects.** A disconnect pauses the match for up to 30 seconds (deadlines stop, and move later by the pause).
+  After 30 seconds the opponent may unpause: the absent player's last locked board then fights for them every
+  round, and three such rounds in a row forfeit. Coming back ends it. Leaving the room mid-match concedes.
+- **Concede** is in the Esc menu (two taps), from Hero Select or the match. A concede (either player) closes the end gate
+  at once for both, wherever they are, mid-fight included, and opens it on the room. The other player wins.
+- **The end.** When the match is decided, the last fight plays out; its End Combat gem (or, with nothing left to
+  watch, the moment it ends) closes the end gate, which opens on the room. The room then has **Previous match
+  stats**: the round-by-round result pips, and both boards as they entered each fight with each player's hearts.
+- **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP,
+  achievements and match history are intended (match history = the server's match and round rows; XP/achievements
+  await the progression server change, see R-VERSUS-RANK-01).
+- **Spectators** receive a live keyframe + delta stream of both players' full visible shop state; the viewer UI is
+  Phase 2.
+
 ## Health & economy
 
 - **Health** is the hero's life total. All heroes start with **30 Health**, plus per-hero **Armor**

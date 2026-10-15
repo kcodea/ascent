@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-15',
     changes: [
+      { category: 'Systems', text: 'Spectating now shows the whole game: every effect, animation and sound the player gets, the End of Turn beats, spell casts, the combat exit and the music.' },
       { category: 'Systems', text: 'Execute now always destroys a minion it damages. Before, a minion that gained Health later in the same fight moment, like Axeman, could survive it. A Ward or Immune still blocks it.' },
       { category: 'Balance', text: 'Six heroes are back in the hero pick: Gorun, Foreman Flint, Underdweller, Pete, Membrance and Emissary. Each has its achievements and a hero title to earn.' },
       {

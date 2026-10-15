@@ -335,6 +335,10 @@ export function clearanceSellGoldOf(inst: BoardCard, s: SellTextState | undefine
   return sellValueOf(inst, s);
 }
 
+/** Does this card play as a SPELL from the hand (a cast, not a minion landing)? The Triple Reward (`discoverspell`) is
+ *  data-flagged as a minion-shaped token but plays and shows as a spell. One rule for the hand view and the watch screen. */
+export const playsAsSpell = (def: { id: string; spell?: boolean } | undefined): boolean => !!def && (def.spell === true || def.id === 'discoverspell');
+
 export function instView(
   inst: BoardCard,
   tier = 1,
@@ -353,7 +357,7 @@ export function instView(
   live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState; /** Set 4: the run's Whisper improvements (Runebind), by Whisper id. */ whisperImprove?: Record<string, number>; /** Rune of Living Growth's accrual: a Growth in hand prints it, as everywhere else (R-TEXT-SURFACES-01). */ growthBonus?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
-  const spell = c.spell === true || c.id === 'discoverspell';
+  const spell = playsAsSpell(c);
   // During the End-of-Turn animation the cadence tick is PROJECTED one turn ahead (the reducer only commits
   // it in `faceOmen`, after the beats play), so the card text + step counter climb in sync with the medallion
   // pulse instead of jumping a turn later. Outside the animation this is the committed value.

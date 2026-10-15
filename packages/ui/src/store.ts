@@ -121,6 +121,7 @@ import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
 import { parseBugScenario } from './bug-report/bugScenario';
+import { spectatorTapOn, tapEndTurn } from './versus/spectateTap';
 import { versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
 
 
@@ -479,7 +480,7 @@ interface GameStore {
    *  the shop frame on screen: Recruit plays `eot.batch` through the same compiler + timeline player live End
    *  Turn uses (no prepare, no commit), at `speed`, then stamps `replayEotDone = key`. `key` identifies the
    *  request so a stale completion (a seek, an exit) can never advance a later one. Null when none is playing. */
-  replayEotCue: { key: number; eot: EotRecord; speed: number } | null;
+  replayEotCue: { key: number; eot: EotRecord; speed: number; /** the watch screen: hold until the next view (Recruit) */ hold?: boolean } | null;
   /** The `key` of the last recorded End of Turn Recruit finished playing (see `replayEotCue`). 0 = none yet. */
   replayEotDone: number;
   /** The live transport state of the running replay (frame index / count, playing, speed, current round) —
@@ -488,7 +489,7 @@ interface GameStore {
   /** REPLAY VIEWER — the drag ghost currently in flight: a recorded DragPath the ghost layer animates over
    *  `durMs` (already speed-adjusted by the player) before the frame it produced lands. `key` retriggers the
    *  animation across consecutive ghosts. Null whenever no ghost is flying; meaningless outside `replaying`. */
-  replayDragGhost: (DragPath & { key: number; view?: CardView }) | null;
+  replayDragGhost: (DragPath & { key: number; view?: CardView; fromHand?: boolean }) | null;
   /** The last FINISHED run's v2 state replay, stashed at run end so "Rewatch last game" has something to play. */
   lastReplay: ReplayV2 | null;
   /** MATCH DETAILS (owner ask 2026-09-28): the whole table at the moment the last finished lobby run ended, recorded
@@ -2426,6 +2427,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (versusRefuses(s.run, action)) return null; // VERSUS: a paused match takes no End Turn either
     action = versusAction(s.run, action); // VERSUS: End Turn parks the side for the server
     const prepared = prepareActionWithPresentation(s.run, action);
+    // SPECTATORS (owner 2026-10-15): the End Turn press and the beats it is about to play, tapped NOW so the stands
+    // play the same recorded beats in step with this screen (a no-op with nobody watching).
+    if (action.type === 'faceOmen' && spectatorTapOn()) tapEndTurn(eotRecordOf(prepared.batch, 0, prepared.after));
     // The moment End Turn was pressed, on the replay frames' clock — where a replay starts this End of Turn's
     // beats (the fight's own frame lands at the commit, after them). See `CombatFrame.eot`.
     if (action.type === 'faceOmen') pendingEotAtMs = replayClockTick();

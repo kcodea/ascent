@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import type { RiseTint } from '@game/core';
+import { liveAim } from './aimState';
 import { getSmokeConfig } from './smokeConfig';
 import { stageHost, stageScale } from './stage';
 import { perfMonitor } from './perfMonitor';
@@ -2672,6 +2673,7 @@ class FxController {
     from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean,
     _cfg?: AimLineCfg, defId: string = AIM_DEF_ID,
   ): void {
+    liveAim.current = { from: { x: from.x, y: from.y }, onTarget, ...(defId !== AIM_DEF_ID ? { defId } : {}) }; // the stands draw it too
     if (!this.ready || !this.layer) return;
     // The LOOK comes from the def named by `defId` (authored in the workshop), not `_cfg` — the param is kept
     // only so existing call sites don't change. `defId` lets a gesture pick a different effect (e.g. a Ruby
@@ -2690,6 +2692,7 @@ class FxController {
    *  into `finishingAim` and left to drain so its sparks live out their own life instead of blinking out with
    *  the line (owner ask 2026-09-17). Tail-less layers (the cursor orb) are destroyed with the line. */
   clearAimLine(): void {
+    liveAim.current = null;
     const a = this.aim;
     if (!a) return;
     this.aim = null;

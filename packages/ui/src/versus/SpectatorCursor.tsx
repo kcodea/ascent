@@ -9,12 +9,16 @@
  * sprite is the game's own gauntlet; pointer events never land on it.
  */
 import { useEffect, useRef, useState } from 'react';
+import { CARD_INDEX } from '@game/content';
 import { Card } from '../Card';
 import { dragStore } from '../dragStore';
 import { NO_DRAG_DECISION } from '../dragDecision';
 import { ghostCardView } from '../replay/replayPlayer';
 import { stageViewport } from '../stage';
 import { useGame } from '../store';
+import { getAimFxConfig } from '../aimFxConfig';
+import { dragTrailStep, newDragTrail } from '../dragTrail';
+import { pixiFx } from '../pixiFx';
 import { cursorFeed, onCursorFeed } from './spectate';
 
 const OPEN_SRC = `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`;
@@ -44,6 +48,8 @@ export function SpectatorCursor(): JSX.Element | null {
   const moverRef = useRef<HTMLDivElement | null>(null);
   const [dragUid, setDragUid] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  // While the player aims, their own screen hides the held card and the pointer (the aim line IS the pointer).
+  const [aimOn, setAimOn] = useState(false);
   const inCombat = useGame((s) => s.run.phase === 'combat');
   const flying = useGame((s) => s.replayDragGhost !== null);
 
@@ -52,6 +58,9 @@ export function SpectatorCursor(): JSX.Element | null {
     const onResize = (): void => { ({ w, h } = stageViewport()); };
     window.addEventListener('resize', onResize);
     let raf = 0;
+    // The held card's wind trail, as the player's own drag drew it (dragTrail.ts). Screen px for the FX layer.
+    const trail = newDragTrail();
+    let aiming = false;
     const frame = (): void => {
       raf = 0;
       const el = moverRef.current;
@@ -59,16 +68,27 @@ export function SpectatorCursor(): JSX.Element | null {
       const last = cursorFeed.pts[cursorFeed.pts.length - 1];
       const p = cursorAt(cursorFeed.pts, now - CURSOR_BUFFER_MS);
       if (el && p) el.style.transform = `translate3d(${Math.round(p.x * w)}px, ${Math.round(p.y * h)}px, 0)`;
+      const aim = cursorFeed.hidden ? null : cursorFeed.aim;
+      const held = cursorFeed.drag && !cursorFeed.hidden && !aim ? CARD_INDEX[cursorFeed.drag.cardId] : undefined;
+      if (p && held) dragTrailStep(trail, p.x * window.innerWidth, p.y * window.innerHeight, held.keywords);
+      else trail.last = null;
+      // The player's AIM LINE (a spell cast, the hero power, Equipment, a Battlecry), drawn by the same `setAimLine`
+      // from where it starts to the watched pointer; it goes when the player's does.
+      if (p && aim) {
+        aiming = true;
+        pixiFx.setAimLine({ x: aim.x * window.innerWidth, y: aim.y * window.innerHeight }, { x: p.x * window.innerWidth, y: p.y * window.innerHeight }, aim.on, getAimFxConfig(), aim.def);
+      } else if (aiming) { aiming = false; pixiFx.clearAimLine(); }
       if (last && now - last.t < STALE_MS && !cursorFeed.hidden) raf = requestAnimationFrame(frame);
-      else setVisible(false);
+      else { setVisible(false); if (aiming) { aiming = false; pixiFx.clearAimLine(); } }
     };
     const off = onCursorFeed(() => {
       const show = !cursorFeed.hidden && cursorFeed.pts.length > 0;
       setVisible(show);
       setDragUid(show ? cursorFeed.drag?.uid ?? null : null);
+      setAimOn(show && !!cursorFeed.aim);
       if (show && !raf) raf = requestAnimationFrame(frame);
     });
-    return () => { off(); if (raf) cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
+    return () => { off(); if (raf) cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); if (aiming) pixiFx.clearAimLine(); };
   }, []);
 
   // The card in the player's hand is lifted out of its zone while they hold it (the replay's hold, without a decision).
@@ -86,12 +106,12 @@ export function SpectatorCursor(): JSX.Element | null {
   }, [dragUid, flying]);
 
   if (inCombat || flying) return null; // in a fight there is nothing to point at; a flight's fist IS the hand
-  const d = dragUid ? cursorFeed.drag : null;
+  const d = dragUid && !aimOn ? cursorFeed.drag : null;
   const view = d ? ghostCardView(useGame.getState().run as never, d.cardId) : undefined;
   return (
-    <div className="replay-dragghost vsspec-cursor" aria-hidden="true" style={{ opacity: visible ? 1 : 0 }}>
+    <div className="replay-dragghost vsspec-cursor" aria-hidden="true" style={{ opacity: visible && !aimOn ? 1 : 0 }}>
       <div className="ghostmover" ref={moverRef}>
-        {view && <div className="ghostcardwrap"><Card card={view} suppressPop /></div>}
+        {view && <div className={`ghostcardwrap${d?.source === 'hand' ? ' fromhand' : ''}`}><div className="dragshrink"><Card card={view} suppressPop /></div></div>}
         <img decoding="sync" className={d ? 'ghostfist' : 'vsspec-cursor-open'} src={d ? FIST_SRC : OPEN_SRC} alt="" draggable={false} />
       </div>
     </div>

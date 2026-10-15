@@ -12,6 +12,7 @@
  */
 import React, { useLayoutEffect, useRef } from 'react';
 import { Card } from '../Card';
+import { dragTrailStep, newDragTrail } from '../dragTrail';
 import { useGame } from '../store';
 import { stageViewport } from '../stage';
 
@@ -43,7 +44,23 @@ export function ReplayDragGhost(): React.ReactElement | null {
     }));
     // A zero-length path (grab == drop after rounding) still shows the ghost holding in place for durMs.
     const anim = el.animate(frames, { duration: Math.max(1, ghost.durMs), easing: 'linear', fill: 'both' });
-    return () => anim.cancel();
+    // The held card's wind trail along the flight, as the player's own drag drew it (dragTrail.ts): one rAF only
+    // while the flight is in the air, the point read off the same distance-proportional path (screen px).
+    const keywords = ghost.view?.keywords ?? [];
+    const trail = newDragTrail();
+    const t0 = performance.now();
+    let raf = requestAnimationFrame(function step(now) {
+      const k = Math.min(1, (now - t0) / Math.max(1, ghost.durMs));
+      const at = k * total;
+      let i = 1;
+      while (i < cum.length - 1 && cum[i]! < at) i++;
+      const seg = cum[i]! - cum[i - 1]!;
+      const f = seg > 0 ? (at - cum[i - 1]!) / seg : 1;
+      const a = ghost.pts[i - 1]!, b = ghost.pts[i]!;
+      dragTrailStep(trail, (a[0] + (b[0] - a[0]) * f) * window.innerWidth, (a[1] + (b[1] - a[1]) * f) * window.innerHeight, keywords);
+      raf = k < 1 ? requestAnimationFrame(step) : 0;
+    });
+    return () => { anim.cancel(); if (raf) cancelAnimationFrame(raf); };
   }, [ghost]);
 
   if (!ghost) return null;
@@ -54,8 +71,8 @@ export function ReplayDragGhost(): React.ReactElement | null {
             the ghost is literally what the player was holding (owner report 2026-08-19 - the first version
             was a tiny generic tile). Falls back to nothing rather than a wrong plate when no view resolved. */}
         {ghost.view ? (
-          <div className="ghostcardwrap">
-            <Card card={ghost.view} suppressPop />
+          <div className={`ghostcardwrap${ghost.fromHand ? ' fromhand' : ''}`}>
+            <div className="dragshrink"><Card card={ghost.view} suppressPop /></div>
           </div>
         ) : null}
         <img decoding="sync" className="ghostfist" src={FIST_SRC} alt="" draggable={false} />

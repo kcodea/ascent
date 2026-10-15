@@ -3,6 +3,7 @@ import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
+import { onPressCue } from './pressCue';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
@@ -57,16 +58,15 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   // The STRIKE (owner notes 2026-07-16): the art swaps to the dim gem immediately, and the swap is masked
   // by a white-hot gem flash + a burst of lightning arcs + a dirt/smoke billow + an outward shockwave
   // RIPPLE (pixiFx.impactPulse — the combat clack's expanding energy rings), all at the gem's live centre.
-  const click = (): void => {
-    // END COMBAT mode (replay done): no strike sfx/vfx — a clean one-shot SHINE covers the dim→lit
-    // relight while the shop fades back in.
-    if (combatReady) {
-      sfx.pulse();
-      setRelighting(true);
-      window.setTimeout(() => setRelighting(false), 700);
-      onEndCombat?.();
-      return;
-    }
+  /** END COMBAT (replay done): no strike sfx/vfx, a clean one-shot SHINE covers the dim to lit relight while the shop
+   *  fades back in. Its pulse and the relight play on a click, and on a spectator's replay of one (`pressCue.ts`). */
+  const playRelight = (): void => {
+    sfx.pulse();
+    setRelighting(true);
+    window.setTimeout(() => setRelighting(false), 700);
+  };
+  /** The End Turn strike (dust, rings, bolts, the flash): on a click, and on a spectator's replay of one. */
+  const playStrike = (): void => {
     const cfg = getEndTurnConfig();
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
@@ -86,6 +86,16 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       setStriking(true);
       window.setTimeout(() => setStriking(false), cfg.strikeFlash + 60);
     }
+  };
+  useEffect(() => onPressCue('endTurn', playStrike));
+  useEffect(() => onPressCue('endCombat', playRelight));
+  const click = (): void => {
+    if (combatReady) {
+      playRelight();
+      onEndCombat?.();
+      return;
+    }
+    playStrike();
     onEndTurn();
   };
 

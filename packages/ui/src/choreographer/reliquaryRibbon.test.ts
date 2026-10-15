@@ -24,7 +24,7 @@ describe('the commit after the beats replays nothing', () => {
   it('advances every legacy per-action FX tracker past the committed seqs (the Rubies / tendrils already played on their beats)', () => {
     const i = REPLAY.indexOf('eotPadFiredRef.current = true;'); // the authoritative End-of-Turn completion
     expect(i).toBeGreaterThan(-1);
-    const block = REPLAY.slice(i, i + 2600);
+    const block = REPLAY.slice(i, i + 2800); // the completion block (its settle is wrapped for the watch screen's hold, 2026-10-15)
     expect(block.includes('captureRecruitSeqs(committed, prevRecruitSeqs.current)'), 'the moment-cue runner (Ruby cascades) must not replay at commit').toBe(true);
     expect(block.includes('prevFxSeq.current = committed.recruitFxSeq'), 'the buff tendril watcher must not replay at commit').toBe(true);
     expect(block.includes('prevShopFxSeq.current = committed.shopFxSeq'), 'nor the Echo-skull stamp (a body that fired twice)').toBe(true);

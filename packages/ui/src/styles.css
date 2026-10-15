@@ -3294,7 +3294,9 @@ body.modalup .app { z-index: auto; }
    the outer (position) and `.dragtilt` (dive) own. One-shot on mount, HAND drags only. `both` holds the start
    size on frame one so there's no flash. Duration + start size are the `shrinkMs`/`shrinkFrom` drag-feel dials. */
 .dragcard .dragshrink { width: 100%; height: 100%; transform-origin: 50% 50%; }
-.dragcard.fromhand .dragshrink { animation: dragshrink var(--drag-shrink-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+/* The same grab-shrink on a WATCHED hand pick-up (a spectator's live drag or flight ghost, owner 2026-10-15). */
+.replay-dragghost .ghostcardwrap .dragshrink { transform-origin: 50% 50%; }
+.dragcard.fromhand .dragshrink, .replay-dragghost .ghostcardwrap.fromhand .dragshrink { animation: dragshrink var(--drag-shrink-ms, 360ms) cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 @keyframes dragshrink { from { transform: scale(var(--drag-shrink-from, 1.37)); } to { transform: scale(1); } }
 /* A hand card drags as the FULL card (forceFull: art + text drawer), but the drag box is sized to the GRAB
    rect — the hovered hand tile, which is compact and/or hover-scaled. Stretching the full card to that box

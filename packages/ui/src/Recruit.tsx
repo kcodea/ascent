@@ -40,6 +40,8 @@ type RecordedEot = {
   lassoFx: NonNullable<RunState['lassoFx']>;
   speed: number;
   onDone: () => void;
+  /** THE WATCH SCREEN: hold the end of the beats (the lock, the projections) until the watched run leaves the shop. */
+  hold?: boolean;
 };
 // Dev-only breadcrumb so it is unambiguous WHICH End-of-Turn path a session is running.
 if (import.meta.env.DEV) {
@@ -145,6 +147,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge, turnTickLevel } from './sfx';
+import { presentAction, setActionPresenter, type PresentedAction } from './actionPresenter';
 import { observeCombatBoard, observeCombatMoments, observeTurnClock } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
@@ -191,7 +194,7 @@ import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { commitFlipDeltas, type CommitSweep } from './commitFlip';
-import { getTrailConfig } from './trailConfig';
+import { dragTrailStep, newDragTrail } from './dragTrail';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
 import { aleBubbleSources } from './fx/aleBubbleSources';
@@ -246,7 +249,8 @@ import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
-import { noteSpectatorBeat, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { noteSpectatorBeat, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { onPressCue } from './pressCue';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
 const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ default: m.GodModePanel })));
@@ -2174,7 +2178,12 @@ export function Recruit() {
    *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
    *  immediately, so an empty turn still cuts straight to the curtain). */
   const EOT_COMBAT_PAD_MS = 500;
+  /** How long a watch screen's held End of Turn waits for the watched player's next view before settling anyway. */
+  const EOT_HOLD_SAFETY_MS = 4000;
   const eotPadFiredRef = useRef(false); // once-guard: the unmount safety net's finish() must not double-schedule
+  /** A WATCH SCREEN End of Turn that has played its beats and waits for the watched player's next view (see the
+   *  completion's `recorded.hold`): settled the moment the run leaves the shop, or by the safety net. */
+  const eotHeldRef = useRef<{ settle: () => void; timer: number } | null>(null);
   // CHOREOGRAPHER PR 4: cancels the authoritative player's rAF loop and force-commits, so unmounting
   // mid-animation can never strand a prepared transaction with End Turn locked.
   const eotCancelRef = useRef<null | (() => void)>(null);
@@ -3183,12 +3192,18 @@ export function Recruit() {
     }
     setWipe('primeOut'); // one parked-circle frame, then the exit bloom (see the wipe hold effect)
   }, [sandboxReplay, spectating]);
+  // A SPECTATOR (owner 2026-10-15: every animation the player gets): the watched player's End Combat runs this SAME
+  // exit (the curtain), cued by the watch screen (versus/spectate.ts), whose shop swap waits for its full cover.
+  const watchScreen = useSpectate((s) => s.active);
+  useEffect(() => (watchScreen ? onPressCue('endCombat', endCombat) : undefined), [watchScreen, endCombat]);
   useEffect(() => {
     if (wipe !== 'coveredOut' || !wipeExitRef.current) return;
     wipeExitRef.current = false;
     // The old `combatout` crossfade also faded the FX canvas; without it, long-lived combat particles could
     // outlive the fight and drift over the revealed shop. Kill them here, out of sight under the full blue.
     pixiFx.clearParticles();
+    // THE WATCH SCREEN: nothing resolves here; the watched player's shop swaps in now, under the full cover.
+    if (useSpectate.getState().active) { spectatorFightCovered(); return; }
     // SANDBOX REPLAY: leave the phase, resolve NOTHING. `resolveCombat`'s own guard is only
     // `phase === 'combat' && lastCombat` — it does not re-check `combatSettled` — so dispatching it here
     // would settle the lobby round and run `advanceCombat` a SECOND time for a fight already resolved:
@@ -4394,7 +4409,7 @@ export function Recruit() {
     // decision. Every derived value the rows draw from the position — the insertion slot, the magnet hover
     // target, the cast target, the lift threshold, the drop zone — changes at CARD-scale distances (~100px).
     // Motion-trail bookkeeping: the viewport point of the last wisp emit (null until the drag goes active).
-    let trailLast: { x: number; y: number } | null = null;
+    const trail = newDragTrail();
     let moveRaf = 0;
     let lastMove: PointerEvent | null = null;
     // The position/zone last pushed into the store — the baseline the decision gate is measured against.
@@ -4458,21 +4473,9 @@ export function Recruit() {
       }
       // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold for Divine Shield, blue for Reborn).
       const dNow = dragStore.get().drag;
-      if (dNow?.active) {
-        const cx = e.clientX; // the card rides centred on the cursor (ox/oy are the centre)
-        const cy = e.clientY;
-        if (!trailLast) trailLast = { x: cx, y: cy };
-        const tdx = cx - trailLast.x;
-        const tdy = cy - trailLast.y;
-        if (Math.hypot(tdx, tdy) >= getTrailConfig().emitSpacing) {
-          const kw = dNow.view.keywords;
-          const variant = kw.includes('DS') ? 'gold' : kw.includes('R') ? 'blue' : 'wind';
-          pixiFx.trail(cx, cy, tdx, tdy, variant);
-          trailLast = { x: cx, y: cy };
-        }
-      } else {
-        trailLast = null;
-      }
+      // The card rides centred on the cursor (ox/oy are the centre). One step shared with the watch screen (dragTrail.ts).
+      if (dNow?.active) dragTrailStep(trail, e.clientX, e.clientY, dNow.view.keywords);
+      else trail.last = null;
     }); };
     // `input:pointermove` / `input:pointerup` (perf PR 1, 2026-09-17): the raw handlers, timed so a long
     // task during a drag can be laid at the event's door (the rAF-coalesced work is `drag:flushMove`).
@@ -6651,7 +6654,7 @@ export function Recruit() {
     if (e.button !== 0) return;
     if (viewing) return;   // replay viewer — no card touch cue, no drag, no click thock (see `viewing`)
     const t = e.target as HTMLElement;
-    if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
+    if (t.closest('[data-zone] .card')) { presentAction({ kind: 'touch' }); return; }
     if (heroArmed || equipArmed || dragStore.get().drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
@@ -7166,6 +7169,7 @@ export function Recruit() {
         if (eotPadFiredRef.current) return;
         eotPadFiredRef.current = true;
         window.setTimeout(() => {
+        const settleEot = (): void => {
         setEotProcUids(new Set());
         setEotPulseUids(new Set());
         setElectrifyUids(new Set());
@@ -7178,8 +7182,8 @@ export function Recruit() {
         setEotTransforms(EMPTY_TRANSFORMS); // the real (transformed) cards are on run.board after commit
         eotCancelRef.current = null;
         eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
-        if (recorded) { setEotConsumedUids(new Set()); recorded.onDone(); return; }
-        commitPresentationAction();
+        if (recorded && !recorded.hold) { setEotConsumedUids(new Set()); recorded.onDone(); return; }
+        if (!recorded) commitPresentationAction();
         // The shop-consume crumble + eater-gain hold already played on their beats (the `fodderEaten` presenter);
         // advance both legacy commit-time watchers' refs past the now-committed seq so they don't replay them.
         // Mid-shop consumes (not the authoritative EoT) still animate — those bump the seq outside this path.
@@ -7211,6 +7215,18 @@ export function Recruit() {
         prevAleSeq.current = committed.aleGrantSeq;
         prevShoutLinkSeq.current = committed.shoutLinkFxSeq; // Dawnclaw / Mykel chains played on their beats (R-SHRIEKER-BEATS-01)
         setEotConsumedUids(new Set());
+        };
+        // THE WATCH SCREEN (owner 2026-10-15): the resolved state is the watched player's NEXT view, which can trail
+        // these beats by a network beat. The lock and the projections hold until it lands (the effect on `run.phase`
+        // below), exactly as the player's own commit drops them in one go, and the trackers then advance past ITS
+        // seqs, so the beats are not replayed at the flip (R-EOTFX-01). Never a shop shown unlocked in between.
+        if (recorded?.hold) {
+          const timer = window.setTimeout(() => { const h = eotHeldRef.current; if (h) { eotHeldRef.current = null; h.settle(); } }, EOT_HOLD_SAFETY_MS);
+          eotHeldRef.current = { settle: settleEot, timer };
+          recorded.onDone();
+          return;
+        }
+        settleEot();
         }, EOT_COMBAT_PAD_MS + lassoTail);
       },
     });
@@ -7604,6 +7620,16 @@ export function Recruit() {
      seek or an exit (the cue has moved on) is ignored. */
   const replayEotCue = useGame((st) => st.replayEotCue);
   const replayEotPlayedRef = useRef(0);
+  // A held WATCH SCREEN End of Turn settles the moment the watched run leaves the shop (its fight has landed). In the
+  // store's own notification, BEFORE the render, as the player's commit does: the per-action FX watchers must see the
+  // trackers already advanced past the new view's seqs, or they would park the beats' buffs and replay them later.
+  useEffect(() => useGame.subscribe((st) => {
+    const h = eotHeldRef.current;
+    if (!h || st.run.phase === 'recruit') return;
+    eotHeldRef.current = null;
+    window.clearTimeout(h.timer);
+    h.settle();
+  }), []);
   useEffect(() => {
     if (!replayEotCue || replayEotCue.key === replayEotPlayedRef.current) return;
     replayEotPlayedRef.current = replayEotCue.key;
@@ -7616,6 +7642,7 @@ export function Recruit() {
       batch: replayEotCue.eot.batch,
       lassoFx: replayEotCue.eot.lassoFx ?? [],
       speed: replayEotCue.speed,
+      ...(replayEotCue.hold ? { hold: true } : {}),
       onDone,
     });
     if (!ok) onDone(); // nothing playable here: never hold the replay on a beat that cannot run
@@ -7697,21 +7724,6 @@ export function Recruit() {
     }
   };
 
-  // The hand-card backplate's exit: it imprints as a glowing arcane WIREFRAME of itself, then burns off to
-  // blue dust. Fires on RELEASE and runs on its own clock, deliberately NOT bounded by the ~200ms FLIP
-  // flight — a dissolve clamped to the flight reads as a blink. The effect itself lives in `plateDissolve.ts`
-  // (owner-authored in fx/plate-dissolve-preview.html); this is only the trigger.
-  const platePuff = (): void => {
-    // Measure the plate on the LIVE drag card — `applyDrop` runs before `setDrag(null)`, so it is still
-    // mounted here. `playPlateDissolve` then builds its own detached layers on <body> at that rect, so the
-    // effect survives React unmounting the drag card underneath it.
-    // No `pixiFx.dust` any more: the plate's exit is arcane now, and a tan dirt puff from the same instant
-    // muddied it. `puffOnBoard` still throws that dust when the MINION seats, which is what it was for.
-    const src = document.querySelector<HTMLElement>('.dragcard .cardplate');
-    if (!src) return;
-    playPlateDissolve(src.getBoundingClientRect());
-  };
-
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
   // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
   // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
@@ -7749,7 +7761,7 @@ export function Recruit() {
   // card mounts (a post-render detection would be too late; the pop would already have played).
   const playWithSummonDelay = (action: { type: 'play'; uid: string; toIndex?: number; targetUid?: string }): void => {
     const before = new Set(run.board.map((c) => c.uid));
-    playerPlacedRef.current.add(action.uid); // the player's own play: its landing is `applyDrop`'s, not the arrival watcher's
+    presentAction({ kind: 'placing', uid: action.uid }); // the player's own play: its landing is `applyDrop`'s, not the arrival watcher's
     dispatch(action);
     const tokens = useGame.getState().run.board.filter((c) => !before.has(c.uid) && c.uid !== action.uid).map((c) => c.uid);
     if (tokens.length === 0) return;
@@ -7760,6 +7772,53 @@ export function Recruit() {
       return n;
     }), 600);
   };
+
+  /* ONE ACTION, ONE PRESENTATION (`actionPresenter.ts`, owner 2026-10-15: spectators get everything the player gets).
+     The player's input handlers above and the spectator's action queue (versus/spectate.ts) both present through
+     here, so a watcher sees and hears exactly what the player did: the touch, the own play landing (plate dissolve,
+     dust, not counted as an arrival), a spell's cast FX or sparks, a reposition's dust, a sale's Gold float and coins. */
+  const presentRef = useRef<(a: PresentedAction) => void>(() => undefined);
+  presentRef.current = (a: PresentedAction): void => {
+    switch (a.kind) {
+      case 'touch': sfx.cardTouch(); return;
+      case 'placing': playerPlacedRef.current.add(a.uid); return;
+      case 'played':
+        // The hand-card backplate's exit: an arcane wireframe of itself burning off to blue dust (`plateDissolve.ts`),
+        // on its own clock, built on <body> at the plate's rect so it survives the card unmounting under it.
+        if (a.plate && a.plate.width > 0) playPlateDissolve(a.plate);
+        puffOnBoard(a.uid);
+        return;
+      case 'repositioned': puffOnBoard(a.uid); return;
+      case 'cast': {
+        if (a.targetUid) {
+          const target = a.targetUid;
+          if (bindingFor(a.cardId, 'spellCast')) fireSpellCastFx(a.cardId, a.at, a.card);
+          else castSparks(() => sparkAtUid(target, a.at.x, a.at.y), a.cardId, a.card); // spark per cast (Yazzus, aimed)
+        } else {
+          lassoDropRef.current = a.at; // where the card left the hand: a Lasso beam launches from here
+          // A Choose One that is about to open its prompt casts nothing yet: firing the cast FX here would flash a
+          // spell that has not resolved (and would fire again on the real cast).
+          if (!a.asksFirst) fireSpellCastFx(a.cardId, a.at, a.card); // authored def if bound; else the generic spark
+        }
+        return;
+      }
+      case 'sold': {
+        // Float the actual Gold gained where the minion was released (not over the Gold counter).
+        const id = ++sellFloatId.current;
+        setSellFloats((f) => [...f, { id, x: a.at.x, y: a.at.y, amount: a.amount }]);
+        window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
+        // Sprinkle gold coins out of the GOLD PILL: the authored `coin` def, fed the pill's centre as every anchor.
+        const goldEl = document.querySelector('.goldpill');
+        if (goldEl) {
+          const gr = goldEl.getBoundingClientRect();
+          const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
+          playDef('coin', { source: g, target: g, cursor: g });
+        }
+        return;
+      }
+    }
+  };
+  useEffect(() => setActionPresenter((a) => presentRef.current(a)), []);
 
   const applyDrop = (d: DragState, zone: Zone | null, x: number, y: number): boolean => {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
@@ -7800,21 +7859,7 @@ export function Recruit() {
     if (d.source === 'board' && zone === 'tavern' && !d.view.spell && !timeUp) {
       // Float the actual Gold gained at the spot the minion was released (not over the Gold counter).
       const card = run.board.find((c) => c.uid === d.uid);
-      if (card) {
-        const id = ++sellFloatId.current;
-        const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
-        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueWithBonus(card, run) }]); // bartering- AND Quick-Sale-aware
-        window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
-      }
-      // Sprinkle gold coins out of the GOLD PILL (bottom-right of the board — the gold moved off the top
-      // strip, so the old `.statcell.gold` no longer exists and the burst fired nowhere). The authored
-      // `coin` def; feed the pill's centre to source/target/cursor so it emits there whatever anchor it uses.
-      const goldEl = document.querySelector('.goldpill');
-      if (goldEl) {
-        const gr = goldEl.getBoundingClientRect();
-        const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
-        playDef('coin', { source: g, target: g, cursor: g });
-      }
+      if (card) presentAction({ kind: 'sold', at: { x: x - d.ox + d.w / 2, y: y - d.oy + d.h / 2 }, amount: sellValueWithBonus(card, run) }); // bartering- AND Quick-Sale-aware
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }
@@ -7880,17 +7925,15 @@ export function Recruit() {
         }
         const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
         dispatch({ type: 'play', uid: d.uid, targetUid });
-        if (bindingFor(d.view.cardId, 'spellCast')) fireSpellCastFx(d.view.cardId, { x, y }, castCard);
-        else castSparks(() => sparkAtUid(targetUid, x, y), d.view.cardId, castCard); // spark per cast (Yazzus, aimed)
+        presentAction({ kind: 'cast', cardId: d.view.cardId, at: { x, y }, ...(castCard ? { card: castCard } : {}), targetUid });
         return true;
       }
       if (up) {
         lassoDropRef.current = { x, y }; // where the card left the hand — a Lasso beam launches from here
         const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
         dispatch({ type: 'play', uid: d.uid });
-        // A Choose One that is about to open its prompt casts nothing yet — firing the cast FX here would
-        // flash a spell that has not resolved (and would fire again on the real cast).
-        if (!asksFirst) fireSpellCastFx(d.view.cardId, { x, y }, castCard); // authored def if bound; else the generic spark
+        // A Choose One that is about to open its prompt casts nothing yet (`asksFirst`, see the presenter).
+        presentAction({ kind: 'cast', cardId: d.view.cardId, at: { x, y }, ...(castCard ? { card: castCard } : {}), asksFirst });
         return true;
       }
       return false;
@@ -7901,15 +7944,16 @@ export function Recruit() {
       // (WYSIWYG) so neighbours don't rebound. Board full → snap back.
       if (run.board.length >= CONFIG.boardMax) return false;
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
+      // The plate is measured on the LIVE drag card (`applyDrop` runs before `setDrag(null)`, so it is still mounted).
+      const plate = document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null;
       playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
-      platePuff(); // plate dissolves from the release point, on its own clock
-      puffOnBoard(d.uid); // dust around the minion where it lands
+      presentAction({ kind: 'played', uid: d.uid, plate }); // the plate dissolves, the minion lands in its dust
       return true;
     }
     if (d.source === 'board' && zone === 'warband') {
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx, d.uid);
       dispatch({ type: 'reposition', uid: d.uid, toIndex: to });
-      puffOnBoard(d.uid); // dust around the minion at its landed slot
+      presentAction({ kind: 'repositioned', uid: d.uid }); // dust around the minion at its landed slot
       return true;
     }
     return false;

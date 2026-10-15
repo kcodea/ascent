@@ -5809,4 +5809,43 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-15. Before, the interning key listed hero skins, minion skins, hero attack, title and portrait frame only, so a run snapshot that added a card plate interned to an older plateless snapshot and the plate never showed.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skinIntern.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
+  {
+    id: 'R-SPECTATE-AV-01',
+    title: 'A spectator sees and hears every card action exactly as the player did, through the same presentation hooks',
+    statement:
+      'Every presentation a card action makes on the player screen also plays on the watch screen, through the SAME hook, never a spectator-only copy: the pick-up touch and the held card (its grab shrink and wind trail), the own play (plate dissolve, landing dust, never mistaken for a summon), a spell cast (its authored def or sparks, at its target), a sale (the Gold float, the coins), a reposition (dust), the aim line of any targeting gesture, and every button press cue. Only input-only cues (hover, an empty-table click) are left out.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (spectating in all modes)', quote: 'make sure pixi effects are firing as well as sound effects. all animations etc are important to be on there' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. Before, these were drawn inside the player input handlers, which a spectator never runs: no cast FX, no sale coins or float, no pick-up sound, no grab shrink, no trail, no aim line, and a played minion rang a summon sound.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-AV-02',
+    title: 'A spectator sees the End of Turn beats and the combat exit as the player did, in step',
+    statement:
+      'The End Turn press is tagged when it is PREPARED, so the watch screen plays the press and the same recorded End of Turn beats (the replay viewer path) in step with the player; the fight waits for them, the shop stays locked until the fight lands, and the beats never replay at the flip. Leaving a fight plays the End Combat press and the exit curtain, and the shop swaps in only under its full cover.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (spectating in all modes)', quote: 'make sure pixi effects are firing as well as sound effects. all animations etc are important to be on there' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. Before, a spectator jumped from the shop straight to the fight with no End of Turn beats and saw the shop before the curtain.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPECTATE-AV-03',
+    title: 'The watch screen plays the game music and every sound effect, but not the announcer',
+    statement:
+      'A spectator hears the game music and every sound effect the player hears. The announcer stays silent on the watch screen: its lines speak to the player as you and key on the local screen own run history. A recorded replay keeps music and announcer off, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (spectating in all modes)', quote: 'make sure pixi effects are firing as well as sound effects. all animations etc are important to be on there' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. Before, the music was off on the watch screen (it shared the replay gate).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
 ];

@@ -61,12 +61,18 @@ export interface MusicStateLike {
   heroChoices: string[] | null;
   practiceSetupOpen: boolean;
   replaying: boolean;
+  /** The recorded replay behind `replaying` (the store always carries the key; null = none). */
+  replaySession?: unknown;
   run: { mode?: string | undefined; sandbox?: boolean | undefined; godMode?: true | undefined; seed: number };
 }
 
+/** THE WATCH SCREEN: a spectator watching a live game (`replaying` with NO recorded replay behind it, versus/spectate.ts).
+ *  It gets the game's music like the player's own screen (owner 2026-10-15: spectators get the full audiovisual game). */
+export const isWatchScreen = (s: MusicStateLike): boolean => s.replaying && s.replaySession === null;
+
 /** The pure gate: true exactly while a lobby-mode run is on screen (see the header). */
 export function isMusicWanted(s: MusicStateLike): boolean {
-  if (isPreRun(s) || s.replaying) return false;
+  if (isPreRun(s) || (s.replaying && !isWatchScreen(s))) return false;
   const run = s.run;
   // GOD MODE (owner 2026-10-08) is a player-facing practice game on the sandbox flag: it keeps its music.
   if (run.sandbox && run.godMode !== true) return false;

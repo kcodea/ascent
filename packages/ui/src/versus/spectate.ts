@@ -20,7 +20,10 @@
  */
 import { create } from 'zustand';
 import type { CombatResult } from '@game/core';
-import type { RunState, VersusSeat } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
+import { chooseOneNeedsChoice, sellValueWithBonus, type RunState, type VersusSeat } from '@game/sim';
+import { presentAction, type ScreenPoint } from '../actionPresenter';
+import { playsAsSpell } from '../instView';
 import { actionSfx, useGame } from '../store';
 import { emitPressCue, type PressCue } from '../pressCue';
 import { ghostCardView, holdGhostCard, playableDragPath, releaseGhostHold } from '../replay/replayPlayer';
@@ -136,7 +139,73 @@ const ACT_GAP_MS = 60;
 const BEHIND = 2;
 
 /** The press cue a button action replays (its own press visual, `pressCue.ts`). */
-const PRESS: Partial<Record<string, PressCue>> = { roll: 'refresh', freeze: 'freeze', upgrade: 'upgrade', heroPower: 'heroPower' };
+const PRESS: Partial<Record<string, PressCue>> = { roll: 'refresh', freeze: 'freeze', upgrade: 'upgrade', heroPower: 'heroPower', endTurn: 'endTurn' };
+
+/** Where the player let go of the card (the drag path's last point, in screen px), when the action was dragged. */
+function releasePoint(a: SpectatorAct): ScreenPoint | null {
+  const d = playableDragPath(a.drag);
+  const last = d?.pts[d.pts.length - 1];
+  return last ? { x: last[0] * window.innerWidth, y: last[1] * window.innerHeight } : null;
+}
+/** A card's centre on screen right now, by uid. */
+function centreOf(uid: string | undefined): ScreenPoint | null {
+  const el = uid ? document.querySelector<HTMLElement>(`[data-uid="${uid}"]`) : null;
+  const r = el?.getBoundingClientRect();
+  return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+}
+const screenCentre = (): ScreenPoint => ({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+
+/** What the player's input presented BEFORE its dispatch (`actionPresenter.ts`), on the screen as it still stands.
+ *  Returns what the after-commit presentation needs (the card as it was, where it was let go). */
+function presentBefore(a: SpectatorAct, prevRun: RunState): { at: ScreenPoint | null; card?: RunState['hand'][number] } {
+  if (a.t === 'play') {
+    const card = prevRun.hand.find((c) => c.uid === a.uid);
+    const def = card ? CARD_INDEX[card.cardId] : undefined;
+    if (card && def && !playsAsSpell(def) && !def.ruby) presentAction({ kind: 'placing', uid: card.uid });
+    return { at: releasePoint(a) ?? centreOf(a.uid), ...(card ? { card } : {}) };
+  }
+  if (a.t === 'sell') {
+    const card = prevRun.board.find((c) => c.uid === a.uid);
+    const at = releasePoint(a) ?? centreOf(a.uid) ?? screenCentre();
+    if (card) presentAction({ kind: 'sold', at, amount: sellValueWithBonus(card, prevRun) });
+    return { at };
+  }
+  return { at: null };
+}
+
+/** What the player's input presented AFTER its dispatch. */
+function presentAfter(a: SpectatorAct, prevRun: RunState, pre: ReturnType<typeof presentBefore>, plate: DOMRect | null): void {
+  if (a.t === 'reposition' && a.uid) { presentAction({ kind: 'repositioned', uid: a.uid }); return; }
+  if (a.t !== 'play' || !pre.card) return;
+  const card = pre.card;
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return;
+  if (!playsAsSpell(def) && !def.ruby) { presentAction({ kind: 'played', uid: card.uid, plate }); return; }
+  presentAction({
+    kind: 'cast', cardId: card.cardId, at: pre.at ?? screenCentre(), card,
+    ...(a.targetUid ? { targetUid: a.targetUid } : { asksFirst: chooseOneNeedsChoice(prevRun, card, def) }),
+  });
+}
+
+/** The recorded End of Turn the watched player's screen is playing: the SAME player Recruit runs for a replay
+ *  (`replayEotCue`), over the shop on screen; resolves when it reports done (or the safety net). */
+const EOT_SAFETY_MS = 20_000;
+let eotKey = 1_000_000; // apart from the replay viewer's keys (Recruit plays a cue key once)
+let eotUnsub: (() => void) | null = null;
+function playEot(eot: NonNullable<SpectatorAct['eot']>, done: () => void): void {
+  eotKey += 1;
+  const key = eotKey;
+  const finish = (): void => {
+    eotUnsub?.();
+    eotUnsub = null;
+    if (busy != null) { window.clearTimeout(busy); busy = null; }
+    if (useGame.getState().replayEotCue?.key === key) useGame.setState({ replayEotCue: null });
+    done();
+  };
+  eotUnsub = useGame.subscribe((st) => { if (st.replayEotDone === key) finish(); });
+  busy = window.setTimeout(finish, EOT_SAFETY_MS);
+  useGame.setState({ replayEotCue: { key, eot: { batch: eot.batch, atMs: 0, ...(eot.lassoFx ? { lassoFx: eot.lassoFx } : {}) } as never, speed: 1, hold: true } });
+}
 
 function pump(): void {
   if (busy != null) return;
@@ -151,7 +220,8 @@ function pump(): void {
     const view = ghostCardView(prevRun as never, drag.cardId);
     const durMs = Math.min(drag.durMs, MAX_FLIGHT_MS) / (queue.length ? 2 : 1);
     ghostKey += 1;
-    useGame.setState({ replayDragGhost: { ...drag, durMs, key: ghostKey, view } });
+    presentAction({ kind: 'touch' }); // the pick-up, as the player's press on the card sounded it
+    useGame.setState({ replayDragGhost: { ...drag, durMs, key: ghostKey, view, ...(flight.t === 'play' ? { fromHand: true } : {}) } });
     holdGhostCard(prevRun as never, item.view as never, flight.t as never, drag, view);
     busy = window.setTimeout(() => land(item, prevRun), durMs);
     return;
@@ -160,22 +230,35 @@ function pump(): void {
 }
 
 function land(item: Pending, prevRun: RunState): void {
+  // The card in the hand that let go of it (the flight's ghost, or the live drag's): where its plate dissolves from.
+  const plate = document.querySelector<HTMLElement>('.replay-dragghost .ghostcardwrap .card')?.getBoundingClientRect() ?? null;
+  // ONE ACTION, ONE PRESENTATION (`actionPresenter.ts`): what the player's input showed before its dispatch...
+  const pre = item.acts.map((a) => presentBefore(a, prevRun));
   releaseGhostHold();
   if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
   shownView = item.view;
   render();
   const nextRun = useGame.getState().run;
-  for (const a of item.acts) {
+  let eot: SpectatorAct['eot'] | null = null;
+  item.acts.forEach((a, i) => {
     const cue = PRESS[a.t];
     if (cue) emitPressCue(cue);
-    if (a.t !== 'heroPower') { try { actionSfx({ type: a.t, ...(a.uid ? { uid: a.uid } : {}), ...(a.index != null ? { index: a.index } : {}) } as never, prevRun, nextRun); } catch { /* a cue never breaks the view */ } }
-  }
+    if (a.t !== 'heroPower' && a.t !== 'endTurn') { try { actionSfx({ type: a.t, ...(a.uid ? { uid: a.uid } : {}), ...(a.index != null ? { index: a.index } : {}) } as never, prevRun, nextRun); } catch { /* a cue never breaks the view */ } }
+    presentAfter(a, prevRun, pre[i]!, plate); // ...and after it
+    if (a.t === 'endTurn' && a.eot) eot = a.eot;
+  });
+  // End Turn: its beats play over the shop exactly as the player's screen played them, then the queue goes on (the
+  // fight arrives behind them). Skipped when far behind (the screen catches up instead).
+  if (eot && queue.length < 4) { playEot(eot, () => pump()); return; }
   busy = window.setTimeout(() => { busy = null; pump(); }, item.acts.length ? ACT_GAP_MS : 0);
 }
 
 /** Drop whatever is queued or flying (a seat switch, Leave): the screen jumps to the latest view. */
 function clearQueue(): void {
   if (busy != null) { window.clearTimeout(busy); busy = null; }
+  eotUnsub?.();
+  eotUnsub = null;
+  if (useGame.getState().replayEotCue) useGame.setState({ replayEotCue: null });
   queue = [];
   shownView = null;
   releaseGhostHold();
@@ -186,7 +269,7 @@ function clearQueue(): void {
 
 export interface CursorPoint { t: number; x: number; y: number }
 /** The live cursor the overlay draws (`SpectatorCursor`): a short buffer of samples, the card in hand, hidden. */
-export const cursorFeed: { pts: CursorPoint[]; drag: CursorSample['drag']; hidden: boolean; version: number } = { pts: [], drag: null, hidden: true, version: 0 };
+export const cursorFeed: { pts: CursorPoint[]; drag: CursorSample['drag']; aim: CursorSample['aim']; hidden: boolean; version: number } = { pts: [], drag: null, aim: null, hidden: true, version: 0 };
 const dragSeen = new Map<string, number>();
 const liveDragShown = (uid: string): boolean => performance.now() - (dragSeen.get(uid) ?? -1e9) < 2500;
 const cursorListeners = new Set<() => void>();
@@ -198,11 +281,14 @@ export function receiveSpectatorCursor(payload: unknown): void {
   if (!c || c.seat !== useSpectate.getState().seat || !useSpectate.getState().active) return;
   if (c.hide) {
     cursorFeed.hidden = true;
+    cursorFeed.aim = null;
   } else {
     cursorFeed.hidden = false;
     cursorFeed.pts.push({ t: performance.now(), x: c.x, y: c.y });
     if (cursorFeed.pts.length > 12) cursorFeed.pts.splice(0, cursorFeed.pts.length - 12);
+    if (c.drag && c.drag.uid !== cursorFeed.drag?.uid) presentAction({ kind: 'touch' }); // the pick-up
     cursorFeed.drag = c.drag ?? null;
+    cursorFeed.aim = c.aim ?? null;
     if (c.drag) dragSeen.set(c.drag.uid, performance.now());
   }
   cursorFeed.version += 1;
@@ -212,6 +298,7 @@ export function receiveSpectatorCursor(payload: unknown): void {
 function resetCursor(): void {
   cursorFeed.pts = [];
   cursorFeed.drag = null;
+  cursorFeed.aim = null;
   cursorFeed.hidden = true;
   cursorFeed.version += 1;
   for (const fn of cursorListeners) fn();
@@ -266,7 +353,32 @@ function render(): void {
   if (!snapshot) enter();
   const cur = useGame.getState().run;
   if (cur === run) return;
+  // LEAVING A FIGHT: the player's End Combat (its relight and pulse) and the exit curtain, then the shop under it, as
+  // the player saw it. The swap waits for the curtain's full cover (`spectatorFightCovered`).
+  if (cur.phase === 'combat' && run.phase === 'recruit' && cur.runId === run.runId && leaving !== 'covered') {
+    if (leaving === 'no') startLeaving();
+    return;
+  }
+  leaving = 'no';
   useGame.setState({ run });
+}
+
+/** Leaving the fight on screen: 'covering' while the exit curtain closes, 'covered' once it has. */
+let leaving: 'no' | 'covering' | 'covered' = 'no';
+let leaveTimer: number | null = null;
+/** If no screen answers (nothing mounted to draw the curtain), the swap still happens. */
+const LEAVE_SAFETY_MS = 3000;
+function startLeaving(): void {
+  leaving = 'covering';
+  leaveTimer = window.setTimeout(spectatorFightCovered, LEAVE_SAFETY_MS);
+  emitPressCue('endCombat'); // the gem's relight + pulse, and Recruit's exit curtain (whose full cover calls back)
+}
+/** Recruit, at the exit curtain's full cover on the watch screen: swap to the shop now, out of sight. */
+export function spectatorFightCovered(): void {
+  if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
+  if (leaving === 'no') return;
+  leaving = 'covered';
+  render();
 }
 
 function enter(): void {
@@ -360,6 +472,8 @@ export function stopSpectating(): void {
   pin = null;
   fightBeat = null;
   resumeAt = null;
+  leaving = 'no';
+  if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
   useSpectate.setState({ active: false });
   // Back to the room: a spectator always came from it (the Versus title view), whatever the snapshot says.
   if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus' });

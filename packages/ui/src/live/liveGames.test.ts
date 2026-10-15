@@ -61,7 +61,7 @@ describe('the player side: presence and publishing', () => {
     const off = pubMod.installLivePublisher();
     const run = rankedRun();
     expect(pubMod.liveEligible(run, { replaying: false })).toBe(true); // recorded seats: a rated table
-    useGame.setState({ run, replaying: false, playerName: 'Wanda' });
+    useGame.setState({ run, replaying: false, showTitle: false, playerName: 'Wanda' });
     await flush();
     expect(net.r.heartbeat).toHaveBeenCalledTimes(1);
     expect(pubMod.liveState()?.publishing).toBe(false);
@@ -91,6 +91,29 @@ describe('the player side: presence and publishing', () => {
     expect(pubMod.liveEligible({ ...run, mode: 'practice' } as RunState, { replaying: false })).toBe(false);
     expect(pubMod.liveEligible({ ...run, sandbox: true } as RunState, { replaying: false })).toBe(false);
     expect(pubMod.liveEligible(run, { replaying: true })).toBe(false);
+    expect(pubMod.liveEligible(run, { replaying: false, showTitle: true })).toBe(false);
+  });
+
+  it('a game parked on the title screen (a saved Continue) is not live; back in the game it is listed again', async () => {
+    const net = fakeRemote(() => 0);
+    pubMod.setLiveRemoteForTests(net.r);
+    const off = pubMod.installLivePublisher();
+    // boot: the saved run is loaded under the title screen
+    useGame.setState({ run: rankedRun(), replaying: false, showTitle: true });
+    await flush();
+    expect(net.r.heartbeat).not.toHaveBeenCalled();
+    expect(pubMod.liveState()).toBeNull();
+    // Continue: in the game, listed
+    useGame.setState({ showTitle: false });
+    await flush();
+    expect(net.r.heartbeat).toHaveBeenCalledTimes(1);
+    expect(pubMod.liveState()).not.toBeNull();
+    // back to the menu: delisted (an abandon-style end, no placement)
+    useGame.setState({ showTitle: true });
+    await flush();
+    expect(net.r.end).toHaveBeenCalledWith(expect.any(String), null);
+    expect(pubMod.liveState()).toBeNull();
+    off();
   });
 });
 
@@ -127,5 +150,32 @@ describe('the viewer', () => {
     expect(useGame.getState().showLiveGames).toBe(true);
     expect(useGame.getState().run).toBe(own);
     expect(net.r.unwatch).toHaveBeenCalledWith('game-1');
+  });
+});
+
+describe('the fight on a live game', () => {
+  it('rides keyframes; the same fight re-sent keeps its object, so the replay never restarts', async () => {
+    const net = fakeRemote(() => 0);
+    watchMod.setLiveWatchRemoteForTests(net.r);
+    useGame.setState({ replaying: false, showTitle: true });
+    const fight = { events: [{ kind: 'attack' }], result: 'win', playerDamage: 0, initial: { player: [], enemy: [] } };
+    const theirs = { ...rankedRun(), phase: 'combat' } as RunState;
+    const pub = newPublisher('p1');
+    const key = nextSpectatorMessage(pub, theirs, 1, true)!;
+    key.m = 'game-f';
+    key.fight = JSON.parse(JSON.stringify(fight));
+    net.r.latestFrame.mockResolvedValue(key);
+    expect(await watchMod.watchLiveGame('game-f')).toBe(true);
+    await flush();
+    const shown = useGame.getState().run.lastCombat;
+    expect(shown).toBeTruthy();
+    // a later keyframe (another watcher joined) carries the same fight as a NEW object
+    const again = nextSpectatorMessage(pub, theirs, 1, true)!;
+    again.m = 'game-f';
+    again.fight = JSON.parse(JSON.stringify(fight));
+    net.push('spectate', again);
+    await flush();
+    expect(useGame.getState().run.lastCombat).toBe(shown);
+    watchMod.leaveLiveGame(false);
   });
 });

@@ -14,15 +14,16 @@ import { createDeferredWriter } from '../idleWork';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, useGame } from '../store';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from '../versus/spectatorView';
-import { setSpectatorTap, takeActs } from '../versus/spectateTap';
+import { hasPendingActs, setSpectatorTap, takeActs } from '../versus/spectateTap';
 import { SPECTATE_KEY_EVENT } from '../versus/spectate';
 import { liveRemote, type LiveRemote } from './liveRemote';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
 
-/** Is this run a ranked lobby game the listing may show? The ONE gate (a hide setting would join it here). */
-export function liveEligible(run: RunState, st: { replaying: boolean }): boolean {
-  if (st.replaying || run.mode !== 'lobby' || !run.lobby || run.sandbox || run.godMode) return false;
+/** Is this run a ranked lobby game the listing may show? The ONE gate (a hide setting would join it here). Only while
+ *  the player is IN it: a game parked on the title screen (Save & Continue, the menu) is not live. */
+export function liveEligible(run: RunState, st: { replaying: boolean; showTitle?: boolean }): boolean {
+  if (st.replaying || st.showTitle || run.mode !== 'lobby' || !run.lobby || run.sandbox || run.godMode) return false;
   if (lobbyIsUnrated(run.lobby)) return false;
   return run.phase === 'recruit' || run.phase === 'combat';
 }
@@ -63,7 +64,7 @@ function setWatchers(l: Live, n: number): void {
     l.channel = remote.channel(l.gameId, (event) => { if (event === SPECTATE_KEY_EVENT) { l.keyWanted = true; frames.schedule(undefined); } });
     l.pub = newPublisher('p1');
     l.keyWanted = true;
-    setSpectatorTap(true, 'p1', l.channel.send);
+    setSpectatorTap(true, 'p1', l.channel.send, () => frames.schedule(undefined));
     frames.schedule(undefined);
   } else if (n === 0 && l.channel) {
     stopPublishing(l);
@@ -88,13 +89,15 @@ const frames = createDeferredWriter<undefined>(() => {
   const run = useGame.getState().run;
   const fight = run.phase === 'combat' ? run.lastCombat ?? null : null;
   const newFight = !!fight && fight !== l.fightSent;
-  const msg = nextSpectatorMessage(l.pub, run, run.wave, l.keyWanted || newFight);
+  const msg = nextSpectatorMessage(l.pub, run, run.wave, l.keyWanted || newFight, hasPendingActs());
   l.keyWanted = false;
   if (!msg) return;
   msg.m = l.gameId;
   const acts = takeActs();
   if (acts.length) msg.acts = acts;
-  if (fight) { msg.fight = fight; l.fightSent = fight; }
+  // The fight rides KEYFRAMES only (a new fight forces one): a delta keeps the watcher's fight object, so its replay
+  // is never restarted by the next shop delta mid-fight.
+  if (fight && msg.kind === 'key') { msg.fight = fight; l.fightSent = fight; }
   l.channel.send('spectate', msg);
   if (msg.kind === 'key') void remote.publishFrame(l.gameId, msg.seq, msg.round, msg).catch(() => undefined);
 }, 250);
@@ -118,10 +121,12 @@ function stop(ended: number | null | 'abandon'): void {
 /** Watch the store: register a ranked lobby game, follow it, end it. Installed once at boot. */
 export function installLivePublisher(): () => void {
   let lastRun: RunState | null = null;
+  let lastTitle: boolean | null = null;
   const unsub = useGame.subscribe((st) => {
     const run = st.run;
-    if (run === lastRun) return;
+    if (run === lastRun && st.showTitle === lastTitle) return;
     lastRun = run;
+    lastTitle = st.showTitle;
     const ok = liveEligible(run, st) && !!currentUserId();
     if (live) {
       const sameGame = rankedRunIdOf(run) === live.gameId;

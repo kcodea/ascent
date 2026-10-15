@@ -21,6 +21,8 @@ const SCALAR_KEYS = [
   'name', 'cardId', 'tribe', 'tribe2', 'universalTribe', 'attack', 'health', 'text', 'goldenText',
   'stepEphemeral', 'cost', 'costChanged', 'castMult', 'golden', 'tier', 'spell', 'ruby', 'target', 'refPick',
   'baseAttack', 'baseHealth', 'floorAttack', 'floorHealth', 'chosenOption', 'chooseBothKey', 'artUrl', 'starform', 'riseTint', 'heroPowerOf', 'onLoanKey', 'whisperKey', 'whisperGilded',
+  // Reference-compared on purpose: grantedTriggers.ts hands out ONE shared frozen array per shape.
+  'grantedTriggers',
 ] as const satisfies readonly (keyof CardView)[];
 
 /** Compile-time exhaustiveness: any `CardView` key not covered here (scalar or an explicit non-scalar below)

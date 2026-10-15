@@ -1078,6 +1078,21 @@ export function simulate(
   // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
   const bloodTrailMinion: Record<Side, Minion | undefined> = { player: undefined, enemy: undefined };
 
+  /** The triggers `m` carries beyond its printed card (copied Echoes, Shop / rune grafts), deduped `{ on, do }` pairs,
+   *  for the snapshot's `grantedTriggers` (display-only: the portrait medallion). Seed stacks and the Auctioneer's Rally
+   *  have their own snapshot fields. Printed effects are shared references from the CardDef, so identity tells them apart. */
+  const grantedTriggersOf = (m: Minion): { grantedTriggers?: { on: EffectDef['on']; do: EffectDef['do'] }[] } => {
+    const printed = cards[m.cardId]?.effects;
+    if (!printed || m.effects === printed) return {};
+    let out: { on: EffectDef['on']; do: EffectDef['do'] }[] | undefined;
+    for (const e of m.effects) {
+      if (printed.includes(e)) continue;
+      if (e.do === 'rallyTriggerOwnShout' || (e.do === 'deathrattleSummon' && e.params?.seed === true)) continue;
+      if (out?.some((g) => g.on === e.on && g.do === e.do)) continue;
+      (out ??= []).push({ on: e.on, do: e.do });
+    }
+    return out ? { grantedTriggers: out } : {};
+  };
   const snapshot = (m: Minion): MinionSnapshot => ({
     uid: m.uid,
     cardId: m.cardId,
@@ -1094,6 +1109,7 @@ export function simulate(
     rallySpreadAtk: m.rallySpreadAtk, // Sunmane: the live escalating rally value, for the card text
     ...(m.effects.some((e) => e.do === 'rallyTriggerOwnShout') ? { grantedRallyShout: true as const } : {}), // Auctioneer × War: print the granted Rally
     ...(seedEchoCount(m.effects) > 0 ? { seedEchoes: seedEchoCount(m.effects) } : {}), // Seed (Set 3): the granted Drake Pup Echo stacks
+    ...grantedTriggersOf(m), // granted triggers beyond the print, for the portrait medallion (R-MEDAL-GRANTED-01)
     ...(riseTint.has(m.uid) && m.keywords.includes('R') ? { riseTint: riseTint.get(m.uid) } : {}), // Risen × War / Death: the tinted Rise look
     taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,

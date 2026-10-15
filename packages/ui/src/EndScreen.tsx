@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import type { BoardMinion } from '@game/core';
+import { grantedTriggersOfBoard } from './grantedTriggers';
 import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, playerLobbySeat, lobbyIsUnrated, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { liveBoardView } from './instView';
@@ -29,6 +30,7 @@ function snapshotView(m: BoardMinion): CardView {
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
     text: def?.text ?? '', goldenText: def?.goldenText, golden: m.golden,
     tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health, buffs: m.buffs,
+    grantedTriggers: grantedTriggersOfBoard(m), // granted Echo / graft on the medallion (R-MEDAL-GRANTED-01)
   };
 }
 

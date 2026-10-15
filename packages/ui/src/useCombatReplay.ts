@@ -193,6 +193,8 @@ export interface UnitFrame {
   attacksMade?: number;
   /** Seed (Set 3, 2026-10-15): the granted Drake Pup Echo stacks it carries (from the snapshot), for the live text. */
   seedEchoes?: number;
+  /** The triggers it carries beyond its print (the snapshot's `grantedTriggers`, by reference), for the medallion. */
+  grantedTriggers?: MinionSnapshot['grantedTriggers'];
   /** Hatcher (Set 3, 2026-10-15): its Whisper's tier progression, from the snapshot (display-only). */
   whisperTick?: number;
   /** Set 3 Whispers: this unit's SIDE's per-Whisper improvement as the fight has raised it so far (a combat Runebind),
@@ -266,6 +268,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   rallySpreadAtk: s.rallySpreadAtk, // Sunmane Herald: the combat card shows the live escalating rally grant
   grantedRallyShout: s.grantedRallyShout, // Auctioneer × War: the combat card prints the granted Rally
   seedEchoes: s.seedEchoes, // Seed (Set 3): the Drake Pup Echo stacks print in combat too
+  grantedTriggers: s.grantedTriggers, // granted triggers beyond the print: the medallion shows them (R-MEDAL-GRANTED-01)
   whisperTick: s.whisperTick, // Hatcher: its Whisper's tier prints in combat too
   riseTint: s.riseTint, // Risen × War: the Undying target's Rise is red from the first frame
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.

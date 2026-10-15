@@ -13,6 +13,7 @@ import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
+import type { GrantedTrigger } from './grantedTriggers';
 import { mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
 import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
@@ -408,6 +409,11 @@ export interface CardView {
   floorHealth?: number;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
+  /** GRANTED TRIGGERS (owner 2026-10-15, R-MEDAL-GRANTED-01): the triggers this INSTANCE carries beyond its printed
+   *  card (a Seed's Drake Pup Echo, a Gravetwin copy, a Shop / rune graft, the Auctioneer's Rally). The medallion
+   *  resolves from printed + these (`resolveMech`), under the same precedence. Build it with `grantedTriggersOfBoard`
+   *  / `grantedTriggersOfSnapshot` (grantedTriggers.ts), which keep the array referentially stable. */
+  grantedTriggers?: readonly GrantedTrigger[];
 }
 
 /**
@@ -759,7 +765,8 @@ export const Card = memo(function Card({
   const rulesHtmlMemo = useMemo(() => rulesHtml(shownText), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
-  const mech = resolveMech(card);
+  // Printed + GRANTED triggers (R-MEDAL-GRANTED-01), memoized on exactly what the resolver reads.
+  const mech = useMemo(() => resolveMech(card), [card.cardId, card.keywords, card.text, card.grantedTriggers]);
   // Hover reveal (portalled to <body> so it floats over neighbours). In compact mode, hovering shows
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,

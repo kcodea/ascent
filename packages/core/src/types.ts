@@ -3073,6 +3073,12 @@ export interface MinionSnapshot {
   grantedRallyShout?: true;
   /** Seed (Set 3, 2026-10-15): the granted Drake Pup Echo stacks this body carries, for the live combat text. */
   seedEchoes?: number;
+  /** GRANTED TRIGGERS (owner 2026-10-15, R-MEDAL-GRANTED-01): the triggers this body carries BEYOND its printed card (a
+   *  Gravetwin's copied Echo, a Shop graft from Echo Mimic / Grave Body / a rune, a Start-of-Combat graft), as compact
+   *  `{ on, do }` pairs deduped, so the portrait medallion can show a granted trigger the print lacks. Seed stacks ride
+   *  `seedEchoes` and the Auctioneer's Rally rides `grantedRallyShout`, so neither repeats here. Display-only; absent
+   *  when the body carries nothing extra. */
+  grantedTriggers?: { on: GameEvent; do: EffectFactoryId }[];
   /** ANCIENTS × Lord of the Risen: this body's Rise wears a tinted look (War's RED Rise on the Undying target).
    *  Display-only. */
   riseTint?: RiseTint;

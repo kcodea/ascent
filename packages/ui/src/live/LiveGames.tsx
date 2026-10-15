@@ -1,0 +1,122 @@
+/**
+ * LIVE GAMES (owner-approved 2026-10-15): ranked lobby games being played right now, best rank first (medal and
+ * division, then points, then rating), each with the player's portrait in their frame and skin, name, hero, rank crest,
+ * round and watchers, and a Watch button. A ladder page like Recent Games (the menu sidebar, the `lb-` rows and
+ * buttons); one page of 30 at a time with Next / Previous. Refreshed every 10 s while open.
+ */
+import { useEffect, useState } from 'react';
+import { getHero, rankLabel } from '@game/sim';
+import { Icon } from '../Icon';
+import { LbHeroFrame } from '../LadderBits';
+import { MenuSidebar, SidebarHost } from '../MenuSidebar';
+import { RankCrest } from '../rank/RankBar';
+import { remoteEnabled } from '../remoteBoards';
+import { sfx } from '../sfx';
+import { frameIdOf } from '../portraitFrame/PortraitFrame';
+import { heroPortrait, opponentSkins } from '../skins/skins';
+import { useGame } from '../store';
+import { LIVE_PAGE, liveRemote, type LiveGameRow } from './liveRemote';
+import { useLiveWatch, watchLiveGame } from './liveWatch';
+import './live.css';
+
+const REFRESH_MS = 10_000;
+
+/** "Round 6 · Shop" / "Round 6 · Fight" / "Finished 3rd". */
+export function liveStatusText(r: Pick<LiveGameRow, 'round' | 'phase' | 'placement'>): string {
+  if (r.phase === 'end') return r.placement ? `Finished #${r.placement}` : 'Finished';
+  return `Round ${r.round} · ${r.phase === 'combat' ? 'Fight' : 'Shop'}`;
+}
+
+export function LiveGames(): JSX.Element | null {
+  const show = useGame((s) => s.showLiveGames);
+  const close = useGame((s) => s.closeLiveGames);
+  const showOpp = useGame((s) => s.showOpponentSkins);
+  const error = useLiveWatch((s) => s.error);
+  const [page, setPage] = useState(0);
+  const [rows, setRows] = useState<LiveGameRow[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [joining, setJoining] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!show || !remoteEnabled()) return undefined;
+    let live = true;
+    const load = (): void => {
+      liveRemote.list(page).then((r) => { if (live) { setRows(r); setFailed(false); } }).catch(() => { if (live) setFailed(true); });
+    };
+    load();
+    const id = window.setInterval(load, REFRESH_MS);
+    return () => { live = false; window.clearInterval(id); };
+  }, [show, page]);
+
+  if (!show) return null;
+  const back = (): void => { sfx.pulse(); close(); };
+  const watch = (r: LiveGameRow): void => {
+    if (joining) return;
+    sfx.pulse();
+    setJoining(r.game_id);
+    void watchLiveGame(r.game_id).then((ok) => {
+      setJoining(null);
+      if (ok) useGame.setState({ showLiveGames: false });
+    });
+  };
+
+  return (
+    <SidebarHost className="lbpage lb-ladder lv-page">
+      <MenuSidebar current="live" onBack={back} />
+      <div className="lbtopbar">
+        <div className="lbtitle">
+          <Icon name="sword" />
+          <div>
+            <div className="esch disp">Live Games</div>
+            <div className="lbsub">Ranked games being played right now. Watch any of them live.</div>
+          </div>
+        </div>
+      </div>
+      {error && <div className="lv-error" role="alert">{error}</div>}
+      <div className="lbscroll">
+        {!remoteEnabled() ? (
+          <div className="lbempty lb-state"><Icon name="gear" /><div>Live games unavailable. No backend configured.</div></div>
+        ) : rows === null ? (
+          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{failed ? 'Live games are not available right now.' : 'Finding live games…'}</div></div>
+        ) : rows.length === 0 ? (
+          <div className="lbempty lb-state"><Icon name="sword" /><div>{page > 0 ? 'No more live games.' : 'No ranked games are being played right now.'}</div></div>
+        ) : (
+          <div className="lb-rows lv-list">
+            {rows.map((r) => {
+              const skins = opponentSkins(showOpp, r.cosmetics);
+              const hero = getHero(r.hero_id);
+              return (
+                <div key={r.game_id} className="lb-row lv-row">
+                  <div className="lb-row-hero">
+                    <LbHeroFrame heroId={r.hero_id} art={heroPortrait(r.hero_id, skins)} frameId={frameIdOf(skins)} />
+                    <div className="lb-row-name">{r.display_name}</div>
+                    <div className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</div>
+                  </div>
+                  <div className="lv-rank">
+                    <RankCrest divisionIndex={r.division_index} size="row" />
+                    <div className="lv-rank-label">{rankLabel({ divisionIndex: r.division_index, points: r.rank_points })}</div>
+                    <div className="lv-rating">{r.rating} rating</div>
+                  </div>
+                  <div className="lb-row-outcome lv-state">
+                    <div className="lv-status">{liveStatusText(r)}</div>
+                    {r.phase !== 'end' && <div className="lv-watchers"><Icon name="eye" />{r.spectators} watching</div>}
+                    <button type="button" className="lb-btn lb-watch pressable" disabled={joining !== null || r.phase === 'end' || r.spectators >= 20}
+                      onClick={() => watch(r)} aria-label={`Watch ${r.display_name}`}>
+                      {joining === r.game_id ? 'Joining…' : r.spectators >= 20 ? 'Full' : 'Watch'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {rows !== null && (page > 0 || rows.length === LIVE_PAGE) && (
+          <div className="lv-pager">
+            <button type="button" className="lb-btn pressable" disabled={page === 0} onClick={() => { sfx.pulse(); setRows(null); setPage((p) => Math.max(0, p - 1)); }}>Previous</button>
+            <button type="button" className="lb-btn pressable" disabled={rows.length < LIVE_PAGE} onClick={() => { sfx.pulse(); setRows(null); setPage((p) => p + 1); }}>Next</button>
+          </div>
+        )}
+      </div>
+    </SidebarHost>
+  );
+}

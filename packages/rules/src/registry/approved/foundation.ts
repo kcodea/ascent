@@ -5835,7 +5835,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (spectating in all modes)', quote: 'make sure pixi effects are firing as well as sound effects. all animations etc are important to be on there' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-15. Before, a spectator jumped from the shop straight to the fight with no End of Turn beats and saw the shop before the curtain.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
   {
     id: 'R-SPECTATE-AV-03',
@@ -5849,5 +5849,44 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-15. Before, the music was off on the watch screen (it shared the replay gate).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-LIVE-01',
+    title: 'Live games lists RANKED lobby games only, best rank first, and drops a game when it ends or goes silent',
+    statement:
+      'Only a rated lobby game in progress is listed (never Practice, the tutorial, Gauntlet, a sandbox, God Mode, a replay or an all-generated table). The list sorts by medal and division, then rank points, then rating, one page at a time. A game is removed on abandon, marked ended with its placement on a finish, and hidden after about 60 s of silence. One listed game per player.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (live spectating for ranked lobby games)', quote: 'live spectating for NORMAL ranked lobby games' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15 (feat/lobby-live-spectate).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/lobbyLive.db.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-LIVE-02',
+    title: 'A live game publishes nothing while unwatched, and spectating never touches the player run',
+    statement:
+      'With zero watchers the player client sends only the listing heartbeat: no channel, no frames, no cursor. Publishing starts when the heartbeat reports a watcher and stops when it reports none; it runs in idle time, coalesced. Spectating never changes the run, its timing, uploads, rating or placement. At most 20 watchers per game, and never your own game.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (live spectating for ranked lobby games)', quote: 'Publish ONLY while at least one spectator is watching' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15 (feat/lobby-live-spectate).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveGames.test.ts', 'packages/sim/src/lobby/lobbyLive.db.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-LIVE-03',
+    title: 'Watching a live game is view only, joins on the current moment, and ends on the placement then the list',
+    statement:
+      'The watch screen is the real lobby shop and combat from the player side, view only (no action reaches any run; right-click inspect works). Joining mid-game lands on the current moment. When the game ends the player placement shows, then the viewer returns to the Live games list with their own run untouched.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator relay, 2026-10-15 (live spectating for ranked lobby games)', quote: 'Joining mid-game lands on the current moment' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15 (feat/lobby-live-spectate).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
 ];

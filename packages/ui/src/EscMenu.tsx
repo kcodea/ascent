@@ -28,6 +28,7 @@ import { perfThresholds } from './perfMonitor';
 import { endReplay } from './replay/replayPlayer';
 import { forfeitMatch } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
+import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -44,7 +45,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // page and the mode picker, not only from a run — review 2026-09-21): a replay leaves the replay; a title
   // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
   // nowhere to go, so the section is omitted; a run saves & quits.
-  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showCollection || s.titleView !== 'menu');
+  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection || s.titleView !== 'menu');
   // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby and no run exists
   // yet, so there is nothing to "Save & Quit". Leaving from here is an abandon that settles as an 8th, and the
   // button says so (two taps, like Quit game).
@@ -106,10 +107,10 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             ladder page / the picker there is nothing to save: the same openTitle, labelled for what it does. */}
         {primary === 'watch' && (
           <ActionButton
-            label="Leave match"
-            note="Back to the room. The match goes on."
+            label={isWatchingLive() ? 'Stop watching' : 'Leave match'}
+            note={isWatchingLive() ? 'Back to the live games. The game goes on.' : 'Back to the room. The match goes on.'}
             primary
-            onPress={() => { leaveSpectating(); onClose(); }}
+            onPress={() => { if (isWatchingLive()) leaveLiveGame(true); else leaveSpectating(); onClose(); }}
           />
         )}
         {primary === 'replay' && (

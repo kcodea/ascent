@@ -77,6 +77,7 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
     { dest: 'rankings', label: txt.leaderboard, icon: <IconTrophy /> },
     { dest: 'hall', label: txt.champions, icon: <Icon name="crown" /> },
     { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
+    { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
     ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <IconChest /> }] : []),
   ];
 

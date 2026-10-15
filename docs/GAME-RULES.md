@@ -912,6 +912,25 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   It plays the game's music. Only the announcer stays silent for spectators (its lines speak to "you"), along with
   input-only cues such as hover sounds.
 
+## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
+
+- **What is listed.** Every RANKED lobby game in progress (a rated table: not Practice, the tutorial, Gauntlet, a
+  sandbox, God Mode, a replay or an all-generated table). Always on for now; a "hide my game" setting is a future seam
+  (one gate on the player's side). No delay: watchers see the game as it happens.
+- **The list.** Main menu > Live Games. Best rank first (medal and division, then rank points, then rating), 30 a page
+  with Previous / Next. Each row shows the player's portrait in their frame and skin, name, hero, rank crest and label,
+  rating, round and phase, how many are watching, and Watch. A game drops off the list when it ends, is abandoned, or
+  its player has been silent for about a minute.
+- **Watching** uses the Versus spectator screen: the player's real lobby shop and combat screens from their side
+  (board, hand, shop, Gold, tier, hero and power, runes, quests, Equipment, the lobby rail and placements, Health,
+  every fight), their action animations and live cursor. View only: nothing goes through, but right-click inspect
+  works. Joining mid-game lands on the current moment. Leave (or the Esc menu) returns to the list. When the game ends
+  the player's placement shows for a few seconds, then the list.
+- **At most 20 watchers** per game. You cannot watch your own game.
+- **Never affects the player.** With no one watching the player's client sends one small heartbeat every 15 s and
+  nothing else. While watched it publishes off the render path (idle time, coalesced). Spectating never touches the
+  run, its timing, uploads, rating or placement.
+
 ## Health & economy
 
 - **Health** is the hero's life total. All heroes start with **30 Health**, plus per-hero **Armor**

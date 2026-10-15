@@ -37,9 +37,9 @@ export interface CareerView {
 /** The title screen's view: the main menu, the MODE picker, or the LEARN hub / GAUNTLET stage select inside it. */
 export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet' | 'versus';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the four ladder pages. */
-export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'collection';
+export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
-const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showCollection: false } as const;
+const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false } as const;
 /** The clock `navHopAt` is stamped with — the reader (`useMountedFromHop`) MUST use the same one. */
 export const navClockNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -121,7 +121,7 @@ import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
 import { parseBugScenario } from './bug-report/bugScenario';
-import { spectatorTapOn, tapEndTurn } from './versus/spectateTap';
+import { spectatorTapOn, tapAct, tapEndTurn } from './versus/spectateTap';
 import { versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
 
 
@@ -775,6 +775,10 @@ interface GameStore {
   closeRankings: () => void;
   /** The Recent Games overlay (last 20 games across all players) is open. */
   showRecentGames: boolean;
+  /** The Live games page (live ranked lobby games to watch, 2026-10-15). */
+  showLiveGames: boolean;
+  openLiveGames: () => void;
+  closeLiveGames: () => void;
   openRecentGames: () => void;
   closeRecentGames: () => void;
   /** The Perf Analytics overlay is open (owner ask 2026-08-29). DEV-facing: it reads recordings the perf
@@ -2411,6 +2415,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
     notifyTutorialActions(action, prev, get().run);
     versusAfterCommit(action, prev, get().run);
+    if (get().run.mode !== 'versus') tapAct(action); // LIVE RANKED LOBBY: the watchers replay it (a no-op with nobody watching)
   },
   presentationTx: null,
   /**
@@ -2455,6 +2460,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // stalls forever. No-op on every non-tutorial run.
     notifyTutorialActions(tx.action, prev, get().run);
     versusAfterCommit(tx.action, prev, get().run);
+    if (get().run.mode !== 'versus') tapAct(tx.action);
   },
   /**
    * Drop a prepared transaction without committing. Only legitimate when the run itself is being abandoned
@@ -2811,6 +2817,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
       case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true, navHopAt }); break;
       case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
+      case 'live': set({ ...PAGES_CLOSED, showLiveGames: true, navHopAt }); break;
       case 'collection': set({ ...PAGES_CLOSED, showCollection: true, navHopAt }); break;
     }
   },
@@ -2824,6 +2831,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
   openRankings: () => set({ showRankings: true }),
   closeRankings: () => set({ showRankings: false }),
   showRecentGames: false,
+  showLiveGames: false,
+  openLiveGames: () => set({ showLiveGames: true }),
+  closeLiveGames: () => set({ showLiveGames: false }),
   openRecentGames: () => set({ showRecentGames: true }),
   closeRecentGames: () => set({ showRecentGames: false }),
   showPerf: false,

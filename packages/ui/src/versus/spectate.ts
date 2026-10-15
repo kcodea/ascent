@@ -41,6 +41,9 @@ export interface SpectateState {
   seat: VersusSeat;
   /** The spectator chose to step back to the room for this match (no auto re-entry until they press Watch). */
   optedOut: string | null;
+  /** The watched player's name when the screen's own lobby does not carry it (a live ranked lobby game: seat s0 is
+   *  labelled for its owner, not by name). */
+  name?: string | null;
 }
 
 export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null }));
@@ -51,6 +54,8 @@ interface Io {
   loadRounds(): void;
   /** The two-seat lobby from a seat's side, for a view that carries none (a test bot's). */
   lobbyFor(seat: VersusSeat, run: RunState): RunState['lobby'];
+  /** Where Leave and the end return to (default: the Versus room). The live ranked-lobby viewer returns to its list. */
+  returnTo?(): Partial<ReturnType<typeof useGame.getState>>;
 }
 
 let io: Io | null = null;
@@ -73,7 +78,6 @@ export function installSpectateIo(next: Io | null): void { io = next; }
 export function spectatorRunOf(view: VersusSpectatorView, seat: VersusSeat, id: string, round: VersusRoundRow | undefined): RunState | null {
   const base = {
     ...view,
-    mode: 'versus',
     seed: 0,
     runId: `spectate:${id}:${seat}`,
     pool: {},
@@ -82,7 +86,18 @@ export function spectatorRunOf(view: VersusSpectatorView, seat: VersusSeat, id: 
     runDamage: {},
     runProcs: {},
   } as unknown as RunState;
-  if (view.phase !== 'combat') return base;
+  // The game's own end screen is never drawn for a spectator (its buttons act on the store): the last frame holds and
+  // the watch chrome shows the placement instead (live/LiveWatchBar).
+  if (view.phase === 'gameover' || view.phase === 'victory') return null;
+  // A LIVE RANKED LOBBY view carries its own fight (lobby combat is computed on the player's client, `msg.fight`); it
+  // shows only while the view is in that fight.
+  if (view.phase !== 'combat') {
+    if (!('lastCombat' in base)) return base;
+    const { lastCombat: _drop, ...rest } = base as RunState & { lastCombat?: unknown };
+    void _drop;
+    return rest as RunState;
+  }
+  if (base.lastCombat) return base;
   const fight = round ? ((seat === 'p1' ? round.p1_result : round.p2_result) as CombatResult | null) : null;
   return fight ? { ...base, lastCombat: fight } : null; // the round row is not here yet: hold the previous frame
 }
@@ -106,12 +121,36 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
   schedule();
 }
 
+/**
+ * LIVE RANKED LOBBY GAMES (owner-approved 2026-10-15): watch ONE player's ranked lobby game with this same screen. The
+ * game id stands in for the match id; the player's fight rides its messages (`msg.fight`); there is one seat (p1).
+ * Null leaves. The caller installs the IO (keyframe read, key request, where Leave returns to).
+ */
+export function liveSync(gameId: string | null): void {
+  if (!gameId) { if (useSpectate.getState().active) stopSpectating(); matchId = null; return; }
+  if (matchId !== gameId) {
+    if (useSpectate.getState().active) stopSpectating();
+    matchId = gameId;
+    rx = { p1: newReceiver(), p2: newReceiver() };
+    lobbyCache = null;
+    last = null;
+    rounds = {};
+    useSpectate.setState({ seat: 'p1', optedOut: null });
+    void fetchKeyframes();
+  }
+  schedule();
+}
+
 /** A broadcast frame from a player. */
 export function receiveSpectate(payload: unknown): void {
   const msg = payload as SpectatorMessage;
   if (!msg || (msg.seat !== 'p1' && msg.seat !== 'p2') || typeof msg.seq !== 'number') return;
   if (!matchId || (msg.m && msg.m !== matchId)) return; // another match's frame (a room hosts match after match)
-  const { rx: next, needKeyframe } = applySpectatorMessage(rx[msg.seat], msg);
+  const applied = applySpectatorMessage(rx[msg.seat], msg);
+  const { needKeyframe } = applied;
+  let next = applied.rx;
+  // A live ranked lobby game's fight rides the message (the view never carries the heavy result itself).
+  if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: msg.fight } };
   rx[msg.seat] = next;
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
   if (msg.seat !== useSpectate.getState().seat) return;
@@ -320,7 +359,10 @@ async function fetchKeyframes(): Promise<void> {
     for (const r of rows) {
       const msg = r.frame as SpectatorMessage;
       if (msg?.m && msg.m !== id) continue;
-      if (msg?.kind === 'key') rx[r.seat] = applySpectatorMessage(rx[r.seat], msg).rx;
+      if (msg?.kind === 'key') {
+        const k = applySpectatorMessage(rx[r.seat], msg).rx;
+        rx[r.seat] = msg.fight && k.view ? { ...k, view: { ...k.view, lastCombat: msg.fight } } : k;
+      }
     }
     schedule();
   } catch { /* retried on the next gap */ } finally { fetching = false; }
@@ -475,8 +517,9 @@ export function stopSpectating(): void {
   leaving = 'no';
   if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
   useSpectate.setState({ active: false });
-  // Back to the room: a spectator always came from it (the Versus title view), whatever the snapshot says.
-  if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus' });
+  // Back where the spectator came from: the Versus room (its title view), whatever the snapshot says, or the live
+  // games list for a ranked lobby game (`Io.returnTo`).
+  if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus', ...(io?.returnTo?.() ?? {}) });
 }
 
 /** The session ended (the room was left): forget the match. */
@@ -485,7 +528,7 @@ export function resetSpectate(): void {
   matchId = null;
   rx = { p1: newReceiver(), p2: newReceiver() };
   rounds = {};
-  useSpectate.setState({ seat: 'p1', optedOut: null });
+  useSpectate.setState({ seat: 'p1', optedOut: null, name: null });
 }
 
 /**
@@ -495,8 +538,9 @@ export function resetSpectate(): void {
  */
 export function useWatchedName(): string | null {
   const active = useSpectate((s) => s.active);
+  const named = useSpectate((s) => s.name ?? null);
   const label = useGame((s) => s.run.lobby?.seats[0]?.label ?? null);
-  return active ? label ?? '' : null;
+  return active ? named ?? label ?? '' : null;
 }
 
 /** For the tests: a seat's cached view. */

@@ -91,6 +91,9 @@ import { installStage, onStageChange, stageScale, stageViewport } from './stage'
 import { installTouchInput } from './touchInput';
 import { OwnSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
+import { installLivePublisher } from './live/livePublisher';
+import { LiveGames } from './live/LiveGames';
+import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
@@ -158,6 +161,9 @@ export function Game() {
   useEffect(() => {
     void ensureDefsReady();
   }, []);
+  // LIVE RANKED LOBBY GAMES (2026-10-15): list the player's ranked lobby game and publish to its watchers (only while
+  // someone watches; see live/livePublisher.ts).
+  useEffect(() => installLivePublisher(), []);
 
   // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second
   // carries what was happening (a spike is only actionable if you know the phase + wave it landed in).
@@ -581,6 +587,9 @@ export function Game() {
       <Leaderboard />
       <Rankings />
       <RecentGames />
+      <LiveGames />
+      <LiveWatchBar />
+      <LiveJoining />
       <Career />
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}

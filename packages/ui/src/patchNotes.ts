@@ -64,9 +64,9 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Emotes now come from crates. Ten new emotes join the pool.',
         details: [
-          'Thirteen emotes drop from crates: six Rare, four Epic and three Legendary.',
+          'Everyone gets Zen Brian. Every other emote drops from crates: five Rare, four Epic and three Legendary.',
           'New: Depressed Hank, Nervous Voss, Sad Wrangler, Tara Sad, Happy Urchin, Sly Oona, Dead Elder, Rich Pimm, Baby Rubies and Mad Tormentor.',
-          'Emotes are no longer given to everyone. Your menu shows the emotes you own, up to four.',
+          'Your emote menu always shows its four slots. Empty slots are marked, so you can see what is left to fill.',
           'An emote you open shows up in your menu right away. Choose its slot in the Collection.',
           'The Angry Mushy emote is gone.',
         ],

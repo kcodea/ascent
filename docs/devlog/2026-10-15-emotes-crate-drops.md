@@ -1,5 +1,9 @@
 # Emotes become crate drops; ten new emotes; Angry Mushy retired (2026-10-15)
 
+> **Superseded in part the same day** by [2026-10-15-emotes-zen-starter-empty-slots.md](2026-10-15-emotes-zen-starter-empty-slots.md):
+> Zen Brian is the one starter again, the menu always shows four slots, and the grandfather SQL below was WITHDRAWN
+> (deleted unapplied; owner: no grandfathering).
+
 Owner: "remove the angry mushy emote", then "remove all emotes as 'given' and put them in various loot tiers between
 rare and legendary. wire all the new ones that i added" (plus Baby Rubies, Nervous Voss and Sad Wrangler added the same
 afternoon).

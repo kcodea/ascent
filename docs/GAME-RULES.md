@@ -511,17 +511,17 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
   voice, owned or not.
 - **Emotes (2026-10-13, reworked 2026-10-15; R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your
-  hero says in a game. Right-click YOUR hero portrait (shop or combat) for a menu of up to four of your emotes; pick one
-  and it pops up beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
-  **Every emote comes from crates; none is given away** (owner 2026-10-15). Thirteen are in the crate pool:
-  Rare **Nervous Jensen**, **Zen Brian**, **Depressed Hank**, **Nervous Voss**, **Sad Wrangler**, **Tara Sad**; Epic
-  **Flirty Midas**, **Happy Urchin**, **Sly Oona**, **Dead Elder**; Legendary **Rich Pimm**, **Baby Rubies**,
-  **Mad Tormentor**. They drop at the normal crate odds (rarity first, then an equal share). The menu shows only emotes
-  you OWN: the ones you placed, then your other owned emotes in catalog order, so a new emote is usable at once. Owning
-  none, the menu says "No emotes yet. Open crates to find them." The crate reveal shows a won emote's bubble.
-  **Angry Mushy**, once a starter, was RETIRED on 2026-10-15: gone from the Collection, the menu and crates, and an old
-  recording of it plays nothing. (Until 2026-10-15 four starters were owned by everyone; whether existing accounts keep
-  Flirty Midas, Nervous Jensen and Zen Brian is the owner's server-side call, see the 2026-10-15 devlog.) The Collection's Emotes
+  hero says in a game. Right-click YOUR hero portrait (shop or combat) for your emote menu; pick one and it pops up
+  beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
+  **Zen Brian is everyone's** (the one STARTER emote, guests included). **Every other emote comes from crates**
+  (owner 2026-10-15): Rare **Nervous Jensen**, **Depressed Hank**, **Nervous Voss**, **Sad Wrangler**, **Tara Sad**;
+  Epic **Flirty Midas**, **Happy Urchin**, **Sly Oona**, **Dead Elder**; Legendary **Rich Pimm**, **Baby Rubies**,
+  **Mad Tormentor**, at the normal crate odds (rarity first, then an equal share). The menu **always shows four slots**:
+  the emotes you placed, then your other owned emotes in catalog order (a new emote is usable at once), and every slot
+  left over is a visibly EMPTY slot (a dashed frame reading "Empty", not clickable; hovering it says "Empty slot. Find
+  more emotes in crates."). A fresh account sees Zen Brian and three empty slots. The crate reveal shows a won emote's
+  bubble. **Angry Mushy**, once a starter, was RETIRED on 2026-10-15: gone from the Collection, the menu and crates,
+  and an old recording of it plays nothing. The Collection shows the same four slots on an emote's page; its Emotes
   tab puts an emote in menu slot 1 to 4 (the one already there swaps places). **In the snapshot lobby** each emote you
   use is recorded on that round's board with its time into the phase (since the shop turn started, or since the combat
   started), and whenever that recorded run is served to another player, the emote plays at the same time into THEIR

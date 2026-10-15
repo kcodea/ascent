@@ -122,27 +122,37 @@ describe('saying an emote: the cooldown, the transport, the recording', () => {
 });
 
 describe('the menu (right-click your portrait)', () => {
-  /** The signed-in account's progression mirror, owning `cosmetics` (emotes are crate drops since 2026-10-15). */
+  /** The signed-in account's progression mirror, owning `cosmetics` (every emote but Zen Brian is a crate drop). */
   const owning = (cosmetics: string[]): void => {
     useProgression.setState({ mirror: { userId: 'u-1', accountXp: 0, accountLevel: 1, revision: 1, equippedTitleId: null, titles: [], cosmetics } });
   };
   afterEach(() => { useProgression.setState({ mirror: null }); });
+  const slots = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('.emote-menu .emote-grid > .emote-pick')];
 
-  it('owning no emote: the menu says where they come from instead of an empty grid', () => {
+  it('always FOUR slots (owner 2026-10-15): a fresh account has Zen Brian and three visibly empty, unclickable slots', () => {
     act(() => { useGame.setState({ run: lobbyRun() }); owning([]); });
     ui = mount(<EmoteLayer />);
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
-    expect(document.body.querySelectorAll('.emote-menu .emote-pick')).toHaveLength(0);
-    expect(document.body.querySelector('.emote-menu.empty .emote-none')!.textContent).toBe('No emotes yet. Open crates to find them.');
+    expect(slots()).toHaveLength(4);
+    expect(slots().map((e) => e.tagName)).toEqual(['BUTTON', 'SPAN', 'SPAN', 'SPAN']);
+    expect(slots()[0]!.getAttribute('aria-label')).toBe('Say Zen Brian');
+    const empty = slots().slice(1);
+    expect(empty.every((e) => e.classList.contains('emote-slot-empty') && e.getAttribute('aria-disabled') === 'true')).toBe(true);
+    expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 2 is empty', 'Slot 3 is empty', 'Slot 4 is empty']);
+    expect(empty[0]!.textContent).toBe('Empty');
+    expect(empty[0]!.classList.contains('gtip')).toBe(true); // the game's hover bubble, never a native title
+    expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in crates.');
+    expect(document.body.querySelector('.emote-menu .emote-none')).toBeNull(); // no "No emotes yet" line any more
     act(() => { closeEmoteMenu(); });
   });
 
-  it('shows the emotes you OWN (catalog order), says one, closes, then shows the cooldown when reopened', () => {
-    act(() => { useGame.setState({ run: lobbyRun() }); owning([A, B, C, 'title_wanderer']); });
+  it('shows the emotes you OWN after Zen Brian (catalog order), says one, closes, then shows the cooldown when reopened', () => {
+    act(() => { useGame.setState({ run: lobbyRun() }); owning([A, B, 'title_wanderer']); });
     ui = mount(<EmoteLayer />);
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
-    const picks = (): HTMLButtonElement[] => [...document.body.querySelectorAll<HTMLButtonElement>('.emote-menu .emote-pick')];
-    expect(picks().map((b) => b.getAttribute('aria-label'))).toEqual(['Say Nervous Jensen', 'Say Zen Brian', 'Say Flirty Midas']); // two Rares, then the Epic
+    const picks = (): HTMLButtonElement[] => [...document.body.querySelectorAll<HTMLButtonElement>('.emote-menu button.emote-pick')];
+    expect(picks().map((b) => b.getAttribute('aria-label'))).toEqual(['Say Zen Brian', 'Say Nervous Jensen', 'Say Flirty Midas']); // starter, Rare, Epic
+    expect(slots()).toHaveLength(4); // and one empty slot
     expect(document.body.querySelector('.emote-menu')!.hasAttribute('title')).toBe(false);
     act(() => { picks()[2]!.click(); });
     expect(document.body.querySelector('.emote-menu')).toBeNull(); // saying one closes it

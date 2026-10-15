@@ -7,7 +7,8 @@ import { stageHost } from '../stage';
 import { sfx } from '../sfx';
 import { emoteSrc } from './emoteArt';
 import { clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
-import { useEquippedEmotes } from './emoteLoadout';
+import { useEmoteSlots } from './emoteLoadout';
+import { EmptyEmoteSlot } from './EmptyEmoteSlot';
 import {
   EMOTE_COOLDOWN_MS, PLAYER_SEAT, closeEmoteMenu, emoteCooldownRemaining, emoteNow, emotePhaseClock, markEmotePhase, onEmotePhase,
   phaseOfRun, sayEmote, useEmoteUi,
@@ -94,7 +95,7 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
 
 /** The right-click menu: your four emotes, and the cooldown while it runs. Portaled to the stage host. */
 function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
-  const emotes = useEquippedEmotes();
+  const slots = useEmoteSlots();
   const ref = useRef<HTMLDivElement>(null);
   const [left, setLeft] = useState(() => emoteCooldownRemaining());
   // The bar's start point, fixed for this menu: the animation then runs on its own (no per-tick restyle).
@@ -125,18 +126,18 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
   return createPortal(
     <div
       ref={ref}
-      className={`atip emote-menu${cooling ? ' cooling' : ''}${emotes.length === 0 ? ' empty' : ''}`}
+      className={`atip emote-menu${cooling ? ' cooling' : ''}`}
       role="menu"
       aria-label="Emotes"
       style={{ left: `${at.x}px`, top: `${at.y}px` }}
       onContextMenu={(e) => { e.preventDefault(); }}
     >
       <b className="atip-title">Emotes</b>
-      {/* No emote is given away since 2026-10-15 (all are crate drops), so an account can own none: say where they come
-          from instead of an empty grid. */}
-      {emotes.length === 0 && <div className="emote-none">No emotes yet. Open crates to find them.</div>}
-      {emotes.length > 0 && <div className="emote-grid">
-        {emotes.map((id) => {
+      {/* ALL FOUR slots, always (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"):
+          an empty one is the dashed empty-slot frame, never clickable, its hover pointing at crates. */}
+      <div className="emote-grid">
+        {slots.map((id, i) => {
+          if (!id) return <EmptyEmoteSlot key={`empty-${i}`} position={i} role="menuitem" />;
           const def = cosmeticOf(id);
           const src = emoteSrc(id);
           return (
@@ -149,8 +150,8 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
             </button>
           );
         })}
-      </div>}
-      {emotes.length > 0 && <div className="emote-cd" aria-live="polite">
+      </div>
+      <div className="emote-cd" aria-live="polite">
         {cooling ? (
           <>
             <span className="emote-cd-bar" aria-hidden="true">
@@ -161,7 +162,7 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
         ) : (
           <span className="emote-cd-txt">Pick one to say it</span>
         )}
-      </div>}
+      </div>
     </div>,
     stageHost(),
   );

@@ -152,8 +152,10 @@ describe('5. a minion arriving from any source lands like a player play', () => 
     const watcher = recruit.slice(recruit.indexOf('const arrivalPrevRef = useRef'));
     expect(watcher.slice(0, 1200)).toMatch(/puffOnBoard\(c\.uid\);\s*sfx\.summon\(c\.cardId\);/);
     expect(recruit).toContain('cardSummoned: (cardId, uid) => { puffOnBoard(uid); sfx.summon(cardId); },');
-    // The player's own play is excluded (it already lands with both).
-    expect(recruit).toContain('playerPlacedRef.current.add(action.uid);');
+    // The player's own play is excluded (it already lands with both): it presents `placing` (actionPresenter.ts, the
+    // same hook a spectator's replay of the play uses), which marks it as the player's placement.
+    expect(recruit).toContain("presentAction({ kind: 'placing', uid: action.uid });");
+    expect(recruit).toContain("case 'placing': playerPlacedRef.current.add(a.uid); return;");
   });
 });
 

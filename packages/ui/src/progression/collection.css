@@ -88,6 +88,14 @@
 
 /* ── The album ──────────────────────────────────────────────────────────────────────────────────────────── */
 .colls-gridwrap { flex: 1; min-height: 0; overflow-y: auto; margin: -8px; padding: 8px 8px 16px; }
+/* Themed scroll bar, copied from God Mode's (owner 2026-10-15: "change the scroll on the right side to be more
+   thematically in line with our aesthetic ... we've made this adjustment elsewhere. copy that"): a deep NAVY track under
+   a UI-gold thumb. Static. `scrollbar-color` for Firefox / new Chromium, ::-webkit-scrollbar for the rest. */
+.colls-gridwrap, .colls-side { --colls-scroll-track: #0e1a3a; scrollbar-width: thin; scrollbar-color: var(--ui-title) var(--colls-scroll-track); }
+.colls-gridwrap::-webkit-scrollbar, .colls-side::-webkit-scrollbar { width: calc(10 * var(--u)); }
+.colls-gridwrap::-webkit-scrollbar-track, .colls-side::-webkit-scrollbar-track { background: var(--colls-scroll-track); border-radius: 999px; }
+.colls-gridwrap::-webkit-scrollbar-thumb, .colls-side::-webkit-scrollbar-thumb { background: var(--ui-title); border-radius: 999px; border: 2px solid var(--colls-scroll-track); }
+.colls-gridwrap::-webkit-scrollbar-thumb:hover, .colls-side::-webkit-scrollbar-thumb:hover { background: var(--ui-hover-edge-main); }
 .colls-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .colls-grid > li { display: flex; }
 

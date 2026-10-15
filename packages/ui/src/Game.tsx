@@ -89,7 +89,7 @@ import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
-import { OwnSkins } from './skins/skins';
+import { OwnSkins, RunSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
 import { installLivePublisher } from './live/livePublisher';
 import { LiveGames } from './live/LiveGames';
@@ -588,7 +588,8 @@ export function Game() {
       <Rankings />
       <RecentGames />
       <LiveGames />
-      <LiveWatchBar />
+      {/* The watched player's held card (SpectatorCursor) is THEIR run's card: their skins (R-PROG-SKINS-17). */}
+      <RunSkins><LiveWatchBar /></RunSkins>
       <LiveJoining />
       <Career />
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
@@ -609,10 +610,14 @@ export function Game() {
       {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the
           transport chrome — a recorded hand replaying must never cover the viewer's controls. */}
       {/* The recorded cursor sits UNDER the drag ghost: while a card flies the ghost's fist is the hand. */}
+      {/* Outside the main skin scope (they stack above the board), so they open the run's own: the drag ghost is the
+          recorded player's held card and wears their skin (R-PROG-SKINS-17). A context, not a DOM node. */}
+      <RunSkins>
       <ReplayCursorGhost />
       <ReplayDragGhost />
       <RoundRail />
       <ReplayOverlay />
+      </RunSkins>
       {/* Tutorial coaching overlay — self-gates on a `tutorial`-mode run; renders nothing otherwise. Mounted
           at the root (a sibling of `.app`) so its focus mask floats above everything without being z-trapped
           by `.app`'s stacking context. */}

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-15',
     changes: [
+      { category: 'Systems', text: 'A skinned minion keeps its skin while it is held. Watching a game or a replay, a picked up card showed its default art until it was played. Right-click Inspect and the ladder teams show skins too.' },
       {
         category: 'Systems',
         text: 'Hero select now has one re-roll. Pick any hero on offer and swap it for a new one.',

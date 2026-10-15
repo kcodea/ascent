@@ -1236,9 +1236,13 @@ let replayInspectTrail: InspectEvent[] = [];
 /** Record one inspect open/close into the trail. Opens are deep-cloned — the CardView the panel renders is
  *  a small plain-JSON projection, and playback feeds it back to the store verbatim. */
 function recordInspectEvent(view: CardView | null): void {
+  // `skinArt` is a build-specific asset url (Card.tsx): never written into a replay, which renders the recorded
+  // run's own skins instead (R-PROG-SKINS-17).
+  const { skinArt: _skin, ...recorded } = view ?? ({} as CardView);
+  void _skin;
   appendInspectEvent(replayInspectTrail, {
     tMs: replayClockTick(),
-    inspect: view ? (structuredClone(view) as unknown as InspectSnapshot) : null,
+    inspect: view ? (structuredClone(recorded) as unknown as InspectSnapshot) : null,
   });
 }
 /** Record one free-cursor position into the trail (2026-09-19) — Recruit's pointermove calls this on the live

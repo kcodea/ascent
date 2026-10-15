@@ -82,3 +82,14 @@ export function OwnSkins({ live, children }: { live: boolean; children: ReactNod
   const loadout = useLiveLoadout();
   return <MinionSkins snapshot={live ? loadout : run}>{children}</MinionSkins>;
 }
+
+/**
+ * The skins of the RUN ON SCREEN, for a layer mounted OUTSIDE Game's main `OwnSkins` scope that draws that run's
+ * cards: the replay's drag ghost and the live-watch cursor's held card. Both are siblings of the board in `Game.tsx`
+ * (the transport chrome and the watch bar must stack above it), so they got no scope and a held card painted
+ * DEFAULT art until it was played onto the board (owner report 2026-10-15: "skins work but when a player grabs a
+ * minion with a skin, the minion shows default art until played"). Same resolver, same cached map. R-PROG-SKINS-17.
+ */
+export function RunSkins({ children }: { children: ReactNode }): JSX.Element {
+  return <MinionSkins snapshot={useRunSkins()}>{children}</MinionSkins>;
+}

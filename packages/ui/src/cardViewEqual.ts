@@ -20,7 +20,7 @@ import type { CardView } from './Card';
 const SCALAR_KEYS = [
   'name', 'cardId', 'tribe', 'tribe2', 'universalTribe', 'attack', 'health', 'text', 'goldenText',
   'stepEphemeral', 'cost', 'costChanged', 'castMult', 'golden', 'tier', 'spell', 'ruby', 'target', 'refPick',
-  'baseAttack', 'baseHealth', 'floorAttack', 'floorHealth', 'chosenOption', 'chooseBothKey', 'artUrl', 'starform', 'riseTint', 'heroPowerOf', 'onLoanKey', 'whisperKey', 'whisperGilded',
+  'baseAttack', 'baseHealth', 'floorAttack', 'floorHealth', 'chosenOption', 'chooseBothKey', 'artUrl', 'skinArt', 'starform', 'riseTint', 'heroPowerOf', 'onLoanKey', 'whisperKey', 'whisperGilded',
   // Reference-compared on purpose: grantedTriggers.ts hands out ONE shared frozen array per shape.
   'grantedTriggers',
 ] as const satisfies readonly (keyof CardView)[];

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -177,6 +177,24 @@ function rollHeroChoices(tribes?: readonly Tribe[]): string[] {
     [ids[i], ids[j]] = [ids[j]!, ids[i]!];
   }
   return ids.slice(0, Math.min(HERO_SELECT_COUNT, ids.length));
+}
+
+/**
+ * THE HERO RE-ROLL's pool (R-HERO-REROLL-01): the list the OPEN picker's offer was drawn from, so a re-roll can only
+ * bring a hero this mode could have offered. Ranked (and any plain lobby) = `playableHeroes` for the pending seed's
+ * tribes (the tribe gate: no Foreman Flint without Dwarves); Practice and Gauntlet = the very list their picker shows,
+ * which IS their offer, so there is nothing new to draw and the control never appears. Versus is the server's
+ * (`rerollVersusHero`) and returns [] here.
+ */
+export function heroRerollPoolOf(s: Pick<GameStore, 'pendingMode' | 'pendingSeed' | 'practiceDraft'>): string[] {
+  const seed = s.pendingSeed;
+  if (seed === undefined || s.pendingMode === 'versus') return [];
+  if (s.pendingMode === 'practice') {
+    const effective = s.practiceDraft.godMode === true ? godPracticeConfig(s.practiceDraft) : s.practiceDraft;
+    return practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective));
+  }
+  if (s.pendingMode === 'gauntlet') return practiceHeroChoiceIds('all', tribesForSeed(seed));
+  return playableHeroes(tribesForSeed(seed)).map((h) => h.id);
 }
 
 const countGolden = (s: RunState): number =>
@@ -394,6 +412,13 @@ interface GameStore {
   /** The hero trio the current run was picked from (captured at pickHero) — for run telemetry (hero offer rate).
    *  Not in the seeded replay (the picker rolls off UI randomness), so it's stashed here at pick time. */
   lastHeroOffer: string[];
+  /** THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): the one re-roll spent on the OPEN hero select, or null while
+   *  it is unused. Every door that opens a picker sets it (fresh = null); `pickHero` stamps it on the run. */
+  heroReroll: HeroReroll | null;
+  /** Spend the hero select's one re-roll on `slot`: a seeded draw (pending seed + "hero-reroll") from the mode's pool,
+   *  never a hero already offered. A no-op once spent, with nothing to draw, or in Versus (the server draws there,
+   *  `rerollVersusHero`). */
+  rerollHero: (slot: number) => void;
   /** UI: cards show compact (art + keyword glyphs, full text on hover) vs. always-on rules text. */
   compactCards: boolean;
   /** Flip the compact / full-text card display (Esc menu). */
@@ -1320,6 +1345,8 @@ function assembleReplayV2(next: RunState, o: {
   return {
     version: 2,
     seed: next.seed, heroId: next.heroId, mode: next.mode ?? 'lobby',
+    // The hero select's one re-roll (R-HERO-REROLL-01), when the run used it: the recording keeps its offer history.
+    ...(next.heroReroll ? { heroReroll: next.heroReroll } : {}),
     author: o.author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
     createdAtMs: Date.now(),
     // THE match length (R-MATCH-LENGTH-01): active play time, not the frames' wall-clock span.
@@ -2237,6 +2264,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   pendingSeed: BOOT_ENTRY?.seed,
   rankedEntry: BOOT_ENTRY,
   lastHeroOffer: [],
+  heroReroll: BOOT_ENTRY?.heroReroll ?? null,
   runeLockInCue: null,
   runeArrival: null,
   setRuneArrival: (a) => set((st) => (a
@@ -2518,7 +2546,20 @@ export const useGame = create<GameStore>((rawSet, get) => {
     set({ inspect: null });
     if (!s.replaying && s.inspect) recordInspectEvent(null);
   },
-  startHeroSelect: () => set(() => { const seed = randomSeed(); return { pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)) }; }),
+  startHeroSelect: () => set(() => { const seed = randomSeed(); return { pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), heroReroll: null }; }),
+  rerollHero: (slot) => {
+    const s = get();
+    if (!s.heroChoices || s.heroReroll || s.pendingSeed === undefined || s.pendingMode === 'versus') return;
+    const r = rollHeroReroll(s.pendingSeed, s.heroChoices, slot, heroRerollPoolOf(s));
+    if (!r) return;
+    const heroChoices = applyHeroReroll(s.heroChoices, r);
+    // THE RANKED ENTRY (R-RANK-06) carries the re-roll, so a restart on hero select reopens the SAME (re-rolled) heroes
+    // with the re-roll spent: closing the game never refunds it.
+    const entry = s.pendingMode === 'lobby' && s.rankedEntry && s.rankedEntry.seed === s.pendingSeed
+      ? { ...s.rankedEntry, heroChoices, heroReroll: r } : null;
+    if (entry) saveRankedEntry(entry);
+    set({ heroChoices, heroReroll: r, ...(entry ? { rankedEntry: entry } : {}) });
+  },
   pickHero: (heroId) => {
     // GAUNTLET: a stage that is gone by the time a hero is picked starts nothing — back to the title.
     const pre = get();
@@ -2574,11 +2615,13 @@ export const useGame = create<GameStore>((rawSet, get) => {
         if (typeof poolState?.bandWidenings === 'number' && run.lobby.poolAtStart.band) run.lobby.poolAtStart.fetchWidenings = poolState.bandWidenings;
       }
       recordRunCosmetics(run);
+      // THE HERO RE-ROLL (R-HERO-REROLL-01): the run records the re-roll its offer took (slot, old, new).
+      if (s.heroReroll && s.heroChoices?.[s.heroReroll.slot] === s.heroReroll.to) run.heroReroll = { ...s.heroReroll };
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save (a no-op for a God Mode run: `sandbox`)
       // GOD MODE: Continue keeps offering the player's real saved run, never the God Mode game.
-      return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET, ...(run.runId ? { rankedEntry: null } : {}) };
+      return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, heroReroll: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET, ...(run.runId ? { rankedEntry: null } : {}) };
     });
     // A rated game now holds the entry's id (and is the save), so the entry record is spent. Outside the updater (storage).
     if (get().rankedEntry === null) clearRankedEntry();
@@ -2633,7 +2676,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     const effective = draft.godMode === true ? godPracticeConfig(draft) : draft;
     // `practiceTimer` stays the player's own choice: God Mode never reads it (a sandbox run has no Practice clock),
     // and a 0 left in memory would make a Practice save resumed later this session silently untimed.
-    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)) };
+    return { practiceSetupOpen: false, practiceDraft: draft, practiceTimer: draft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective)), heroReroll: null };
   });
     // OPPONENT RANK (R-PRACTICE-RANK-01): the pool may hold the player's own rank's sample, not the picked rank's.
     // Start fetching that one NOW, while the hero is being picked, so the launch rarely has to wait for it (the
@@ -2654,7 +2697,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       entry = { runId: mintRunId(), seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), at: new Date().toISOString() };
       saveRankedEntry(entry);
     }
-    set({ showTitle: false, pendingMode: 'lobby', pendingSeed: entry.seed, heroChoices: entry.heroChoices, rankedEntry: entry, avatarPickerOpen: false });
+    set({ showTitle: false, pendingMode: 'lobby', pendingSeed: entry.seed, heroChoices: entry.heroChoices, heroReroll: entry.heroReroll ?? null, rankedEntry: entry, avatarPickerOpen: false });
   },
   abandonRankedEntry: () => {
     const entry = get().rankedEntry;
@@ -2669,7 +2712,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   startGauntlet: (stage) => {
     if (!isStagePlayable(stage, import.meta.env.DEV)) return;
     const seed = randomSeed();
-    set({ showTitle: false, pendingMode: 'gauntlet', pendingGauntletStage: stage, pendingSeed: seed, heroChoices: practiceHeroChoiceIds('all', tribesForSeed(seed)), avatarPickerOpen: false });
+    set({ showTitle: false, pendingMode: 'gauntlet', pendingGauntletStage: stage, pendingSeed: seed, heroChoices: practiceHeroChoiceIds('all', tribesForSeed(seed)), heroReroll: null, avatarPickerOpen: false });
   },
   startTutorial: (course) => {
     dropBoardFx();

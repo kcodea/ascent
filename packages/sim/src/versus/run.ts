@@ -14,6 +14,7 @@
 import { makeRng, type CombatResult, type Rng } from '@game/core';
 import type { SetId } from '@game/content';
 import { playableHeroes } from '../heroes';
+import { heroRerollCandidates } from '../heroReroll';
 import { reduce } from '../reducer';
 import { modalOpen } from '../recruit';
 import { createRun, mixSeed, runTribesForSeed, type Action, type PreparedCombatSide, type RunState } from '../state';
@@ -35,6 +36,13 @@ export function versusHeroOffer(heroSeed: number, runSeed: number, setId: SetId)
     [ids[i], ids[j]] = [ids[j]!, ids[i]!];
   }
   return ids.slice(0, VERSUS_HERO_OFFER_SIZE);
+}
+
+/** THE HERO RE-ROLL in Versus (owner 2026-10-15, R-HERO-REROLL-01): the heroes the seat's one re-roll may draw, i.e.
+ *  the heroes this run's tribes allow minus the current three. The SERVER draws from this list with the match seed
+ *  (`versus_reroll_hero`); the client never picks. */
+export function versusHeroRerollCandidates(runSeed: number, setId: SetId, offer: readonly string[]): string[] {
+  return heroRerollCandidates(offer, playableHeroes(runTribesForSeed(runSeed, setId)).map((h) => h.id));
 }
 
 /** The deterministic RNG for one seat's timeout answers in one round. */

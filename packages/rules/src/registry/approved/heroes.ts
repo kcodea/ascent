@@ -2061,4 +2061,29 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-13). createRun opens a Disco Dan run on 0 Gold; the turn-2 refill reads maxEmbers, which is unchanged.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/run.test.ts"], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: "R-HERO-REROLL-01",
+    title: "Hero select: one re-roll per hero select swaps one offered hero for a new one, in every mode",
+    statement:
+      "Every hero select allows ONE re-roll. The player picks any one offered hero and swaps it for a new one in its place; "
+      + "after that one use every re-roll control disappears. The new hero is drawn from the same pool the offer was drawn "
+      + "from (Ranked: the heroes the run's tribes allow, so Foreman Flint never comes without Dwarves) and is never a hero "
+      + "already offered, nor the one just re-rolled away. The draw is seeded (the run seed plus \"hero-reroll\"), never "
+      + "random at the moment, and the run records it (slot, old hero, new hero) for saves, replays and telemetry. A ranked "
+      + "entry keeps the re-roll: closing the game on hero select reopens the re-rolled heroes with the re-roll spent. In "
+      + "Versus the SERVER draws the hero from the match seed, once per player per match, before the pick and the 20 s "
+      + "deadline (the clock keeps running), and the opponent never sees it; a timeout auto-pick picks from the current three. "
+      + "Practice and Gauntlet show their whole pool, so there is nothing to draw and no control. The Tutorial has no hero "
+      + "select (its hero is authored).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-15 (hero select re-roll)", quote: "add a feature to the hero select that allows a player to re-roll a single hero option once to get a new one in its place" },
+      { kind: 'owner-chat', ref: "Same session, 2026-10-15 (owner choices)", quote: "ONE re-roll total per hero select (pick any one offered hero and swap it for a new one; then the option is gone), in ALL modes: Ranked, Practice, Versus and Gauntlet" },
+      { kind: 'code', ref: "packages/sim/src/heroReroll.ts rollHeroReroll / heroRerollCandidates; packages/ui/src/store.ts rerollHero + heroRerollPoolOf + pickHero (run.heroReroll); packages/ui/src/rank/rankedEntry.ts heroReroll; packages/ui/src/HeroSelect.tsx (.hcreroll + the swap); packages/ui/src/versus/versusStore.ts rerollVersusHero; supabase/migrations/2026-10-15-versus-hero-reroll.sql versus_reroll_hero" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-15; 2026-10-15-versus-hero-reroll.sql applied the same day). A Versus server that refuses the re-roll hides the control for that match.",
+    example: "Ranked offers Indy, Warden, Keshi. Re-roll Warden: Warden dissolves and, say, Rayse coalesces in its place; the three re-roll buttons are gone. Pick Rayse: the run records { slot 1, warden to rayse }.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroReroll.test.ts", "packages/sim/src/versus/versusHeroReroll.db.test.ts", "packages/ui/src/heroReroll.test.tsx"], lastVerifiedAt: '2026-10-15' },
+  },
 ];

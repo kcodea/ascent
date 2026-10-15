@@ -16,7 +16,7 @@
 import { create } from 'zustand';
 import { contentRevision, activeSet } from '@game/content';
 import {
-  buildVersusCandidate, catchUpVersusRun, progressionFactsOf, createVersusRun, deserialize, reduce, resetLobbyDrivers, serialize, versusAutoResolve, versusHeroOffer,
+  buildVersusCandidate, catchUpVersusRun, progressionFactsOf, createVersusRun, deserialize, reduce, resetLobbyDrivers, serialize, versusAutoResolve, versusHeroOffer, versusHeroRerollCandidates, isHeroReroll,
   versusLobby, versusLobbyKey, versusScoutOf, versusTimeoutRng, VERSUS_LEASE_SECONDS, type Action, type RunState, type VersusLobbyInput, type VersusSeat,
 } from '@game/sim';
 import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progression';
@@ -70,11 +70,16 @@ export interface VersusState {
   pickedFor: string | null;
   /** The run is built and waiting for Hero Select's launch to put it on screen. */
   runReady: boolean;
+  /** THE HERO RE-ROLL (R-HERO-REROLL-01): my re-roll request is in flight (picks wait for it), and the match whose
+   *  re-roll the server cannot take (no migration yet, or it refused): the control hides for that match. */
+  rerollPending: boolean;
+  rerollOffFor: string | null;
 }
 
 export const useVersus = create<VersusState>(() => ({
   screen: 'browser', rooms: [], loading: false, error: null, room: null, match: null, priv: null, heroOffer: null,
   rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, offsetMs: 0, lastMatch: null, statsOpen: false, pickedFor: null, runReady: false,
+  rerollPending: false, rerollOffFor: null,
 }));
 
 const clock = new ServerClock();
@@ -410,8 +415,10 @@ async function onMatch(match: VersusMatch): Promise<void> {
   if (!get().priv || get().priv!.match_id !== match.id) {
     const priv = await versusRemote.myPrivate(match.id).catch(() => null);
     if (priv) {
-      const offer = versusHeroOffer(Number(priv.hero_seed), Number(priv.run_seed), match.set_id as SetId);
-      set({ priv, heroOffer: offer, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
+      // The server's row is the truth once registered: after a re-roll (R-HERO-REROLL-01) it is no longer the seeded three.
+      const registered = priv.hero_offer && priv.hero_offer.length === 3 ? priv.hero_offer : null;
+      const offer = registered ?? versusHeroOffer(Number(priv.hero_seed), Number(priv.run_seed), match.set_id as SetId);
+      set({ priv, heroOffer: offer, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, rerollPending: false });
       if (!priv.hero_offer) void versusRemote.registerOffer(match.id, offer).catch(() => undefined);
     }
   }
@@ -543,6 +550,8 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
   void (async () => {
     const hero = (seat === 'p1' ? match.p1_hero : match.p2_hero) ?? offer[priv.hero_index ?? 0] ?? offer[0]!;
     let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId);
+    const rr = get().priv?.hero_reroll;
+    if (isHeroReroll(rr)) run.heroReroll = { ...rr }; // the hero select's one re-roll (R-HERO-REROLL-01)
     const ck = await versusRemote.myLatestCheckpoint(match.id).catch(() => null);
     if (ck?.checkpoint) {
       try { run = deserialize(ck.checkpoint); } catch { /* fall back to the fresh run */ }
@@ -896,7 +905,40 @@ function showVersusHeroSelect(): void {
   const offer = get().heroOffer;
   const g = useGame.getState();
   if (!offer || (g.run.mode === 'versus' && !g.showTitle)) return;
-  useGame.setState({ showTitle: false, pendingMode: 'versus', heroChoices: [...offer], avatarPickerOpen: false });
+  const rr = get().priv?.hero_reroll;
+  useGame.setState({ showTitle: false, pendingMode: 'versus', heroChoices: [...offer], heroReroll: isHeroReroll(rr) ? rr : null, avatarPickerOpen: false });
+}
+
+/**
+ * THE HERO RE-ROLL in Versus (owner 2026-10-15, R-HERO-REROLL-01): the heroes my one re-roll may bring (my run's tribes
+ * allow them, none is in my three), or [] when it is spent, in flight, picked, refused, or the server lacks it.
+ */
+export function versusRerollCandidates(st: VersusState = get()): string[] {
+  const { match, priv, heroOffer } = st;
+  if (!match || !priv || !heroOffer || priv.match_id !== match.id || match.phase !== 'hero_select') return [];
+  if (st.rerollPending || st.rerollOffFor === match.id || st.pickedFor === match.id || priv.hero_index != null || priv.hero_reroll) return [];
+  return versusHeroRerollCandidates(Number(priv.run_seed), match.set_id as SetId, heroOffer);
+}
+
+/** Spend my one re-roll on `slot`: the server draws the hero (match seed) and the swap lands on my screen only. The
+ *  20 s clock keeps running. A server without the migration (`not_deployed`) or a refusal hides the control. */
+export async function rerollVersusHero(slot: number): Promise<void> {
+  const match = get().match;
+  const candidates = versusRerollCandidates();
+  if (!match || candidates.length === 0) return;
+  set({ rerollPending: true });
+  try {
+    const out = await versusRemote.rerollHero(match.id, slot, candidates);
+    const priv = get().priv;
+    if (!priv || priv.match_id !== match.id || !isHeroReroll(out.reroll) || !Array.isArray(out.offer) || out.offer.length !== 3) return;
+    set({ priv: { ...priv, hero_offer: out.offer, hero_reroll: out.reroll }, heroOffer: [...out.offer] });
+    const g = useGame.getState();
+    if (g.pendingMode === 'versus' && g.heroChoices) useGame.setState({ heroChoices: [...out.offer], heroReroll: out.reroll });
+  } catch {
+    set({ rerollOffFor: match.id });
+  } finally {
+    set({ rerollPending: false });
+  }
 }
 
 /**
@@ -1022,7 +1064,7 @@ export function launchVersusHero(heroId: string): Promise<void> {
 export function lockVersusHeroPick(heroId: string): void {
   const match = get().match;
   const i = get().heroOffer?.indexOf(heroId) ?? -1;
-  if (!match || i < 0 || get().pickedFor === match.id || get().priv?.hero_index != null) return;
+  if (!match || i < 0 || get().pickedFor === match.id || get().priv?.hero_index != null || get().rerollPending) return;
   set({ pickedFor: match.id });
   void pickVersusHero(i);
 }

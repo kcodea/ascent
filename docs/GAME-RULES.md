@@ -875,7 +875,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   doors open quietly and the room returns to Open.
 - **Hero Select, 20 seconds.** The ordinary Hero Select screen with the shop's clock and no Back button. Each player
   gets three heroes from a private seed; offers are hidden and may repeat across seats. The pick locks the moment a
-  hero is chosen and stays hidden until both are in. No pick in time: a random one of the three, and the screen
+  hero is chosen and stays hidden until both are in. One re-roll per player per match, drawn by the server and
+  hidden from the opponent (R-HERO-REROLL-01, see "Hero select: one re-roll"). No pick in time: a random one of the three, and the screen
   plays the ordinary ceremony for it. Once both heroes are locked, a finished ceremony starts the game on its own
   after a beat.
 - **Game start, 1:1 with a lobby game.** The full ceremony, the launch, then the Good Luck intro. Round 1's clock
@@ -1281,6 +1282,30 @@ tutorial-only Aster carry the same flag.) Re-enabled since: Runesmith and Guardi
 (2026-10-02), and Pete, Foreman Flint, Emissary, Underdweller, Membrance and Gorun (2026-10-15: *"re-enable gorun,
 foreman flint, underdweller, pete, and membrance"*, *"re-enable emissary as well"*). Foreman Flint carries the
 Dwarf tribe gate (`HeroDef.tribes`): he is offered only in a run whose tribes include Dwarves.
+
+## Hero select: one re-roll (owner 2026-10-15, R-HERO-REROLL-01)
+
+> *"add a feature to the hero select that allows a player to re-roll a single hero option once to get a new one in its
+> place"*
+
+- **One re-roll per hero select, any slot.** Every offered hero wears a small re-roll button (the Runeforge re-roll's
+  plate, round, with the refresh glyph). Pressing one swaps THAT hero for a new one: the old portrait dissolves, the
+  new one coalesces in. Then every re-roll button is gone.
+- **The new hero comes from the same pool the offer did**, never one already on offer and never the one just
+  re-rolled away. Ranked: `playableHeroes` for the run's tribes (the tribe gate holds: no Foreman Flint without
+  Dwarves).
+- **Seeded, recorded.** The draw is the pending run seed plus `"hero-reroll"` (and the slot), never `Math.random`
+  (`packages/sim/src/heroReroll.ts`). The run records it as `RunState.heroReroll` `{ slot, from, to }`, and the v2 replay
+  header carries it. Telemetry's `heroOffer` is the FINAL three (what the player picked from).
+- **Ranked entry:** the entry stores the re-rolled heroes and the spent re-roll, so closing the game on hero select
+  reopens the same (re-rolled) heroes with no re-roll left.
+- **Versus:** the server draws (`versus_reroll_hero`, `supabase/migrations/2026-10-15-versus-hero-reroll.sql`): one
+  slot, once per player per match, before the pick and the 20 s deadline (the clock keeps running), from the match seed
+  over the client's eligible list. It lives in the seat's private row, so the opponent never sees it. A timeout
+  auto-pick picks from the current three. A server that refuses (or lacks the RPC: `not_deployed`) hides the
+  buttons for that match.
+- **Practice and Gauntlet** show their whole pool (or Practice Beginner's three starters, which ARE its pool), so there
+  is nothing new to draw and no button. **The Tutorial** has no hero select (its hero is authored).
 
 ## Runes (the Runeforge)
 

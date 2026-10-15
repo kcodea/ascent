@@ -1,6 +1,6 @@
-import { useEffect, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { mdBold } from './Card';
-import { getHero, activeRift, heroTip, SHOW_HERO_TIPS } from '@game/sim';
+import { getHero, activeRift, heroTip, heroRerollCandidates, SHOW_HERO_TIPS, type HeroReroll } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroPowerArt } from './art';
 import { FadeImg } from './FadeImg';
@@ -8,7 +8,7 @@ import { heroPortrait, useLiveLoadout } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
-import { useGame } from './store';
+import { heroRerollPoolOf, useGame } from './store';
 import {
   ceremonyReduce, CEREMONY_IDLE, ceremonyActive, ceremonyAcceptsClicks,
 } from './hero-select/heroCeremonyMachine';
@@ -18,7 +18,10 @@ import { ceremonyTiming } from './hero-select/heroCeremonyTiming';
 import { HSC_REPLAY_EVENT } from './hero-select/heroCeremonyTunerConfig';
 import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
 import { VersusHeroTimer } from './versus/VersusHeroTimer';
-import { lockVersusHeroPick, markVersusPickShown, useVersusTimeoutHero } from './versus/versusStore';
+import { lockVersusHeroPick, markVersusPickShown, rerollVersusHero, useVersus, useVersusTimeoutHero, versusRerollCandidates } from './versus/versusStore';
+
+/** How long a re-roll's swap plays (the old portrait's dissolve, then the new one's coalesce); matches styles.css. */
+const REROLL_SWAP_MS = 700;
 
 /**
  * Pre-run hero picker. Shows whenever the store has `heroChoices` (first load + after a
@@ -40,6 +43,25 @@ export function HeroSelect() {
   const mode = useGame((s) => s.pendingMode);
   const profile = useGame((s) => s.profile);
   const [ceremony, dispatch] = useReducer(ceremonyReduce, CEREMONY_IDLE);
+  // THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): one per hero select, any slot. Solo modes draw it locally
+  // (seeded, `rerollHero`); Versus asks the server (`rerollVersusHero`). The controls show only while it is unused AND
+  // there is a hero left to draw (Practice / Gauntlet already show their whole pool, so they never get one).
+  const heroReroll = useGame((s) => s.heroReroll);
+  const pendingSeed = useGame((s) => s.pendingSeed);
+  const practiceDraft = useGame((s) => s.practiceDraft);
+  const rerollHero = useGame((s) => s.rerollHero);
+  const versusCanReroll = useVersus((s) => mode === 'versus' && !!choices && versusRerollCandidates(s).length > 0);
+  const versusRerollPending = useVersus((s) => s.rerollPending);
+  const soloCanReroll = useMemo(
+    () => !!choices && mode !== 'versus' && !heroReroll
+      && heroRerollCandidates(choices, heroRerollPoolOf({ pendingMode: mode, pendingSeed, practiceDraft })).length > 0,
+    [choices, mode, heroReroll, pendingSeed, practiceDraft],
+  );
+  // The swap plays for the re-roll the player just pressed (never for one restored with a resumed ranked entry): the
+  // slot is armed on press, and `animatedReroll` remembers the last re-roll already shown.
+  const [armedSlot, setArmedSlot] = useState<number | null>(null);
+  const [animatedReroll, setAnimatedReroll] = useState<HeroReroll | null>(heroReroll);
+  const swapping = heroReroll && heroReroll !== animatedReroll && armedSlot === heroReroll.slot ? heroReroll : null;
   // The choice cards, by index — the ceremony snapshots + animates them but never owns their DOM.
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // HeroSelect renders null (but stays MOUNTED) once pickHero clears heroChoices — so the machine must be
@@ -114,6 +136,15 @@ export function HeroSelect() {
     dispatch({ type: 'select', heroId: timeoutHero, rect: snapshotRect(rectToStage(card.getBoundingClientRect())), index, now: performance.now() });
   }, [mode, timeoutHero, choices, ceremony]);
 
+  // THE SWAP: the old portrait dissolves out (`dyingfade`, the combat death fade) while the new one coalesces in
+  // (`summonpop`) under the Refresh crystal's one-shot shine (`rfb-shine`). All CSS, transform/opacity only: the Pixi
+  // FX canvases sit below this screen. The outgoing image unmounts when the swap ends.
+  useEffect(() => {
+    if (!swapping) return;
+    const done = window.setTimeout(() => { setAnimatedReroll(swapping); setArmedSlot(null); }, REROLL_SWAP_MS);
+    return () => window.clearTimeout(done);
+  }, [swapping]);
+
   if (!choices) return null;
 
   // PRACTICE (owner rework 2026-08-22): the whole roster, in the SAME big cards Play uses — 4 across, two
@@ -132,6 +163,7 @@ export function HeroSelect() {
   // pickHero to the launch curtain (§2). Geometry is read HERE, once, at commit time (§8).
   const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => {
     if (!ceremonyAcceptsClicks(ceremony)) return; // repeats during the ceremony are ignored (§16)
+    if (mode === 'versus' && versusRerollPending) return; // the slot may be about to change under the click
     sfx.pulse();
     if (mode === 'versus') lockVersusHeroPick(id); // VERSUS: the pick locks now, not at Start Game (the clock runs on)
     dispatch({
@@ -141,6 +173,15 @@ export function HeroSelect() {
       index,
       now: performance.now(),
     });
+  };
+  // THE RE-ROLL control (R-HERO-REROLL-01): one press, any slot; every control then disappears.
+  const canReroll = !active && !browse && (mode === 'versus' ? versusCanReroll : soloCanReroll);
+  const onReroll = (slot: number) => (): void => {
+    if (!canReroll) return;
+    sfx.roll();
+    setArmedSlot(slot);
+    if (mode === 'versus') void rerollVersusHero(slot);
+    else rerollHero(slot);
   };
   // The header/Back fade delay is timing-object data, not a stylesheet literal (§4).
   const rootStyle = active
@@ -199,17 +240,22 @@ export function HeroSelect() {
             // scrolling grid (2026-08-22) — the compact variant it used to render is gone.
             {
               const powArt = heroPowerArt(hero.id);
-              return (
+              // The slot this re-roll just swapped: the outgoing portrait rides above the incoming one while it fades.
+              const swapHere = swapping && swapping.slot === i ? swapping : null;
+              const oldArt = swapHere ? heroPortrait(swapHere.from, loadout) : null;
+              const card = (
                 <button
                   key={id}
                   ref={(el) => { cardRefs.current[i] = el; }}
-                  className="herocard big"
+                  className={`herocard big${swapHere ? ' hcswapping' : ''}`}
                   disabled={active}
                   onClick={onPick(id, i)}
                 >
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
                     <div className="hcname hudpill-name">{hero.name}</div>
-                    {art ? <FadeImg className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+                    {art ? <FadeImg className={`hcframe-art${swapHere ? ' hcswap-in' : ''}`} src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+                    {oldArt && <img decoding="sync" className="hcframe-art hcswap-out" src={oldArt} alt="" draggable={false} aria-hidden="true" />}
+                    {swapHere && <span className="rfb-shine hcswap-shine" aria-hidden="true" />}
                     {powArt && <FadeImg className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
                     {/* PRACTICE-ONLY heroes (owner ask 2026-08-23): withheld from Play while they are reworked.
                         These can only ever appear in THIS picker, so the note needs no mode check of its own.
@@ -249,6 +295,24 @@ export function HeroSelect() {
                     </div>
                   </div>
                 </button>
+              );
+              // The Practice / Gauntlet browse grid sizes its cards as direct children of the row, and never has a
+              // re-roll (its offer is the whole pool), so it keeps the bare card.
+              if (browse) return card;
+              return (
+                <div key={id} className="hcslot">
+                  {card}
+                  {canReroll && (
+                    <button
+                      className="hcreroll gtip"
+                      onClick={onReroll(i)}
+                      aria-label={`Re-roll ${hero.name}. Swaps this hero for a new one. One re-roll per hero select.`}
+                      data-tip="Re-roll this hero. Once per hero select."
+                    >
+                      <Icon name="refresh" />
+                    </button>
+                  )}
+                </div>
               );
             }
           })}

@@ -19,9 +19,6 @@
   max-width: none; width: 440px;
   pointer-events: auto;
 }
-/* An account that owns no emote (none are given away since 2026-10-15): a short line pointing at crates. */
-.emote-menu.empty { width: auto; }
-.emote-none { color: var(--atip-muted); white-space: nowrap; }
 .emote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* A pick is the bubble art on a quiet well; it lifts a touch on hover (transform only). The global rule paints the
    gauntlet cursor on buttons, so none is set here. */
@@ -34,6 +31,22 @@
 .emote-pick img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .emote-pick:not(:disabled):hover { transform: translateY(-2px) scale(1.04); }
 .emote-pick:disabled { opacity: 0.38; }
+/* AN EMPTY SLOT (owner 2026-10-15: "show the empty emote slots"): the game's empty-slot frame (the faint dashed outline
+   of an empty Career tile), a muted "Empty", no lift and no press. Static: nothing here animates. */
+.emote-pick.emote-slot-empty {
+  background: rgba(0, 0, 0, 0.16); box-shadow: none; border: 2px dashed rgba(255, 255, 255, 0.24); box-sizing: border-box;
+  transform: none;
+}
+.emote-slot-empty-txt { color: var(--atip-muted, rgba(255, 246, 228, 0.45)); font-weight: 700; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
+/* The Collection's slot row (the same wells, smaller): an emote's bubble or the empty frame; the slot holding the
+   selected emote is ringed. */
+.colls-detail-actions:has(> .colls-emote-slots) { flex-direction: column; align-items: stretch; }
+.colls-emote-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.colls-emote-slots .emote-pick { height: 76px; padding: 4px; }
+.colls-emote-slots .emote-pick.on { box-shadow: inset 0 0 0 2px #e8c877; background: rgba(232, 200, 119, 0.12); }
+.colls-emote-slots .emote-pick:disabled { opacity: 1; }
+.colls-emote-slot-n { position: absolute; left: 6px; top: 4px; font-size: 11px; font-weight: 800; color: rgba(255, 246, 228, 0.55); pointer-events: none; }
+.colls-emote-slots .emote-pick { position: relative; }
 .emote-cd { display: flex; align-items: center; gap: 10px; min-height: 18px; }
 .emote-cd-txt { color: var(--atip-muted); white-space: nowrap; }
 .emote-cd-bar { position: relative; flex: 1 1 auto; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(0, 0, 0, 0.35); }

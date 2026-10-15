@@ -1,8 +1,9 @@
 /**
  * YOUR EMOTE MENU (owner 2026-10-13: "Players equip up to 4 in Collections"). The four emotes the in-game menu shows,
  * resolved from the live loadout by `emoteSlotsOf` (@game/progression): explicit positions first, the player's other
- * OWNED emotes filling the rest. Since 2026-10-15 no emote is given away (every one is a crate drop), so a guest or an
- * account that owns none has an EMPTY menu, and a position only ever shows an emote the account owns.
+ * OWNED emotes filling the rest. Since 2026-10-15 every emote is a crate drop except the one starter, Zen Brian, so a
+ * guest or a fresh account has Zen Brian and three EMPTY slots (the menu draws them), and a position only ever shows an
+ * emote the account owns.
  *
  * THE LOCAL LAYER. Emotes must work locally and offline, and until the owner runs 2026-10-13-emotes.sql (and deploys
  * progression-inventory) the server refuses the `emote` slot. So an equip the server does not take (signed out, the

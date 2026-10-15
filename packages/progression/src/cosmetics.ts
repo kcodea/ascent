@@ -179,8 +179,8 @@ const announcer = (id: string, name: string, rarity: CosmeticRarity, pack: strin
  * use it in a game (right-click your portrait). `assets.art` is the key of the in-repo bubble
  * (`packages/ui/src/art/emotes/<key>.webp`); `assets.master` is the owner's master under
  * `C:/Game Assets/Ascent Art/Emotes/`. Since 2026-10-15 every emote is a CRATE drop (owner: "remove all emotes as
- * 'given' and put them in various loot tiers between rare and legendary"); the `starter` acquisition stays in the
- * vocabulary (no starter emote exists now).
+ * 'given' and put them in various loot tiers between rare and legendary") except ONE starter, Zen Brian (owner, the
+ * same day: "give all players the zen brian emote"), which every player owns from the start.
  */
 const emote = (id: string, name: string, rarity: CosmeticRarity, master: string, acquisition: CosmeticAcquisition = { type: 'crate' }): CosmeticDef =>
   ({ id, category: 'emote', name, rarity, acquisition, assets: { art: id, master }, active: true });
@@ -604,15 +604,17 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // EMOTES (owner 2026-10-13; reworked 2026-10-15). The painted bubbles in C:/Game Assets/Ascent Art/Emotes/
   // (EmoteTemplate.png there is the blank template, not an emote). Names come from the filenames. Owner 2026-10-15:
   // "remove all emotes as 'given' and put them in various loot tiers between rare and legendary. wire all the new ones
-  // that i added": every emote is a CRATE drop now (no starters), spread 6 Rare / 4 Epic / 3 Legendary by how
-  // expressive each is (a proposal the owner may re-tier: a one-word change per line).
+  // that i added": every emote is a CRATE drop, spread by how expressive each is (a proposal the owner may re-tier: a
+  // one-word change per line), EXCEPT Zen Brian, the one starter (below). 5 Rare / 4 Epic / 3 Legendary in crates.
   // RETIRED 2026-10-15 (owner: "remove the angry mushy emote"). Kept as an inactive row, never deleted: the id stays known
   // so an equipped slot or an old recorded board naming it degrades quietly (it is not live, so the menu skips that
   // position, a recording of it plays nothing, the Collection hides it). Its in-repo bubble art was removed with it.
   { ...emote('emote_angry_mushy', 'Angry Mushy', 'common', 'AngryMushy.png', { type: 'starter' }), active: false },
+  // THE STARTER (owner 2026-10-15, after the crate move: "all emotes are crate only except give all players the zen brian
+  // emote"). Owned and in the menu for every account, guests included; never in a crate. Common, like the old starters.
+  emote('emote_zen_brian', 'Zen Brian', 'common', 'ZenBrian.png', { type: 'starter' }),
   // Rare: one face, one feeling.
   emote('emote_nervous_jensen', 'Nervous Jensen', 'rare', 'NervousJensen.png'),
-  emote('emote_zen_brian', 'Zen Brian', 'rare', 'ZenBrian.png'),
   emote('emote_depressed_hank', 'Depressed Hank', 'rare', 'DepressedHank.png'),
   emote('emote_nervous_voss', 'Nervous Voss', 'rare', 'NervousVoss.png'),
   emote('emote_sad_wrangler', 'Sad Wrangler', 'rare', 'SadWrangler.png'),
@@ -1084,9 +1086,8 @@ export const EMOTE_POSITION_RE = /^[0-3]$/;
 /** Is this item a STARTER (every player owns it from the start, no ownership row)? */
 export const isStarterCosmetic = (id: string | null | undefined): boolean => cosmeticOf(id)?.acquisition.type === 'starter';
 
-/** The ACTIVE starter emotes in catalog order. EMPTY since 2026-10-15 (every emote is a crate drop; Angry Mushy, the
- *  last starter kept in the catalog, is retired), so a fresh account's menu is empty. Kept so a future starter needs
- *  no code. */
+/** The ACTIVE starter emotes in catalog order: since 2026-10-15 just Zen Brian (Angry Mushy, the other starter row, is
+ *  retired), so a fresh account's menu is Zen Brian and three empty slots. */
 export const STARTER_EMOTE_IDS: readonly string[] = Object.freeze(COSMETICS.filter((c) => c.category === 'emote' && c.acquisition.type === 'starter' && c.active).map((c) => c.id));
 
 /** Every owned id, plus the ACTIVE starter items everyone owns (a guest and an offline player included). A retired
@@ -1112,8 +1113,8 @@ export function emoteOf(id: string | null | undefined): CosmeticDef | null {
  * dropped). Every empty position then takes, from the player's DEFAULT emotes (every usable owned emote and starter,
  * in catalog order): its own default when that is not already shown, else one pushed out of its own position, else
  * the first not shown yet. So owned emotes appear in the menu without being placed (up to four), putting one in another
- * position SWAPS it with the one that was there, and a player who owns no emote has an empty menu (2026-10-15: no
- * emote is given away any more).
+ * position SWAPS it with the one that was there, and a fresh account shows the one starter, Zen Brian, then empty
+ * positions (2026-10-15).
  */
 export function emoteSlotsOf(loadout: RunCosmeticSnapshot | null | undefined, owned?: readonly string[] | null): (string | null)[] {
   const have = owned == null ? null : new Set(owned);

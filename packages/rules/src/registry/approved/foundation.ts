@@ -5347,21 +5347,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   // ── Emotes: the four-slot menu, and recorded emotes in the snapshot lobby (owner spec 2026-10-13) ─────────────
   {
     id: 'R-PROG-EMOTE-01',
-    title: 'Emotes are a crate cosmetic with a four-slot menu: thirteen crate emotes (Rare, Epic, Legendary), none given away; owned emotes fill the menu; a 20 second cooldown between emotes, no cap',
+    title: 'Emotes are a cosmetic with a four-slot menu that always shows all four slots: Zen Brian is the one STARTER (everyone\x27s), every other emote is a crate drop (Rare, Epic, Legendary); a 20 second cooldown between emotes, no cap',
     statement:
-      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Since 2026-10-15 every live '
-      + 'emote is a CRATE item (acquisition \x27crate\x27): 6 Rare (Nervous Jensen, Zen Brian, Depressed Hank, Nervous Voss, '
-      + 'Sad Wrangler, Tara Sad), 4 Epic (Flirty Midas, Happy Urchin, Sly Oona, Dead Elder) and 3 Legendary (Rich Pimm, '
-      + 'Baby Rubies, Mad Tormentor). They drop like any crate item (fixed rarity odds, then an equal share inside the '
-      + 'rarity, never one already owned) and no emote is owned by default. Angry Mushy, once a starter, is RETIRED '
-      + '(active false, the id kept): it is not owned, shown, equippable or played, and an old recording of it plays '
-      + 'nothing. The in-game menu holds FOUR emotes, one cosmetic_loadouts row per position (slot \x27emote\x27, target '
-      + '\x270\x27..\x273\x27); equip_cosmetic puts an OWNED live emote in a position and the same emote leaves any other '
-      + 'position (a move). The menu shows only emotes the account owns: explicit positions first (a row naming an emote '
-      + 'not owned, retired or unknown is skipped), then every empty position takes the player\x27s own owned emote for it '
-      + '(owned emotes in catalog order), else one pushed out of its position (a swap), else any owned emote not shown, so '
-      + 'owned emotes appear without being placed, up to four. An account that owns none (a guest included) gets a menu '
-      + 'that says "No emotes yet. Open crates to find them." The crate reveal shows a won emote\x27s bubble beside the '
+      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Zen Brian is the one STARTER '
+      + 'item (acquisition \x27starter\x27): every player owns it from the start, signed in or not, with no ownership row, '
+      + 'and it never drops from a crate. Every other live emote is a CRATE item: 5 Rare (Nervous Jensen, Depressed Hank, '
+      + 'Nervous Voss, Sad Wrangler, Tara Sad), 4 Epic (Flirty Midas, Happy Urchin, Sly Oona, Dead Elder) and 3 Legendary '
+      + '(Rich Pimm, Baby Rubies, Mad Tormentor), dropping like any crate item (fixed rarity odds, then an equal share '
+      + 'inside the rarity, never one already owned). Angry Mushy, once a starter, is RETIRED (active false, the id kept): '
+      + 'not owned, shown, equippable or played, and an old recording of it plays nothing. The in-game menu holds FOUR '
+      + 'slots, one cosmetic_loadouts row per position (slot \x27emote\x27, target \x270\x27..\x273\x27); equip_cosmetic puts '
+      + 'an owned (or starter) live emote in a position and the same emote leaves any other position (a move). Only emotes '
+      + 'the account owns ever show: explicit positions first (a row naming an emote not owned, retired or unknown is '
+      + 'skipped), then every empty position takes the player\x27s own default for it (the starter, then owned emotes, in '
+      + 'catalog order), else one pushed out of its position (a swap), else any not shown. The menu ALWAYS draws all four '
+      + 'slots: a slot nothing fills is the dashed empty-slot frame reading "Empty", never clickable, whose game hover '
+      + 'bubble says "Empty slot. Find more emotes in crates." A fresh account (a guest included) sees Zen Brian and three '
+      + 'empty slots. The Collection shows the same four slots for any emote it details (an owned one can be put in any '
+      + 'slot from there; one not owned shows them read-only). The crate reveal shows a won emote\x27s bubble beside the '
       + 'plate. An equip the server cannot take is kept on the device, but still only shows owned emotes. In a game the '
       + 'player right-clicks THEIR hero portrait (only there is the browser menu suppressed) in a shop turn or a combat, '
       + 'never in a replay, and picks an emote: its bubble pops beside the portrait. At least 20 seconds pass between two '
@@ -5375,20 +5378,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players equip up to 4 in Collections. Unlock source: crates, plus starter emotes everyone owns.' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove the angry mushy emote' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove all emotes as \x27given\x27 and put them in various loot tiers between rare and legendary. wire all the new ones that i added' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (emote(), EMOTE_SLOT_COUNT, emoteSlotsOf, emoteLoadoutOf, withEmoteAt); packages/ui/src/progression/CrateOpener.tsx (the emote reveal); supabase/migrations/2026-10-15-emotes-grandfather.sql (optional: keeps the three former starters for existing accounts); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-13-emotes.sql (the starter check, equip_cosmetic); packages/sim/src/emotes.ts (EMOTE_COOLDOWN_MS, emoteCooldownLeft); packages/ui/src/emotes/ (emoteRuntime.ts, emoteLoadout.ts, EmoteLayer.tsx); packages/ui/src/StatusBar.tsx (the right-click); packages/ui/src/progression/CollectionScreen.tsx (the slot buttons)' },
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'all emotes are crate only except give all players the zen brian emote and show the empty emote slots so it\x27s obvious they have empty slots' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (emote(), EMOTE_SLOT_COUNT, emoteSlotsOf, emoteLoadoutOf, withEmoteAt); packages/ui/src/progression/CrateOpener.tsx (the emote reveal); packages/ui/src/emotes/EmptyEmoteSlot.tsx (the empty slot); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-13-emotes.sql (the starter check, equip_cosmetic); packages/sim/src/emotes.ts (EMOTE_COOLDOWN_MS, emoteCooldownLeft); packages/ui/src/emotes/ (emoteRuntime.ts, emoteLoadout.ts, EmoteLayer.tsx); packages/ui/src/StatusBar.tsx (the right-click); packages/ui/src/progression/CollectionScreen.tsx (the slot buttons)' },
     ],
     currentBehaviour:
-      'Conforms in the client from 2026-10-15. On the live server the crate emotes arrive when the owner deploys '
-      + 'progression-inventory (the catalog sync writes them, re-sources the three former starters as crate items and '
-      + 'retires Angry Mushy). Whether existing accounts KEEP the three former starters is the owner\x27s call: '
-      + 'supabase/migrations/2026-10-15-emotes-grandfather.sql grants them (seen) to every existing account; skipped, '
-      + 'every account starts with no emotes.',
+      'Conforms in the client from 2026-10-15. On the live server the catalog follows when the owner deploys '
+      + 'progression-inventory (the sync writes Zen Brian back as a starter, the other emotes as crate items, and retires '
+      + 'Angry Mushy). No SQL: the acquisition check already allows \x27starter\x27 and the sync updates the source.',
     example:
-      'A fresh account right-clicks its portrait: "No emotes yet. Open crates to find them." Its level 3 crate gives Zen '
-      + 'Brian (Rare) and the reveal shows the bubble; the menu now holds Zen Brian with no placing needed. Later it owns '
-      + 'Nervous Jensen and Flirty Midas too: the menu reads Nervous Jensen, Zen Brian, Flirty Midas (catalog order). It '
-      + 'says Zen Brian at 0:05; Flirty Midas at 0:15 is refused (cooling, "Ready in 10s"); at 0:25 it goes. Putting '
-      + 'Flirty Midas in slot 1 in the Collection makes the menu Flirty Midas, Zen Brian, Nervous Jensen.',
+      'A fresh account right-clicks its portrait: Zen Brian, then three dashed "Empty" slots; hovering one says "Empty '
+      + 'slot. Find more emotes in crates." Its level 3 crate gives Nervous Jensen (Rare) and the reveal shows the bubble; '
+      + 'the menu now reads Zen Brian, Nervous Jensen and two empty slots, with no placing needed. It says Zen Brian at '
+      + '0:05; Nervous Jensen at 0:15 is refused (cooling, "Ready in 10s"); at 0:25 it goes. Putting Nervous Jensen in '
+      + 'slot 1 in the Collection makes the menu Nervous Jensen, Zen Brian and two empty slots.',
     enforcement: {
       kind: 'scenario',
       refs: [

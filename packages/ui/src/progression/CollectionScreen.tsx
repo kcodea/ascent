@@ -27,6 +27,7 @@ import { TitleBadge } from '../titles/TitleBadge';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
 import { announcerPackOf } from './announcerPack';
 import { emoteSrc } from '../emotes/emoteArt';
+import { EmptyEmoteSlot } from '../emotes/EmptyEmoteSlot';
 import { CARD_PLATE_LOOKS, type CardPlateLook } from '../cardPlate/cardPlateLook';
 import { clearLocalEmotes, equipEmoteLocally, useEmoteSlots } from '../emotes/emoteLoadout';
 import '../emotes/emotes.css';
@@ -93,7 +94,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const userId = useGame((s) => s.account.userId);
   const playerName = useGame((s) => s.playerName);
   const me = mirrorFor(userId, mirror);
-  // STARTER items are everyone's, signed in or not (none exist since 2026-10-15, when every emote became a crate drop).
+  // STARTER items are everyone's, signed in or not (since 2026-10-15 just Zen Brian, the one starter emote).
   const ownedList = useMemo(() => withStarterCosmetics(me ? ownedIds(me) : EMPTY), [me]);
   // The emote menu by position, as the game will show it (the server's rows, this device's layer, owned emotes filling in).
   const emoteMenu = useEmoteSlots();
@@ -373,7 +374,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
             <DetailPanel
               item={selected} owned={owned.has(selected.id)} equipped={worn(selected)} busy={busy} error={error} playerName={name}
               reducedMotion={reducedMotion} showDefault={defaultShown === selected.id && (busy || !isEquipped(selected, me))}
-              onHover={onHover} emotePosition={selected.category === 'emote' ? emoteMenu.indexOf(selected.id) : -1}
+              onHover={onHover} emotePosition={selected.category === 'emote' ? emoteMenu.indexOf(selected.id) : -1} emoteSlots={emoteMenu}
               onPlaceEmote={(pos) => { void onPlaceEmote(selected, pos); }}
               onEquip={() => { void onEquip(selected, true); }} onTakeOff={() => { void onEquip(selected, false); }}
             />
@@ -460,7 +461,7 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
 
 // ── The detail panel ───────────────────────────────────────────────────────────────────────────────────────
 
-function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, showDefault, onHover, onEquip, onTakeOff, emotePosition = -1, onPlaceEmote }: {
+function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMotion, showDefault, onHover, onEquip, onTakeOff, emotePosition = -1, emoteSlots, onPlaceEmote }: {
   item: CosmeticDef; owned: boolean; equipped: boolean; busy: boolean; error: string | null; playerName: string; reducedMotion?: boolean;
   /** "Use default art" was just pressed for this skin: preview the target's DEFAULT art (owner 2026-09-30). */
   showDefault?: boolean;
@@ -468,6 +469,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   onEquip: () => void; onTakeOff: () => void;
   /** An emote: its menu position (0 to 3), or -1 when it is not in the menu; and how to put it in one. */
   emotePosition?: number;
+  /** Your emote menu by position (null = an empty slot), shown as the four slots. */
+  emoteSlots?: readonly (string | null)[];
   onPlaceEmote?: (position: number) => void;
 }): JSX.Element {
   const skinArt = skinArtOf(item);
@@ -563,17 +566,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         </div>
       )}
       <div className="colls-detail-actions">
-        {emote && owned ? (
-          <div className="colls-emote-slots" role="group" aria-label="Menu slot">
-            {Array.from({ length: EMOTE_SLOT_COUNT }, (_, i) => (
-              <button
-                key={i} type="button" className={`colls-chip${emotePosition === i ? ' on' : ''}`} aria-pressed={emotePosition === i}
-                disabled={busy || emotePosition === i} onClick={() => onPlaceEmote?.(i)}
-                aria-label={emotePosition === i ? `${item.name} is in slot ${i + 1}` : `Put ${item.name} in slot ${i + 1}`}
-              >Slot {i + 1}</button>
-            ))}
-          </div>
-        ) : !owned ? (
+        {emote && <EmoteSlotRow item={item} owned={owned} busy={busy} slots={emoteSlots} onPlace={onPlaceEmote} />}
+        {emote && owned ? null : !owned ? (
           <div className="colls-hint">{missingHint(item)}</div>
         ) : equipped ? (
           <>
@@ -586,6 +580,41 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
       </div>
       {error && <div className="coll-error" role="status">{error}</div>}
     </section>
+  );
+}
+
+/**
+ * YOUR EMOTE MENU as four slots (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"),
+ * drawn like the in-game menu: an emote's bubble, or the dashed empty-slot frame. With an OWNED emote selected each slot
+ * is a button that puts it there (the one already holding it is ringed); otherwise the row is read-only.
+ */
+function EmoteSlotRow({ item, owned, busy, slots, onPlace }: {
+  item: CosmeticDef; owned: boolean; busy: boolean; slots?: readonly (string | null)[]; onPlace?: (position: number) => void;
+}): JSX.Element {
+  const row = slots ?? Array.from({ length: EMOTE_SLOT_COUNT }, () => null);
+  return (
+    <div className="colls-emote-slots" role="group" aria-label="Your emote menu">
+      {row.map((id, i) => {
+        const art = id ? emoteSrc(id) : undefined;
+        const name = id ? cosmeticOf(id)?.name ?? id : null;
+        if (!owned) {
+          return id
+            ? <span key={i} className="emote-pick" aria-label={`Slot ${i + 1}: ${name}`}>{art && <img src={art} alt="" draggable={false} decoding="sync" />}</span>
+            : <EmptyEmoteSlot key={i} position={i} />;
+        }
+        const here = id === item.id;
+        return (
+          <button
+            key={i} type="button" className={`emote-pick pressable${id ? '' : ' emote-slot-empty'}${here ? ' on' : ''}`} aria-pressed={here}
+            disabled={busy || here} onClick={() => onPlace?.(i)}
+            aria-label={here ? `${item.name} is in slot ${i + 1}` : `Put ${item.name} in slot ${i + 1}`}
+          >
+            <span className="colls-emote-slot-n" aria-hidden="true">{i + 1}</span>
+            {art ? <img src={art} alt="" draggable={false} decoding="sync" /> : <span className="emote-slot-empty-txt" aria-hidden="true">Empty</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

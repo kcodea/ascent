@@ -9,38 +9,43 @@ import { validateInventoryBody } from './inventory';
 /**
  * EMOTES (owner spec 2026-10-13): "Emotes are a new COSMETIC type in Collections ... Players equip up to 4 in
  * Collections." Reworked 2026-10-15: "remove all emotes as 'given' and put them in various loot tiers between rare and
- * legendary. wire all the new ones that i added", and "remove the angry mushy emote".
+ * legendary. wire all the new ones that i added", "remove the angry mushy emote", then "all emotes are crate only except
+ * give all players the zen brian emote and show the empty emote slots".
  */
 /** Angry Mushy was a starter until the owner retired it on 2026-10-15. */
 const RETIRED = 'emote_angry_mushy';
+/** THE starter: every player owns it and has it in the menu. */
+const Z = 'emote_zen_brian';
 /** Three crate emotes in catalog order (two Rares, then an Epic). */
-const [A, B, C] = ['emote_nervous_jensen', 'emote_zen_brian', 'emote_flirty_midas'];
+const [A, B, C] = ['emote_nervous_jensen', 'emote_depressed_hank', 'emote_flirty_midas'];
 const ABC = [A, B, C];
 
 afterEach(() => setServerCatalogState(null));
 
 describe('the emote catalog', () => {
-  it('a live, account-wide category of thirteen CRATE emotes, 6 Rare / 4 Epic / 3 Legendary (EmoteTemplate is not one)', () => {
+  it('Zen Brian is the one STARTER; twelve CRATE emotes, 5 Rare / 4 Epic / 3 Legendary (EmoteTemplate is not one)', () => {
     expect(COSMETIC_CATEGORY_DEFS.emote).toEqual({ id: 'emote', label: 'Emotes', weight: 10, enabled: true, target: 'global' });
     const live = COSMETICS.filter((c) => c.category === 'emote' && c.active);
-    expect(live.map((c) => [c.id, c.name, c.rarity, c.assets.master])).toEqual([
-      [A, 'Nervous Jensen', 'rare', 'NervousJensen.png'],
-      [B, 'Zen Brian', 'rare', 'ZenBrian.png'],
-      ['emote_depressed_hank', 'Depressed Hank', 'rare', 'DepressedHank.png'],
-      ['emote_nervous_voss', 'Nervous Voss', 'rare', 'NervousVoss.png'],
-      ['emote_sad_wrangler', 'Sad Wrangler', 'rare', 'SadWrangler.png'],
-      ['emote_tara_sad', 'Tara Sad', 'rare', 'TaraSad.png'],
-      [C, 'Flirty Midas', 'epic', 'FlirtyMidas.png'],
-      ['emote_happy_urchin', 'Happy Urchin', 'epic', 'HappyUrchin.png'],
-      ['emote_sly_oona', 'Sly Oona', 'epic', 'SlyOona.png'],
-      ['emote_dead_elder', 'Dead Elder', 'epic', 'DeadElder.png'],
-      ['emote_rich_pimm', 'Rich Pimm', 'legendary', 'RichPimm.png'],
-      ['emote_baby_rubies', 'Baby Rubies', 'legendary', 'BabyRubies.png'],
-      ['emote_mad_tormentor', 'Mad Tormentor', 'legendary', 'MadTormentor.png'],
+    expect(live.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.master])).toEqual([
+      [Z, 'Zen Brian', 'common', 'starter', 'ZenBrian.png'],
+      [A, 'Nervous Jensen', 'rare', 'crate', 'NervousJensen.png'],
+      [B, 'Depressed Hank', 'rare', 'crate', 'DepressedHank.png'],
+      ['emote_nervous_voss', 'Nervous Voss', 'rare', 'crate', 'NervousVoss.png'],
+      ['emote_sad_wrangler', 'Sad Wrangler', 'rare', 'crate', 'SadWrangler.png'],
+      ['emote_tara_sad', 'Tara Sad', 'rare', 'crate', 'TaraSad.png'],
+      [C, 'Flirty Midas', 'epic', 'crate', 'FlirtyMidas.png'],
+      ['emote_happy_urchin', 'Happy Urchin', 'epic', 'crate', 'HappyUrchin.png'],
+      ['emote_sly_oona', 'Sly Oona', 'epic', 'crate', 'SlyOona.png'],
+      ['emote_dead_elder', 'Dead Elder', 'epic', 'crate', 'DeadElder.png'],
+      ['emote_rich_pimm', 'Rich Pimm', 'legendary', 'crate', 'RichPimm.png'],
+      ['emote_baby_rubies', 'Baby Rubies', 'legendary', 'crate', 'BabyRubies.png'],
+      ['emote_mad_tormentor', 'Mad Tormentor', 'legendary', 'crate', 'MadTormentor.png'],
     ]);
-    expect(live.every((c) => c.acquisition.type === 'crate' && c.assets.art === c.id)).toBe(true);
+    expect(live.every((c) => c.assets.art === c.id)).toBe(true);
     expect(COSMETICS.filter((c) => c.category === 'emote').some((c) => /template/i.test(c.id) || /template/i.test(String(c.assets.master)))).toBe(false);
-    expect(STARTER_EMOTE_IDS).toEqual([]); // nothing is given away any more
+    expect(STARTER_EMOTE_IDS).toEqual([Z]);
+    expect(isStarterCosmetic(Z)).toBe(true);
+    expect(isStarterCosmetic(A)).toBe(false);
     expect(isStarterCosmetic('title_wanderer')).toBe(false);
   });
 
@@ -51,62 +56,64 @@ describe('the emote catalog', () => {
     expect(emoteOf(RETIRED)).toBeNull();
     expect(withStarterCosmetics(null)).not.toContain(RETIRED);
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).not.toContain(RETIRED);
-    expect(emoteLoadoutOf({ emotes: { 0: RETIRED } }, [RETIRED, ...ABC])).toEqual(ABC);
-    expect(emoteLoadoutOf({ emotes: { 0: RETIRED } })).toEqual([]);
+    expect(emoteSlotsOf({ emotes: { 0: RETIRED } }, [RETIRED, ...ABC])).toEqual([Z, A, B, C]);
+    expect(emoteSlotsOf({ emotes: { 0: RETIRED } })).toEqual([Z, null, null, null]);
     expect(emotePositionOf({ emotes: { 0: RETIRED } }, RETIRED)).toBe(-1);
     // The sync still sends it, marked inactive, so the server's copy retires it too.
     expect(catalogSyncPayload().items.find((i) => i.cosmeticId === RETIRED)).toMatchObject({ acquisitionSource: 'starter', active: false });
   });
 
-  it('every live emote drops from a crate, and only until it is owned', () => {
+  it('every live emote but Zen Brian drops from a crate, and only until it is owned', () => {
     const pool = eligibleCrateCosmetics([]).filter((c) => c.category === 'emote').map((c) => c.id);
-    expect(pool).toHaveLength(13);
+    expect(pool).toHaveLength(12);
     expect(pool).toEqual(expect.arrayContaining(ABC));
+    expect(pool).not.toContain(Z);
     expect(eligibleCrateCosmetics([A]).map((c) => c.id)).not.toContain(A);
   });
 
-  it('nobody owns an emote by default (no starters left)', () => {
-    expect(withStarterCosmetics(null)).toEqual([]);
-    expect(withStarterCosmetics(['title_wanderer', B])).toEqual(['title_wanderer', B]);
+  it('everyone owns Zen Brian, a guest included; nothing is duplicated', () => {
+    expect(withStarterCosmetics(null)).toEqual([Z]);
+    expect(withStarterCosmetics(['title_wanderer', Z, B])).toEqual(['title_wanderer', Z, B]);
   });
 
-  it('the catalog sync sends every live emote as a targetless crate item (acquisition source "crate")', () => {
+  it('the catalog sync sends Zen Brian as a starter and every other live emote as a targetless crate item', () => {
     const items = catalogSyncPayload().items.filter((i) => i.category === 'emote' && i.active);
     expect(items).toHaveLength(13);
-    expect(items.every((i) => i.acquisitionSource === 'crate' && i.targetType === null && i.targetId === null)).toBe(true);
+    expect(items.find((i) => i.cosmeticId === Z)).toMatchObject({ acquisitionSource: 'starter', targetType: null, targetId: null });
+    expect(items.filter((i) => i.cosmeticId !== Z).every((i) => i.acquisitionSource === 'crate' && i.targetType === null && i.targetId === null)).toBe(true);
   });
 });
 
 describe('the four-position menu (loadout default / equip)', () => {
-  it('owning nothing = an empty menu, with or without rows', () => {
+  it('a fresh account (owning nothing, or no profile at all) has Zen Brian and three EMPTY slots', () => {
     expect(EMOTE_SLOT_COUNT).toBe(4);
-    expect(emoteLoadoutOf(null)).toEqual([]);
-    expect(emoteLoadoutOf({}, [])).toEqual([]);
-    expect(emoteSlotsOf(null, [])).toEqual([null, null, null, null]);
-    expect(emoteLoadoutOf({ emotes: { 0: A } }, [])).toEqual([]); // a row for an emote not owned never shows
+    expect(emoteSlotsOf(null)).toEqual([Z, null, null, null]);
+    expect(emoteSlotsOf({}, [])).toEqual([Z, null, null, null]);
+    expect(emoteLoadoutOf(null, [])).toEqual([Z]);
+    expect(emoteLoadoutOf({ emotes: { 1: A } }, [])).toEqual([Z]); // a row for an emote not owned never shows
   });
 
-  it('owned emotes fill the menu in catalog order without being placed, four at most', () => {
-    expect(emoteLoadoutOf(null, [C, A, B])).toEqual(ABC);
-    expect(emoteSlotsOf(null, [C, A, B])).toEqual([A, B, C, null]);
+  it('owned emotes fill the menu after the starter, in catalog order, without being placed, four at most', () => {
+    expect(emoteSlotsOf(null, [C, A])).toEqual([Z, A, C, null]);
+    expect(emoteSlotsOf(null, [C, A, B])).toEqual([Z, A, B, C]);
     const all = COSMETICS.filter((c) => c.category === 'emote').map((c) => c.id);
-    expect(emoteLoadoutOf(null, all)).toEqual([A, B, 'emote_depressed_hank', 'emote_nervous_voss']);
+    expect(emoteLoadoutOf(null, all)).toEqual([Z, A, B, 'emote_nervous_voss']);
   });
 
   it('an explicit position wins; putting an emote elsewhere SWAPS it with the one that was there', () => {
-    expect(emoteLoadoutOf({ emotes: { 0: C } }, ABC)).toEqual([C, B, A]);
-    expect(emoteSlotsOf({ emotes: { 3: A } }, ABC)).toEqual([B, C, null, A]);
-    expect(emotePositionOf({ emotes: { 3: A } }, A, ABC)).toBe(3); // the real position, not the index among shown emotes
+    expect(emoteLoadoutOf({ emotes: { 0: C } }, ABC)).toEqual([C, A, B, Z]);
+    expect(emoteSlotsOf({ emotes: { 3: Z } }, [A])).toEqual([A, null, null, Z]);
+    expect(emotePositionOf({ emotes: { 3: Z } }, Z, [A])).toBe(3); // the real position, not the index among shown emotes
     expect(emotePositionOf({ emotes: { 0: C } }, 'emote_unknown', ABC)).toBe(-1);
-    expect(emoteLoadoutOf({ emotes: { 0: C } })).toEqual([C]); // ownership unknown: the rows are trusted
+    expect(emoteLoadoutOf({ emotes: { 1: C } })).toEqual([Z, C]); // ownership unknown: the rows are trusted
   });
 
   it('a duplicate keeps its lowest position; an unknown, retired or unowned emote is dropped and its position refilled', () => {
-    expect(emoteLoadoutOf({ emotes: { 1: C, 2: C } }, ABC)).toEqual([A, C, B]);
-    expect(emoteLoadoutOf({ emotes: { 0: 'emote_from_a_newer_client' } }, ABC)).toEqual(ABC);
-    expect(emoteLoadoutOf({ emotes: { 0: C } }, [A])).toEqual([A]);
+    expect(emoteLoadoutOf({ emotes: { 1: C, 2: C } }, ABC)).toEqual([Z, C, B, A]);
+    expect(emoteLoadoutOf({ emotes: { 0: 'emote_from_a_newer_client' } }, ABC)).toEqual([Z, A, B, C]);
+    expect(emoteSlotsOf({ emotes: { 1: C } }, [A])).toEqual([Z, A, null, null]);
     setServerCatalogState({ retiredIds: [B], disabledCategories: [] });
-    expect(emoteLoadoutOf(null, ABC)).toEqual([A, C]);
+    expect(emoteLoadoutOf(null, ABC)).toEqual([Z, A, C]);
     setServerCatalogState({ retiredIds: [], disabledCategories: ['emote'] });
     expect(emoteLoadoutOf(null, ABC)).toEqual([]);
     expect(emoteOf(A)).toBeNull();
@@ -117,7 +124,7 @@ describe('the four-position menu (loadout default / equip)', () => {
     expect(one.emotes).toEqual({ 0: C });
     const moved = withEmoteAt(one, 2, C);
     expect(moved.emotes).toEqual({ 2: C });
-    expect(emoteLoadoutOf(moved, ABC)).toEqual([A, B, C]);
+    expect(emoteLoadoutOf(moved, ABC)).toEqual([Z, A, C, B]);
     expect(withEmoteAt(moved, 2, null).emotes).toBeUndefined();
     // other loadout fields ride through untouched
     expect(withEmoteAt({ heroAttack: 'attack_blast' }, 1, C)).toEqual({ heroAttack: 'attack_blast', emotes: { 1: C } });

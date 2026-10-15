@@ -133,7 +133,7 @@ describe('the Collection screen: the album', () => {
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
     // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
     // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; the Epics Card Shark and Storm Call (2026-09-29), 83; skins batch 3 (2026-09-29, +4 minion skins and a Frantic Frank hero skin) +5; skins batch 4 (2026-09-30, +16 minion and +16 hero skins) +32; skins batch 5 (2026-09-30, +11 minion skins and Influencer Indy) +12; skins batch 6 (2026-10-01, +9 minion skins) +9; skins + frames batch 3 (2026-10-01, +3 hero skins and +10 portrait frames) +13; frames batch 4 (2026-10-01, +5 portrait frames) +5; frames batch 5 (2026-10-02, Simple Ring and Void) +2; frames batch 6 (2026-10-02, Cherry Blossom) +1; Rayse's hero title (2026-10-02, un-archived) +1; the six Ancient frames (2026-10-02) +6; skins batch 8 + frames batch 7 (2026-10-03, +11 hero skins and +7 portrait frames) +18; frames batch 8 (2026-10-06, Cosmic Glass) +1; skins batch 9 (2026-10-07, Canyon Drake and Thunderchorus Drake) +2; frames batch 9 (2026-10-07, Blossom, Neonpunk, Solar Flare, Color Doodle, Neon Ring) +5
-    expect(text('.colls-meter-num')).toBe('2 / 254'); // 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
+    expect(text('.colls-meter-num')).toBe('3 / 254'); // 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/58');
     clean();
   });
@@ -179,7 +179,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(warded.className).toMatch(/\bworn\b/);
     expect(tileNames()).toHaveLength(58); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('2 / 254'); // Alpha Tester + Warded (the master stands for both tiers); no emote is owned by default since 2026-10-15
+    expect(text('.colls-meter-num')).toBe('3 / 254'); // Alpha Tester + Warded (the master stands for both tiers) + Zen Brian, the one starter emote (2026-10-15)
     // the detail panel's nameplate and the preview under your name are the plate too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
@@ -388,9 +388,10 @@ describe('the Collection screen: NEW', () => {
   });
 
   // Owner 2026-10-15: "remove the angry mushy emote", then "remove all emotes as 'given' and put them in various loot
-  // tiers between rare and legendary". The Emotes tab lists the thirteen crate emotes, rarest first; only owned ones are bright.
-  it('the Emotes tab lists the thirteen crate emotes, rarest first; nothing is owned by default; Angry Mushy is gone', () => {
-    open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'emote_zen_brian'] });
+  // tiers between rare and legendary", then "all emotes are crate only except give all players the zen brian emote and
+  // show the empty emote slots". The Emotes tab lists the thirteen, rarest first; only owned ones are bright.
+  it('the Emotes tab: thirteen emotes, rarest first; Zen Brian owned by everyone; Angry Mushy gone', () => {
+    open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester'] });
     act(() => tab('Emotes').click());
     expect(tileNames()).toHaveLength(13);
     expect(tileNames()).not.toContain('Angry Mushy');
@@ -398,6 +399,25 @@ describe('the Collection screen: NEW', () => {
     expect(text('.colls-tab.on .colls-tab-count')).toBe('1/13');
     expect(tile('Zen Brian').className).toMatch(/\bowned\b/);
     expect(tile('Flirty Midas').className).toMatch(/\bmissing\b/);
+  });
+
+  it('an emote\x27s detail shows YOUR four menu slots: Zen Brian in slot 1, three visibly EMPTY slots', () => {
+    open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'emote_nervous_jensen'] });
+    act(() => tab('Emotes').click());
+    act(() => tile('Nervous Jensen').click());
+    // Owned emotes fill the menu without placing: Zen Brian (the starter), then Nervous Jensen, then two empty slots.
+    const slots = (): HTMLElement[] => $$('.colls-emote-slots .emote-pick');
+    expect(slots()).toHaveLength(4);
+    expect(slots().map((b) => b.classList.contains('emote-slot-empty'))).toEqual([false, false, true, true]);
+    expect(slots().map((b) => b.getAttribute('aria-label'))).toEqual(['Put Nervous Jensen in slot 1', 'Nervous Jensen is in slot 2', 'Put Nervous Jensen in slot 3', 'Put Nervous Jensen in slot 4']);
+    expect(slots()[2]!.textContent).toBe('3Empty');
+    // An emote you do not own: the same row, read-only (no buttons); the empty slots carry the crates hint.
+    act(() => tile('Flirty Midas').click());
+    expect($$('.colls-emote-slots button')).toHaveLength(0);
+    const empty = $$('.colls-emote-slots .emote-slot-empty');
+    expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 3 is empty', 'Slot 4 is empty']);
+    expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in crates.');
+    expect(empty[0]!.hasAttribute('title')).toBe(false);
   });
 
   // Owner 2026-10-11: "we should also create a button that 'Marks all as seen'. when a player clicks that, all
@@ -410,7 +430,7 @@ describe('the Collection screen: NEW', () => {
     expect($$('.colls-tile.fresh')).toHaveLength(0); // the open tab: gone now, not on the next visit
     expect($$('.colls-tab-new')).toHaveLength(0); // and every other tab's count
     expect(button('Mark all as seen')).toBeUndefined();
-    expect(seenList().sort()).toEqual(['alpha_tester', 'skin_albus_1', 'title_star_chaser']); // no emote is owned by default since 2026-10-15
+    expect(seenList().sort()).toEqual(['alpha_tester', 'emote_zen_brian', 'skin_albus_1', 'title_star_chaser']); // Zen Brian, the one starter emote, is everyone's (2026-10-15)
     act(() => tab('Heroes').click());
     expect($$('.colls-tile.fresh')).toHaveLength(0);
     ui!.unmount();
@@ -485,7 +505,7 @@ describe('the Collection screen: NEW', () => {
       expect(markCosmeticsSeenRemote).not.toHaveBeenCalled(); // Titles holds nothing new; the skins are on other tabs
       act(() => button('Mark all as seen')!.click());
       expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1);
-      expect([...markCosmeticsSeenRemote.mock.calls[0]![0]].sort()).toEqual(['skin_albus_1', 'skin_blackbelt_1']); // no starter emotes since 2026-10-15
+      expect([...markCosmeticsSeenRemote.mock.calls[0]![0]].sort()).toEqual(['emote_zen_brian', 'skin_albus_1', 'skin_blackbelt_1']); // + Zen Brian, the one starter emote everyone owns (2026-10-15)
       expect($$('.colls-tab-new')).toHaveLength(0);
     });
 

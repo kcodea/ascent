@@ -899,6 +899,7 @@ export function StatusBar() {
               ref={powerBtnRef}
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
+              data-spec="heropower" // the spectator cursor / hover anchor (versus/cursorSpace.ts)
               disabled={isPassive || (!canHero && !heroArmed)}
               // The forge rune this slot wears (R-RUNESLOT-01): it has no rack badge, so the rune FX anchors
               // (`runeNodeEl`, `badgeCenterOf`, the End-of-Turn tendril's `data-eot-effect`) find it here.
@@ -1149,6 +1150,7 @@ export function StatusBar() {
               <div className="hpwrap">
               <button
                 className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
+                data-spec="heropower2" // the spectator cursor / hover anchor
                 disabled={passive2 || (!ready2 && !armed2)}
                 aria-label={`${p2.name}: ${renameTerms(heroPowerText(run, 1, heroPowerLive)).replace(/\*\*/g, '')}`}
                 onPointerDown={(e) => {
@@ -1229,6 +1231,7 @@ export function StatusBar() {
               <button
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
+                data-spec="equipment" // the spectator cursor / hover anchor
                 disabled={!equipReady && !equipArmed}
                 aria-label={`${selectedEquipDef.name}: ${renameTerms(equipRule).replace(/\*\*/g, '')}`}
                 onPointerDown={(e) => {

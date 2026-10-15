@@ -80,6 +80,29 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
       return (data as { frame: unknown } | null)?.frame ?? null;
     },
     watch: (gameId: string) => rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId }),
+    /**
+     * Watch (or refresh) WITH the watcher's identity, so the player's top-left indicator can show who it is
+     * (R-SPECTATE-WATCHERS-01; SQL `2026-10-15-lobby-live-watcher-identity.sql`). A server without that migration
+     * answers `not_deployed`, and the plain `watch` is used instead (the player then sees a plain "Spectator").
+     */
+    async watchAs(gameId: string, name: string, profile: Record<string, unknown>): Promise<LiveGameRow> {
+      try {
+        return await rpc<LiveGameRow>('lobby_live_watch_as', { p_game: gameId, p_name: name, p_profile: profile });
+      } catch (e) {
+        if ((e as LiveError).code !== 'not_deployed') throw e;
+        return rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId });
+      }
+    },
+    /** The PLAYER's own game's live watchers (name + profile), or null on a server without the identity migration. */
+    async watchers(gameId: string): Promise<{ user_id: string; display_name: string; profile: Record<string, unknown> | null }[] | null> {
+      try {
+        // rows: at most 20 (the watcher cap, enforced in SQL) (R-NET-01).
+        return (await rpc<{ user_id: string; display_name: string; profile: Record<string, unknown> | null }[] | null>('lobby_live_watchers', { p_game: gameId })) ?? [];
+      } catch (e) {
+        if ((e as LiveError).code === 'not_deployed') return null;
+        throw e;
+      }
+    },
     unwatch: (gameId: string) => rpc<void>('lobby_live_unwatch', { p_game: gameId }),
     /** The game's broadcast channel (both ends). */
     channel(gameId: string, onBroadcast: (event: string, payload: unknown) => void): { channel: RealtimeChannel; send: (event: string, payload: unknown) => void; close: () => void } {

@@ -72,6 +72,7 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
   return (
     <button
       ref={wrapRef}
+      data-spec="upgrade"
       className={`tvbwrap${maxed ? ' maxed' : ''}${combat ? ' combat' : ''}`}
       disabled={disabled || maxed || combat}
       onClick={click}

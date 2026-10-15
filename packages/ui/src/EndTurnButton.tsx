@@ -243,6 +243,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   return (
     <button
       ref={wrapRef}
+      data-spec="endturn"
       className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${note ? ' noted' : ''}`}
       disabled={disabled}
       onClick={click}

@@ -9,7 +9,8 @@
 import { create } from 'zustand';
 import { useGame } from '../store';
 import { installSpectateIo, liveSync, receiveSpectate, receiveSpectatorCursor, SPECTATE_KEY_EVENT, useSpectate } from '../versus/spectate';
-import { SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
+import { SPECTATE_BYE_EVENT, SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
+import { myWatcherIdentity } from '../versus/watchers';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
 
 export interface LiveWatchState {
@@ -47,7 +48,9 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
   useLiveWatch.setState({ error: null, ended: null });
   let row: LiveGameRow;
   try {
-    row = await remote.watch(gameId);
+    // With my name and portrait, for the player's "Spectating" indicator (R-SPECTATE-WATCHERS-01).
+    const me = myWatcherIdentity();
+    row = await remote.watchAs(gameId, me.name, me.profile);
   } catch (e) {
     useLiveWatch.setState({ error: errorText(e) });
     return false;
@@ -80,7 +83,8 @@ async function follow(s: NonNullable<typeof session>): Promise<void> {
   if (session !== s) return;
   if (useSpectate.getState().active) useLiveWatch.setState({ joining: false });
   try {
-    const row = await remote.watch(s.gameId);
+    const me = myWatcherIdentity();
+    const row = await remote.watchAs(s.gameId, me.name, me.profile);
     if (session !== s) return;
     useLiveWatch.setState({ game: row });
     if (row.phase === 'end' && !useLiveWatch.getState().ended) gameEnded(s, row);
@@ -103,6 +107,8 @@ export function leaveLiveGame(back = true): void {
   session = null;
   if (s.poll != null) window.clearInterval(s.poll);
   if (s.endTimer != null) window.clearTimeout(s.endTimer);
+  // Tell the player at once (their indicator drops me on its next heartbeat, asked for now instead of in 15 s).
+  s.channel?.send(SPECTATE_BYE_EVENT, {});
   s.channel?.close();
   void remote.unwatch(s.gameId).catch(() => undefined);
   liveSync(null); // stops the watch screen (restoring through `returnTo`)

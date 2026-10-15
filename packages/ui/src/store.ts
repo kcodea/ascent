@@ -2415,7 +2415,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
     notifyTutorialActions(action, prev, get().run);
     versusAfterCommit(action, prev, get().run);
-    if (get().run.mode !== 'versus') tapAct(action); // LIVE RANKED LOBBY: the watchers replay it (a no-op with nobody watching)
+    // LIVE RANKED LOBBY: the watchers replay it (a no-op with nobody watching). A REJECTED action (the reducer returned
+    // the same run: no Gold, a full board) is not tagged: the stands would ring its success sound for nothing.
+    if (get().run.mode !== 'versus' && get().run !== prev) tapAct(action);
   },
   presentationTx: null,
   /**
@@ -2460,7 +2462,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // stalls forever. No-op on every non-tutorial run.
     notifyTutorialActions(tx.action, prev, get().run);
     versusAfterCommit(tx.action, prev, get().run);
-    if (get().run.mode !== 'versus') tapAct(tx.action);
+    if (get().run.mode !== 'versus' && get().run !== prev) tapAct(tx.action);
   },
   /**
    * Drop a prepared transaction without committing. Only legitimate when the run itself is being abandoned

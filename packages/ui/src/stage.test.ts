@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, fitStage } from './stage';
+import { DESIGN_H, DESIGN_W, fitStage, gameBoxOf } from './stage';
 
 // The scaled stage (owner ask 2026-09-26): the layout never goes below the 1920×1080 design size; a smaller window
 // gets the design-size layout scaled down by ONE uniform factor. At or above the design size, nothing changes.
@@ -36,5 +36,21 @@ describe('fitStage', () => {
     const f = fitStage(0, 0);
     expect(f.s).toBe(1);
     expect(Number.isFinite(f.lw) && Number.isFinite(f.lh)).toBe(true);
+  });
+});
+
+describe('gameBoxOf: the centred 16:9 game box in screen px (R-SPECTATE-CURSOR-01)', () => {
+  it('a 16:9 window is all box; a taller or wider one letterboxes; a smaller one scales', () => {
+    expect(gameBoxOf(fitStage(1920, 1080))).toEqual({ left: 0, top: 0, w: 1920, h: 1080 });
+    const tall = gameBoxOf(fitStage(2000, 1170)); // 16:9.36: bars top and bottom
+    expect(tall.w).toBeCloseTo(2000, 6);
+    expect(tall.h).toBeCloseTo(1125, 6);
+    expect(tall.top).toBeCloseTo(22.5, 6);
+    const wide = gameBoxOf(fitStage(3440, 1440)); // 21:9: capped at 2560 x 1440, bars left and right
+    expect(wide).toEqual({ left: 440, top: 0, w: 2560, h: 1440 });
+    const small = gameBoxOf(fitStage(1440, 900)); // scaled 0.75, 16:10: bars top and bottom
+    expect(small.w).toBeCloseTo(1440, 6);
+    expect(small.h).toBeCloseTo(810, 6);
+    expect(small.top).toBeCloseTo(45, 6);
   });
 });

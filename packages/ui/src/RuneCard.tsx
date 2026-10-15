@@ -127,6 +127,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
     <button
       className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
       data-tribe={accent}
+      data-spec={`runecard:${rune.id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
       style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}

@@ -27,8 +27,11 @@ export type VersusSpectatorView = Record<string, unknown> & { wave: number; hero
 /** `m`: the match the message belongs to (a room hosts match after match; the stands drop any other match's). */
 /** `fight`: a LIVE RANKED LOBBY game's fight result (computed on the player's client), on the message that enters it and
  *  on every keyframe while it plays; the spectator replays it from the player's side. Never on a Versus message. */
-export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[]; m?: string; fight?: unknown }
-export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[]; m?: string; fight?: unknown }
+/** `cb`: where the player's fight is (wave, beat), on a keyframe sent while it plays, so a spectator who joins or comes
+ *  back mid-fight seeks to it instead of starting the fight over (R-SPECTATE-JOIN-01). Optional: older clients skip it. */
+export interface CombatBeat { w: number; b: number }
+export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat }
+export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat }
 export type SpectatorMessage = SpectatorKeyframe | SpectatorDelta;
 
 /** A keyframe at least this often, so a receiver that missed one never drifts far. */

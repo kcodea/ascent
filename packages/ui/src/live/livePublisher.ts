@@ -14,8 +14,10 @@ import { createDeferredWriter } from '../idleWork';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, useGame } from '../store';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from '../versus/spectatorView';
-import { hasPendingActs, setSpectatorTap, takeActs } from '../versus/spectateTap';
+import { combatBeatFor, hasPendingActs, setSpectatorTap, takeActs } from '../versus/spectateTap';
 import { SPECTATE_KEY_EVENT } from '../versus/spectate';
+import { SPECTATE_BYE_EVENT } from '../versus/spectateTap';
+import { anonymousWatchers, setWatchers as setWatcherList } from '../versus/watchers';
 import { liveRemote, type LiveRemote } from './liveRemote';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
@@ -65,17 +67,33 @@ function beat(): void {
  *  watcher count starts publishing. */
 const ASK_THROTTLE_MS = 2000;
 function onBroadcast(l: Live, event: string): void {
+  // A watcher LEAVING: an immediate heartbeat recounts the stands (the "Spectating" indicator drops them now).
+  if (event === SPECTATE_BYE_EVENT) { beat(); return; }
   if (event !== SPECTATE_KEY_EVENT) return;
-  if (l.pub) { l.keyWanted = true; frames.schedule(undefined); return; }
+  if (l.pub) { l.keyWanted = true; frames.schedule(undefined); }
+  // A joining watcher asks for a keyframe: a heartbeat (throttled) recounts the stands, so a game not publishing yet
+  // starts, and the indicator shows the newcomer at once.
   const now = Date.now();
   if (now - l.askedAt < ASK_THROTTLE_MS) return;
   l.askedAt = now;
   beat();
 }
 
+/** The stands changed (a recount moved): read who is watching for the top-left indicator (R-SPECTATE-WATCHERS-01).
+ *  Only on a change of count, so it is one small read per join / leave. An older server gives no identities: plain
+ *  "Spectator" plates, one per watcher. */
+function readWatchers(l: Live, n: number): void {
+  if (n <= 0) { setWatcherList([]); return; }
+  void remote.watchers(l.gameId).then((rows) => {
+    if (live !== l) return;
+    setWatcherList(rows ? rows.slice(0, 20).map((r) => ({ id: r.user_id, name: r.display_name ?? '', profile: r.profile ?? null })) : anonymousWatchers(n));
+  }).catch(() => { if (live === l) setWatcherList(anonymousWatchers(n)); });
+}
+
 function setWatchers(l: Live, n: number): void {
   const was = l.watchers;
   l.watchers = n;
+  if (n !== was) readWatchers(l, n);
   if (n > 0 && !l.pub) {
     if (!l.channel) l.channel = remote.channel(l.gameId, (event) => onBroadcast(l, event));
     l.pub = newPublisher('p1');
@@ -113,7 +131,9 @@ const frames = createDeferredWriter<undefined>(() => {
   // The fight rides KEYFRAMES only (a new fight forces one): a delta keeps the watcher's fight object, so its replay
   // is never restarted by the next shop delta mid-fight.
   if (fight && msg.kind === 'key') { msg.fight = fight; l.fightSent = fight; }
-  l.channel.send('spectate', msg);
+  // Where the fight is, on a broadcast keyframe while it plays (never the persisted copy): R-SPECTATE-JOIN-01.
+  const cb = msg.kind === 'key' ? combatBeatFor(run) : null;
+  l.channel.send('spectate', cb ? { ...msg, cb } : msg);
   if (msg.kind === 'key') void remote.publishFrame(l.gameId, msg.seq, msg.round, msg).catch(() => undefined);
 }, 250);
 
@@ -132,6 +152,8 @@ function stop(ended: number | null | 'abandon'): void {
   live = null;
   if (l.timer != null) window.clearInterval(l.timer);
   stopPublishing(l);
+  frames.cancel(); // a publish still waiting for idle time belongs to the game that just stopped
+  setWatcherList([]);
   l.channel?.close();
   l.channel = null;
   void remote.end(l.gameId, ended === 'abandon' ? null : ended).catch(() => undefined);

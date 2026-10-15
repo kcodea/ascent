@@ -221,10 +221,11 @@ describe('the shared spine — tallies survive the settle and follow the POWER, 
       expect(h.power.passive, `${id} is a passive`).toBe(true);
       // All three were ARCHIVED 2026-09-24 (heroArchive.test.ts), which takes them out of the adopted-power pools
       // too; what stays pinned is that no kind-level ban (`UNDISCOVERABLE_KINDS`) would hide them if restored.
-      expect(h.wip, `${id} archived 2026-09-24`).toBe(true);
+      // Gorun was RESTORED 2026-10-15 (owner: "re-enable gorun, ..."), so it is adoptable now; the others stay archived.
       expect(h.practiceOnly, `${id} is not merely practice-only`).toBeFalsy();
+      const was = h.wip;
       h.wip = false;
-      try { expect(powerDiscoverPool('void'), `${id} would be adoptable again once restored`).toContain(id); } finally { h.wip = true; }
+      try { expect(powerDiscoverPool('void'), `${id} is adoptable when not archived`).toContain(id); } finally { h.wip = was; }
     }
   });
 });

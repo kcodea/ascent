@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-15',
+    changes: [
+      { category: 'Balance', text: 'Six heroes are back in the hero pick: Gorun, Foreman Flint, Underdweller, Pete, Membrance and Emissary. Each has its achievements and a hero title to earn.' },
+    ],
+  },
+  {
     date: '2026-10-14',
     changes: [
       {

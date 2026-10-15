@@ -36,7 +36,7 @@ const heroAttack = readFileSync(join(root, 'supabase/migrations/2026-09-28-progr
 const odds = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-fixed-rarity-odds.sql'), 'utf8');
 /** The equal-chance migration (2026-09-29, "yeah equal chance") REPLACES `progression_crate_pick` + `open_crate`. */
 const uniform = readFileSync(join(root, 'supabase/migrations/2026-09-29-crate-uniform-within-rarity.sql'), 'utf8');
-/** The hero titles migration (2026-09-29) REPLACES `settle_progression` (it grants achievement titles) and seeds the 66 hero titles. */
+/** The hero titles migration (2026-09-29) REPLACES `settle_progression` (it grants achievement titles) and seeds the hero titles (84 since 2026-10-15). */
 const heroTitles = readFileSync(join(root, 'supabase/migrations/2026-09-29-hero-titles.sql'), 'utf8');
 /** The Gauntlet migration (2026-09-29) REPLACES `progression_crate_json` (adds `source`) + the crate transition guard. */
 const gauntlet = readFileSync(join(root, 'supabase/migrations/2026-09-29-gauntlet-progress.sql'), 'utf8');
@@ -371,7 +371,7 @@ describe('the hero titles migration (2026-09-29): a title at 3 Ranked 1sts with 
     }));
     const hero = new Set(HERO_TITLE_COSMETICS.map((c) => c.id));
     expect([...sqlRows].sort((a, b) => (a.cosmeticId < b.cosmeticId ? -1 : 1))).toEqual(catalogSyncPayload().items.filter((i) => hero.has(i.cosmeticId)));
-    expect(sqlRows).toHaveLength(72);
+    expect(sqlRows).toHaveLength(84);
     expect(sqlRows.every((r) => r.acquisitionSource === 'achievement')).toBe(true);
     const at = heroTitles.indexOf('insert into public.cosmetic_catalog (');
     expect(heroTitles.slice(heroTitles.indexOf('on conflict', at), heroTitles.indexOf(';', heroTitles.indexOf('on conflict', at)))).toMatch(/do nothing$/);

@@ -203,9 +203,11 @@ export const HERO_TITLE_NAMES: ReadonlyArray<readonly [heroId: string, title: st
   ['gildmaster', 'Gildwright'], ['discodan', 'Groovy'], ['brackus', 'Summit Seeker'], ['baggerben', 'All In'], ['hermithank', 'Penny Pincher'],
   ['runesmith', 'Runecarver'], ['runeguard', 'Runebound'], // re-activated 2026-10-01; placeholder names for the owner
   ['repete', 'Deja Vu'], ['gorr', 'Four Peater'], ['kindness', 'Kind Soul'], ['merrin', 'Pocket Mage'], ['gambler', 'Gambling Addict'],
-  ['xerox', 'Paper Jam'], ['frank', 'Bargain Hunter'], ['quillen', 'Archivist'], ['hunch', 'Bookworm'], ['emeraldwarden', 'Vanguard'],
-  ['albus', 'Albus Student'], ['flash', 'Speedrunner'], ['midas', 'Midas Touched'], ['juggler', 'Juggling Act'], ['bram', 'Compound Interest'],
-  ['cia', 'High Roller'], ['keshi', 'Crownbearer'], ['rayse', 'Thornbound'], ['mimic', 'Not a Mimic'],
+  ['xerox', 'Paper Jam'], ['frank', 'Bargain Hunter'],
+  ['pete', 'Top Banana'], ['flint', 'Company Man'], ['vale', 'Ambassador'], // re-enabled 2026-10-15; placeholder names for the owner
+  ['quillen', 'Archivist'], ['hunch', 'Bookworm'], ['emeraldwarden', 'Vanguard'],
+  ['underdweller', 'Soulkeeper'], ['albus', 'Albus Student'], ['flash', 'Speedrunner'], ['midas', 'Midas Touched'], ['juggler', 'Juggling Act'], ['membrance', 'Total Recall'], ['bram', 'Compound Interest'],
+  ['cia', 'High Roller'], ['keshi', 'Crownbearer'], ['rayse', 'Thornbound'], ['gorun', 'Bladesworn'], ['mimic', 'Not a Mimic'],
 ] as const);
 
 /** The catalog id of a hero's title, and of its master (golden plate) version. Permanent. */

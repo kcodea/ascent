@@ -17,15 +17,15 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 446 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(446);
+  it('ships 482 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(482);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 222, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34,
+      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 3050, ranked: 4300, heroes: 37150, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100,
+      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100,
     });
-    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(105_950);
+    expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(111_650);
     // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
     expect(Object.fromEntries(['career.games.100', 'career.top_four.50', 'career.firsts.25', 'career.comebacks.10', 'career.heroes_played.15', 'career.hero_wins.15', 'career.achievements.25', 's2.kobold.rubies_life_500', 'hero.warden.mastery']
       .map((id) => [id, ACHIEVEMENT_INDEX[id]!.rewards.xp]))).toEqual({
@@ -89,8 +89,8 @@ describe('the batch 1 registry', () => {
     expect(ACHIEVEMENTS.filter((a) => a.category !== 'set2').every((a) => a.setId === null)).toBe(true);
   });
 
-  it('hero templates: 36 heroes x 5; Debut and Top 4 count any game, the win tiers are Ranked only (owner default 5)', () => {
-    expect(ACHIEVEMENT_HEROES).toHaveLength(36);
+  it('hero templates: 42 heroes x 5; Debut and Top 4 count any game, the win tiers are Ranked only (owner default 5)', () => {
+    expect(ACHIEVEMENT_HEROES).toHaveLength(42);
     for (const h of ACHIEVEMENT_HEROES) {
       const [debut, top, win, titled, mastery] = ['debut', 'top_four', 'victory', 'titled', 'mastery'].map((t) => ACHIEVEMENT_INDEX[`hero.${h.id}.${t}`]!);
       expect([debut!.mode, top!.mode, win!.mode, titled!.mode, mastery!.mode]).toEqual(['any', 'any', 'ranked', 'ranked', 'ranked']);
@@ -129,11 +129,12 @@ describe('the batch 1 registry', () => {
 
 describe('the 2026-10-03 150 (owner: "add 150 more achievements"; themes Tribes & cards, Heroes deeper, Combat feats, Long-term grind)', () => {
   const theme = (a: AchievementDef): string => (a.category === 'set2' ? 'tribes' : a.category === 'heroes' ? 'heroes' : a.category);
-  it('150 new, by theme: 38 / 42 / 36 / 34, 61,375 XP, XP only, never hidden', () => {
-    expect(ACHIEVEMENTS_150).toHaveLength(150);
+  // 156 since 2026-10-15: each re-enabled hero (Pete, Foreman Flint, Emissary, Underdweller, Membrance, Gorun) adds its Devoted tier (+6, +1,200 XP)
+  it('150 new (156 with the 2026-10-15 heroes), by theme: 38 / 48 / 36 / 34, 62,575 XP, XP only, never hidden', () => {
+    expect(ACHIEVEMENTS_150).toHaveLength(156);
     const by = ACHIEVEMENTS_150.reduce<Record<string, number>>((m, a) => ({ ...m, [theme(a)]: (m[theme(a)] ?? 0) + 1 }), {});
-    expect(by).toEqual({ tribes: 38, heroes: 42, combat: 36, milestones: 34 });
-    expect(ACHIEVEMENTS_150.reduce((s, a) => s + a.rewards.xp, 0)).toBe(61_375);
+    expect(by).toEqual({ tribes: 38, heroes: 48, combat: 36, milestones: 34 });
+    expect(ACHIEVEMENTS_150.reduce((s, a) => s + a.rewards.xp, 0)).toBe(62_575);
     for (const a of ACHIEVEMENTS_150) {
       expect(a.rewards.titleId, a.id).toBeNull();
       expect(a.hidden, a.id).toBe(false);
@@ -143,7 +144,7 @@ describe('the 2026-10-03 150 (owner: "add 150 more achievements"; themes Tribes 
 
   it('XP scales steeply with difficulty (owner: "some of the larger longer term ones should easily be 500+ xp")', () => {
     const band = (lo: number, hi: number): number => ACHIEVEMENTS_150.filter((a) => a.rewards.xp >= lo && a.rewards.xp <= hi).length;
-    expect([band(25, 100), band(101, 300), band(301, 499), band(500, 749), band(750, 1500)]).toEqual([10, 77, 13, 24, 26]);
+    expect([band(25, 100), band(101, 300), band(301, 499), band(500, 749), band(750, 1500)]).toEqual([10, 83, 13, 24, 26]); // 77 before the six Devoted tiers of 2026-10-15
     expect(Math.max(...ACHIEVEMENTS_150.map((a) => a.rewards.xp))).toBe(1500);
     // the biggest milestones sit clearly above 500
     for (const id of ['career.games.1000', 'ranked.games.1000', 'career.firsts.250', 'career.top_four.500', 'combat.kills_life_5000']) {

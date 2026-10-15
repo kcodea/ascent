@@ -9,7 +9,7 @@
 --
 -- WHAT THIS IS (owner 2026-09-29: "the hero's title is granted at 3 wins with a hero, then the mastery of that
 -- title is after 10 wins with that hero. the master title should be a golden plate and embroidered text"):
---  - 72 catalog titles (66 at first; Runesmith + Guardian added 2026-10-01, Rayse 2026-10-02), two per playable hero: `title_hero_<id>` (from the new `hero.<id>.titled` achievement, 3
+--  - 84 catalog titles (66 at first; Runesmith + Guardian added 2026-10-01, Rayse 2026-10-02, Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun 2026-10-15), two per playable hero: `title_hero_<id>` (from the new `hero.<id>.titled` achievement, 3
 --    Ranked 1sts) and `title_hero_<id>_master` (from `hero.<id>.mastery`, 10). Achievement-sourced, so
 --    `progression_crate_pool` (crate items only) never offers them. The code owns the catalog
 --    (`sync_cosmetic_catalog`, run by `progression-inventory`); this seed only makes sure the rows exist before the
@@ -75,12 +75,20 @@ insert into public.cosmetic_catalog (cosmetic_id, category, rarity, acquisition_
   ('title_hero_xerox_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.xerox.mastery', true),
   ('title_hero_frank', 'title', 'epic', 'achievement', null, null, null, 'hero.frank.titled', true),
   ('title_hero_frank_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.frank.mastery', true),
+  ('title_hero_pete', 'title', 'epic', 'achievement', null, null, null, 'hero.pete.titled', true),
+  ('title_hero_pete_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.pete.mastery', true),
+  ('title_hero_flint', 'title', 'epic', 'achievement', null, null, null, 'hero.flint.titled', true),
+  ('title_hero_flint_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.flint.mastery', true),
+  ('title_hero_vale', 'title', 'epic', 'achievement', null, null, null, 'hero.vale.titled', true),
+  ('title_hero_vale_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.vale.mastery', true),
   ('title_hero_quillen', 'title', 'epic', 'achievement', null, null, null, 'hero.quillen.titled', true),
   ('title_hero_quillen_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.quillen.mastery', true),
   ('title_hero_hunch', 'title', 'epic', 'achievement', null, null, null, 'hero.hunch.titled', true),
   ('title_hero_hunch_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.hunch.mastery', true),
   ('title_hero_emeraldwarden', 'title', 'epic', 'achievement', null, null, null, 'hero.emeraldwarden.titled', true),
   ('title_hero_emeraldwarden_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.emeraldwarden.mastery', true),
+  ('title_hero_underdweller', 'title', 'epic', 'achievement', null, null, null, 'hero.underdweller.titled', true),
+  ('title_hero_underdweller_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.underdweller.mastery', true),
   ('title_hero_albus', 'title', 'epic', 'achievement', null, null, null, 'hero.albus.titled', true),
   ('title_hero_albus_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.albus.mastery', true),
   ('title_hero_flash', 'title', 'epic', 'achievement', null, null, null, 'hero.flash.titled', true),
@@ -89,6 +97,8 @@ insert into public.cosmetic_catalog (cosmetic_id, category, rarity, acquisition_
   ('title_hero_midas_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.midas.mastery', true),
   ('title_hero_juggler', 'title', 'epic', 'achievement', null, null, null, 'hero.juggler.titled', true),
   ('title_hero_juggler_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.juggler.mastery', true),
+  ('title_hero_membrance', 'title', 'epic', 'achievement', null, null, null, 'hero.membrance.titled', true),
+  ('title_hero_membrance_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.membrance.mastery', true),
   ('title_hero_bram', 'title', 'epic', 'achievement', null, null, null, 'hero.bram.titled', true),
   ('title_hero_bram_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.bram.mastery', true),
   ('title_hero_cia', 'title', 'epic', 'achievement', null, null, null, 'hero.cia.titled', true),
@@ -97,6 +107,8 @@ insert into public.cosmetic_catalog (cosmetic_id, category, rarity, acquisition_
   ('title_hero_keshi_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.keshi.mastery', true),
   ('title_hero_rayse', 'title', 'epic', 'achievement', null, null, null, 'hero.rayse.titled', true),
   ('title_hero_rayse_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.rayse.mastery', true),
+  ('title_hero_gorun', 'title', 'epic', 'achievement', null, null, null, 'hero.gorun.titled', true),
+  ('title_hero_gorun_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.gorun.mastery', true),
   ('title_hero_mimic', 'title', 'epic', 'achievement', null, null, null, 'hero.mimic.titled', true),
   ('title_hero_mimic_master', 'title', 'legendary', 'achievement', null, null, null, 'hero.mimic.mastery', true)
 on conflict (cosmetic_id) do nothing;

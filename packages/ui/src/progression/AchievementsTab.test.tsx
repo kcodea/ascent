@@ -38,9 +38,9 @@ describe('the view model', () => {
     expect(v.total).toBe(ACHIEVEMENTS.length);
     expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones']);
     expect(v.categories.find((c) => c.id === 'set2')!.groups.map((g) => g.label)).toEqual(['Kobolds', 'Dwarves', 'Dragons', 'Beasts', 'Demons', 'Cross-tribe', 'Runes']);
-    // 36 heroes (six tiers each since 2026-10-03) after the account-wide "All heroes" group
+    // 42 heroes (six tiers each since 2026-10-03; 36 until the 2026-10-15 re-enables) after the account-wide "All heroes" group
     const heroes = v.categories.find((c) => c.id === 'heroes')!.groups;
-    expect(heroes).toHaveLength(37);
+    expect(heroes).toHaveLength(43);
     expect(heroes[0]!.label).toBe('All heroes');
     expect(heroes.slice(1).every((g) => g.tiles.length === 6)).toBe(true);
     expect(v.categories.find((c) => c.id === 'combat')!.total).toBe(36);

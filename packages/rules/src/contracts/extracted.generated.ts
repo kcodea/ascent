@@ -13436,8 +13436,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:passive-pricing",
       "power-kind:companyRate",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {
@@ -13606,8 +13605,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:bladeMastery",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {
@@ -13908,8 +13906,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:active-conditional",
       "power-kind:memory",
       "untargeted",
-      "cost:1",
-      "wip"
+      "cost:1"
     ],
     "triggers": [
       {
@@ -14142,8 +14139,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:count-threshold",
       "power-kind:contraband",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {
@@ -14542,8 +14538,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:active-conditional",
       "power-kind:soulkeeper",
       "untargeted",
-      "cost:2",
-      "wip"
+      "cost:2"
     ],
     "triggers": [
       {
@@ -14576,8 +14571,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:unitedFront",
-      "passive",
-      "wip"
+      "passive"
     ],
     "triggers": [
       {

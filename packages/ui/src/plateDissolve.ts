@@ -143,13 +143,26 @@ interface Mote { x: number; y: number; vx: number; vy: number; born: number; lif
  * Everything is created detached on <body> and torn down when it finishes, so nothing survives the effect
  * and it can't interact with React's tree.
  */
-export function playPlateDissolve(screenRect: { left: number; top: number; width: number; height: number }): void {
+/** Per-call override (the Whisper dissipate, `whisperDissipate.ts`: its palette and a lighter dust load); every dial it
+ *  does not name stays the shipped one. */
+export type PlateDissolveOverrides = Partial<PlateDissolveConfig>;
+const paletteSprites = new Map<string, { core: HTMLCanvasElement; mid: HTMLCanvasElement }>();
+
+export function playPlateDissolve(screenRect: { left: number; top: number; width: number; height: number }, overrides?: PlateDissolveOverrides): void {
   if (typeof document === 'undefined') return;
   // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
   const rect = rectToStage(screenRect);
-  const c = cfg;
+  const c = overrides ? { ...cfg, ...overrides } : cfg;
   const k = rect.width / REF_W;
-  if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
+  let spr: { core: HTMLCanvasElement; mid: HTMLCanvasElement };
+  if (overrides && (overrides.cCore || overrides.cMid)) {
+    const key = `${c.cCore}|${c.cMid}`;
+    spr = paletteSprites.get(key) ?? { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
+    paletteSprites.set(key, spr);
+  } else {
+    if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
+    spr = sprites;
+  }
 
   // --- the wireframe imprint: the gradient shown through the baked line mask ---
   const imp = document.createElement('div');
@@ -234,10 +247,10 @@ export function playPlateDissolve(screenRect: { left: number; top: number; width
         const fade = 1 - age, rr = p.r * (0.6 + 0.4 * fade);
         if (rr > 0) {
           ctx.globalAlpha = Math.min(1, fade * fade * 0.9);
-          ctx.drawImage(sprites!.core, p.x - rr, p.y - rr, rr * 2, rr * 2);
+          ctx.drawImage(spr.core, p.x - rr, p.y - rr, rr * 2, rr * 2);
           const r2 = rr * 1.7;
           ctx.globalAlpha = Math.min(1, fade * 0.5);
-          ctx.drawImage(sprites!.mid, p.x - r2, p.y - r2, r2 * 2, r2 * 2);
+          ctx.drawImage(spr.mid, p.x - r2, p.y - r2, r2 * 2, r2 * 2);
         }
       }
       ctx.globalAlpha = 1;

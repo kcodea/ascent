@@ -167,6 +167,7 @@ import { getInfuseFxConfig } from './infuseFxConfig';
 import { getConsumeFxConfig } from './consumeFxConfig';
 import { consumeTransform } from './fx/consumeTransform';
 import { playPlateDissolve } from './plateDissolve';
+import { mergeWhisperFade, planWhisperDissipate, WHISPER_DISSIPATE_MS, WHISPER_DISSIPATE_FX, type WhisperFadeItem } from './whisperDissipate';
 import { playPlateCoalesce } from './plateCoalesce';
 /* THE LASSO BEAM (owner ask 2026-09-22). Stealing a Shop minion throws the owner-authored `lasso` def from
    wherever the steal came FROM — the spell's drop point, Rope Wrangler's medallion, the Equipment slot, the
@@ -2109,6 +2110,30 @@ export function Recruit() {
   const sotHeld = sotHolds.stats;
   const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid) || !!sotHolds.hand?.has(uid);
   const gambleHand = gambleHold || lassoHolds.hand.size || sotHolds.hand?.size ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
+  /* WHISPER DISSIPATE (owner 2026-10-14, `whisperDissipate.ts`). On End Turn every unused Whisper plays its drift-and-fade
+     in the hand row while the End-of-Turn beats and the combat transition run (never delaying them). The commit removes
+     it from `run.hand`; the row then holds it as a GHOST at its slot until its own fade ends, and drops it the moment the
+     fade ends, before or after the commit, so the hand glides shut behind it. */
+  const [whisperFade, setWhisperFade] = useState<{ items: WhisperFadeItem[]; ghosts: Map<string, BoardCard>; views: Map<string, CardView>; ended: Set<string> } | null>(null);
+  const whisperFadeTimersRef = useRef<number[]>([]);
+  /** Set when a dissipated Whisper leaves the row, so the hand's close-the-gap glide runs even once combat has begun. */
+  const whisperGlideRef = useRef(false);
+  useEffect(() => () => { for (const t of whisperFadeTimersRef.current) window.clearTimeout(t); }, []);
+  // Done once every fade has ended and the commit has taken the cards out of the run (a fade that ends while the
+  // End-of-Turn beats still show the old hand keeps hiding it until then).
+  useEffect(() => {
+    if (!whisperFade || whisperFade.ended.size < whisperFade.items.length) return;
+    if (run.hand.some((c) => whisperFade.ended.has(c.uid))) return;
+    setWhisperFade(null);
+  }, [whisperFade, run.hand]);
+  const handRow = useMemo(
+    () => (whisperFade ? mergeWhisperFade(gambleHand, whisperFade.items, whisperFade.ghosts, whisperFade.ended) : gambleHand),
+    [gambleHand, whisperFade],
+  ) as BoardCard[];
+  const whisperFadeDelays = useMemo(
+    () => (whisperFade ? new Map(whisperFade.items.filter((i) => !whisperFade.ended.has(i.uid)).map((i) => [i.uid, i.delayMs] as const)) : null),
+    [whisperFade],
+  );
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
@@ -4000,6 +4025,36 @@ export function Recruit() {
     // `handStatOverride` is a per-render closure over `eotAnimStats` + `combatHandBuffs`; both are listed below.
     [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
   );
+  // The hand row's views: a dissipating Whisper the commit already removed keeps the view it last showed.
+  const handRowViews = useMemo(() => {
+    if (!whisperFade || handRow.every((c) => handViews.has(c.uid))) return handViews;
+    const m = new Map(handViews);
+    for (const [uid, v] of whisperFade.views) if (!m.has(uid)) m.set(uid, v);
+    return m;
+  }, [handViews, handRow, whisperFade]);
+  /** Start the Whisper dissipate for every unused Whisper in the hand row (End Turn, live or a replay's recorded one). */
+  const beginWhisperDissipate = (): void => {
+    const items = planWhisperDissipate(gambleHand, (id) => !!CARD_INDEX[id]?.whisper);
+    if (!items.length) return;
+    for (const t of whisperFadeTimersRef.current) window.clearTimeout(t);
+    whisperFadeTimersRef.current = [];
+    const ghosts = new Map(items.map((i) => [i.uid, gambleHand[i.index]!] as const));
+    const views = new Map(items.flatMap((i) => { const v = handViews.get(i.uid); return v ? [[i.uid, v] as const] : []; }));
+    setWhisperFade({ items, ghosts, views, ended: new Set() });
+    for (const it of items) {
+      // The wisps: the plate breaks up in the Whisper palette as its fade starts (one rect read per Whisper).
+      whisperFadeTimersRef.current.push(window.setTimeout(() => {
+        const plate = document.querySelector<HTMLElement>(`.row.hand > .card[data-uid="${it.uid}"] .cardplate`);
+        const r = plate?.getBoundingClientRect();
+        if (r && r.width > 0) playPlateDissolve(r, WHISPER_DISSIPATE_FX);
+      }, it.delayMs));
+      // Its fade is over: out of the row (the hand glides shut, `whisperGlideRef`).
+      whisperFadeTimersRef.current.push(window.setTimeout(() => {
+        whisperGlideRef.current = true;
+        setWhisperFade((prev) => (prev ? { ...prev, ended: new Set([...prev.ended, it.uid]) } : prev));
+      }, it.delayMs + WHISPER_DISSIPATE_MS));
+    }
+  };
   // HAND BUFF cue (owner 2026-09-15, replacing the 2026-07-23 spell-buff grow/shrink + spark blast): when ANY
   // hand card gets stronger — a minion gaining stats, or a spell / Ruby / Clue / token whose printed value
   // went up — the owner-authored `hand-buff` def plays on that card, so the player sees exactly which cards
@@ -6437,7 +6492,7 @@ export function Recruit() {
   // pop-in.
   // The RENDERED row, not `run.hand`: a card lifted out for the Choose One preview changes what the row
   // shows, and the hand should close the gap behind it rather than jump when it comes back.
-  const handOrderKey = gambleHand.map((c) => c.uid).join(',');
+  const handOrderKey = handRow.map((c) => c.uid).join(',');
   useLayoutEffect(() => {
     // Kill the hand cards' CSS `transition: transform` first (like the warband/shop commit does): on drop the
     // dragged card's slide resets to 0 and the neighbours' slides clear, and if the base transition is live it
@@ -6485,7 +6540,10 @@ export function Recruit() {
     // unconditionally so a later count-change (buy/play) still glides normally.
     const glidedByFlip = reorderGlidedRef.current;
     reorderGlidedRef.current = false;
-    if (inCombat || dragStore.get().drag?.active || glidedByFlip) return;
+    // A dissipated Whisper leaving the row glides the hand shut even when combat has already begun (owner 2026-10-14).
+    const whisperGlide = whisperGlideRef.current;
+    whisperGlideRef.current = false;
+    if ((inCombat && !whisperGlide) || dragStore.get().drag?.active || glidedByFlip) return;
     const prev = handLeftsRef.current;
     const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
     // READ every position first, THEN write (perf 2026-10-11). Interleaving the two forced a fresh style + layout
@@ -6527,7 +6585,7 @@ export function Recruit() {
      above keys on a subset of this, so within one commit it still reads the previous positions first. */
   const handLayoutKey = `${handOrderKey}|${handPreviews.length}|${compactCards ? '1' : '0'}`;
   useLayoutEffect(() => {
-    if (inCombat) { handLeftsRef.current.clear(); return; }
+    if (inCombat && !whisperFade) { handLeftsRef.current.clear(); return; }
     const refresh = (): void => {
       perfMonitor.measure('layout:handglide', () => {
         const next = new Map<string, number>();
@@ -7146,6 +7204,8 @@ export function Recruit() {
     // GOD MODE (owner 2026-10-08): End Turn first asks which round the opponent board should be from; the pick
     // (`pickGodRound`) fetches + pins a real board and re-enters here with the gate open.
     if (godEndTurnNeedsPick(run, godFoeReadyRef.current)) { if (!godPrompt) setGodPrompt({ busy: false, message: null }); return; }
+    // Unused Whispers dissipate now, in parallel with whatever End of Turn plays next (owner 2026-10-14).
+    beginWhisperDissipate();
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
     // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
     // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
@@ -7511,6 +7571,7 @@ export function Recruit() {
     const onDone = (): void => {
       if (useGame.getState().replayEotCue?.key === key) useGame.setState({ replayEotDone: key });
     };
+    if (!inCombat && !endTurnPendingRef.current) beginWhisperDissipate(); // the replay's End Turn dissipates its Whispers too
     const ok = !inCombat && !endTurnPendingRef.current && playEndOfTurnAuthoritative({
       batch: replayEotCue.eot.batch,
       lassoFx: replayEotCue.eot.lassoFx ?? [],
@@ -7996,8 +8057,8 @@ export function Recruit() {
 
       <PerfProfiler id="render:recruit:hand">
       <HandRow
-        gambleHand={gambleHand} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
-        handViews={handViews} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
+        gambleHand={handRow} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
+        handViews={handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
         onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
       />
       </PerfProfiler>
@@ -8743,9 +8804,11 @@ const WarbandRow = memo(function WarbandRow({
 /** The hand zone: the fanned hand + the grant previews. Memoized like the other rows; `handSlotW` is the drag's
  *  measured slot spacing passed as a value (it was read off a ref at render). */
 const HandRow = memo(function HandRow({
-  gambleHand, handOrder, goldSpentRun, tier, wave, handViews, refViewsByUid, combatHandSummoned,
+  gambleHand, handOrder, goldSpentRun, tier, wave, handViews, fadeDelays, refViewsByUid, combatHandSummoned,
   onCardPointerDown, handPreviewViews,
 }: {
+  /** Whispers dissipating at End of Turn: uid -> fade delay ms (`whisperDissipate.ts`). */
+  fadeDelays: ReadonlyMap<string, number> | null;
   gambleHand: BoardCard[];
   /** `run.hand`'s uid order — the dragged card's home slot for the reorder slide (memoized by the caller). */
   handOrder: readonly string[];
@@ -8811,6 +8874,7 @@ const HandRow = memo(function HandRow({
                 spent={combatHandSummoned?.has(m.uid) ?? false}
                 handSlidePx={toStage(handSlide(i) * handSlotW)} /* handSlotW is measured (screen) -> stage px (stage.ts) */
                 fanRot={fanRot}
+                dissipate={fadeDelays?.get(m.uid)}
                 onPointerDown={onCardPointerDown}
                 locked={locked}
                 lockLabel={lockLabel}

@@ -91,7 +91,7 @@ export function draftRunId(run: Pick<RunState, 'seed'>): string {
  */
 export function runRecordsDraft(run: Pick<RunState, 'mode' | 'sandbox'>): boolean {
   if (run.sandbox) return false;
-  return run.mode !== 'practice' && run.mode !== 'tutorial' && run.mode !== 'gauntlet';
+  return run.mode !== 'practice' && run.mode !== 'tutorial' && run.mode !== 'gauntlet' && run.mode !== 'versus'; // VERSUS: no replay upload (no history yet)
 }
 
 /** Highest `tMs` across frames and trail — the cumulative clock position a resume must continue from. */

@@ -27,6 +27,10 @@ import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { StageSelect } from './gauntlet/StageSelect';
 import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
 import { schedulePrefetchSocial } from './socialPrefetch';
+import { VersusTitle } from './versus/VersusTitle';
+import { VersusRoom } from './versus/VersusRoom';
+import { openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
+import { versusEnabled } from './versus/versusFlag';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -79,6 +83,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
+  const versusScreen = useVersus((s) => s.screen);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
@@ -97,6 +102,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // Apply the persisted Title Logo tuner values (dev) / DEFAULTS (prod) to `--title-*` when the menu mounts.
   // Same for the Title Veil (`--tv-*`, the navy background vignette) and the account corner (`--ta-*`).
   useEffect(() => { applyTitleVars(); applyTitleVeilVars(); applyTitleAccountVars(); }, []);
+  // VERSUS: a player who left a RUNNING match (reload, crash, new tab) is taken straight back into it.
+  useEffect(() => { if (versusEnabled()) void resumeVersusMatch(); }, []);
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
@@ -427,6 +434,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 </div>
               </button>
             </div>
+
+            {/* VERSUS (2026-10-13): real-time 1v1 rooms. Behind `versusEnabled()` until the server side is live. */}
+            {versusEnabled() && (
+              <div className="mprow">
+                <button className="modecard" data-mp="versus" onClick={() => { sfx.pulse(); openVersus(); }}>
+                  <div className="mcframe" data-mode="versus" data-mp="versus">
+                    <div className="mcname hudpill-name">Versus</div>
+                    <span className="mcemblem"><Crest /></span>
+                    <div className="mcdesc">Real-time 1v1. Seven hearts each. Unranked.</div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </SidebarHost>
       )}
@@ -469,6 +489,18 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <div className="mpbox">
             <h1 className="disp mptitle">GAUNTLET</h1>
             <StageSelect />
+          </div>
+        </SidebarHost>
+      )}
+
+      {/* VERSUS — the lobby browser and the room (versus/VersusTitle.tsx), over the picker like the Gauntlet view. */}
+      {titleView === 'versus' && versusScreen === 'room' && <VersusRoom />}
+      {titleView === 'versus' && versusScreen !== 'room' && (
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Versus">
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
+          <div className="mpbox">
+            <h1 className="disp mptitle">VERSUS</h1>
+            <VersusTitle />
           </div>
         </SidebarHost>
       )}

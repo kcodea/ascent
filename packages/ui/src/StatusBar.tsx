@@ -855,15 +855,23 @@ export function StatusBar() {
             {playerName && <div className="heroname hudpill-name" ref={playerNameRef}>{playerName}</div>}
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
-              + −X float when a wave breaks through. */}
-          <div
+              + −X float when a wave breaks through. VERSUS (owner 2026-10-14): the same box holds your HEARTS, read off
+              your seat of the two-seat display lobby (`versusLobby`), which drops one the moment a lost fight settles. */}
+          {run.mode === 'versus' && <div
+            className="hpbox hudpill-hp"
+            aria-label={`Hearts: ${run.lobby?.seats[0]?.resolve ?? 0} of ${run.lobby?.rules.startingResolve ?? 0}`}
+          >
+            <Icon name="heartPill" />
+            <span className="hpval">{run.lobby?.seats[0]?.resolve ?? '-'}</span>
+          </div>}
+          {run.mode !== 'versus' && <div
             className={`hpbox hudpill-hp${hit ? ' hit' : ''}`}
             aria-label={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
           >
             <Icon name="heartPill" />
             <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval hudpill-arm" aria-description="Armor. Absorbs damage before your Health."><Icon name="armor" /><span className="hp-armplus">+</span>{run.armor}</b>}</span>
             {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
-          </div>
+          </div>}
         </div>
         {/* Hero power — its OWN box to the right of the hero frame, sized up so an ACTIVE power reads as an
             obvious press-me button. The whole box glows (`.ready`) when the power is usable this turn, so it's a

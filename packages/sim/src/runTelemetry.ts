@@ -27,7 +27,7 @@ import type { RankAtStart } from './rankAtStart';
  * mode, so the flag, not the mode, is what identifies it). Stamped so a row's origin is SQL-filterable and a
  * sandbox row can never be mistaken for a ladder row even if a future gate slips.
  */
-export type TelemetrySource = 'ladder' | 'sandbox' | 'practice' | 'tutorial' | 'gauntlet' | 'ascent' | 'rift';
+export type TelemetrySource = 'ladder' | 'sandbox' | 'practice' | 'tutorial' | 'gauntlet' | 'ascent' | 'rift' | 'versus';
 
 /** The source stamp for a run — pure over the two fields that decide it, so the store and the tests agree. */
 export function telemetrySourceOf(run: Pick<RunState, 'mode' | 'sandbox'>): TelemetrySource {

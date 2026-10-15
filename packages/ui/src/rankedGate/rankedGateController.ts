@@ -15,16 +15,35 @@
 
 import type { RankedGateVariant } from './rankedGateTiming';
 
+/**
+ * VERSUS (owner 2026-10-14: "the normal lobby gate close with the crystal") — optional, entry gate only. Absent, the
+ * gate is exactly the ranked one.
+ *  - `onPress`: the crystal press. The doors stay shut, the crystal held, until it resolves: `true` shatters it and
+ *    opens the doors on whatever it swapped in behind them; `false` opens them quietly (no shatter) on what is there.
+ */
+export interface RankedGateOptions {
+  onPress?: () => Promise<boolean>;
+}
+
 /** Plays the gate. Must call `onShut` once the doors are shut, and resolve when the sequence has ended. */
-export type RankedGateFn = (onShut: () => void, variant: RankedGateVariant) => Promise<void>;
+export type RankedGateFn = (onShut: () => void, variant: RankedGateVariant, opts?: RankedGateOptions) => Promise<void>;
 
 let controller: RankedGateFn | null = null;
+/** Opens a playing entry gate quietly (no shatter), from outside: registered by the gate alongside `controller`. */
+let canceller: (() => void) | null = null;
 /** The sequence in flight, if any: a second press joins it instead of starting another gate. */
 let inFlight: Promise<void> | null = null;
 
 /** The gate registers itself on mount and unregisters (pass null) on unmount. */
-export function registerRankedGate(fn: RankedGateFn | null): void {
+export function registerRankedGate(fn: RankedGateFn | null, cancel: (() => void) | null = null): void {
   controller = fn;
+  canceller = fn ? cancel : null;
+}
+
+/** VERSUS: the gate window closed (the room went back to Open) while the doors were shut: open them quietly on the
+ *  screen behind, whether or not the crystal was pressed. A no-op with no gate playing. */
+export function cancelRankedGate(): void {
+  canceller?.();
 }
 
 /**
@@ -33,7 +52,7 @@ export function registerRankedGate(fn: RankedGateFn | null): void {
  * the swap). `variant`: `entry` (the default) is the start of a ranked match, with the crystal; `end` is the fight
  * that ends a game.
  */
-export function requestRankedGate(onShut: () => void, variant: RankedGateVariant = 'entry'): Promise<void> {
+export function requestRankedGate(onShut: () => void, variant: RankedGateVariant = 'entry', opts?: RankedGateOptions): Promise<void> {
   if (inFlight) return inFlight;
   let done = false;
   const once = (): void => {
@@ -47,7 +66,7 @@ export function requestRankedGate(onShut: () => void, variant: RankedGateVariant
   }
   let run: Promise<void>;
   try {
-    run = controller(once, variant);
+    run = opts ? controller(once, variant, opts) : controller(once, variant);
   } catch (err) {
     run = Promise.reject(err);
   }
@@ -60,5 +79,6 @@ export function requestRankedGate(onShut: () => void, variant: RankedGateVariant
 /** Test-only: clear the module state between specs. */
 export function resetRankedGateForTests(): void {
   controller = null;
+  canceller = null;
   inFlight = null;
 }

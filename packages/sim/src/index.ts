@@ -42,6 +42,7 @@ export * from './bugReport'; // shared bug-reporter envelope/capsule + inbox sha
 export * from './qaScenario'; // QaScenarioV1 — the ONE shared QA scenario envelope + pure runner (Scene Builder, Docbot, bug repro, regressions)
 export * from './windowReplay'; // WP C — exact per-action report replay from the capsule's rolling window (tools + the dev report panel share one verdict)
 export * from './semanticTrace'; // WP C — the unified recruit+combat semantic trace + first-divergence locator
+export * from './versus'; // VERSUS (2026-10-13): the real-time 1v1 mode's resolver, constants and wire helpers
 
 export * from './runTelemetry';
 export * from './rankAtStart'; // R-TELEMETRY-RANK-01: the rank a rated game started at, pinned on the run + stamped into telemetry

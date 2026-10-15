@@ -109,8 +109,8 @@ export function levelProgress(lifetimeXp: number): LevelProgress {
 
 // ── Match XP (handoff §4.3) ────────────────────────────────────────────────────────────────────────────────
 
-export type ProgressionMode = 'ranked' | 'practice' | 'tutorial';
-export const PROGRESSION_MODES: readonly ProgressionMode[] = ['ranked', 'practice', 'tutorial'];
+export type ProgressionMode = 'ranked' | 'practice' | 'tutorial' | 'versus';
+export const PROGRESSION_MODES: readonly ProgressionMode[] = ['ranked', 'practice', 'tutorial', 'versus'];
 
 export const XP_RULES = {
   /** Complete an accepted Ranked run. */
@@ -130,6 +130,8 @@ export const XP_RULES = {
   practiceFlat: 60,
   /** First completion of the current Learn Ascent course version. */
   tutorial: 250,
+  /** VERSUS (owner 2026-10-14: XP and achievements, never rank): the winner's bonus on top of `complete`. */
+  versusWin: 60,
 } as const;
 
 export const TUTORIAL_COURSE_ID = 'learn-ascent';
@@ -138,6 +140,9 @@ export const TUTORIAL_COURSE_VERSION = 1;
 export const tutorialRunId = (courseId: string = TUTORIAL_COURSE_ID, version: number = TUTORIAL_COURSE_VERSION): string => `${courseId}:v${version}`;
 /** A practice settlement's run id is its `practice_games` row id: one row, one settlement. */
 export const practiceRunId = (practiceGameId: number): string => `practice:${practiceGameId}`;
+/** A Versus settlement's run id is its server-owned match id: one match, one settlement per player. */
+export const versusRunId = (matchId: string): string => `versus:${matchId}`;
+export const VERSUS_RUN_ID = /^versus:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export interface XpBreakdown {
   base: number;
@@ -164,6 +169,12 @@ export const isValidPlacement = (p: unknown): p is number => typeof p === 'numbe
 export function xpForSettlement(input: { mode: ProgressionMode; placement: number | null; comeback: boolean; terminal?: boolean }): XpBreakdown {
   if (input.terminal === false) return { ...ZERO_XP };
   if (input.mode === 'tutorial') return { base: XP_RULES.tutorial, topFour: 0, firstPlace: 0, comeback: 0, total: XP_RULES.tutorial };
+  // VERSUS: a completed match earns `complete`; the winner (placement 1) adds `versusWin`. Placement 2 = the loser,
+  // null = nobody won (abandoned). Never a comeback, never a Top 4 bonus.
+  if (input.mode === 'versus') {
+    const win = input.placement === 1 ? XP_RULES.versusWin : 0;
+    return { base: XP_RULES.complete, topFour: 0, firstPlace: win, comeback: 0, total: XP_RULES.complete + win };
+  }
   const placed = isValidPlacement(input.placement);
   if (input.mode === 'practice' && !placed) {
     return { base: XP_RULES.practiceFlat, topFour: 0, firstPlace: 0, comeback: 0, total: XP_RULES.practiceFlat };

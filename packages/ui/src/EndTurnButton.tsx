@@ -30,7 +30,7 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  * Position/scale come from `--etb-*` vars (stage-pinned like the hero power); the DEV tuner
  * (`EndTurnTuner.tsx`) dials everything live.
  */
-export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat }: {
+export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, note }: {
   onEndTurn: () => void;
   disabled: boolean;
   /** The button has been hit — the end-of-turn beats are playing; show the dulled gem + stop the effects. */
@@ -41,6 +41,9 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
    *  2026-07-16): clicking relights it with a clean shine (no strike sfx/vfx) and returns to the shop. */
   combatReady?: boolean;
   onEndCombat?: () => void;
+  /** A status the gem's own pill shows, pinned on, in place of its label (VERSUS: "Players ready 1/2" while this
+   *  player waits on the other one, owner 2026-10-14). Null / absent: the ordinary hover label. */
+  note?: string | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLButtonElement>(null);
@@ -230,7 +233,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   return (
     <button
       ref={wrapRef}
-      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}`}
+      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${note ? ' noted' : ''}`}
       disabled={disabled}
       onClick={click}
       aria-label={combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}
@@ -259,7 +262,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       {striking && <img decoding="sync" className="etb-flash" src={`${F}end_button_gem.webp`} alt="" draggable={false} aria-hidden="true" />}
       {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
       {relighting && <img decoding="sync" className="etb-flash relight" src={`${F}end_button_base.webp`} alt="" draggable={false} aria-hidden="true" />}
-      <span className="etb-tip">{combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}</span>
+      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (combatReady ? 'End combat and go back to shop' : 'End your turn and start combat')}</span>
     </button>
   );
 });

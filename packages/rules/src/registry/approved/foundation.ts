@@ -5464,4 +5464,163 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and nothing after the record. The Rules Wiki says divisions "go up Bronze I, Bronze II, Bronze III".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/retiredTerms.test.ts', 'packages/ui/src/gauntlet/heroSelectGauntlet.test.tsx'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-VERSUS-HEARTS-01',
+    title: 'Versus is played to seven hearts: a lost round strikes one, a draw strikes nobody, Resolve never moves',
+    statement:
+      'In Versus each player starts with 7 hearts. Each round the two players fight each other once; the loser of '
+      + 'that fight loses one heart and the winner loses nothing. A draw costs nobody a heart. A player at 0 hearts '
+      + 'loses the match and the other player wins; no further shop opens. Combat never changes either player\x27s '
+      + 'Resolve or Armor in Versus, and the match never ends by Resolve, by the old course length or by lobby '
+      + 'placement. Cards and heroes that touch Resolve or Armor stay in the Versus pool unchanged; their effects '
+      + 'simply do not change hearts.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Health: each player has 7 hearts; you lose a heart when you lose a round (struck by the enemy). 0 hearts = you lose. Combat never touches Resolve.' },
+      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Draws: nobody loses a heart.' },
+      { kind: 'code', ref: 'packages/sim/src/versus/combat.ts resolveVersusFight (heartLostBy); packages/sim/src/reducer.ts settleCombat + advanceCombat (mode versus: no Resolve damage, no course victory, no Resolve gameover); supabase/migrations/2026-10-13-versus.sql versus_commit_round' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-13 (feat/versus-phase0); live once the Versus migration and the versus-resolve finalize deploy are applied.',
+    example: 'Round 9, you lose the fight: 4 hearts become 3; your opponent keeps 6. Round 10 is a draw: both stay.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusRun.test.ts', 'packages/sim/src/versus/versusSchema.db.test.ts', 'packages/sim/src/versus/versusMatch.db.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-VERSUS-RANK-01',
+    title: 'Versus never changes rank, rating or MMR',
+    statement:
+      'A Versus match never submits a rank or rating request, never settles an abandon penalty, never uploads its '
+      + 'boards to the opponent pool, never writes the ranked save slot and never counts as a ranked or Practice '
+      + 'game. XP, achievements and match history are granted; rank, rating and MMR never change, whatever the '
+      + 'result. XP: 100 for a completed match (at least one round fought), plus 60 for the winner; no comeback bonus. '
+      + 'Achievements: Versus counts for the achievements any game counts for, with the hero the server recorded, but a '
+      + '1v1 win is not a lobby finish, so Top 4 / 1st achievements and Ranked-only achievements never count it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Progression: XP, achievements and match history ARE granted; NO rank, rating or MMR changes ever.' },
+      { kind: 'owner-chat', ref: 'Owner answer relayed by the coordinator, 2026-10-14', quote: 'versus can complete achievements and grant XP but no rank progress' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-14-versus-progression.sql settle_progression (versus branch) + progression_results.mode; packages/progression/src/rules.ts XP_RULES.versusWin / versusRunId / xpForSettlement; packages/progression/src/server.ts validateSubmitBody; packages/ui/src/versus/versusStore.ts settleVersusProgression' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts RunMode versus; packages/ui/src/rank/ratedRun.ts rankedRunIdForFinish (mode lobby only); packages/ui/src/store.ts isResumableRun / startVersusRun / leaveVersusRun; packages/ui/src/replay/replayDraft.ts runRecordsDraft' },
+    ],
+    currentBehaviour:
+      'Conforms in code from 2026-10-14; the XP / achievement half is live once supabase/migrations/2026-10-14-versus-'
+      + 'progression.sql is applied and submit-progression is redeployed. Match history is the versus_matches / '
+      + 'versus_rounds rows. The 100 / +60 numbers and the placement-gate exclusion are the builder\x27s proposal, '
+      + 'pending owner tuning.',
+    example: 'You win a Versus match 7 hearts to 0: you earn 160 XP and any achievement progress a game earns; your medal and division do not move.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusIsolation.test.ts', 'packages/progression/src/versusProgression.db.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-VERSUS-TIMEOUT-01',
+    title: 'When the shared Versus timer runs out mid-choice, a random legal pick is made, never a cancel',
+    statement:
+      'Versus has one server-owned round timer for both players (the normal round-by-round schedule, no Gold Fuse); '
+      + 'nothing pauses it locally. When it runs out while a decision is open (a Discover, a target pick, a Choose '
+      + 'One, the Runeforge, a quest offer, a hero-power offer), the game makes a random LEGAL pick for the player '
+      + 'and locks the turn. The pick is seeded from the match, the round and the seat, so the board the server '
+      + 'fights is exactly the board the player\x27s game lands. A decision is cancelled only when it has no legal '
+      + 'answer at all (an aim with nothing to aim at). Hero Select works the same way: a player who has not picked '
+      + 'in 20 seconds gets a random one of their three.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Timer runs out mid-choice (Discover, target pick, Choose One, Runeforge, etc.): make a random legal pick (deterministic from match/round/seat seed), never cancel.' },
+      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Hero timeout: random pick from your 3 offered heroes (20 s Hero Select).' },
+      { kind: 'code', ref: 'packages/sim/src/versus/run.ts legalModalAnswers / versusAutoResolve / versusTimeoutRng / buildVersusCandidate; packages/ui/src/versus/versusStore.ts lockTurn + driveRun; supabase/migrations/2026-10-13-versus.sql versus__maybe_start (hero timeout) + versus__finalize_seat (deadline promotion)' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-13. A client that has gone silent is locked by the server from its newest uploaded candidate (built with the same policy), else its last locked board, else an empty board.',
+    example: 'The timer hits 0 with a three-card Discover open: one of the three is chosen at random and the round locks.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusRun.test.ts', 'packages/sim/src/versus/versusMatch.db.test.ts', 'packages/sim/src/versus/versusSchema.db.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-VERSUS-PAUSE-01',
+    title: 'A Versus disconnect pauses the match for up to 30 seconds; then the opponent may unpause and the absent board plays itself',
+    statement:
+      'When a Versus player disconnects, the match pauses: every deadline stops. If they come back within 30 '
+      + 'seconds the match resumes with every deadline moved later by the length of the pause. If they have not come '
+      + 'back after 30 seconds, the other player may unpause. From then on the absent player\x27s last locked board '
+      + 'fights for them every round, and the present player never waits on them; three such rounds in a row forfeit '
+      + 'the match. Coming back ends that and resets the count. Spectators can never pause, unpause or hold up a '
+      + 'round. If both players stay away for 10 minutes the match ends with no winner.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Disconnects: when a player disconnects, the game pauses for up to 30 s. If they haven\x27t returned by then, the opponent can unpause. After unpause the absent player\x27s last locked board is played automatically each round; 3 consecutive missed rounds = forfeit.' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-13-versus.sql versus_reconcile (pause on a stale lease) / versus__resume (deadline shift) / versus_unpause / versus__finalize_seat (auto) / versus_commit_round (missed count, forfeit) / versus_heartbeat (return); packages/ui/src/versus/VersusHud.tsx (the pause layer)' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-13. Disconnected means no heartbeat for 12 seconds; the 10-minute both-absent end is an implementation backstop, not an owner number.',
+    example: 'Your opponent\x27s laptop sleeps mid-shop with 20 s left: the clock stops. 30 s later you press Unpause; their last board fights you that round and the next two; on the third the match is yours.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusSchema.db.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-VERSUS-POOL-01',
+    title: 'Pre-emptive Assault (every attack-first card) is not in Versus; the fight\x27s sides alternate by round',
+    statement:
+      'No card that makes its side attack first (Pre-emptive Assault today, and any future card with the same '
+      + 'effect) can appear in a Versus game: not in the shop, not in a Discover, not as a random grant. The one fight '
+      + 'of each round is resolved once on the server, Player 1 as the fight\x27s first side; the tie-break side '
+      + '(CombatConfig.firstSide: who mints first, runs Start of Combat first, wins the seeded first-attacker coin) is '
+      + 'Player 1 on odd rounds and Player 2 on even rounds, and both players watch the same fight from their own side.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling relayed verbatim by the coordinator, 2026-10-13', quote: 'Pre-emptive Assault ... just remove this spell from versus.' },
+      { kind: 'owner-chat', ref: 'Coordinator, 2026-10-13 (the alternation)', quote: 'Your p1/p2 player-side alternation is accepted for now; note it in the oracle rule.' },
+      { kind: 'code', ref: 'packages/sim/src/cardPool.ts poolOf (mode versus) / isVersusExcludedCard; packages/sim/src/versus/combat.ts versusChair + resolveVersusFight (firstSide)' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-13. Since R-SYMMETRY-01 (2026-10-13) the two sides of a fight are computed 1:1, so the alternating position no longer changes what either side\x27s effects do; the mirrored view carries every carry-back (packages/sim/src/versus/mirror.ts).',
+    contentIds: ['preemptive'],
+    example: 'A set 1 Versus game never offers Pre-emptive Assault, though a set 1 ranked game can.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusRun.test.ts', 'packages/sim/src/versus/versusCombat.test.ts'], lastVerifiedAt: '2026-10-13' },
+  },
+  {
+    id: 'R-VERSUS-LOBBY-UI-01',
+    title: 'Versus is played on the lobby screens; its two-seat lobby is display only and never persisted',
+    statement:
+      'A Versus match uses the ordinary lobby UI: the entry gate and crystal, Hero Select with a 20 second clock, the '
+      + 'shop, the rail, the combat scene (opponent portrait, name, skin, hero attack, Fight Recap), the clock, the Esc '
+      + 'menu (Concede, two taps), emotes, the announcer and the music, and the end gate back to the room. The deltas: '
+      + 'two seats with one opponent, hearts in the Resolve slot under your hero, the opponent as a hero block on the right '
+      + 'mirroring yours (portrait, name, hearts, status, shop tier) in place of the seat rail, server timers with no Gold Fuse, the room, no rank, no Pre-emptive Assault. The run carries a '
+      + 'two-seat lobby built from the match (the opponent fields the board they fought each round with) only so those '
+      + 'screens can read it: the reducer never settles it or ends the run by it, Resolve and Armor never move, and it '
+      + 'is never a save, a snapshot or pool board, a fight-ledger or Hall row, run history, a rank change or a replay. '
+      + 'The game start is a lobby game\'s: the full Hero Select ceremony (a timeout pick plays it for the server\'s hero), '
+      + 'then the Good Luck intro; round 1\'s clock starts when both intros have played out (or 45 s after the heroes lock). '
+      + 'Every later shop opens, and its clock starts, the moment both players are back from the fight (90 s cap). There '
+      + 'is no countdown anywhere; while a player waits on the other, the board takes no input and the End Turn gem\'s pill '
+      + 'reads Players ready N/2.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-14', quote: 'reuse the existing lobby UI 1:1' },
+      { kind: 'owner-chat', ref: 'Coordinator GO, 2026-10-14', quote: 'the synthetic two-seat lobby must NEVER be uploaded as a lobby snapshot' },
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-14 (game start and rounds)', quote: 'when the players get back in together the round begins' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-14-versus-shop-start.sql; packages/sim/src/versus/lobbyView.ts versusLobby; packages/sim/src/reducer.ts settleLobbyRound / settleCombat / advanceCombat (mode versus); packages/ui/src/versus/versusStore.ts syncVersusLobby + driveGates' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-14.',
+    example: 'Losing round 3 drops one heart under your hero and on the rail; your Resolve stays where it started, and nothing from the match is saved for Continue.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusLobby.test.ts', 'packages/ui/src/versus/versusLobbyGates.test.ts', 'packages/ui/src/rankedGate/rankedGate.test.tsx', 'packages/ui/src/versus/versusTurn.test.ts', 'packages/sim/src/versus/versusSchema.db.test.ts', 'packages/ui/src/versus/versusFoe.test.tsx', 'packages/ui/src/versus/versusInspectBleed.test.tsx'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-VERSUS-PAUSE-INPUT-01',
+    title: 'A paused Versus match takes no game input at all',
+    statement:
+      'While a Versus match is paused (a disconnect pause, and its 3-2-1 resume count), no game action goes through: hero '
+      + 'power, buy, sell, play, roll, freeze, level up, drag, End Turn, End Combat, Equipment, Discover choices, hotkeys. '
+      + 'Only the Esc menu (Concede) and Unpause work. The rule lives where actions enter the run, not only in the veil, so '
+      + 'nothing above the veil and no keyboard shortcut can get past it. The clock and the fight hold where they are, and '
+      + 'anything mid-way (a shop death, the End Turn that lands the fight) waits and plays on the resume. While the shop '
+      + 'is held because you are waiting on the other player, your own actions are refused the same way.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-14 (disconnect pause)', quote: 'i was able to hero power during this, fix that' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusHooks.ts versusRefuses; packages/ui/src/store.ts dispatch / preparePresentationAction / armHero / armEquipment; packages/ui/src/versus/versusStore.ts versusFreezeOf + lockTurn + versusEndCombatPressed' },
+    ],
+    currentBehaviour: 'Conforms in code from 2026-10-14.',
+    example: 'The opponent drops and the reconnect veil is up: pressing your hero power hotkey, or clicking it, does nothing; after the 3-2-1 it works.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusPauseGate.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
 ];

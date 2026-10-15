@@ -143,6 +143,41 @@ pool keeps the crate sealed; equip checks ownership). Logic in `_shared/progress
 `_shared/progressionCosmetics.ts`, both **GENERATED** by `npm run progression:shared`. Deploy:
 `npx supabase functions deploy progression-inventory`. Runbook: `docs/devlog/2026-09-28-progression-crates.md`.
 
+## `functions/versus-resolve` — Versus's authoritative fight (2026-10-13)
+
+Versus (real-time 1v1) resolves each round's fight ONCE on the server and hands both players their own side of
+it. The function runs the exact client combat: `engine.generated.js` is an esbuild bundle of
+`packages/sim/src/versus/server.ts` (@game/core + @game/content + the pure resolver). The bundle is GENERATED and
+gitignored (about 1.5 MB, it changes with every content edit), so **every deploy rebuilds it first**:
+
+```bash
+npm run versus:bundle
+npx supabase functions deploy versus-resolve --no-verify-jwt
+```
+
+`--no-verify-jwt` because the project's publishable key is not a JWT; actions that touch a match verify the
+caller's token themselves. Redeploy whenever a web release changes cards or combat: the function answers 409
+`content_mismatch` to a client whose content revision differs, rather than fighting under rules it did not show.
+
+**Parity proof (Phase 0).** `packages/sim/src/versus/fixtures/parity.v1.json` holds real prepared sides (greedy
+self-play, sets 1 to 3, rounds 1 to 14). Each check re-resolves them in Node from source and compares the
+canonical result text byte for byte:
+
+```bash
+npm run versus:parity -- bundle                                  # Node source vs the local bundle
+npm run versus:parity -- remote https://<project>.supabase.co/functions/v1/versus-resolve
+```
+
+`remote` reads the publishable key from `apps/web/.env` (never printed). Exit code 1 and the first differing offset
+on any mismatch.
+
+**Phase 1: the Versus migration + `finalize`.** Run `migrations/2026-10-13-versus.sql` in the SQL Editor (additive:
+new `versus_*` tables, functions, policies and Realtime publication entries only), then rebuild and redeploy the
+function (same two commands as above): its `finalize` action calls `versus_commit_round` as the service role. Anon
+probe afterwards: `POST /rest/v1/rpc/versus_list_rooms` with the publishable key must answer 401/permission denied
+(signed-in players only), and `GET /rest/v1/versus_rooms?select=id&limit=1` must return `[]` (RLS: authenticated
+only).
+
 ## The Collection's seen list (2026-10-11)
 
 Which owned items a player has looked at (the Collection's NEW badge) is saved on the account:

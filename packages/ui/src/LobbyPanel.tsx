@@ -17,6 +17,7 @@ import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { LobbyGuides } from './guides/LobbyGuides';
+import { VersusFoe } from './versus/VersusFoe';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
@@ -55,6 +56,8 @@ let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents'
  *  localStorage (a per-viewer convenience: it falls back to the default whenever storage is unavailable). Default
  *  SIMPLE, because the wide rail covers End Turn and part of Refresh. */
 const GUIDES_MODE_KEY = 'ascent.guidesMode';
+/** VERSUS: the Guides drawer's slide (`.lobbyrail.vsdrawer`, versus.css). */
+const VS_DRAWER_MS = 220;
 function readGuidesMode(): GuidesMode {
   try { return localStorage.getItem(GUIDES_MODE_KEY) === 'full' ? 'full' : 'simple'; } catch { return 'simple'; }
 }
@@ -112,6 +115,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const setId = useGame((st) => st.run.setId);
   const runTribes = useGame((st) => st.run.tribes);
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
+  // VERSUS (owner 2026-10-14): its rail sits at the middle of the right side, not the top (`.vsplace`).
+  const versusRail = useGame((st) => st.run.mode === 'versus');
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
@@ -154,6 +159,31 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     // Same three arrays and account as last time = the same snapshot object, so nothing re-renders.
     setGuideSnap((cur) => (cur.list === next.list && cur.mine === next.mine && cur.bookmarked === next.bookmarked && cur.uid === next.uid ? cur : next));
   }, [showGuides]);
+  // VERSUS GUIDES DRAWER (owner 2026-10-14: the rail tab "is a botch job"): no rail to flip, so the guides open from the
+  // opponent block's Guides plate as a drawer over the right side (the rail's own Guides face, sliding in), closed by
+  // its ✕, the plate again, or Esc. `vsClosing` holds it on screen for its slide out.
+  const [vsClosing, setVsClosing] = useState(false);
+  const closeVsGuides = useCallback((): void => {
+    setVsClosing(true);
+    window.setTimeout(() => { setVsClosing(false); setView('opponents'); }, VS_DRAWER_MS);
+  }, []);
+  const toggleVsGuides = (): void => {
+    setHovered(null);
+    setPinned(null);
+    setSwap(null);
+    if (view === 'guides') closeVsGuides(); else setView('guides');
+  };
+  useEffect(() => {
+    if (!versusRail || !showGuides || vsClosing) return undefined;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation(); // the Esc menu does not open under it
+      closeVsGuides();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [versusRail, showGuides, vsClosing, closeVsGuides]);
   const toggleView = (): void => {
     setHovered(null);
     setPinned(null);
@@ -175,7 +205,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     if (!showGuides || mode !== 'full') return;
     const onDown = (e: Event): void => {
       const t = e.target;
-      if (t instanceof Element && t.closest('.lobbyrail, .lobbyrailtab, .lobbyrailhead')) return;
+      if (t instanceof Element && t.closest('.lobbyrail, .lobbyrailtab, .lobbyrailhead, .vsfoe-guides')) return;
       setSwap('narrow');
       setModeState('simple');
       try { localStorage.setItem(GUIDES_MODE_KEY, 'simple'); } catch { /* storage unavailable: the choice lasts this session */ }
@@ -183,7 +213,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     document.addEventListener('pointerdown', onDown, true);
     return () => document.removeEventListener('pointerdown', onDown, true);
   }, [showGuides, mode]);
-  const railMods = `${showGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
+  const railMods = `${showGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}${versusRail && view !== 'guides' ? ' vsplace' : ''}${versusRail && showGuides ? ` vsdrawer${vsClosing ? ' closing' : ''}` : ''}`;
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
@@ -300,10 +330,18 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // everywhere, just never stale. Opponent seats keep reading their own seat, which is their only source.
   const myResolve = useGame((st) => st.run.resolve);
   const myArmor = useGame((st) => st.run.armor);
+  // VERSUS (owner 2026-10-14): the run's Resolve is not the score there. Every seat's health is its HEARTS, which the
+  // two-seat display lobby carries on the seats (`versusLobby`), so every row reads its seat.
+  const versus = useGame((st) => st.run.mode === 'versus');
   const hpOf = (seat: { id: string; resolve: number; armor: number }): { resolve: number; armor: number } =>
-    seat.id === 's0' ? { resolve: myResolve, armor: myArmor } : { resolve: seat.resolve, armor: seat.armor };
+    seat.id === 's0' && !versus ? { resolve: myResolve, armor: myArmor } : { resolve: seat.resolve, armor: seat.armor };
+  // VERSUS: a ONE-ROW rail, the opponent and their hearts (owner 2026-10-14). Your own hearts sit under your hero.
+  const shownSeats = versus ? lobby.seats.filter((s) => s.id !== 's0') : lobby.seats;
+  // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
+  // lobby's full eight, so the guides read exactly as in a lobby game.
+  const railRows = versus ? (showGuides ? 8 : 3) : shownSeats.length;
   // Living seats first, strongest to weakest; the fallen keep their placement order underneath.
-  const rows = [...lobby.seats].sort((a, b) => {
+  const rows = [...shownSeats].sort((a, b) => {
     if (a.alive !== b.alive) return a.alive ? -1 : 1;
     // Rank on the LIVE numbers too (see `hpOf`), so your row doesn't sit at a stale rank through the
     // post-combat screen and then jump when the table settles.
@@ -323,8 +361,16 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         is a scroll container and would clip anything placed outside its box. `.lobbyrailhead` is absolutely
         positioned off the rail's own `right` / `top` / `width` (styles.css), so it takes no layout space and
         moves nothing. */}
-    <div className={`lobbyrailhead${railMods}`}>
+    {/* VERSUS draws its Round plate on the opponent's block (versus/VersusFoe.tsx); the Guides view keeps this header. */}
+    {!(versus && !showGuides) && <div className={`lobbyrailhead${railMods}`}>
       <span className="lobbyround">{showGuides ? 'Guides' : `Round ${lobby.round}`}</span>
+      {versus && showGuides && (
+        <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
+          <span aria-hidden="true">✕</span>
+        </button>
+      )}
+      {/* VERSUS has no loss cap: a lost round costs one heart. */}
+      {!versus && <>
       {/* Max loss: the most Health a loss this round can cost. Hover explains it with the live number, in the
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
@@ -337,23 +383,51 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <b>{capTip.title}</b>
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
-    </div>
+      </>}
+    </div>}
     {/* THE VIEW TAB on the rail's left edge (owner ask 2026-10-09). A SIBLING of the rail like the header (the rail
         clips its children), placed off the rail's own position + height vars (guides/lobbyGuides.css). Two stacked
         glyphs, the current view's lit, so the tab always says which face is showing. */}
-    {guidesOn && (
+    {guidesOn && !versus && (
       <button type="button" className={`lobbyrailtab gtip${railMods}`}
-        style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}
+        style={{ '--lby-n': railRows } as React.CSSProperties}
         aria-label={showGuides ? 'Show opponents' : 'Show build guides'} aria-pressed={showGuides}
         data-tip={showGuides ? 'Opponents' : 'Guides'} onClick={toggleView}>
         <span className={`lobbyrailtab-cell${showGuides ? '' : ' on'}`}><Icon name="sword" /></span>
         <span className={`lobbyrailtab-cell${showGuides ? ' on' : ''}`}><Icon name="book" /></span>
       </button>
     )}
+    {/* VERSUS (owner 2026-10-14): no rail panel on the Opponents view. The opponent's hero block floats where the rail
+        stands (versus/VersusFoe.tsx), mirroring your own; its Round header and the Guides tab stay. */}
+    {versus && lobby.seats[1] && (() => {
+      const foeSeat = lobby.seats[1]!;
+      const foeSkins = opponentSkins(showOppSkins, foeSeat.cosmetics);
+      const foeFrameId = frameIdOf(foeSkins);
+      return (
+        <>
+          <VersusFoe
+            foe={foeSeat}
+            art={heroPortrait(foeSeat.heroId, foeSkins)}
+            frame={resolvePortraitFrame('opp', foeFrameId ?? 'default', 'socket')}
+            round={lobby.round}
+            onGuides={toggleVsGuides}
+            guidesOpen={showGuides && !vsClosing}
+            faceProps={{
+              onMouseEnter: (e) => openScout(e, foeSeat.id),
+              onMouseLeave: () => setHovered((h) => (h?.id === foeSeat.id ? null : h)),
+              onClick: (e) => pinScout(e, foeSeat.id),
+              onContextMenu: (e) => pinScout(e, foeSeat.id),
+            }}
+          />
+          {!staged && !showGuides && hovered?.id === foeSeat.id && pinned?.id !== foeSeat.id && <ScoutCard lobby={lobby} seat={foeSeat} intel={foeIntel} at={hovered} />}
+          {!staged && !showGuides && pinned?.id === foeSeat.id && <ScoutCard lobby={lobby} seat={foeSeat} intel={foeIntel} at={pinned} pinned />}
+        </>
+      );
+    })()}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
-    <div className={`lobbyrail${railMods}`} style={{ '--lby-n': lobby.seats.length } as React.CSSProperties}>
+    {!(versus && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : `${living.length} left`}</span>
+        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versus ? '' : `${living.length} left`}</span>
       </div>
 
       {showGuides ? (
@@ -428,7 +502,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         })}
       </div>
       )}
-    </div>
+    </div>}
     </>
   );
 });
@@ -510,6 +584,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
     try { localStorage.setItem(SCOUT_VARIANT_KEY, String(next)); } catch { /* ignore */ }
   };
 
+  // VERSUS (owner 2026-10-14): a round costs a heart, not damage, so the fight log reads in hearts, and a seat with no
+  // runes yet says so instead of drawing three empty sockets.
+  const versusCard = useGame((st) => st.run.mode === 'versus');
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
   const heroName = getHero(seat.heroId).name;
   const tribe = intel?.topTribe;
@@ -558,7 +635,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
             <span className="lobbyscout-colhead">Round</span>
             <span className="lobbyscout-colhead">Vs</span>
             <span className="lobbyscout-colhead">Outcome</span>
-            <span className="lobbyscout-colhead">Dmg</span>
+            <span className="lobbyscout-colhead">{versusCard ? 'Hearts' : 'Dmg'}</span>
           </div>
           {results.map((r) => (
             <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
@@ -570,7 +647,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
               </span>
               {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
               <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
-              <span className="lobbyscout-dmg"><img decoding="sync" className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+              {versusCard
+                ? <span className={`lobbyscout-dmg lobbyscout-hearts${r.taken > 0 ? ' lost' : ''}`}><Icon name="heartPill" />{r.taken > 0 ? `−${r.taken}` : '0'}</span>
+                : <span className="lobbyscout-dmg"><img decoding="sync" className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>}
             </div>
           ))}
         </>
@@ -583,7 +662,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   const runeSockets = intel ? (
     <div className="lobbyscout-runesec">
       <div className="lobbyscout-sectitle">Runes</div>
-      <div className="lobbyscout-runes">
+      {versusCard && runeIds.length === 0 ? <div className="lobbyscout-norunes">None yet</div> : <div className="lobbyscout-runes">
       {[0, 1, 2].map((i) => {
         const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
         const rart = rune ? runeArt(rune.id) : null;
@@ -602,7 +681,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
           </div>
         );
       })}
-      </div>
+      </div>}
     </div>
   ) : null;
 

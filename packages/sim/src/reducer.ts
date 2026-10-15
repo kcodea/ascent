@@ -1093,7 +1093,7 @@ export function reduce(state: RunState, action: Action): RunState {
     // `settleCombat` carries mid-fight Ruby gains back onto the board as 'Ruby' buffs. That is BOOKKEEPING for
     // something the combat replay already played this cue for, not a landing — counting it would detonate every
     // carried-back minion the instant the shop reopens. Same double-play the Ruby POWER cue guards against.
-    if (action.type !== 'settleCombat' && action.type !== 'resolveCombat') {
+    if (action.type !== 'settleCombat' && action.type !== 'resolveCombat' && action.type !== 'landCombat') {
       const before = new Map<string, number>();
       for (const c of state.board) before.set(c.uid, rubyCountOf(c));
       for (const o of state.shop) before.set(o.uid, rubyCountOf(o));
@@ -1356,7 +1356,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // Rally, etc.) now blooms the aura DURING the fight, in the attacker's lunge (see the `sc`-telegraph block in
   // `useCombatReplay`). Stamping it again here would replay the aura a SECOND time over the shop on return
   // (owner report 2026-08-19) — so skip the stamp for the combat transition; the offers still carry the buff.
-  const combatResolve = action.type === 'resolveCombat' || action.type === 'settleCombat';
+  const combatResolve = action.type === 'resolveCombat' || action.type === 'settleCombat' || action.type === 'landCombat';
   if (next !== state && !combatResolve) {
     const da = (next.tavernBuyBonus?.atk ?? 0) - (state.tavernBuyBonus?.atk ?? 0);
     const dh = (next.tavernBuyBonus?.hp ?? 0) - (state.tavernBuyBonus?.hp ?? 0);
@@ -1447,7 +1447,7 @@ function reduceCore(state: RunState, action: Action): RunState {
     || action.type === 'combatSpellCastPreview' || action.type === 'combatFriendlyDeathPreview'
     || action.type === 'combatBladeAttackPreview' || action.type === 'combatScoutPreview';
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
-  if (state.phase !== 'recruit' && !combatPreview && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
+  if (state.phase !== 'recruit' && !combatPreview && action.type !== 'resolveCombat' && action.type !== 'settleCombat' && action.type !== 'landCombat') return state;
 
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
@@ -1471,7 +1471,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // with no legal move, for a player as much as a bot. A Discover raised mid-combat is the reachable case.
   // Letting the transitions through is safe: the modal is untouched and presents itself in the next recruit
   // phase, which is where a Discover can be answered anyway.
-  const combatTransition = action.type === 'resolveCombat' || action.type === 'settleCombat';
+  const combatTransition = action.type === 'resolveCombat' || action.type === 'settleCombat' || action.type === 'landCombat';
   // `resolveShopDeath` IS EXEMPT TOO (owner report 2026-09-18, Cage Breaker): its Shout stamps the destroy AND opens
   // the Discover in one commit, so the UI's landing timer dispatched this into an open modal and was refused here —
   // the body stood under the Discover until the pick, whose safety pass (top of `reduce`) settled the death in the
@@ -3946,6 +3946,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'landCombat': {
+      // VERSUS (2026-10-13): land the server's authoritative fight on a deferred run WITHOUT settling or advancing,
+      // so the ordinary replay plays it and the ordinary `settleCombat` / `resolveCombat` finish it. Refused unless
+      // the run parked a side (`faceOmen { deferFight }`); landing clears it, so a second land is refused.
+      if (s.phase !== 'combat' || !s.pendingCombatSide) return state;
+      landDeferredFight(s, action.fight);
+      return s;
+    }
+
     case 'resolveCombat': {
       // Leave combat for the next wave. Settle first if the player skipped the replay (so the damage still
       // applies), then advance past it (terminal check / next wave).
@@ -4757,6 +4766,9 @@ function landDeferredFight(s: RunState, fight: DeferredFight): void {
  */
 function settleLobbyRound(s: RunState, result: CombatResult): void {
   if (!s.lobby) return; // practice carries a lobby too (2026-07-31) — the machinery keys on its presence
+  // VERSUS (2026-10-14): its two-seat lobby is a DISPLAY of the server match (`versus/lobbyView.ts`), rebuilt by the
+  // client; the server owns the hearts and the end, so the table is never settled here.
+  if (s.mode === 'versus') return;
   if (s.lobbySettledRound === s.lobby.round) return;
   s.lobbySettledRound = s.lobby.round;
   s.lobby = settleRunLobbyRound(
@@ -5356,7 +5368,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
   // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
   // lower than the table for the same fight. A tutorial or Gauntlet carries a lobby too, so each is excluded for the same reason.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet') {
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.mode !== 'versus') { // VERSUS: hearts, never Resolve (R-VERSUS-HEARTS-01)
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -5373,7 +5385,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   //
   // PRACTICE INVULNERABILITY is excluded on purpose: there `settleLobbyRound` restores the seat FROM the run
   // (`me.resolve = s.resolve`), so damaging the run here would leak into the seat and undo the invulnerability.
-  if (s.lobby && !(s.mode === 'practice' && s.practiceConfig?.health !== 'normal')) {
+  if (s.lobby && s.mode !== 'versus' && !(s.mode === 'practice' && s.practiceConfig?.health !== 'normal')) { // VERSUS: hearts, never Resolve
     // The RUN's pools are authoritative going INTO the hit: the seat was seeded from them once at creation and
     // otherwise only ever loses, so anything that RAISED them during the shop — Mend's "set Armor to 5", a
     // Resolve grant — lived on the run alone, and `settleLobbyRound`'s seat→run write-back snapped it straight
@@ -5457,7 +5469,7 @@ function advanceCombat(s: RunState): void {
   }
   // A lobby seat's Resolve is the LOBBY's to manage; the run's own copy is bookkeeping and must not end it.
   // The run ends when the PLAYER'S SEAT is knocked out, whatever the lobby does afterwards.
-  if (s.lobby) {
+  if (s.lobby && s.mode !== 'versus') { // VERSUS: its display lobby never ends the run; the server match does
     if (playerEliminated(s.lobby) || s.lobby.finished) {
       s.phase = 'gameover';
       // An invulnerable practice run that ends here (its bot table actually resolved) still needs the win-based
@@ -5465,7 +5477,7 @@ function advanceCombat(s: RunState): void {
       if (practiceInvulnerable) s.lobby.seats[0]!.placement = practicePlayerPlacement(s.lobby);
       return;
     }
-  } else if (s.resolve <= 0) {
+  } else if (s.resolve <= 0 && s.mode !== 'versus') { // VERSUS: the match (server) ends the game, never Resolve
     s.phase = 'gameover';
     return;
   }
@@ -5478,7 +5490,7 @@ function advanceCombat(s: RunState): void {
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
   // Tutorial (and Gauntlet) are excluded alongside lobby/practice: each carries a lobby and ends by the lobby's round cap (above),
   // never by the 17-round course clock.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.wave >= CONFIG.courseRounds) {
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.mode !== 'versus' && s.wave >= CONFIG.courseRounds) { // VERSUS ends by hearts, server-side
     s.phase = 'victory';
     return;
   }

@@ -96,12 +96,16 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
   const head = useMemo(() => {
     const foe = lobby ? playerOpponent(lobby) : null;
     const cap = roundLossCap(lobby?.rules, wave); // the run's own cap table (the Gauntlet has its own)
+    // VERSUS (owner 2026-10-14): a lost round costs one heart, either way (R-VERSUS-HEARTS-01). Its display lobby's
+    // opponent seat is `invulnerable` only so nothing local ever settles it; it does lose hearts.
+    const versus = mode === 'versus';
     const taken = !lastCombat || lastCombat.result === 'win' ? 0
+      : versus ? (lastCombat.result === 'lose' ? 1 : 0)
       : lobby && mode !== 'practice' ? playerLossDamage(lobby, lastCombat)
       : Math.min(lastCombat.playerDamage, cap);
     // An INVULNERABLE foe (the Gauntlet opponent, R-GAUNTLET-02) takes no damage, so nothing is ever "dealt" to it.
-    const invulnerable = !!foe?.seat?.invulnerable;
-    const dealt = !lastCombat || lastCombat.result !== 'win' || foe?.ghost || invulnerable ? 0 : Math.min(lastCombat.enemyDamage ?? 0, cap);
+    const invulnerable = !versus && !!foe?.seat?.invulnerable;
+    const dealt = !lastCombat || lastCombat.result !== 'win' || foe?.ghost || invulnerable ? 0 : versus ? 1 : Math.min(lastCombat.enemyDamage ?? 0, cap);
     // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in) — its face is the stage's tribe emblem
     // and no hero name is shown.
     const face = mode === 'gauntlet' ? foePortrait(gauntletStage ?? 0) : undefined;

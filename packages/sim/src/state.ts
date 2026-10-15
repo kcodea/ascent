@@ -414,7 +414,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *  `gauntlet` is a single-player STAGE: a 2-seat lobby against one authored, never-eliminated opponent for 10
  *  rounds with its own loss caps (`GAUNTLET_LOSS_CAPS`). Its own mode for the same reason as `tutorial` — it must
  *  never rate, upload boards or feed practice telemetry. Surviving round 10 clears the stage (`gauntletOutcome`). */
-export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial' | 'gauntlet';
+export type RunMode = 'ascent' | 'rift' | 'practice' | 'lobby' | 'tutorial' | 'gauntlet' | 'versus';
 
 /** The `spellPowerFxUid` / `rubyPowerFxUid` value for a gain an EQUIPMENT use drove (Dual Rubetta's improving your
  *  Rubies): there is no card to play the flourish over, so the UI anchors it on the Equipment slot instead of
@@ -2815,6 +2815,9 @@ export type Action =
   /** Leave combat. `fight` lands a DEFERRED fight's result (this seat's perspective) + the damage the lobby
    *  charged it, then settles and advances exactly as a bare `resolveCombat` does. */
   | { type: 'resolveCombat'; fight?: DeferredFight }
+  /** VERSUS: land the server's fight on a deferred run (`faceOmen { deferFight }`) without settling it, so the
+   *  ordinary replay → `settleCombat` → `resolveCombat` flow finishes it. `damageTaken` is always 0 in Versus. */
+  | { type: 'landCombat'; fight: DeferredFight }
   /** DEV Scene Builder only — drop a quest (optionally already completed) or a rune straight into the run so
    *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
    *  reward engine a real buy/completion uses; see the reducer case. */
@@ -2832,7 +2835,7 @@ export type Action =
 
 /** The automatic combat-flow transitions — they fire ~once per round regardless of how the player
  *  builds, so they're excluded from the "actions per round" stat (which measures player decisions). */
-const COMBAT_FLOW_ACTIONS = new Set<Action['type']>(['faceOmen', 'settleCombat', 'resolveCombat']);
+const COMBAT_FLOW_ACTIONS = new Set<Action['type']>(['faceOmen', 'settleCombat', 'resolveCombat', 'landCombat']);
 /** Is this a player-initiated decision (buy / sell / play / roll / freeze / tier-up / reposition /
  *  discover / choose / hero power / targeting) vs. an automatic combat-flow transition? Basis for APT. */
 export const isPlayerAction = (a: Action): boolean => !COMBAT_FLOW_ACTIONS.has(a.type);

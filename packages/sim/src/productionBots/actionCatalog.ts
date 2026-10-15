@@ -59,6 +59,7 @@ export const ACTION_CATALOG = {
   combatBladeAttackPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   combatScoutPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   resolveCombat: { generation: 'automatic', reveal: false, note: 'controller transition, never a strategic choice' },
+  landCombat: { generation: 'automatic', reveal: false, note: 'Versus: lands the server fight on a deferred run; controller transition' },
   // The shop's two-step death: the landing is on screen, this ends it. A bot never needs to dispatch it —
   // every other action settles the same pending death first, so the outcome is identical either way.
   resolveShopDeath: { generation: 'automatic', reveal: false, note: 'settles a landed body that is dying; implicit in every other action' },

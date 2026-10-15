@@ -117,6 +117,8 @@
     "progression:shared": "tsx packages/tools/src/progression-shared.ts",
     "guides:shared": "tsx packages/tools/src/guides-shared.ts",
     "guides:pull": "tsx packages/tools/src/guides-pull.ts",
+    "versus:bundle": "tsx packages/tools/src/versus-bundle.ts",
+    "versus:parity": "tsx packages/tools/src/versus-parity.ts",
     "strength": "tsx packages/tools/src/strength/cli.ts"
   },
   "devDependencies": {

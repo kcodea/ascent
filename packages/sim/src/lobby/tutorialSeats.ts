@@ -94,16 +94,19 @@ export function authoredSeat(seat: LobbySeatState): SeatDriver {
    *  `sideFromSnapshot`, which threads `questMods` and every scaler into combat, so both act in the fight exactly as
    *  a recorded run's would. `threat` is a required placeholder (an authored seat has no threat). */
   const runeSnapshot = (round: number, idx: number, minions: BoardMinion[], tier: number): BoardSnapshot | undefined => {
-    const runes = (seat.authoredRunes ?? []).filter((r) => r.fromRound <= round).map((r) => r.runeId);
+    // VERSUS: the opponent's own scout for that round (its runes, triples, quests) wins over the authored runes.
+    const scout = seat.authoredScouts?.[idx] ?? null;
+    const runes = scout?.runes ?? (seat.authoredRunes ?? []).filter((r) => r.fromRound <= round).map((r) => r.runeId);
     const buffs: AuthoredBuffs = seat.authoredBuffs?.[idx] ?? {};
-    if (runes.length === 0 && Object.keys(buffs).length === 0) return undefined;
+    if (!scout && runes.length === 0 && Object.keys(buffs).length === 0) return undefined;
     const key = runes.join('|');
     if (runes.length > 0 && !modsCache.has(key)) modsCache.set(key, runeCombatModsFor(runes));
     return {
-      v: 1, wave: round, heroId: seat.heroId, resolve: seat.resolve, armor: seat.armor, tier, triples: 0,
+      v: 1, wave: round, heroId: seat.heroId, resolve: seat.resolve, armor: seat.armor, tier, triples: scout?.triples ?? 0,
       tribes: [], threat: 'venom', power: minions.reduce((n, m) => n + m.attack + m.health, 0), minions, seed: seat.seed,
       ...structuredClone(buffs),
       ...(runes.length > 0 ? { questMods: modsCache.get(key), runes } : {}),
+      ...(scout?.quests?.length ? { quests: [...scout.quests] } : {}),
     };
   };
   const boardFor = (round: number): PreparedBoard | null => {

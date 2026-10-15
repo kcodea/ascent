@@ -13,11 +13,12 @@ import { join, relative } from 'node:path';
  *
  * Limits mirror `scripts/optimize-art.mjs`: 512 px everywhere, 768 px for hero portrait frames (they paint
  * larger, see MAX_BY_DIR there). `modes/` is exempt: those are the full-width title-screen mode banners, not
- * card art, and are drawn far larger than a card.
+ * card art, and are drawn far larger than a card. `versus/` holds the Versus room's full-stage painted backdrop
+ * (2026-10-14): one image, capped at 2560 px wide (a 1440p stage shows it at its full height).
  */
 const ART = join(__dirname, 'art');
 const MAX = 512;
-const MAX_BY_DIR: Record<string, number> = { frames: 768 };
+const MAX_BY_DIR: Record<string, number> = { frames: 768, versus: 2560 };
 const EXEMPT = new Set(['modes']);
 
 /** Width and height from a WebP or PNG header (no image library needed). */

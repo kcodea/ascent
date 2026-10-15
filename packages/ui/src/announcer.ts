@@ -150,6 +150,13 @@ export const ANNOUNCER_GAUNTLET_ROUNDS = 10;
  *  knockouts) or the rated game and would misfire on a Gauntlet's 2-seat one (owner ruling 2026-09-29), so the queue
  *  refuses anything else while a Gauntlet is on screen (`enqueue`). */
 export const GAUNTLET_ANNOUNCER_EVENTS: readonly AnnouncerEvent[] = ['gauntletRound'];
+/** VERSUS (owner 2026-10-14: the announcer 1:1 with the lobby): every line speaks EXCEPT the ones that read the 8-seat
+ *  table, Resolve / Armor, damage numbers, placement or rank, which would misfire on a two-seat match played to hearts. */
+export const VERSUS_SILENT_EVENTS: readonly AnnouncerEvent[] = [
+  'topFour', 'topTwo', 'gameWon', 'gameLoss', 'secondPlace', 'knockout', 'finalShowdown', 'lobbyLast', 'firstOut',
+  'leaderboardTop', 'playersRemain', 'startCombatUnder10hp', 'surviveUnder10hp', 'armorUp', 'armorGone', 'oneResolve',
+  'bigHit', 'blowoutLoss', 'comebackWin', 'rankUp', 'ghostFight', 'resumeGame',
+];
 /** The one take round `round` may play ("Round N"), or none past the recorded rounds. */
 export function gauntletRoundTakes(round: number): readonly string[] {
   return round >= 1 && round <= ANNOUNCER_GAUNTLET_ROUNDS ? [`gauntlet-round-${round}`] : [];
@@ -927,6 +934,8 @@ export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: A
 let active = false;
 /** A Gauntlet is on screen: the queue takes only `GAUNTLET_ANNOUNCER_EVENTS` (see `enqueue`). */
 let gauntletOnly = false;
+/** A Versus match is on screen: the queue refuses `VERSUS_SILENT_EVENTS` (see `enqueue`). */
+let versusMode = false;
 let runKey: number | null = null;
 let slice: AnnouncedSlice | null = null;
 let mark: ((event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void) | null = null;
@@ -1082,6 +1091,7 @@ function enqueue(line: PendingLine): void {
   // A Gauntlet speaks only its round call: every detector (and the combat / clock observers) may still see its moment,
   // but nothing else reaches the queue.
   if (gauntletOnly && !GAUNTLET_ANNOUNCER_EVENTS.includes(line.event)) return;
+  if (versusMode && VERSUS_SILENT_EVENTS.includes(line.event)) return;
   if (pending.some((p) => p.event === line.event)) return;
   if (slice && announcerExhausted(slice, line.event)) return; // the no-repeat rule: nothing left to say
   // A keyed moment (group D): nothing left to say for THIS hero / tribe.
@@ -1392,6 +1402,7 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   cancelAnnouncer('run change');
   active = true;
   gauntletOnly = isGauntletAnnouncer(s);
+  versusMode = s.run.mode === 'versus';
   runKey = s.run.seed;
   lastLineEndedAt = -Infinity;
   lastLine = null;
@@ -1439,6 +1450,7 @@ function leaveRun(): void {
   cancelAnnouncer('left the run');
   active = false;
   gauntletOnly = false;
+  versusMode = false;
   runKey = null;
   slice = null;
   mark = null;
@@ -2238,6 +2250,7 @@ export function resetAnnouncerForTests(): void {
   pending = [];
   active = false;
   gauntletOnly = false;
+  versusMode = false;
   runKey = null;
   slice = null;
   mark = null;

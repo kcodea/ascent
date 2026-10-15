@@ -27,6 +27,8 @@ const board = (author: string, heroId: string, seed: number, wave: number, emote
 } as BoardSnapshot);
 
 // Chatty: emotes on rounds 1 and 3 (shop and combat). Quiet: a run from before emotes, no field anywhere.
+// Its combat emote is Angry Mushy, RETIRED 2026-10-15: an old recording keeps the id verbatim (the sim never judges
+// liveness); the UI's `emoteOf` gate is what makes a retired emote play nothing.
 const CHATTY = Array.from({ length: 6 }, (_, i) => board('Chatty', 'albus', 5151, i + 1,
   i === 0 ? [{ id: 'emote_zen_brian', phase: 'shop', at: 4200 }, { id: 'emote_angry_mushy', phase: 'combat', at: 1500 }]
     : i === 2 ? [{ id: 'emote_flirty_midas', phase: 'shop', at: 30_000 }, { id: 'emote_nervous_jensen', phase: 'shop', at: 9_000 }]
@@ -64,7 +66,7 @@ describe('the recorded field: shape, parse and old boards', () => {
     expect(parseRecordedEmotes([
       { id: 'emote_zen_brian', phase: 'combat', at: 900.4 }, null, { id: 'BAD ID', phase: 'shop', at: 1 },
       { id: 'emote_zen_brian', phase: 'lobby', at: 1 }, { id: 'emote_zen_brian', phase: 'shop', at: -5 },
-      { id: 'emote_zen_brian', phase: 'shop', at: 99_999_999 }, { id: 'emote_angry_mushy', phase: 'shop', at: 300 },
+      { id: 'emote_zen_brian', phase: 'shop', at: 99_999_999 }, { id: 'emote_angry_mushy', phase: 'shop', at: 300 }, // retired 2026-10-15: kept, like any id
       { id: 'emote_newer_client_only', phase: 'shop', at: 100 },
     ])).toEqual([
       { id: 'emote_newer_client_only', phase: 'shop', at: 100 }, { id: 'emote_angry_mushy', phase: 'shop', at: 300 },

@@ -18,8 +18,13 @@ import { resetHeldEmotes, takeShopEmotes } from './emoteRecording';
 import { deliverEmote, sendEmote, setEmoteTransport, subscribeEmotes } from './emoteTransport';
 import { bubbleBox, clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
 import { EmoteLayer } from './EmoteLayer';
+import { useProgression } from '../progression/progressionStore';
 
-const [A, B, C, D] = ['emote_angry_mushy', 'emote_flirty_midas', 'emote_nervous_jensen', 'emote_zen_brian'];
+vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
+
+/** Angry Mushy was a starter until the owner retired it on 2026-10-15 ("remove the angry mushy emote"). */
+const RETIRED = 'emote_angry_mushy';
+const [A, B, C] = ['emote_flirty_midas', 'emote_nervous_jensen', 'emote_zen_brian'];
 
 const board = (author: string, heroId: string, seed: number, wave: number, emotes?: BoardSnapshot['emotes']): BoardSnapshot => ({
   v: 1, wave, heroId, resolve: 30, tier: 1, triples: 0,
@@ -28,7 +33,7 @@ const board = (author: string, heroId: string, seed: number, wave: number, emote
   seed, origin: 'self', author, setId: 'set1', ...(emotes ? { emotes } : {}),
 } as BoardSnapshot);
 const CHATTY = Array.from({ length: 6 }, (_, i) => board('Chatty', 'albus', 6161, i + 1,
-  i === 0 ? [{ id: D, phase: 'shop', at: 4200 }, { id: A, phase: 'combat', at: 1500 }] : undefined));
+  i === 0 ? [{ id: C, phase: 'shop', at: 4200 }, { id: A, phase: 'combat', at: 1500 }] : undefined));
 
 beforeAll(() => { registerOpponents(CHATTY); });
 
@@ -54,15 +59,16 @@ describe('saying an emote: the cooldown, the transport, the recording', () => {
     const heard: EmoteMessage[] = [];
     const off = subscribeEmotes((m) => heard.push(m));
     expect(EMOTE_COOLDOWN_MS).toBe(20_000);
-    expect(sayEmote(D, 5200)).toBe(true);
+    expect(sayEmote(C, 5200)).toBe(true);
     expect(sayEmote(A, 10_000)).toBe(false); // cooling
     expect(sayEmote(A, 25_199)).toBe(false);
     expect(sayEmote(A, 25_200)).toBe(true);
     expect(sayEmote(B, 45_200)).toBe(true); // a third in the same turn: no cap
     expect(sayEmote('emote_does_not_exist', 99_000)).toBe(false);
+    expect(sayEmote(RETIRED, 99_000)).toBe(false); // retired 2026-10-15: known, but never live
     off();
     expect(heard).toEqual([
-      { emoteId: D, seat: 's0', phase: 'shop', offsetMs: 4200, round: 1 },
+      { emoteId: C, seat: 's0', phase: 'shop', offsetMs: 4200, round: 1 },
       { emoteId: A, seat: 's0', phase: 'shop', offsetMs: 24_200, round: 1 },
       { emoteId: B, seat: 's0', phase: 'shop', offsetMs: 44_200, round: 1 },
     ]);
@@ -72,11 +78,11 @@ describe('saying an emote: the cooldown, the transport, the recording', () => {
     const run = lobbyRun();
     act(() => { useGame.setState({ run, capturedBoards: [] }); });
     markEmotePhase('shop', run.wave, 0);
-    sayEmote(C, 3000);
+    sayEmote(B, 3000);
     expect(takeShopEmotes(run.wave + 1)).toEqual([]); // another round's board never takes them
     // (store.ts folds these into the board it captures at the end of the turn)
-    sayEmote(D, 30_000);
-    expect(takeShopEmotes(run.wave)).toEqual([{ id: C, phase: 'shop', at: 3000 }, { id: D, phase: 'shop', at: 30_000 }]);
+    sayEmote(C, 30_000);
+    expect(takeShopEmotes(run.wave)).toEqual([{ id: B, phase: 'shop', at: 3000 }, { id: C, phase: 'shop', at: 30_000 }]);
     expect(takeShopEmotes(run.wave)).toEqual([]); // taken once
 
     const captured = board('Me', 'warden', run.seed, run.wave);
@@ -116,14 +122,29 @@ describe('saying an emote: the cooldown, the transport, the recording', () => {
 });
 
 describe('the menu (right-click your portrait)', () => {
-  it('shows your four emotes, says one, closes, then shows the cooldown when reopened', () => {
-    act(() => { useGame.setState({ run: lobbyRun() }); });
+  /** The signed-in account's progression mirror, owning `cosmetics` (emotes are crate drops since 2026-10-15). */
+  const owning = (cosmetics: string[]): void => {
+    useProgression.setState({ mirror: { userId: 'u-1', accountXp: 0, accountLevel: 1, revision: 1, equippedTitleId: null, titles: [], cosmetics } });
+  };
+  afterEach(() => { useProgression.setState({ mirror: null }); });
+
+  it('owning no emote: the menu says where they come from instead of an empty grid', () => {
+    act(() => { useGame.setState({ run: lobbyRun() }); owning([]); });
+    ui = mount(<EmoteLayer />);
+    act(() => { openEmoteMenu({ x: 200, y: 700 }); });
+    expect(document.body.querySelectorAll('.emote-menu .emote-pick')).toHaveLength(0);
+    expect(document.body.querySelector('.emote-menu.empty .emote-none')!.textContent).toBe('No emotes yet. Open crates to find them.');
+    act(() => { closeEmoteMenu(); });
+  });
+
+  it('shows the emotes you OWN (catalog order), says one, closes, then shows the cooldown when reopened', () => {
+    act(() => { useGame.setState({ run: lobbyRun() }); owning([A, B, C, 'title_wanderer']); });
     ui = mount(<EmoteLayer />);
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
     const picks = (): HTMLButtonElement[] => [...document.body.querySelectorAll<HTMLButtonElement>('.emote-menu .emote-pick')];
-    expect(picks().map((b) => b.getAttribute('aria-label'))).toEqual(['Say Angry Mushy', 'Say Flirty Midas', 'Say Nervous Jensen', 'Say Zen Brian']);
+    expect(picks().map((b) => b.getAttribute('aria-label'))).toEqual(['Say Nervous Jensen', 'Say Zen Brian', 'Say Flirty Midas']); // two Rares, then the Epic
     expect(document.body.querySelector('.emote-menu')!.hasAttribute('title')).toBe(false);
-    act(() => { picks()[3]!.click(); });
+    act(() => { picks()[2]!.click(); });
     expect(document.body.querySelector('.emote-menu')).toBeNull(); // saying one closes it
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
     expect(picks().every((b) => b.disabled)).toBe(true);
@@ -145,7 +166,7 @@ describe('a served seat replays its recorded emotes at the same offset into your
     act(() => { vi.advanceTimersByTime(4199); });
     expect(heard).toEqual([]);
     act(() => { vi.advanceTimersByTime(2); });
-    expect(heard).toEqual([{ emoteId: D, seat: seat!.id, phase: 'shop', offsetMs: 4200, round: 1 }]);
+    expect(heard).toEqual([{ emoteId: C, seat: seat!.id, phase: 'shop', offsetMs: 4200, round: 1 }]);
     act(() => { vi.advanceTimersByTime(60_000); });
     expect(heard).toHaveLength(1); // the bots and generated seats never emote
     off();
@@ -165,11 +186,12 @@ describe('the bubble sits by its speaker', () => {
 
   it('yours: from your portrait\'s upper-right, art as painted (tail down-left)', () => {
     place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 800, width: 200, height: 200 });
+    expect(showEmoteBubble('s0', RETIRED)).toBe(false); // a retired emote (an old recording, an old client) shows nothing
     expect(showEmoteBubble('s0', A)).toBe(true);
     const img = document.body.querySelector<HTMLElement>('.emote-bubble.self')!;
     expect(img.className).not.toMatch(/\bflip\b/);
     expect(img.getAttribute('aria-hidden')).toBe('true');
-    expect(img.querySelector('img')!.getAttribute('src')).toMatch(/emote_angry_mushy/);
+    expect(img.querySelector('img')!.getAttribute('src')).toMatch(/emote_flirty_midas/);
     const box = bubbleBox({ x: 40 + 200 - 60, y: 800 - 8, width: 300, flip: false });
     expect([img.style.left, img.style.top, img.style.width]).toEqual([`${box.left}px`, `${box.top}px`, '300px']);
     expect(box.left).toBeGreaterThan(40); // it opens to the right of the face

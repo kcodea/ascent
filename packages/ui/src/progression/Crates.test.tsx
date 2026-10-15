@@ -245,6 +245,25 @@ describe('the crate theatre: flow states', () => {
     expect(text('.crate-reward-name')).toBe('War');
   });
 
+  // Owner 2026-10-15: emotes are crate drops now. The reveal names it an emote and shows its bubble beside the plate.
+  it('an EMOTE reward: "New emote", its name and rarity, and the painted bubble beside the plate', async () => {
+    vi.useFakeTimers();
+    liveCrates();
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'emote_rich_pimm', 9), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} reducedMotion={false} onClose={() => {}} />);
+    await settle();
+    act(() => button('Open')!.click());
+    await settle();
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' })); });
+    advance(5000);
+    expect(phase()).toBe('settled');
+    expect(text('.crate-reward-kind')).toBe('New emote');
+    expect(text('.crate-reward-name')).toBe('Rich Pimm');
+    expect(text('.crth-ribbon')).toBe('Legendary');
+    expect($('.crth-skin.emote img')!.getAttribute('src')).toMatch(/emote_rich_pimm/);
+    noDashes();
+  });
+
   it('a slow server: the anticipation holds and says "Still opening"; the reveal lands when the answer does', async () => {
     vi.useFakeTimers();
     liveCrates();

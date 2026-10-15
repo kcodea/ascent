@@ -5347,37 +5347,48 @@ export const FOUNDATION_RULES: GameRule[] = [
   // ── Emotes: the four-slot menu, and recorded emotes in the snapshot lobby (owner spec 2026-10-13) ─────────────
   {
     id: 'R-PROG-EMOTE-01',
-    title: 'Emotes are a cosmetic with a four-slot menu: four STARTER emotes are everyone\x27s and fill the menu by default; a 20 second cooldown between emotes, no cap',
+    title: 'Emotes are a crate cosmetic with a four-slot menu: thirteen crate emotes (Rare, Epic, Legendary), none given away; owned emotes fill the menu; a 20 second cooldown between emotes, no cap',
     statement:
-      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Angry Mushy, Flirty Midas, '
-      + 'Nervous Jensen and Zen Brian are STARTER items (acquisition \x27starter\x27): every player owns them from the start, '
-      + 'signed in or not, with no ownership row, and they never drop from a crate (later emotes may come from crates on '
-      + 'the ordinary path). The in-game menu holds FOUR emotes, one cosmetic_loadouts row per position (slot \x27emote\x27, '
-      + 'target \x270\x27..\x273\x27); equip_cosmetic puts an owned or starter, live emote in a position and the same emote '
-      + 'leaves any other position (a move). The menu reads explicit positions first and fills every empty one with its own '
-      + 'starter, else a starter pushed out of its position (a swap), else any starter not shown; retired or unknown ids '
-      + 'are skipped. An equip the server cannot take (signed out, offline, the SQL not run) is kept on the device, so the '
-      + 'feature always works. In a game the player right-clicks THEIR hero portrait (only there is the browser menu '
-      + 'suppressed) in a shop turn or a combat, never in a replay, and picks an emote: its bubble pops beside the portrait. '
-      + 'At least 20 seconds pass between two emotes (the menu shows the wait); there is no per-turn cap and no muting. The '
-      + 'menu is LIVE LOADOUT ONLY: a run records the emotes USED (R-EMOTE-01), never the menu.',
+      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Since 2026-10-15 every live '
+      + 'emote is a CRATE item (acquisition \x27crate\x27): 6 Rare (Nervous Jensen, Zen Brian, Depressed Hank, Nervous Voss, '
+      + 'Sad Wrangler, Tara Sad), 4 Epic (Flirty Midas, Happy Urchin, Sly Oona, Dead Elder) and 3 Legendary (Rich Pimm, '
+      + 'Baby Rubies, Mad Tormentor). They drop like any crate item (fixed rarity odds, then an equal share inside the '
+      + 'rarity, never one already owned) and no emote is owned by default. Angry Mushy, once a starter, is RETIRED '
+      + '(active false, the id kept): it is not owned, shown, equippable or played, and an old recording of it plays '
+      + 'nothing. The in-game menu holds FOUR emotes, one cosmetic_loadouts row per position (slot \x27emote\x27, target '
+      + '\x270\x27..\x273\x27); equip_cosmetic puts an OWNED live emote in a position and the same emote leaves any other '
+      + 'position (a move). The menu shows only emotes the account owns: explicit positions first (a row naming an emote '
+      + 'not owned, retired or unknown is skipped), then every empty position takes the player\x27s own owned emote for it '
+      + '(owned emotes in catalog order), else one pushed out of its position (a swap), else any owned emote not shown, so '
+      + 'owned emotes appear without being placed, up to four. An account that owns none (a guest included) gets a menu '
+      + 'that says "No emotes yet. Open crates to find them." The crate reveal shows a won emote\x27s bubble beside the '
+      + 'plate. An equip the server cannot take is kept on the device, but still only shows owned emotes. In a game the '
+      + 'player right-clicks THEIR hero portrait (only there is the browser menu suppressed) in a shop turn or a combat, '
+      + 'never in a replay, and picks an emote: its bubble pops beside the portrait. At least 20 seconds pass between two '
+      + 'emotes (the menu shows the wait); there is no per-turn cap and no muting. The menu is LIVE LOADOUT ONLY: a run '
+      + 'records the emotes USED (R-EMOTE-01), never the menu.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players right-click THEIR hero\x27s portrait (in game) to open an emote menu showing their 4 equipped emotes; clicking one plays it.' },
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Cooldown: 20 seconds between emotes (show the cooldown state on the menu). No per-turn cap. No muting for now.' },
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players equip up to 4 in Collections. Unlock source: crates, plus starter emotes everyone owns.' },
-      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (emote(), STARTER_EMOTE_IDS, EMOTE_SLOT_COUNT, emoteLoadoutOf, withEmoteAt, withStarterCosmetics); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-13-emotes.sql (the starter check, equip_cosmetic); packages/sim/src/emotes.ts (EMOTE_COOLDOWN_MS, emoteCooldownLeft); packages/ui/src/emotes/ (emoteRuntime.ts, emoteLoadout.ts, EmoteLayer.tsx); packages/ui/src/StatusBar.tsx (the right-click); packages/ui/src/progression/CollectionScreen.tsx (the slot buttons)' },
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove the angry mushy emote' },
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove all emotes as \x27given\x27 and put them in various loot tiers between rare and legendary. wire all the new ones that i added' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (emote(), EMOTE_SLOT_COUNT, emoteSlotsOf, emoteLoadoutOf, withEmoteAt); packages/ui/src/progression/CrateOpener.tsx (the emote reveal); supabase/migrations/2026-10-15-emotes-grandfather.sql (optional: keeps the three former starters for existing accounts); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-13-emotes.sql (the starter check, equip_cosmetic); packages/sim/src/emotes.ts (EMOTE_COOLDOWN_MS, emoteCooldownLeft); packages/ui/src/emotes/ (emoteRuntime.ts, emoteLoadout.ts, EmoteLayer.tsx); packages/ui/src/StatusBar.tsx (the right-click); packages/ui/src/progression/CollectionScreen.tsx (the slot buttons)' },
     ],
     currentBehaviour:
-      'Conforms in the client from 2026-10-13. PARTIAL on the live server until the owner runs '
-      + 'supabase/migrations/2026-10-13-emotes.sql and then deploys progression-inventory: before that the database has no '
-      + 'emote category or items and equip_cosmetic refuses the emote slot, so a Collection slot change is kept on the '
-      + 'device only. The emotes themselves (menu, bubbles, recording) need no server change.',
+      'Conforms in the client from 2026-10-15. On the live server the crate emotes arrive when the owner deploys '
+      + 'progression-inventory (the catalog sync writes them, re-sources the three former starters as crate items and '
+      + 'retires Angry Mushy). Whether existing accounts KEEP the three former starters is the owner\x27s call: '
+      + 'supabase/migrations/2026-10-15-emotes-grandfather.sql grants them (seen) to every existing account; skipped, '
+      + 'every account starts with no emotes.',
     example:
-      'A fresh account right-clicks its portrait in round 3: Angry Mushy, Flirty Midas, Nervous Jensen, Zen Brian. It '
-      + 'says Zen Brian at 0:05; Angry Mushy at 0:15 is refused (cooling, "Ready in 10s"); at 0:25 it goes. Putting '
-      + 'Nervous Jensen in slot 1 in the Collection makes the menu Nervous Jensen, Flirty Midas, Angry Mushy, Zen Brian.',
+      'A fresh account right-clicks its portrait: "No emotes yet. Open crates to find them." Its level 3 crate gives Zen '
+      + 'Brian (Rare) and the reveal shows the bubble; the menu now holds Zen Brian with no placing needed. Later it owns '
+      + 'Nervous Jensen and Flirty Midas too: the menu reads Nervous Jensen, Zen Brian, Flirty Midas (catalog order). It '
+      + 'says Zen Brian at 0:05; Flirty Midas at 0:15 is refused (cooling, "Ready in 10s"); at 0:25 it goes. Putting '
+      + 'Flirty Midas in slot 1 in the Collection makes the menu Flirty Midas, Zen Brian, Nervous Jensen.',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -5385,8 +5396,10 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/progression/src/emotes.db.test.ts',
         'packages/progression/src/sqlParity.test.ts',
         'packages/ui/src/emotes/emotes.test.tsx',
+        'packages/ui/src/progression/Crates.test.tsx',
+        'packages/ui/src/progression/CollectionScreen.test.tsx',
       ],
-      lastVerifiedAt: '2026-10-13',
+      lastVerifiedAt: '2026-10-15',
     },
   },
   {
@@ -5400,7 +5413,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'already captured for the round. The board uploads verbatim (boards.snapshot jsonb), so no SQL change is needed. '
       + 'snapshotBoard never writes the field (it stays pure); a board without it, every board from before emotes, has '
       + 'no emotes and loads unchanged. A board\x27s emotes are parsed tolerantly (junk dropped, at most 24, offsets 0 to 10 '
-      + 'minutes; an id this client does not know is kept and simply shows nothing). When a recorded seat is served, at '
+      + 'minutes; an id this client does not know, or a RETIRED emote such as Angry Mushy, is kept and simply shows '
+      + 'nothing). When a recorded seat is served, at '
       + 'the start of each of the player\x27s phases its recorded emotes of that phase play at the SAME offset into the '
       + 'player\x27s phase, beside that seat\x27s rail portrait (an emote whose moment has already passed is dropped, never '
       + 'played late). Only a seat driven by a real player\x27s recording can emote, only while it stands, and only from '
@@ -5423,10 +5437,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'in memory until the board is captured; combat emotes ride the saved boards), and replay v2 recordings do not carry '
       + 'emotes yet (not cheap: the per-round draft chunks, the resume offsets and the viewer would all need them).',
     example:
-      'Sam says Zen Brian 4.2 s into round 1\x27s shop and Angry Mushy 1.5 s into round 1\x27s fight. Their wave-1 board '
+      'Sam says Zen Brian 4.2 s into round 1\x27s shop and Flirty Midas 1.5 s into round 1\x27s fight. Their wave-1 board '
       + 'uploads with both. Days later Alex is seated against Sam\x27s run: 4.2 s into Alex\x27s round 1 shop, Zen Brian '
-      + 'pops beside Sam\x27s seat on the rail; if Alex fights Sam in round 1, Angry Mushy pops beside Sam\x27s combat '
-      + 'portrait 1.5 s into the fight. A bot seat beside Sam never says anything.',
+      + 'pops beside Sam\x27s seat on the rail; if Alex fights Sam in round 1, Flirty Midas pops beside Sam\x27s combat '
+      + 'portrait 1.5 s into the fight. A bot seat beside Sam never says anything. A board recorded before 2026-10-15 '
+      + 'with Angry Mushy on it plays nothing at that moment.',
     enforcement: {
       kind: 'scenario',
       refs: [

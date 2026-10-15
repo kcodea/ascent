@@ -4,6 +4,7 @@ import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateLabel, type Ope
 import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
 import { skinArtOf } from '../skins/skinArt';
+import { emoteSrc } from '../emotes/emoteArt';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
   CRATE_CUE_CATEGORY, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
@@ -361,8 +362,9 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const revealed = (phase === 'reveal' || phase === 'settled') && !!reward;
   // A skin shows its art beside the plate (owner 2026-09-29); a title needs no preview, the plate IS the title.
   const rewardDef = result?.rewardId ? cosmeticOf(result.rewardId) : undefined;
-  const skinKind = rewardDef?.category === 'hero_skin' ? 'hero' : rewardDef?.category === 'minion_skin' ? 'minion' : null;
-  const skinUrl = skinKind ? skinArtOf(rewardDef) : undefined;
+  // An emote (2026-10-15, now a crate drop) shows its bubble in the same spot.
+  const skinKind = rewardDef?.category === 'hero_skin' ? 'hero' : rewardDef?.category === 'minion_skin' ? 'minion' : rewardDef?.category === 'emote' ? 'emote' : null;
+  const skinUrl = skinKind === 'emote' ? emoteSrc(rewardDef?.id) : skinKind ? skinArtOf(rewardDef) : undefined;
   const next = phase === 'settled' ? pending[0] ?? null : null;
   const c = getCrateFxConfig();
   const k = 1 / crateFxSpeed();

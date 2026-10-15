@@ -178,8 +178,9 @@ const announcer = (id: string, name: string, rarity: CosmeticRarity, pack: strin
  * emotes everyone owns"). One account-wide item: a painted speech bubble that pops beside your hero portrait when you
  * use it in a game (right-click your portrait). `assets.art` is the key of the in-repo bubble
  * (`packages/ui/src/art/emotes/<key>.webp`); `assets.master` is the owner's master under
- * `C:/Game Assets/Ascent Art/Emotes/`. A STARTER emote is everyone's from the start; a crate emote (none yet) drops
- * like any other item once it is added here with `acquisition: { type: 'crate' }`.
+ * `C:/Game Assets/Ascent Art/Emotes/`. Since 2026-10-15 every emote is a CRATE drop (owner: "remove all emotes as
+ * 'given' and put them in various loot tiers between rare and legendary"); the `starter` acquisition stays in the
+ * vocabulary (no starter emote exists now).
  */
 const emote = (id: string, name: string, rarity: CosmeticRarity, master: string, acquisition: CosmeticAcquisition = { type: 'crate' }): CosmeticDef =>
   ({ id, category: 'emote', name, rarity, acquisition, assets: { art: id, master }, active: true });
@@ -600,13 +601,31 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // call her Little Inu"; "legendary for both".
   announcer('announcer_underdweller', 'Underdweller', 'legendary', 'underdweller'),
   announcer('announcer_little_inu', 'Little Inu', 'legendary', 'little-inu'),
-  // EMOTES (owner 2026-10-13): the four painted bubbles in C:/Game Assets/Ascent Art/Emotes/ are the STARTER set, owned
-  // and equipped by everyone (EmoteTemplate.png there is the blank template, not an emote). Placeholder art: the owner
-  // has not settled the final look. Names come from the filenames.
-  emote('emote_angry_mushy', 'Angry Mushy', 'common', 'AngryMushy.png', { type: 'starter' }),
-  emote('emote_flirty_midas', 'Flirty Midas', 'common', 'FlirtyMidas.png', { type: 'starter' }),
-  emote('emote_nervous_jensen', 'Nervous Jensen', 'common', 'NervousJensen.png', { type: 'starter' }),
-  emote('emote_zen_brian', 'Zen Brian', 'common', 'ZenBrian.png', { type: 'starter' }),
+  // EMOTES (owner 2026-10-13; reworked 2026-10-15). The painted bubbles in C:/Game Assets/Ascent Art/Emotes/
+  // (EmoteTemplate.png there is the blank template, not an emote). Names come from the filenames. Owner 2026-10-15:
+  // "remove all emotes as 'given' and put them in various loot tiers between rare and legendary. wire all the new ones
+  // that i added": every emote is a CRATE drop now (no starters), spread 6 Rare / 4 Epic / 3 Legendary by how
+  // expressive each is (a proposal the owner may re-tier: a one-word change per line).
+  // RETIRED 2026-10-15 (owner: "remove the angry mushy emote"). Kept as an inactive row, never deleted: the id stays known
+  // so an equipped slot or an old recorded board naming it degrades quietly (it is not live, so the menu skips that
+  // position, a recording of it plays nothing, the Collection hides it). Its in-repo bubble art was removed with it.
+  { ...emote('emote_angry_mushy', 'Angry Mushy', 'common', 'AngryMushy.png', { type: 'starter' }), active: false },
+  // Rare: one face, one feeling.
+  emote('emote_nervous_jensen', 'Nervous Jensen', 'rare', 'NervousJensen.png'),
+  emote('emote_zen_brian', 'Zen Brian', 'rare', 'ZenBrian.png'),
+  emote('emote_depressed_hank', 'Depressed Hank', 'rare', 'DepressedHank.png'),
+  emote('emote_nervous_voss', 'Nervous Voss', 'rare', 'NervousVoss.png'),
+  emote('emote_sad_wrangler', 'Sad Wrangler', 'rare', 'SadWrangler.png'),
+  emote('emote_tara_sad', 'Tara Sad', 'rare', 'TaraSad.png'),
+  // Epic: a bigger gesture or a little scene.
+  emote('emote_flirty_midas', 'Flirty Midas', 'epic', 'FlirtyMidas.png'),
+  emote('emote_happy_urchin', 'Happy Urchin', 'epic', 'HappyUrchin.png'),
+  emote('emote_sly_oona', 'Sly Oona', 'epic', 'SlyOona.png'),
+  emote('emote_dead_elder', 'Dead Elder', 'epic', 'DeadElder.png'),
+  // Legendary: the busiest, loudest bubbles.
+  emote('emote_rich_pimm', 'Rich Pimm', 'legendary', 'RichPimm.png'),
+  emote('emote_baby_rubies', 'Baby Rubies', 'legendary', 'BabyRubies.png'),
+  emote('emote_mad_tormentor', 'Mad Tormentor', 'legendary', 'MadTormentor.png'),
   // CARD PLATES (owner 2026-10-14): "This card plate is called Aquarium Rocks"; "aquariam rocks should be a legendary drop".
   cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'Aquarium Rocks.png'),
   // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".
@@ -902,8 +921,8 @@ export interface RunCosmeticSnapshot {
   announcer?: string;
   /** The EMOTES placed in the menu (owner 2026-10-13), keyed by menu position '0'..'3' (`EMOTE_SLOT_COUNT`). LIVE
    *  LOADOUT ONLY: a run records the emotes its player actually USED, on each round's board (`BoardSnapshot.emotes`),
-   *  never this menu, so `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent or partial = the
-   *  starter emotes fill the empty positions (`emoteLoadoutOf`). */
+   *  never this menu, so `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent or partial =
+   *  the player's owned emotes fill the empty positions (`emoteSlotsOf`). */
   emotes?: Readonly<Record<string, string>>;
 }
 
@@ -1065,13 +1084,16 @@ export const EMOTE_POSITION_RE = /^[0-3]$/;
 /** Is this item a STARTER (every player owns it from the start, no ownership row)? */
 export const isStarterCosmetic = (id: string | null | undefined): boolean => cosmeticOf(id)?.acquisition.type === 'starter';
 
-/** The starter emotes in catalog order: the default menu, position 0 first. */
-export const STARTER_EMOTE_IDS: readonly string[] = Object.freeze(COSMETICS.filter((c) => c.category === 'emote' && c.acquisition.type === 'starter').map((c) => c.id));
+/** The ACTIVE starter emotes in catalog order. EMPTY since 2026-10-15 (every emote is a crate drop; Angry Mushy, the
+ *  last starter kept in the catalog, is retired), so a fresh account's menu is empty. Kept so a future starter needs
+ *  no code. */
+export const STARTER_EMOTE_IDS: readonly string[] = Object.freeze(COSMETICS.filter((c) => c.category === 'emote' && c.acquisition.type === 'starter' && c.active).map((c) => c.id));
 
-/** Every owned id, plus the starter items everyone owns (a guest and an offline player included). */
+/** Every owned id, plus the ACTIVE starter items everyone owns (a guest and an offline player included). A retired
+ *  starter is no longer handed out (it was never an ownership row, so there is nothing to keep). */
 export function withStarterCosmetics(owned: readonly string[] | null | undefined): string[] {
   const out = [...(owned ?? [])];
-  for (const c of COSMETICS) if (c.acquisition.type === 'starter' && !out.includes(c.id)) out.push(c.id);
+  for (const c of COSMETICS) if (c.acquisition.type === 'starter' && c.active && !out.includes(c.id)) out.push(c.id);
   return out;
 }
 
@@ -1082,34 +1104,47 @@ export function emoteOf(id: string | null | undefined): CosmeticDef | null {
 }
 
 /**
- * THE MENU A LOADOUT SHOWS: up to `EMOTE_SLOT_COUNT` live emote ids, position 0 first. An explicit row wins its
- * position (a duplicate keeps only its lowest position; a retired or unknown id is dropped); every empty position takes
- * its own starter emote when that is not already shown, else a starter pushed out of its own position, else the first
- * starter not shown yet. So a fresh account shows
- * the four starters, and putting a starter in another position SWAPS it with the one that was there (rows {0: C} over
- * the default [A, B, C, D] read [C, B, A, D]). A position nothing can fill is left out (the result can be shorter).
+ * THE MENU A LOADOUT SHOWS, by position: `EMOTE_SLOT_COUNT` entries, an emote id or null (an empty position).
+ * `owned` = the player's owned ids (the profile's `cosmetics`); given, only an emote they OWN (or a starter) can show,
+ * so an old row naming an emote they no longer own, or a device-local row, never puts it in the menu. Absent = trust
+ * the rows (ownership unknown).
+ * An explicit row wins its position (a duplicate keeps only its lowest position; a retired, unknown or unowned id is
+ * dropped). Every empty position then takes, from the player's DEFAULT emotes (every usable owned emote and starter,
+ * in catalog order): its own default when that is not already shown, else one pushed out of its own position, else
+ * the first not shown yet. So owned emotes appear in the menu without being placed (up to four), putting one in another
+ * position SWAPS it with the one that was there, and a player who owns no emote has an empty menu (2026-10-15: no
+ * emote is given away any more).
  */
-export function emoteLoadoutOf(loadout: RunCosmeticSnapshot | null | undefined): string[] {
+export function emoteSlotsOf(loadout: RunCosmeticSnapshot | null | undefined, owned?: readonly string[] | null): (string | null)[] {
+  const have = owned == null ? null : new Set(owned);
+  const usable = (id: string): boolean => !!emoteOf(id) && (!have || have.has(id) || isStarterCosmetic(id));
   const slots: (string | null)[] = Array.from({ length: EMOTE_SLOT_COUNT }, () => null);
   const used = new Set<string>();
   for (let i = 0; i < EMOTE_SLOT_COUNT; i++) {
     const id = loadout?.emotes?.[String(i)];
-    if (id && !used.has(id) && emoteOf(id)) { slots[i] = id; used.add(id); }
+    if (id && !used.has(id) && usable(id)) { slots[i] = id; used.add(id); }
   }
-  const starters = STARTER_EMOTE_IDS.filter((id) => emoteOf(id));
-  // The starters pushed out of their own position by an explicit emote go first into the gaps (the swap).
-  const displaced = starters.filter((id) => !used.has(id) && slots[STARTER_EMOTE_IDS.indexOf(id)] !== null);
+  const defaults = COSMETICS
+    .filter((c) => c.category === 'emote' && usable(c.id) && (c.acquisition.type === 'starter' || (have?.has(c.id) ?? false)))
+    .map((c) => c.id);
+  // The defaults pushed out of their own position by an explicit emote go first into the gaps (the swap).
+  const displaced = defaults.filter((id, k) => !used.has(id) && k < EMOTE_SLOT_COUNT && slots[k] !== null);
   for (let i = 0; i < EMOTE_SLOT_COUNT; i++) {
     if (slots[i]) continue;
-    const own = STARTER_EMOTE_IDS[i];
-    const pick = own && starters.includes(own) && !used.has(own) ? own : displaced.find((id) => !used.has(id)) ?? starters.find((id) => !used.has(id));
+    const own = defaults[i];
+    const pick = own && !used.has(own) ? own : displaced.find((id) => !used.has(id)) ?? defaults.find((id) => !used.has(id));
     if (pick) { slots[i] = pick; used.add(pick); }
   }
-  return slots.filter((x): x is string => !!x);
+  return slots;
 }
 
-/** The menu position an emote sits in under this loadout, or -1. */
-export const emotePositionOf = (loadout: RunCosmeticSnapshot | null | undefined, id: string): number => emoteLoadoutOf(loadout).indexOf(id);
+/** The emotes the menu shows, in position order, empty positions left out (see `emoteSlotsOf`). */
+export function emoteLoadoutOf(loadout: RunCosmeticSnapshot | null | undefined, owned?: readonly string[] | null): string[] {
+  return emoteSlotsOf(loadout, owned).filter((x): x is string => !!x);
+}
+
+/** The menu position (0..3) an emote sits in under this loadout, or -1. */
+export const emotePositionOf = (loadout: RunCosmeticSnapshot | null | undefined, id: string, owned?: readonly string[] | null): number => emoteSlotsOf(loadout, owned).indexOf(id);
 
 /** A loadout with one emote put in `position` (the SQL's move: the same emote leaves any other position). Pure. */
 export function withEmoteAt(loadout: RunCosmeticSnapshot | null | undefined, position: number, id: string | null): RunCosmeticSnapshot {

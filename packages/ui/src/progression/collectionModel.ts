@@ -77,9 +77,9 @@ export const ownedIds = (p: Pick<ProgressionProfile, 'titles' | 'cosmetics'> | n
 
 /** Whether this item is the one worn: the title slot, the skin slot of the item's own hero / card, or the
  *  account-wide hero attack / portrait frame / announcer / card plate slot. */
-export function isEquipped(item: CosmeticDef, p: Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> | null | undefined): boolean {
-  // An emote is in the four-position menu (2026-10-13), which the starters fill even with no account at all.
-  if (item.category === 'emote') return emoteLoadoutOf(p?.loadout).includes(item.id);
+export function isEquipped(item: CosmeticDef, p: (Pick<ProgressionProfile, 'equippedTitleId' | 'loadout'> & Partial<Pick<ProgressionProfile, 'titles' | 'cosmetics'>>) | null | undefined): boolean {
+  // An emote is in the four-position menu (2026-10-13) when the account OWNS it (2026-10-15: none are given away).
+  if (item.category === 'emote') return emoteLoadoutOf(p?.loadout, p ? ownedIds({ titles: p.titles ?? [], cosmetics: p.cosmetics }) : []).includes(item.id);
   if (!p) return false;
   if (item.category === 'title') return p.equippedTitleId === item.id;
   if (item.category === 'hero_attack') return p.loadout?.heroAttack === item.id;

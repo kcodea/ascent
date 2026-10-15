@@ -51,7 +51,16 @@ const EMPTY: MinionSkinMap = new Map();
  * Both caches are tiny (a handful of distinct loadouts per session) and capped anyway.
  */
 const CACHE_CAP = 256;
-const keyOf = (s: RunCosmeticSnapshot): string => JSON.stringify([s.heroSkinByHeroId ?? null, s.minionSkinByCardId ?? null, s.heroAttack ?? null, s.title ?? null, s.portraitFrame ?? null]);
+/** The snapshot's WHOLE content, keys sorted at every level, so a clone keys the same and ANY field tells two snapshots
+ *  apart. It used to list five fields by hand, so a snapshot that added the card plate (or an announcer / emotes)
+ *  matched an older one without it and the interning handed back the plateless object (owner report 2026-10-15: "i
+ *  equipped the magma card plate and i only see the default in game"). R-PROG-SKINS-16. */
+const stable = (v: unknown): unknown =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v as Record<string, unknown>).sort().map((k) => [k, stable((v as Record<string, unknown>)[k])]))
+    : v;
+export const snapshotKey = (s: RunCosmeticSnapshot): string => JSON.stringify(stable(s));
+const keyOf = snapshotKey;
 const interned = new Map<string, RunCosmeticSnapshot>();
 const mapCache = new Map<string, { epoch: number; map: MinionSkinMap }>();
 

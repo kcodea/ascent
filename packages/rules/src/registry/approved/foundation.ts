@@ -5777,4 +5777,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-15 for the Collection hover preview (it used --plate-k 1 before, so its plate sat low and the darkening read too high). The Discover row has used --plate-k 1.3 since 2026-10-12.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/skinCardPreviewPlate.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
+  {
+    id: 'R-PROG-SKINS-16',
+    title: 'Every cosmetic a snapshot carries reaches the screen: snapshot de-duplication keys the WHOLE snapshot',
+    statement:
+      'Any cache that treats two cosmetic snapshots as the same (the client\x27s snapshot interning) compares their WHOLE '
+      + 'content, every field present today or added later, never a hand-picked list of fields. Two snapshots that differ in '
+      + 'any cosmetic (card plate, portrait frame, title, hero attack, skins, announcer, emotes) are never collapsed into '
+      + 'one, so a worn cosmetic always shows; a clone with the same content in another key order still counts as the same.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plates)', quote: 'i equipped the magma card plate and i only see the default in game, in a ranked game, and in practice' },
+      { kind: 'fix-pr', ref: 'PR #2090 (feat/card-plate-cosmetic): packages/ui/src/skins/skinArt.ts snapshotKey (was a five-field list that ignored cardPlate, announcer and emotes)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15. Before, the interning key listed hero skins, minion skins, hero attack, title and portrait frame only, so a run snapshot that added a card plate interned to an older plateless snapshot and the plate never showed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/skinIntern.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
 ];

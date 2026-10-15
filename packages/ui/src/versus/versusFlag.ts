@@ -3,7 +3,7 @@
  * deploy are live (2026-10-13): on in dev builds, or anywhere with `localStorage['ascent.versus'] = '1'`. When the
  * mode ships, flip `VERSUS_PUBLIC` and add the patch note in the same PR.
  */
-export const VERSUS_PUBLIC = false;
+export const VERSUS_PUBLIC = true; // owner 2026-10-14: "make it public"
 
 export function versusEnabled(): boolean {
   if (VERSUS_PUBLIC || import.meta.env.DEV) return true;

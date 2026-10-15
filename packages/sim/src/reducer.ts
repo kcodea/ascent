@@ -40,7 +40,7 @@ import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starfor
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
 import { withWhisperMult } from './recruit';
-import { expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, vanishWhispers, whisperTargetLegal } from './whisper';
+import { HUM_PER_TURN, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -4319,6 +4319,10 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     fodderAuraBonus: absorbedFodderAura.attack > 0 || absorbedFodderAura.health > 0 ? absorbedFodderAura : undefined,
     buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
     whisperBuffs: mergeWhisperBuffs(kept), // Set 4: a kept copy's temporary Whisper grant still expires next turn
+    // SEED (Set 3, 2026-10-15): the golden SUMS every copy's Drake Pup Echo stacks (permanent and this turn's temporary
+    // ones, each kept in its own lane), the "tripling takes the combined values" rule. A Hum's per-turn keep count is
+    // the highest of the copies (the golden's cap doubles, so the turn's remaining keeps grow).
+    ...seedEchoMerge(combined),
     spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
     damageDealt: goldenDamageDealt > 0 ? goldenDamageDealt : undefined,
@@ -4536,6 +4540,7 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
     partingCry: b.partingCry,   // Parting Cry: its Shout fires when it dies this fight
     closedCasket: b.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
     ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
+    ...((b.seedEchoes ?? 0) + (b.seedEchoesTemp ?? 0) > 0 ? { seedEchoes: (b.seedEchoes ?? 0) + (b.seedEchoesTemp ?? 0) } : {}), // Seed (Set 3): permanent + this turn's Drake Pup Echo stacks
     ...(b.grantedEffects?.length ? { grantedEffects: b.grantedEffects } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) fire in combat too (owner ruling 2026-08-27)
     ...(b.echoStripped ? { echoStripped: true } : {}), // "summon a copy WITHOUT the Echo": the shop mark now silences the Echo in combat too (owner ruling 2026-08-27)
     ...(b.impBank ? { impBank: { ...b.impBank } } : {}), // Ashen Heir: the SHOP bank rides in (cloned — combat spends its own copy; the run's bank persists)
@@ -5552,6 +5557,7 @@ function advanceCombat(s: RunState): void {
     if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
     if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
     if (c.whisperCopiedThisTurn) c.whisperCopiedThisTurn = false; // Tamby: "(Once per turn)" re-arms
+    if (c.whisperKeptThisTurn && HUM_PER_TURN) c.whisperKeptThisTurn = 0; // Hum: "the first Whisper ... each turn" re-arms
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;

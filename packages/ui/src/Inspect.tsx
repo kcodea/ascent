@@ -42,7 +42,8 @@ export function Inspect() {
             {inspect.buffs.map((b, i) => (
               <div className="ib-row" key={`${b.source}-${i}`}>
                 <span className="ib-src">{b.source} <em>×{b.count}</em>{buffExpiryNote(b.source) && <em className="ib-exp"> {buffExpiryNote(b.source)}</em>}</span>
-                <span className="ib-amt">+{b.attack}/+{b.health}</span>
+                {/* A stat-less row is a granted ability (Seed's Drake Pup Echo, Set 3), not a +0/+0 buff. */}
+                <span className="ib-amt">{b.attack === 0 && b.health === 0 ? 'Echo' : `+${b.attack}/+${b.health}`}</span>
               </div>
             ))}
           </div>

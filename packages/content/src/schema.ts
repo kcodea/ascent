@@ -633,6 +633,12 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleWoundMendTribe',    // Eatah: Echo: 1 damage to your Beasts, then +1 Health (never lethal)
   'onTribeDamagedBuffSelf',       // Apua: a friendly Beast took damage -> this +1/+1 permanently
   'onTribeDamagedBuffRandomTribe',// Alan: a friendly Beast took damage -> a random friendly Beast +1/+2 permanently
+  'rallyGrantRandomTribeMinion',  // Gatherer (Set 3, 2026-10-15): Rally: get a random Dragon
+  'deathrattleGiveAttackToOthers',// Gravus (Set 3, 2026-10-15): Echo: give this minion's Attack to 2 friendly minions
+  'whisperDiscoverTribe',         // Well of Dragons (Well Watcher's Whisper, 2026-10-15): Discover a Dragon
+  'avengeGrantRandomWhispers',    // Woozy (Set 3, 2026-10-15): Avenge (3): get 2 random Whispers
+  'whisperKeepOnThis',            // Hum (Set 3, 2026-10-15): the first Whisper cast on this each turn is permanent
+  'whisperGrantSeedEcho',         // Seed (Gardener's Whisper, 2026-10-15): grant "Echo: summon a 3/3 Drake Pup with Taunt"
 ]);
 
 export const EffectDefSchema = z.object({
@@ -698,6 +704,7 @@ export const CardDefSchema = z.object({
   rewardSpell: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
   attackImmuneTurns: z.number().int().positive().optional(),
+  attackImmuneTurnsGilded: z.number().int().positive().optional(),
   ascendInto: z.string().optional(),
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),

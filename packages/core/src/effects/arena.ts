@@ -274,6 +274,9 @@ export interface EffectArena {
   grantRandomRubies(count: number): void;
   /** Get `count` random SHOUT minions (a real `onPlay`) from the run's pinned pool, tier-capped. */
   grantRandomShoutMinion(count: number): void;
+  /** Get `count` random `tribe` minions (every body that counts as the tribe: duals and All-types) from the run's
+   *  pinned pool, tier-capped. Combat: `grantRandomMinion` (mid-fight `toHand`); shop: `conjureToHand` now. */
+  grantRandomTribeMinion(count: number, tribe: string): void;
   /** Does this body carry an effect on `on` (optionally with a specific `do`)? Combat reads the LIVE
    *  per-instance effect list (grafts included), the shop reads the printed def plus its grants. */
   hasEffect(t: ArenaBody, on: string, doId?: string): boolean;
@@ -1697,6 +1700,13 @@ export const ARENA_EFFECTS = {
   /** Roarcollector — Rally: get a random SHOUT minion, tier-capped by the run pool (golden 2). */
   rallyGrantRandomShoutMinion(arena: EffectArena, _params?: Record<string, unknown>): void {
     arena.grantRandomShoutMinion(gold(arena));
+  },
+
+  /** Gatherer (Set 3, 2026-10-15) — Rally: get `count` random `tribe` minions (golden doubles). */
+  rallyGrantRandomTribeMinion(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe);
+    if (!tribe) return;
+    arena.grantRandomTribeMinion(num(params.count, 1) * gold(arena), tribe);
   },
 
   /** Lieutenant Thane — Rally: hand THIS minion's current Attack to `count` random other friendlies. Distinct

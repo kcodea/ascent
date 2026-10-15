@@ -1582,3 +1582,42 @@ export function whisperGranterText(cardId: string, golden: boolean, run: { spell
   if (toNext !== undefined) text = text.replace(/spells cast this game\.$/, `spells cast this game, {{${toNext} to go}}.`);
   return text;
 }
+
+/**
+ * IMMUNE IGGY (Set 3, 2026-10-15): "Immune while attacking. (Twice per combat)" — in combat its cap counts down LIVE,
+ * one per swing (the sim spends one immune swing per attack, Bounty Bot's counter). `attacks` = this body's swings so
+ * far this fight (the replay's count); undefined / 0 = the printed text (the Shop, or before its first swing).
+ */
+export function attackImmuneText(cardId: string, golden: boolean, attacks: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  if (!def?.attackImmuneTurns || def.attackImmuneAlways) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  // Only a card that prints its cap as "(Twice per combat)" / "(N times per combat)"; one that prints its immunity
+  // another way (Bounty Bot: "first 2 attacks each combat") stays on the rest of the chain.
+  const m = /\*\*\((?:Twice|\d+ times) per combat\)\*\*/.exec(src);
+  if (!m) return null;
+  if (!attacks) return src;
+  const cap = golden && def.attackImmuneTurnsGilded ? def.attackImmuneTurnsGilded : def.attackImmuneTurns;
+  return src.replace(m[0], `{{(${Math.max(0, cap - attacks)} left this combat)}}`);
+}
+
+/**
+ * HUM (Set 3, 2026-10-15): "The first Whisper cast on this each turn is permanent." Once it has kept a Whisper this turn,
+ * the text says how many keeps are left (live, green). Null for every other card.
+ */
+export function humKeepText(cardId: string, golden: boolean, kept: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'whisperKeepOnThis');
+  if (!def || !eff) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  if (!kept) return src;
+  const cap = (typeof eff.params?.count === 'number' ? eff.params.count : 1) * (golden ? 2 : 1);
+  return `${src} {{(${Math.max(0, cap - kept)} left this turn)}}`;
+}
+
+/** SEED (Gardener's Whisper, Set 3 2026-10-15): the granted Drake Pup Echo a body carries, as a blue note with its
+ *  stack count (owner: "Echo: Summon a 3/3 Drake Pup with Taunt (x12)"). Empty for 0 stacks. */
+export function seedEchoNote(stacks: number | undefined): string {
+  if (!stacks || stacks <= 0) return '';
+  return `[[Echo: Summon a 3/3 Drake Pup with Taunt${stacks > 1 ? ` (x${stacks})` : ''}.]]`;
+}

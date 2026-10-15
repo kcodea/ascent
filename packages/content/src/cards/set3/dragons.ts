@@ -121,4 +121,142 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     text: '**Equip Jar of Secrets (2):** Get **3** random **Whispers**.',
     goldenText: '**Equip Jar of Secrets (2):** Get **3** random **Gilded Whispers**.',
   },
+  // -- Owner Set 3 Dragon batch 2 (2026-10-15). Appended after Shush so no earlier Set 3 pool position moves. --
+  {
+    // T4 5/4: "Rally: Get a random Dragon." A random Dragon from the RUN's set pool (tier-capped, every Dragon-counting
+    // body: dual tribes and All-types), to hand. Cross-phase (`rallyGrantRandomTribeMinion`, one arena body): a combat
+    // swing hands it over mid-fight through `grantRandomMinion`; a Shop-phase Rally (a forced Rally) mints it at once.
+    // Gilded: 2 Dragons.
+    id: 'd3_gatherer',
+    name: 'Gatherer',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGrantRandomTribeMinion', params: { tribe: 'dragon', count: 1 } }],
+    text: '**Rally:** Get a random **Dragon**.',
+    goldenText: '**Rally:** Get **2** random **Dragons**.',
+  },
+  {
+    // T6 8/3, Dragon AND Undead (the `tribe2` dual): "Echo: Give this minion's Attack to 2 friendly minions." Its Attack
+    // at death, to 2 DIFFERENT random other friendly minions (Lieutenant Thane's Rally body, reused by
+    // `deathrattleGiveAttackToOthers`). Combat: a combat buff (R-BUFF-PERM); a Shop Echo is permanent. Gilded: the whole
+    // spread twice (Thane's convention).
+    id: 'd3_gravus',
+    name: 'Gravus',
+    tribe: 'dragon',
+    tribe2: 'undead',
+    tier: 6,
+    attack: 8,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleGiveAttackToOthers', params: { count: 2 } }],
+    text: "**Echo:** Give this minion's **Attack** to **2** friendly minions.",
+    goldenText: "**Echo:** Give this minion's **Attack** to **2** friendly minions twice.",
+  },
+  {
+    // T6 8/8: "Whisper: Discover a Dragon." Grants the Whisper Well of Dragons (on play from hand + every Start of Turn
+    // while on the board, as Galas). Gilded: a gilded Well, which Discovers twice (two Discovers).
+    id: 'd3_wellwatcher',
+    name: 'Well Watcher',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_wellofdragons' } }],
+    text: '**Whisper:** **Discover** a **Dragon**.',
+    goldenText: '**Whisper:** **Discover** a **Dragon** twice.',
+  },
+  {
+    // T6 4/12: "When you cast a spell, give your minions +3 Health." EVERY spell (owner: Rubies, Whispers, Shop spells):
+    // Shop spells, Gifts and Whispers reach every `spellCast` watcher; `includeRubies` opts it into Ruby casts in the
+    // Shop, and the combat Ruby path fires it too (`onRubyCast`). Shop: permanent; combat: a combat buff (R-BUFF-PERM).
+    // Gilded: +6 Health.
+    id: 'd3_matriarch',
+    name: 'Matriarch',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 4,
+    health: 12,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastBuffAll', params: { attack: 0, health: 3, includeRubies: true } }],
+    text: 'When you cast a spell, give your minions **+3 Health**.',
+    goldenText: 'When you cast a spell, give your minions **+6 Health**.',
+  },
+  {
+    // T3 5/3: "Avenge (3): Get 2 Whispers." Random draws from the whole Whisper pool (Jar of Secrets' pool). Avenge is a
+    // combat trigger: the Whispers fly to hand mid-fight and arrive for the next Shop, where every Whisper rule applies
+    // (they fade at that turn's End of Turn if unused, and count as spells). Gilded: 2 GILDED Whispers (Shush's rule).
+    id: 'd3_woozy',
+    name: 'Woozy',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomWhispers', params: { count: 3, grant: 2 } }],
+    text: '**Avenge (3):** Get **2** random **Whispers**.',
+    goldenText: '**Avenge (3):** Get **2** random **Gilded Whispers**.',
+  },
+  {
+    // T5 7/2: "Immune while attacking. (Twice per combat)". Bounty Bot's immunity (`attackImmuneTurns`): its first 2
+    // swings each combat take no retaliation, fresh every combat; the combat card counts down live. Gilded: 4 swings.
+    id: 'd3_iggy',
+    name: 'Immune Iggy',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 7,
+    health: 2,
+    keywords: [],
+    attackImmuneTurns: 2,
+    attackImmuneTurnsGilded: 4,
+    effects: [],
+    text: 'Immune while attacking. **(Twice per combat)**',
+    goldenText: 'Immune while attacking. **(4 times per combat)**',
+  },
+  {
+    // T2 2/5: "The first Whisper cast on this is permanent." PER TURN (owner 2026-10-15): the first Whisper cast on it
+    // each turn keeps its grant for good (stats, and a Seed's Echo, which stacks with no cap). Read by the Shop cast
+    // path (`keepWhispersOnHum`, sim/whisper.ts). Gilded: the first 2.
+    id: 'd3_hum',
+    name: 'Hum',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'passive', do: 'whisperKeepOnThis', params: { count: 1 } }],
+    text: 'The first **Whisper** cast on this each turn is permanent.',
+    goldenText: 'The first **2 Whispers** cast on this each turn are permanent.',
+  },
+  {
+    // T1 1/1: "Whisper: Give a minion 'Echo: Summon a 3/3 Drake Pup with Taunt.'" Grants the Whisper Seed. The granted
+    // Echo lasts until the start of your next turn, like every Whisper grant (a Hum keeps it). Gilded: a gilded Seed,
+    // which grants the Echo twice (two Drake Pups).
+    id: 'd3_gardener',
+    name: 'Gardener',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_seed' } }],
+    text: '**Whisper:** Give a minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**."',
+    goldenText: '**Whisper:** Give a minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**" twice.',
+  },
+  {
+    // DRAKE PUP: the 3/3 Taunt Dragon a Seed's granted Echo summons. `token: true`: never drawn, resolves globally.
+    id: 'd3_drakepup',
+    name: 'Drake Pup',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 3,
+    health: 3,
+    keywords: ['T'],
+    effects: [],
+    token: true,
+    text: '',
+  },
 ];

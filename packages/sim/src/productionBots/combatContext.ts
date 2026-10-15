@@ -70,6 +70,7 @@ function friendlyBodiesOf(s: RunState): BoardMinion[] {
     closedCasket: b.closedCasket,
     ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}),
     ...(b.grantedEffects?.length ? { grantedEffects: b.grantedEffects } : {}),
+    ...((b.seedEchoes ?? 0) + (b.seedEchoesTemp ?? 0) > 0 ? { seedEchoes: (b.seedEchoes ?? 0) + (b.seedEchoesTemp ?? 0) } : {}),
     ...(b.echoStripped ? { echoStripped: true } : {}),
     ...(b.impBank ? { impBank: { ...b.impBank } } : {}),
     ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}),

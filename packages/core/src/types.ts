@@ -1008,6 +1008,13 @@ export type EffectFactoryId =
   | 'deathrattleWoundMendTribe' // Eatah: Echo: deal `damage` to your `tribe` minions and give them +`health` Health (x golden ticks; never lethal) (both phases)
   | 'onTribeDamagedBuffSelf' // Apua: when a friendly `tribe` minion takes damage, this gains +a/+h PERMANENTLY (both phases)
   | 'onTribeDamagedBuffRandomTribe' // Alan: when a friendly `tribe` minion takes damage, give a random friendly `tribe` minion +a/+h PERMANENTLY (both phases)
+  // -- Set 3 Dragon batch 2 (owner 2026-10-15) --
+  | 'rallyGrantRandomTribeMinion' // Gatherer: Rally: get `count` random `tribe` minions from the run's pool, tier-capped (x golden) (both phases)
+  | 'deathrattleGiveAttackToOthers' // Gravus: Echo: give this minion's Attack to `count` different random other friendly minions (golden repeats the spread) (both phases)
+  | 'whisperDiscoverTribe' // Well of Dragons (Well Watcher's Whisper): Discover a `tribe` minion, x the cast Whisper's multiplier (recruit)
+  | 'avengeGrantRandomWhispers' // Woozy: Avenge (`count`): get `grant` random Whispers (Gilded: gilded Whispers) (combat)
+  | 'whisperKeepOnThis' // Hum (passive marker read by the Shop Whisper cast path): the first `count` (x golden) Whispers cast on this each turn are permanent (recruit)
+  | 'whisperGrantSeedEcho' // Seed (Gardener's Whisper): the target gains "Echo: summon a 3/3 Drake Pup with Taunt" until your next turn, x the cast Whisper's multiplier (recruit)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {
@@ -1104,6 +1111,9 @@ export interface CardDef {
    *  needs its own flag rather than a large sentinel number. Seeds `attackImmuneLeft` to 1 and the swing
    *  site skips the decrement, which keeps the per-instance value JSON-safe (no Infinity in a save). */
   attackImmuneAlways?: boolean;
+  /** Immune Iggy (Set 3, 2026-10-15): a GILDED copy's `attackImmuneTurns` (Gilded: 4 immune swings, not 2). Absent =
+   *  the gilded copy keeps `attackImmuneTurns` (Bounty Bot). */
+  attackImmuneTurnsGilded?: number;
   /** Mauron: when this attacks it also damages an ADJACENT enemy — ONE of them, or BOTH when gilded. Not
    *  Cleave, which always hits both and is a player-facing keyword; this is a per-card splash. */
   splashAdjacent?: boolean;
@@ -2758,6 +2768,10 @@ export interface BoardMinion {
   /** Gravetwin: the Deathrattle (onDeath EffectDefs) it copied from a friendly Echo minion — carried into combat
    *  as real Deathrattle effects so it procs when Gravetwin dies mid-fight (not only at the next shop). */
   copiedEcho?: EffectDef[];
+  /** SEED (Gardener's Whisper, Set 3 2026-10-15): how many "Echo: summon a 3/3 Drake Pup with Taunt" stacks this body
+   *  carries (a Hum's permanent stacks plus this turn's temporary ones). `instantiate` expands each into its own
+   *  `onDeath` effect (`seedEchoEffects`), so every stack is its own Echo in combat. */
+  seedEchoes?: number;
   /** Effects GRAFTED onto this body at runtime in the shop (Echo Mimic, Grave Body, Contract Rewrite's quest
    *  graft, Rune of Rebirth's shop half) — folded into the live `Minion.effects` at `instantiate`, the same
    *  channel `copiedEcho` rides, so a grafted Deathrattle fires in combat and on served boards
@@ -3051,6 +3065,8 @@ export interface MinionSnapshot {
   /** ANCIENTS × the Auctioneer (War): this body carries the grafted "Rally: trigger this minion's Shout"
    *  (`rallyTriggerOwnShout` in its effects), so the combat card prints it. Display-only. */
   grantedRallyShout?: true;
+  /** Seed (Set 3, 2026-10-15): the granted Drake Pup Echo stacks this body carries, for the live combat text. */
+  seedEchoes?: number;
   /** ANCIENTS × Lord of the Risen: this body's Rise wears a tinted look (War's RED Rise on the Undying target).
    *  Display-only. */
   riseTint?: RiseTint;
@@ -4140,6 +4156,9 @@ export interface CombatContext {
   addWhisperImprove?(side: Side, whisperId: string, n: number): number;
   /** Tamby in combat: a Whisper copy to `side`'s hand at multiplier `mult` (a gilded copy keeps its doubling). */
   grantWhisperToHand?(whisperId: string, side: Side, mult: number, sourceUid?: string): void;
+  /** Woozy (Set 3, 2026-10-15): `count` RANDOM Whispers to hand (each drawn from every Whisper in the card index, in
+   *  index order, on the side's grant stream), at multiplier `mult`. */
+  grantRandomWhispers?(count: number, side: Side, mult: number, sourceUid?: string): void;
   /** Rune of Falling Embers' "your Star Crashes give an additional +A/+H" for this side (Set 3 design pass: Star Crash
    *  resolves in combat now, so the bonus folds in there too, as in the Shop). Absent = none. */
   starCrashBonusFor?(side: Side): { attack: number; health: number };

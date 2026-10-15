@@ -12,6 +12,25 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-15 owner Set 3 Dragon batch 2: Gravestar Seer archived (a Set 4 Celestial). --
+  {
+    // ARCHIVED 2026-10-15 (owner Set 3 Dragon batch 2: "archive Gravestar Seer"). Moved verbatim from set4/celestials.ts;
+    // belongs to no set now.
+    // T3 Celestial-Undead: "a spell" is ANY spell (owner 2026-09-10, Stellar Chorus: "count rubies and tower
+    // shields aka any spell") — `includeRubies` opts the watcher into Ruby casts; Gifts already route through
+    // `castSpell`. A permanent +4 Attack on the run card (`spellCastBuffSelf`, the dormant primitive, now used).
+    id: 'ce3_seer',
+    name: 'Gravestar Seer',
+    tribe: 'celestial',
+    tribe2: 'undead',
+    tier: 3,
+    attack: 0,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 4, health: 0, includeRubies: true } }],
+    text: 'Whenever you cast a spell, this gains **+4 Attack** permanently.',
+    goldenText: 'Whenever you cast a spell, this gains **+8 Attack** permanently.',
+  },
   // -- 2026-10-13 owner Set 3 batch: Delver, Shardluck, Dreaming Deep, Cosmo Express, Constellation Prime and Yeti archived
   //    (set-3-own cards). The set-2 / set-1 carry-overs on the same list left SET 3 only (`sets.ts`); set 2 keeps them. --
   {
@@ -755,7 +774,10 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // combat cast path (`castInCombat`), so it reaches every caster at once rather than a hand-kept list.
     // Start of Combat, so the grant is locked in and does not retract if the Matriarch dies.
     id: 'b2_runebloom',
-    name: 'Matriarch', // was 'Runebloom Matriarch' (owner 2026-10-09: names fit on one line); id unchanged
+    // 'Runebloom Matriarch' -> 'Matriarch' (owner 2026-10-09: names fit on one line) -> back to 'Runebloom Matriarch'
+    // 2026-10-15: the new Set 3 Dragon Matriarch (d3_matriarch, owner batch) took the short name, and no two cards
+    // share a display name. Archived, so display-only; id unchanged.
+    name: 'Runebloom Matriarch',
     tribe: 'beast',
     tier: 6,
     attack: 5,

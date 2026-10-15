@@ -42,7 +42,7 @@ describe('Set 4 placeholder', () => {
     // The 2026-10-14 swap (owner): the Whisper Dragons left for Set 3 and the Celestials arrived from it, ids unchanged.
     expect(poolFor('set4').buyable.map((c) => c.id)).toEqual([
       'b4_hawg', 'b4_apua', 'b4_eatah', 'b4_alan',
-      'ce3_vendor', 'ce3_seer', 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
+      'ce3_vendor', /* ce3_seer: Gravestar Seer archived 2026-10-15 */ 'ce3_conductor', 'ce3_herald', 'ce3_adept', 'ce3_spellcore', 'ce3_artificer',
       'ce3_starseed', 'ce3_dawnsentinel', 'ce3_peddler', 'ce3_wishingstar', 'ce3_accretionwarden', 'ce3_shootingstar',
       'ce3_eclipsewarden', 'ce3_orbitkeeper', 'ce3_coronadevotee', 'ce3_starcharter', 'ce3_lensgrinder', 'ce3_lodestar',
       'ce3_twinstar', 'ce3_novaherald', 'ce3_zenith',

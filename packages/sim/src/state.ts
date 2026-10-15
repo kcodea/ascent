@@ -337,6 +337,15 @@ export interface BoardCard {
   /** Set 4 — Tamby: its once-per-turn "get a copy of the Whisper cast on this" has fired this turn. Cleared at the
    *  turn flip with the other per-turn counters. */
   whisperCopiedThisTurn?: boolean;
+  /** SEED (Gardener's Whisper, Set 3 2026-10-15): PERMANENT "Echo: summon a 3/3 Drake Pup with Taunt" stacks (a Hum
+   *  kept them). No cap; each stack is its own Echo (`seedEchoEffects`). A triple SUMS the copies' stacks. */
+  seedEchoes?: number;
+  /** SEED: this turn's TEMPORARY stacks (kept through the turn's combat, stripped at the next Start of Turn by
+   *  `expireWhisperBuffs`, like a Whisper's stats). */
+  seedEchoesTemp?: number;
+  /** HUM (Set 3, 2026-10-15): Whispers cast on this this turn that it has already made permanent (its cap is 1, 2
+   *  Gilded). Cleared at the turn flip with the other per-turn counters (`HUM_PER_TURN`). */
+  whisperKeptThisTurn?: number;
   /** Crash Course: its "first Star Crash on this each turn" named-spell re-cast has fired this turn (was the Adept's spread). Cleared with the other
    *  per-turn counters at Start of Turn. */
   namedSpreadUsedThisTurn?: boolean;

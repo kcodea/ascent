@@ -67,6 +67,7 @@ export function vanishWhispers(state: RunState): number {
  */
 export function expireWhisperBuffs(state: RunState): void {
   for (const c of [...state.board, ...state.hand]) {
+    if (c.seedEchoesTemp) c.seedEchoesTemp = undefined; // Seed: last turn's temporary Drake Pup Echoes go too
     const rows = c.whisperBuffs;
     if (!rows?.length) continue;
     for (const r of rows) {
@@ -105,5 +106,22 @@ export function mergeWhisperBuffs(cards: readonly BoardCard[]): BoardCard['whisp
   return out.length > 0 ? out : undefined;
 }
 
+// ── HUM (Set 3, owner 2026-10-15): "The first Whisper cast on this is permanent." ─────────────────────────────────────
+/** PER TURN (owner 2026-10-15: "first per turn"): Hum's keep count re-arms at every turn flip. The one switch: `false`
+ *  makes it "per game" (the count is never cleared, so only the first 1 / 2 Whispers it ever receives are kept). */
+export const HUM_PER_TURN = true;
+
+/** A triple's Seed stacks and Hum latch: the SUM of every copy's stacks per lane, the highest keep count. */
+export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'seedEchoes' | 'seedEchoesTemp' | 'whisperKeptThisTurn'> {
+  const perm = cards.reduce((n, c) => n + (c.seedEchoes ?? 0), 0);
+  const temp = cards.reduce((n, c) => n + (c.seedEchoesTemp ?? 0), 0);
+  const kept = Math.max(0, ...cards.map((c) => c.whisperKeptThisTurn ?? 0));
+  return {
+    ...(perm > 0 ? { seedEchoes: perm } : {}),
+    ...(temp > 0 ? { seedEchoesTemp: temp } : {}),
+    ...(kept > 0 ? { whisperKeptThisTurn: kept } : {}),
+  };
+}
+
 // Re-exported so the presentation can read a Whisper's live value without reaching into recruit internals.
-export { whisperValue, whisperSpellsToNext, allSpellsCastThisGame } from './recruit';
+export { whisperValue, whisperSpellsToNext, allSpellsCastThisGame, whisperMarksOf, humKeepCap, keepWhispersOnHum } from './recruit';

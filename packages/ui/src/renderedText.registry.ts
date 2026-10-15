@@ -24,6 +24,8 @@ export interface RenderExcuse {
 /** Card ids the arming sweep may skip, each with a verifiable reason. Keep this SHORT — an entry here is
  *  a card whose rendered text the harness does NOT reconcile. */
 export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
+  d3_wellwatcher: { kind: 'accurate-at-any-value', why: 'the Whisper of Well Watcher (Well of Dragons) Discovers a Dragon: no printed magnitude that could go stale; the Gilded "twice" is its goldenText, and a held gilded Well prints "twice" live (whisperLiveText)' },
+  d3_gardener: { kind: 'accurate-at-any-value', why: 'the Whisper of Gardener (Seed) grants a fixed 3/3 Drake Pup Echo: no printed magnitude that could go stale; the Gilded "twice" is its goldenText, a held gilded Seed prints "twice" live, and every body carrying stacks prints them (seedEchoNote)' },
   d3_falx: { kind: 'accurate-at-any-value', why: 'the Whisper of Falx (Ripple) triggers a Shout: no printed magnitude that could go stale; the Gilded "twice" is its goldenText, and a held gilded Ripple prints "twice" live (whisperLiveText)' },
   salvatore: { kind: 'accurate-at-any-value', why: 'a FIXED Tier 6 Sell Discover (onSellDiscover, no tierOffset): the printed tier is the real one at any Shop tier; only the Golden Monkey (tierOffset) reads the live tier (sellDiscoverTierText)' },
   // King Oona doubles a summon's stats — the rule carries no printed magnitude that could go stale, and the

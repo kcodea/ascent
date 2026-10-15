@@ -243,6 +243,14 @@ const SET1_NEUTRALS_IN_SET3: readonly CardDef[] = [
   ].includes(c.id)),
   ...TIER7.filter((c) => c.id === 'salvatore'),
 ];
+/**
+ * SET 2 DRAGONS that carry into SET 3 (owner Set 3 Dragon batch 2, 2026-10-15: "add Chorus Drake, Flutterbutter and
+ * Transcendant to Set 3's Dragons"). Opted in BY ID, SHARED definitions (set 2 is untouched). Appended after Set 3's own
+ * Dragons in the manifest, so no earlier Set 3 position moves.
+ */
+const SET2_DRAGONS_IN_SET3: readonly CardDef[] = SET2_DRAGONS.filter((c) =>
+  ['d2_chorus', 'd2_flutterdrake', 'd2_transcendence'].includes(c.id),
+);
 const SET2_NEUTRALS_IN_SET3: readonly CardDef[] = SET2_NEUTRAL.filter((c) =>
   ['k_pouchpincher', 'n2_spellsword', 'n2_bellringer', 'n2_paragon'].includes(c.id),
 );
@@ -387,8 +395,8 @@ export const SETS: Record<SetId, SetDef> = {
     // Then the SPIRITS (2026-09-09): a brand-new tribe, all set 3's own — appended after the Neutrals.
     // Then the WHISPER DRAGONS (2026-10-14, from Set 4), in the slot the Celestials held (appended 2026-09-11, moved to
     // Set 4 the same day the Dragons arrived), so every earlier minion keeps its position. Their Whispers (Tome,
-    // Runebind) are granted Gift-class spells and stay OUT of the manifest.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
+    // Runebind) are granted Gift-class spells and stay OUT of the manifest. Then (2026-10-15) the three carried Set 2 Dragons.
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET2_DRAGONS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
   },
   set4: {
     id: 'set4',

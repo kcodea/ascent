@@ -122,6 +122,8 @@ const richBag = (id: string): LiveTextParams => ({
   runeFlags: { matriarch: true, brokerage: true, livingTreasure: true },
   whisperImprove: { w4_runebind: 4 }, /* Set 4: Tolan's Runebind improved twice (2026-10-13) */
   whisperCastsUsed: 1, /* Whaloo's per-combat cap counting down (Set 3, 2026-10-14) */
+  whisperKeptThisTurn: 1, /* Hum's keeps left this turn (Set 3, 2026-10-15) */
+  attacksMade: 1, /* Immune Iggy's immune swings counting down (Set 3, 2026-10-15) */
 });
 
 /** Per-card additions the generic bags must not set globally: `taughtSpellId` early-returns for ANY card, so

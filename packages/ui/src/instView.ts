@@ -7,7 +7,7 @@ import {
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, seedEchoNote } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -112,6 +112,13 @@ export interface LiveTextParams {
   /** ANCIENTS × the Auctioneer (War): this instance carries the granted "Rally: trigger this minion's Shout" (a
    *  `grantedEffects` graft in the shop, the snapshot's `grantedRallyShout` in combat). Printed as a blue note. */
   grantedRallyShout?: boolean;
+  /** SEED (Set 3, 2026-10-15): the granted Drake Pup Echo stacks this body carries (Shop: permanent + this turn's;
+   *  combat: the snapshot's count). Printed as a blue note with the stack count. */
+  seedEchoes?: number;
+  /** HUM (Set 3, 2026-10-15): Whispers it has already kept this turn (its live "N left this turn"). */
+  whisperKeptThisTurn?: number;
+  /** IMMUNE IGGY (Set 3, 2026-10-15, combat): this body's swings so far this fight (its live immune countdown). */
+  attacksMade?: number;
   /** FRANK × ANCIENT OF FORTUNE: this Clearance minion's CURRENT sell value (owner 2026-09-30: "just add sells for 2g if
    *  it is a fortune frank purchase"). Printed as a blue note; absent = no line. */
   clearanceSellGold?: number;
@@ -214,6 +221,8 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
         ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult })
         : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove }) ?? // Set 4: Galas / Tolan print their Whisper's live value
             whisperCasterText(c.id, p.golden, p.whisperCastsUsed) ?? // Whaloo: its per-combat cap counts down live in combat
+            attackImmuneText(c.id, p.golden, p.attacksMade) ?? // Immune Iggy: its immune swings count down live in combat
+            humKeepText(c.id, p.golden, p.whisperKeptThisTurn) ?? // Hum: the keeps left this turn
             transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -290,7 +299,9 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
   const grantNote = p.grantedRallyShout ? GRANTED_RALLY_SHOUT_NOTE : '';
   // …and Frank × Ancient of Fortune's Clearance sale price, at its CURRENT value (the "2 Gold is a floor" rule folded in).
   const saleNote = p.clearanceSellGold !== undefined ? clearanceSellNote(p.clearanceSellGold) : '';
-  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote, saleNote].filter(Boolean).join(' ');
+  // …and every SEED stack it carries (Gardener's Whisper): "Echo: Summon a 3/3 Drake Pup with Taunt (xN)".
+  const seedNote = seedEchoNote(p.seedEchoes);
+  const runeNote = [runeModifiedNote(c.id, p.runeFlags), grantNote, saleNote, seedNote].filter(Boolean).join(' ');
   const noted = runeNote ? `${text} ${runeNote}` : text;
   const notedGolden = goldenBase !== undefined && runeNote ? `${goldenBase} ${runeNote}` : goldenBase;
   // Live Imp-stat annotation (owner 2026-08-11): fold the summoned Imp's current X/Y into the "summon … Imp"
@@ -375,6 +386,8 @@ export function instView(
     chooseBoth, // (Both) — no choice to print
     taughtSpellId: inst.taughtSpellId, // a Mage-Pup prints the spell it was taught
     grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
+    seedEchoes: (inst.seedEchoes ?? 0) + (inst.seedEchoesTemp ?? 0), // Seed: the Drake Pup Echo stacks (permanent + this turn's)
+    whisperKeptThisTurn: inst.whisperKeptThisTurn, // Hum: the keeps left this turn
     clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
     whisperImprove: live?.whisperImprove, whisperMult: inst.whisperMult, // Set 4: a Whisper's / a granter's live value
@@ -430,7 +443,7 @@ export function instView(
     castMult: spell || c.ruby ? live?.castMult : undefined,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
-    buffs: inst.buffs,
+    buffs: withSeedRows(inst),
     // Shop/board counter: only render once it has PROGRESS — a fresh 0/N reads as noise (owner ruling), so
     // hide at 0 and surface it from 1/N up. (Combat keeps its own 0/N → fades in on the first tick.)
     stepProgress: live?.onBoard
@@ -490,3 +503,18 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
     },
   );
 }
+
+/** The buffs panel's SEED rows (Set 3, 2026-10-15: "the buffs panel lists them"): a Hum's permanent Drake Pup Echo
+ *  stacks ("Drake Pup Echo", kept) and this turn's temporary ones ("Seed", which the expiry note marks "until your next
+ *  turn"), after the stat ledger. A row with no stats renders as an Echo grant (Inspect). */
+function withSeedRows(inst: BoardCard): BoardCard['buffs'] {
+  const perm = inst.seedEchoes ?? 0, temp = inst.seedEchoesTemp ?? 0;
+  if (perm <= 0 && temp <= 0) return inst.buffs;
+  return [
+    ...(inst.buffs ?? []),
+    ...(perm > 0 ? [{ source: SEED_KEPT_ROW, attack: 0, health: 0, count: perm }] : []),
+    ...(temp > 0 ? [{ source: CARD_INDEX['w3_seed']?.name ?? 'Seed', attack: 0, health: 0, count: temp }] : []),
+  ];
+}
+/** The buffs-panel label of a Hum's kept Seed stacks. */
+export const SEED_KEPT_ROW = 'Drake Pup Echo';

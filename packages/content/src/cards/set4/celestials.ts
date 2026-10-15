@@ -36,22 +36,6 @@ export const SET4_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Shout:** give your next Shop spell **+8/+8**.',
   },
   {
-    // T3 Celestial-Undead: "a spell" is ANY spell (owner 2026-09-10, Stellar Chorus: "count rubies and tower
-    // shields aka any spell") — `includeRubies` opts the watcher into Ruby casts; Gifts already route through
-    // `castSpell`. A permanent +4 Attack on the run card (`spellCastBuffSelf`, the dormant primitive, now used).
-    id: 'ce3_seer',
-    name: 'Gravestar Seer',
-    tribe: 'celestial',
-    tribe2: 'undead',
-    tier: 3,
-    attack: 0,
-    health: 8,
-    keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 4, health: 0, includeRubies: true } }],
-    text: 'Whenever you cast a spell, this gains **+4 Attack** permanently.',
-    goldenText: 'Whenever you cast a spell, this gains **+8 Attack** permanently.',
-  },
-  {
     // T4 Rally: the run remembers the turn's first Shop spell (`firstSpellThisTurnId`), combat carries it on the
     // side state, and the Rally hands a copy to hand mid-fight (`grantToHand`) — EVERY attack (owner rework
     // 2026-09-18 dropped the once-per-combat latch from the sentence, so the latch went with it).

@@ -193,4 +193,126 @@ export const GIFTS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-14.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Dragons1014.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-DRAGON-GATHERER-01',
+    title: "Gatherer: \"Rally: Get a random Dragon.\" from the run's set pool, in both phases; Gilded gets 2",
+    statement:
+      "Gatherer (Set 3 Dragon, T4 5/4): each Rally gets a random Dragon (every body that counts as a Dragon: duals and All-types) from the run's pinned set pool, capped at the side's shop tier. In combat it flies to hand mid-fight (the shared random-minion grant, either side) and settles into hand; a Shop-phase Rally (a forced Rally) mints it at once. Gilded: 2 Dragons.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Gatherer, T4 5/4: \"Rally: Get a random Dragon.\" (from the run's set pool, to hand)." },
+      { kind: 'code', ref: "packages/core/src/effects/arena.ts rallyGrantRandomTribeMinion; packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts grantRandomTribeMinion" },
+    ],
+    contentIds: ["d3_gatherer"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-DRAGON-GRAVUS-01',
+    title: "Gravus (Dragon and Undead): \"Echo: Give this minion's Attack to 2 friendly minions.\" Its Attack at death, 2 different others; combat-only in combat",
+    statement:
+      "Gravus (Set 3, T6 8/3) is a Dragon AND an Undead (the tribe2 dual). Its Echo hands its Attack at death to 2 DIFFERENT random other friendly minions (never itself; Lieutenant Thane's spread body). In combat the gain is a combat buff (the buff-permanence rule); an Echo fired in the Shop is permanent. Gilded: the whole spread twice.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Gravus, Dragon AND Undead, T6 8/3: \"Echo: Give this minion's Attack to 2 friendly minions.\" (its Attack at death, random 2 other friendly minions; combat-only per the buff-permanence rule)." },
+      { kind: 'code', ref: "packages/core/src/effects/factories.ts deathrattleGiveAttackToOthers; packages/core/src/effects/arena.ts rallyGiveAttackToOthers; packages/sim/src/recruit.ts deathrattleGiveAttackToOthers" },
+    ],
+    contentIds: ["d3_gravus"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-08',
+    title: "Well Watcher grants Well of Dragons: \"Discover a Dragon\" (untargeted); a gilded Well is two Discovers",
+    statement:
+      "Well Watcher (Set 3 Dragon, T6 8/8) grants the Whisper Well of Dragons with the Whisper lifecycle (on play, every Start of Turn while it stands, fades at End of Turn, counts as a spell cast). Casting it (no target) opens a Discover of a Dragon from the run's set pool up to your tier. A Gilded Well Watcher grants a gilded Well, which opens TWO Discovers (the second queued).",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Well Watcher, T6 8/8: \"Whisper: Discover a Dragon.\" The Whisper is named Well of Dragons. Gilded: Discover 2 Dragons (two Discovers)." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts whisperDiscoverTribe; packages/content/src/cards/set3/whispers.ts w3_wellofdragons" },
+    ],
+    contentIds: ["d3_wellwatcher", "w3_wellofdragons"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-SPELL-MATRIARCH-01',
+    title: "Matriarch: every spell (Shop spells, Gifts, Whispers, Rubies) gives your minions +3 Health; permanent in the Shop, a combat buff in combat",
+    statement:
+      "Matriarch (Set 3 Dragon, T6 4/12): whenever its side casts a spell of ANY kind (a Shop spell, a Gift, a Whisper, a Ruby) every friendly minion (itself included) gains +3 Health (+6 Gilded). Shop casts are permanent; combat casts (Whaloo's Runebind, a Ruby played in combat, any combat spell) are combat buffs. Each repetition of a cast pays. Only its own side's casts.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Matriarch, T6 4/12: \"When you cast a spell, give your minions +3 Health.\" Cross-phase (shop: permanent; combat: combat-only per the buff-permanence rule); every spell incl. Rubies, Whispers, shop spells." },
+      { kind: 'code', ref: "packages/core/src/effects/arena.ts spellCastBuffAll; packages/core/src/combat/simulate.ts runeRubyCastCombat (combat Rubies); packages/sim/src/recruit.ts fireSpellCastWatchersForRuby (includeRubies)" },
+    ],
+    contentIds: ["d3_matriarch"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-09',
+    title: "Woozy: \"Avenge (3): Get 2 Whispers.\" random from the whole Whisper pool, mid-fight, arriving for the next Shop under every Whisper rule",
+    statement:
+      "Woozy (Set 3 Dragon, T3 5/3): every 3 friendly deaths in combat it gets 2 random Whispers (seeded draws from every Whisper, the Jar of Secrets pool), flown to hand mid-fight. They arrive in the next Shop's hand and follow every Whisper rule there (they fade at that turn's End of Turn if unused, and count as spells when cast). Gilded: 2 GILDED Whispers (Shush's rule).",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Woozy, T3 5/3: \"Avenge (3): Get 2 Whispers.\" (random from the Whisper pool, like Jar of Secrets). If gained in combat, they arrive in hand for the next shop and follow normal Whisper rules." },
+      { kind: 'code', ref: "packages/core/src/effects/factories.ts avengeGrantRandomWhispers; packages/core/src/combat/simulate.ts grantRandomWhispers / grantWhisperToHand" },
+    ],
+    contentIds: ["d3_woozy"],
+    currentBehaviour: "Conforms as of 2026-10-15. Gilded = 2 Gilded Whispers is a judgement call awaiting the owner.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-IMMUNE-IGGY-01',
+    title: "Immune Iggy: its first 2 swings each combat take no retaliation (4 Gilded), fresh every combat, with a live countdown",
+    statement:
+      "Immune Iggy (Set 3 Dragon, T5 7/2): Immune while attacking, twice per combat: its first 2 swings each combat take no retaliation damage (Bounty Bot's immune-swing counter, spent one per swing). The count is fresh every combat and the combat card counts it down live. Gilded: its first 4 swings.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Immune Iggy, T5 7/2: \"Immune while attacking. (Twice per combat)\" (takes no damage on its own attacks, 2 uses per combat, with a live counter)." },
+      { kind: 'code', ref: "packages/core/src/combat/minion.ts attackImmuneLeft (attackImmuneTurnsGilded); packages/core/src/combat/simulate.ts the swing site; packages/ui/src/cardText.ts attackImmuneText" },
+    ],
+    contentIds: ["d3_iggy"],
+    currentBehaviour: "Conforms as of 2026-10-15. Gilded = 4 times per combat is a judgement call awaiting the owner.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-10',
+    title: "Hum: the first Whisper cast on it EACH TURN is permanent (the first 2 Gilded), stats and Seed stacks alike",
+    statement:
+      "Hum (Set 3 Dragon, T2 2/5): the first Whisper cast on it each turn (the first 2 when Gilded) keeps everything that cast gave it for good: its stats stop being temporary and a Seed's Drake Pup Echo becomes a permanent stack. Later Whispers that turn are ordinary (temporary). Every cast counts as one Whisper (a Yazzus repeat is a second). The count re-arms every turn (one switch, HUM_PER_TURN, makes it per game). Shop casts only: a Whisper cast on Hum in combat (Whaloo) stays combat-only.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Hum, T2 2/5: \"The first Whisper cast on this is permanent.\" Gilded: the first 2." },
+      { kind: 'owner-chat', ref: "Owner 2026-10-15 (Hum)", quote: "first per turn" },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts keepWhispersOnHum / castSpell; packages/sim/src/whisper.ts HUM_PER_TURN; packages/sim/src/reducer.ts the per-turn clears" },
+    ],
+    contentIds: ["d3_hum"],
+    currentBehaviour: "Conforms as of 2026-10-15. A combat Whisper cast on Hum (Whaloo) is not kept: an open owner question.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-11',
+    title: "Gardener's Seed: \"Echo: Summon a 3/3 Drake Pup with Taunt\" until your next turn; on Hum the stacks are permanent and uncapped, each its own Echo",
+    statement:
+      "Gardener (Set 3 Dragon, T1 1/1) grants the Whisper Seed: the target gains \"Echo: Summon a 3/3 Drake Pup with Taunt\" until the start of your next turn (a gilded Seed grants it twice). Every stack is its own Echo (its own trigger; Echo multipliers repeat each; summons past 7 overflow and feed the Overflow cards). On Hum (its keep) the stack is permanent and stacks across turns with no cap; triples SUM the copies' stacks; snapshots and served boards carry them; a risen body carries them into its second life; both combat sides behave the same. Every body prints its stacks (\"(xN)\") and the buffs panel lists them.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "seed can stack on hum so theoretically there could be 10+ stacks of it by end game, which could create awesome overflow synergy. this is intended, make sure this works" },
+      { kind: 'owner-chat', ref: "Owner Set 3 Dragon batch 2 (2026-10-15, Gardener)", quote: "Whisper: Give a minion \"Echo: Summon a 3/3 Drake Pup with Taunt.\"" },
+      { kind: 'code', ref: "packages/core/src/combat/minion.ts seedEchoEffects; packages/sim/src/recruit.ts whisperGrantSeedEcho / instanceEffects; packages/sim/src/whisper.ts expireWhisperBuffs / seedEchoMerge; packages/ui/src/cardText.ts seedEchoNote" },
+    ],
+    contentIds: ["d3_gardener", "w3_seed", "d3_hum", "d3_drakepup"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
 ];

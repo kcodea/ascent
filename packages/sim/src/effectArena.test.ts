@@ -101,6 +101,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     grantRubies: () => {},
     grantRandomRubies: () => {},
     grantRandomShoutMinion: () => {},
+    grantRandomTribeMinion: () => {},
     hasEffect: () => false,
     replayShout: () => {},
     hasEcho: () => false,

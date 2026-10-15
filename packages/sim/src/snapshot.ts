@@ -295,6 +295,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     // used the wrong stat, the Bloodlust weld-Rally + the "All tribes" flag went missing.
     ...(c.copiedEcho?.length ? { copiedEcho: c.copiedEcho.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // Gravetwin: its copied Deathrattle procs on combat death
     ...(c.grantedEffects?.length ? { grantedEffects: c.grantedEffects.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) — a served board's grafted Deathrattle fires (owner ruling 2026-08-27)
+    ...((c.seedEchoes ?? 0) + (c.seedEchoesTemp ?? 0) > 0 ? { seedEchoes: (c.seedEchoes ?? 0) + (c.seedEchoesTemp ?? 0) } : {}), // Seed (Set 3): a served body's Drake Pup Echo stacks fire too
     ...(c.echoStripped ? { echoStripped: true as const } : {}), // "without Echo" mark — a served shop-stripped copy stays silent in combat too (owner ruling 2026-08-27)
     ...(c.impBank ? { impBank: { ...c.impBank } } : {}), // Ashen Heir: the bank rides the snapshot (cloned), so a served Heir pays out mid-fight (owner ruling 2026-08-27)
     // ONE-COMBAT SPELL/POWER MARKS (owner ruling 2026-08-27, q-snap-one-combat-marks): carried exactly like

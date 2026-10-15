@@ -50,7 +50,7 @@ describe('the roster', () => {
     expect(CARD_INDEX['ce3_courier']).toMatchObject({ tier: 1, attack: 2, health: 1 });
     const rows: [string, number, number, number][] = [
       // Gravestar Seer 3/3 → 0/8 (owner stat pass 2026-09-18); Sugarnova 4/2 (rework 2026-09-18)
-      ['ce3_vendor', 2, 4, 2], ['ce3_seer', 3, 0, 8], ['ce3_conductor', 4, 4, 5],
+      ['ce3_vendor', 2, 4, 2], ['ce3_conductor', 4, 4, 5], // Gravestar Seer (ce3_seer, 0/8) archived 2026-10-15
       ['ce3_herald', 4, 4, 6], ['ce3_adept', 5, 5, 8], ['ce3_spellcore', 6, 7, 9], ['ce3_artificer', 6, 6, 10],
     ];
     const ids = poolFor('set4').buyable.map((c) => c.id);
@@ -61,6 +61,7 @@ describe('the roster', () => {
       expect(poolFor('set3').all.some((c) => c.id === id), id + ' left set 3').toBe(false);
     }
     expect(CARD_INDEX['ce3_seer']!.tribe2).toBe('undead');
+    expect(poolFor('set4').all.some((c) => c.id === 'ce3_seer'), 'Gravestar Seer archived 2026-10-15').toBe(false);
     expect(poolFor('set2').buyable.some((c) => c.tribe === 'celestial'), 'set 2 has none').toBe(false);
   });
   it('the archived Orbit twins share no display name with any card (owner 2026-10-09 dropped their "(Orbit)")', () => {

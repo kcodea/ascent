@@ -25,6 +25,14 @@ More owner additions on the PR:
   before granting; its Whisper copy carries `grantedTier`, which the cast reads through the Whisper cast stack.
   The Whisper's name is a placeholder, **Clutch**, written only in its def's `name`.
 
+**Art** (owner: "wire set 3 dragon art that matches, rewire chorus drake and transcendence art too"): `art:wire
+--only="set-3 minions"` wired Gatherer, Gravus, Well Watcher, re-wired Queen Morro, Shush, Tamby, Tolan, Whisp, Whaloo,
+Galas, Falx, plus the Falx2 / Galas2 / Tamby2 / Whisp2 variants, and re-wired Chorus Drake and Transcendant (shared Set 2
+ids, so the new art shows in both sets) from `Set 3 Minions/Dragons`. `Transcendence.png` reaches `d2_transcendence` by
+an explicit alias. The Set 2 job (which runs after the Set 3 job, and the later job wins a slot) now SKIPS its stale
+`ChorusDrake.png` / `Transcendence.png`, so a full re-run keeps the Set 3 art. Not wired: the UUID export,
+`nothing rn.png`, `oldwhaloo.png`. Art budget 1429 -> 1435.
+
 ## Engine
 
 - New factories: `rallyGrantRandomTribeMinion` (arena verb `grantRandomTribeMinion`), `deathrattleGiveAttackToOthers`

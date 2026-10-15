@@ -86,9 +86,9 @@ const ART_PENDING = new Set<string>([
   // SET 3 DRAGONS (owner batch 2026-10-14): Whaloo, Falx, Queen Morro and Shush are arted; Falx's Whisper Ripple has
   // no master named yet.
   'w3_ripple',
-  // SET 3 DRAGON BATCH 2 (owner 2026-10-15): authored ahead of their art (no art requested): the eight Dragons, the
-  // Drake Pup token and the two Whispers (Well of Dragons, Seed).
-  'd3_gatherer', 'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener',
+  // SET 3 DRAGON BATCH 2 (owner 2026-10-15): authored ahead of their art, except Gatherer, Gravus and Well Watcher (arted
+  // the same day): the other Dragons, the Drake Pup token and the two Whispers (Well of Dragons, Seed).
+  'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener',
   'd3_drakepup', 'w3_wellofdragons', 'w3_seed',
   // ...and the owner additions on #2097 (2026-10-15): Bait Brood, Hatcher, Whispwarder and their three Whispers.
   'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', 'w3_bait', 'w3_clutch', 'w3_wardingcall',

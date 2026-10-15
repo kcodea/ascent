@@ -441,7 +441,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <button className="modecard" data-mp="versus" onClick={() => { sfx.pulse(); openVersus(); }}>
                   <div className="mcframe" data-mode="versus" data-mp="versus">
                     <div className="mcname hudpill-name">Versus</div>
-                    <span className="mcemblem"><Crest /></span>
+                    {modeArt('versus')
+                      ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('versus')} alt="" draggable={false} /></div>
+                      : <span className="mcemblem"><Crest /></span>}
                     <div className="mcdesc">Real-time 1v1. Seven hearts each. Unranked.</div>
                   </div>
                 </button>

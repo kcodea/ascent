@@ -8427,6 +8427,10 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   width: var(--mp-gauntlet-w, 880px); height: var(--mp-gauntlet-h, 128px);
   transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -203px)) scale(var(--mp-gauntlet-s, 1));
 }
+.modecard[data-mp='versus'] {
+  width: var(--mp-versus-w, 880px); height: var(--mp-versus-h, 128px);
+  transform: translate(var(--mp-versus-x, 6px), var(--mp-versus-y, 16px)) scale(var(--mp-versus-s, 1));
+}
 /* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
 
@@ -8438,6 +8442,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 3px)) scale(var(--mp-learn-arts, 1.02)); }
 .mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
 .mcframe[data-mp='gauntlet'] .mcframe-art { transform: translate(var(--mp-gauntlet-artx, 0px), var(--mp-gauntlet-arty, 0px)) scale(var(--mp-gauntlet-arts, 1)); }
+.mcframe[data-mp='versus'] .mcframe-art { object-position: 50% var(--mp-versus-focus, 30%); transform: translate(var(--mp-versus-artx, 0px), var(--mp-versus-arty, 0px)) scale(var(--mp-versus-arts, 1)); }
+.mcframe[data-mp='versus'] .mcemblem { width: 84px; height: 84px; }
 /* The banner is only 128px tall, so the fallback emblem shrinks to fit inside it. */
 .mcframe[data-mp='gauntlet'] .mcemblem { width: 84px; height: 84px; }
 .mcframe[data-mode='gauntlet'] .mcemblem svg { color: #f0c9b8; }

@@ -460,6 +460,7 @@ export const Card = memo(function Card({
   slideDir,
   handSlidePx,
   fanRot,
+  dissipate,
   locked,
   lockLabel,
   plated,
@@ -559,6 +560,9 @@ export const Card = memo(function Card({
   /** Hand-fan tilt in DEGREES for this card's position (negative = left of centre, positive = right). Fed to
    *  the `--fan-rot` CSS var; the `.row.hand .card` rule rotates the card by it (flattened while dragging). */
   fanRot?: number;
+  /** SET 3 WHISPER DISSIPATE (`whisperDissipate.ts`): an unused Whisper leaving at End of Turn. The delay (ms) before its
+   *  one-shot drift-and-fade starts (`.whisperdissipate`); absent = not leaving. */
+  dissipate?: number;
   /** Disco Dan's Setlist: this hand card is locked (unplayable) until you reach its shop tier — greyed with
    *  a lock badge; the parent also refuses to start a play-drag on it. */
   locked?: boolean;
@@ -893,7 +897,7 @@ export const Card = memo(function Card({
   const plateFade = useArtFade(usePlate ? plateSrc : undefined);
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -904,6 +908,7 @@ export const Card = memo(function Card({
       data-whisper={card.whisperKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
+        ...(dissipate !== undefined ? { '--wd-delay': `${dissipate}ms` } : {}),
         /* PER-CARD art framing (🖼️ Card Art tuner). Spread inline so it beats the frame family's own
            `--artY`/`--artZoom` on specificity; a card with no override contributes nothing at all here. */
         // Framed under the BRANCH's key when a resolved Choose One is wearing branch art, falling back to

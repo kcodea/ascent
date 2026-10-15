@@ -2190,6 +2190,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* The name and the kind line in the hue's light ink (dark outline kept for contrast on the plate). */
 .card.whispercard .cn, .card.whispercard .cn-t, .card.compact.showtext.whispercard .drawer .cn { color: var(--wh-ink); }
 .card.plated.whispercard .plate-tribe.spellkind, .card.compact.showtext.whispercard .drawer .dtribe.spellkind { color: var(--wh-kind); }
+/* THE DISSIPATE (owner 2026-10-14: "whispers need to coalesce/dissipate when unused at end of turn"): an unused Whisper
+   leaving at End of Turn drifts up a little, thins and fades while its plate breaks into Whisper-coloured wisps
+   (`playPlateDissolve` with `WHISPER_DISSIPATE_FX`, fired by Recruit at the same delay). ONE-SHOT and compositor-only:
+   the individual `translate` / `scale` properties compose on top of the hand's own fan `transform` (tuck + tilt), and
+   opacity. 420 ms = `WHISPER_DISSIPATE_MS` (whisperDissipate.ts); `--wd-delay` is the card's stagger. `both` holds the
+   card fully visible through its delay and invisible after, until the row drops it (then the hand glides shut). */
+.row.hand .card.whisperdissipate {
+  pointer-events: none;
+  animation: whisperdissipate 420ms cubic-bezier(0.3, 0.55, 0.45, 1) var(--wd-delay, 0ms) both;
+}
+@keyframes whisperdissipate {
+  0% { opacity: 1; translate: 0 0; scale: 1; }
+  35% { opacity: 0.85; }
+  100% { opacity: 0; translate: 0 calc(var(--ch, 180px) * -0.14); scale: 0.96; }
+}
 .cardloan-tag {
   position: absolute; left: 50%; bottom: calc(100% + var(--ccw) * 0.03); transform: translateX(-50%);
   white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1); line-height: 1;

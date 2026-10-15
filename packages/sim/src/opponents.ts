@@ -148,6 +148,7 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     // Per-instance COMBAT state — must be restored or the served board fights differently than it was captured:
     ...(m.copiedEcho?.length ? { copiedEcho: m.copiedEcho.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // Gravetwin: copied Echo procs on combat death
     ...(m.grantedEffects?.length ? { grantedEffects: m.grantedEffects.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // runtime shop grafts: a served grafted Deathrattle fires (owner ruling 2026-08-27)
+    ...(m.whisperTick ? { whisperTick: m.whisperTick } : {}), // Hatcher: display-only tier progression
     ...(m.seedEchoes ? { seedEchoes: m.seedEchoes } : {}), // Seed (Set 3): the captured Drake Pup Echo stacks fire
     ...(m.echoStripped ? { echoStripped: true as const } : {}), // "without Echo" mark: a served stripped copy stays silent (owner ruling 2026-08-27)
     ...(m.impBank ? { impBank: { ...m.impBank } } : {}), // Ashen Heir: the captured bank pays out mid-fight (cloned — the pool's copy is never spent)

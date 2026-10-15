@@ -639,6 +639,8 @@ export const EffectFactoryIdSchema = z.enum([
   'avengeGrantRandomWhispers',    // Woozy (Set 3, 2026-10-15): Avenge (3): get 2 random Whispers
   'whisperKeepOnThis',            // Hum (Set 3, 2026-10-15): the first Whisper cast on this each turn is permanent
   'whisperGrantSeedEcho',         // Seed (Gardener's Whisper, 2026-10-15): grant "Echo: summon a 3/3 Drake Pup with Taunt"
+  'whisperGetTribeOfTier',        // Hatcher's Whisper (2026-10-15): get a random Dragon of the Whisper's tier
+  'whisperGrantKeyword',          // Warding Call (Whispwarder's Whisper, 2026-10-15): Ward until your next turn (Gilded: Resilient Ward)
 ]);
 
 export const EffectDefSchema = z.object({

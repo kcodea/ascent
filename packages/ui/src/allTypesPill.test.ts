@@ -90,6 +90,8 @@ const ART_PENDING = new Set<string>([
   // Drake Pup token and the two Whispers (Well of Dragons, Seed).
   'd3_gatherer', 'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener',
   'd3_drakepup', 'w3_wellofdragons', 'w3_seed',
+  // ...and the owner additions on #2097 (2026-10-15): Bait Brood, Hatcher, Whispwarder and their three Whispers.
+  'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', 'w3_bait', 'w3_clutch', 'w3_wardingcall',
 ]);
 
 describe('art coverage for live cards', () => {

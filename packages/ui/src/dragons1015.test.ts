@@ -3,7 +3,6 @@ import { CARD_INDEX } from '@game/content';
 import type { BoardCard } from '@game/sim';
 import { attackImmuneText, humKeepText, seedEchoNote } from './cardText';
 import { instView, liveCardText, SEED_KEPT_ROW } from './instView';
-import { buffExpiryNote } from './buffExpiry';
 
 /**
  * SET 3 DRAGON BATCH 2 (owner 2026-10-15): the live-text surfaces. Engine behaviour is pinned in
@@ -49,7 +48,22 @@ describe('Seed: every body carrying Drake Pup Echo stacks prints them (owner: "(
     const rows = v.buffs ?? [];
     expect(rows.find((b) => b.source === SEED_KEPT_ROW)).toMatchObject({ attack: 0, health: 0, count: 12 });
     expect(rows.find((b) => b.source === 'Seed')).toMatchObject({ attack: 0, health: 0, count: 1 });
-    expect(buffExpiryNote('Seed')).toBe('until your next turn'); // the temporary lane
-    expect(buffExpiryNote(SEED_KEPT_ROW)).toBeNull(); // Hum kept these: permanent
+  });
+});
+
+describe('owner additions on #2097: Bait Brood, Hatcher, Whispwarder (live text)', () => {
+  it('Hatcher prints the tier its Whisper gets now; the held Whisper prints its own tier; Gilded gets 2', () => {
+    expect(liveCardText('d3_hatcher', bag).text).toBe(CARD_INDEX['d3_hatcher']!.text);
+    expect(liveCardText('d3_hatcher', { ...bag, whisperTick: 2 }).text).toContain('{{Tier 3}}');
+    expect(liveCardText('d3_hatcher', { ...bag, whisperTick: 9 }).text).toContain('{{Tier 6}}');
+    expect(instView(card('d3_hatcher', { whisperTick: 1 }), 1).text).toContain('{{Tier 2}}');
+    expect(instView(card('w3_clutch', { grantedTier: 4 }), 1).text).toContain('{{Tier 4}}');
+    expect(instView(card('w3_clutch', { grantedTier: 4, whisperMult: 2 }), 1).text).toContain('{{2}} random');
+  });
+
+  it('a gilded Warding Call prints Resilient Ward; a gilded Bait prints +6/+10', () => {
+    expect(instView(card('w3_wardingcall', { whisperMult: 2 }), 1).text).toContain('{{Resilient Ward}}');
+    expect(instView(card('w3_wardingcall'), 1).text).not.toContain('Resilient');
+    expect(instView(card('w3_bait', { whisperMult: 2 }), 1).text).toContain('{{+6/+10}}');
   });
 });

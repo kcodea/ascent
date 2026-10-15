@@ -20,7 +20,7 @@ export function versusSnapshotView(m: MinionSnapshot, tier = 1): CardView {
         tier, golden: !!m.golden, keywords: m.keywords, chosenOption: m.chosenOption,
         // Run-wide scalers a snapshot does not carry: the printed rule (an enemy body's combat fallback).
         spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 0, undeadBuyAtk: 0, soulsmanGold: 0,
-        rallySpreadAtk: m.rallySpreadAtk, grantedRallyShout: m.grantedRallyShout, taughtSpellId: m.taughtSpellId, seedEchoes: m.seedEchoes,
+        rallySpreadAtk: m.rallySpreadAtk, grantedRallyShout: m.grantedRallyShout, taughtSpellId: m.taughtSpellId, seedEchoes: m.seedEchoes, whisperTick: m.whisperTick,
         soldProgress: m.soldProgress, keeperFirstSpellName: m.boardFirstSpellId ? CARD_INDEX[m.boardFirstSpellId]?.name : undefined,
         spellProgress: m.spellProgress, spiritTally: m.spiritTally, ascendProgress: m.ascendProgress, summonBonus: m.summonBonus,
         overflowBonus: m.overflowBonus, hpGrantBonus: m.hpGrantBonus, eotBonus: m.eotBonus, eotTick: m.eotTick, sellBonus: m.sellBonus,

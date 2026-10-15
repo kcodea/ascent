@@ -2967,7 +2967,7 @@ export function mintHandSpells(state: RunState, cardId: string, count: number): 
  * honouring the hand cap. The `mintHandSpells` shape: a Whisper is a card arriving in hand, so the `onGainCard` round
  * fires per copy (Gangplank) under the same ledger contract. Only a `whisper` def mints this way.
  */
-export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1): void {
+export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number): void {
   const def = CARD_INDEX[cardId];
   if (!def?.whisper) return;
   let minted = 0;
@@ -2981,6 +2981,7 @@ export function mintWhisper(state: RunState, cardId: string, count: number, mult
       keywords: [...def.keywords],
       golden: false,
       ...(mult > 1 ? { whisperMult: mult } : {}),
+      ...(tier !== undefined ? { grantedTier: tier } : {}), // Hatcher's Whisper: the tier of Dragon it gets
     });
     minted++;
   }
@@ -3007,11 +3008,33 @@ export function mintRandomWhispers(state: RunState, count: number, mult = 1): vo
 /** The Whisper being cast right now carries its multiplier here (set by the reducer's Whisper branch around the
  *  cast), so the cast factory and Tamby's copy read it. 1 outside a Whisper cast. Module-scoped like the cast stacks. */
 const whisperMultStack: number[] = [];
-export function withWhisperMult<T>(mult: number, fn: () => T): T {
+const whisperTierStack: (number | undefined)[] = [];
+/** `tier`: the held copy's `grantedTier` (Hatcher's Whisper reads it; undefined for every other Whisper). */
+export function withWhisperMult<T>(mult: number, fn: () => T, tier?: number): T {
   whisperMultStack.push(Math.max(1, mult));
-  try { return fn(); } finally { whisperMultStack.pop(); }
+  whisperTierStack.push(tier);
+  try { return fn(); } finally { whisperMultStack.pop(); whisperTierStack.pop(); }
 }
 const currentWhisperMult = (): number => whisperMultStack[whisperMultStack.length - 1] ?? 1;
+const currentWhisperTier = (): number | undefined => whisperTierStack[whisperTierStack.length - 1];
+
+/** HATCHER: the tier its Whisper gets right now (T1, then one higher per Start of Turn on the board, capped at T6). */
+export const HATCHER_MAX_TIER = 6;
+export function hatcherTier(card: Pick<BoardCard, 'whisperTick'>): number {
+  return Math.min(HATCHER_MAX_TIER, 1 + (card.whisperTick ?? 0));
+}
+
+/** Grant a WHISPER KEYWORD (Bait's Taunt, Warding Call's Ward): added to `keywords` and recorded on `whisperKeywords`
+ *  only when the body lacked it, so the Start-of-Turn strip never takes away a keyword it had of its own. Resilient
+ *  Ward rides beside Ward (granting RW adds DS too, each recorded only if new). */
+export function applyWhisperKeyword(target: BoardCard, keyword: Keyword): void {
+  const add = keyword === 'RW' ? (['RW', 'DS'] as Keyword[]) : [keyword];
+  for (const k of add) {
+    if (target.keywords.includes(k)) continue;
+    target.keywords = [...target.keywords, k];
+    (target.whisperKeywords ??= []).push(k);
+  }
+}
 
 /** Every spell cast this game, of every kind (Shop spells, Gifts, Whispers, Rubies): the Vaultkeeper umbrella. */
 export function allSpellsCastThisGame(state: Pick<RunState, 'spellsCast' | 'rubyCasts'>): number {
@@ -3056,9 +3079,9 @@ export function applyWhisperBuff(target: BoardCard, source: string, attack: numb
 }
 
 /** What a Whisper cast can leave on a body: its temporary stat rows and its temporary Seed stacks. */
-export interface WhisperMarks { rows: { source: string; attack: number; health: number; count: number }[]; seeds: number }
+export interface WhisperMarks { rows: { source: string; attack: number; health: number; count: number }[]; seeds: number; keywords: Keyword[] }
 export function whisperMarksOf(card: BoardCard): WhisperMarks {
-  return { rows: (card.whisperBuffs ?? []).map((r) => ({ ...r })), seeds: card.seedEchoesTemp ?? 0 };
+  return { rows: (card.whisperBuffs ?? []).map((r) => ({ ...r })), seeds: card.seedEchoesTemp ?? 0, keywords: [...(card.whisperKeywords ?? [])] };
 }
 
 /** Hum's cap this turn: `count` (1), x2 Gilded. 0 = not a Hum. */
@@ -3090,6 +3113,9 @@ export function keepWhispersOnHum(target: BoardCard, before: WhisperMarks): void
   }
   const left = rows.filter((r) => r.count > 0 || r.attack !== 0 || r.health !== 0);
   target.whisperBuffs = left.length > 0 ? left : undefined;
+  // Its Whisper keywords (Bait's Taunt, Warding Call's Ward) stop being temporary: they stay in `keywords`.
+  const kept = (target.whisperKeywords ?? []).filter((k) => before.keywords.includes(k));
+  target.whisperKeywords = kept.length > 0 ? kept : undefined;
   const seeds = (target.seedEchoesTemp ?? 0) - before.seeds;
   if (seeds > 0) {
     target.seedEchoes = (target.seedEchoes ?? 0) + seeds;
@@ -4908,6 +4934,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const m = currentWhisperMult();
     const v = whisperValue(ctx.state, def);
     applyWhisperBuff(self, str(params._source) || def.name, v.attack * m, v.health * m);
+    // Bait (2026-10-15): "+3/+5 and Taunt". The keyword lasts as long as the stats; a gilded copy does not double it.
+    const kw = str(params.keyword);
+    if (kw) applyWhisperKeyword(self, kw as Keyword);
     const imp = num(params.improve, 0);
     if (imp > 0) {
       const map = (ctx.state.whisperImprove ??= {});
@@ -4946,6 +4975,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.seedEchoesTemp = (self.seedEchoesTemp ?? 0) + currentWhisperMult();
   },
 
+  /** HATCHER's Whisper (owner 2026-10-15): get a random `tribe` minion of the held copy's tier (`grantedTier`, stamped
+   *  by its Hatcher; Tier 1 for a copy with none) from the run's set pool, x the cast Whisper's multiplier (gilded: 2).
+   *  An empty tier gets nothing. */
+  whisperGetTribeOfTier: (ctx, _self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const tier = Math.max(1, Math.min(HATCHER_MAX_TIER, currentWhisperTier() ?? 1));
+    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier === tier && defIsTribe(c, tribe, ctx.state));
+    if (pool.length > 0) conjureToHand(ctx.state, pool, currentWhisperMult());
+  },
+
+  /** WARDING CALL (Whispwarder's Whisper, owner 2026-10-15): the target gains `keyword` (Ward) until your next turn; a
+   *  gilded copy grants `gildedKeyword` (Resilient Ward) instead. A Hum keeps it. */
+  whisperGrantKeyword: (ctx, self, params) => {
+    if (!self || !ctx.state.board.includes(self)) return;
+    const kw = (currentWhisperMult() > 1 && str(params.gildedKeyword) ? str(params.gildedKeyword) : str(params.keyword)) as Keyword;
+    if (kw) applyWhisperKeyword(self, kw);
+  },
+
   /** Jar of Secrets (Shush's Equipment): get `count` random Whispers, x `mult` (gilded copies). */
   grantRandomWhispers: (ctx, _self, params) => {
     mintRandomWhispers(ctx.state, num(params.count, 1), Math.max(1, num(params.mult, 1)));
@@ -4961,6 +5008,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  own Start-of-Turn beat (the dispatcher wraps it, R-SOT-BEAT-01). A Gilded granter's copy is worth double. The
    *  on-play grant reads the same marker from the reducer (`grantWhispersOnPlay`). */
   grantWhisper: (ctx, self, params) => {
+    // Hatcher (`tierStep`, 2026-10-15): "Improves every turn". The turn's tick lands BEFORE the grant, so the copy handed
+    // over on play is Tier 1 and the next Start of Turn's is Tier 2. Capped at T6 (the tick stops there too).
+    if (params.tierStep === true) {
+      if (hatcherTier(self) < HATCHER_MAX_TIER) self.whisperTick = (self.whisperTick ?? 0) + 1;
+      mintWhisper(ctx.state, str(params.cardId), 1, gold(self), hatcherTier(self));
+      return;
+    }
     mintWhisper(ctx.state, str(params.cardId), 1, gold(self));
   },
 
@@ -10905,9 +10959,20 @@ export function spellEscalationLive(state: RunState): { attack: number; health: 
  * (`whisperValue`) x the held copy's multiplier, green when it differs from the printed base; a stepping Whisper
  * (Tome) appends the countdown to its next step; an improving one (Runebind) names how much each cast improves it.
  */
-export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
+export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
   const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
   const m = Math.max(1, extra?.whisperMult ?? 1);
+  // Hatcher's Whisper (2026-10-15): the tier this held copy gets (green above Tier 1); a gilded copy gets 2.
+  if (def.effects.some((e) => e.do === 'whisperGetTribeOfTier')) {
+    const tier = Math.max(1, Math.min(HATCHER_MAX_TIER, extra?.whisperTier ?? 1));
+    let t = tier > 1 ? def.text.replace('**Tier 1**', `{{Tier ${tier}}}`) : def.text;
+    if (m > 1) t = t.replace('Get a random', `Get {{${m}}} random`).replace('**Dragon**.', '**Dragons**.');
+    return t;
+  }
+  // Warding Call (2026-10-15): a gilded copy gives Resilient Ward instead (live, green).
+  if (m > 1 && def.effects.some((e) => e.do === 'whisperGrantKeyword' && e.params?.gildedKeyword === 'RW')) {
+    return def.text.replace('**Ward**', '{{Resilient Ward}}');
+  }
   // A Whisper with no stat grant (Ripple, Falx 2026-10-14): its multiplier repeats the whole effect, so a gilded copy
   // prints "twice" (live, green).
   if (!eff) return m > 1 ? def.text.replace(/\.$/, m === 2 ? ' {{twice}}.' : ` {{${m} times}}.`) : def.text;
@@ -10926,7 +10991,7 @@ export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rub
   return text;
 }
 
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 4 — a WHISPER reads live (R-TEXT live rule): its CURRENT value per cast, x the held copy's multiplier, with the

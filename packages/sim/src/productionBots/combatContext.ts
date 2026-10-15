@@ -62,6 +62,7 @@ function friendlyBodiesOf(s: RunState): BoardMinion[] {
     eotBonus: b.eotBonus,
     sellBonus: b.sellBonus,
     eotTick: b.eotTick,
+    ...(b.whisperTick ? { whisperTick: b.whisperTick } : {}),
     sourceUid: b.uid,
     rallyMechAtk: b.rallyMechAtk,
     rallySpellWeld: b.rallySpellWeld,

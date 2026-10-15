@@ -246,6 +246,52 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     text: '**Whisper:** Give a minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**."',
     goldenText: '**Whisper:** Give a minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**" twice.',
   },
+  // -- Owner additions on PR #2097 (2026-10-15): Bait Brood, Hatcher, Whispwarder. --
+  {
+    // T2 2/4: "Whisper: Give a minion +3/+5 and Taunt." Grants the Whisper Bait. Per the Whisper rule the stats AND the
+    // granted Taunt last until the start of your next turn (`whisperKeywords`); a Hum keeps both. Gilded: a gilded Bait
+    // (+6/+10 and Taunt; the keyword is not doubled).
+    id: 'd3_baitbrood',
+    name: 'Bait Brood',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_bait' } }],
+    text: '**Whisper:** Give a minion **+3/+5** and **Taunt**.',
+    goldenText: '**Whisper:** Give a minion **+6/+10** and **Taunt**.',
+  },
+  {
+    // T4 5/4: "Whisper: Get a random Tier 1 Dragon. Improves every turn." Each Start of Turn on the board this Hatcher
+    // steps its Whisper up a tier (`whisperTick`; T1, T2, ... capped at T6) BEFORE handing it over, so the copy granted on
+    // play is Tier 1 and the next turn's is Tier 2. Per instance; it does not tick in hand (the on-board cadence
+    // convention). The Whisper carries its tier (`grantedTier`), drawn from the run's set pool. Gilded: get 2.
+    id: 'd3_hatcher',
+    name: 'Hatcher',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_clutch', tierStep: true } }],
+    text: '**Whisper:** Get a random **Tier 1** **Dragon**. Improves every turn.',
+    goldenText: '**Whisper:** Get **2** random **Tier 1** **Dragons**. Improves every turn.',
+  },
+  {
+    // T5 7/5: "Whisper: Give a minion Ward." Grants the Whisper Warding Call; the Ward lasts until the start of your next
+    // turn (`whisperKeywords`; a Hum keeps it). Gilded: its Warding Call gives Resilient Ward instead.
+    id: 'd3_whispwarder',
+    name: 'Whispwarder',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 7,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_wardingcall' } }],
+    text: '**Whisper:** Give a minion **Ward**.',
+    goldenText: '**Whisper:** Give a minion **Resilient Ward**.',
+  },
   {
     // DRAKE PUP: the 3/3 Taunt Dragon a Seed's granted Echo summons. `token: true`: never drawn, resolves globally.
     id: 'd3_drakepup',

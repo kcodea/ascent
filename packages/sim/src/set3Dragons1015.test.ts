@@ -59,6 +59,7 @@ describe('the batch is Set 3 content', () => {
     const want: [string, number, number, number][] = [
       ['d3_gatherer', 4, 5, 4], ['d3_gravus', 5, 8, 3], ['d3_wellwatcher', 5, 8, 8] /* T6 -> T5, owner 2026-10-15 */, ['d3_matriarch', 6, 4, 12],
       ['d3_woozy', 3, 5, 3], ['d3_iggy', 5, 7, 2], ['d3_hum', 2, 2, 5], ['d3_gardener', 1, 1, 1],
+      ['d3_baitbrood', 2, 2, 4], ['d3_hatcher', 4, 5, 4], ['d3_whispwarder', 5, 7, 5], // owner additions on #2097
     ];
     const ids = poolFor('set3').buyable.map((c) => c.id);
     for (const [id, tier, a, h] of want) {
@@ -86,8 +87,8 @@ describe('the batch is Set 3 content', () => {
   });
 
   it('the Whisper pool grows by Well of Dragons and Seed (granted, never drawable)', () => {
-    expect([...WHISPER_IDS]).toEqual(['w4_tome', 'w4_runebind', 'w3_ripple', 'w3_wellofdragons', 'w3_seed']);
-    for (const id of ['w3_wellofdragons', 'w3_seed']) expect(poolFor('set3').all.some((c) => c.id === id), id).toBe(false);
+    expect([...WHISPER_IDS]).toEqual(['w4_tome', 'w4_runebind', 'w3_ripple', 'w3_wellofdragons', 'w3_seed', 'w3_bait', 'w3_clutch', 'w3_wardingcall']);
+    for (const id of ['w3_wellofdragons', 'w3_seed', 'w3_bait', 'w3_clutch', 'w3_wardingcall']) expect(poolFor('set3').all.some((c) => c.id === id), id).toBe(false);
   });
 });
 
@@ -370,5 +371,86 @@ describe('R-WHISPER-11: a 12-stack Hum dying in combat', () => {
     const [a, b] = seedEchoEffects(2);
     expect(a).not.toBe(b);
     expect(a!.params).not.toBe(b!.params);
+  });
+});
+
+describe('R-WHISPER-12: Bait Brood grants Bait, "+3/+5 and Taunt" until your next turn', () => {
+  it('the stats AND the Taunt come off at the next Start of Turn; a Taunt the body had of its own stays', () => {
+    let s = play(run({ board: [bc('x', 'venom'), bc('t', 'venom', { keywords: ['T'] })], hand: [bc('b', 'd3_baitbrood')] }), 'b');
+    s = cast(s, whispersIn(s, 'w3_bait')[0]!.uid, 'x');
+    expect([at(s, 'x').attack, at(s, 'x').health]).toEqual([CARD_INDEX['venom']!.attack + 3, CARD_INDEX['venom']!.health + 5]);
+    expect(at(s, 'x').keywords).toContain('T');
+    s = nextTurn(s);
+    expect(at(s, 'x').keywords).not.toContain('T');
+    expect([at(s, 'x').attack, at(s, 'x').health]).toEqual([CARD_INDEX['venom']!.attack, CARD_INDEX['venom']!.health]);
+    s = cast(s, whispersIn(s, 'w3_bait')[0]!.uid, 't'); // already has Taunt: the strip must not take it
+    s = nextTurn(s);
+    expect(at(s, 't').keywords).toContain('T');
+  });
+
+  it('Gilded: +6/+10 and one Taunt; Hum keeps the stats AND the Taunt', () => {
+    let s = play(run({ board: [bc('h', 'd3_hum')], hand: [bc('b', 'd3_baitbrood', { golden: true })] }), 'b');
+    s = cast(s, whispersIn(s, 'w3_bait')[0]!.uid, 'h');
+    expect([at(s, 'h').attack, at(s, 'h').health]).toEqual([2 + 6, 5 + 10]);
+    expect(at(s, 'h').keywords.filter((k) => k === 'T')).toHaveLength(1);
+    s = nextTurn(s);
+    expect([at(s, 'h').attack, at(s, 'h').health, at(s, 'h').keywords.includes('T')]).toEqual([8, 15, true]);
+  });
+});
+
+describe('R-WHISPER-13: Whispwarder grants Warding Call, Ward until your next turn (Gilded: Resilient Ward)', () => {
+  it('Ward comes off at the next Start of Turn; a Gilded copy gives Resilient Ward; Hum keeps it', () => {
+    let s = play(run({ board: [bc('x', 'venom', { keywords: [] }), bc('h', 'd3_hum')], hand: [bc('w', 'd3_whispwarder')] }), 'w');
+    s = cast(s, whispersIn(s, 'w3_wardingcall')[0]!.uid, 'x');
+    expect(at(s, 'x').keywords).toContain('DS');
+    expect(snapshotBoard(s).minions.find((mm) => mm.cardId === 'venom')?.keywords).toContain('DS'); // it fights with Ward
+    s = nextTurn(s);
+    expect(at(s, 'x').keywords).not.toContain('DS');
+    s = cast(s, whispersIn(s, 'w3_wardingcall')[0]!.uid, 'h');
+    s = nextTurn(s);
+    expect(at(s, 'h').keywords).toContain('DS'); // kept by Hum
+    let g = play(run({ board: [bc('x', 'venom', { keywords: [] })], hand: [bc('w', 'd3_whispwarder', { golden: true })] }), 'w');
+    g = cast(g, whispersIn(g, 'w3_wardingcall')[0]!.uid, 'x');
+    expect(at(g, 'x').keywords).toEqual(expect.arrayContaining(['RW', 'DS']));
+    g = nextTurn(g);
+    expect(at(g, 'x').keywords.some((k) => k === 'RW' || k === 'DS')).toBe(false);
+  });
+});
+
+describe('R-WHISPER-14: Hatcher, "Get a random Tier 1 Dragon. Improves every turn."', () => {
+  it('T1 on play, one tier higher every Start of Turn on the board, capped at T6; a Dragon of exactly that tier', () => {
+    let s = play(run({ hand: [bc('h', 'd3_hatcher')] }), 'h');
+    const tiers: number[] = [];
+    for (let turn = 0; turn < 8; turn++) {
+      const w = whispersIn(s, 'w3_clutch')[0]!;
+      tiers.push(w.grantedTier ?? 0);
+      const before = s.hand.length;
+      s = cast(s, w.uid);
+      const got = s.hand.slice(before - 1).filter((c) => !CARD_INDEX[c.cardId]?.whisper);
+      expect(got).toHaveLength(1);
+      expect(CARD_INDEX[got[0]!.cardId]!.tier).toBe(w.grantedTier);
+      expect(isDragon(got[0]!.cardId)).toBe(true);
+      s = { ...s, hand: s.hand.filter((c) => c.uid !== got[0]!.uid) } as RunState; // keep the hand clear
+      s = nextTurn(s);
+    }
+    expect(tiers).toEqual([1, 2, 3, 4, 5, 6, 6, 6]);
+  });
+
+  it('it does not tick in hand; Gilded gets 2', () => {
+    let s = run({ hand: [bc('h', 'd3_hatcher', { golden: true })] });
+    s = nextTurn(nextTurn(s));
+    s = play(s, 'h');
+    const w = whispersIn(s, 'w3_clutch')[0]!;
+    expect([w.grantedTier, w.whisperMult]).toEqual([1, 2]);
+    const before = s.hand.length;
+    s = cast(s, w.uid);
+    expect(s.hand.length - (before - 1)).toBe(2);
+  });
+
+  it('a Clutch drawn with no tier (Jar of Secrets, Woozy) gets a Tier 1 Dragon', () => {
+    let s = run({ hand: [{ ...bc('c', 'w3_clutch') }] });
+    s = cast(s, 'c');
+    expect(s.hand).toHaveLength(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.tier).toBe(1);
   });
 });

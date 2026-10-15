@@ -14,6 +14,17 @@ Owner batch. Set 3 is disabled (Set 2 is live), and Gravestar Seer's archive is 
 
 Owner change the same day (on the PR): "move gravus & well watcher to t5". Both are Tier 5 now, stats unchanged.
 
+More owner additions on the PR:
+
+- **Buffs panel:** the "until your next turn" note is gone from every Whisper row (owner: "it's unnecessary"); a row is
+  name, count and amount. `buffExpiryNote` and its style were removed.
+- **Bait Brood** (Bait: +3/+5 and Taunt), **Hatcher** (a Dragon of a tier that climbs every turn), **Whispwarder**
+  (Warding Call: Ward, Gilded Resilient Ward). A Whisper KEYWORD is temporary like a Whisper's stats:
+  `BoardCard.whisperKeywords` records only keywords the body lacked, the Start of Turn strips them, a Hum keeps them.
+- **Hatcher** ticks `whisperTick` at Start of Turn on the board (the on-board cadence convention: no tick in hand),
+  before granting; its Whisper copy carries `grantedTier`, which the cast reads through the Whisper cast stack.
+  The Whisper's name is a placeholder, **Clutch**, written only in its def's `name`.
+
 ## Engine
 
 - New factories: `rallyGrantRandomTribeMinion` (arena verb `grantRandomTribeMinion`), `deathrattleGiveAttackToOthers`
@@ -38,3 +49,4 @@ Owner change the same day (on the PR): "move gravus & well watcher to t5". Both 
 - Gilded Gatherer 2 Dragons; Gilded Gravus spreads twice (Thane's convention); Gilded Matriarch +6 Health.
 - Hum is Shop-only: a Whisper Whaloo casts on Hum in combat is not kept.
 - Hum's text says "each turn" (the owner's clarification), which the original sentence did not.
+- Hatcher's Whisper name: placeholder "Clutch". Hatcher does not tick in hand.

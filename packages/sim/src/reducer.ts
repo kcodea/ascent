@@ -2153,7 +2153,7 @@ function reduceCore(state: RunState, action: Action): RunState {
               if (whisperTarget && !s.board.includes(whisperTarget)) break;
               castSpell(s, def, whisperTarget);
             }
-          });
+          }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
           if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
           checkTriples(s);
           return s;
@@ -4541,6 +4541,7 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
     closedCasket: b.closedCasket, // Closed Casket: Echo at SoC, suppressed on the first death
     ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
     ...((b.seedEchoes ?? 0) + (b.seedEchoesTemp ?? 0) > 0 ? { seedEchoes: (b.seedEchoes ?? 0) + (b.seedEchoesTemp ?? 0) } : {}), // Seed (Set 3): permanent + this turn's Drake Pup Echo stacks
+    ...(b.whisperTick ? { whisperTick: b.whisperTick } : {}), // Hatcher: display-only, its Whisper's tier in the combat text
     ...(b.grantedEffects?.length ? { grantedEffects: b.grantedEffects } : {}), // runtime shop grafts (Echo Mimic / Grave Body / Contract Rewrite / Rune of Rebirth) fire in combat too (owner ruling 2026-08-27)
     ...(b.echoStripped ? { echoStripped: true } : {}), // "summon a copy WITHOUT the Echo": the shop mark now silences the Echo in combat too (owner ruling 2026-08-27)
     ...(b.impBank ? { impBank: { ...b.impBank } } : {}), // Ashen Heir: the SHOP bank rides in (cloned — combat spends its own copy; the run's bank persists)

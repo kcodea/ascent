@@ -2026,7 +2026,7 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   convention). The draws come from every Whisper (Tome, Runebind, Ripple, and any future one) and follow every Whisper
   rule. A Gilded Shush's Jar gets 3 Gilded Whispers.
 - **Gilded Whispers:** a Whisper from a Gilded source doubles its effect (and Runebind's improve) on every surface.
-- **Buffs panel:** a Whisper's grant is its own row under the Whisper's name, marked "until your next turn".
+- **Buffs panel:** a Whisper's grant is its own row under the Whisper's name (name, count and amount; no expiry note, owner 2026-10-15).
 - **Runebind's effect** (the owner's FX def `runebind`) plays on the target of every Runebind cast, from every source, in
   both phases.
 
@@ -2057,6 +2057,17 @@ cards. New Dragons:
   multipliers repeat each, Pups past the 7th overflow (Overflow cards pay per Pup), a risen body keeps them for its
   second death, triples add the copies' stacks, and served boards keep them. The card prints "(xN)" and the buffs panel
   lists the stacks.
+
+Owner additions the same day (R-WHISPER-12..14):
+
+- **Bait Brood** (T2 2/4): "**Whisper:** Give a minion **+3/+5** and **Taunt**." Its Whisper, **Bait**: the stats and
+  the Taunt last until your next turn (a Taunt the minion had of its own stays); a Hum keeps both. Gilded: +6/+10 and
+  Taunt.
+- **Hatcher** (T4 5/4): "**Whisper:** Get a random **Tier 1** **Dragon**. Improves every turn." Its Whisper (name
+  pending, "Clutch" for now) gets a Dragon of exactly that tier from the run's pool. Tier 1 on play, one tier higher each
+  Start of Turn it spends on the board (not in hand), up to Tier 6. Gilded: get 2.
+- **Whispwarder** (T5 7/5): "**Whisper:** Give a minion **Ward**." Its Whisper, **Warding Call**: Ward until your next
+  turn; a Hum keeps it. Gilded: Resilient Ward instead.
 
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 

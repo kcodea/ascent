@@ -122,6 +122,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeGrantRandomWhispers:avenge': { policy: 'ownBeat', family: 'avenge' }, // Woozy: 2 random Whispers to hand
   'factory:whisperKeepOnThis:passive': { policy: 'passive', family: 'passive' }, // Hum: read by the Shop Whisper cast path
   'factory:whisperGrantSeedEcho:cast': { policy: 'ownBeat', family: 'spellCast' }, // Seed: the target gains the Drake Pup Echo
+  'factory:whisperGetTribeOfTier:cast': { policy: 'ownBeat', family: 'spellCast' }, // Hatcher's Whisper: a Dragon of its tier to hand
+  'factory:whisperGrantKeyword:cast': { policy: 'ownBeat', family: 'spellCast' }, // Warding Call: Ward until your next turn
   'factory:shoutWoundSelfMendTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Hawg
   'factory:deathrattleWoundMendTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Eatah
   'factory:onTribeDamagedBuffSelf:onDamaged': { policy: 'ownBeat', family: 'react' }, // Apua: its own reaction tick after the hits (the #2074 hit-reaction split)

@@ -1014,6 +1014,8 @@ export type EffectFactoryId =
   | 'whisperDiscoverTribe' // Well of Dragons (Well Watcher's Whisper): Discover a `tribe` minion, x the cast Whisper's multiplier (recruit)
   | 'avengeGrantRandomWhispers' // Woozy: Avenge (`count`): get `grant` random Whispers (Gilded: gilded Whispers) (combat)
   | 'whisperKeepOnThis' // Hum (passive marker read by the Shop Whisper cast path): the first `count` (x golden) Whispers cast on this each turn are permanent (recruit)
+  | 'whisperGetTribeOfTier' // Hatcher's Whisper (Set 3, 2026-10-15): get a random `tribe` minion of the held Whisper's tier (`grantedTier`, default 1), x the cast Whisper's multiplier (recruit)
+  | 'whisperGrantKeyword' // Warding Call (Whispwarder's Whisper, 2026-10-15): the target gains `keyword` until your next turn; a gilded copy grants `gildedKeyword` instead (recruit)
   | 'whisperGrantSeedEcho' // Seed (Gardener's Whisper): the target gains "Echo: summon a 3/3 Drake Pup with Taunt" until your next turn, x the cast Whisper's multiplier (recruit)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
@@ -2820,6 +2822,8 @@ export interface BoardMinion {
   /** Cadence/escalating End-of-Turn counter (Frontdrake, Money Maker, Vineweaver) — carried into combat so the
    *  live text shows the same "next in N turns" / cast-count read-out on mouseover. */
   eotTick?: number;
+  /** Hatcher (Set 3, 2026-10-15): its Whisper's tier progression (display-only in combat). */
+  whisperTick?: number;
   /** Flowing Monk: flat +X/+X on top of the stepped overflow grant — created by the TRIPLE combine (the
    *  golden starts at the SUM of the two highest copies' current grants). Static during combat. */
   overflowBonus?: number;
@@ -2927,6 +2931,8 @@ export interface Minion {
    *  combat, purely for the live card text. */
   sellBonus?: number;
   eotTick?: number;
+  /** Hatcher (Set 3, 2026-10-15): its Whisper's tier progression (display-only in combat). */
+  whisperTick?: number;
   /** Bounty Bot: swings of "immune while attacking" remaining this combat (>0 → this minion takes no
    *  retaliation on its own attack, then spends one charge). Seeded fresh each combat from CardDef.attackImmuneTurns. */
   attackImmuneLeft?: number;
@@ -3076,6 +3082,8 @@ export interface MinionSnapshot {
   /** Trail Forager sell bonus / cadence End-of-Turn counter (seeded) — for the live combat card text. */
   sellBonus?: number;
   eotTick?: number;
+  /** Hatcher (Set 3, 2026-10-15): its Whisper's tier progression (display-only in combat). */
+  whisperTick?: number;
   /** Flowing Monk's flat grant bonus (triple combine) — for the live combat card text. */
   overflowBonus?: number;
   /** Current Sergeant Deathrattle HP-grant bonus (seeded value) — for the live combat card text from frame 1. */

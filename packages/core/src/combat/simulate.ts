@@ -1088,6 +1088,7 @@ export function simulate(
     taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
+    whisperTick: m.whisperTick, // Hatcher: its Whisper's tier, for the live combat text
     overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,

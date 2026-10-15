@@ -115,6 +115,8 @@ export interface LiveTextParams {
   /** SEED (Set 3, 2026-10-15): the granted Drake Pup Echo stacks this body carries (Shop: permanent + this turn's;
    *  combat: the snapshot's count). Printed as a blue note with the stack count. */
   seedEchoes?: number;
+  /** HATCHER (Set 3, 2026-10-15): its Whisper's tier progression (`BoardCard.whisperTick`; the combat snapshot's copy). */
+  whisperTick?: number;
   /** HUM (Set 3, 2026-10-15): Whispers it has already kept this turn (its live "N left this turn"). */
   whisperKeptThisTurn?: number;
   /** IMMUNE IGGY (Set 3, 2026-10-15, combat): this body's swings so far this fight (its live immune countdown). */
@@ -218,8 +220,8 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult })
-        : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove }) ?? // Set 4: Galas / Tolan print their Whisper's live value
+        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult, whisperTier: p.grantedTier })
+        : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperTick: p.whisperTick }) ?? // Set 4: Galas / Tolan print their Whisper's live value
             whisperCasterText(c.id, p.golden, p.whisperCastsUsed) ?? // Whaloo: its per-combat cap counts down live in combat
             attackImmuneText(c.id, p.golden, p.attacksMade) ?? // Immune Iggy: its immune swings count down live in combat
             humKeepText(c.id, p.golden, p.whisperKeptThisTurn) ?? // Hum: the keeps left this turn
@@ -388,6 +390,7 @@ export function instView(
     grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
     seedEchoes: (inst.seedEchoes ?? 0) + (inst.seedEchoesTemp ?? 0), // Seed: the Drake Pup Echo stacks (permanent + this turn's)
     whisperKeptThisTurn: inst.whisperKeptThisTurn, // Hum: the keeps left this turn
+    whisperTick: inst.whisperTick, // Hatcher: its Whisper's current tier
     clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)
     whisperImprove: live?.whisperImprove, whisperMult: inst.whisperMult, // Set 4: a Whisper's / a granter's live value

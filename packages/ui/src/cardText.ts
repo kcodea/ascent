@@ -1,6 +1,6 @@
 import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { chooseOneBranchText, whisperSpellsToNext, whisperValue } from '@game/sim';
+import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue } from '@game/sim';
 
 /** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
  *  annotation below. `deathrattleSummon` / `onFriendDeathSummon` are generic summoners, so they only count when
@@ -1561,9 +1561,15 @@ export function whisperCasterText(cardId: string, golden: boolean, used: number 
   return src.replace(`**(${cap} times per combat)**`, `{{(${Math.max(0, cap - used)} left this combat)}}`);
 }
 
-export function whisperGranterText(cardId: string, golden: boolean, run: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number> }): string | null {
+export function whisperGranterText(cardId: string, golden: boolean, run: { spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperTick?: number }): string | null {
   const def = CARD_INDEX[cardId];
   const grant = def?.effects.find((e) => e.do === 'grantWhisper');
+  // Hatcher (2026-10-15): "Get a random Tier N Dragon. Improves every turn." N = the tier its Whisper gets right now.
+  if (def && grant?.params?.tierStep === true) {
+    const src = golden ? (def.goldenText ?? def.text) : def.text;
+    const tier = hatcherTier({ whisperTick: run.whisperTick });
+    return tier > 1 ? src.replace('**Tier 1**', `{{Tier ${tier}}}`) : src;
+  }
   const wid = typeof grant?.params?.cardId === 'string' ? grant.params.cardId : '';
   const w = wid ? CARD_INDEX[wid] : undefined;
   if (!def || !w) return null;

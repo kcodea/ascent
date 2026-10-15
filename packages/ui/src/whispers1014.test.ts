@@ -1,25 +1,21 @@
 /**
  * SET 3 WHISPERS, PRESENTATION (owner 2026-10-14):
- *  - "runebind should be a tracked buff in the buffs panel": a Whisper's grant is its own named row, with its expiry
- *    (a Shop cast: "until your next turn"; a combat cast uses the same name, owner 2026-10-14: no "this combat" suffix).
+ *  - "runebind should be a tracked buff in the buffs panel": a Whisper's grant is its own named row (a combat cast uses
+ *    the same name, owner 2026-10-14: no "this combat" suffix; owner 2026-10-15: no "until your next turn" either).
  *  - Whaloo's "(3 times per combat)" counts down LIVE in combat; Tolan's Runebind value rises LIVE as combat casts land.
  */
 import { describe, expect, it } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { buffExpiryNote, whisperCombatBuffLabel } from './buffExpiry';
+import { whisperCombatBuffLabel } from './buffExpiry';
 import { whisperCasterText, whisperGranterText } from './cardText';
 import { computeFrame } from './useCombatReplay';
 
 const m = (cardId: string, over: Partial<BoardMinion> = {}): BoardMinion =>
   ({ cardId, attack: CARD_INDEX[cardId]!.attack, health: CARD_INDEX[cardId]!.health, keywords: [], ...over } as unknown as BoardMinion);
 
-describe('the buffs panel names a Whisper and its expiry', () => {
-  it('a Shop Whisper row lasts until your next turn; a combat cast uses the same name; nothing else gets a note', () => {
-    expect(buffExpiryNote('Runebind')).toBe('until your next turn');
-    expect(buffExpiryNote('Tome')).toBe('until your next turn');
-    expect(buffExpiryNote('Ripple')).toBe('until your next turn');
-    expect(buffExpiryNote('Rune of the Wild Hunt')).toBeNull();
+describe('the buffs panel names a Whisper', () => {
+  it('a combat Whisper cast uses its Whisper name (rows carry no expiry note since 2026-10-15)', () => {
     expect(whisperCombatBuffLabel('w4_runebind')).toBe('Runebind');
     expect(whisperCombatBuffLabel('growth')).toBeNull();
   });

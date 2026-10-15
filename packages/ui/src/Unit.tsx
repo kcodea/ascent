@@ -115,6 +115,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         whisperCastsUsed: u.whisperCastsUsed, // Whaloo: "(3 times per combat)" counts down live
         attacksMade: u.attacksMade, // Immune Iggy: "(Twice per combat)" counts down live
         seedEchoes: u.seedEchoes, // Seed (Set 3): the granted Drake Pup Echo stacks
+        whisperTick: u.whisperTick, // Hatcher: its Whisper's current tier
         clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,
         fodderConsumed: foe ? enemyScalers?.fodderConsumed : run.fodderConsumedThisTurn,
         undeadBuyAtk: foe ? (enemyScalers?.undeadBuyAtk ?? 0) : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
@@ -276,6 +277,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.whisperCastsUsed === b.u.whisperCastsUsed && // Whaloo's live cap (only its own casts move it)
   a.u.attacksMade === b.u.attacksMade && // Immune Iggy's live immune countdown (only its own swings move it)
   a.u.seedEchoes === b.u.seedEchoes && // Seed's Drake Pup Echo stacks
+  a.u.whisperTick === b.u.whisperTick && // Hatcher's tier
   sameNumRecord(a.u.whisperImproveLive, b.u.whisperImproveLive) && // a combat Runebind landed: compared BY VALUE (the frame rebuilds the map every beat)
   a.u.spiritTally === b.u.spiritTally &&
   a.u.soldProgress === b.u.soldProgress &&

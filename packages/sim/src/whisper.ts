@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { CardDef } from '@game/core';
-import { instanceEffects, mintWhisper } from './recruit';
+import { hatcherTier, instanceEffects, mintWhisper } from './recruit';
 import type { BoardCard, RunState } from './state';
 
 /**
@@ -44,7 +44,9 @@ export function defGrantsWhisper(def: CardDef | undefined): boolean {
 
 /** One granter's Whisper(s) into hand: one copy per marker, at the granter's multiplier (Gilded = double). */
 export function grantWhisperFrom(state: RunState, granter: BoardCard): void {
-  for (const id of whisperGrantsOf(granter)) mintWhisper(state, id, 1, granter.golden ? 2 : 1);
+  const stepping = instanceEffects(granter).some((e) => e.do === 'grantWhisper' && e.params?.tierStep === true);
+  // Hatcher: the copy handed over on play is the CURRENT tier (no tick: a tick is a Start of Turn on the board).
+  for (const id of whisperGrantsOf(granter)) mintWhisper(state, id, 1, granter.golden ? 2 : 1, stepping ? hatcherTier(granter) : undefined);
 }
 
 /** Rule 1: the granting minion was just played from hand. */
@@ -68,6 +70,12 @@ export function vanishWhispers(state: RunState): number {
 export function expireWhisperBuffs(state: RunState): void {
   for (const c of [...state.board, ...state.hand]) {
     if (c.seedEchoesTemp) c.seedEchoesTemp = undefined; // Seed: last turn's temporary Drake Pup Echoes go too
+    // Bait / Warding Call: the keywords a Whisper added come off too (never one the body had of its own).
+    if (c.whisperKeywords?.length) {
+      const gone = c.whisperKeywords;
+      c.keywords = c.keywords.filter((k) => !gone.includes(k));
+      c.whisperKeywords = undefined;
+    }
     const rows = c.whisperBuffs;
     if (!rows?.length) continue;
     for (const r of rows) {
@@ -112,7 +120,11 @@ export function mergeWhisperBuffs(cards: readonly BoardCard[]): BoardCard['whisp
 export const HUM_PER_TURN = true;
 
 /** A triple's Seed stacks and Hum latch: the SUM of every copy's stacks per lane, the highest keep count. */
-export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'seedEchoes' | 'seedEchoesTemp' | 'whisperKeptThisTurn'> {
+export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'seedEchoes' | 'seedEchoesTemp' | 'whisperKeptThisTurn' | 'whisperKeywords' | 'whisperTick'> {
+  // Whisper keywords: a keyword is temporary on the golden only if every copy that carried it had it from a Whisper.
+  const tempKw = [...new Set(cards.flatMap((c) => c.whisperKeywords ?? []))]
+    .filter((k) => cards.every((c) => !c.keywords.includes(k) || (c.whisperKeywords ?? []).includes(k)));
+  const tick = Math.max(0, ...cards.map((c) => c.whisperTick ?? 0)); // Hatcher: the furthest copy's progression (Tara's rule)
   const perm = cards.reduce((n, c) => n + (c.seedEchoes ?? 0), 0);
   const temp = cards.reduce((n, c) => n + (c.seedEchoesTemp ?? 0), 0);
   const kept = Math.max(0, ...cards.map((c) => c.whisperKeptThisTurn ?? 0));
@@ -120,8 +132,10 @@ export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'see
     ...(perm > 0 ? { seedEchoes: perm } : {}),
     ...(temp > 0 ? { seedEchoesTemp: temp } : {}),
     ...(kept > 0 ? { whisperKeptThisTurn: kept } : {}),
+    ...(tempKw.length > 0 ? { whisperKeywords: tempKw } : {}),
+    ...(tick > 0 ? { whisperTick: tick } : {}),
   };
 }
 
 // Re-exported so the presentation can read a Whisper's live value without reaching into recruit internals.
-export { whisperValue, whisperSpellsToNext, allSpellsCastThisGame, whisperMarksOf, humKeepCap, keepWhispersOnHum } from './recruit';
+export { whisperValue, whisperSpellsToNext, allSpellsCastThisGame, whisperMarksOf, humKeepCap, keepWhispersOnHum, hatcherTier, HATCHER_MAX_TIER } from './recruit';

@@ -156,17 +156,19 @@ export const GIFTS_RULES: GameRule[] = [
   },
   {
     id: 'R-WHISPER-07',
-    title: 'Runebind\'s own effect plays on the target of every cast, from every source, in both phases; its buff is a named, expiring row',
+    title: 'Runebind\'s own effect plays on the target of every cast, from every source, in both phases; its buff is a named row',
     statement:
       'The owner\'s Runebind FX def (`runebind`) is bound buffedOn on Runebind\'s card and plays ON the target once per '
       + 'cast: from hand, a Yazzus repeat, Whisp\'s echo, a Tamby copy, a gilded copy, Whaloo\'s combat casts and a Queen '
-      + 'Morro repeat. In the buffs panel a Shop Whisper grant is its own row under the Whisper\'s name with "until your '
-      + 'next turn"; a combat cast lands on the same named row (no "this combat" suffix, owner 2026-10-14).',
+      + 'Morro repeat. In the buffs panel a Shop Whisper grant is its own row under the Whisper\'s name (name, count and '
+      + 'amount; no "until your next turn" note, owner 2026-10-15); a combat cast lands on the same named row (no "this '
+      + 'combat" suffix, owner 2026-10-14).',
     domain: 'gifts',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner 2026-10-14', quote: 'runebind effect. this should play at all casts of it, when it casts from whaloo, or on whisp etc.' },
       { kind: 'owner-chat', ref: 'Owner 2026-10-14', quote: 'runebind should be a tracked buff in the buffs panel' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-15 (PR #2097)', quote: "remove the text 'until your next turn' or w/e it's unnecessary" },
       { kind: 'code', ref: 'packages/ui/src/fx/defs/runebind.json; packages/ui/src/choreo/bindings.json w4_runebind; packages/ui/src/buffExpiry.ts; packages/ui/src/useCombatReplay.ts (whisperCombatBuffLabel)' },
     ],
     contentIds: ['w4_runebind'],
@@ -315,6 +317,51 @@ export const GIFTS_RULES: GameRule[] = [
     ],
     contentIds: ["d3_gardener", "w3_seed", "d3_hum", "d3_drakepup"],
     currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-12',
+    title: "Bait Brood grants Bait: +3/+5 AND Taunt until your next turn (a Hum keeps both); Gilded +6/+10 and one Taunt",
+    statement:
+      "Bait Brood (Set 3 Dragon, T2 2/4) grants the Whisper Bait with the Whisper lifecycle. Bait gives a friendly minion +3/+5 and Taunt; the stats AND the Taunt last until the start of your next turn (the keyword is recorded on the body only when it lacked it, so a Taunt it had of its own never comes off). A Hum keeps both. A gilded Bait gives +6/+10 and Taunt (the keyword is not doubled).",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner additions on PR #2097 (2026-10-15)', quote: "Bait Brood, T2 2/4: \"Whisper: Give a minion +3/+5 and Taunt.\" The Whisper is named Bait. Per the Whisper rule, the stats AND the granted Taunt last until the start of the next turn (Hum makes it permanent)." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts whisperBuffTarget (keyword) / applyWhisperKeyword; packages/sim/src/whisper.ts expireWhisperBuffs" },
+    ],
+    contentIds: ["d3_baitbrood", "w3_bait"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-13',
+    title: "Whispwarder grants Warding Call: Ward until your next turn (Gilded: Resilient Ward); a Hum keeps it",
+    statement:
+      "Whispwarder (Set 3 Dragon, T5 7/5) grants the Whisper Warding Call with the Whisper lifecycle. It gives a friendly minion Ward until the start of your next turn (it fights with it that turn); a Ward the body had of its own never comes off. A Gilded Whispwarder's Warding Call gives Resilient Ward (with its Ward) instead. A Hum keeps it.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner additions on PR #2097 (2026-10-15)', quote: "Whispwarder, T5 7/5: \"Whisper: Give a minion Ward.\" The Whisper is named Warding Call. Gilded: gives Resilient Ward (the existing keyword) instead." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts whisperGrantKeyword / applyWhisperKeyword; packages/sim/src/whisper.ts expireWhisperBuffs" },
+    ],
+    contentIds: ["d3_whispwarder", "w3_wardingcall"],
+    currentBehaviour: "Conforms as of 2026-10-15.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-14',
+    title: "Hatcher: its Whisper gets a random Dragon of Tier 1, one tier higher every Start of Turn on the board, capped at 6; Gilded gets 2",
+    statement:
+      "Hatcher (Set 3 Dragon, T4 5/4) grants a Whisper (name pending; placeholder 'Clutch') that gets a random Dragon of exactly its tier from the run's set pool. The copy handed over on play is Tier 1; every Start of Turn Hatcher spends ON THE BOARD raises it one tier (per instance; it does not tick in hand), up to Tier 6. Each copy carries its tier, and the Hatcher and the held copy print it live. A triple keeps the furthest copy's progress. A copy drawn with no tier (Jar of Secrets, Woozy) gets Tier 1. A Gilded Hatcher's copy gets 2.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner additions on PR #2097 (2026-10-15)', quote: "Hatcher, T4 5/4: \"Whisper: Get a random Tier 1 Dragon. Improves every turn.\" Each new turn its Whisper gets a Dragon one tier higher (T1, then T2, ... capped at T6), from the run's set pool." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts grantWhisper (tierStep) / hatcherTier / whisperGetTribeOfTier; packages/sim/src/whisper.ts grantWhisperFrom" },
+    ],
+    contentIds: ["d3_hatcher", "w3_clutch"],
+    currentBehaviour: "Conforms as of 2026-10-15. The Whisper's name is a placeholder ('Clutch') awaiting the owner.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
   },
 ];

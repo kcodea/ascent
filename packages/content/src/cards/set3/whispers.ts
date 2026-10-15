@@ -111,4 +111,61 @@ export const SET3_WHISPERS: CardDef[] = [
     effects: [{ on: 'cast', do: 'whisperGrantSeedEcho' }],
     text: 'Give a friendly minion "**Echo:** Summon a 3/3 Drake Pup with **Taunt**" until your next turn.',
   },
+  {
+    // Bait Brood's Whisper BAIT (owner 2026-10-15): +3/+5 and Taunt, all until your next turn (a Hum keeps them). A gilded
+    // Bait doubles the stats; Taunt stays one keyword.
+    id: 'w3_bait',
+    name: 'Bait',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    gift: true,
+    whisper: true,
+    giftMulticast: true,
+    cost: 0,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'whisperBuffTarget', params: { attack: 3, health: 5, keyword: 'T' } }],
+    text: 'Give a friendly minion **+3/+5** and **Taunt** until your next turn.',
+  },
+  {
+    // Hatcher's Whisper (owner 2026-10-15). NAME PENDING FROM THE OWNER: 'Clutch' is a placeholder, and this `name` is
+    // the only place it is written. Get a random Dragon of the Whisper's tier (the held copy's `grantedTier`, stamped by
+    // its Hatcher; Tier 1 when a Whisper draw hands one out with no tier). Untargeted. A gilded copy gets 2.
+    id: 'w3_clutch',
+    name: 'Clutch',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    gift: true,
+    whisper: true,
+    giftMulticast: true,
+    cost: 0,
+    effects: [{ on: 'cast', do: 'whisperGetTribeOfTier', params: { tribe: 'dragon' } }],
+    text: 'Get a random **Tier 1** **Dragon**.',
+  },
+  {
+    // Whispwarder's Whisper WARDING CALL (owner 2026-10-15): Ward until your next turn (a Hum keeps it). A gilded copy (from
+    // a Gilded Whispwarder) gives Resilient Ward instead.
+    id: 'w3_wardingcall',
+    name: 'Warding Call',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    gift: true,
+    whisper: true,
+    giftMulticast: true,
+    cost: 0,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'whisperGrantKeyword', params: { keyword: 'DS', gildedKeyword: 'RW' } }],
+    text: 'Give a friendly minion **Ward** until your next turn.',
+  },
 ];

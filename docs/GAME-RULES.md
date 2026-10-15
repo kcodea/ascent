@@ -737,7 +737,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   cosmetics** is on. No frame, an unknown or a retired one paints today's default ring. Presentation only.
 - **Card plates (2026-10-14; oracle R-PROG-PLATE-01..03).** A cosmetic plate that replaces the standard plate behind
   a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Six, all
-  Legendary from crates: **Aquarium Rocks**, **Amethyst Plate**, **Bamboo**, **Beach**, **Magma** and **Moonstone**.
+  Legendary from crates: **Aquarium Rocks**, **Amethyst**, **Bamboo**, **Beach**, **Magma** and **Moonstone**.
   New plates come from the owner's Card Backplates folder and are Legendary unless the owner says otherwise. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
   plate" takes it off; hovering an owned plate floats a card wearing it). A worn plate replaces EVERY standard plate,
   whatever the card's tribe (the tribe name still prints on the plate's bottom gem), and brings its own rules-text

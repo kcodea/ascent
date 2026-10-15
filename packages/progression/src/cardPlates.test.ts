@@ -23,7 +23,7 @@ describe('the card plate catalog', () => {
   it('six Legendary crate plates (owner: "every other one should be a legendary reward"), each art key its own id, each naming its master', () => {
     expect(PLATES.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.art, c.assets.master, c.target])).toEqual([
       ['plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'crate', 'plate_aquarium_rocks', 'Aquarium Rocks.png', undefined],
-      ['plate_amethyst', 'Amethyst Plate', 'legendary', 'crate', 'plate_amethyst', 'Amethyst.png', undefined],
+      ['plate_amethyst', 'Amethyst', 'legendary', 'crate', 'plate_amethyst', 'Amethyst.png', undefined],
       ['plate_bamboo', 'Bamboo', 'legendary', 'crate', 'plate_bamboo', 'Bamboo.png', undefined],
       ['plate_beach', 'Beach', 'legendary', 'crate', 'plate_beach', 'Beach.png', undefined],
       ['plate_magma', 'Magma', 'legendary', 'crate', 'plate_magma', 'Magma.png', undefined],

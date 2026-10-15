@@ -26,6 +26,25 @@ import { rectToStage, stageHost, stageViewport, type StageRect } from '../stage'
 /** The preview card's height in layout px (its width is the game's 0.752 card ratio). */
 export const PREVIEW_CH = 340;
 const PREVIEW_CW = Math.round(PREVIEW_CH * 0.752);
+export const PREVIEW_CCW = Math.round(PREVIEW_CW * 0.85);
+
+/**
+ * `--plate-k` for the preview card. The plate's lift (`--plate-top`, -37px) is plain px tuned against the game's own
+ * compact card (`--ccw` = 384px x `--scale` x `--mobile-boost` x `--card-scale` x 0.752 x 0.85, styles.css), so a
+ * bigger preview card must lift its plate by the same ratio or the plate sits low against the art, text and dark
+ * backbox (owner report 2026-10-15: "when previewing a card, the darkening section is too high"). The same fix the
+ * enlarged Discover row makes with its fixed 1.3. Read once per hover; the stage sets these on :root.
+ */
+export function previewPlateK(): number {
+  if (typeof document === 'undefined') return 1;
+  const root = getComputedStyle(document.documentElement);
+  const num = (name: string, def: number): number => {
+    const v = parseFloat(root.getPropertyValue(name));
+    return Number.isFinite(v) && v > 0 ? v : def;
+  };
+  const gameCcw = 384 * num('--scale', 1) * num('--mobile-boost', 1) * num('--card-scale', 0.75) * 0.752 * 0.85;
+  return gameCcw > 0 ? PREVIEW_CCW / gameCcw : 1;
+}
 const GAP = 14;
 const EDGE = 8;
 
@@ -55,6 +74,7 @@ export const SkinCardPreview = memo(function SkinCardPreview({ cardId, art, anch
 }): JSX.Element | null {
   const def = CARD_INDEX[cardId];
   const view = useMemo(() => (def ? toView(def) : null), [def]);
+  const plateK = useMemo(previewPlateK, []);
   const skins = useMemo<MinionSkinMap>(() => (art ? new Map([[cardId, art]]) : EMPTY_MAP), [cardId, art]);
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
@@ -80,7 +100,7 @@ export const SkinCardPreview = memo(function SkinCardPreview({ cardId, art, anch
   if (!view) return null;
   const style = {
     left: pos?.left ?? 0, top: pos?.top ?? 0, visibility: pos ? undefined : 'hidden',
-    '--ch': `${PREVIEW_CH}px`, '--cw': `${PREVIEW_CW}px`, '--ccw': `${Math.round(PREVIEW_CW * 0.85)}px`,
+    '--ch': `${PREVIEW_CH}px`, '--cw': `${PREVIEW_CW}px`, '--ccw': `${PREVIEW_CCW}px`, '--plate-k': plateK,
   } as CSSProperties;
   return createPortal(
     <div ref={ref} className="colls-cardpreview" style={style} aria-hidden data-card-preview={cardId}>

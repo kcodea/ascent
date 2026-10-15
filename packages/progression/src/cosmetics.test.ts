@@ -25,10 +25,11 @@ describe('the launch catalog', () => {
     const byRarity = (r: string): number => crateTitles.filter((c) => c.rarity === r).length;
     expect([byRarity('common'), byRarity('rare'), byRarity('epic'), byRarity('legendary')]).toEqual([7, 5, 2, 1]);
     expect(new Set(COSMETICS.map((c) => c.id)).size).toBe(COSMETICS.length);
-    // Names are unique, except that a hero title's golden MASTER version shares its base title's name (owner
-    // 2026-09-29: the mastery upgrades the same title in place).
+    // Names are unique WITHIN a category (owner 2026-10-15: the Amethyst card plate shows "Amethyst" like the Amethyst
+    // portrait frame; ids stay unique and every surface shows an item under its category), except that a hero title's
+    // golden MASTER version shares its base title's name (owner 2026-09-29: the mastery upgrades the same title in place).
     const distinct = COSMETICS.filter((c) => !isMasterTitle(c.id));
-    expect(new Set(distinct.map((c) => c.name)).size).toBe(distinct.length);
+    expect(new Set(distinct.map((c) => c.category + ':' + c.name)).size).toBe(distinct.length);
     for (const c of COSMETICS.filter((x) => isMasterTitle(x.id))) expect(c.name).toBe(COSMETICS.find((b) => b.id === heroTitleInfo(c.id)!.baseId)!.name);
     for (const c of COSMETICS) expect(c.id, c.id).toMatch(/^[a-z][a-z0-9_]*$/);
   });

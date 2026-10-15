@@ -23,8 +23,8 @@ Equip, then start a run.
 
 Owner: *"in this folder will be where I provide all the custom backplates that you can unlock from opening chests.
 you can ignore the Gilded and Standard one ... every other one should be a legendary reward unless explicitly specified"*
-(`Reference Art/Card Backplates/`). Added **Amethyst Plate** (owner's name: "Amethyst" is taken by the Amethyst
-portrait frame), **Bamboo**, **Beach**, **Magma** and **Moonstone**, all Legendary crate items. Each starts from
+(`Reference Art/Card Backplates/`). Added **Amethyst** (its display name is shared with the Amethyst portrait frame: names are unique within a
+category, ids everywhere), **Bamboo**, **Beach**, **Magma** and **Moonstone**, all Legendary crate items. Each starts from
 Aquarium Rocks' darkening (its own copy of the shape, so any one can be retuned alone). Legendary is now 46 items, each
 9 / 46 = 0.196%. The Collection's category tabs are now four to a row (owner: "made each section wider and have 4
 sections to a row").

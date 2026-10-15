@@ -5704,7 +5704,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Card plates are a crate cosmetic in the account-wide card_plate slot; every plate is Legendary unless the owner says otherwise',
     statement:
       'The card_plate category ("Card Plates", target global, enabled) holds the plates a player can wear behind their '
-      + 'cards: Aquarium Rocks, Amethyst Plate, Bamboo, Beach, Magma and Moonstone, each a Legendary crate item (a plate from the '
+      + 'cards: Aquarium Rocks, Amethyst, Bamboo, Beach, Magma and Moonstone, each a Legendary crate item (a plate from the '
       + 'owner\x27s Card Backplates folder is Legendary unless the owner says otherwise), in the crate pool at the fixed rarity '
       + 'odds with an equal chance within its rarity. A plate is ACCOUNT-WIDE: equip_cosmetic(user, \x27card_plate\x27, \x27\x27, '
       + 'id) wears an owned, live plate (one cosmetic_loadouts row, target \x27\x27); null takes it off (the standard plates). '
@@ -5758,5 +5758,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-14.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/seatCosmetics.test.ts', 'packages/progression/src/cardPlates.test.ts'], lastVerifiedAt: '2026-10-14' },
+  },
+  {
+    id: 'R-PROG-PLATE-04',
+    title: 'A card shown bigger than a game card keeps its plate, text and darkening seated as on a game card',
+    statement:
+      'Every plated card drawn at a size other than the game\x27s own compact card (the Collection\x27s hover preview, and '
+      + 'any future enlarged surface that re-sizes the card through --ch / --cw / --ccw rather than a transform) scales '
+      + 'the plate\x27s fixed-px lift (--plate-top) by its own width over the game card\x27s width (--plate-k), so the plate, '
+      + 'the rules text and the dark backbox line up exactly as on a hand card. The enlarged Discover row does the same '
+      + 'with its fixed 1.3.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (card plates, Collection preview)', quote: 'when previewing a card, the darkening section is too high' },
+      { kind: 'fix-pr', ref: 'PR #2090 (feat/card-plate-cosmetic): packages/ui/src/progression/SkinCardPreview.tsx previewPlateK' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-15 for the Collection hover preview (it used --plate-k 1 before, so its plate sat low and the darkening read too high). The Discover row has used --plate-k 1.3 since 2026-10-12.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/skinCardPreviewPlate.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
 ];

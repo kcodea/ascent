@@ -610,7 +610,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // CARD PLATES (owner 2026-10-14): "This card plate is called Aquarium Rocks"; "aquariam rocks should be a legendary drop".
   cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'Aquarium Rocks.png'),
   // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".
-  cardPlate('plate_amethyst', 'Amethyst Plate', 'legendary', 'Amethyst.png'), // owner: "Amethyst Plate" (the Amethyst portrait frame owns "Amethyst")
+  cardPlate('plate_amethyst', 'Amethyst', 'legendary', 'Amethyst.png'), // shares its name with the Amethyst portrait frame (owner 2026-10-15)
   cardPlate('plate_bamboo', 'Bamboo', 'legendary', 'Bamboo.png'),
   cardPlate('plate_beach', 'Beach', 'legendary', 'Beach.png'),
   cardPlate('plate_magma', 'Magma', 'legendary', 'Magma.png'),

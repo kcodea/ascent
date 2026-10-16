@@ -26,3 +26,20 @@ export function formatStat(n: number): string {
   }
   return neg + String(abs);
 }
+
+/**
+ * Shrink-to-fit bucket for a stat badge's printed number (owner report 2026-10-16: "the badges got messed up for
+ * some reason when they go into the 1000's"). The badge number is a FIXED font size sized for up to three glyphs;
+ * a four-plus glyph value (`1000`, `10000`, `104k`, `999.9k`) ran wider than the badge's disc and spilled onto the
+ * frame, the portrait and the other badge. The bucket is the printed glyph count, stamped on `.value` as
+ * `data-fit`; styles.css maps each bucket to a font-scale (`--sv-fit`) so the number always sits inside the disc.
+ * Up to three glyphs returns undefined: no attribute, the authored size, unchanged.
+ */
+export type StatFit = '4' | '5' | '6' | '7';
+
+export function statFit(text: string): StatFit | undefined {
+  const n = text.length;
+  if (n <= 3) return undefined;
+  if (n >= 7) return '7';
+  return String(n) as StatFit;
+}

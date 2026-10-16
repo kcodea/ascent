@@ -114,7 +114,20 @@ export function spectatorRunOf(view: VersusSpectatorView, seat: VersusSeat, id: 
   return fight ? { ...base, lastCombat: fight } : null; // the round row is not here yet: hold the previous frame
 }
 
-const watchedLobbies = new WeakMap<NonNullable<RunState['lobby']>, { name: string; lobby: NonNullable<RunState['lobby']> }>();
+let watchedLobbies = new WeakMap<NonNullable<RunState['lobby']>, { name: string; lobby: NonNullable<RunState['lobby']> }>();
+
+/**
+ * The watched game's RECORDED SEATS just became resolvable (`live/liveWatch.ts` fetched their recordings,
+ * R-SPECTATE-SEATS-01): the lobby on screen is re-issued as a new object, so the rail (memoised on it) and the opponent
+ * preview re-read the seats' real boards. Mid-fight only the cache is dropped: the next view change re-issues it, and
+ * the fight on screen is never rebuilt under the player.
+ */
+export function refreshSpectatorSeats(): void {
+  watchedLobbies = new WeakMap();
+  if (useGame.getState().run.phase === 'combat') return;
+  last = null;
+  schedule();
+}
 /** The lobby with its own seat (`s0`) labelled by the watched player's name. */
 function watchedLobby(lobby: NonNullable<RunState['lobby']>, name: string): NonNullable<RunState['lobby']> {
   const hit = watchedLobbies.get(lobby);

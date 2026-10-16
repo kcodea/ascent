@@ -5922,6 +5922,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
   {
+    id: 'R-SPECTATE-SEATS-01',
+    title: "A live-game watcher's lobby rail reads the same recorded seats as the player's, 1:1",
+    statement:
+      "Watching a live lobby game, every recorded player seat is driven from that seat's REAL recording, exactly as on the player's client: "
+      + 'the next opponent, its board, every scout card (Shop Tier, Gilded, build, quests, runes) and the opponent preview match the '
+      + "player's screen. The watcher fetches the recordings its own pool lacks once per watch (by seed, every patch) and holds them APART "
+      + "from its opponent pool, so they never become candidates for the watcher's own table. Nothing new is sent on the game's channel and "
+      + "the player's client does no new work. If the read fails, those seats keep their recorded reads (never a generated stand-in's board).",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (rail audit call 5: watchers lacked the watched game\'s recordings)', quote: "how big of a fix is it? if it's not that hard yes fix it. spectators should get as close to 1:1 experience as a player" },
+      { kind: 'fix-pr', ref: 'PR fix/spectator-recorded-seats (2026-10-16): setWatchedSeatRuns + driverFor; liveWatch fetches the seats by seed; refreshSpectatorSeats' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts setWatchedSeatRuns / driverFor; packages/ui/src/live/liveWatch.ts watchSeatRecordings; packages/ui/src/live/liveRemote.ts seatRecordings' },
+    ],
+    currentBehaviour: "Conforms from 2026-10-16. Before, a watcher's pool (sampled for the watcher's rank) usually lacked those runs: the seats were generated stand-ins, so the next opponent's board and the scout cards could differ from the player's.",
+    example: "A Gold player watches a Bronze game: its seven recorded seats are Bronze runs the Gold pool never fetched. The watcher's rail now shows the same next opponent board and the same Shop Tier on every card as the Bronze player sees.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/watchedSeats.test.ts'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
     id: 'R-PROG-PLATE-05',
     title: 'Card plates are LAYERED: interior, then text darkening, then frame; the interior is seated on the frame and tucks under its opening',
     statement:

@@ -5,7 +5,9 @@
  */
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import type { RunCosmeticSnapshot } from '@game/progression';
+import type { BoardSnapshot } from '@game/sim';
 import { supabaseClient } from '../remoteBoards';
+import { fetchAllRows } from '../supabaseRows';
 
 /** One live game as the listing shows it (public columns only; never run state). */
 export interface LiveGameRow {
@@ -104,6 +106,18 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
       }
     },
     unwatch: (gameId: string) => rpc<void>('lobby_live_unwatch', { p_game: gameId }),
+    /**
+     * EVERY board of the runs with these seeds (R-SPECTATE-SEATS-01): the watched game's recorded seats, which the
+     * watcher's own pool (sampled for the watcher's rank) usually lacks. Every patch: the run is whatever the player's
+     * client seated. The caller keeps only the boards of the run keys it asked for.
+     */
+    async seatRecordings(seeds: number[]): Promise<BoardSnapshot[]> {
+      if (seeds.length === 0) return [];
+      const res = await fetchAllRows<{ snapshot: BoardSnapshot }>((from, to) => db().from('boards').select('snapshot')
+        .in('seed', seeds).order('id', { ascending: true }).range(from, to));
+      if (res.error || !res.data) fail(res.error);
+      return res.data.map((r) => r.snapshot).filter((s): s is BoardSnapshot => !!s);
+    },
     /** The game's broadcast channel (both ends). */
     channel(gameId: string, onBroadcast: (event: string, payload: unknown) => void): { channel: RealtimeChannel; send: (event: string, payload: unknown) => void; close: () => void } {
       const c = db();

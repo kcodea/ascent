@@ -13,7 +13,7 @@ import { createRun, type RunState, type PracticeConfig } from '../state';
 import { normalizePracticeTribes } from '../practiceTribes';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
-import { MAX_SEATS_PER_PLAYER, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat, type PlayerRun } from './snapshotSeats';
 import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
@@ -311,6 +311,28 @@ export function warmLobbySeat(lobby: RunLobby, index: number): void {
   if (!d.prepare(lobby.round)) d.finalBoard?.();
 }
 
+/**
+ * A LIVE-GAME WATCHER'S RECORDINGS (owner 2026-10-16: "spectators should get as close to 1:1 experience as a player",
+ * R-SPECTATE-SEATS-01). A watcher's own opponent pool was sampled for the WATCHER's rank, so it rarely holds the
+ * recorded runs seated in the game being watched, and those seats fell back to generated stand-ins: a different next
+ * opponent board, scout cards from the last settle. The watcher fetches exactly those runs (by run key) and hands them
+ * here; `driverFor` serves a snapshot seat from them first, so the watcher's rail, scout cards and opponent preview
+ * read the very boards the player's client reads.
+ *
+ * Kept APART from the opponent pool on purpose: these runs were drawn for someone else's band, and registering them
+ * would make them candidates for the watcher's own next table (R-PRACTICE-RANK-01). Only `driverFor` reads this, and
+ * only for a seat that names the run. Returns the keys now held. `null` clears (leaving the game).
+ */
+const WATCHED_RUNS = new Map<string, PlayerRun>();
+export function setWatchedSeatRuns(boards: readonly BoardSnapshot[] | null): string[] {
+  WATCHED_RUNS.clear();
+  // The same grouping and completeness checks the pool applies (`playerRunsFrom`): a cut-down recording never drives.
+  for (const run of boards ? playerRunsFrom(boards, MIN_RUN_WAVES) : []) WATCHED_RUNS.set(run.key, run);
+  return [...WATCHED_RUNS.keys()];
+}
+/** Is this run held for a watched game (`setWatchedSeatRuns`)? */
+export const hasWatchedSeatRun = (key: string): boolean => WATCHED_RUNS.has(key);
+
 export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | null {
   if (seat.kind === 'player') return null; // the live run supplies the player's board
   const key = driverKey(seat);
@@ -324,7 +346,7 @@ export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | nul
       // A restored lobby can land in a session whose pool doesn't hold that run (different device, pruned
       // patch, backend offline). Falling back to a bot keeps the table full instead of silently dropping a
       // seat and changing the shape of someone's saved game.
-      const run = seat.runKey ? playerRunByKey(seat.runKey, undefined, setId) : null;
+      const run = seat.runKey ? (WATCHED_RUNS.get(seat.runKey) ?? playerRunByKey(seat.runKey, undefined, setId)) : null;
       d = run ? snapshotSeat(run, seat.policy) : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
     } else {
       d = seat.kind === 'bot'
